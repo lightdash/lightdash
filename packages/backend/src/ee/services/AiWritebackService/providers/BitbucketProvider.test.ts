@@ -138,6 +138,7 @@ const writeArgs = (sandbox: ReturnType<typeof sandboxFixture>) => ({
     description: 'Adds revenue.',
     setStage: vi.fn(),
     onRemoteCommitted: vi.fn().mockResolvedValue(undefined),
+    assertStagedChangesAllowed: null,
 });
 
 afterEach(() => vi.restoreAllMocks());
@@ -340,6 +341,46 @@ describe('Bitbucket project authentication', () => {
 });
 
 describe('Bitbucket PR lifecycle', () => {
+    it.each(['open', 'update'] as const)(
+        'resolves and stages project paths before committing for %s',
+        async (action) => {
+            vi.spyOn(BitbucketClient, 'createPullRequest').mockResolvedValue(
+                pullRequest,
+            );
+            vi.spyOn(BitbucketClient, 'updatePullRequest').mockResolvedValue(
+                pullRequest,
+            );
+            vi.spyOn(BitbucketClient, 'getPullRequest').mockResolvedValue(
+                pullRequest,
+            );
+            const sandbox = { ...sandboxFixture(), files: { read: vi.fn() } };
+            if (action === 'update')
+                sandbox.git.status.mockResolvedValue({
+                    currentBranch: pullRequest.head,
+                });
+            const args = {
+                ...writeArgs(sandbox),
+                connection: { ...connection, projectSubPath: 'analytics/dbt' },
+            };
+            const { provider } = setup();
+            if (action === 'open') await provider.openPullRequest(args);
+            else
+                await provider.updatePullRequest({
+                    ...args,
+                    prUrl: 'https://bitbucket.org/workspace/analytics/pull-requests/42',
+                });
+            expect(sandbox.git.add).toHaveBeenCalledExactlyOnceWith(
+                '/home/user/repo',
+                { files: ['analytics/dbt'] },
+            );
+            expect(sandbox.files.read).toHaveBeenCalledWith(
+                '/home/user/repo/analytics/dbt/target/manifest.json',
+            );
+            expect(sandbox.git.commit).toHaveBeenCalledOnce();
+            expect(sandbox.git.push).toHaveBeenCalledOnce();
+        },
+    );
+
     it('stages only the native project directory without reading a dbt manifest', async () => {
         vi.spyOn(BitbucketClient, 'createPullRequest').mockResolvedValue(
             pullRequest,

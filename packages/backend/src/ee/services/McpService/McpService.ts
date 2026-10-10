@@ -140,6 +140,7 @@ import {
     LightdashAnalytics,
     McpToolCallEvent,
 } from '../../../analytics/LightdashAnalytics';
+import { mcpAgentPermissionsApply } from '../../../auth/agentPermissions/caller';
 import {
     assertOAuthMcpToolAllowed,
     isMcpToolAllowed,
@@ -1565,7 +1566,7 @@ export class McpService extends BaseService {
             async (args, extra) => {
                 const ctx = getMcpContext(extra);
 
-                const { user } = McpService.getAccount(ctx);
+                const { user, account } = McpService.getAccount(ctx);
                 const projectUuid = await this.resolveToolProjectUuid(
                     ctx,
                     args.projectUuid,
@@ -1578,6 +1579,9 @@ export class McpService extends BaseService {
                             projectUuid,
                             prompt: args.prompt,
                             source: 'mcp',
+                            agentPermissionsApply: mcpAgentPermissionsApply(
+                                account.authentication.type,
+                            ),
                         });
 
                     // Server-directed task augmentation (MCP Tasks extension):
@@ -5502,10 +5506,7 @@ export class McpService extends BaseService {
         toolArgs: unknown,
     ): Promise<void> {
         const authentication = context.authInfo?.extra.account?.authentication;
-        if (
-            authentication?.type !== 'oauth' &&
-            authentication?.type !== 'session'
-        ) {
+        if (!mcpAgentPermissionsApply(authentication?.type)) {
             return;
         }
         const { account, organizationUuid } = McpService.getAccount(context);

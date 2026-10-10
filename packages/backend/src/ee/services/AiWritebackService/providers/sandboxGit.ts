@@ -1,10 +1,11 @@
+import { PullRequestProvider } from '@lightdash/common';
 import * as yaml from 'js-yaml';
 import type { Logger } from 'winston';
 import type { GithubFileChanges } from '../../../../clients/github/Github';
 import type { SandboxHandle } from '../../SandboxRuntime';
 import { CWD } from '../constants';
 import { DeniedPathError, findDeniedCommitPaths } from '../deniedPaths';
-import type { GitCommitAuthor } from '../types';
+import type { GitCommitAuthor, GitConnection } from '../types';
 import { parseGitNameStatus, quoteShellArgument } from '../utils';
 
 // Default dbt package install directory, relative to the project dir. Overridable
@@ -202,6 +203,23 @@ export const stageChanges = async (
     );
 };
 
+export const resolveConnectionPaths = async (
+    sandbox: SandboxHandle,
+    connection: GitConnection,
+    logger: Logger,
+): Promise<string[]> =>
+    connection.provider !== PullRequestProvider.GITLAB &&
+    connection.semanticLayer === 'lightdash'
+        ? [connection.projectSubPath]
+        : resolveDbtProjectPaths(sandbox, connection.projectSubPath, logger);
+
+export const readStagedChanges = async (sandbox: SandboxHandle) => {
+    const { stdout, exitCode } = await sandbox.commands.run(
+        `git -C ${CWD} diff --cached --name-status --no-renames -z`,
+    );
+    return { ...parseGitNameStatus(stdout), exitCode };
+};
+
 /**
  * Read the staged changes out of the sandbox as a set of file additions and
  * deletions for a GitHub API commit. `-z` keeps paths NUL-separated so paths
@@ -212,10 +230,7 @@ export const stageChanges = async (
 export const collectFileChanges = async (
     sandbox: SandboxHandle,
 ): Promise<GithubFileChanges> => {
-    const { stdout } = await sandbox.commands.run(
-        `git -C ${CWD} diff --cached --name-status --no-renames -z`,
-    );
-    const { addPaths, deletions } = parseGitNameStatus(stdout);
+    const { addPaths, deletions } = await readStagedChanges(sandbox);
     // Host-side denied-path gate: reject the whole commit (no PR) if any staged
     // path is a secret or CI/workflow file. The
     // agent has no Bash and commits via the host, so this is the enforceable
@@ -248,10 +263,7 @@ export const collectFileChanges = async (
 export const assertStagedPathsAllowed = async (
     sandbox: SandboxHandle,
 ): Promise<void> => {
-    const { stdout } = await sandbox.commands.run(
-        `git -C ${CWD} diff --cached --name-status --no-renames -z`,
-    );
-    const { addPaths, deletions } = parseGitNameStatus(stdout);
+    const { addPaths, deletions } = await readStagedChanges(sandbox);
     const denied = findDeniedCommitPaths([
         ...addPaths,
         ...deletions.map((deletion) => deletion.path),

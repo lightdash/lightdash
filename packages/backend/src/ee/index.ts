@@ -448,6 +448,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 clients,
             }) =>
                 new AiWritebackService({
+                    agentPermissionService:
+                        repository.getAgentPermissionService(),
                     agentActionLogModel: models.getAgentActionLogModel(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,

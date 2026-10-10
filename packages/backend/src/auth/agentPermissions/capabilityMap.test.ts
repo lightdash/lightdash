@@ -21,6 +21,7 @@ import {
     McpToolName,
 } from '../../ee/services/McpService/McpService';
 import { makeMcpServerOptions } from '../../ee/services/McpService/McpService.mock';
+import { evaluate } from '../../services/AgentPermissionService/AgentPermissionService';
 import { OAUTH_CASL_CHECKED_ROUTES } from '../oauthScopes/caslCheckedRoutes';
 import { MCP_TOOL_SCOPE_MAP } from '../oauthScopes/mcpTools';
 import {
@@ -32,6 +33,7 @@ import {
 import { OAUTH_UNCHECKED_OPERATIONS } from '../oauthScopes/unchecked';
 import {
     AGENT_TOOL_CAPABILITIES,
+    AGENT_TOOL_EFFECT_CAPABILITIES,
     getConnectedMcpToolCapabilities,
     getRequiredAgentCapabilities,
     MCP_TOOL_CAPABILITIES,
@@ -343,6 +345,7 @@ it.each([
     ['mcp', MCP_TOOL_CAPABILITIES],
     ['agent', AGENT_TOOL_CAPABILITIES],
     ['rest', REST_OPERATION_CAPABILITIES],
+    ['tool_effect', AGENT_TOOL_EFFECT_CAPABILITIES],
 ] as const)('keeps every %s requirement non-empty and valid', (kind, map) => {
     const known = new Set(Object.values(AgentCapability));
     const capabilitiesByName: Readonly<
@@ -358,7 +361,7 @@ it.each([
     }
 });
 
-it.each(['mcp', 'agent', 'rest'] as const)(
+it.each(['mcp', 'agent', 'rest', 'tool_effect'] as const)(
     'returns null for unknown %s keys, including prototype properties',
     (kind) => {
         for (const key of [
@@ -436,6 +439,14 @@ const humanOnlyReadExceptions: Record<string, string> = {
         'Reads or validates settings without changing grants or credentials.',
     'AiServiceAccountController.get':
         'Reads or validates settings without changing grants or credentials.',
+    'FeatureFlagController.getFeatureFlag':
+        'Reads feature flags without changing their overrides.',
+    'FeatureFlagController.listFeatureFlags':
+        'Lists feature flags without changing their overrides.',
+    'GoogleDriveController.post':
+        'Exports content to Sheets without returning a credential.',
+    'GoogleDriveController.postFromRows':
+        'Exports rows to Sheets without returning a credential.',
     'AiServiceAccountController.test':
         'Reads or validates settings without changing grants or credentials.',
     'CustomRolesController.getOrganizationRoleAssignees':
@@ -486,7 +497,7 @@ const humanOnlyReadExceptions: Record<string, string> = {
 
 it('covers every role, membership and token controller operation with a human-only rule or a reviewed exception', () => {
     const families =
-        /^(?:InviteLinks|CustomRoles|OrganizationRoles|ProjectRoles|Roles|Groups|DirectAccess|ServiceAccounts|ScimOrganizationAccessToken|AgentPermission|OrganizationAgentIdentity|AiServiceAccount)Controller\./;
+        /^(?:FeatureFlag|GoogleDrive|InviteLinks|CustomRoles|OrganizationRoles|ProjectRoles|Roles|Groups|DirectAccess|ServiceAccounts|ScimOrganizationAccessToken|AgentPermission|OrganizationAgentIdentity|AiServiceAccount)Controller\./;
     const operations = Object.keys(REST_OPERATION_CAPABILITIES).filter((key) =>
         families.test(key),
     );
@@ -505,3 +516,146 @@ it('covers every role, membership and token controller operation with a human-on
     for (const key of HUMAN_ONLY_IN_MANAGED)
         expect(Object.hasOwn(REST_OPERATION_CAPABILITIES, key)).toBe(true);
 });
+
+it('keeps reviewed tool effects separate from registered tools', () => {
+    expect(Object.keys(AGENT_TOOL_EFFECT_CAPABILITIES).sort()).toEqual([
+        'createContent.sql_chart',
+        'editContent.sql_chart',
+        'editRepo.delete_file',
+    ]);
+});
+
+const compositeFixtures = [
+    [
+        'mcp',
+        'create_scheduled_delivery',
+        [AgentCapability.ContentWrite, AgentCapability.Publish],
+    ],
+    [
+        'agent',
+        'createScheduledDelivery',
+        [AgentCapability.ContentWrite, AgentCapability.Publish],
+    ],
+    [
+        'rest',
+        'SchedulerController.patch',
+        [AgentCapability.ContentWrite, AgentCapability.Publish],
+    ],
+    [
+        'rest',
+        'ProjectCoderController.upsertGoogleSheetsSyncAsCode',
+        [AgentCapability.ContentWrite, AgentCapability.Publish],
+    ],
+    [
+        'rest',
+        'ProjectCoderController.legacyUpsertGoogleSheetsSyncAsCode',
+        [AgentCapability.ContentWrite, AgentCapability.Publish],
+    ],
+    [
+        'rest',
+        'QueryController.executeAsyncDashboardSqlChartQuery',
+        [AgentCapability.Query, AgentCapability.RawSql],
+    ],
+    [
+        'rest',
+        'SqlRunnerController.getSavedSqlResultsJob',
+        [AgentCapability.Query, AgentCapability.RawSql],
+    ],
+    [
+        'rest',
+        'SqlRunnerController.createSqlChart',
+        [AgentCapability.RawSql, AgentCapability.ContentWrite],
+    ],
+    [
+        'rest',
+        'SqlRunnerController.updateSqlChart',
+        [AgentCapability.RawSql, AgentCapability.ContentWrite],
+    ],
+    [
+        'tool_effect',
+        'createContent.sql_chart',
+        [AgentCapability.ContentWrite, AgentCapability.RawSql],
+    ],
+    [
+        'tool_effect',
+        'editContent.sql_chart',
+        [AgentCapability.ContentWrite, AgentCapability.RawSql],
+    ],
+    [
+        'rest',
+        'GitFilesController.deleteFile',
+        [AgentCapability.Delete, AgentCapability.DbtWriteback],
+    ],
+    [
+        'tool_effect',
+        'editRepo.delete_file',
+        [AgentCapability.Delete, AgentCapability.DbtWriteback],
+    ],
+    [
+        'rest',
+        'ProjectCoderController.pullContentAsCodeFromGit',
+        [AgentCapability.DbtWriteback, AgentCapability.ContentWrite],
+    ],
+    [
+        'agent',
+        'setupPreviewDeploy',
+        [AgentCapability.DeployUpload, AgentCapability.DbtWriteback],
+    ],
+] as const;
+
+it.each(compositeFixtures)(
+    '%s %s requires every reviewed capability',
+    (kind, key, expected) => {
+        const requiredCapabilities = getRequiredAgentCapabilities(kind, key);
+        expect(requiredCapabilities).toEqual(expected);
+        const policy = {
+            mode: 'managed' as const,
+            capabilities: new Set<AgentCapability>(expected),
+            allowedProjectUuids: null,
+            allowedUserUuids: null,
+            version: 1,
+            editableCustomRoleUuid: null,
+        };
+        const operation = {
+            requiredCapabilities,
+            projectUuid: 'project',
+            mcpAgentsEnabled: true,
+            mcpContentWritesEnabled: true,
+            warehouseConfirmed: true,
+            isOrganizationDiscovery: false,
+        };
+        expect(evaluate(policy, operation)).toBeNull();
+        for (const missing of expected) {
+            expect(
+                evaluate(
+                    {
+                        ...policy,
+                        capabilities: new Set(
+                            expected.filter(
+                                (capability) => capability !== missing,
+                            ),
+                        ),
+                    },
+                    operation,
+                ),
+            ).toMatchObject({
+                capability: missing,
+                policyLayer: 'org_ceiling',
+            });
+        }
+    },
+);
+
+it.each([
+    'FeatureFlagController.setFeatureFlagOverride',
+    'FeatureFlagController.deleteFeatureFlagOverride',
+    'GoogleDriveController.get',
+    'AiAgentAdminController.upsertSettings',
+])(
+    'records the reviewed human-only operation %s in the OAuth inventory',
+    (key) => {
+        expect(HUMAN_ONLY_IN_MANAGED.has(key)).toBe(true);
+        expect(Object.hasOwn(REST_OPERATION_CAPABILITIES, key)).toBe(true);
+        expect(routes.some((route) => route.id === key)).toBe(true);
+    },
+);

@@ -380,6 +380,7 @@ export type GithubIdentity = {
 };
 
 export type AiWritebackRunArgs = {
+    agentPermissionsApply: boolean;
     user: SessionUser;
     projectUuid: string;
     /**

@@ -181,9 +181,13 @@ describe.each([
         const { run, assertOperation } = setup();
         const error = await run(middleware);
         expect(error).toBeInstanceOf(AiAccessRefusedError);
+        const message =
+            "Your organization's agent permissions do not allow Create and edit content. Ask an admin to change Permissions on the Agents page.";
         expect(errorHandler(error as Error)).toMatchObject({
             statusCode: 403,
+            message,
             data: {
+                message,
                 reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
                 capability: AgentCapability.ContentWrite,
                 operation: 'ProjectController.createDashboard',

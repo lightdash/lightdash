@@ -122,6 +122,7 @@ export type AppCaptureThumbnailJobPayload = TraceTaskBase & {
 };
 
 export type AiWritebackPipelineJobPayload = TraceTaskBase & {
+    agentPermissionsApply?: boolean;
     aiWritebackRunUuid: string;
     prompt: string;
     aiThreadUuid?: string;

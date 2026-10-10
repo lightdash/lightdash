@@ -14,7 +14,8 @@ _Avoid_: AI principal, agent connections, execution identity (in copy)
 
 **Permissions**:
 What agents may do, whoever they run as. The second section of the org
-**Agents** page, with a "Limit what agents can do" switch.
+**Agents** page, with a "Limit what agents can do" switch. The capability
+contract is in [agent-permissions.md](./agent-permissions.md).
 _Avoid_: ceiling, managed mode (in copy)
 
 **Who can use agents**:

@@ -231,6 +231,49 @@ describe('McpService AI writeback MCP tasks', () => {
     });
 
     describe('run_ai_writeback task augmentation', () => {
+        it.each(['pat', 'oauth', 'session'] as const)(
+            'carries %s permission applicability into writeback jobs',
+            async (type) => {
+                const enqueueWriteback = vi.fn().mockResolvedValue({
+                    aiWritebackRunUuid: runUuid,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                });
+                await createServerWithWriteback({ enqueueWriteback });
+                const extra = makeExtra();
+                const result = await mockRegisteredMcpTools.get(
+                    McpToolName.RUN_AI_WRITEBACK,
+                )!(
+                    { prompt: 'add a metric', projectUuid },
+                    {
+                        ...extra,
+                        authInfo: {
+                            extra: {
+                                ...extra.authInfo.extra,
+                                account: {
+                                    ...account,
+                                    authentication: { type },
+                                },
+                                getAgentPermissionService: () => ({
+                                    isManaged: vi.fn().mockResolvedValue(true),
+                                    assertOperation: vi
+                                        .fn()
+                                        .mockResolvedValue(undefined),
+                                }),
+                            },
+                        },
+                    },
+                );
+                expect(result.isError).not.toBe(true);
+                expect(enqueueWriteback).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        source: 'mcp',
+                        agentPermissionsApply: type !== 'pat',
+                    }),
+                );
+            },
+        );
+
         it('returns the legacy uuid response when the client did not opt in', async () => {
             const enqueueWriteback = vi.fn().mockResolvedValue({
                 aiWritebackRunUuid: runUuid,

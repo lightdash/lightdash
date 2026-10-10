@@ -1,12 +1,16 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     AgentActorSurface,
+    AgentCapability,
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
     AnyType,
     DbtProjectType,
     DbtVersionOptionLatest,
     DEFAULT_PROJECT_DBT_SOURCE_NAME,
     FeatureFlags,
     ForbiddenError,
+    getAgentCapabilityRefusalMessage,
     getLatestSupportDbtVersion,
     ParameterError,
     PullRequestProvider,
@@ -21,6 +25,7 @@ import {
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import * as BitbucketClient from '../../../clients/bitbucket/Bitbucket';
 import {
+    createBranch,
     createPullRequest,
     createSignedCommitOnBranch,
     getAppBotIdentity,
@@ -38,6 +43,7 @@ import {
 } from '../../../clients/github/Github';
 import * as GitlabClient from '../../../clients/gitlab/Gitlab';
 import Logger from '../../../logging/logger';
+import { evaluate as evaluateAgentPolicy } from '../../../services/AgentPermissionService/AgentPermissionService';
 import {
     agentActionTestCases,
     withAgentActionScope,
@@ -75,6 +81,8 @@ import {
     WritebackThreadPrClosedError,
 } from './errors';
 import { BitbucketProvider } from './providers/BitbucketProvider';
+import { GithubProvider } from './providers/GithubProvider';
+import { GitlabProvider } from './providers/GitlabProvider';
 import type { GitProvider, OpenPullRequestArgs } from './providers/GitProvider';
 import type { GitConnection, GitInstallation } from './types';
 
@@ -149,6 +157,10 @@ const LANDED = { commitSha: 'sha-7', additions: 5, deletions: 2 };
 const buildService = (overrides: Record<string, AnyType> = {}) => {
     const { projectModel: projectModelOverride, ...otherOverrides } = overrides;
     return new AiWritebackService({
+        agentPermissionService: {
+            isManaged: vi.fn().mockResolvedValue(false),
+            assertOperation: vi.fn().mockResolvedValue(undefined),
+        },
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         lightdashConfig: { gitlab: {} } as AnyType,
         analytics: { track: vi.fn() } as AnyType,
@@ -1416,6 +1428,7 @@ describe('AiWritebackService dbt source targeting', () => {
         } as AnyType;
 
         const result = await service.run({
+            agentPermissionsApply: false,
             user,
             projectUuid: 'p1',
             prompt: 'add a new metric',
@@ -1475,6 +1488,7 @@ describe('AiWritebackService dbt source targeting', () => {
         // the run must already have been moved off 'pending' by that point so the
         // stale sweeper treats it as a worker's, not a queued one's.
         await service.run({
+            agentPermissionsApply: false,
             user,
             projectUuid: 'p1',
             prompt: 'add a metric',
@@ -1496,6 +1510,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         return {
             userUuid: 'u1',
             organizationUuid: ORG,
+            abilityRules: [],
             organizationName: 'Acme',
             organizationCreatedAt: new Date(),
             role: 'admin',
@@ -1637,6 +1652,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             projectUuid: 'p1',
             prompt: 'add a revenue metric',
             source: 'web',
+            agentPermissionsApply: true,
             ...extraRunArgs,
         });
     };
@@ -1855,6 +1871,1073 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             expect(sandbox.files.write).not.toHaveBeenCalled();
             expect(fakeSandboxProvider.destroy).toHaveBeenCalledTimes(1);
             expect(createPullRequest).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([
+        {
+            agentPermissionsApply: true,
+            source: 'mcp',
+            change: 'deleted',
+            diff: 'D\0models/old.sql\0',
+            mode: 'managed',
+            capabilities: [AgentCapability.DbtWriteback],
+            denied: true,
+        },
+        {
+            agentPermissionsApply: true,
+            source: 'mcp',
+            change: 'deleted',
+            diff: 'D\0models/old.sql\0',
+            mode: 'managed',
+            capabilities: [
+                AgentCapability.Delete,
+                AgentCapability.DbtWriteback,
+            ],
+            denied: false,
+        },
+        {
+            agentPermissionsApply: true,
+            source: 'mcp',
+            change: 'deleted without dbt',
+            diff: 'D\0models/old.sql\0',
+            mode: 'managed',
+            capabilities: [AgentCapability.Delete],
+            denied: true,
+        },
+        {
+            agentPermissionsApply: true,
+            source: 'mcp',
+            change: 'modified/added',
+            diff: 'M\0models/old.sql\0A\0models/new.sql\0',
+            mode: 'managed',
+            capabilities: [AgentCapability.DbtWriteback],
+            denied: false,
+        },
+        {
+            agentPermissionsApply: true,
+            source: 'mcp',
+            change: 'renamed',
+            diff: 'D\0models/old.sql\0A\0models/new.sql\0',
+            mode: 'managed',
+            capabilities: [AgentCapability.DbtWriteback],
+            denied: true,
+        },
+        {
+            agentPermissionsApply: true,
+            source: 'mcp',
+            change: 'deleted',
+            diff: 'D\0models/old.sql\0',
+            mode: 'legacy',
+            capabilities: [],
+            denied: false,
+        },
+        {
+            agentPermissionsApply: true,
+            source: 'mcp',
+            change: 'deleted',
+            diff: 'D\0models/old.sql\0',
+            mode: 'off',
+            capabilities: [],
+            denied: false,
+        },
+        {
+            agentPermissionsApply: false,
+            source: 'mcp',
+            change: 'deleted by MCP PAT',
+            diff: 'D\0models/old.sql\0',
+            mode: 'managed',
+            capabilities: [AgentCapability.DbtWriteback],
+            denied: false,
+        },
+        {
+            agentPermissionsApply: false,
+            source: 'changeset',
+            change: 'deleted by changeset',
+            diff: 'D\0models/old.sql\0',
+            mode: 'managed',
+            capabilities: [],
+            denied: false,
+        },
+    ] as const)(
+        '$mode $change checks Delete + dbt before commits (denied=$denied)',
+        async ({
+            diff,
+            mode,
+            capabilities,
+            denied,
+            agentPermissionsApply,
+            source,
+        }) => {
+            const sandbox = fakeSandbox(0, true);
+            fakeSandboxProvider.create.mockResolvedValue(sandbox);
+            const runCommand = sandbox.commands.run.getMockImplementation();
+            const inspect = vi
+                .fn()
+                .mockResolvedValue({ exitCode: 0, stdout: diff });
+            sandbox.commands.run.mockImplementation(
+                (command: string, options: unknown) =>
+                    command.includes(
+                        'diff --cached --name-status --no-renames -z',
+                    )
+                        ? inspect(command)
+                        : runCommand(command, options),
+            );
+            const assertOperation = vi.fn(
+                async (operation: { kind: string; key: string }) => {
+                    expect(operation).toMatchObject({
+                        kind: 'tool_effect',
+                        key: 'editRepo.delete_file',
+                        organizationUuid: ORG,
+                        projectUuid: 'p1',
+                        account: { user: { id: 'u1' } },
+                    });
+                    const denial = evaluateAgentPolicy(
+                        {
+                            mode,
+                            capabilities: new Set(capabilities),
+                            allowedProjectUuids: null,
+                            allowedUserUuids: null,
+                            version: 1,
+                            editableCustomRoleUuid: null,
+                        },
+                        {
+                            requiredCapabilities: [
+                                AgentCapability.Delete,
+                                AgentCapability.DbtWriteback,
+                            ],
+                            projectUuid: 'p1',
+                            mcpAgentsEnabled: true,
+                            mcpContentWritesEnabled: false,
+                            warehouseConfirmed: false,
+                            isOrganizationDiscovery: false,
+                        },
+                    );
+                    if (denial)
+                        throw new AiAccessRefusedError(denial.reason, {
+                            ...denial,
+                            message: getAgentCapabilityRefusalMessage(
+                                denial.reason,
+                                denial.policyLayer,
+                                denial.capability,
+                            ),
+                            operation: operation.key,
+                        });
+                },
+            );
+            const markError = vi.fn().mockResolvedValue(true);
+            const claimForFinalize = vi.fn().mockResolvedValue(true);
+            const isManaged = vi.fn().mockResolvedValue(mode === 'managed');
+            const result = runService(
+                sandbox,
+                { aiWritebackRunUuid: 'run-1', agentPermissionsApply, source },
+                {
+                    agentPermissionService: {
+                        isManaged,
+                        assertOperation,
+                    },
+                    aiWritebackRunModel: {
+                        updateStageIfInProgress: vi
+                            .fn()
+                            .mockResolvedValue(true),
+                        updateStage: vi.fn().mockResolvedValue(undefined),
+                        markError,
+                        markReady: vi.fn().mockResolvedValue(true),
+                        claimForFinalize,
+                        recordRemoteCommitted: vi.fn().mockResolvedValue(true),
+                    },
+                },
+            );
+            if (denied) {
+                await expect(result).rejects.toMatchObject({
+                    refusal: {
+                        reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                        policyLayer: 'org_ceiling',
+                        operation: 'editRepo.delete_file',
+                    },
+                });
+                expect(markError).toHaveBeenCalledWith(
+                    'run-1',
+                    expect.stringContaining(
+                        "Your organization's agent permissions do not allow",
+                    ),
+                );
+                expect(claimForFinalize).toHaveBeenCalledOnce();
+                expect(createBranch).not.toHaveBeenCalled();
+                expect(sandbox.git.commit).not.toHaveBeenCalled();
+                expect(createSignedCommitOnBranch).not.toHaveBeenCalled();
+                expect(createPullRequest).not.toHaveBeenCalled();
+                expect(updatePullRequest).not.toHaveBeenCalled();
+                expect(
+                    sandbox.commands.run.mock.calls
+                        .map(([command]: [string]) => command)
+                        .join('\n'),
+                ).not.toMatch(/git push/);
+            } else {
+                await expect(result).resolves.toMatchObject({ prUrl: PR_7 });
+                expect(
+                    createSignedCommitOnBranch,
+                ).toHaveBeenCalledExactlyOnceWith(
+                    expect.objectContaining({
+                        fileChanges: expect.objectContaining({
+                            deletions: diff.startsWith('D')
+                                ? [{ path: 'models/old.sql' }]
+                                : [],
+                        }),
+                    }),
+                );
+                expect(createBranch).toHaveBeenCalledOnce();
+                if (mode === 'managed' && agentPermissionsApply) {
+                    expect(
+                        sandbox.git.add.mock.invocationCallOrder[0],
+                    ).toBeLessThan(
+                        vi.mocked(createBranch).mock.invocationCallOrder[0],
+                    );
+                } else {
+                    expect(
+                        vi.mocked(createBranch).mock.invocationCallOrder[0],
+                    ).toBeLessThan(sandbox.git.add.mock.invocationCallOrder[0]);
+                }
+            }
+            expect(inspect).toHaveBeenCalledTimes(
+                mode === 'managed' && agentPermissionsApply && !denied ? 2 : 1,
+            );
+            expect(assertOperation).toHaveBeenCalledTimes(
+                mode === 'managed' &&
+                    agentPermissionsApply &&
+                    diff.startsWith('D')
+                    ? 1
+                    : 0,
+            );
+            expect(isManaged).toHaveBeenCalledTimes(
+                agentPermissionsApply ? 1 : 0,
+            );
+            if (agentPermissionsApply)
+                expect(isManaged.mock.invocationCallOrder[0]).toBeLessThan(
+                    claimForFinalize.mock.invocationCallOrder[0],
+                );
+            expect(
+                sandbox.commands.run.mock.calls.filter(([command]: [string]) =>
+                    command.includes('--name-status'),
+                ),
+            ).toHaveLength(
+                mode === 'managed' && agentPermissionsApply && !denied ? 2 : 1,
+            );
+            expect(sandbox.git.add).toHaveBeenCalledOnce();
+            expect(
+                sandbox.commands.run.mock.calls.filter(([command]: [string]) =>
+                    command.includes('diff HEAD --name-status'),
+                ),
+            ).toHaveLength(0);
+            expect(fakeSandboxProvider.destroy).toHaveBeenCalledOnce();
+        },
+    );
+
+    it.each([
+        {
+            change: 'out-of-scope deletion',
+            deletedPath: 'README.md',
+            renamed: false,
+            general: false,
+            denied: false,
+        },
+        {
+            change: 'out-of-scope deletion with a quoted project path',
+            deletedPath: 'README.md',
+            renamed: false,
+            general: false,
+            denied: false,
+            projectPath: "analytics team's/dbt",
+        },
+        {
+            change: 'cached in-scope deletion restored by staging',
+            deletedPath: 'README.md',
+            renamed: false,
+            general: false,
+            denied: false,
+            restoredCachedDeletion: true,
+        },
+        {
+            change: 'in-scope deletion',
+            deletedPath: 'analytics/dbt/models/old.sql',
+            renamed: false,
+            general: false,
+            denied: true,
+        },
+        {
+            change: 'in-scope rename',
+            deletedPath: 'analytics/dbt/models/old.sql',
+            renamed: true,
+            general: false,
+            denied: true,
+        },
+        {
+            change: 'general repository deletion',
+            deletedPath: 'README.md',
+            renamed: false,
+            general: true,
+            denied: true,
+        },
+    ])(
+        'checks the committed scope for $change',
+        async ({
+            deletedPath,
+            renamed,
+            general,
+            denied,
+            projectPath = 'analytics/dbt',
+            restoredCachedDeletion = false,
+        }) => {
+            const sandbox = fakeSandbox(0, true);
+            fakeSandboxProvider.create.mockResolvedValue(sandbox);
+            const changes = [
+                { status: 'D', path: deletedPath },
+                { status: 'M', path: `${projectPath}/models/current.sql` },
+                ...(renamed
+                    ? [{ status: 'A', path: 'analytics/dbt/models/new.sql' }]
+                    : []),
+            ];
+            let staged = restoredCachedDeletion
+                ? `D\0${projectPath}/models/current.sql\0`
+                : '';
+            sandbox.git.add.mockImplementation(
+                async (
+                    _cwd: string,
+                    options: { all?: boolean; files?: string[] },
+                ) => {
+                    staged = changes
+                        .filter(
+                            ({ path }) =>
+                                options.all ||
+                                options.files?.some(
+                                    (scope) =>
+                                        path === scope ||
+                                        path.startsWith(`${scope}/`),
+                                ),
+                        )
+                        .map(({ status, path }) => `${status}\0${path}\0`)
+                        .join('');
+                },
+            );
+            const runCommand = sandbox.commands.run.getMockImplementation();
+            const inspect = vi.fn(async (command: string) => {
+                expect(command).toBe(
+                    'git -C /home/user/repo diff --cached --name-status --no-renames -z',
+                );
+                expect(sandbox.git.add).toHaveBeenCalledOnce();
+                return { exitCode: 0, stdout: staged };
+            });
+            sandbox.commands.run.mockImplementation(
+                (command: string, options: unknown) => {
+                    if (
+                        command.includes(
+                            'diff --cached --name-status --no-renames -z',
+                        )
+                    )
+                        return inspect(command);
+                    return runCommand(command, options);
+                },
+            );
+            const refusal = new AiAccessRefusedError(
+                AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                {
+                    policyLayer: 'org_ceiling',
+                    capability: AgentCapability.Delete,
+                    message: 'Delete is required',
+                    operation: 'editRepo.delete_file',
+                },
+            );
+            const assertOperation = vi.fn().mockRejectedValue(refusal);
+            const claimForFinalize = vi.fn().mockResolvedValue(true);
+            const markError = vi.fn().mockResolvedValue(true);
+            vi.mocked(listReposAccessibleToInstallation).mockResolvedValue([
+                { owner: 'acme', repo: 'analytics' },
+            ] as AnyType);
+            vi.mocked(getRepoMetadata).mockResolvedValue({
+                defaultBranch: 'main',
+                sizeKb: 1,
+            } as AnyType);
+            const result = runService(
+                sandbox,
+                {
+                    aiWritebackRunUuid: 'run-1',
+                    ...(general ? { repoTarget: 'acme/analytics' } : {}),
+                },
+                {
+                    projectModel: {
+                        get: vi.fn().mockResolvedValue({
+                            organizationUuid: ORG,
+                            projectUuid: 'p1',
+                            name: 'Analytics',
+                            dbtConnection: {
+                                type: DbtProjectType.GITHUB,
+                                authorization_method: 'installation_id',
+                                repository: 'acme/analytics',
+                                branch: 'main',
+                                project_sub_path: projectPath,
+                            },
+                            warehouseConnection: null,
+                            dbtVersion: SupportedDbtVersions.V1_9,
+                        }),
+                    },
+                    agentPermissionService: {
+                        isManaged: vi.fn().mockResolvedValue(true),
+                        assertOperation,
+                    },
+                    aiWritebackRunModel: {
+                        updateStageIfInProgress: vi
+                            .fn()
+                            .mockResolvedValue(true),
+                        updateStage: vi.fn().mockResolvedValue(undefined),
+                        markError,
+                        markReady: vi.fn().mockResolvedValue(true),
+                        claimForFinalize,
+                        recordRemoteCommitted: vi.fn().mockResolvedValue(true),
+                    },
+                },
+            );
+            if (denied) {
+                await expect(result).rejects.toBe(refusal);
+                expect(claimForFinalize).toHaveBeenCalledOnce();
+                expect(createBranch).not.toHaveBeenCalled();
+                expect(sandbox.git.commit).not.toHaveBeenCalled();
+                expect(createSignedCommitOnBranch).not.toHaveBeenCalled();
+                expect(createPullRequest).not.toHaveBeenCalled();
+                expect(updatePullRequest).not.toHaveBeenCalled();
+                expect(markError).toHaveBeenCalledWith(
+                    'run-1',
+                    'Delete is required',
+                );
+                expect(assertOperation).toHaveBeenCalledWith(
+                    expect.objectContaining({ key: 'editRepo.delete_file' }),
+                );
+            } else {
+                await expect(result).resolves.toMatchObject({ prUrl: PR_7 });
+                expect(assertOperation).not.toHaveBeenCalled();
+                expect(createSignedCommitOnBranch).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        fileChanges: {
+                            additions: [
+                                {
+                                    path: `${projectPath}/models/current.sql`,
+                                    contents:
+                                        Buffer.from('model contents').toString(
+                                            'base64',
+                                        ),
+                                },
+                            ],
+                            deletions: [],
+                        },
+                    }),
+                );
+                expect(
+                    claimForFinalize.mock.invocationCallOrder[0],
+                ).toBeLessThan(inspect.mock.invocationCallOrder[0]);
+            }
+            expect(sandbox.git.add).toHaveBeenCalledExactlyOnceWith(
+                '/home/user/repo',
+                general ? { all: true } : { files: [projectPath] },
+            );
+            expect(sandbox.git.add.mock.invocationCallOrder[0]).toBeLessThan(
+                inspect.mock.invocationCallOrder[0],
+            );
+            expect(inspect).toHaveBeenCalledTimes(denied ? 1 : 2);
+            expect(
+                sandbox.commands.run.mock.calls
+                    .map(([command]: [string]) => command)
+                    .join('\n'),
+            ).not.toMatch(
+                /\bgit(?:\s+-C\s+\S+)?\s+(?:add|reset|rm|update-index|read-tree)\b/,
+            );
+            expect(fakeSandboxProvider.destroy).toHaveBeenCalledOnce();
+        },
+    );
+
+    it.each(['exit code', 'exception'] as const)(
+        'fails closed before commit when staged inspection fails with %s',
+        async (failure) => {
+            const sandbox = fakeSandbox(0, true);
+            fakeSandboxProvider.create.mockResolvedValue(sandbox);
+            const runCommand = sandbox.commands.run.getMockImplementation();
+            sandbox.commands.run.mockImplementation(
+                async (command: string, options: unknown) => {
+                    if (
+                        command.includes(
+                            'diff --cached --name-status --no-renames -z',
+                        )
+                    ) {
+                        if (failure === 'exception')
+                            throw new Error('inspection failed');
+                        return { exitCode: 1, stdout: '' };
+                    }
+                    return runCommand(command, options);
+                },
+            );
+            const claimForFinalize = vi.fn().mockResolvedValue(true);
+            await expect(
+                runService(
+                    sandbox,
+                    { aiWritebackRunUuid: 'run-1' },
+                    {
+                        agentPermissionService: {
+                            isManaged: vi.fn().mockResolvedValue(true),
+                            assertOperation: vi.fn(),
+                        },
+                        aiWritebackRunModel: {
+                            updateStageIfInProgress: vi
+                                .fn()
+                                .mockResolvedValue(true),
+                            updateStage: vi.fn().mockResolvedValue(undefined),
+                            markError: vi.fn().mockResolvedValue(true),
+                            markReady: vi.fn().mockResolvedValue(true),
+                            claimForFinalize,
+                        },
+                    },
+                ),
+            ).rejects.toThrow(
+                failure === 'exception'
+                    ? 'inspection failed'
+                    : 'Could not inspect repository changes before commit',
+            );
+            expect(sandbox.git.add).toHaveBeenCalledOnce();
+            expect(claimForFinalize).toHaveBeenCalledOnce();
+            expect(sandbox.git.commit).not.toHaveBeenCalled();
+            expect(createSignedCommitOnBranch).not.toHaveBeenCalled();
+            expect(createPullRequest).not.toHaveBeenCalled();
+            expect(fakeSandboxProvider.destroy).toHaveBeenCalledOnce();
+        },
+    );
+
+    it('skips managed lookup and inspection when the working tree is unchanged', async () => {
+        const sandbox = fakeSandbox(0, false);
+        fakeSandboxProvider.create.mockResolvedValue(sandbox);
+        const isManaged = vi.fn().mockResolvedValue(true);
+        await runService(
+            sandbox,
+            {},
+            {
+                agentPermissionService: { isManaged, assertOperation: vi.fn() },
+            },
+        );
+        expect(isManaged).not.toHaveBeenCalled();
+        expect(sandbox.git.add).not.toHaveBeenCalled();
+        expect(
+            sandbox.commands.run.mock.calls
+                .map(([command]: [string]) => command)
+                .join('\n'),
+        ).not.toContain('diff HEAD --name-status');
+    });
+
+    const resumedRunModels = (prUrl: string, targetRepo = 'acme/analytics') => {
+        const existingRow = {
+            ...threadRow(prUrl),
+            project_dbt_source_uuid: null,
+            target_repo: targetRepo,
+        };
+        return {
+            aiWritebackThreadModel: {
+                findByAiThreadUuid: vi.fn().mockResolvedValue(existingRow),
+                findActiveWorkstreamByRepo: vi
+                    .fn()
+                    .mockResolvedValue(existingRow),
+                acquireWorkstreamLock: vi.fn().mockResolvedValue({
+                    release: vi.fn().mockResolvedValue(undefined),
+                }),
+            },
+            sandboxRegistryModel: {
+                findBySandboxUuid: vi
+                    .fn()
+                    .mockResolvedValue({ providerSandboxId: 'sbx-1' }),
+                markRunning: vi.fn().mockResolvedValue(undefined),
+                markSuspended: vi.fn().mockResolvedValue(undefined),
+            },
+        };
+    };
+
+    it.each(['refused', 'claim lost', 'inspection failed'] as const)(
+        'keeps the resumed changes uncommitted when finalization is %s',
+        async (outcome) => {
+            const sandbox = fakeSandbox(0, true);
+            fakeSandboxProvider.connect.mockResolvedValue(sandbox);
+            const staged = new Set(['previously-staged.sql']);
+            sandbox.git.add.mockImplementation(async () =>
+                staged.add('models/current.sql'),
+            );
+            const runCommand = sandbox.commands.run.getMockImplementation();
+            sandbox.commands.run.mockImplementation(
+                (command: string, options: unknown) => {
+                    if (command.includes('--name-status'))
+                        return Promise.resolve({
+                            exitCode: outcome === 'inspection failed' ? 1 : 0,
+                            stdout:
+                                outcome === 'refused'
+                                    ? 'D\0models/old.sql\0'
+                                    : 'M\0models/current.sql\0',
+                        });
+                    return runCommand(command, options);
+                },
+            );
+            const editState = vi
+                .spyOn(GithubProvider.prototype, 'getPullRequestEditState')
+                .mockResolvedValue({ editable: true, reason: null });
+            const claimForFinalize = vi
+                .fn()
+                .mockResolvedValue(outcome !== 'claim lost');
+            const assertOperation = vi.fn().mockRejectedValue(
+                new AiAccessRefusedError(
+                    AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                    {
+                        policyLayer: 'org_ceiling',
+                        capability: AgentCapability.Delete,
+                        message: 'Delete is required',
+                        operation: 'editRepo.delete_file',
+                    },
+                ),
+            );
+            try {
+                await expect(
+                    runService(
+                        sandbox,
+                        {
+                            aiThreadUuid: 'thread-1',
+                            aiWritebackRunUuid: 'run-1',
+                        },
+                        {
+                            ...resumedRunModels(PR_7),
+                            agentPermissionService: {
+                                isManaged: vi.fn().mockResolvedValue(true),
+                                assertOperation,
+                            },
+                            aiWritebackRunModel: {
+                                updateStageIfInProgress: vi
+                                    .fn()
+                                    .mockResolvedValue(true),
+                                updateStage: vi
+                                    .fn()
+                                    .mockResolvedValue(undefined),
+                                claimForFinalize,
+                                findByUuid: vi
+                                    .fn()
+                                    .mockResolvedValue({ status: 'cancelled' }),
+                                markError: vi.fn().mockResolvedValue(true),
+                            },
+                        },
+                    ),
+                ).rejects.toThrow(
+                    {
+                        refused: 'Delete is required',
+                        'claim lost': WritebackRunAbortedError,
+                        'inspection failed':
+                            'Could not inspect repository changes before commit',
+                    }[outcome],
+                );
+                expect(claimForFinalize).toHaveBeenCalledOnce();
+                expect(sandbox.git.add).toHaveBeenCalledTimes(
+                    outcome === 'claim lost' ? 0 : 1,
+                );
+                expect(staged).toEqual(
+                    new Set([
+                        'previously-staged.sql',
+                        ...(outcome === 'claim lost'
+                            ? []
+                            : ['models/current.sql']),
+                    ]),
+                );
+                expect(sandbox.git.commit).not.toHaveBeenCalled();
+                expect(createSignedCommitOnBranch).not.toHaveBeenCalled();
+                expect(fakeSandboxProvider.persist).toHaveBeenCalledOnce();
+                expect(fakeSandboxProvider.destroy).not.toHaveBeenCalled();
+                for (const [command] of sandbox.commands.run.mock.calls) {
+                    expect(command).not.toMatch(
+                        /\bgit(?:\s+-C\s+\S+)?\s+(?:add|reset|rm|update-index|read-tree)\b/,
+                    );
+                }
+            } finally {
+                editState.mockRestore();
+            }
+        },
+    );
+
+    describe.each(['github', 'gitlab', 'bitbucket'] as const)(
+        '%s managed metadata cleanup',
+        (host) => {
+            it.each([
+                { action: 'open', scenario: 'untracked metadata' },
+                { action: 'update', scenario: 'untracked metadata' },
+                { action: 'open', scenario: 'tracked metadata' },
+                { action: 'update', scenario: 'tracked metadata' },
+                { action: 'update', scenario: 'cached deletion outside scope' },
+            ] as const)(
+                '$action with $scenario checks the actual commit',
+                async ({ action, scenario }) => {
+                    const denied = scenario !== 'untracked metadata';
+                    const projectPath =
+                        scenario === 'cached deletion outside scope'
+                            ? 'models'
+                            : '.';
+                    const sandbox = fakeSandbox(0, true);
+                    if (action === 'update')
+                        sandbox.git.status.mockResolvedValue({
+                            hasChanges: true,
+                            currentBranch: 'feature/model',
+                        });
+                    fakeSandboxProvider.create.mockResolvedValue(sandbox);
+                    fakeSandboxProvider.connect.mockResolvedValue(sandbox);
+                    const files = new Map([
+                        ['/home/user/repo/models/current.sql', 'select 2'],
+                        ['/home/user/repo/pr_title.txt', 'Update model'],
+                        [
+                            '/home/user/repo/pr_description.md',
+                            'Updates revenue.',
+                        ],
+                    ]);
+                    const head = new Map([
+                        ['/home/user/repo/models/current.sql', 'select 1'],
+                        ...(scenario === 'tracked metadata'
+                            ? [
+                                  [
+                                      '/home/user/repo/pr_title.txt',
+                                      'Update model',
+                                  ] as const,
+                              ]
+                            : []),
+                        ...(scenario === 'cached deletion outside scope'
+                            ? [
+                                  [
+                                      '/home/user/repo/packages/old/model.sql',
+                                      'select 1',
+                                  ] as const,
+                              ]
+                            : []),
+                    ]);
+                    const staged = new Map<string, string>(
+                        scenario === 'cached deletion outside scope'
+                            ? [['packages/old/model.sql', 'D']]
+                            : [],
+                    );
+                    const committed: string[][] = [];
+                    sandbox.files.read.mockImplementation(
+                        async (path: string) => {
+                            const value = files.get(path);
+                            if (value === undefined)
+                                throw new Error(`Missing file: ${path}`);
+                            return value;
+                        },
+                    );
+                    sandbox.files.remove.mockImplementation(
+                        async (path: string) => files.delete(path),
+                    );
+                    const workingChanges = () =>
+                        [...new Set([...head.keys(), ...files.keys()])]
+                            .filter(
+                                (path) => head.get(path) !== files.get(path),
+                            )
+                            .map((path) => {
+                                const relativePath = path.replace(
+                                    '/home/user/repo/',
+                                    '',
+                                );
+                                if (!files.has(path))
+                                    return { path: relativePath, status: 'D' };
+                                return {
+                                    path: relativePath,
+                                    status: head.has(path) ? 'M' : 'A',
+                                };
+                            });
+                    sandbox.git.add.mockImplementation(
+                        async (
+                            _cwd: string,
+                            options: { all?: boolean; files?: string[] },
+                        ) => {
+                            for (const { path, status } of workingChanges()) {
+                                if (
+                                    options.all ||
+                                    options.files?.some((scope) =>
+                                        path.startsWith(`${scope}/`),
+                                    )
+                                )
+                                    staged.set(path, status);
+                            }
+                        },
+                    );
+                    sandbox.git.commit.mockImplementation(async () =>
+                        committed.push([...staged.keys()]),
+                    );
+                    sandbox.git.push = vi.fn().mockResolvedValue(undefined);
+                    const runCommand =
+                        sandbox.commands.run.getMockImplementation();
+                    sandbox.commands.run.mockImplementation(
+                        (command: string, options: AnyType) => {
+                            if (command.includes('claude')) {
+                                options?.onStdout?.(
+                                    `${JSON.stringify({ type: 'assistant', message: { content: [{ type: 'text', text: 'Done.' }] } })}\n`,
+                                );
+                                return Promise.resolve({
+                                    exitCode: 0,
+                                    stdout: '',
+                                });
+                            }
+                            if (command.includes('diff HEAD --name-status'))
+                                return Promise.resolve({
+                                    exitCode: 0,
+                                    stdout: workingChanges()
+                                        .filter(
+                                            ({ path }) =>
+                                                projectPath === '.' ||
+                                                path.startsWith(
+                                                    `${projectPath}/`,
+                                                ),
+                                        )
+                                        .map(
+                                            ({ path, status }) =>
+                                                `${status}\0${path}\0`,
+                                        )
+                                        .join(''),
+                                });
+                            if (command.includes('--name-status'))
+                                return Promise.resolve({
+                                    exitCode: 0,
+                                    stdout: [...staged]
+                                        .map(
+                                            ([path, status]) =>
+                                                `${status}\0${path}\0`,
+                                        )
+                                        .join(''),
+                                });
+                            if (command.includes('rev-parse HEAD'))
+                                return Promise.resolve({
+                                    exitCode: 0,
+                                    stdout: 'sha-7\n',
+                                });
+                            return runCommand(command, options);
+                        },
+                    );
+                    const prUrl = {
+                        github: PR_7,
+                        gitlab: 'https://gitlab.com/acme/analytics/-/merge_requests/7',
+                        bitbucket:
+                            'https://bitbucket.org/acme/analytics/pull-requests/7',
+                    }[host];
+                    const pullRequest = {
+                        number: 7,
+                        title: 'Update model',
+                        html_url: prUrl,
+                        state: PullRequestState.OPEN,
+                        head: 'feature/model',
+                        base: 'main',
+                        sourceRepository: 'acme/analytics',
+                        destinationRepository: 'acme/analytics',
+                    };
+                    const providerClass = {
+                        github: GithubProvider,
+                        gitlab: GitlabProvider,
+                        bitbucket: BitbucketProvider,
+                    }[host];
+                    const editState = vi
+                        .spyOn(
+                            providerClass.prototype,
+                            'getPullRequestEditState',
+                        )
+                        .mockResolvedValue({ editable: true, reason: null });
+                    const gitlabAuth = vi
+                        .spyOn(GitlabProvider.prototype, 'resolveInstallation')
+                        .mockResolvedValue({
+                            provider: PullRequestProvider.GITLAB,
+                            token: 'test-token',
+                            instanceUrl: 'https://gitlab.com',
+                            commitAuthor: {
+                                name: 'Writer',
+                                email: 'writer@example.com',
+                            },
+                        });
+                    const remoteSpies = [
+                        vi
+                            .spyOn(GitlabClient, 'createPullRequest')
+                            .mockResolvedValue(pullRequest),
+                        vi
+                            .spyOn(GitlabClient, 'updateMergeRequest')
+                            .mockResolvedValue(pullRequest),
+                        vi
+                            .spyOn(BitbucketClient, 'createPullRequest')
+                            .mockResolvedValue(pullRequest),
+                        vi
+                            .spyOn(BitbucketClient, 'updatePullRequest')
+                            .mockResolvedValue(pullRequest),
+                        vi
+                            .spyOn(BitbucketClient, 'getPullRequest')
+                            .mockResolvedValue(pullRequest),
+                    ];
+                    const connection =
+                        host === 'bitbucket'
+                            ? {
+                                  ...bitbucketConnection,
+                                  project_sub_path: projectPath,
+                                  branch: 'main',
+                                  repository: 'acme/analytics',
+                              }
+                            : {
+                                  type:
+                                      host === 'github'
+                                          ? DbtProjectType.GITHUB
+                                          : DbtProjectType.GITLAB,
+                                  authorization_method: 'installation_id',
+                                  repository: 'acme/analytics',
+                                  branch: 'main',
+                                  project_sub_path: projectPath,
+                                  host_domain: 'gitlab.com',
+                              };
+                    const refusal = new AiAccessRefusedError(
+                        AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                        {
+                            policyLayer: 'org_ceiling',
+                            capability: AgentCapability.Delete,
+                            message: 'Delete is required',
+                            operation: 'editRepo.delete_file',
+                        },
+                    );
+                    const assertOperation = vi.fn().mockRejectedValue(refusal);
+                    const markError = vi.fn().mockResolvedValue(true);
+                    const markReady = vi.fn().mockResolvedValue(true);
+                    const claimForFinalize = vi.fn().mockResolvedValue(true);
+                    try {
+                        const result = runService(
+                            sandbox,
+                            {
+                                ...(action === 'update'
+                                    ? { aiThreadUuid: 'thread-1' }
+                                    : {}),
+                                aiWritebackRunUuid: 'run-1',
+                                source: {
+                                    github: 'mcp',
+                                    gitlab: 'web',
+                                    bitbucket: 'slack',
+                                }[host],
+                            },
+                            {
+                                ...(action === 'update'
+                                    ? resumedRunModels(prUrl)
+                                    : {}),
+                                aiWritebackRunModel: {
+                                    updateStageIfInProgress: vi
+                                        .fn()
+                                        .mockResolvedValue(true),
+                                    updateStage: vi
+                                        .fn()
+                                        .mockResolvedValue(undefined),
+                                    claimForFinalize,
+                                    markError,
+                                    markReady,
+                                    recordRemoteCommitted: vi
+                                        .fn()
+                                        .mockResolvedValue(true),
+                                },
+                                projectModel: {
+                                    getSummary: vi.fn().mockResolvedValue({
+                                        organizationUuid: ORG,
+                                    }),
+                                    get: vi.fn().mockResolvedValue({
+                                        organizationUuid: ORG,
+                                        projectUuid: 'p1',
+                                        name: 'Analytics',
+                                        dbtConnection: connection,
+                                        warehouseConnection: null,
+                                        dbtVersion: SupportedDbtVersions.V1_9,
+                                    }),
+                                    getWithSensitiveFields: vi
+                                        .fn()
+                                        .mockResolvedValue({
+                                            dbtConnection: connection,
+                                        }),
+                                },
+                                agentPermissionService: {
+                                    isManaged: vi.fn().mockResolvedValue(true),
+                                    assertOperation,
+                                },
+                            },
+                        );
+                        if (denied) {
+                            await expect(result).rejects.toBe(refusal);
+                            expect(markError).toHaveBeenCalledWith(
+                                'run-1',
+                                'Delete is required',
+                            );
+                            expect(markReady).not.toHaveBeenCalled();
+                            expect(claimForFinalize).toHaveBeenCalledOnce();
+                            expect(sandbox.git.add).toHaveBeenCalledOnce();
+                            expect(sandbox.git.commit).not.toHaveBeenCalled();
+                            expect(sandbox.git.push).not.toHaveBeenCalled();
+                            expect(createBranch).not.toHaveBeenCalled();
+                            expect(
+                                createSignedCommitOnBranch,
+                            ).not.toHaveBeenCalled();
+                            expect(createPullRequest).not.toHaveBeenCalled();
+                            expect(updatePullRequest).not.toHaveBeenCalled();
+                            for (const remoteSpy of remoteSpies.slice(0, 4))
+                                expect(remoteSpy).not.toHaveBeenCalled();
+                            expect(assertOperation).toHaveBeenCalledWith(
+                                expect.objectContaining({
+                                    key: 'editRepo.delete_file',
+                                    account: expect.objectContaining({
+                                        user: expect.objectContaining({
+                                            id: 'u1',
+                                        }),
+                                    }),
+                                    surface: {
+                                        github: AgentActorSurface.MCP,
+                                        gitlab: AgentActorSurface.IN_APP_AGENT,
+                                        bitbucket:
+                                            AgentActorSurface.SLACK_AGENT,
+                                    }[host],
+                                }),
+                            );
+                            expect(
+                                staged.get(
+                                    scenario === 'tracked metadata'
+                                        ? 'pr_title.txt'
+                                        : 'packages/old/model.sql',
+                                ),
+                            ).toBe('D');
+                            return;
+                        }
+                        await expect(result).resolves.toMatchObject({ prUrl });
+                        expect(committed).toEqual([['models/current.sql']]);
+                        expect(assertOperation).not.toHaveBeenCalled();
+                        expect(sandbox.git.add).toHaveBeenCalledExactlyOnceWith(
+                            '/home/user/repo',
+                            { all: true },
+                        );
+                        expect(files.has('/home/user/repo/pr_title.txt')).toBe(
+                            false,
+                        );
+                        expect(
+                            files.has('/home/user/repo/pr_description.md'),
+                        ).toBe(false);
+                        if (host === 'github')
+                            expect(
+                                createSignedCommitOnBranch,
+                            ).toHaveBeenCalledWith(
+                                expect.objectContaining({
+                                    fileChanges: {
+                                        additions: [
+                                            {
+                                                path: 'models/current.sql',
+                                                contents:
+                                                    Buffer.from(
+                                                        'select 2',
+                                                    ).toString('base64'),
+                                            },
+                                        ],
+                                        deletions: [],
+                                    },
+                                }),
+                            );
+                    } finally {
+                        editState.mockRestore();
+                        gitlabAuth.mockRestore();
+                        remoteSpies.forEach((spy) => spy.mockRestore());
+                    }
+                },
+            );
         },
     );
 
@@ -4119,58 +5202,63 @@ describe('AiWritebackService.enqueueWriteback', () => {
         get: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
     } as AnyType;
 
-    it('creates a pending run row and enqueues the pipeline job', async () => {
-        const runRow = {
-            ai_writeback_run_uuid: 'run-1',
-            created_at: new Date('2026-07-01T10:00:00Z'),
-            updated_at: new Date('2026-07-01T10:00:00Z'),
-        };
-        const aiWritebackRunModel = {
-            create: vi.fn().mockResolvedValue(runRow),
-        } as AnyType;
-        const schedulerClient = {
-            aiWritebackPipeline: vi.fn().mockResolvedValue({ jobId: '1' }),
-        } as AnyType;
-        const service = buildService({
-            aiWritebackRunModel,
-            schedulerClient,
-            projectModel,
-        });
+    it.each([true, false])(
+        'creates a pending run row and enqueues the pipeline job',
+        async (agentPermissionsApply) => {
+            const runRow = {
+                ai_writeback_run_uuid: 'run-1',
+                created_at: new Date('2026-07-01T10:00:00Z'),
+                updated_at: new Date('2026-07-01T10:00:00Z'),
+            };
+            const aiWritebackRunModel = {
+                create: vi.fn().mockResolvedValue(runRow),
+            } as AnyType;
+            const schedulerClient = {
+                aiWritebackPipeline: vi.fn().mockResolvedValue({ jobId: '1' }),
+            } as AnyType;
+            const service = buildService({
+                aiWritebackRunModel,
+                schedulerClient,
+                projectModel,
+            });
 
-        const result = await service.enqueueWriteback({
-            user: userWithOrg(true),
-            projectUuid: 'proj-1',
-            prompt: 'add a metric',
-            source: 'mcp',
-            aiThreadUuid: 'thread-1',
-        });
+            const result = await service.enqueueWriteback({
+                user: userWithOrg(true),
+                projectUuid: 'proj-1',
+                prompt: 'add a metric',
+                source: 'mcp',
+                agentPermissionsApply,
+                aiThreadUuid: 'thread-1',
+            });
 
-        expect(result).toEqual({
-            aiWritebackRunUuid: 'run-1',
-            createdAt: runRow.created_at,
-            updatedAt: runRow.updated_at,
-        });
-        expect(aiWritebackRunModel.create).toHaveBeenCalledWith({
-            organizationUuid: ORG,
-            projectUuid: 'proj-1',
-            aiThreadUuid: 'thread-1',
-            createdByUserUuid: 'u1',
-            source: 'mcp',
-            promptUuid: null,
-            toolCallId: null,
-        });
-        expect(schedulerClient.aiWritebackPipeline).toHaveBeenCalledWith(
-            expect.objectContaining({
+            expect(result).toEqual({
                 aiWritebackRunUuid: 'run-1',
+                createdAt: runRow.created_at,
+                updatedAt: runRow.updated_at,
+            });
+            expect(aiWritebackRunModel.create).toHaveBeenCalledWith({
                 organizationUuid: ORG,
                 projectUuid: 'proj-1',
-                userUuid: 'u1',
-                prompt: 'add a metric',
                 aiThreadUuid: 'thread-1',
+                createdByUserUuid: 'u1',
                 source: 'mcp',
-            }),
-        );
-    });
+                promptUuid: null,
+                toolCallId: null,
+            });
+            expect(schedulerClient.aiWritebackPipeline).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    aiWritebackRunUuid: 'run-1',
+                    organizationUuid: ORG,
+                    projectUuid: 'proj-1',
+                    userUuid: 'u1',
+                    prompt: 'add a metric',
+                    aiThreadUuid: 'thread-1',
+                    source: 'mcp',
+                    agentPermissionsApply,
+                }),
+            );
+        },
+    );
 
     it('persists a null aiThreadUuid for a one-shot run', async () => {
         const aiWritebackRunModel = {
@@ -4185,6 +5273,7 @@ describe('AiWritebackService.enqueueWriteback', () => {
         });
 
         await service.enqueueWriteback({
+            agentPermissionsApply: false,
             user: userWithOrg(true),
             projectUuid: 'proj-1',
             prompt: 'add a metric',
@@ -4201,6 +5290,7 @@ describe('AiWritebackService.enqueueWriteback', () => {
 
         await expect(
             service.enqueueWriteback({
+                agentPermissionsApply: false,
                 user: { userUuid: 'u1' } as AnyType,
                 projectUuid: 'proj-1',
                 prompt: 'add a metric',
@@ -4220,6 +5310,7 @@ describe('AiWritebackService.enqueueWriteback', () => {
 
         await expect(
             service.enqueueWriteback({
+                agentPermissionsApply: false,
                 user: userWithOrg(false),
                 projectUuid: 'proj-1',
                 prompt: 'add a metric',
@@ -4389,42 +5480,63 @@ describe('AiWritebackService.runPipeline', () => {
         expect(runSpy).not.toHaveBeenCalled();
     });
 
-    it('reconstructs the session user and runs the writeback turn', async () => {
-        const sessionUser = {
-            userUuid: 'u1',
-            organizationUuid: ORG,
-        } as AnyType;
-        const aiWritebackRunModel = {
-            findByUuid: vi.fn().mockResolvedValue({
-                ai_writeback_run_uuid: 'run-1',
-                status: 'pending',
-            }),
-        } as AnyType;
-        const userModel = {
-            findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(sessionUser),
-        } as AnyType;
-        const service = buildService({ aiWritebackRunModel, userModel });
-        const runSpy = vi
-            .spyOn(service, 'run')
-            .mockResolvedValue({} as AnyType);
+    it.each([
+        { source: 'mcp', explicit: undefined, expected: true },
+        { source: 'slack', explicit: undefined, expected: true },
+        { source: 'web', explicit: undefined, expected: true },
+        { source: 'api', explicit: undefined, expected: false },
+        { source: 'changeset', explicit: undefined, expected: false },
+        { source: 'admin_review', explicit: undefined, expected: false },
+        { source: 'mcp', explicit: false, expected: false },
+        { source: 'api', explicit: true, expected: true },
+    ] as const)(
+        'preserves agent applicability for $source (explicit=$explicit)',
+        async ({ source, explicit, expected }) => {
+            const sessionUser = {
+                userUuid: 'u1',
+                organizationUuid: ORG,
+            } as AnyType;
+            const aiWritebackRunModel = {
+                findByUuid: vi.fn().mockResolvedValue({
+                    ai_writeback_run_uuid: 'run-1',
+                    status: 'pending',
+                }),
+            } as AnyType;
+            const userModel = {
+                findSessionUserAndOrgByUuid: vi
+                    .fn()
+                    .mockResolvedValue(sessionUser),
+            } as AnyType;
+            const service = buildService({ aiWritebackRunModel, userModel });
+            const runSpy = vi
+                .spyOn(service, 'run')
+                .mockResolvedValue({} as AnyType);
 
-        await service.runPipeline(payload);
+            await service.runPipeline({
+                ...payload,
+                source,
+                ...(explicit === undefined
+                    ? {}
+                    : { agentPermissionsApply: explicit }),
+            });
 
-        expect(userModel.findSessionUserAndOrgByUuid).toHaveBeenCalledWith(
-            'u1',
-            ORG,
-        );
-        expect(runSpy).toHaveBeenCalledWith(
-            expect.objectContaining({
-                user: sessionUser,
-                projectUuid: 'proj-1',
-                prompt: 'add a metric',
-                aiThreadUuid: 'thread-1',
-                source: 'mcp',
-                aiWritebackRunUuid: 'run-1',
-            }),
-        );
-    });
+            expect(userModel.findSessionUserAndOrgByUuid).toHaveBeenCalledWith(
+                'u1',
+                ORG,
+            );
+            expect(runSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    user: sessionUser,
+                    projectUuid: 'proj-1',
+                    prompt: 'add a metric',
+                    aiThreadUuid: 'thread-1',
+                    source,
+                    agentPermissionsApply: expected,
+                    aiWritebackRunUuid: 'run-1',
+                }),
+            );
+        },
+    );
 
     it('swallows a mid-run abort so the scheduler job does not retry a cancelled run', async () => {
         const aiWritebackRunModel = {
@@ -4824,6 +5936,7 @@ describe.each([
                         toolCallId: null,
                     });
                 return service.enqueueWriteback({
+                    agentPermissionsApply: false,
                     user,
                     projectUuid: 'project',
                     source: 'mcp',
@@ -5006,6 +6119,7 @@ test('a committed writeback run retains its initiating action when dispatch fail
     await expect(
         withAgentActionScope(user, agentActionTestCases[0][1], true, () =>
             service.enqueueWriteback({
+                agentPermissionsApply: false,
                 user,
                 projectUuid: 'project',
                 source: 'mcp',

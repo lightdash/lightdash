@@ -47,7 +47,7 @@ import {
     assertStagedPathsAllowed,
     collectDiffStat,
     commitLocal,
-    resolveDbtProjectPaths,
+    resolveConnectionPaths,
     stageChanges,
 } from './sandboxGit';
 
@@ -431,15 +431,13 @@ export class BitbucketProvider extends BaseService implements GitProvider {
                 'Could not disable Bitbucket sandbox Git hooks',
             );
         }
-        const paths =
-            connection.semanticLayer === 'lightdash'
-                ? [connection.projectSubPath]
-                : await resolveDbtProjectPaths(
-                      args.sandbox,
-                      connection.projectSubPath,
-                      this.logger,
-                  );
+        const paths = await resolveConnectionPaths(
+            args.sandbox,
+            connection,
+            this.logger,
+        );
         await stageChanges(args.sandbox, paths, this.logger);
+        await args.assertStagedChangesAllowed?.();
         await assertStagedPathsAllowed(args.sandbox);
         const diffStat = await collectDiffStat(args.sandbox);
         const trailer = buildUserCoAuthorTrailer(args.user);

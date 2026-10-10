@@ -481,6 +481,9 @@ test.each([...HUMAN_ONLY_IN_MANAGED])(
     async (key) => {
         const { service, policy, operation, deps } = setup();
         policy.systemRoleMatrix.viewer = Object.values(AgentCapability);
+        operation.account.user.ability = new Ability<PossibleAbilities>([
+            { action: 'manage', subject: 'all' },
+        ]);
         await expect(
             service.assertOperation({ ...operation, key }),
         ).rejects.toMatchObject({
@@ -581,3 +584,148 @@ test('a stale listed user cannot bypass current organization membership', async 
         operation.projectUuid,
     );
 });
+
+test('names organization permissions when Export is missing and preserves refusal data', async () => {
+    const { service, operation } = setup();
+    const key = 'render_chart';
+    await expect(
+        service.assertOperation({ ...operation, kind: 'mcp_tool', key }),
+    ).rejects.toMatchObject({
+        message:
+            "Your organization's agent permissions do not allow Export results. Ask an admin to change Permissions on the Agents page.",
+        refusal: {
+            reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+            policyLayer: 'org_ceiling',
+            capability: AgentCapability.Export,
+            settingsUrl: '/generalSettings/agentIdentity',
+            operation: key,
+            policyVersion: 1,
+            projectUuid: operation.projectUuid,
+            message:
+                "Your organization's agent permissions do not allow Export results. Ask an admin to change Permissions on the Agents page.",
+        },
+    });
+});
+
+const newHumanOnlyOperations = [
+    'FeatureFlagController.setFeatureFlagOverride',
+    'FeatureFlagController.deleteFeatureFlagOverride',
+    'GoogleDriveController.get',
+    'AiAgentAdminController.upsertSettings',
+];
+
+test.each(newHumanOnlyOperations)(
+    'refuses %s with all capabilities and admin rights',
+    async (key) => {
+        const { service, operation, policy } = setup();
+        policy.systemRoleMatrix.viewer = Object.values(AgentCapability);
+        operation.account.user.ability = new Ability<PossibleAbilities>([
+            { action: 'manage', subject: 'all' },
+        ]);
+        await expect(
+            service.assertOperation({ ...operation, key }),
+        ).rejects.toMatchObject({
+            refusal: {
+                reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                policyLayer: 'organization_setting',
+                capability: AgentCapability.Administration,
+            },
+        });
+    },
+);
+
+const toolEffectFixtures = [
+    [
+        'createContent.sql_chart',
+        [AgentCapability.ContentWrite, AgentCapability.RawSql],
+    ],
+    [
+        'editContent.sql_chart',
+        [AgentCapability.ContentWrite, AgentCapability.RawSql],
+    ],
+    [
+        'editRepo.delete_file',
+        [AgentCapability.Delete, AgentCapability.DbtWriteback],
+    ],
+] as const;
+
+test.each(toolEffectFixtures)(
+    'enforces all requirements for %s',
+    async (key, required) => {
+        const { service, operation, policy, deps } = setup();
+        const effect = { ...operation, kind: 'tool_effect' as const, key };
+        deps.agentWarehouseRestrictionConfirmationModel.get.mockResolvedValue({
+            bindingFingerprint: 'current',
+        });
+        policy.systemRoleMatrix.viewer = [...required];
+        await expect(service.assertOperation(effect)).resolves.toBeUndefined();
+        await Promise.all(
+            required.map(async (missing) => {
+                const missingSetup = setup();
+                missingSetup.policy.systemRoleMatrix.viewer = required.filter(
+                    (capability) => capability !== missing,
+                );
+                await expect(
+                    missingSetup.service.assertOperation({
+                        ...missingSetup.operation,
+                        kind: 'tool_effect',
+                        key,
+                    }),
+                ).rejects.toMatchObject({
+                    refusal: {
+                        reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                        capability: missing,
+                        operation: key,
+                    },
+                });
+            }),
+        );
+    },
+);
+
+test.each(['unknown', 'toString', 'constructor', '__proto__'])(
+    'denies unknown tool effect %s',
+    async (key) => {
+        const { service, operation, policy } = setup();
+        policy.systemRoleMatrix.viewer = Object.values(AgentCapability);
+        await expect(
+            service.assertOperation({ ...operation, kind: 'tool_effect', key }),
+        ).rejects.toMatchObject({
+            refusal: { reason: AiAccessRefusalReason.AGENT_OPERATION_UNMAPPED },
+        });
+    },
+);
+
+test.each(['off', 'legacy'] as const)(
+    '%s bypasses every new managed check',
+    async (mode) => {
+        const { service, operation, policy, deps } = setup();
+        policy.systemRoleMatrix.viewer = [];
+        if (mode === 'off')
+            deps.featureFlagModel.get.mockResolvedValue({ enabled: false });
+        else policy.mode = 'legacy';
+        await Promise.all([
+            ...[
+                ...newHumanOnlyOperations,
+                'ProjectCoderController.upsertGoogleSheetsSyncAsCode',
+                'ProjectCoderController.legacyUpsertGoogleSheetsSyncAsCode',
+            ].map((key) =>
+                expect(
+                    service.assertOperation({ ...operation, key }),
+                ).resolves.toBeUndefined(),
+            ),
+            ...[...toolEffectFixtures.map(([name]) => name), 'unknown'].map(
+                (key) =>
+                    expect(
+                        service.assertOperation({
+                            ...operation,
+                            kind: 'tool_effect',
+                            key,
+                        }),
+                    ).resolves.toBeUndefined(),
+            ),
+        ]);
+        expect(deps.userModel.getAgentRoleAssignments).not.toHaveBeenCalled();
+        expect(deps.agentActionLogModel.insert).not.toHaveBeenCalled();
+    },
+);

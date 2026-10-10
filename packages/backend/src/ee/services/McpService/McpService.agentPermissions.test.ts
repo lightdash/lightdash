@@ -193,6 +193,20 @@ describe.each(['oauth', 'session'] as const)(
             },
         );
 
+        test('returns the organization refusal in both text and structured content', async () => {
+            const { call } = setup(authentication);
+            const message =
+                "Your organization's agent permissions do not allow Create and edit content. Ask an admin to change Permissions on the Agents page.";
+            const settingsUrl =
+                'https://lightdash.example/generalSettings/agentIdentity';
+            const result = await call('create_content');
+            expect(result.content[0].text).toBe(`${message}\n\n${settingsUrl}`);
+            expect(result.structuredContent.refusal).toMatchObject({
+                message,
+                settingsUrl,
+            });
+        });
+
         test('refuses unlisted users before dispatch', async () => {
             const { call, handler, policy } = setup(authentication);
             policy.allowedUserUuids = [];

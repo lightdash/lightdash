@@ -104,6 +104,7 @@ describe('GitlabProvider.openPullRequest', () => {
             user: { userUuid: 'u1' } as never,
             setStage: vi.fn(),
             onRemoteCommitted: vi.fn().mockResolvedValue(undefined),
+            assertStagedChangesAllowed: null,
         });
 
         expect(result.prUrl).toBe(
@@ -129,6 +130,45 @@ describe('GitlabProvider.openPullRequest', () => {
         );
     });
 
+    it.each(['open', 'update'] as const)(
+        'resolves and stages project paths before committing for %s',
+        async (action) => {
+            mockCreatePullRequest.mockResolvedValue({
+                html_url:
+                    'https://gitlab.com/acme/analytics/-/merge_requests/42',
+                title: 'Add metric',
+                number: 42,
+            });
+            const sandbox = { ...fakeSandbox(), files: { read: vi.fn() } };
+            const args = {
+                sandbox: sandbox as never,
+                connection: { ...connection, projectSubPath: 'analytics/dbt' },
+                installation,
+                title: 'Add metric',
+                description: 'Adds revenue.',
+                user: { userUuid: 'u1' } as never,
+                setStage: vi.fn(),
+                onRemoteCommitted: vi.fn().mockResolvedValue(undefined),
+                assertStagedChangesAllowed: null,
+            };
+            if (action === 'open') await provider.openPullRequest(args);
+            else
+                await provider.updatePullRequest({
+                    ...args,
+                    prUrl: openMr.webUrl,
+                });
+            expect(sandbox.git.add).toHaveBeenCalledExactlyOnceWith(
+                '/home/user/repo',
+                { files: ['analytics/dbt'] },
+            );
+            expect(sandbox.files.read).toHaveBeenCalledWith(
+                '/home/user/repo/analytics/dbt/target/manifest.json',
+            );
+            expect(sandbox.git.commit).toHaveBeenCalledOnce();
+            expect(sandbox.git.push).toHaveBeenCalledOnce();
+        },
+    );
+
     it('credits the triggering user as a commit co-author', async () => {
         mockCreatePullRequest.mockResolvedValue({
             html_url: 'https://gitlab.com/acme/analytics/-/merge_requests/42',
@@ -150,6 +190,7 @@ describe('GitlabProvider.openPullRequest', () => {
             } as never,
             setStage: vi.fn(),
             onRemoteCommitted: vi.fn().mockResolvedValue(undefined),
+            assertStagedChangesAllowed: null,
         });
 
         expect(sandbox.git.commit).toHaveBeenCalledWith(
@@ -179,6 +220,7 @@ describe('GitlabProvider.openPullRequest', () => {
                 user: { userUuid: 'u1' } as never,
                 setStage: vi.fn(),
                 onRemoteCommitted: vi.fn().mockResolvedValue(undefined),
+                assertStagedChangesAllowed: null,
             }),
         ).rejects.toBeInstanceOf(DeniedPathError);
 

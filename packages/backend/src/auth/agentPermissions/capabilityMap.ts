@@ -119,6 +119,23 @@ export const AGENT_TOOL_CAPABILITIES = {
     RequiredAgentCapabilities
 >;
 
+export const AGENT_TOOL_EFFECT_CAPABILITIES = {
+    'createContent.sql_chart': [
+        AgentCapability.ContentWrite,
+        AgentCapability.RawSql,
+    ],
+    'editContent.sql_chart': [
+        AgentCapability.ContentWrite,
+        AgentCapability.RawSql,
+    ],
+    'editRepo.delete_file': [
+        AgentCapability.Delete,
+        AgentCapability.DbtWriteback,
+    ],
+} as const satisfies Record<string, RequiredAgentCapabilities>;
+
+export type AgentToolEffect = keyof typeof AGENT_TOOL_EFFECT_CAPABILITIES;
+
 export const REST_OPERATION_CAPABILITIES = {
     'AgentPermissionController.getPolicy': [AgentCapability.Administration],
     'AgentPermissionController.saveCeiling': [AgentCapability.Administration],
@@ -1400,6 +1417,7 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'ProjectCoderController.legacyUpsertGoogleSheetsSyncAsCode': [
         AgentCapability.ContentWrite,
+        AgentCapability.Publish,
     ],
     'ProjectCoderController.legacyUpsertScheduledDeliveryAsCode': [
         AgentCapability.ContentWrite,
@@ -1451,6 +1469,7 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'ProjectCoderController.upsertGoogleSheetsSyncAsCode': [
         AgentCapability.ContentWrite,
+        AgentCapability.Publish,
     ],
     'ProjectCoderController.upsertHomepageAsCode': [
         AgentCapability.ContentWrite,
@@ -2121,6 +2140,7 @@ export const REST_OPERATION_CAPABILITIES = {
 const capabilityMaps = {
     mcp: MCP_TOOL_CAPABILITIES,
     agent: AGENT_TOOL_CAPABILITIES,
+    tool_effect: AGENT_TOOL_EFFECT_CAPABILITIES,
     rest: REST_OPERATION_CAPABILITIES,
 } as const;
 
