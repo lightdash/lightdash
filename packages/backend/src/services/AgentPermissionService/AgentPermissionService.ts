@@ -467,15 +467,23 @@ export class AgentPermissionService extends BaseService {
         };
         const readChecks = async (
             stopAtRefusal: boolean,
-            signal?: AbortSignal,
+            options: {
+                signal?: AbortSignal;
+                skipWarehouseConfirmation?: boolean;
+            } = {},
             index = checks.length,
         ): Promise<AgentPermissionCheck | null> => {
-            signal?.throwIfAborted();
+            options.signal?.throwIfAborted();
             const step = steps[index];
             if (!step) return null;
+            if (
+                options.skipWarehouseConfirmation &&
+                step.kind === 'warehouse_confirmation'
+            )
+                return readChecks(stopAtRefusal, options, index + 1);
             const check = await readCheck(step);
             if (stopAtRefusal && check.reason !== null) return check;
-            return readChecks(stopAtRefusal, signal, index + 1);
+            return readChecks(stopAtRefusal, options, index + 1);
         };
         return {
             checks,
@@ -512,12 +520,31 @@ export class AgentPermissionService extends BaseService {
             policyVersion: policy.version,
             projectUuid: args.projectUuid,
         });
-        let blockersComplete = true;
+        const { ability } = args.account.user;
+        const hiddenProject =
+            args.projectUuid !== null &&
+            !ability.can(
+                'view',
+                subject('Project', {
+                    organizationUuid: args.organizationUuid,
+                    projectUuid: args.projectUuid,
+                }),
+            );
+        const canManageOrganization = ability.can(
+            'manage',
+            subject('Organization', {
+                organizationUuid: args.organizationUuid,
+            }),
+        );
+        let blockersComplete = !hiddenProject;
         let diagnosticTimeout: ReturnType<typeof setTimeout> | undefined;
         const diagnosticAbort = new AbortController();
         try {
             await Promise.race([
-                evaluation.readChecks(false, diagnosticAbort.signal),
+                evaluation.readChecks(false, {
+                    signal: diagnosticAbort.signal,
+                    skipWarehouseConfirmation: hiddenProject,
+                }),
                 new Promise<never>((_, reject) => {
                     diagnosticTimeout = setTimeout(() => {
                         diagnosticAbort.abort();
@@ -538,7 +565,30 @@ export class AgentPermissionService extends BaseService {
         }
         Object.assign(error.refusal, {
             requiredCapabilities: evaluation.requiredCapabilities,
-            blockers: permissionBlockers(evaluation.checks),
+            blockers: permissionBlockers(evaluation.checks)
+                .filter(
+                    (blocker) =>
+                        !hiddenProject ||
+                        blocker.checkId !== 'warehouse_confirmation',
+                )
+                .map((blocker) => {
+                    if (blocker.checkId === primary.id) return blocker;
+                    if (
+                        (hiddenProject &&
+                            blocker.settingsUrl?.startsWith(
+                                '/generalSettings/projectManagement/',
+                            )) ||
+                        (!canManageOrganization &&
+                            blocker.settingsUrl?.startsWith(
+                                '/generalSettings/customRoles/',
+                            ))
+                    )
+                        return {
+                            ...blocker,
+                            settingsUrl: '/generalSettings/agentIdentity',
+                        };
+                    return blocker;
+                }),
             blockersComplete,
             explanationUrl: this.explanationUrl(args),
         });

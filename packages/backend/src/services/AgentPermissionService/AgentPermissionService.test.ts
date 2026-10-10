@@ -11,7 +11,11 @@ import {
     type AgentCapabilityPolicy,
     type PossibleAbilities,
 } from '@lightdash/common';
-import { buildAccount } from '../../auth/account/account.mock';
+import { fromOauth } from '../../auth/account/account';
+import {
+    buildAccount,
+    defaultSessionUser,
+} from '../../auth/account/account.mock';
 import { HUMAN_ONLY_IN_MANAGED } from '../../auth/agentPermissions/humanOnlyInManaged';
 import {
     AgentPermissionService,
@@ -989,6 +993,157 @@ test('collects warehouse setup behind a missing capability without exposing fing
             .getCurrentBindingFingerprint,
     ).toHaveBeenCalledTimes(1);
     expect(JSON.stringify(refusal)).not.toContain('bindingFingerprint');
+});
+
+test.each(['hidden_by_scope', 'hidden_by_project', 'visible'] as const)(
+    'runtime confirmation diagnostics respect OAuth visibility: %s',
+    async (visibility) => {
+        const { service, operation, deps, policy } = setup();
+        policy.allowedUserUuids = [];
+        deps.agentWarehouseRestrictionConfirmationModel.get.mockResolvedValue({
+            bindingFingerprint: 'stale',
+        });
+        const account = fromOauth(
+            {
+                ...defaultSessionUser,
+                ability: new Ability<PossibleAbilities>([
+                    {
+                        action: 'view',
+                        subject: 'Project',
+                        conditions: {
+                            organizationUuid: operation.organizationUuid,
+                            projectUuid:
+                                visibility === 'hidden_by_project'
+                                    ? 'another-project'
+                                    : operation.projectUuid,
+                        },
+                    },
+                ]),
+            },
+            {
+                accessToken: 'test-token',
+                client: { id: 'test-client' },
+                scope: visibility === 'hidden_by_scope' ? [] : ['read'],
+            },
+            {
+                mode: 'enforce',
+                getRequest: () => ({ method: null, routeTemplate: null }),
+            },
+        );
+        const refusal = await refusalFrom(
+            service.assertOperation({ ...operation, account }),
+        );
+        const {
+            blockers,
+            blockersComplete,
+            requiredCapabilities,
+            explanationUrl,
+            ...primary
+        } = refusal!;
+        expect(primary).toEqual(
+            new AiAccessRefusedError(
+                AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+                {
+                    operation: operation.key,
+                    policyVersion: policy.version,
+                    projectUuid: operation.projectUuid,
+                    policyLayer: 'organization_setting',
+                },
+            ).refusal,
+        );
+        const visible = visibility === 'visible';
+        expect(blockersComplete).toBe(visible);
+        expect(
+            deps.agentWarehouseRestrictionConfirmationModel.get,
+        ).toHaveBeenCalledTimes(visible ? 1 : 0);
+        expect(
+            deps.agentWarehouseRestrictionConfirmationModel
+                .getCurrentBindingFingerprint,
+        ).toHaveBeenCalledTimes(visible ? 1 : 0);
+        if (visible) {
+            expect(blockers).toContainEqual(
+                expect.objectContaining({
+                    checkId: 'warehouse_confirmation',
+                    message: 'The connection changed since it was confirmed.',
+                }),
+            );
+        } else {
+            expect(blockers?.map((blocker) => blocker.checkId)).not.toContain(
+                'warehouse_confirmation',
+            );
+            expect(JSON.stringify(blockers)).not.toContain(
+                '/generalSettings/projectManagement/',
+            );
+        }
+    },
+);
+
+test.each([false, true])(
+    'non-primary custom-role diagnostics require organization management: %s',
+    async (admin) => {
+        const { service, operation, account, policy } = setup();
+        policy.allowedUserUuids = [];
+        account.user.ability = new Ability<PossibleAbilities>(
+            admin ? [{ action: 'manage', subject: 'all' }] : [],
+        );
+        const resolved = await service.resolvePolicy(operation);
+        vi.spyOn(service, 'resolvePolicy').mockResolvedValue({
+            ...resolved,
+            editableCustomRoleUuid: 'custom-role',
+        });
+        const audited = vi.spyOn(service as never, 'createAuditedAbility');
+        const refusal = await refusalFrom(service.assertOperation(operation));
+        expect(
+            refusal?.blockers?.find(
+                (blocker) => blocker.checkId === 'capability:raw_sql',
+            ),
+        ).toMatchObject({
+            settingsUrl: admin
+                ? '/generalSettings/customRoles/custom-role'
+                : '/generalSettings/agentIdentity',
+        });
+        expect(refusal?.explanationUrl).toBe(
+            admin
+                ? '/generalSettings/agentIdentity#test-agent-access'
+                : '/generalSettings/myAgentConnections',
+        );
+        expect(audited).not.toHaveBeenCalled();
+    },
+);
+
+test('hidden project diagnostics retain the primary warehouse refusal and read count', async () => {
+    const { service, operation, account, policy, deps } = setup();
+    account.user.ability = new Ability<PossibleAbilities>([]);
+    policy.systemRoleMatrix.viewer = [AgentCapability.RawSql];
+    const refusal = await refusalFrom(service.assertOperation(operation));
+    expect(refusal).toMatchObject({
+        reason: AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED,
+        settingsUrl: '/generalSettings/projectManagement/project/agentIdentity',
+        blockers: [],
+        blockersComplete: false,
+    });
+    expect(
+        deps.agentWarehouseRestrictionConfirmationModel.get,
+    ).toHaveBeenCalledTimes(1);
+    expect(
+        deps.agentWarehouseRestrictionConfirmationModel
+            .getCurrentBindingFingerprint,
+    ).toHaveBeenCalledTimes(1);
+});
+
+test('runtime sanitization preserves primary custom-role links', async () => {
+    const { service, operation, account } = setup();
+    account.user.ability = new Ability<PossibleAbilities>([]);
+    const resolved = await service.resolvePolicy(operation);
+    vi.spyOn(service, 'resolvePolicy').mockResolvedValue({
+        ...resolved,
+        editableCustomRoleUuid: 'custom-role',
+    });
+    const refusal = await refusalFrom(service.assertOperation(operation));
+    expect(refusal?.settingsUrl).toBe(
+        '/generalSettings/customRoles/custom-role',
+    );
+    expect(refusal?.blockers?.[0].settingsUrl).toBe(refusal?.settingsUrl);
 });
 
 test.each(['settings', 'confirmation', 'fingerprint'] as const)(
