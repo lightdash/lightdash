@@ -1649,3 +1649,117 @@ describe('UserModel', () => {
         });
     });
 });
+
+describe('agent role assignment provenance', () => {
+    test.each([false, true])(
+        'keeps the role union; include sources: %s',
+        async (includeSources) => {
+            const db = knex({ client: MockClient });
+            const tracker = getTracker();
+            tracker.on.select('users').response([
+                {
+                    ...userDetails,
+                    role: OrganizationMemberRole.VIEWER,
+                    role_uuid: null,
+                },
+            ]);
+            tracker.on
+                .select('roles')
+                .response([{ role_uuid: 'custom', name: 'Analyst' }]);
+            const model = new UserModel({
+                database: db,
+                lightdashConfig,
+                featureFlagModel,
+            });
+            const internals = model as unknown as TestableUserModel;
+            internals.getUserProjectRoles = vi.fn().mockResolvedValue([
+                {
+                    projectUuid: 'project',
+                    role: ProjectMemberRole.EDITOR,
+                    roleUuid: null,
+                    extraRoleUuids: ['custom'],
+                },
+            ]);
+            internals.getUserGroupProjectRoles = vi.fn().mockResolvedValue([
+                {
+                    projectUuid: 'project',
+                    groupUuid: 'group',
+                    role: ProjectMemberRole.DEVELOPER,
+                    roleUuid: null,
+                },
+                {
+                    projectUuid: 'other',
+                    groupUuid: 'hidden',
+                    role: ProjectMemberRole.ADMIN,
+                    roleUuid: null,
+                },
+            ]);
+            internals.getOrganizationExtraRoleUuids = vi
+                .fn()
+                .mockResolvedValue(['custom']);
+            internals.customRoleScopes = vi
+                .fn()
+                .mockResolvedValue({ custom: ['view:AgentRawSql'] });
+            const result = await model.getAgentRoleAssignments(
+                'user',
+                'org-1',
+                'project',
+                includeSources,
+            );
+            expect(result.systemRoles).toEqual([
+                OrganizationMemberRole.VIEWER,
+                ProjectMemberRole.EDITOR,
+                ProjectMemberRole.DEVELOPER,
+            ]);
+            expect(result.customRoles).toEqual([
+                { roleUuid: 'custom', scopes: ['view:AgentRawSql'] },
+            ]);
+            if (includeSources)
+                expect(result.sourceAssignments).toEqual([
+                    {
+                        role: { kind: 'system', role: 'viewer' },
+                        assignment: 'organization',
+                        projectUuid: null,
+                        groupUuid: null,
+                    },
+                    {
+                        role: {
+                            kind: 'custom',
+                            roleUuid: 'custom',
+                            name: 'Analyst',
+                        },
+                        assignment: 'extra_organization',
+                        projectUuid: null,
+                        groupUuid: null,
+                    },
+                    {
+                        role: { kind: 'system', role: 'editor' },
+                        assignment: 'project_user',
+                        projectUuid: 'project',
+                        groupUuid: null,
+                    },
+                    {
+                        role: {
+                            kind: 'custom',
+                            roleUuid: 'custom',
+                            name: 'Analyst',
+                        },
+                        assignment: 'project_user',
+                        projectUuid: 'project',
+                        groupUuid: null,
+                    },
+                    {
+                        role: { kind: 'system', role: 'developer' },
+                        assignment: 'project_group',
+                        projectUuid: 'project',
+                        groupUuid: 'group',
+                    },
+                ]);
+            else {
+                expect(result.sourceAssignments).toBeUndefined();
+                expect(tracker.history.select).toHaveLength(1);
+            }
+            await db.destroy();
+        },
+    );
+});

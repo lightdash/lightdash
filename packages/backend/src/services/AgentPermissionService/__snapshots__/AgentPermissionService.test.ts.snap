@@ -1,0 +1,310 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`existing refusal snapshot: administration 1`] = `
+{
+  "action": "ask_admin",
+  "capability": "administration",
+  "code": "ai_access_refused",
+  "connectUrl": null,
+  "message": "Your organization's agent permissions do not allow Administration. Ask an admin to change Permissions on the Agents page.",
+  "operation": "UserAvatarController.updateMyAvatar",
+  "policyLayer": "org_ceiling",
+  "policyVersion": 1,
+  "projectUuid": "project",
+  "reason": "agent_capability_denied",
+  "settingsUrl": "/generalSettings/agentIdentity",
+}
+`;
+
+exports[`existing refusal snapshot: admission 1`] = `
+{
+  "action": "ask_admin",
+  "code": "ai_access_refused",
+  "connectUrl": null,
+  "message": "Your account is not allowed to use agents. Ask an organization admin to update agent access.",
+  "operation": "SchedulerController.post",
+  "policyLayer": "organization_setting",
+  "policyVersion": 1,
+  "projectUuid": "project",
+  "reason": "agent_user_not_allowed",
+  "settingsUrl": "/generalSettings/agentIdentity",
+}
+`;
+
+exports[`existing refusal snapshot: allowed 1`] = `null`;
+
+exports[`existing refusal snapshot: content_write 1`] = `
+{
+  "action": "ask_admin",
+  "capability": "content_write",
+  "code": "ai_access_refused",
+  "connectUrl": null,
+  "message": "Your organization's agent permissions do not allow Create and edit content. Ask an admin to change Permissions on the Agents page.",
+  "operation": "SchedulerController.post",
+  "policyLayer": "org_ceiling",
+  "policyVersion": 1,
+  "projectUuid": "project",
+  "reason": "agent_capability_denied",
+  "settingsUrl": "/generalSettings/agentIdentity",
+}
+`;
+
+exports[`existing refusal snapshot: dbt_writeback 1`] = `
+{
+  "action": "ask_admin",
+  "capability": "dbt_writeback",
+  "code": "ai_access_refused",
+  "connectUrl": null,
+  "message": "Your organization's agent permissions do not allow Git repository changes (dbt). Ask an admin to change Permissions on the Agents page.",
+  "operation": "GitFilesController.saveFile",
+  "policyLayer": "org_ceiling",
+  "policyVersion": 1,
+  "projectUuid": "project",
+  "reason": "agent_capability_denied",
+  "settingsUrl": "/generalSettings/agentIdentity",
+}
+`;
+
+exports[`existing refusal snapshot: delete 1`] = `
+{
+  "action": "ask_admin",
+  "capability": "delete",
+  "code": "ai_access_refused",
+  "connectUrl": null,
+  "message": "Your organization's agent permissions do not allow Delete content. Ask an admin to change Permissions on the Agents page.",
+  "operation": "ContentController.deleteContent",
+  "policyLayer": "org_ceiling",
+  "policyVersion": 1,
+  "projectUuid": "project",
+  "reason": "agent_capability_denied",
+  "settingsUrl": "/generalSettings/agentIdentity",
+}
+`;
+
+exports[`existing refusal snapshot: deploy_upload 1`] = `
+{
+  "action": "ask_admin",
+  "capability": "deploy_upload",
+  "code": "ai_access_refused",
+  "connectUrl": null,
+  "message": "Your organization's agent permissions do not allow Deploy and upload. Ask an admin to change Permissions on the Agents page.",
+  "operation": "DeployController.deployExplores",
+  "policyLayer": "org_ceiling",
+  "policyVersion": 1,
+  "projectUuid": "project",
+  "reason": "agent_capability_denied",
+  "settingsUrl": "/generalSettings/agentIdentity",
+}
+`;
+
+exports[`existing refusal snapshot: disabled 1`] = `
+{
+  "action": "ask_admin",
+  "capability": null,
+  "code": "ai_access_refused",
+  "connectUrl": null,
+  "message": "Agents are disabled. Ask an organization admin to enable agent access.",
+  "operation": "SchedulerController.post",
+  "policyLayer": "organization_setting",
+  "policyVersion": 1,
+  "projectUuid": "project",
+  "reason": "agent_access_disabled",
+  "settingsUrl": "/generalSettings/agentIdentity",
+}
+`;
+
+exports[`existing refusal snapshot: export 1`] = `
+{
+  "action": "ask_admin",
+  "capability": "export",
+  "code": "ai_access_refused",
+  "connectUrl": null,
+  "message": "Your organization's agent permissions do not allow Export results. Ask an admin to change Permissions on the Agents page.",
+  "operation": "QueryController.scheduleDownloadResults",
+  "policyLayer": "org_ceiling",
+  "policyVersion": 1,
+  "projectUuid": "project",
+  "reason": "agent_capability_denied",
+  "settingsUrl": "/generalSettings/agentIdentity",
+}
+`;
+
+exports[`existing refusal snapshot: external_tools 1`] = `
+{
+  "action": "ask_admin",
+  "capability": "external_tools",
+  "code": "ai_access_refused",
+  "connectUrl": null,
+  "message": "Your organization's agent permissions do not allow External tools. Ask an admin to change Permissions on the Agents page.",
+  "operation": "tool",
+  "policyLayer": "org_ceiling",
+  "policyVersion": 1,
+  "projectUuid": "project",
+  "reason": "agent_capability_denied",
+  "settingsUrl": "/generalSettings/agentIdentity",
+}
+`;
+
+exports[`existing refusal snapshot: human 1`] = `
+{
+  "action": "ask_admin",
+  "capability": "administration",
+  "code": "ai_access_refused",
+  "connectUrl": null,
+  "message": "Only a person can change access grants or identity settings.",
+  "operation": "AgentPermissionController.saveCeiling",
+  "policyLayer": "organization_setting",
+  "policyVersion": 1,
+  "projectUuid": "project",
+  "reason": "agent_capability_denied",
+  "settingsUrl": "/generalSettings/agentIdentity",
+}
+`;
+
+exports[`existing refusal snapshot: legacy 1`] = `null`;
+
+exports[`existing refusal snapshot: missing 1`] = `
+{
+  "action": "ask_admin",
+  "capability": "raw_sql",
+  "code": "ai_access_refused",
+  "connectUrl": null,
+  "message": "Raw SQL needs a warehouse restriction confirmation. Ask a project admin to confirm the current agent connection.",
+  "operation": "SqlRunnerController.runSql",
+  "policyLayer": "warehouse_identity",
+  "policyVersion": 1,
+  "projectUuid": "project",
+  "reason": "agent_raw_sql_unconfirmed",
+  "settingsUrl": "/generalSettings/projectManagement/project/agentIdentity",
+}
+`;
+
+exports[`existing refusal snapshot: off 1`] = `null`;
+
+exports[`existing refusal snapshot: project 1`] = `
+{
+  "action": "ask_admin",
+  "capability": null,
+  "code": "ai_access_refused",
+  "connectUrl": null,
+  "message": "Agents cannot access this project. Ask an organization admin to allow it.",
+  "operation": "SchedulerController.post",
+  "policyLayer": "project_scope",
+  "policyVersion": 1,
+  "projectUuid": "project",
+  "reason": "agent_project_denied",
+  "settingsUrl": "/generalSettings/agentIdentity",
+}
+`;
+
+exports[`existing refusal snapshot: publish 1`] = `
+{
+  "action": "ask_admin",
+  "capability": "publish",
+  "code": "ai_access_refused",
+  "connectUrl": null,
+  "message": "Your organization's agent permissions do not allow Publish and share. Ask an admin to change Permissions on the Agents page.",
+  "operation": "SchedulerController.post",
+  "policyLayer": "org_ceiling",
+  "policyVersion": 1,
+  "projectUuid": "project",
+  "reason": "agent_capability_denied",
+  "settingsUrl": "/generalSettings/agentIdentity",
+}
+`;
+
+exports[`existing refusal snapshot: query 1`] = `
+{
+  "action": "ask_admin",
+  "capability": "query",
+  "code": "ai_access_refused",
+  "connectUrl": null,
+  "message": "Your organization's agent permissions do not allow Query data. Ask an admin to change Permissions on the Agents page.",
+  "operation": "SavedChartController.postChartResults",
+  "policyLayer": "org_ceiling",
+  "policyVersion": 1,
+  "projectUuid": "project",
+  "reason": "agent_capability_denied",
+  "settingsUrl": "/generalSettings/agentIdentity",
+}
+`;
+
+exports[`existing refusal snapshot: raw_sql 1`] = `
+{
+  "action": "ask_admin",
+  "capability": "raw_sql",
+  "code": "ai_access_refused",
+  "connectUrl": null,
+  "message": "Your organization's agent permissions do not allow Raw SQL. Ask an admin to change Permissions on the Agents page.",
+  "operation": "SqlRunnerController.runSql",
+  "policyLayer": "org_ceiling",
+  "policyVersion": 1,
+  "projectUuid": "project",
+  "reason": "agent_capability_denied",
+  "settingsUrl": "/generalSettings/agentIdentity",
+}
+`;
+
+exports[`existing refusal snapshot: read_discover 1`] = `
+{
+  "action": "ask_admin",
+  "capability": "read_discover",
+  "code": "ai_access_refused",
+  "connectUrl": null,
+  "message": "Your organization's agent permissions do not allow Read and discover. Ask an admin to change Permissions on the Agents page.",
+  "operation": "SavedChartController.getChartHistory",
+  "policyLayer": "org_ceiling",
+  "policyVersion": 1,
+  "projectUuid": "project",
+  "reason": "agent_capability_denied",
+  "settingsUrl": "/generalSettings/agentIdentity",
+}
+`;
+
+exports[`existing refusal snapshot: stale 1`] = `
+{
+  "action": "ask_admin",
+  "capability": "raw_sql",
+  "code": "ai_access_refused",
+  "connectUrl": null,
+  "message": "Raw SQL needs a warehouse restriction confirmation. Ask a project admin to confirm the current agent connection.",
+  "operation": "SqlRunnerController.runSql",
+  "policyLayer": "warehouse_identity",
+  "policyVersion": 1,
+  "projectUuid": "project",
+  "reason": "agent_raw_sql_unconfirmed",
+  "settingsUrl": "/generalSettings/projectManagement/project/agentIdentity",
+}
+`;
+
+exports[`existing refusal snapshot: unmapped 1`] = `
+{
+  "action": "ask_admin",
+  "capability": null,
+  "code": "ai_access_refused",
+  "connectUrl": null,
+  "message": "This operation has no agent permission mapping. Contact an admin for support.",
+  "operation": "unknown",
+  "policyLayer": "unmapped",
+  "policyVersion": 1,
+  "projectUuid": "project",
+  "reason": "agent_operation_unmapped",
+  "settingsUrl": null,
+}
+`;
+
+exports[`existing refusal snapshot: writes 1`] = `
+{
+  "action": "ask_admin",
+  "capability": "content_write",
+  "code": "ai_access_refused",
+  "connectUrl": null,
+  "message": "Agent content writes are disabled. Ask an organization admin to enable them.",
+  "operation": "SchedulerController.post",
+  "policyLayer": "organization_setting",
+  "policyVersion": 1,
+  "projectUuid": "project",
+  "reason": "agent_setting_denied",
+  "settingsUrl": "/generalSettings/agentIdentity",
+}
+`;

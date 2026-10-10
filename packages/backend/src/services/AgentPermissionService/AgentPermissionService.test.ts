@@ -3,7 +3,9 @@ import {
     AgentActorSurface,
     AgentCapability,
     AiAccessRefusalReason,
+    AiAccessRefusedError,
     FeatureFlags,
+    FeatureNotEnabledError,
     ForbiddenError,
     OrganizationMemberRole,
     type AgentCapabilityPolicy,
@@ -729,3 +731,513 @@ test.each(['off', 'legacy'] as const)(
         expect(deps.agentActionLogModel.insert).not.toHaveBeenCalled();
     },
 );
+
+const parityCases = [
+    'allowed',
+    'off',
+    'legacy',
+    'admission',
+    'human',
+    'disabled',
+    'unmapped',
+    'project',
+    ...Object.values(AgentCapability),
+    'writes',
+    'missing',
+    'stale',
+] as const;
+
+const paritySetup = (scenario: (typeof parityCases)[number]) => {
+    const fixture = setup();
+    const { policy, deps, operation } = fixture;
+    policy.systemRoleMatrix.viewer = Object.values(AgentCapability);
+    deps.agentWarehouseRestrictionConfirmationModel.get.mockResolvedValue({
+        bindingFingerprint: 'current',
+    });
+    operation.key = 'SchedulerController.post';
+    if (scenario === 'off')
+        deps.featureFlagModel.get.mockResolvedValue({ enabled: false });
+    if (scenario === 'legacy') policy.mode = 'legacy';
+    if (scenario === 'admission') policy.allowedUserUuids = [];
+    if (scenario === 'human')
+        operation.key = 'AgentPermissionController.saveCeiling';
+    if (scenario === 'disabled')
+        deps.getOrganizationSettings.mockResolvedValue({
+            mcpAgentsEnabled: false,
+            mcpContentWritesEnabled: true,
+        });
+    if (scenario === 'unmapped') operation.key = 'unknown';
+    if (scenario === 'project') policy.allowedProjectUuids = [];
+    if (scenario === 'writes')
+        deps.getOrganizationSettings.mockResolvedValue({
+            mcpAgentsEnabled: true,
+            mcpContentWritesEnabled: false,
+        });
+    if (scenario === 'missing' || scenario === 'stale') {
+        operation.key = 'SqlRunnerController.runSql';
+        deps.agentWarehouseRestrictionConfirmationModel.get.mockResolvedValue(
+            scenario === 'missing' ? null : { bindingFingerprint: 'old' },
+        );
+    }
+    const capabilityOperations: Record<AgentCapability, string> = {
+        read_discover: 'SavedChartController.getChartHistory',
+        query: 'SavedChartController.postChartResults',
+        raw_sql: 'SqlRunnerController.runSql',
+        content_write: 'SchedulerController.post',
+        delete: 'ContentController.deleteContent',
+        publish: 'SchedulerController.post',
+        deploy_upload: 'DeployController.deployExplores',
+        dbt_writeback: 'GitFilesController.saveFile',
+        export: 'QueryController.scheduleDownloadResults',
+        administration: 'UserAvatarController.updateMyAvatar',
+        external_tools: '',
+    };
+    if (Object.values(AgentCapability).includes(scenario as AgentCapability)) {
+        policy.systemRoleMatrix.viewer = Object.values(AgentCapability).filter(
+            (c) => c !== scenario,
+        );
+        operation.key = capabilityOperations[scenario as AgentCapability];
+    }
+    const args =
+        scenario === AgentCapability.ExternalTools
+            ? {
+                  ...operation,
+                  kind: 'connected_mcp_tool' as const,
+                  key: 'tool',
+                  connectedTool: {
+                      serverUuid: 'server',
+                      toolName: 'tool',
+                      enabledToolNames: ['tool'],
+                  },
+              }
+            : operation;
+    return { ...fixture, operation: args };
+};
+
+const refusalFrom = async (promise: Promise<void>) => {
+    try {
+        await promise;
+        return null;
+    } catch (error) {
+        if (!(error instanceof AiAccessRefusedError)) throw error;
+        return error.refusal;
+    }
+};
+
+test.each(parityCases)('existing refusal snapshot: %s', async (scenario) => {
+    const { service, deps, operation } = paritySetup(scenario);
+    const refusal = await refusalFrom(service.assertOperation(operation));
+    const {
+        requiredCapabilities,
+        blockers,
+        blockersComplete,
+        explanationUrl,
+        ...existing
+    } = refusal ?? {};
+    expect(refusal ? existing : null).toMatchSnapshot();
+    expect(deps.agentActionLogModel.insert).toHaveBeenCalledTimes(
+        refusal ? 1 : 0,
+    );
+    if (Object.values(AgentCapability).includes(scenario as AgentCapability)) {
+        expect(refusal).toMatchObject({
+            reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+            capability: scenario,
+        });
+    }
+});
+
+test.each(parityCases)(
+    'explain matches runtime and never writes: %s',
+    async (scenario) => {
+        const { service, deps, operation } = paritySetup(scenario);
+        const refusal = await refusalFrom(service.assertOperation(operation));
+        vi.clearAllMocks();
+        const audited = vi.spyOn(service as never, 'createAuditedAbility');
+        const promise = service.explain({
+            ...operation,
+            action: {
+                type: 'operation',
+                kind: operation.kind,
+                key: operation.key,
+                connectedTool:
+                    'connectedTool' in operation
+                        ? operation.connectedTool
+                        : undefined,
+            },
+        });
+        if (scenario === 'off') {
+            await expect(promise).rejects.toBeInstanceOf(
+                FeatureNotEnabledError,
+            );
+        } else {
+            const result = await promise;
+            expect(result.mainReason).toEqual(refusal);
+            expect(result.policyMainReason).toEqual(refusal);
+            expect(result.coverage).toBe('checked_permissions_only');
+            expect(result.checks.slice(-2)).toMatchObject([
+                {
+                    kind: 'connection_grant',
+                    status: 'not_checked',
+                    message: 'Connection grant: not checked yet.',
+                },
+                {
+                    kind: 'warehouse_access',
+                    status: 'not_checked',
+                    message: 'Warehouse access is not verified.',
+                },
+            ]);
+            if (scenario === 'legacy') {
+                expect(result).toMatchObject({
+                    mode: 'legacy',
+                    result: 'not_checked',
+                    mainReason: null,
+                    blockers: [],
+                });
+                expect(result.checks).toHaveLength(2);
+            } else {
+                expect(result.checks.map((check) => check.kind)).toEqual([
+                    'agent_admission',
+                    'human_only',
+                    'agent_enabled',
+                    'operation_mapping',
+                    'project_scope',
+                    ...result.requiredCapabilities.map(() => 'capability'),
+                    'content_writes',
+                    'warehouse_confirmation',
+                    'connection_grant',
+                    'warehouse_access',
+                ]);
+                let expectedResult = 'refused';
+                if (scenario === 'allowed') expectedResult = 'allowed';
+                else if (['missing', 'stale'].includes(scenario))
+                    expectedResult = 'setup_needed';
+                expect(result.result).toBe(expectedResult);
+            }
+        }
+        expect(audited).not.toHaveBeenCalled();
+        expect(deps.agentActionLogModel.insert).not.toHaveBeenCalled();
+        expect(deps.agentCapabilityPolicyModel.save).not.toHaveBeenCalled();
+        expect(
+            deps.agentWarehouseRestrictionConfirmationModel.upsert,
+        ).not.toHaveBeenCalled();
+        expect(
+            deps.agentWarehouseRestrictionConfirmationModel.delete,
+        ).not.toHaveBeenCalled();
+    },
+);
+
+test('collects missing delivery capabilities and the write switch in order', async () => {
+    const { service, operation, policy, deps } = setup();
+    policy.systemRoleMatrix.viewer = [];
+    deps.getOrganizationSettings.mockResolvedValue({
+        mcpAgentsEnabled: true,
+        mcpContentWritesEnabled: false,
+    });
+    const refusal = await refusalFrom(
+        service.assertOperation({
+            ...operation,
+            key: 'SchedulerController.post',
+        }),
+    );
+    expect(refusal).toMatchObject({
+        requiredCapabilities: [
+            AgentCapability.ContentWrite,
+            AgentCapability.Publish,
+        ],
+        blockersComplete: true,
+        blockers: [
+            {
+                checkId: 'capability:content_write',
+                capability: AgentCapability.ContentWrite,
+            },
+            {
+                checkId: 'capability:publish',
+                capability: AgentCapability.Publish,
+            },
+            {
+                checkId: 'content_writes',
+                reason: AiAccessRefusalReason.AGENT_SETTING_DENIED,
+            },
+        ],
+        explanationUrl: '/generalSettings/myAgentConnections',
+    });
+    expect(deps.getOrganizationSettings).toHaveBeenCalledTimes(1);
+    expect(deps.agentActionLogModel.insert).toHaveBeenCalledTimes(1);
+});
+
+test('collects warehouse setup behind a missing capability without exposing fingerprints', async () => {
+    const { service, operation, deps } = setup();
+    const refusal = await refusalFrom(service.assertOperation(operation));
+    expect(refusal?.blockers).toMatchObject([
+        { reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED },
+        {
+            reason: AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED,
+            status: 'setup_needed',
+        },
+    ]);
+    expect(
+        deps.agentWarehouseRestrictionConfirmationModel.get,
+    ).toHaveBeenCalledTimes(1);
+    expect(
+        deps.agentWarehouseRestrictionConfirmationModel
+            .getCurrentBindingFingerprint,
+    ).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(refusal)).not.toContain('bindingFingerprint');
+});
+
+test.each(['settings', 'confirmation', 'fingerprint'] as const)(
+    'diagnostic %s failure retains the primary refusal',
+    async (source) => {
+        const { service, operation, deps, policy } = setup();
+        if (source === 'settings') {
+            policy.allowedUserUuids = [];
+            deps.getOrganizationSettings.mockRejectedValue(
+                new Error('diagnostic failed'),
+            );
+        } else if (source === 'confirmation')
+            deps.agentWarehouseRestrictionConfirmationModel.get.mockRejectedValue(
+                new Error('diagnostic failed'),
+            );
+        else
+            deps.agentWarehouseRestrictionConfirmationModel.getCurrentBindingFingerprint.mockRejectedValue(
+                new Error('diagnostic failed'),
+            );
+        const refusal = await refusalFrom(service.assertOperation(operation));
+        expect(refusal).toMatchObject({
+            reason:
+                source === 'settings'
+                    ? AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED
+                    : AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+            blockersComplete: false,
+        });
+        expect(refusal?.blockers?.[0].reason).toBe(refusal?.reason);
+        expect(deps.agentActionLogModel.insert).toHaveBeenCalledTimes(1);
+    },
+);
+
+test.each(['allowed', 'off', 'legacy', 'missing', 'stale'] as const)(
+    'preserves read counts: %s',
+    async (scenario) => {
+        const { service, deps, operation } = paritySetup(scenario);
+        await refusalFrom(service.assertOperation(operation));
+        const managed = scenario !== 'off' && scenario !== 'legacy';
+        expect(deps.featureFlagModel.get).toHaveBeenCalledTimes(1);
+        expect(deps.agentCapabilityPolicyModel.get).toHaveBeenCalledTimes(
+            scenario === 'off' ? 0 : 1,
+        );
+        expect(deps.userModel.getAgentRoleAssignments).toHaveBeenCalledTimes(
+            managed ? 1 : 0,
+        );
+        expect(deps.projectModel.getSummary).toHaveBeenCalledTimes(
+            managed ? 1 : 0,
+        );
+        expect(deps.getOrganizationSettings).toHaveBeenCalledTimes(
+            managed ? 1 : 0,
+        );
+        expect(
+            deps.agentWarehouseRestrictionConfirmationModel.get,
+        ).toHaveBeenCalledTimes(
+            ['missing', 'stale'].includes(scenario) ? 1 : 0,
+        );
+    },
+);
+
+test.each(['missing', 'stale', 'current', 'both_absent'] as const)(
+    'explain confirmation: %s',
+    async (state) => {
+        const { service, operation, policy, deps } = setup();
+        policy.systemRoleMatrix.viewer = [AgentCapability.RawSql];
+        deps.agentWarehouseRestrictionConfirmationModel.get.mockResolvedValue(
+            state === 'missing' || state === 'both_absent'
+                ? undefined
+                : { bindingFingerprint: state },
+        );
+        if (state === 'both_absent')
+            deps.agentWarehouseRestrictionConfirmationModel.getCurrentBindingFingerprint.mockResolvedValue(
+                undefined,
+            );
+        const result = await service.explain({
+            ...operation,
+            action: { type: 'capability', capability: AgentCapability.RawSql },
+        });
+        expect(
+            result.checks.find(
+                (check) => check.kind === 'warehouse_confirmation',
+            ),
+        ).toMatchObject({
+            status: state === 'current' ? 'allowed' : 'setup_needed',
+            ...(state === 'stale'
+                ? { message: 'The connection changed since it was confirmed.' }
+                : {}),
+        });
+        expect(JSON.stringify(result)).not.toContain('bindingFingerprint');
+    },
+);
+
+test('explain preserves all granting sources and a custom grant absent from the matrix', async () => {
+    const { service, deps, operation, policy } = setup();
+    policy.systemRoleMatrix.viewer = [AgentCapability.Query];
+    policy.systemRoleMatrix.editor = [AgentCapability.Query];
+    const sources = [
+        {
+            role: { kind: 'system', role: OrganizationMemberRole.VIEWER },
+            assignment: 'organization',
+            projectUuid: null,
+            groupUuid: null,
+        },
+        {
+            role: { kind: 'system', role: OrganizationMemberRole.EDITOR },
+            assignment: 'project_user',
+            projectUuid: 'project',
+            groupUuid: null,
+        },
+        {
+            role: { kind: 'system', role: OrganizationMemberRole.EDITOR },
+            assignment: 'project_group',
+            projectUuid: 'project',
+            groupUuid: 'group',
+        },
+        {
+            role: { kind: 'custom', roleUuid: 'custom', name: 'Analyst' },
+            assignment: 'extra_organization',
+            projectUuid: null,
+            groupUuid: null,
+        },
+    ];
+    deps.userModel.getAgentRoleAssignments.mockResolvedValue({
+        systemRoles: [
+            OrganizationMemberRole.VIEWER,
+            OrganizationMemberRole.EDITOR,
+        ],
+        customRoles: [
+            {
+                roleUuid: 'custom',
+                scopes: ['view:AgentQuery', 'view:AgentRawSql'],
+            },
+        ],
+        sourceAssignments: sources,
+    });
+    const result = await service.explain({
+        ...operation,
+        action: { type: 'capability', capability: AgentCapability.Query },
+    });
+    expect(
+        result.checks.find((check) => check.kind === 'capability')
+            ?.sourceAssignments,
+    ).toEqual(sources);
+    const raw = await service.explain({
+        ...operation,
+        action: { type: 'capability', capability: AgentCapability.RawSql },
+    });
+    expect(
+        raw.checks.find((check) => check.kind === 'capability'),
+    ).toMatchObject({ status: 'allowed', sourceAssignments: [sources[3]] });
+});
+
+test('admin remedy uses plain ability without audit during explain', async () => {
+    const { service, operation, account } = setup();
+    account.user.ability = new Ability<PossibleAbilities>([
+        { action: 'manage', subject: 'all' },
+    ]);
+    const result = await service.explain({
+        ...operation,
+        action: { type: 'operation', kind: operation.kind, key: operation.key },
+    });
+    expect(result.mainReason?.explanationUrl).toBe(
+        '/generalSettings/agentIdentity#test-agent-access',
+    );
+});
+
+test('bounds diagnostics when a confirmation read does not finish', async () => {
+    vi.useFakeTimers();
+    try {
+        const { service, operation, deps } = setup();
+        deps.agentWarehouseRestrictionConfirmationModel.get.mockImplementation(
+            () => new Promise(() => {}),
+        );
+        const promise = refusalFrom(service.assertOperation(operation));
+        await vi.advanceTimersByTimeAsync(2000);
+        expect(await promise).toMatchObject({
+            reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+            blockersComplete: false,
+        });
+        expect(deps.agentActionLogModel.insert).toHaveBeenCalledTimes(1);
+    } finally {
+        vi.useRealTimers();
+    }
+});
+
+test('current confirmation does not add allowed-path reads', async () => {
+    const { service, operation, deps, policy } = setup();
+    policy.systemRoleMatrix.viewer = [AgentCapability.RawSql];
+    deps.agentWarehouseRestrictionConfirmationModel.get.mockResolvedValue({
+        bindingFingerprint: 'current',
+    });
+    await expect(service.assertOperation(operation)).resolves.toBeUndefined();
+    expect(deps.featureFlagModel.get).toHaveBeenCalledTimes(1);
+    expect(deps.agentCapabilityPolicyModel.get).toHaveBeenCalledTimes(1);
+    expect(
+        deps.userModel.getAgentRoleAssignments,
+    ).toHaveBeenCalledExactlyOnceWith(
+        operation.account.user.id,
+        operation.organizationUuid,
+        operation.projectUuid,
+    );
+    expect(deps.getOrganizationSettings).toHaveBeenCalledTimes(1);
+    expect(
+        deps.agentWarehouseRestrictionConfirmationModel.get,
+    ).toHaveBeenCalledTimes(1);
+    expect(
+        deps.agentWarehouseRestrictionConfirmationModel
+            .getCurrentBindingFingerprint,
+    ).toHaveBeenCalledTimes(1);
+    expect(deps.agentActionLogModel.insert).not.toHaveBeenCalled();
+});
+
+test('all independent blockers are ordered and disclose no role sources or project lists', async () => {
+    const { service, operation, deps, policy } = setup();
+    policy.allowedUserUuids = ['another-person'];
+    policy.allowedProjectUuids = ['another-project'];
+    policy.systemRoleMatrix.viewer = [];
+    deps.getOrganizationSettings.mockResolvedValue({
+        mcpAgentsEnabled: false,
+        mcpContentWritesEnabled: false,
+    });
+    const refusal = await refusalFrom(
+        service.assertOperation({
+            ...operation,
+            kind: 'tool_effect',
+            key: 'createContent.sql_chart',
+        }),
+    );
+    expect(refusal?.blockers?.map((blocker) => blocker.checkId)).toEqual([
+        'agent_admission',
+        'agent_enabled',
+        'project_scope',
+        'capability:content_write',
+        'capability:raw_sql',
+        'content_writes',
+        'warehouse_confirmation',
+    ]);
+    expect(
+        new Set(refusal?.blockers?.map((blocker) => blocker.checkId)).size,
+    ).toBe(refusal?.blockers?.length);
+    expect(JSON.stringify(refusal)).not.toMatch(
+        /another-person|another-project|sourceAssignments|bindingFingerprint/,
+    );
+});
+
+test('missing organization settings keep the existing enabled defaults', async () => {
+    const { service, operation, deps, policy } = setup();
+    deps.getOrganizationSettings.mockResolvedValue(null);
+    policy.systemRoleMatrix.viewer = [
+        AgentCapability.ContentWrite,
+        AgentCapability.Publish,
+    ];
+    await expect(
+        service.assertOperation({
+            ...operation,
+            key: 'SchedulerController.post',
+        }),
+    ).resolves.toBeUndefined();
+});

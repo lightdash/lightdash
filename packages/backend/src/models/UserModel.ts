@@ -42,6 +42,7 @@ import {
     SessionUser,
     UpdateUserArgs,
     validatePassword,
+    type AgentCapabilitySourceAssignment,
 } from '@lightdash/common';
 import bcrypt from 'bcrypt';
 import { Knex } from 'knex';
@@ -804,7 +805,7 @@ export class UserModel {
         organizationId: number,
         userUuid: string,
         trx: Knex = this.database,
-    ): Promise<ProjectAbilityProfile[]> {
+    ): Promise<(ProjectAbilityProfile & { groupUuid: string })[]> {
         // Remember: primary key for an organization is organization_id,user_id - not user_id alone
         const query = trx('group_memberships')
             .innerJoin(
@@ -861,6 +862,7 @@ export class UserModel {
         );
         return projectMemberships.map((membership) => ({
             projectUuid: membership.project_uuid,
+            groupUuid: membership.group_uuid,
             role: membership.role,
             userUuid,
             roleUuid: membership.role_uuid || undefined,
@@ -877,9 +879,11 @@ export class UserModel {
         userUuid: string,
         organizationUuid: string,
         projectUuid: string | null,
+        includeSources = false,
     ): Promise<{
         systemRoles: (OrganizationMemberRole | ProjectMemberRole)[];
         customRoles: { roleUuid: string; scopes: string[] }[];
+        sourceAssignments?: AgentCapabilitySourceAssignment[];
     }> {
         const user = await userDetailsQueryBuilder(this.database)
             .where('users.user_uuid', userUuid)
@@ -920,7 +924,93 @@ export class UserModel {
             ),
         ];
         const scopes = await this.customRoleScopes(roleUuids);
+        const sourceAssignments: AgentCapabilitySourceAssignment[] = [];
+        if (includeSources) {
+            const roles =
+                roleUuids.length === 0
+                    ? []
+                    : await this.database(RolesTableName)
+                          .select('role_uuid', 'name')
+                          .whereIn('role_uuid', roleUuids);
+            const names = new Map(
+                roles.map((role) => [role.role_uuid, role.name]),
+            );
+            const addSource = (
+                systemRole: OrganizationMemberRole | ProjectMemberRole,
+                roleUuid: string | null | undefined,
+                assignment: AgentCapabilitySourceAssignment['assignment'],
+                assignedProjectUuid: string | null,
+                groupUuid: string | null,
+            ) => {
+                sourceAssignments.push({
+                    role: roleUuid
+                        ? {
+                              kind: 'custom',
+                              roleUuid,
+                              name: names.get(roleUuid) ?? null,
+                          }
+                        : {
+                              kind: 'system',
+                              role: systemRole,
+                          },
+                    assignment,
+                    projectUuid: assignedProjectUuid,
+                    groupUuid,
+                });
+            };
+            addSource(user.role, user.role_uuid, 'organization', null, null);
+            extraOrgRoles.forEach((roleUuid) =>
+                addSource(
+                    user.role,
+                    roleUuid,
+                    'extra_organization',
+                    null,
+                    null,
+                ),
+            );
+            direct
+                .filter((profile) => profile.projectUuid === projectUuid)
+                .forEach((profile) => {
+                    addSource(
+                        profile.role,
+                        profile.roleUuid,
+                        'project_user',
+                        projectUuid,
+                        null,
+                    );
+                    profile.extraRoleUuids?.forEach((roleUuid) =>
+                        addSource(
+                            profile.role,
+                            roleUuid,
+                            'project_user',
+                            projectUuid,
+                            null,
+                        ),
+                    );
+                });
+            groups
+                .filter((profile) => profile.projectUuid === projectUuid)
+                .forEach((profile) => {
+                    addSource(
+                        profile.role,
+                        profile.roleUuid,
+                        'project_group',
+                        projectUuid,
+                        profile.groupUuid,
+                    );
+                    profile.extraRoleUuids?.forEach((roleUuid) =>
+                        addSource(
+                            profile.role,
+                            roleUuid,
+                            'project_group',
+                            projectUuid,
+                            profile.groupUuid,
+                        ),
+                    );
+                });
+        }
         return {
+            ...(includeSources ? { sourceAssignments } : {}),
             systemRoles: [
                 ...(user.role_uuid ? [] : [user.role]),
                 ...profiles
