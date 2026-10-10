@@ -69,6 +69,10 @@ migration `20260417111420_grant_custom_fields_to_custom_sql_roles.ts`.
 
 ### Migration template
 
+A migration that revokes a permission for security reasons does not swallow
+errors. Its `down()` throws an error with an `irreversible:` prefix when it
+cannot safely restore the removed grants.
+
 ```ts
 import { Knex } from 'knex';
 

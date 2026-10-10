@@ -237,6 +237,11 @@ in `legacy` mode. Saving a ceiling or applying the pilot preset activates
 `managed` mode; resetting restores `legacy`. Disabling the flag preserves the
 saved policy and makes the permission service return `off` without new checks.
 
+New custom roles start with Read, Query and Export for agents; Raw SQL stays
+off until an admin adds it to the role. The cleanup migration removes the Raw
+SQL agent scope from every existing custom role in every organization, including
+explicit admin grants, whatever the flag state.
+
 Managed policy resolution unions system-role matrix grants with custom-role
 capability scopes. The pilot changes the system-role matrix and allowed projects;
 it leaves custom roles unchanged. The organization agent switch bounds all

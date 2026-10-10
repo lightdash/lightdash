@@ -11,6 +11,7 @@ import {
     ForbiddenError,
     getAllScopeMap,
     getAllScopesForRole,
+    getRoleCopyScopes,
     InviteLinkPurpose,
     isOrganizationMemberRole,
     isScopeAssignableAtLevel,
@@ -2404,7 +2405,10 @@ export class RolesService extends BaseService {
         const copyOfRoleName = `Copy of: ${sourceRole.name}`;
         const newDescription =
             description || sourceRole.description || copyOfRoleName;
-        const scopeNames = sourceRole.scopes.filter((scopeName) =>
+        const scopeNames = getRoleCopyScopes(
+            sourceRole.ownerType,
+            sourceRole.scopes,
+        ).filter((scopeName) =>
             isScopeAssignableAtLevel(scopeName, sourceRole.level),
         );
         const newRole = await this.rolesModel.db.transaction(

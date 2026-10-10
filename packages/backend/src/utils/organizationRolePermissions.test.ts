@@ -62,6 +62,22 @@ describe('validateOrganizationScopesCanBeGranted', () => {
         ...getOrganizationSystemRoleScopes(OrganizationMemberRole.MEMBER),
     ];
 
+    it('lets a built-in organization admin explicitly grant agent Raw SQL', async () => {
+        const user = {
+            ...customRoleCaller({ canManagePersonalAccessToken: false }),
+            role: OrganizationMemberRole.ADMIN,
+            roleUuid: undefined,
+        };
+        await expect(
+            validateOrganizationScopesCanBeGranted({
+                user,
+                organizationUuid: ORG,
+                grantedScopes: ['view:AgentRawSql'],
+                rolesModel: rolesModelWithScopes([]),
+            }),
+        ).resolves.toBeUndefined();
+    });
+
     it('lets a custom-role caller grant a system role while personal access tokens are enabled', async () => {
         await expect(
             validateOrganizationScopesCanBeGranted({

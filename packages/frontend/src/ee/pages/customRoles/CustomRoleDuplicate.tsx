@@ -1,4 +1,8 @@
-import { type RoleLevel, type RoleWithScopes } from '@lightdash/common';
+import {
+    getRoleCopyScopes,
+    type RoleLevel,
+    type RoleWithScopes,
+} from '@lightdash/common';
 import { Center, Loader, Select, Stack } from '@mantine/core';
 import startCase from 'lodash/startCase';
 import { useMemo, useState } from 'react';
@@ -101,7 +105,10 @@ export const CustomRoleDuplicate = () => {
                         name: `Copy of: ${sourceRole.name}`,
                         description: sourceRole.description ?? '',
                         level: sourceRole.level,
-                        scopes: sourceRole.scopes,
+                        scopes: getRoleCopyScopes(
+                            sourceRole.ownerType,
+                            sourceRole.scopes,
+                        ),
                     }}
                     onSubmit={handleCreateRole}
                     isWorking={createRole.isLoading}

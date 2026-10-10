@@ -1409,6 +1409,22 @@ describe('RolesService', () => {
                 expect(result.name).toBe(newRoleName.name);
             });
 
+            it('does not copy the built-in Raw SQL agent scope', async () => {
+                const result = await service.duplicateRole(
+                    mockAccount,
+                    organizationUuid,
+                    systemRoleId,
+                    newRoleName,
+                );
+                expect(result.scopes).not.toContain('view:AgentRawSql');
+                expect(mockRolesModel.addScopesToRole).toHaveBeenCalledWith(
+                    mockNewRole.roleUuid,
+                    expect.not.arrayContaining(['view:AgentRawSql']),
+                    mockAccount.user?.id,
+                    {},
+                );
+            });
+
             it('should handle system role not found', async () => {
                 const nonExistentRoleId = 'non-existent-system-role';
                 // This is not a system role, so it will try to get it as a custom role
@@ -1487,6 +1503,26 @@ describe('RolesService', () => {
                 expect(result.roleUuid).toBe(mockNewRole.roleUuid);
                 expect(result.name).toBe(newRoleName.name);
                 expect(result.scopes).toEqual(mockCustomRoleWithScopes.scopes);
+            });
+
+            it('copies an explicit Raw SQL agent grant from a custom role', async () => {
+                mockRolesModel.getRoleWithScopesByUuid.mockResolvedValue({
+                    ...mockCustomRoleWithScopes,
+                    scopes: ['view:AgentRawSql'],
+                });
+                const result = await service.duplicateRole(
+                    mockAccount,
+                    organizationUuid,
+                    customRoleId,
+                    newRoleName,
+                );
+                expect(result.scopes).toEqual(['view:AgentRawSql']);
+                expect(mockRolesModel.addScopesToRole).toHaveBeenCalledWith(
+                    mockNewRole.roleUuid,
+                    ['view:AgentRawSql'],
+                    mockAccount.user?.id,
+                    {},
+                );
             });
 
             it('should preserve the duplicated custom role level', async () => {

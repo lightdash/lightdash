@@ -2,6 +2,7 @@ import {
     AGENT_CAPABILITY_DEFAULTS,
     AgentCapability,
 } from '../types/agentPermissions';
+import { type Role } from '../types/roles';
 import { type ScopeName } from '../types/scopes';
 
 export const AGENT_CAPABILITY_SCOPES = {
@@ -42,3 +43,14 @@ export const AGENT_DEFAULT_CAPABILITY_SUBJECTS = AGENT_CAPABILITY_DEFAULTS.map(
             'view:'.length,
         ) as AgentCapabilitySubjectName,
 );
+
+export const getRoleCopyScopes = (
+    ownerType: Role['ownerType'],
+    scopes: string[],
+): string[] =>
+    ownerType === 'system'
+        ? scopes.filter(
+              (scope) =>
+                  scope !== AGENT_CAPABILITY_SCOPES[AgentCapability.RawSql],
+          )
+        : scopes;

@@ -1,6 +1,6 @@
 import {
     isScopeAssignableAtLevel,
-    AGENT_CAPABILITY_DEFAULTS,
+    AGENT_CAPABILITY_PRESET_DEFAULTS,
     AGENT_CAPABILITY_SCOPES,
     type RoleLevel,
     type RolePreset,
@@ -22,7 +22,7 @@ export const getRolePresetScopes = (
 
 export const getNewRoleAgentScopes = (enabled: boolean): ScopeName[] =>
     enabled
-        ? AGENT_CAPABILITY_DEFAULTS.map(
+        ? AGENT_CAPABILITY_PRESET_DEFAULTS.map(
               (capability) => AGENT_CAPABILITY_SCOPES[capability],
           )
         : [];

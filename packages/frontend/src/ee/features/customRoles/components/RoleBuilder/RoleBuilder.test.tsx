@@ -1,8 +1,4 @@
-import {
-    AGENT_CAPABILITY_DEFAULTS,
-    AGENT_CAPABILITY_SCOPES,
-    rolePresets,
-} from '@lightdash/common';
+import { rolePresets } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -155,7 +151,7 @@ describe('RoleBuilder presets', () => {
 });
 
 describe('Agent permissions', () => {
-    it('shows grouped capabilities and seeds only the four read/query scopes for new roles', async () => {
+    it('shows grouped capabilities and seeds only Read, Query and Export for new roles', async () => {
         flags.enabled = true;
         const { onSubmit } = renderRoleBuilder();
         const user = userEvent.setup();
@@ -163,7 +159,16 @@ describe('Agent permissions', () => {
         expect(screen.getByText('Agent permissions')).toBeInTheDocument();
         expect(screen.getByText('Read and query')).toBeInTheDocument();
         expect(screen.getByText('Changes')).toBeInTheDocument();
-        expect(screen.getByRole('checkbox', { name: 'Raw SQL' })).toBeChecked();
+        expect(
+            screen.getByRole('checkbox', { name: 'Raw SQL' }),
+        ).not.toBeChecked();
+        for (const name of [
+            'Read and discover',
+            'Query data',
+            'Export results',
+        ]) {
+            expect(screen.getByRole('checkbox', { name })).toBeChecked();
+        }
         expect(
             screen.getByRole('checkbox', { name: 'Delete content' }),
         ).not.toBeChecked();
@@ -174,9 +179,11 @@ describe('Agent permissions', () => {
         await user.click(screen.getByRole('button', { name: 'Create role' }));
         expect(onSubmit).toHaveBeenCalledWith(
             expect.objectContaining({
-                scopes: AGENT_CAPABILITY_DEFAULTS.map(
-                    (capability) => AGENT_CAPABILITY_SCOPES[capability],
-                ),
+                scopes: [
+                    'view:AgentReadDiscover',
+                    'view:AgentQuery',
+                    'view:AgentExport',
+                ],
             }),
         );
     });
@@ -186,7 +193,33 @@ describe('Agent permissions', () => {
         await selectPreset('SQL Runner user');
         const user = await selectPreset('Start from scratch');
         await user.click(screen.getByRole('button', { name: /AI Features/ }));
-        expect(screen.getByRole('checkbox', { name: 'Raw SQL' })).toBeChecked();
+        expect(
+            screen.getByRole('checkbox', { name: 'Raw SQL' }),
+        ).not.toBeChecked();
+        for (const name of [
+            'Read and discover',
+            'Query data',
+            'Export results',
+        ]) {
+            expect(screen.getByRole('checkbox', { name })).toBeChecked();
+        }
+    });
+    it('lets an admin explicitly select Raw SQL for a new role', async () => {
+        flags.enabled = true;
+        const { onSubmit } = renderRoleBuilder();
+        const user = userEvent.setup();
+        await user.click(screen.getByRole('button', { name: /AI Features/ }));
+        await user.click(screen.getByRole('checkbox', { name: 'Raw SQL' }));
+        await user.type(
+            screen.getByRole('textbox', { name: /Role name/ }),
+            'SQL agent',
+        );
+        await user.click(screen.getByRole('button', { name: 'Create role' }));
+        expect(onSubmit).toHaveBeenCalledWith(
+            expect.objectContaining({
+                scopes: expect.arrayContaining(['view:AgentRawSql']),
+            }),
+        );
     });
     it('preserves existing roles without adding read/query defaults', async () => {
         flags.enabled = true;
@@ -196,6 +229,9 @@ describe('Agent permissions', () => {
         });
         const user = userEvent.setup();
         await user.click(screen.getByRole('button', { name: /AI Features/ }));
+        expect(
+            screen.getByRole('checkbox', { name: 'Raw SQL' }),
+        ).not.toBeChecked();
         expect(
             screen.getByRole('checkbox', { name: 'Read and discover' }),
         ).not.toBeChecked();
