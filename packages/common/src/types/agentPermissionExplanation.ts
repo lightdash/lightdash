@@ -68,6 +68,7 @@ export type AgentPermissionExplanation = {
     actionId: string;
     requiredCapabilities: AgentCapability[];
     result: AgentPermissionCheckStatus;
+    allowedByCheckedPermissionsOnly: boolean;
     mainReason: AiAccessRefusal | null;
     policyMainReason: AiAccessRefusal | null;
     checks: AgentPermissionCheck[];

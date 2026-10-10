@@ -1763,3 +1763,89 @@ describe('agent role assignment provenance', () => {
         },
     );
 });
+
+describe('person permission preview membership', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    let tracker: Tracker;
+    beforeEach(() => {
+        tracker = getTracker();
+        tracker.reset();
+    });
+    afterEach(() => tracker.reset());
+    afterAll(() => database.destroy());
+    const setupPreviewModel = () => {
+        const model = new UserModel({
+            database,
+            lightdashConfig,
+            featureFlagModel,
+        });
+        const internals = model as unknown as TestableUserModel;
+        internals.hasAuthentication = vi.fn().mockResolvedValue(true);
+        internals.getUserProjectRoles = vi.fn().mockResolvedValue([]);
+        internals.getUserGroupProjectRoles = vi.fn().mockResolvedValue([]);
+        internals.getOrganizationExtraRoleUuids = vi.fn().mockResolvedValue([]);
+        internals.getTrainingProjects = vi.fn().mockResolvedValue([]);
+        return { model, internals };
+    };
+
+    test('builds the ordinary ability for the explicit organization', async () => {
+        tracker.on.select('users').response([
+            {
+                ...userDetails,
+                is_internal: false,
+                role: OrganizationMemberRole.ADMIN,
+                organization_uuid: 'chosen-org',
+                organization_id: 20,
+            },
+        ]);
+        const { model, internals } = setupPreviewModel();
+        const user = await model.findSessionUserByUUIDInOrganization(
+            'person',
+            'chosen-org',
+        );
+        expect(user.organizationUuid).toBe('chosen-org');
+        expect(
+            user.ability.can(
+                'manage',
+                subject('Organization', { organizationUuid: 'chosen-org' }),
+            ),
+        ).toBe(true);
+        expect(
+            user.ability.can(
+                'manage',
+                subject('Organization', { organizationUuid: 'other-org' }),
+            ),
+        ).toBe(false);
+        const query = tracker.history.select[0];
+        expect(query.sql).toContain('"organizations"."organization_uuid" =');
+        expect(query.sql).toContain('"users"."is_internal" =');
+        expect(query.bindings).toEqual(
+            expect.arrayContaining(['person', 'chosen-org', false]),
+        );
+        expect(internals.getUserGroupProjectRoles).toHaveBeenCalledWith(
+            userDetails.user_id,
+            20,
+            userDetails.user_uuid,
+            database,
+        );
+        expect(tracker.history.insert).toHaveLength(0);
+        expect(tracker.history.update).toHaveLength(0);
+    });
+
+    test.each(['missing', 'internal'] as const)(
+        'rejects %s people before ability loading',
+        async (kind) => {
+            tracker.on
+                .select('users')
+                .response(kind === 'missing' ? [] : [userDetails]);
+            const { model, internals } = setupPreviewModel();
+            await expect(
+                model.findSessionUserByUUIDInOrganization(
+                    'person',
+                    'chosen-org',
+                ),
+            ).rejects.toBeInstanceOf(NotFoundError);
+            expect(internals.hasAuthentication).not.toHaveBeenCalled();
+        },
+    );
+});

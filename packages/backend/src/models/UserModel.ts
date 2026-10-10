@@ -1882,6 +1882,29 @@ export class UserModel {
         };
     }
 
+    async findSessionUserByUUIDInOrganization(
+        userUuid: string,
+        organizationUuid: string,
+    ): Promise<SessionUser> {
+        const [user] = await userDetailsQueryBuilder(this.database)
+            .where('users.user_uuid', userUuid)
+            .andWhere('organizations.organization_uuid', organizationUuid)
+            .andWhere('users.is_internal', false)
+            .select('*', 'organizations.created_at as organization_created_at');
+        if (user === undefined || user.is_internal) {
+            throw new NotFoundError('The selected person is not available.');
+        }
+        const { abilityBuilder, lightdashUser } =
+            await this.generateUserAbilityBuilder(user);
+        return {
+            ...lightdashUser,
+            userId: user.user_id,
+            abilityRules: abilityBuilder.rules,
+            ability: abilityBuilder.build(),
+            isEmailVerified: user.is_verified === true,
+        };
+    }
+
     async findSessionUserAndOrgByUuid(
         userUuid: string,
         organizationUuid: string,

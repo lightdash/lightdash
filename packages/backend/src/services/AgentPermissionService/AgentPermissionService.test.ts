@@ -44,6 +44,7 @@ const setup = () => {
             delete: vi.fn(),
         },
         userModel: {
+            findSessionUserByUUIDInOrganization: vi.fn(),
             getAgentRoleAssignments: vi.fn().mockResolvedValue({
                 systemRoles: [OrganizationMemberRole.VIEWER],
                 customRoles: [],
@@ -850,6 +851,10 @@ test.each(parityCases)(
     'explain matches runtime and never writes: %s',
     async (scenario) => {
         const { service, deps, operation } = paritySetup(scenario);
+        operation.account.user.ability = new Ability<PossibleAbilities>([
+            ...operation.account.user.ability.rules,
+            { action: 'create', subject: 'ScheduledDeliveries' },
+        ]);
         const refusal = await refusalFrom(service.assertOperation(operation));
         vi.clearAllMocks();
         const audited = vi.spyOn(service as never, 'createAuditedAbility');
@@ -893,9 +898,10 @@ test.each(parityCases)(
                     mainReason: null,
                     blockers: [],
                 });
-                expect(result.checks).toHaveLength(2);
+                expect(result.checks).toHaveLength(3);
             } else {
                 expect(result.checks.map((check) => check.kind)).toEqual([
+                    'person_permission',
                     'agent_admission',
                     'human_only',
                     'agent_enabled',

@@ -88,6 +88,7 @@ const setup = (
         },
         agentWarehouseRestrictionConfirmationModel: confirmation,
         userModel: {
+            findSessionUserByUUIDInOrganization: vi.fn(),
             getAgentRoleAssignments: vi.fn().mockResolvedValue({
                 systemRoles: [OrganizationMemberRole.DEVELOPER],
                 customRoles: [],

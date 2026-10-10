@@ -59,6 +59,7 @@ const setup = () => {
             delete: vi.fn(),
         },
         userModel: {
+            findSessionUserByUUIDInOrganization: vi.fn(),
             getAgentRoleAssignments: vi.fn().mockResolvedValue({
                 systemRoles: [OrganizationMemberRole.VIEWER],
                 customRoles: [],
