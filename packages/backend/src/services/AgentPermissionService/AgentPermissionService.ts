@@ -492,7 +492,12 @@ export class AgentPermissionService extends BaseService {
                 .filter(
                     (blocker) =>
                         !hiddenProject ||
-                        blocker.checkId !== 'warehouse_confirmation',
+                        (blocker.checkId !== 'warehouse_confirmation' &&
+                            (blocker.checkId === primary.id ||
+                                (blocker.checkId !== 'project_scope' &&
+                                    !blocker.checkId.startsWith(
+                                        'capability:',
+                                    )))),
                 )
                 .map((blocker) => {
                     if (blocker.checkId === primary.id) return blocker;

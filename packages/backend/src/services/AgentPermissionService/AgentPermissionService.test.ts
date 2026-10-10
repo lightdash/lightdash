@@ -913,6 +913,11 @@ test.each(['hidden_by_scope', 'hidden_by_project', 'visible'] as const)(
     async (visibility) => {
         const { service, operation, deps, policy } = setup();
         policy.allowedUserUuids = [];
+        policy.allowedProjectUuids = [];
+        deps.getOrganizationSettings.mockResolvedValue({
+            mcpAgentsEnabled: false,
+            mcpContentWritesEnabled: true,
+        });
         deps.agentWarehouseRestrictionConfirmationModel.get.mockResolvedValue({
             bindingFingerprint: 'stale',
         });
@@ -966,6 +971,17 @@ test.each(['hidden_by_scope', 'hidden_by_project', 'visible'] as const)(
         );
         const visible = visibility === 'visible';
         expect(blockersComplete).toBe(visible);
+        expect(blockers?.map((blocker) => blocker.checkId)).toEqual(
+            visible
+                ? [
+                      'agent_admission',
+                      'agent_enabled',
+                      'project_scope',
+                      'capability:raw_sql',
+                      'warehouse_confirmation',
+                  ]
+                : ['agent_admission', 'agent_enabled'],
+        );
         expect(
             deps.agentWarehouseRestrictionConfirmationModel.get,
         ).toHaveBeenCalledTimes(visible ? 1 : 0);
@@ -997,7 +1013,9 @@ test.each([false, true])(
         const { service, operation, account, policy } = setup();
         policy.allowedUserUuids = [];
         account.user.ability = new Ability<PossibleAbilities>(
-            admin ? [{ action: 'manage', subject: 'all' }] : [],
+            admin
+                ? [{ action: 'manage', subject: 'all' }]
+                : [{ action: 'view', subject: 'Project' }],
         );
         const resolved = await service.resolvePolicy(operation);
         vi.spyOn(service, 'resolvePolicy').mockResolvedValue({

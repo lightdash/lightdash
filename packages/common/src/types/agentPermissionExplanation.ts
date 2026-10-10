@@ -12,7 +12,6 @@ export type AgentPermissionCheckStatus =
     | 'setup_needed'
     | 'not_checked';
 export type AgentPermissionCheckKind =
-    | 'person_permission'
     | 'agent_admission'
     | 'human_only'
     | 'agent_enabled'
@@ -20,9 +19,7 @@ export type AgentPermissionCheckKind =
     | 'project_scope'
     | 'capability'
     | 'content_writes'
-    | 'warehouse_confirmation'
-    | 'connection_grant'
-    | 'warehouse_access';
+    | 'warehouse_confirmation';
 
 export type AgentPermissionCheck = {
     id: string;
