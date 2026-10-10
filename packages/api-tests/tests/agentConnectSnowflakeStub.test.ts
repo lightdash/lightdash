@@ -257,6 +257,7 @@ describe.skipIf(!stubUrl)(
                 status: 'needs_sign_in',
                 message: before.body.results.refusal!.message,
                 connectUrl: mcpConnectUrl.href,
+                settingsUrl: null,
                 expiresAt: null,
             };
             expect(connectionStatus).toMatchObject({
