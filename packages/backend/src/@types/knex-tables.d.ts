@@ -3,6 +3,16 @@ import {
     AgentActionLogTableName,
 } from '../database/entities/agentActionLog';
 import {
+    AgentCapabilityPoliciesTable,
+    AgentCapabilityPoliciesTableName,
+    AgentSystemRoleCapabilitiesTable,
+    AgentSystemRoleCapabilitiesTableName,
+} from '../database/entities/agentCapabilityPolicies';
+import {
+    AgentWarehouseRestrictionConfirmationsTable,
+    AgentWarehouseRestrictionConfirmationsTableName,
+} from '../database/entities/agentWarehouseRestrictionConfirmations';
+import {
     AiAgentReasoningTable,
     AiAgentReasoningTableName,
 } from '../database/entities/aiAgentReasoning';
@@ -738,6 +748,9 @@ import {
 
 declare module 'knex/types/tables' {
     interface Tables {
+        [AgentCapabilityPoliciesTableName]: AgentCapabilityPoliciesTable;
+        [AgentSystemRoleCapabilitiesTableName]: AgentSystemRoleCapabilitiesTable;
+        [AgentWarehouseRestrictionConfirmationsTableName]: AgentWarehouseRestrictionConfirmationsTable;
         [AgentActionLogTableName]: AgentActionLogTable;
         [CredentialBindingsTableName]: CredentialBindingsTable;
         [CredentialTokenStateTableName]: CredentialTokenStateTable;

@@ -162,6 +162,7 @@ import {
     validateOrganizationScopesCanBeGranted,
 } from '../utils/organizationRolePermissions';
 import { processAvatarImage } from '../utils/processAvatarImage';
+import { assertHumanManagedMutation } from './AgentPermissionService/assertHumanManagedMutation';
 import {
     type ResolvedSnowflakeAgentClient,
     type SnowflakeAgentClientResolver,
@@ -784,6 +785,13 @@ export class UserService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+        await assertHumanManagedMutation({
+            organizationUuid,
+            ability: user.ability,
+            oauth: false,
+            database: this.groupsModel.database,
+            featureFlagModel: this.featureFlagModel,
+        });
         const { email, role } = createInviteLink;
         const purpose = createInviteLink.purpose ?? InviteLinkPurpose.Member;
         const rawOrganizationSettings =
@@ -2812,6 +2820,14 @@ export class UserService extends BaseService {
     }
 
     async joinOrg(user: SessionUser, orgUuid: string): Promise<void> {
+        await assertHumanManagedMutation({
+            organizationUuid: orgUuid,
+            ability: user.ability,
+            oauth: false,
+            database: this.groupsModel.database,
+            featureFlagModel: this.featureFlagModel,
+        });
+
         if (isUserWithOrg(user)) {
             throw new ForbiddenError('User already has an organization');
         }

@@ -458,6 +458,8 @@ mcpRouter.all(
                     const extra: ExtraContext = {
                         user: req.user,
                         account: oauthAuth,
+                        getAgentPermissionService: () =>
+                            req.services.getAgentPermissionService(),
                         headerUserAttributes,
                         headerProjectUuid: pinnedProjectUuid,
                         legacyContextInjected,

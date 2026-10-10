@@ -201,6 +201,10 @@ const extra = {
         extra: {
             user,
             account,
+            getAgentPermissionService: () => ({
+                isManaged: vi.fn().mockResolvedValue(false),
+                assertOperation: vi.fn(),
+            }),
         },
     },
 };
@@ -2567,7 +2571,11 @@ test.each(agentActionTestCases)(
                     {
                         ...extra,
                         authInfo: {
-                            extra: { user: authenticatedUser, account },
+                            extra: {
+                                ...extra.authInfo.extra,
+                                user: authenticatedUser,
+                                account,
+                            },
                         },
                     },
                 ),

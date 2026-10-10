@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    AgentActorSurface,
     AnyType,
     assertRegisteredAccount,
     assertUnreachable,
@@ -49,6 +50,7 @@ import {
     UserAttributeValueMap,
     WarehouseQueryError,
     type AgentSqlScope,
+    type AgentToolName,
     type AiAgentDocumentSummary,
     type AppChartReference,
     type AppDashboardReference,
@@ -80,7 +82,11 @@ import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { SpaceModel } from '../../../models/SpaceModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
-import { getContentWriteAgentIdentity } from '../../../services/AiAccessService/agentExecutionContext';
+import { type AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
+import {
+    agentExecutionContext,
+    getContentWriteAgentIdentity,
+} from '../../../services/AiAccessService/agentExecutionContext';
 import {
     isAgentActionForbiddenError,
     logAgentContentWrite,
@@ -320,6 +326,50 @@ export type AiAgentToolsRuntime = {
     loadSkill: LoadAgentSkillFn;
 };
 
+const AGENT_RUNTIME_TOOL_NAMES = {
+    recordSqlChartRefusal: null,
+    listExplores: 'findExplores',
+    getProjectParameterDefinitions: 'getProjectInfo',
+    getExplore: 'findExplores',
+    findExplores: 'findExplores',
+    listCustomChartTypes: 'findCustomChartTypes',
+    findCustomChartTypes: 'findCustomChartTypes',
+    resolveCustomChartType: 'findCustomChartTypes',
+    getVerifiedFieldUsage: 'findFields',
+    findFields: 'findFields',
+    findContent: 'findContent',
+    searchFieldValues: 'searchFieldValues',
+    searchSemanticLayer: 'searchSemanticLayer',
+    analyzeFieldImpact: 'analyzeFieldImpact',
+    syncDbtProject: 'syncDbtProject',
+    runAsyncQuery: 'runQuery',
+    runAsyncMergeQuery: 'runQuery',
+    runSavedChartQuery: 'runSavedChart',
+    runSqlJob: 'runSql',
+    runComposerQueries: 'runComposerQueries',
+    listWarehouseTables: 'listWarehouseTables',
+    describeWarehouseTable: 'describeWarehouseTable',
+    listContent: 'listContent',
+    getDashboardCharts: 'getDashboardCharts',
+    readContent: 'readContent',
+    resolveUrl: 'resolveUrl',
+    editContent: 'editContent',
+    createContent: 'createContent',
+    createScheduledDelivery: 'createScheduledDelivery',
+    updateUserName: 'updateUserName',
+    generateDataApp: 'generateDataApp',
+    iterateDataApp: 'iterateDataApp',
+    listDataAppThemes: 'listDataAppThemes',
+    validateContent: null,
+    listKnowledgeDocuments: 'listKnowledgeDocuments',
+    getKnowledgeDocumentContent: 'getKnowledgeDocumentContent',
+    getSavedChart: 'readContent',
+    setupPreviewDeploy: 'setupPreviewDeploy',
+    listProjects: 'listProjects',
+    getProjectInfo: 'getProjectInfo',
+    loadSkill: 'loadSkill',
+} satisfies Record<keyof AiAgentToolsRuntime, AgentToolName | null>;
+
 export type McpAiAgentToolsRuntime = Omit<
     AiAgentToolsRuntime,
     'getExplore' | 'findExplores' | 'findFields' | 'updateUserName'
@@ -357,6 +407,10 @@ type BuiltInSkillsClient = Pick<
 >;
 
 type AiAgentToolsServiceDependencies = {
+    agentPermissionService: Pick<
+        AgentPermissionService,
+        'assertOperation' | 'isManaged'
+    >;
     agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     builtInSkills: BuiltInSkillsClient;
     appModel: AppModel;
@@ -405,6 +459,7 @@ type AiAgentToolsServiceDependencies = {
 };
 
 export class AiAgentToolsService extends BaseService {
+    private readonly agentPermissionService: AiAgentToolsServiceDependencies['agentPermissionService'];
     private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
 
     private readonly runtimePromiseCache = new WeakMap<
@@ -538,6 +593,7 @@ export class AiAgentToolsService extends BaseService {
     }
 
     constructor({
+        agentPermissionService,
         agentActionLogModel,
         builtInSkills,
         appModel,
@@ -576,6 +632,7 @@ export class AiAgentToolsService extends BaseService {
         lightdashConfig,
     }: AiAgentToolsServiceDependencies) {
         super();
+        this.agentPermissionService = agentPermissionService;
         this.agentActionLogModel = agentActionLogModel;
         this.builtInSkills = builtInSkills;
         this.appModel = appModel;
@@ -710,6 +767,44 @@ export class AiAgentToolsService extends BaseService {
         return explore;
     }
 
+    private withAgentRuntimePermissions(
+        runtime: AiAgentToolsRuntime,
+        context: AiAgentToolsRuntimeContext,
+    ): AiAgentToolsRuntime {
+        return Object.fromEntries(
+            Object.entries(runtime).map(([name, execute]) => {
+                const key =
+                    AGENT_RUNTIME_TOOL_NAMES[name as keyof AiAgentToolsRuntime];
+                if (key === null) return [name, execute];
+                return [
+                    name,
+                    async (...args: unknown[]) => {
+                        if (
+                            await this.agentPermissionService.isManaged(
+                                context.organizationUuid,
+                            )
+                        ) {
+                            assertRegisteredAccount(context.account);
+                            await this.agentPermissionService.assertOperation({
+                                account: context.account,
+                                organizationUuid: context.organizationUuid,
+                                projectUuid: context.projectUuid,
+                                kind: 'agent_tool',
+                                key,
+                                surface:
+                                    agentExecutionContext.getStore()?.surface ??
+                                    AgentActorSurface.IN_APP_AGENT,
+                            });
+                        }
+                        return (
+                            execute as (...input: unknown[]) => Promise<unknown>
+                        )(...args);
+                    },
+                ];
+            }),
+        ) as AiAgentToolsRuntime;
+    }
+
     createRuntime(
         context: AiAgentToolsRuntimeContext & { source: 'mcp' },
     ): McpAiAgentToolsRuntime;
@@ -822,13 +917,16 @@ export class AiAgentToolsService extends BaseService {
 
         return context.source === 'mcp'
             ? this.withMcpRuntimeResults(runtime, context)
-            : {
-                  ...runtime,
-                  updateUserName: (args) =>
-                      this.withWriteRefusal(context, 'user', 'update', () =>
-                          this.updateUserName(context, args),
-                      ),
-              };
+            : this.withAgentRuntimePermissions(
+                  {
+                      ...runtime,
+                      updateUserName: (args) =>
+                          this.withWriteRefusal(context, 'user', 'update', () =>
+                              this.updateUserName(context, args),
+                          ),
+                  },
+                  context,
+              );
     }
 
     private withMcpRuntimeResults(

@@ -401,7 +401,6 @@ describe('grepFields output envelope', () => {
         expect(output.result).toContain('logger down');
         expect(output.structuredContent).toEqual({
             error: output.result,
-            refusal: null,
         });
     });
 });

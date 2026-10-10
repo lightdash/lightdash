@@ -311,6 +311,10 @@ export class AiServiceAccountCredentialsModel {
         },
     ) {}
 
+    get db(): Knex {
+        return this.args.database;
+    }
+
     private query(
         projectUuid: string,
         warehouseConnectionUuid: string | null,

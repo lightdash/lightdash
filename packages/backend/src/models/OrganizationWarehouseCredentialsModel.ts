@@ -19,6 +19,7 @@ import {
     OrganizationWarehouseCredentialsTableName,
 } from '../database/entities/organizationWarehouseCredentials';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
+import { warehouseCredentialsEqual } from '../utils/warehouseCredentialsEqual';
 
 type OrganizationWarehouseCredentialsModelArguments = {
     database: Knex;
@@ -327,6 +328,28 @@ export class OrganizationWarehouseCredentialsModel {
             }
 
             if (data.credentials) {
+                let current: CreateWarehouseCredentials | null;
+                try {
+                    current = normalizeWarehouseCredentials(
+                        JSON.parse(
+                            this.encryptionUtil.decrypt(
+                                existing.warehouse_connection,
+                            ),
+                        ),
+                    );
+                } catch {
+                    current = null;
+                }
+                if (
+                    existing.warehouse_type !== data.credentials.type ||
+                    !warehouseCredentialsEqual(
+                        current,
+                        normalizeWarehouseCredentials(data.credentials),
+                    )
+                ) {
+                    updateData.organization_credential_generation =
+                        existing.organization_credential_generation + 1;
+                }
                 updateData.warehouse_type = data.credentials.type;
                 updateData.warehouse_connection = this.encryptionUtil.encrypt(
                     OrganizationWarehouseCredentialsModel.stringifyCredentials(

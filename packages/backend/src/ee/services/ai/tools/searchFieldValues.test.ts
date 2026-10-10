@@ -205,13 +205,11 @@ describe('getSearchFieldValues', () => {
           Location: line 1, column 38
           Problem: Field-value search filter rules are always combined with AND and cannot use OR.
           How to fix: Keep only dimension rules that should all scope the value search, joined with AND.",
-              "refusal": null,
             },
           }
         `);
         expect(output.structuredContent).toEqual({
             error: output.result,
-            refusal: null,
         });
         expect(
             toolSearchFieldValuesOutputSchema.safeParse(output).success,
@@ -240,7 +238,6 @@ describe('getSearchFieldValues', () => {
         expect(output.result).toContain('warehouse unavailable');
         expect(output.structuredContent).toEqual({
             error: output.result,
-            refusal: null,
         });
         expect(
             toolSearchFieldValuesOutputSchema.safeParse(output).success,

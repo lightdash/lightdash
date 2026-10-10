@@ -70,7 +70,7 @@ const failure = (
 ): ComposerQueriesOutput => ({
     result,
     metadata: { status },
-    structuredContent: { error: result, refusal: null },
+    structuredContent: { error: result },
 });
 
 /**

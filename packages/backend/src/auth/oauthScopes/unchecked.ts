@@ -317,9 +317,18 @@ export const assertOAuthScopeOperation = (
     }
 };
 
-export const requireOAuthScopeOperation =
-    (operation: keyof typeof OAUTH_UNCHECKED_OPERATIONS): RequestHandler =>
-    (req, _res, next) => {
+const scopeOperations = new WeakMap<
+    RequestHandler,
+    keyof typeof OAUTH_UNCHECKED_OPERATIONS
+>();
+
+export const getOAuthScopeOperation = (handler: RequestHandler) =>
+    scopeOperations.get(handler) ?? null;
+
+export const requireOAuthScopeOperation = (
+    operation: keyof typeof OAUTH_UNCHECKED_OPERATIONS,
+): RequestHandler => {
+    const handler: RequestHandler = (req, _res, next) => {
         try {
             if (req.account) {
                 assertOAuthScopeOperation(req.account, operation);
@@ -329,3 +338,6 @@ export const requireOAuthScopeOperation =
             next(error);
         }
     };
+    scopeOperations.set(handler, operation);
+    return handler;
+};

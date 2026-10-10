@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     Account,
+    AgentActorSurface,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     CatalogType,
@@ -40,6 +41,7 @@ import { CoderService } from '../../../services/CoderService/CoderService';
 import { PromoteService } from '../../../services/PromoteService/PromoteService';
 import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { getDescribeWarehouseTable } from '../ai/tools/describeWarehouseTable';
+import { getRunContentQuery } from '../ai/tools/runContentQuery';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
 import type { DataAppReadSource } from '../AppGenerateService/AppGenerateService';
 import {
@@ -67,7 +69,7 @@ const user = {
 const account = {
     isRegisteredUser: () => true,
     isServiceAccount: () => false,
-    user: { id: userUuid },
+    user: { type: 'registered', id: userUuid },
 } as unknown as Account;
 
 const makeExplore = ({
@@ -105,6 +107,10 @@ const makeExplore = ({
     }) as unknown as Explore;
 
 const makeService = ({
+    agentPermissionService = {
+        assertOperation: vi.fn().mockResolvedValue(undefined),
+        isManaged: vi.fn().mockResolvedValue(false),
+    },
     explores = {},
     userAttributes = {},
     searchCatalog = vi.fn(),
@@ -142,6 +148,10 @@ const makeService = ({
     savedChartModel = {},
     dashboardModel = {},
 }: {
+    agentPermissionService?: {
+        assertOperation: import('vitest').Mock;
+        isManaged: import('vitest').Mock;
+    };
     explores?: Record<string, Explore>;
     userAttributes?: Record<string, string[]>;
     searchCatalog?: import('vitest').Mock;
@@ -154,7 +164,9 @@ const makeService = ({
     savedSqlService?: Record<string, unknown> | SavedSqlService;
     asyncQueryService?: Record<string, unknown>;
     coderService?: Record<string, unknown>;
-    aiAgentContentValidation?: Record<string, unknown>;
+    aiAgentContentValidation?:
+        | Record<string, unknown>
+        | AiAgentContentValidation;
     scheduleCompileProject?: import('vitest').Mock;
     jobModel?: Record<string, unknown>;
     aiAgentDocumentModel?: Record<string, unknown>;
@@ -174,6 +186,7 @@ const makeService = ({
     dashboardModel?: Record<string, unknown>;
 } = {}) =>
     new AiAgentToolsService({
+        agentPermissionService,
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         builtInSkills: {
             getAiAgentSkills: vi.fn(),
@@ -5163,3 +5176,133 @@ describe.each(agentActionTestCases)(
         );
     },
 );
+
+test.each([
+    'runSqlJob',
+    'runAsyncQuery',
+    'editContent',
+    'createContent',
+] as const)(
+    'checks current agent policy before the runtime %s effect',
+    async (method) => {
+        const refusal = new AiAccessRefusedError(
+            AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+        );
+        const assertOperation = vi.fn().mockRejectedValue(refusal);
+        const service = makeService({
+            agentPermissionService: {
+                assertOperation,
+                isManaged: vi.fn().mockResolvedValue(true),
+            },
+        });
+        const context = makeRuntimeContext();
+        const runtime = service.createRuntime(context);
+        await expect(
+            (runtime[method] as (args: unknown) => Promise<unknown>)({}),
+        ).rejects.toBe(refusal);
+        expect(assertOperation).toHaveBeenCalledWith(
+            expect.objectContaining({
+                kind: 'agent_tool',
+                key: {
+                    runSqlJob: 'runSql',
+                    runAsyncQuery: 'runQuery',
+                    editContent: 'editContent',
+                    createContent: 'createContent',
+                }[method],
+                projectUuid,
+                surface: AgentActorSurface.IN_APP_AGENT,
+            }),
+        );
+    },
+);
+
+test.each(['off', 'legacy', 'query-only managed'])(
+    'content query catches synchronous validation errors in %s mode',
+    async (mode) => {
+        const assertOperation = vi.fn().mockImplementation(async ({ key }) => {
+            if (key !== 'runQuery') {
+                throw new AiAccessRefusedError(
+                    AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                );
+            }
+        });
+        const executeAsyncQuery = vi.fn();
+        const runtime = makeService({
+            agentPermissionService: {
+                assertOperation,
+                isManaged: vi
+                    .fn()
+                    .mockResolvedValue(mode === 'query-only managed'),
+            },
+            aiAgentContentValidation: new AiAgentContentValidation(),
+            asyncQueryService: { executeAsyncQuery },
+        }).createRuntime(makeRuntimeContext());
+        const tool = getRunContentQuery({
+            ...runtime,
+            updateProgress: vi.fn().mockResolvedValue(undefined),
+            maxLimit: 100,
+            maxContextRows: 10,
+            enableDataAccess: true,
+        });
+        const result = await tool.execute!(
+            {
+                source: {
+                    type: 'metricQuery',
+                    tableName: 'orders',
+                    metricQuery: { dimensions: 'invalid' },
+                },
+            } as unknown as Parameters<NonNullable<typeof tool.execute>>[0],
+            { toolCallId: 'validation', messages: [], context: {} },
+        );
+        expect(result).toMatchObject({
+            metadata: { status: 'error' },
+            result: expect.stringContaining(
+                '/metricQuery/dimensions must be array',
+            ),
+        });
+        expect(assertOperation).not.toHaveBeenCalled();
+        expect(executeAsyncQuery).not.toHaveBeenCalled();
+    },
+);
+
+test('gates effectful runtime operations before their implementations run', async () => {
+    const refusal = new AiAccessRefusedError(
+        AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+    );
+    const assertOperation = vi.fn().mockRejectedValue(refusal);
+    const service = makeService({
+        agentPermissionService: {
+            assertOperation,
+            isManaged: vi.fn().mockResolvedValue(true),
+        },
+    });
+    const runtime = service.createRuntime(makeRuntimeContext());
+    await Promise.all(
+        Object.entries(runtime)
+            .filter(
+                ([name]) =>
+                    !['recordSqlChartRefusal', 'validateContent'].includes(
+                        name,
+                    ),
+            )
+            .map(([, execute]) =>
+                expect(
+                    (execute as (args: unknown) => Promise<unknown>)({}),
+                ).rejects.toBe(refusal),
+            ),
+    );
+    expect(assertOperation).toHaveBeenCalledTimes(
+        Object.keys(runtime).length - 2,
+    );
+    for (const key of [
+        'createScheduledDelivery',
+        'syncDbtProject',
+        'setupPreviewDeploy',
+        'generateDataApp',
+        'updateUserName',
+    ]) {
+        expect(assertOperation).toHaveBeenCalledWith(
+            expect.objectContaining({ key, kind: 'agent_tool', projectUuid }),
+        );
+    }
+});

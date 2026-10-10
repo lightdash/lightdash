@@ -87,6 +87,10 @@ const createService = (registry: QuerySourceRegistry) => {
     };
 
     const service = new QuerySourceService({
+        getAgentPermissionService: () => ({
+            isManaged: vi.fn().mockResolvedValue(false),
+            assertOperation: vi.fn(),
+        }),
         projectModel: mocks.projectModel as unknown as ProjectModel,
         queryHistoryModel:
             mocks.queryHistoryModel as unknown as QueryHistoryModel,

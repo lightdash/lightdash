@@ -229,6 +229,63 @@ page to update the UI. ENV and OAuth configuration changes need a process
 restart. Disabling the flag preserves saved credentials and restores normal query
 identity. It does not cancel queries in progress or revoke Snowflake tokens.
 
+### Agent capability policy
+
+The capability-policy API and `AgentPermissionService` resolve `agent-identity`
+for the target organization only, without a user override. A missing policy starts
+in `legacy` mode. Saving a ceiling or applying the pilot preset activates
+`managed` mode; resetting restores `legacy`. Disabling the flag preserves the
+saved policy and makes the permission service return `off` without new checks.
+
+Managed policy resolution unions system-role matrix grants with custom-role
+capability scopes. The pilot changes the system-role matrix and allowed projects;
+it leaves custom roles unchanged. The organization agent switch bounds all
+managed agent operations, and the content-write switch bounds content writes.
+Raw SQL additionally needs an admin confirmation for the current warehouse
+binding. The binding fingerprint uses non-secret routing and identity metadata,
+including project and preview-parent links, connection modes, IDs and warehouse types,
+shared-credential links, credential-subject and preview-ownership fields,
+service-account identity slots, organization identity rules, Snowflake client
+versions and credential generations. Separate generation counters on project,
+shared organization and extra-connection credentials change when the normalized
+persistent credentials, credential type or credential subject changes, including
+preview credential copies. Re-saving the same effective credentials keeps the generation.
+Replacing credentials on the same connection UUID requires a new confirmation.
+Snowflake SSO and Databricks OAuth access-token output is excluded from the
+comparison. A new refresh grant, provider, subject or routing setting still
+invalidates confirmation. Token refresh, compilation, and name-only or dbt-only
+project saves with the same binding do not change these counters. The
+fingerprint does not hash tokens or encrypted credential payloads and does not
+use generic row timestamps. Confirmation covers the connection, organization
+identity rules, the AI service account slot and the organization's Snowflake agent client. It does not cover
+individual users' sign-in tokens; reconnecting under the same organization
+integration keeps the same identity for this assurance. Confirmation records an
+admin assurance; it does not verify warehouse-side permissions.
+
+The ceiling applies to MCP tools and resource reads, in-app and Slack agent tools
+and fast data paths, and OAuth REST operations. SQL nodes in mixed-source
+pipelines and SQL-source schema scans require the raw-SQL grant and current
+confirmation before dispatch or cache access. Semantic-only pipelines require
+the query grant. Connected MCP tools also require `external_tools` and an
+explicit entry in that server's `enabledToolNames`, matched by server UUID and
+original tool name. A null tool list does not admit tools in managed mode.
+Personal-access-token and service-account MCP calls are not narrowed, including
+composer SQL nodes and schema scans. Personal-access-token and browser-session
+REST calls are not narrowed. Existing browser-session MCP authentication behavior
+is unchanged. Managed OAuth REST calls cannot change role definitions, role assignments,
+membership, space or direct access grants, agent policy, identity or AI-access
+settings, warehouse confirmations, personal tokens, service accounts or OAuth
+clients, even with the administration capability. Role, project membership,
+organization membership, invite creation or resend, and group mutation services
+also reject managed OAuth and agent execution contexts. Space creation, including
+spaces-as-code imports and missing ancestors, is human-only in managed mode.
+Space updates and spaces-as-code imports reject changes to inheritance,
+project-member access, or user and group grants at the service boundary.
+Metadata-only space edits remain under `content_write`; resubmitting unchanged
+access is allowed, but managed OAuth and agent writes omit those access fields
+so they cannot restore a concurrent human revocation. Ordinary human and PAT
+administration keeps its existing behavior.
+
 ### Snowflake silent agent refresh
 
 `agent-identity-silent-refresh` is a default-on defect-fix kill switch. The

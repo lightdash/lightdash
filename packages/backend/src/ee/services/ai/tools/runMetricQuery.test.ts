@@ -261,7 +261,6 @@ describe('getRunMetricQuery', () => {
         expect(output.result).toContain('warehouse exploded');
         expect(output.structuredContent).toEqual({
             error: output.result,
-            refusal: null,
         });
         expect(toolRunMetricQueryOutputSchema.safeParse(output).success).toBe(
             true,
@@ -281,7 +280,6 @@ describe('getRunMetricQuery', () => {
         expect(output.metadata).toMatchObject({ status: 'error' });
         expect(output.structuredContent).toEqual({
             error: output.result,
-            refusal: null,
         });
         expect(toolRunMetricQueryOutputSchema.safeParse(output).success).toBe(
             true,

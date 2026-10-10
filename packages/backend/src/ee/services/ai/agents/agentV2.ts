@@ -1,6 +1,7 @@
 import {
     AgentToolOutput,
     AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
+    AiAccessRefusedError,
     AnyType,
     assertUnreachable,
     Explore,
@@ -32,6 +33,7 @@ import {
     languageModelUsageToTokens,
 } from '../../../../analytics/aiUsage';
 import Logger from '../../../../logging/logger';
+import type { ConnectedAgentTool } from '../../../../services/AgentPermissionService/AgentPermissionService';
 import {
     getAiDeepResearchCoordinatorInstructions,
     getAiDeepResearchWorkerInstructions,
@@ -158,6 +160,7 @@ import {
 import { renderMemoryBlock } from '../utils/memoryBlock';
 import { getAiAccessRefusalFromToolFinish } from '../utils/slackAiAccessRefusals';
 import type { SlackTableQueryResults } from '../utils/slackTableBlocks';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 import {
     isErrorToolResult,
     isPendingToolResult,
@@ -898,6 +901,7 @@ const prepareCandidateSeed = async (
 export type AgentMcpToolSetup = {
     tools: ToolSet;
     mcpToolNameToServerUuid: Record<string, string>;
+    connectedToolInventory?: Record<string, ConnectedAgentTool>;
     unavailableMcpServers: UnavailableMcpServer[];
     closeMcpClients: () => Promise<void>;
 };
@@ -1707,6 +1711,59 @@ const isChartExportEnabled = (args: AiAgentArgs) =>
     args.enableDataAccess &&
     args.execution.mode === 'standard';
 
+export const withAgentToolPermissions = (
+    tools: ToolSet,
+    dependencies: Pick<AiAgentDependencies, 'assertToolOperation'>,
+    connectedToolNames: ReadonlySet<string>,
+    connectedToolInventory: Readonly<Record<string, ConnectedAgentTool>> = {},
+): ToolSet =>
+    Object.fromEntries(
+        Object.entries(tools).map(([key, definition]) => {
+            const { execute } = definition;
+            if (!execute) return [key, definition];
+            const connected = connectedToolNames.has(key);
+            return [
+                key,
+                {
+                    ...definition,
+                    execute: async (input: AnyType, options: AnyType) => {
+                        try {
+                            if (connected) {
+                                await dependencies.assertToolOperation(
+                                    'connected_mcp_tool',
+                                    key,
+                                    connectedToolInventory[key],
+                                );
+                            } else {
+                                await dependencies.assertToolOperation(
+                                    'agent_tool',
+                                    key,
+                                );
+                            }
+                        } catch (error) {
+                            if (!(error instanceof AiAccessRefusedError))
+                                throw error;
+                            const output = toolErrorOutput(
+                                error,
+                                'Agent access refused.',
+                            );
+                            return connected
+                                ? {
+                                      ...output,
+                                      isError: true,
+                                      content: [
+                                          { type: 'text', text: output.result },
+                                      ],
+                                  }
+                                : output;
+                        }
+                        return execute(input, options);
+                    },
+                },
+            ];
+        }),
+    );
+
 export const getAgentTools = (
     args: AiAgentArgs,
     dependencies: AiAgentDependencies,
@@ -2391,7 +2448,12 @@ export const getAgentTools = (
         'Agent Tools',
         `Successfully retrieved agent tools: ${Object.keys(finalTools).join(', ')}`,
     );
-    return finalTools;
+    return withAgentToolPermissions(
+        finalTools,
+        dependencies,
+        new Set(mcpToolNames),
+        mcpToolSetup.connectedToolInventory,
+    );
 };
 
 // Fires an `in_progress` task update the moment a tool's execute() runs — i.e. as
@@ -2863,6 +2925,16 @@ const prepareAgentTurn = async ({
             deferredSections,
         ),
     );
+    if (intentToolGate.tools.loadAgentTools !== tools.loadAgentTools) {
+        Object.assign(
+            intentToolGate.tools,
+            withAgentToolPermissions(
+                { loadAgentTools: intentToolGate.tools.loadAgentTools },
+                dependencies,
+                new Set(),
+            ),
+        );
+    }
     tools = reportEarlyToolProgress
         ? withEarlyToolProgress(
               intentToolGate.tools,

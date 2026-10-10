@@ -1,5 +1,9 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
+    AGENT_CAPABILITY_SCOPES,
+    AgentActorSurface,
+    AgentCapability,
+    AiAccessRefusedError,
     CommercialFeatureFlags,
     CreateRole,
     CustomRoleAsCode,
@@ -20,8 +24,10 @@ import {
 } from '@lightdash/common';
 import { DatabaseError } from 'pg';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { createOAuthScopedAbility } from '../../auth/oauthScopes/scopedAbility';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../../config/parseConfig';
+import { AgentCapabilityPolicyModel } from '../../models/AgentCapabilityPolicyModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { InviteLinkModel } from '../../models/InviteLinkModel';
@@ -31,6 +37,10 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../models/RolesModel';
 import { UserModel } from '../../models/UserModel';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+} from '../AiAccessService/agentExecutionContext';
 import { LicenseService } from '../LicenseService/LicenseService';
 import { RolesService } from './RolesService';
 import {
@@ -102,6 +112,152 @@ describe('RolesService', () => {
     const service = buildService();
     beforeEach(() => {
         vi.clearAllMocks();
+    });
+
+    describe('managed role mutations', () => {
+        const oauthAccount = () => ({
+            ...mockAccount,
+            user: {
+                ...mockAccount.user,
+                ability: createOAuthScopedAbility(mockAccount.user.ability, {
+                    mode: 'log',
+                    scopes: ['admin'],
+                    clientId: 'agent',
+                    getRequest: () => ({ method: 'POST', routeTemplate: null }),
+                }),
+            },
+        });
+
+        afterEach(() => vi.restoreAllMocks());
+
+        test('refuses an OAuth admin adding raw SQL to its custom role', async () => {
+            mockFeatureFlagModel.get.mockResolvedValue({ enabled: true });
+            vi.spyOn(
+                AgentCapabilityPolicyModel.prototype,
+                'get',
+            ).mockResolvedValue({
+                mode: 'managed',
+                version: 1,
+                allowedProjectUuids: null,
+                systemRoleMatrix: {} as never,
+            });
+            await expect(
+                service.addScopesToRole(oauthAccount(), 'role', {
+                    scopeNames: [
+                        AGENT_CAPABILITY_SCOPES[AgentCapability.RawSql],
+                    ],
+                }),
+            ).rejects.toMatchObject({
+                refusal: {
+                    reason: 'agent_capability_denied',
+                    settingsUrl: '/generalSettings/agentIdentity',
+                },
+            });
+            expect(mockRolesModel.addScopesToRole).not.toHaveBeenCalled();
+        });
+
+        test('refuses an in-app agent changing grants through a session account', async () => {
+            mockFeatureFlagModel.get.mockResolvedValue({ enabled: true });
+            vi.spyOn(
+                AgentCapabilityPolicyModel.prototype,
+                'get',
+            ).mockResolvedValue({
+                mode: 'managed',
+                version: 1,
+                allowedProjectUuids: null,
+                systemRoleMatrix: {} as never,
+            });
+            await expect(
+                agentExecutionContext.run(
+                    createAgentExecutionContext({
+                        account: mockAccount,
+                        surface: AgentActorSurface.IN_APP_AGENT,
+                        clientId: null,
+                        agentUuid: 'agent',
+                        agentIdentityEnabled: true,
+                    }),
+                    () =>
+                        service.addScopesToRole(mockAccount, 'role', {
+                            scopeNames: [
+                                AGENT_CAPABILITY_SCOPES[AgentCapability.RawSql],
+                            ],
+                        }),
+                ),
+            ).rejects.toBeInstanceOf(AiAccessRefusedError);
+            expect(mockRolesModel.addScopesToRole).not.toHaveBeenCalled();
+        });
+
+        test.each(['off', 'legacy'] as const)(
+            'preserves OAuth scope writes in %s mode',
+            async (mode) => {
+                mockFeatureFlagModel.get.mockResolvedValue({
+                    enabled: mode !== 'off',
+                });
+                const policy = vi
+                    .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
+                    .mockResolvedValue({
+                        mode: 'legacy',
+                        version: 0,
+                        allowedProjectUuids: null,
+                        systemRoleMatrix: {} as never,
+                    });
+                mockRolesModel.getRoleByUuid.mockResolvedValue(mockCustomRole);
+                await service.addScopesToRole(
+                    oauthAccount(),
+                    mockCustomRole.roleUuid,
+                    {
+                        scopeNames: [
+                            AGENT_CAPABILITY_SCOPES[AgentCapability.RawSql],
+                        ],
+                    },
+                );
+                expect(mockRolesModel.addScopesToRole).toHaveBeenCalled();
+                if (mode === 'off') expect(policy).not.toHaveBeenCalled();
+            },
+        );
+
+        test.each([
+            'upsertCustomRoleAsCode',
+            'upsertUserAsCode',
+            'createRole',
+            'updateRole',
+            'upsertOrganizationUserRoleAssignment',
+            'updateProjectRoleAssignment',
+            'deleteProjectRoleAssignment',
+            'upsertProjectUserRoleAssignment',
+            'upsertProjectGroupRoleAssignment',
+            'replaceOrganizationUserRoleSet',
+            'replaceProjectUserRoleSet',
+            'replaceProjectGroupRoleSet',
+            'deleteRole',
+            'unassignRoleFromUser',
+            'assignRoleToGroup',
+            'unassignRoleFromGroup',
+            'removeUserProjectAccess',
+            'removeScopeFromRole',
+            'removeScopesFromRole',
+            'duplicateRole',
+        ] as const)(
+            'refuses managed OAuth %s before its writer',
+            async (method) => {
+                mockFeatureFlagModel.get.mockResolvedValue({ enabled: true });
+                vi.spyOn(
+                    AgentCapabilityPolicyModel.prototype,
+                    'get',
+                ).mockResolvedValue({
+                    mode: 'managed',
+                    version: 1,
+                    allowedProjectUuids: null,
+                    systemRoleMatrix: {} as never,
+                });
+                const mutation = service[method] as (
+                    account: typeof mockAccount,
+                ) => Promise<unknown>;
+                await expect(
+                    mutation.call(service, oauthAccount()),
+                ).rejects.toBeInstanceOf(AiAccessRefusedError);
+            },
+        );
     });
 
     describe('custom roles as code', () => {

@@ -99,7 +99,6 @@ export const getSearchFieldValues = ({
                                 metadata: { status: 'error' },
                                 structuredContent: {
                                     error: result,
-                                    refusal: null,
                                 },
                             };
                         }

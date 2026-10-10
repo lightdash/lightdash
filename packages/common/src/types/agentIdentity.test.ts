@@ -367,3 +367,18 @@ describe('agent identity history', () => {
         expect(normalizeAgentIdentityClaim(claim)).toEqual(claim);
     });
 });
+
+test('records OAuth REST as its own agent surface', () => {
+    expect(
+        buildAgentIdentityClaim({
+            subject: { type: 'user', uuid: 'person' },
+            surface: AgentActorSurface.API,
+            clientId: 'oauth-client',
+        }).act,
+    ).toEqual({
+        sub: 'api:oauth-client',
+        surface: 'api',
+        client_id: 'oauth-client',
+        agent_uuid: null,
+    });
+});

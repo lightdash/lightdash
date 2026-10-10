@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    AgentActorSurface,
     AgentIdentityConnectEntryPoint,
     AiAccessRefusalReason,
     AiAccessRefusedError,
@@ -10,7 +11,6 @@ import {
     aiWritebackRunStatusToMcpTaskStatus,
     AiWritebackSource,
     AnyType,
-    ApiKeyAccount,
     assertRegisteredAccount,
     assertUnreachable,
     buildRunSqlDescription,
@@ -75,7 +75,6 @@ import {
     mcpReadContentToolDefinition,
     MetricQuery,
     NotFoundError,
-    OauthAccount,
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -92,7 +91,6 @@ import {
     runSqlToolDefinition,
     searchFieldValuesFilterExpressionToolDefinition,
     searchFieldValuesToolDefinition,
-    ServiceAcctAccount,
     SessionUser,
     setAgentToolDefinition,
     setProjectToolDefinition,
@@ -152,6 +150,7 @@ import { McpContextModel } from '../../../models/McpContextModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
+import type { AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
 import { getContentWriteAgentIdentity } from '../../../services/AiAccessService/agentExecutionContext';
 import { AiAccessService } from '../../../services/AiAccessService/AiAccessService';
 import {
@@ -459,7 +458,11 @@ type McpServiceArguments = {
 
 export type ExtraContext = {
     user: SessionUser;
-    account: OauthAccount | ApiKeyAccount | ServiceAcctAccount;
+    account: RegisteredAccount;
+    getAgentPermissionService?: () => Pick<
+        AgentPermissionService,
+        'isManaged' | 'assertOperation'
+    >;
     /** User attribute overrides passed via X-Lightdash-User-Attributes header */
     headerUserAttributes?: UserAttributeValueMap;
     /** Project UUID passed via X-Lightdash-Project header; overrides stored context */
@@ -497,7 +500,10 @@ type McpRunMetricQueryArgs = (
 // it asserts the type without runtime validation of the inner shape.
 const extraContextSchema = z.object({
     user: z.custom<SessionUser>(),
-    account: z.custom<OauthAccount | ApiKeyAccount | ServiceAcctAccount>(),
+    account: z.custom<RegisteredAccount>(),
+    getAgentPermissionService: z
+        .custom<ExtraContext['getAgentPermissionService']>()
+        .optional(),
     headerUserAttributes: z.custom<UserAttributeValueMap>().optional(),
     headerProjectUuid: z.string().optional(),
     legacyContextInjected: z.boolean().optional(),
@@ -2321,12 +2327,20 @@ export class McpService extends BaseService {
     private async getAgentConnectionStatus(
         ctx: McpProtocolContext,
         requestedProjectUuid: string,
+        resourceRequest = false,
     ) {
         const { account } = McpService.getAccount(ctx);
         const projectUuid = await this.resolveToolProjectUuid(
             ctx,
             requestedProjectUuid,
         );
+        if (resourceRequest) {
+            await this.assertAgentResourceAllowed(
+                ctx,
+                McpToolName.CONNECT_AGENT,
+                { projectUuid },
+            );
+        }
         const access = await this.aiAccessService.getMyAccess(
             account,
             projectUuid,
@@ -2442,6 +2456,7 @@ export class McpService extends BaseService {
                     const status = await this.getAgentConnectionStatus(
                         getMcpContext(extra),
                         requestedProjectUuid,
+                        true,
                     );
                     return {
                         contents: [
@@ -4899,7 +4914,11 @@ export class McpService extends BaseService {
                         mimeType: resource.mimeType,
                         size: resource.size,
                     },
-                    async () => {
+                    async (_uri, extra) => {
+                        await this.assertAgentResourceAllowed(
+                            getMcpContext(extra),
+                            McpToolName.READ_SKILL_RESOURCE,
+                        );
                         const text =
                             await this.aiAgentToolsService.getMcpSkillResourceBody(
                                 resource.uri,
@@ -5283,15 +5302,21 @@ export class McpService extends BaseService {
                         mimeType: resource.mimeType,
                         size: resource.size,
                     },
-                    async () => ({
-                        contents: [
-                            {
-                                uri: resource.uri,
-                                mimeType: resource.mimeType,
-                                text: body,
-                            },
-                        ],
-                    }),
+                    async (_uri, extra) => {
+                        await this.assertAgentResourceAllowed(
+                            getMcpContext(extra),
+                            McpToolName.READ_SKILL_RESOURCE,
+                        );
+                        return {
+                            contents: [
+                                {
+                                    uri: resource.uri,
+                                    mimeType: resource.mimeType,
+                                    text: body,
+                                },
+                            ],
+                        };
+                    },
                 );
             });
             if (custom.length > 0) {
@@ -5320,15 +5345,21 @@ export class McpService extends BaseService {
                         mimeType: 'application/json',
                         size: Buffer.byteLength(index, 'utf8'),
                     },
-                    async () => ({
-                        contents: [
-                            {
-                                uri: 'skill://custom/index.json',
-                                mimeType: 'application/json',
-                                text: index,
-                            },
-                        ],
-                    }),
+                    async (_uri, extra) => {
+                        await this.assertAgentResourceAllowed(
+                            getMcpContext(extra),
+                            McpToolName.READ_SKILL_RESOURCE,
+                        );
+                        return {
+                            contents: [
+                                {
+                                    uri: 'skill://custom/index.json',
+                                    mimeType: 'application/json',
+                                    text: index,
+                                },
+                            ],
+                        };
+                    },
                 );
             }
         } catch (error) {
@@ -5410,6 +5441,68 @@ export class McpService extends BaseService {
         }
     }
 
+    private async assertAgentResourceAllowed(
+        context: McpProtocolContext,
+        toolName: McpToolName,
+        toolArgs: object = {},
+    ): Promise<void> {
+        try {
+            await this.assertAgentToolAllowed(context, toolName, toolArgs);
+        } catch (error) {
+            if (!(error instanceof AiAccessRefusedError)) throw error;
+            throw new McpError(
+                ErrorCode.InvalidRequest,
+                error.refusal.message,
+                {
+                    refusal: error.refusal,
+                },
+            );
+        }
+    }
+
+    private async assertAgentToolAllowed(
+        context: McpProtocolContext,
+        toolName: string,
+        toolArgs: unknown,
+    ): Promise<void> {
+        const authentication = context.authInfo?.extra.account?.authentication;
+        if (
+            authentication?.type !== 'oauth' &&
+            authentication?.type !== 'session'
+        ) {
+            return;
+        }
+        const { account, organizationUuid } = McpService.getAccount(context);
+        const permissions =
+            context.authInfo?.extra.getAgentPermissionService?.();
+        if (!permissions) {
+            throw new ForbiddenError('Agent permission service is unavailable');
+        }
+        if (!(await permissions.isManaged(organizationUuid))) return;
+        const explicitScope = mcpToolScopeArgsSchema.safeParse(toolArgs);
+        const pinnedProjectUuid = context.authInfo?.extra.headerProjectUuid;
+        if (
+            explicitScope.success &&
+            pinnedProjectUuid &&
+            explicitScope.data.projectUuid !== pinnedProjectUuid
+        ) {
+            throw new ForbiddenError(
+                'The requested project does not match the pinned MCP project',
+            );
+        }
+        const projectUuid = explicitScope.success
+            ? explicitScope.data.projectUuid
+            : ((await this.getProjectUuidFromContext(context)) ?? null);
+        await permissions.assertOperation({
+            account,
+            organizationUuid,
+            projectUuid,
+            kind: 'mcp_tool',
+            key: toolName,
+            surface: AgentActorSurface.MCP,
+        });
+    }
+
     private wrapToolCallback<
         Callback extends (...cbArgs: AnyType[]) => AnyType,
     >(toolName: string, handler: Callback): Callback {
@@ -5424,6 +5517,30 @@ export class McpService extends BaseService {
                 const user = context.authInfo?.extra.user;
                 if (user) {
                     assertOAuthMcpToolAllowed(user.ability, toolName);
+                }
+                try {
+                    await this.assertAgentToolAllowed(
+                        context,
+                        toolName,
+                        toolArgs,
+                    );
+                } catch (error) {
+                    if (!(error instanceof AiAccessRefusedError)) throw error;
+                    this.recordToolCall({
+                        toolName,
+                        toolArgs: {},
+                        extra,
+                        durationMs: Date.now() - startedAt,
+                        status: 'error',
+                        errorMessage: error.refusal.message,
+                    });
+                    return {
+                        isError: true,
+                        content: [
+                            { type: 'text', text: error.refusal.message },
+                        ],
+                        structuredContent: { refusal: error.refusal },
+                    };
                 }
                 const result = await handler(...cbArgs);
                 const legacyContextInjected =

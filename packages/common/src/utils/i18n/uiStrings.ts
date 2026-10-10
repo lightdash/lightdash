@@ -20,6 +20,7 @@ export const DEFAULT_UI_STRINGS = {
     'agentAttribution.inApp': 'In-app agent',
     'agentAttribution.slack': 'Slack agent',
     'agentAttribution.cli': 'CLI',
+    'agentAttribution.api': 'API',
     'agentAttribution.dataApp': 'Data app',
     'agentAttribution.aiSummary': 'AI summary',
 

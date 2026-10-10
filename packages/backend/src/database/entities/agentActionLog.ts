@@ -1,9 +1,15 @@
-import { type AgentIdentityClaim } from '@lightdash/common';
+import {
+    type AgentCapability,
+    type AgentIdentityClaim,
+} from '@lightdash/common';
 import { type Knex } from 'knex';
 
 export const AgentActionLogTableName = 'agent_action_log';
 
 export type AgentActionPolicyLayer =
+    | 'org_ceiling'
+    | 'project_scope'
+    | 'unmapped'
     | 'casl'
     | 'agent_scope'
     | 'organization_setting'
@@ -25,12 +31,17 @@ export type DbAgentActionLog = {
     outcome: 'allowed' | 'denied';
     policy_layer: AgentActionPolicyLayer | null;
     reason_code: string | null;
+    capability: AgentCapability | null;
+    policy_version: number | null;
 };
 
-export type InsertAgentActionLog = Omit<
+export interface InsertAgentActionLog extends Omit<
     DbAgentActionLog,
-    'agent_action_log_uuid' | 'occurred_at'
->;
+    'agent_action_log_uuid' | 'occurred_at' | 'capability' | 'policy_version'
+> {
+    capability?: AgentCapability | null;
+    policy_version?: number | null;
+}
 
 export type AgentActionLogTable = Knex.CompositeTableType<
     DbAgentActionLog,

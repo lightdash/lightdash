@@ -10,6 +10,7 @@ import {
 export enum AgentActorSurface {
     IN_APP_AGENT = 'in_app_agent',
     MCP = 'mcp',
+    API = 'api',
     SLACK_AGENT = 'slack_agent',
     CLI = 'cli',
     DATA_APP = 'data_app',
@@ -22,6 +23,7 @@ export const AGENT_CLIENT_IDS = {
     [AgentActorSurface.DATA_APP]: 'lightdash-data-app',
     [AgentActorSurface.AI_SUMMARY]: 'lightdash-ai-summary',
     [AgentActorSurface.MCP]: null,
+    [AgentActorSurface.API]: null,
     [AgentActorSurface.SLACK_AGENT]: null,
 } as const;
 

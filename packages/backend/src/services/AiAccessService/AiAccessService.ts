@@ -80,6 +80,7 @@ import {
 import { type UserModel } from '../../models/UserModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
+import { assertHumanManagedMutation } from '../AgentPermissionService/assertHumanManagedMutation';
 import {
     AiServiceAccountSlotResolutionError,
     AiServiceAccountSlotResolver,
@@ -603,6 +604,13 @@ export class AiAccessService extends BaseService {
         account: Account,
         body: UpdateOrganizationSnowflakeAgentClient,
     ): Promise<OrganizationAgentIdentitySnowflakeSetup> {
+        await assertHumanManagedMutation({
+            organizationUuid: account.organization.organizationUuid,
+            ability: account.user.ability,
+            oauth: account.authentication.type === 'oauth',
+            database: this.organizationAgentIdentitySettingsModel.db,
+            featureFlagModel: this.featureFlagModel,
+        });
         const organizationUuid = await this.authorizeSnowflakeSetup(account);
         assertRegisteredAccount(account);
         const { testAccountUrlOrigin } = this.lightdashConfig.auth.snowflakeAi;
@@ -752,6 +760,13 @@ export class AiAccessService extends BaseService {
         account: Account,
         settings: OrganizationAgentIdentitySettings,
     ): Promise<OrganizationAgentIdentityOverview> {
+        await assertHumanManagedMutation({
+            organizationUuid: account.organization.organizationUuid,
+            ability: account.user.ability,
+            oauth: account.authentication.type === 'oauth',
+            database: this.organizationAgentIdentitySettingsModel.db,
+            featureFlagModel: this.featureFlagModel,
+        });
         assertIsAccountWithOrg(account);
         const { organizationUuid } = account.organization;
         await this.assertFeatureEnabled({
@@ -824,6 +839,13 @@ export class AiAccessService extends BaseService {
         warehouseType: WarehouseTypes,
         rule: UpdateOrganizationAgentIdentityRule,
     ): Promise<OrganizationAgentIdentityRule> {
+        await assertHumanManagedMutation({
+            organizationUuid: account.organization.organizationUuid,
+            ability: account.user.ability,
+            oauth: account.authentication.type === 'oauth',
+            database: this.organizationAgentIdentitySettingsModel.db,
+            featureFlagModel: this.featureFlagModel,
+        });
         assertIsAccountWithOrg(account);
         const { organizationUuid } = account.organization;
         await this.assertFeatureEnabled({

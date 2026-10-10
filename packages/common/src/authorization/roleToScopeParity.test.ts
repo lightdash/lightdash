@@ -2,6 +2,7 @@
 import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import { type OrganizationMemberRole } from '../types/organizationMemberProfile';
 import { ProjectMemberRole } from '../types/projectMemberRole';
+import { AGENT_CAPABILITY_SUBJECTS } from './agentCapabilityScopes';
 import { applyOrganizationMemberStaticAbilities } from './organizationMemberAbility';
 import {
     ORGANIZATION_ADMIN,
@@ -72,6 +73,7 @@ const checkRoleCoveredByScopes = (
  * List of enterprise-only subject names that should be filtered in non-enterprise mode
  */
 const ENTERPRISE_SUBJECTS = new Set([
+    ...AGENT_CAPABILITY_SUBJECTS,
     'EmbedAiAgent',
     'EmbedAiAgentDebug',
     'EmbedCompiledSql',
@@ -432,7 +434,16 @@ describe('Role to Scope Parity', () => {
     // `BASE_ROLE_SCOPES` for at least one tier — closing the loop on
     // "how did the misc orphans drift in the first place?".
     describe('Scope vocabulary coverage', () => {
-        it('every scope in scopes.ts must appear in at least one role tier', () => {
+        it('every scope except explicit agent opt-ins appears in a role tier', () => {
+            const explicitAgentOptIns = new Set([
+                'view:AgentContentWrite',
+                'view:AgentDelete',
+                'view:AgentPublish',
+                'view:AgentDeployUpload',
+                'view:AgentDbtWriteback',
+                'view:AgentAdministration',
+                'view:AgentExternalTools',
+            ]);
             const allScopeNames = new Set(
                 getScopes({ isEnterprise: true }).map((s) => s.name),
             );
@@ -442,7 +453,7 @@ describe('Role to Scope Parity', () => {
             });
 
             const missing = [...allScopeNames].filter(
-                (s) => !tieredScopes.has(s),
+                (s) => !tieredScopes.has(s) && !explicitAgentOptIns.has(s),
             );
 
             if (missing.length > 0) {

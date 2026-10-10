@@ -12,6 +12,7 @@ import {
     mergePullRequest,
 } from '../clients/github/Github';
 import { LightdashConfig } from '../config/parseConfig';
+import { type AiOrganizationSettingsModel } from '../ee/models/AiOrganizationSettingsModel';
 import type { ServiceAccountModel } from '../ee/models/ServiceAccountModel';
 import { AppGenerateService } from '../ee/services/AppGenerateService/AppGenerateService';
 import { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
@@ -22,6 +23,7 @@ import { ModelRepository } from '../models/ModelRepository';
 import PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import type { UtilRepository } from '../utils/UtilRepository';
 import { AdminNotificationService } from './AdminNotificationService/AdminNotificationService';
+import { AgentPermissionService } from './AgentPermissionService/AgentPermissionService';
 import { AiAccessService } from './AiAccessService/AiAccessService';
 import { SnowflakeAgentClientResolver } from './AiAccessService/SnowflakeAgentClientResolver';
 import { AiServiceAccountService } from './AiServiceAccountService/AiServiceAccountService';
@@ -157,6 +159,7 @@ interface ServiceManifest {
     pinningService: PinningService;
     pivotTableService: PivotTableService;
     aiAccessService: AiAccessService;
+    agentPermissionService: AgentPermissionService;
     aiServiceAccountService: AiServiceAccountService;
     projectService: ProjectService;
     analyticsProjectService: AnalyticsProjectService;
@@ -986,6 +989,47 @@ export class ServiceRepository
         );
     }
 
+    public getAgentPermissionService(): AgentPermissionService {
+        return this.getService(
+            'agentPermissionService',
+            () =>
+                new AgentPermissionService({
+                    resolveResourceProjectUuid: async ({ type, uuid }) => {
+                        const resolvers = {
+                            dashboard: () =>
+                                this.models
+                                    .getDashboardModel()
+                                    .getSummaryByUuid(uuid),
+                            saved_chart: () =>
+                                this.models
+                                    .getSavedChartModel()
+                                    .getSummary(uuid),
+                            space: () => this.models.getSpaceModel().get(uuid),
+                            query: () =>
+                                this.models
+                                    .getQueryHistoryModel()
+                                    .getByQueryUuid(uuid),
+                        };
+                        return (await resolvers[type]())?.projectUuid ?? null;
+                    },
+                    isCustomRolesLicensed: () =>
+                        this.getLicenseService().getLicenseStatus().valid,
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    agentCapabilityPolicyModel:
+                        this.models.getAgentCapabilityPolicyModel(),
+                    agentWarehouseRestrictionConfirmationModel:
+                        this.models.getAgentWarehouseRestrictionConfirmationModel(),
+                    userModel: this.models.getUserModel(),
+                    projectModel: this.models.getProjectModel(),
+                    getOrganizationSettings: (organizationUuid) =>
+                        this.models
+                            .getAiOrganizationSettingsModel<AiOrganizationSettingsModel>()
+                            .findByOrganizationUuid(organizationUuid),
+                    agentActionLogModel: this.models.getAgentActionLogModel(),
+                }),
+        );
+    }
+
     public getAiAccessService(): AiAccessService {
         return this.getService(
             'aiAccessService',
@@ -1286,6 +1330,8 @@ export class ServiceRepository
             });
 
             return new QuerySourceService({
+                getAgentPermissionService: () =>
+                    this.getAgentPermissionService(),
                 projectModel: this.models.getProjectModel(),
                 queryHistoryModel: this.models.getQueryHistoryModel(),
                 featureFlagModel: this.models.getFeatureFlagModel(),

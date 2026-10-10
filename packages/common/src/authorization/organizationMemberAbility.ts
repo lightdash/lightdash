@@ -6,6 +6,7 @@ import {
 import { ProjectType } from '../types/projects';
 import { SpaceMemberRole } from '../types/space';
 import { getPermissionsFromAbilityRules } from './abilityPermissions';
+import { AGENT_DEFAULT_CAPABILITY_SUBJECTS } from './agentCapabilityScopes';
 import {
     DEVELOPER_EMBED_SUBJECTS,
     INTERACTIVE_VIEWER_EMBED_SUBJECTS,
@@ -48,6 +49,11 @@ export const applyOrganizationMemberStaticAbilities: Record<
         });
     },
     viewer(member, { can }) {
+        AGENT_DEFAULT_CAPABILITY_SUBJECTS.forEach((resource) => {
+            can('view', resource, {
+                organizationUuid: member.organizationUuid,
+            });
+        });
         applyOrganizationMemberStaticAbilities.member(member, { can });
         VIEWER_EMBED_SUBJECTS.forEach((resource) => {
             can('view', resource, {

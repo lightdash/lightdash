@@ -32,6 +32,7 @@ import { Agent, type Dispatcher } from 'undici';
 /* eslint-enable import/extensions */
 import { LightdashConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
+import type { ConnectedAgentTool } from '../../../services/AgentPermissionService/AgentPermissionService';
 import {
     isPrivateAddress,
     validatePublicHttpUrl,
@@ -310,6 +311,7 @@ export const hardenMcpToolDefinition = (
 export type ResolvedMcpTools = {
     tools: ToolSet;
     mcpToolNameToServerUuid: Record<string, string>;
+    connectedToolInventory: Record<string, ConnectedAgentTool>;
     unavailableMcpServers: UnavailableMcpServer[];
     closeMcpClients: () => Promise<void>;
 };
@@ -1591,6 +1593,7 @@ export class AiAgentMcpRuntimeClient {
             return {
                 tools: {},
                 mcpToolNameToServerUuid: {},
+                connectedToolInventory: {},
                 unavailableMcpServers: [],
                 closeMcpClients: async () => undefined,
             };
@@ -1600,6 +1603,7 @@ export class AiAgentMcpRuntimeClient {
         const usedToolNames = new Set<string>();
         const resolvedTools: ToolSet = {};
         const mcpToolNameToServerUuid: Record<string, string> = {};
+        const connectedToolInventory: Record<string, ConnectedAgentTool> = {};
         const unavailableMcpServers: UnavailableMcpServer[] = [];
 
         const serverResults = await Promise.all(
@@ -1750,6 +1754,12 @@ export class AiAgentMcpRuntimeClient {
                     usedToolNames.add(namespacedToolName);
                     mcpToolNameToServerUuid[namespacedToolName] =
                         serverResult.mcpServer.uuid;
+                    connectedToolInventory[namespacedToolName] = {
+                        serverUuid: serverResult.mcpServer.uuid,
+                        toolName,
+                        enabledToolNames:
+                            serverResult.mcpServer.enabledToolNames ?? null,
+                    };
                     try {
                         resolvedTools[namespacedToolName] =
                             hardenMcpToolDefinition(
@@ -1762,6 +1772,7 @@ export class AiAgentMcpRuntimeClient {
                             );
                             usedToolNames.delete(namespacedToolName);
                             delete mcpToolNameToServerUuid[namespacedToolName];
+                            delete connectedToolInventory[namespacedToolName];
                             // eslint-disable-next-line no-continue
                             continue;
                         }
@@ -1774,6 +1785,7 @@ export class AiAgentMcpRuntimeClient {
         return {
             tools: resolvedTools,
             mcpToolNameToServerUuid,
+            connectedToolInventory,
             unavailableMcpServers,
             closeMcpClients: async () => {
                 const results = await Promise.allSettled(

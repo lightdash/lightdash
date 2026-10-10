@@ -88,6 +88,10 @@ const start = async (
                         featureFlagId === FeatureFlags.AgentIdentity && strict,
                 }),
             }),
+            getAgentPermissionService: () => ({
+                isManaged: vi.fn().mockResolvedValue(false),
+                assertOperation: vi.fn(),
+            }),
             getMcpService: () => ({
                 canAccessMcp: () => {},
                 isEnabled: async () => true,

@@ -860,6 +860,7 @@ describe('test-and-compile credential resolution', () => {
                         expect(updateIf).toHaveBeenCalledWith(
                             f.project.projectUuid,
                             expect.any(Function),
+                            'token_sync',
                         );
                         const update = updateIf.mock.calls[0][1];
                         expect(update(stale)).toEqual(expected);

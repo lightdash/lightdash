@@ -23,6 +23,10 @@ describe('in-app runtime content identity', () => {
                     isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(false),
                 },
                 featureFlagService: { get: getFlag },
+                agentPermissionService: {
+                    isManaged: vi.fn().mockResolvedValue(false),
+                    assertOperation: vi.fn(),
+                },
             } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
             const runtime = service as unknown as {
                 getIsCopilotEnabled: () => Promise<boolean>;

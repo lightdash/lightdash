@@ -1387,7 +1387,7 @@ export class AiAgentAdminController extends BaseController {
         assertRegisteredAccount(req.account);
         const settings =
             await this.getAiOrganizationSettingsService().upsertSettings(
-                toSessionUser(req.account),
+                req.account,
                 body,
             );
 

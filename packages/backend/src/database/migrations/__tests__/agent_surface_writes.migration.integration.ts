@@ -70,6 +70,11 @@ vi.mock('../../../ee/services/ai/models', async (original) => ({
     }),
 }));
 
+const legacyAgentPermissionService = {
+    isManaged: vi.fn().mockResolvedValue(false),
+    assertOperation: vi.fn().mockResolvedValue(undefined),
+};
+
 describe('trusted surface to persisted chart identity', () => {
     let migrated: MigratedDatabase;
     const servers: Server[] = [];
@@ -243,6 +248,7 @@ describe('trusted surface to persisted chart identity', () => {
                     savedChartModel.get(slug, undefined, { projectUuid }),
             },
             featureFlagService,
+            agentPermissionService: legacyAgentPermissionService,
             builtInSkills: {
                 getAiAgentSkills: vi.fn().mockResolvedValue([]),
                 listSkillToolReferences: vi.fn().mockResolvedValue([]),
@@ -381,7 +387,9 @@ describe('trusted surface to persisted chart identity', () => {
                 req.user = f.user;
                 req.services = {
                     getMcpService: () => mcp,
-                } as Express.Request['services'];
+                    getAgentPermissionService: () =>
+                        legacyAgentPermissionService,
+                } as unknown as Express.Request['services'];
                 next();
             });
             app.use('/api/v1/mcp', mcpRouter);
@@ -442,6 +450,7 @@ describe('trusted surface to persisted chart identity', () => {
             lightdashConfig: f.config,
             projectModel: f.projectModel,
             aiAgentToolsService: f.tools,
+            agentPermissionService: legacyAgentPermissionService,
             aiAgentModel: new AiAgentModel({
                 database: migrated.database,
                 lightdashConfig: f.config,
