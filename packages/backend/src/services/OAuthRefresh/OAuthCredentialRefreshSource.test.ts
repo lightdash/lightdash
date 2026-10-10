@@ -2,14 +2,20 @@ import {
     DatabricksAuthenticationType,
     FeatureFlags,
     ForbiddenError,
+    MissingWarehouseCredentialsError,
     NotFoundError,
     SnowflakeAuthenticationType,
     UserWarehouseCredentialPurpose,
     WarehouseTypes,
 } from '@lightdash/common';
-import { type Knex } from 'knex';
+import knex, { type Knex } from 'knex';
+import { getTracker, MockClient } from 'knex-mock-client';
 import { RefreshTokenSourceChangedError } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
-import type { AiUserWarehouseCredentials } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
+import {
+    UserWarehouseCredentialsModel,
+    type AiUserWarehouseCredentials,
+} from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
+import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { connectionContextFromUser } from '../WarehouseClientFactory/ConnectionContext';
 import { type WarehouseCredentialResolutionContext } from '../WarehouseClientFactory/WarehouseCredentialSource';
 import {
@@ -89,6 +95,11 @@ const setup = () => {
     });
     const input = {
         connection: credentials,
+        refreshSource: {
+            credentials,
+            fallback: credentials,
+            personalCredentialPolicy: { strictPersonalOverlay: true },
+        },
         projectUuid: 'project' as string | null,
         context: connectionContextFromUser(
             { userUuid: 'person' },
@@ -102,13 +113,19 @@ describe.each(owners)('$kind source', (owner) => {
     test('reads the exact owner and uses the held transaction for the guarded write', async () => {
         const f = setup();
         await expect(
-            f.source.readCurrentRefreshToken(f.input, owner, trx),
+            f.source.readCurrentRefreshToken({ ...f.input, owner }, trx),
         ).resolves.toBe('current');
         await f.source.persist(f.input, owner, 'current', 'rotated', trx);
         const readArgs =
             owner.kind === 'warehouseConnection'
                 ? [f.project, owner.uuid, trx]
-                : [owner.uuid, trx];
+                : [
+                      owner.uuid,
+                      trx,
+                      ...(owner.kind === 'user'
+                          ? [{ strictPersonalOverlay: true }]
+                          : []),
+                  ];
         const writeArgs = {
             project: [owner.uuid, 'current', 'rotated', trx],
             organization: [owner.uuid, 'current', 'rotated', trx],
@@ -173,7 +190,10 @@ test.each(['serverHostName', 'oauthClientId'] as const)(
             { ...credentials, [field]: 'replacement' },
         );
         await expect(
-            f.source.readCurrentRefreshToken(f.input, owners[0], trx),
+            f.source.readCurrentRefreshToken(
+                { ...f.input, owner: owners[0] },
+                trx,
+            ),
         ).rejects.toBeInstanceOf(RefreshTokenSourceChangedError);
     },
 );
@@ -186,7 +206,7 @@ test('ignores routing and token changes when the provider identity still matches
         refreshToken: 'rotated',
     });
     await expect(
-        f.source.readCurrentRefreshToken(f.input, owners[0], trx),
+        f.source.readCurrentRefreshToken({ ...f.input, owner: owners[0] }, trx),
     ).resolves.toBe('rotated');
 });
 
@@ -197,7 +217,7 @@ test('returns no token when the provider predicate rejects changed credentials',
         authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
     });
     await expect(
-        f.source.readCurrentRefreshToken(f.input, owners[0], trx),
+        f.source.readCurrentRefreshToken({ ...f.input, owner: owners[0] }, trx),
     ).resolves.toBeNull();
     expect(f.matchesIdentity).not.toHaveBeenCalled();
 });
@@ -208,7 +228,7 @@ test('maps missing owner rows to a retryable source change', async () => {
         new NotFoundError('missing'),
     );
     await expect(
-        f.source.readCurrentRefreshToken(f.input, owners[0], trx),
+        f.source.readCurrentRefreshToken({ ...f.input, owner: owners[0] }, trx),
     ).rejects.toBeInstanceOf(RefreshTokenSourceChangedError);
 });
 
@@ -223,7 +243,10 @@ test.each([null, 'another-org'])(
                 organizationUuid,
             });
         await expect(
-            f.source.readCurrentRefreshToken(f.input, owners[3], trx),
+            f.source.readCurrentRefreshToken(
+                { ...f.input, owner: owners[3] },
+                trx,
+            ),
         ).rejects.toBeInstanceOf(ForbiddenError);
         expect(
             f.deps.warehouseConnectionModel.getOwnCredentials,
@@ -341,15 +364,57 @@ describe('AI-purpose user policy', () => {
         };
     };
 
+    test('locked strict AI reread refuses malformed ciphertext using the held transaction', async () => {
+        const transaction = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        tracker.on.select('user_warehouse_credentials').response([
+            {
+                user_warehouse_credentials_uuid: 'ai-row',
+                warehouse_type: WarehouseTypes.SNOWFLAKE,
+                encrypted_credentials: Buffer.from('not-json'),
+            },
+        ]);
+        const database = vi.fn(() => {
+            throw new Error('Must use the held transaction');
+        }) as unknown as Knex;
+        const realModel = new UserWarehouseCredentialsModel({
+            database,
+            encryptionUtil: {
+                decrypt: (value: Buffer) => value.toString(),
+            } as EncryptionUtil,
+        });
+        const f = setupAi();
+        Object.assign(f.model, {
+            findAiCredentialWithSecrets:
+                realModel.findAiCredentialWithSecrets.bind(realModel),
+        });
+        try {
+            await expect(
+                f.source.readCurrentRefreshToken(
+                    { ...f.input, owner },
+                    transaction,
+                ),
+            ).rejects.toThrow(MissingWarehouseCredentialsError);
+            expect(database).not.toHaveBeenCalled();
+            expect(tracker.history.select).toHaveLength(1);
+            expect(f.deps.featureFlagModel.get).not.toHaveBeenCalled();
+        } finally {
+            tracker.reset();
+            await transaction.destroy();
+        }
+    });
+
     test('reads the AI row with its transaction and validates the binding', async () => {
         const f = setupAi();
         await expect(
-            f.source.readCurrentRefreshToken(f.input, owner, trx),
+            f.source.readCurrentRefreshToken({ ...f.input, owner }, trx),
         ).resolves.toBe('current');
         expect(
             f.model.findAiCredentialWithSecrets,
         ).toHaveBeenCalledExactlyOnceWith(
             { userUuid: 'person', warehouseType: WarehouseTypes.SNOWFLAKE },
+            { strictPersonalOverlay: true },
             trx,
         );
         expect(
@@ -365,7 +430,7 @@ describe('AI-purpose user policy', () => {
         const f = setupAi();
         f.model.findAiCredentialWithSecrets.mockResolvedValue(current);
         await expect(
-            f.source.readCurrentRefreshToken(f.input, owner, trx),
+            f.source.readCurrentRefreshToken({ ...f.input, owner }, trx),
         ).rejects.toBeInstanceOf(RefreshTokenSourceChangedError);
     });
 
@@ -405,8 +470,13 @@ describe('AI-purpose user policy', () => {
         const f = setupAi();
         await expect(
             f.source.readCurrentRefreshToken(
-                f.input,
-                { ...owner, purpose: UserWarehouseCredentialPurpose.DEFAULT },
+                {
+                    ...f.input,
+                    owner: {
+                        ...owner,
+                        purpose: UserWarehouseCredentialPurpose.DEFAULT,
+                    },
+                },
                 trx,
             ),
         ).rejects.toBeInstanceOf(RefreshTokenSourceChangedError);
@@ -424,4 +494,51 @@ describe('AI-purpose user policy', () => {
             f.deps.userWarehouseCredentialsModel.rotateRefreshToken,
         ).not.toHaveBeenCalled();
     });
+});
+
+describe('strict personal overlay (agent-identity on)', () => {
+    test.each([true, false])(
+        'locked personal reread uses the supplied policy without a flag lookup (%s)',
+        async (enabled) => {
+            const f = setup();
+            f.input.refreshSource.personalCredentialPolicy = {
+                strictPersonalOverlay: enabled,
+            };
+            f.deps.userWarehouseCredentialsModel.getByUuidWithSecrets.mockResolvedValue(
+                {
+                    credentials: {
+                        ...credentials,
+                        httpPath: '/redirect',
+                        database: 'redirect',
+                    },
+                },
+            );
+            await expect(
+                f.source.readCurrentRefreshToken(
+                    { ...f.input, owner: owners[2] },
+                    trx,
+                ),
+            ).resolves.toBe('current');
+            expect(f.matchesIdentity.mock.calls[0][0]).toMatchObject({
+                httpPath: enabled ? credentials.httpPath : '/redirect',
+                database: enabled ? credentials.database : 'redirect',
+            });
+            expect(f.deps.featureFlagModel.get).not.toHaveBeenCalled();
+        },
+    );
+    test.each(['', undefined, 'other-workspace'])(
+        'locked reread refuses a Databricks binding of %s',
+        async (serverHostName) => {
+            const f = setup();
+            f.deps.userWarehouseCredentialsModel.getByUuidWithSecrets.mockResolvedValue(
+                { credentials: { ...credentials, serverHostName } },
+            );
+            await expect(
+                f.source.readCurrentRefreshToken(
+                    { ...f.input, owner: owners[2] },
+                    trx,
+                ),
+            ).rejects.toThrow('Reconnect your credentials');
+        },
+    );
 });

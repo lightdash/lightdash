@@ -39,7 +39,7 @@ const brokenBigqueryCredentials = {
 
 const makeRow = (
     uuid: string,
-    credentials: object,
+    credentials: { type: WarehouseTypes; [key: string]: unknown },
 ): DbUserWarehouseCredentials & {
     project_name: string | null;
     project_type: null;
@@ -47,7 +47,7 @@ const makeRow = (
     user_warehouse_credentials_uuid: uuid,
     user_uuid: 'user-1',
     name: 'Default',
-    warehouse_type: WarehouseTypes.BIGQUERY,
+    warehouse_type: credentials.type,
     encrypted_credentials: Buffer.from(JSON.stringify(credentials)),
     created_at: new Date(),
     updated_at: new Date(),
@@ -91,6 +91,10 @@ const createModel = ({
                 return builder;
             });
         });
+        builder.modify = vi.fn((callback: (query: typeof builder) => void) => {
+            callback(builder);
+            return builder;
+        });
         builder.first = vi.fn(async () => result.firstRow);
         builder.then = (
             resolve: (rows: object[]) => unknown,
@@ -123,6 +127,37 @@ describe('UserWarehouseCredentialsModel', () => {
     });
     beforeEach(() => tracker.reset());
     afterAll(async () => sqlDatabase.destroy());
+
+    test.each([true, false])(
+        'secret reads project nested BigQuery identity only when strict (%s)',
+        async (strictPersonalOverlay) => {
+            const row = makeRow('personal', {
+                ...validBigqueryCredentials,
+                keyfileContents: {
+                    ...validBigqueryCredentials.keyfileContents,
+                    quota_project_id: 'legacy-project',
+                },
+            });
+            tracker.on.select('user_warehouse_credentials').response([row]);
+            const result = await credentialModel.getByUuidWithSecrets(
+                'personal',
+                undefined,
+                { strictPersonalOverlay },
+            );
+            const preferred = await credentialModel.findForProjectWithSecrets(
+                'project',
+                'user-1',
+                WarehouseTypes.BIGQUERY,
+                { strictPersonalOverlay },
+            );
+            expect(preferred?.credentials).toEqual(result.credentials);
+            expect(result.credentials).toEqual(
+                strictPersonalOverlay
+                    ? validBigqueryCredentials
+                    : JSON.parse(row.encrypted_credentials.toString()),
+            );
+        },
+    );
 
     describe('hasOrganizationAiSnowflakeCredential', () => {
         test.each([true, false])(
@@ -217,14 +252,20 @@ describe('UserWarehouseCredentialsModel', () => {
             .response([
                 makeRow('credential', { ...credentials, aiClientBinding }),
             ]);
-        const ai = await credentialModel.findAiCredentialWithSecrets({
-            userUuid: 'user-1',
-            warehouseType: WarehouseTypes.SNOWFLAKE,
-        });
+        const ai = await credentialModel.findAiCredentialWithSecrets(
+            {
+                userUuid: 'user-1',
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+            },
+            { strictPersonalOverlay: false },
+        );
         expect(ai?.aiClientBinding).toEqual(aiClientBinding);
         expect(ai?.credentials).toEqual(credentials);
-        const secretResult =
-            await credentialModel.getByUuidWithSecrets('credential');
+        const secretResult = await credentialModel.getByUuidWithSecrets(
+            'credential',
+            undefined,
+            { strictPersonalOverlay: false },
+        );
         expect(secretResult).not.toHaveProperty('aiClientBinding');
         expect(secretResult.credentials).toEqual(credentials);
         const [statusCredential] =
@@ -341,10 +382,13 @@ describe('UserWarehouseCredentialsModel', () => {
 
     describe('normalizeCredentialsForPersistence', () => {
         const normalize = (credentials: object) =>
-            UserWarehouseCredentialsModel.normalizeCredentialsForPersistence({
-                name: 'Default',
-                credentials: credentials as never,
-            });
+            UserWarehouseCredentialsModel.normalizeCredentialsForPersistence(
+                {
+                    name: 'Default',
+                    credentials: credentials as never,
+                },
+                { strictPersonalOverlay: false },
+            );
 
         test('keeps only the access keys of Athena credentials', () => {
             expect(
@@ -523,6 +567,7 @@ describe('UserWarehouseCredentialsModel', () => {
                 'project-1',
                 'user-1',
                 WarehouseTypes.BIGQUERY,
+                { strictPersonalOverlay: false },
             );
             expect(
                 whereCalls.filter(
@@ -572,12 +617,14 @@ describe('UserWarehouseCredentialsModel', () => {
                 'first-token',
                 new Date('2030-01-01T00:00:00Z'),
                 { organizationUuid: 'org', clientVersion: 'version' },
+                { strictPersonalOverlay: false },
             );
             const second = await model.upsertAiSnowflakeCredential(
                 'user-1',
                 'second-token',
                 null,
                 { organizationUuid: 'org', clientVersion: 'version' },
+                { strictPersonalOverlay: false },
             );
             expect(builder.insert.mock.calls[0][0].expires_at).toEqual(
                 new Date('2030-01-01T00:00:00Z'),
@@ -623,10 +670,13 @@ describe('UserWarehouseCredentialsModel', () => {
                 database,
                 encryptionUtil: passthroughEncryption,
             });
-            const result = await model.findAiCredentialWithSecrets({
-                userUuid: 'user-1',
-                warehouseType: WarehouseTypes.SNOWFLAKE,
-            });
+            const result = await model.findAiCredentialWithSecrets(
+                {
+                    userUuid: 'user-1',
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                },
+                { strictPersonalOverlay: false },
+            );
             expect(result?.uuid).toBe('ai-credential');
             expect(result?.expiresAt).toEqual(row.expires_at);
             expect(where).toHaveBeenCalledWith({
@@ -647,6 +697,7 @@ describe('UserWarehouseCredentialsModel', () => {
                 'project-1',
                 'user-1',
                 WarehouseTypes.BIGQUERY,
+                { strictPersonalOverlay: false },
             );
             expect(result?.uuid).toEqual('preferred');
         });
@@ -663,6 +714,7 @@ describe('UserWarehouseCredentialsModel', () => {
                 'project-1',
                 'user-1',
                 WarehouseTypes.BIGQUERY,
+                { strictPersonalOverlay: false },
             );
             expect(result?.uuid).toEqual('valid');
         });
@@ -677,6 +729,7 @@ describe('UserWarehouseCredentialsModel', () => {
                     'project-1',
                     'user-1',
                     WarehouseTypes.BIGQUERY,
+                    { strictPersonalOverlay: false },
                 ),
             ).rejects.toThrow(BigqueryTokenError);
         });
@@ -697,6 +750,7 @@ describe('UserWarehouseCredentialsModel', () => {
                 'project-1',
                 'user-1',
                 WarehouseTypes.BIGQUERY,
+                { strictPersonalOverlay: false },
             );
             expect(result?.uuid).toEqual('valid');
         });
@@ -715,6 +769,7 @@ describe('UserWarehouseCredentialsModel', () => {
                     'project-1',
                     'user-1',
                     WarehouseTypes.BIGQUERY,
+                    { strictPersonalOverlay: false },
                 ),
             ).resolves.toBeUndefined();
         });
@@ -729,9 +784,189 @@ describe('UserWarehouseCredentialsModel', () => {
                     'project-1',
                     'user-1',
                     WarehouseTypes.BIGQUERY,
+                    { strictPersonalOverlay: false },
                 ),
             ).resolves.toBeUndefined();
         });
+    });
+    describe('strict personal overlay (agent-identity on)', () => {
+        const model = credentialModel;
+        test('shape G: a decrypted row type must match its stored warehouse type', async () => {
+            tracker.on.select('user_warehouse_credentials').response([
+                {
+                    ...makeRow('credential', {
+                        type: WarehouseTypes.POSTGRES,
+                        user: 'person',
+                        password: '',
+                    }),
+                    warehouse_type: WarehouseTypes.BIGQUERY,
+                },
+            ]);
+            await expect(
+                model.getByUuidWithSecrets('credential', undefined, {
+                    strictPersonalOverlay: true,
+                }),
+            ).rejects.toThrow('Reconnect your credentials');
+        });
+        test('strict direct read refuses an unreadable personal row with the reconnect error', async () => {
+            tracker.on.select('user_warehouse_credentials').response([
+                {
+                    ...makeRow('credential', validBigqueryCredentials),
+                    encrypted_credentials: Buffer.from('invalid-json'),
+                },
+            ]);
+            await expect(
+                model.getByUuidWithSecrets('credential', undefined, {
+                    strictPersonalOverlay: true,
+                }),
+            ).rejects.toThrow('Reconnect your credentials');
+        });
+        test('flag-off update preserves the legacy write without reading the old type', async () => {
+            tracker.on
+                .update('user_warehouse_credentials')
+                .response([{ user_warehouse_credentials_uuid: 'credential' }]);
+            await model.update(
+                'user-1',
+                'credential',
+                {
+                    name: 'Legacy',
+                    credentials: {
+                        type: WarehouseTypes.POSTGRES,
+                        user: 'person',
+                        password: '',
+                    },
+                },
+                { strictPersonalOverlay: false },
+            );
+            expect(tracker.history.select).toHaveLength(0);
+            expect(tracker.history.update[0].bindings).toContain(
+                WarehouseTypes.POSTGRES,
+            );
+        });
+        test('shape G: type-changing update is refused', async () => {
+            tracker.on
+                .select('user_warehouse_credentials')
+                .response([makeRow('credential', validBigqueryCredentials)]);
+            await expect(
+                model.update(
+                    'user-1',
+                    'credential',
+                    {
+                        name: 'Changed',
+                        credentials: {
+                            type: WarehouseTypes.POSTGRES,
+                            user: 'person',
+                            password: '',
+                        },
+                    },
+                    { strictPersonalOverlay: true },
+                ),
+            ).rejects.toThrow('cannot change warehouse type');
+            expect(tracker.history.update).toHaveLength(0);
+        });
+        test('strict re-auth can replace an invalid old identity without changing its warehouse type', async () => {
+            tracker.on.select('user_warehouse_credentials').response([
+                makeRow('credential', {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    user: 'person',
+                    authenticationType: SnowflakeAuthenticationType.SSO,
+                    refreshToken: '',
+                }),
+            ]);
+            tracker.on
+                .update('user_warehouse_credentials')
+                .response([{ user_warehouse_credentials_uuid: 'credential' }]);
+            await expect(
+                model.update(
+                    'user-1',
+                    'credential',
+                    {
+                        name: 'Personal',
+                        credentials: {
+                            type: WarehouseTypes.SNOWFLAKE,
+                            user: 'person',
+                            authenticationType: SnowflakeAuthenticationType.SSO,
+                            refreshToken: 'new-refresh',
+                        },
+                    },
+                    { strictPersonalOverlay: true },
+                ),
+            ).resolves.toBe('credential');
+            const blob = tracker.history.update[0].bindings.find(
+                Buffer.isBuffer,
+            );
+            expect(JSON.parse(blob!.toString())).toEqual({
+                type: WarehouseTypes.SNOWFLAKE,
+                user: 'person',
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                refreshToken: 'new-refresh',
+            });
+        });
+        test('strict update preserves the stored Athena secret before parsing', async () => {
+            tracker.on.select('user_warehouse_credentials').response([
+                {
+                    ...makeRow('credential', {
+                        type: WarehouseTypes.ATHENA,
+                        accessKeyId: 'key',
+                        secretAccessKey: 'stored-secret',
+                    }),
+                    warehouse_type: WarehouseTypes.ATHENA,
+                },
+            ]);
+            tracker.on
+                .update('user_warehouse_credentials')
+                .response([{ user_warehouse_credentials_uuid: 'credential' }]);
+            await model.update(
+                'user-1',
+                'credential',
+                {
+                    name: 'Personal',
+                    credentials: {
+                        type: WarehouseTypes.ATHENA,
+                        accessKeyId: 'key',
+                        secretAccessKey: '',
+                    },
+                },
+                { strictPersonalOverlay: true },
+            );
+            const blob = tracker.history.update[0].bindings.find(
+                Buffer.isBuffer,
+            );
+            expect(blob?.toString()).toContain('stored-secret');
+        });
+        test.each([true, false])(
+            'agent sign-in saves identity separately from the client binding (%s)',
+            async (enabled) => {
+                tracker.on
+                    .insert('user_warehouse_credentials')
+                    .response([
+                        { user_warehouse_credentials_uuid: 'credential' },
+                    ]);
+                const binding = {
+                    organizationUuid: 'org',
+                    clientVersion: 'version',
+                };
+                await model.upsertAiSnowflakeCredential(
+                    'user-1',
+                    'refresh',
+                    null,
+                    binding,
+                    { strictPersonalOverlay: enabled },
+                );
+                const blob = tracker.history.insert[0].bindings.find(
+                    Buffer.isBuffer,
+                );
+                expect(blob?.toString()).toBe(
+                    JSON.stringify({
+                        type: WarehouseTypes.SNOWFLAKE,
+                        user: 'user-1',
+                        authenticationType: SnowflakeAuthenticationType.SSO,
+                        refreshToken: 'refresh',
+                        aiClientBinding: binding,
+                    }),
+                );
+            },
+        );
     });
 });
 
@@ -866,4 +1101,387 @@ describe('refresh rotation expiry CAS', () => {
             } else expect(tracker.history.update).toHaveLength(0);
         },
     );
+});
+
+describe('strict personal credential writes', () => {
+    const normalSaves = [
+        { type: WarehouseTypes.POSTGRES, user: 'person', password: '' },
+        { type: WarehouseTypes.TRINO, user: 'person', password: '' },
+        { type: WarehouseTypes.CLICKHOUSE, user: 'person', password: '' },
+        {
+            type: WarehouseTypes.REDSHIFT,
+            user: 'person',
+            password: 'password',
+            authenticationType: 'password',
+        },
+        {
+            type: WarehouseTypes.SNOWFLAKE,
+            user: 'person',
+            password: 'password',
+            authenticationType: 'password',
+        },
+        validBigqueryCredentials,
+        {
+            type: WarehouseTypes.DATABRICKS,
+            authenticationType: 'personal_access_token',
+            personalAccessToken: 'pat',
+        },
+        {
+            type: WarehouseTypes.ATHENA,
+            accessKeyId: 'access',
+            secretAccessKey: 'secret',
+        },
+        { type: WarehouseTypes.DUCKDB, token: 'token' },
+    ];
+    const normalize = (credentials: object, strictPersonalOverlay = true) =>
+        UserWarehouseCredentialsModel.normalizeCredentialsForPersistence(
+            { name: 'Personal', credentials: credentials as never },
+            { strictPersonalOverlay },
+        );
+    test('strict BigQuery writes name nested policy keys without exposing values', () => {
+        const save = () =>
+            normalize({
+                ...validBigqueryCredentials,
+                keyfileContents: {
+                    ...validBigqueryCredentials.keyfileContents,
+                    quota_project_id: 'private-billing-project',
+                },
+            });
+        expect(save).toThrow(ParameterError);
+        expect(save).toThrow('keyfileContents.quota_project_id');
+        expect(save).not.toThrow('private-billing-project');
+    });
+    test.each([undefined, '', '   '])(
+        'strict U2M writes reject an unbound host (%s)',
+        (serverHostName) => {
+            expect(() =>
+                normalize({
+                    type: WarehouseTypes.DATABRICKS,
+                    authenticationType: 'oauth_u2m',
+                    refreshToken: 'refresh',
+                    serverHostName,
+                }),
+            ).toThrow(ParameterError);
+        },
+    );
+    test('strict U2M writes trim the workspace host', () => {
+        expect(
+            normalize({
+                type: WarehouseTypes.DATABRICKS,
+                authenticationType: 'oauth_u2m',
+                refreshToken: 'refresh',
+                serverHostName: ' workspace.cloud.databricks.com ',
+            }).credentials,
+        ).toMatchObject({ serverHostName: 'workspace.cloud.databricks.com' });
+    });
+    test.each(normalSaves)(
+        'strict write rejects non-allowlisted fields for $type',
+        (credentials) => {
+            expect(() =>
+                normalize({ ...credentials, requireUserCredentials: false }),
+            ).toThrow(ParameterError);
+        },
+    );
+    test.each(normalSaves)(
+        'strict write accepts the normal save shape for $type',
+        (credentials) => {
+            expect(normalize(credentials)).toEqual({
+                name: 'Personal',
+                credentials,
+            });
+        },
+    );
+    test.each(normalSaves)(
+        'flag-off parity preserves the current normal save for $type',
+        (credentials) => {
+            expect(normalize(credentials, false)).toEqual({
+                name: 'Personal',
+                credentials,
+            });
+        },
+    );
+    test('flag-off parity preserves legacy extras and Athena projection', () => {
+        expect(
+            normalize(
+                {
+                    type: WarehouseTypes.POSTGRES,
+                    user: 'person',
+                    password: '',
+                    host: 'legacy-host',
+                },
+                false,
+            ),
+        ).toEqual({
+            name: 'Personal',
+            credentials: {
+                type: WarehouseTypes.POSTGRES,
+                user: 'person',
+                password: '',
+                host: 'legacy-host',
+            },
+        });
+        expect(
+            normalize(
+                {
+                    type: WarehouseTypes.ATHENA,
+                    accessKeyId: 'access',
+                    secretAccessKey: 'secret',
+                    region: 'legacy-region',
+                },
+                false,
+            ),
+        ).toEqual({
+            name: 'Personal',
+            credentials: {
+                type: WarehouseTypes.ATHENA,
+                accessKeyId: 'access',
+                secretAccessKey: 'secret',
+            },
+        });
+    });
+    test.each([
+        {
+            type: WarehouseTypes.BIGQUERY,
+            authenticationType: 'adc',
+            keyfileContents: validBigqueryCredentials.keyfileContents,
+        },
+        {
+            type: WarehouseTypes.BIGQUERY,
+            authenticationType: 'private_key',
+            keyfileContents: validBigqueryCredentials.keyfileContents,
+        },
+        {
+            type: WarehouseTypes.BIGQUERY,
+            keyfileContents: {
+                type: 'service_account',
+                refresh_token: 'refresh',
+            },
+        },
+        {
+            type: WarehouseTypes.BIGQUERY,
+            keyfileContents: { type: 'authorized_user', refresh_token: '' },
+        },
+        {
+            type: WarehouseTypes.DATABRICKS,
+            authenticationType: 'oauth_m2m',
+            personalAccessToken: 'pat',
+        },
+        {
+            type: WarehouseTypes.DATABRICKS,
+            authenticationType: 'oauth_u2m',
+            refreshToken: '',
+        },
+        {
+            type: WarehouseTypes.REDSHIFT,
+            authenticationType: 'iam',
+            assumeRoleArn: 'role',
+        },
+        {
+            type: WarehouseTypes.ATHENA,
+            accessKeyId: 'access',
+            secretAccessKey: 'secret',
+            authenticationType: 'access_key',
+        },
+    ])('strict write rejects invalid personal mode %#', (credentials) => {
+        expect(() => normalize(credentials)).toThrow(ParameterError);
+    });
+    test.each([
+        {
+            type: WarehouseTypes.SNOWFLAKE,
+            authenticationType: 'sso',
+            user: 'person',
+            refreshToken: 'refresh',
+        },
+        {
+            type: WarehouseTypes.DATABRICKS,
+            authenticationType: 'oauth_u2m',
+            refreshToken: 'refresh',
+            serverHostName: 'workspace.cloud.databricks.com',
+            oauthClientId: 'client',
+        },
+        {
+            type: WarehouseTypes.DATABRICKS,
+            authenticationType: 'oauth_u2m',
+            refreshToken: 'refresh',
+            oauthClientId: 'client',
+            serverHostName: 'workspace.cloud.databricks.com',
+        },
+        {
+            type: WarehouseTypes.REDSHIFT,
+            authenticationType: 'iam_browser',
+            user: '',
+            accessKeyId: 'access',
+            secretAccessKey: 'secret',
+            sessionToken: 'session',
+        },
+    ])('strict write accepts the current SSO save %#', (credentials) => {
+        expect(normalize(credentials)).toEqual({
+            name: 'Personal',
+            credentials: Object.fromEntries(
+                Object.entries(credentials).filter(([, value]) => value !== ''),
+            ),
+        });
+    });
+    test('strict write retains the Snowflake default and Athena same-key secret preservation', () => {
+        expect(
+            normalize({
+                type: WarehouseTypes.SNOWFLAKE,
+                user: 'person',
+                password: 'password',
+            }).credentials,
+        ).toEqual({
+            type: WarehouseTypes.SNOWFLAKE,
+            user: 'person',
+            password: 'password',
+            authenticationType: 'password',
+        });
+        const merged = UserWarehouseCredentialsModel.mergeCredentialsForUpdate(
+            {
+                name: 'Personal',
+                credentials: {
+                    type: WarehouseTypes.ATHENA,
+                    accessKeyId: 'access',
+                    secretAccessKey: '',
+                },
+            },
+            {
+                type: WarehouseTypes.ATHENA,
+                accessKeyId: 'access',
+                secretAccessKey: 'secret',
+            },
+        );
+        expect(normalize(merged.credentials).credentials).toEqual({
+            type: WarehouseTypes.ATHENA,
+            accessKeyId: 'access',
+            secretAccessKey: 'secret',
+        });
+    });
+    test('strict write accepts the Redshift password edit form AWS placeholders', () => {
+        expect(() =>
+            normalize({
+                type: WarehouseTypes.REDSHIFT,
+                user: 'person',
+                password: 'password',
+                authenticationType: 'password',
+                accessKeyId: '',
+                secretAccessKey: '',
+                sessionToken: '',
+            }),
+        ).not.toThrow();
+    });
+});
+
+describe('strict personal overlay (agent-identity on)', () => {
+    const policy = { strictPersonalOverlay: true };
+    test('shape F: preferred credential scoped to another project is ignored', async () => {
+        const model = createModel({
+            preferredRow: {
+                ...makeRow('foreign', validBigqueryCredentials),
+                project_uuid: 'other-project',
+            },
+            fallbackRows: [makeRow('mine', validBigqueryCredentials)],
+        });
+        expect(
+            (
+                await model.findForProjectWithSecrets(
+                    'project',
+                    'user-1',
+                    WarehouseTypes.BIGQUERY,
+                    policy,
+                )
+            )?.uuid,
+        ).toBe('mine');
+    });
+    test('flag-off preferred-row lookup preserves the legacy project scope', async () => {
+        const model = createModel({
+            preferredRow: {
+                ...makeRow('foreign', validBigqueryCredentials),
+                project_uuid: 'other-project',
+            },
+            fallbackRows: [makeRow('mine', validBigqueryCredentials)],
+        });
+        expect(
+            (
+                await model.findForProjectWithSecrets(
+                    'project',
+                    'user-1',
+                    WarehouseTypes.BIGQUERY,
+                    { strictPersonalOverlay: false },
+                )
+            )?.uuid,
+        ).toBe('foreign');
+    });
+    test('strict preferred-row lookup ignores a row owned by another user', async () => {
+        const model = createModel({
+            preferredRow: {
+                ...makeRow('foreign', validBigqueryCredentials),
+                user_uuid: 'other-user',
+            },
+            fallbackRows: [makeRow('mine', validBigqueryCredentials)],
+        });
+        expect(
+            (
+                await model.findForProjectWithSecrets(
+                    'project',
+                    'user-1',
+                    WarehouseTypes.BIGQUERY,
+                    policy,
+                )
+            )?.uuid,
+        ).toBe('mine');
+    });
+    test('shape G: stale type preference is refused', async () => {
+        const model = createModel({
+            preferredRow: makeRow('stale', {
+                type: WarehouseTypes.POSTGRES,
+                user: 'person',
+                password: '',
+            }),
+            fallbackRows: [makeRow('mine', validBigqueryCredentials)],
+        });
+        await expect(
+            model.findForProjectWithSecrets(
+                'project',
+                'user-1',
+                WarehouseTypes.BIGQUERY,
+                policy,
+            ),
+        ).rejects.toThrow('Reconnect your credentials');
+    });
+    test('strict save names unknown keys without values', () => {
+        expect(() =>
+            UserWarehouseCredentialsModel.normalizeCredentialsForPersistence(
+                {
+                    name: 'Personal',
+                    credentials: {
+                        type: WarehouseTypes.POSTGRES,
+                        user: 'person',
+                        password: '',
+                        host: 'secret-host',
+                        port: 123,
+                    },
+                } as never,
+                policy,
+            ),
+        ).toThrow(
+            'Personal warehouse credentials cannot set: host, port. Only sign-in fields can be saved.',
+        );
+    });
+    test('strict save explains the Redshift IAM key pair requirement', () => {
+        expect(() =>
+            UserWarehouseCredentialsModel.normalizeCredentialsForPersistence(
+                {
+                    name: 'Personal',
+                    credentials: {
+                        type: WarehouseTypes.REDSHIFT,
+                        authenticationType: 'iam',
+                        assumeRoleArn: 'private-role',
+                    },
+                } as never,
+                policy,
+            ),
+        ).toThrow(
+            'Redshift IAM credentials need your own AWS access key ID and secret access key.',
+        );
+    });
 });

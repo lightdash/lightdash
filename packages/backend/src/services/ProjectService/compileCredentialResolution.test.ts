@@ -1037,3 +1037,52 @@ describe('compile credential resolution', () => {
         });
     });
 });
+
+describe('strict personal overlay (agent-identity on)', () => {
+    test('shape B: Databricks U2M row without a host is refused on query, compile and test-and-compile', async () => {
+        const f = setup({
+            ...databricks(DatabricksAuthenticationType.OAUTH_U2M),
+            refreshToken: undefined,
+        });
+        vi.spyOn(f.service.featureFlagModel, 'get').mockImplementation(
+            async ({ featureFlagId }) =>
+                ({
+                    enabled: featureFlagId === FeatureFlags.AgentIdentity,
+                }) as never,
+        );
+        setUserFallback(f, '');
+        await expect(f.prepare()).rejects.toThrow('Reconnect your credentials');
+        expect(refreshDatabricksOAuthToken).not.toHaveBeenCalled();
+        expect(f.service.featureFlagModel.get).toHaveBeenCalledWith({
+            featureFlagId: FeatureFlags.AgentIdentity,
+            user: {
+                organizationUuid: f.project.organizationUuid,
+                userUuid: user.userUuid,
+            },
+        });
+    });
+
+    test('compile fallback keeps the legacy token selection with the flag off', async () => {
+        const f = setup({
+            ...databricks(DatabricksAuthenticationType.OAUTH_U2M),
+            refreshToken: undefined,
+        });
+        setUserFallback(f, '');
+        await f.prepare();
+        expect(
+            f.userWarehouseCredentialsModel.findForProjectWithSecrets,
+        ).toHaveBeenCalledWith(
+            f.project.projectUuid,
+            user.userUuid,
+            WarehouseTypes.DATABRICKS,
+            { strictPersonalOverlay: false },
+        );
+        expect(f.service.featureFlagModel.get).toHaveBeenCalledWith({
+            featureFlagId: FeatureFlags.AgentIdentity,
+            user: {
+                organizationUuid: f.project.organizationUuid,
+                userUuid: user.userUuid,
+            },
+        });
+    });
+});

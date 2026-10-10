@@ -200,11 +200,23 @@ describe('Snowflake agent refresh locking', () => {
             });
             expect(f.deps.featureFlagModel.get.mock.calls).toEqual(
                 Array.from({ length: 2 }, () => [
-                    {
-                        user: { organizationUuid: 'org' },
-                        featureFlagId: FeatureFlags.WarehouseOAuthRefreshLock,
-                    },
-                ]),
+                    [
+                        {
+                            user: {
+                                organizationUuid: 'org',
+                                userUuid: 'person',
+                            },
+                            featureFlagId: FeatureFlags.AgentIdentity,
+                        },
+                    ],
+                    [
+                        {
+                            user: { organizationUuid: 'org' },
+                            featureFlagId:
+                                FeatureFlags.WarehouseOAuthRefreshLock,
+                        },
+                    ],
+                ]).flat(),
             );
         },
     );

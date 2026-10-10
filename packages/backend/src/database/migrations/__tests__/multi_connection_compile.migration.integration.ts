@@ -453,6 +453,9 @@ describe('Multi-connection compile on the real schema', () => {
         });
         compileCredentials = new ProjectService({
             lightdashConfig: lightdashConfigMock,
+            featureFlagModel: {
+                get: async () => ({ id: 'flag', enabled: false }),
+            },
             projectModel,
             userWarehouseCredentialsModel: new UserWarehouseCredentialsModel({
                 database,
@@ -3070,7 +3073,11 @@ describe('Multi-connection compile on the real schema', () => {
                 projectModel,
                 warehouseConnectionCompileModel,
                 warehouseConnectionModel,
-                credentialPolicy: new ProjectService({} as never),
+                credentialPolicy: new ProjectService({
+                    featureFlagModel: {
+                        get: async () => ({ id: 'flag', enabled: false }),
+                    },
+                } as never),
                 analytics: bindingAnalytics,
             });
 

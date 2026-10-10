@@ -66,6 +66,7 @@ import {
     SnowflakeTokenError,
     SshTunnelError,
     SupportedDbtAdapter,
+    UserWarehouseCredentialPurpose,
     VizAggregationOptions,
     VizIndexType,
     WarehouseConnectionError,
@@ -115,6 +116,8 @@ import {
     type WarehouseClient,
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
+import knex from 'knex';
+import { getTracker, MockClient } from 'knex-mock-client';
 import fetch, { Response } from 'node-fetch';
 import { Readable } from 'stream';
 import { gunzipSync } from 'zlib';
@@ -5814,6 +5817,7 @@ describe('ProjectService', () => {
                 projectUuid,
                 sessionAccount.user.id,
                 WarehouseTypes.DATABRICKS,
+                { strictPersonalOverlay: false },
             );
 
             // Query should still execute successfully with user credentials
@@ -5998,6 +6002,7 @@ describe('ProjectService', () => {
                         projectUuid,
                         sessionAccount.user.id,
                         WarehouseTypes.BIGQUERY,
+                        { strictPersonalOverlay: false },
                     );
                     expect(credentials).toEqual(
                         expect.objectContaining({
@@ -6161,6 +6166,7 @@ describe('ProjectService', () => {
                     projectUuid,
                     sessionAccount.user.id,
                     WarehouseTypes.TRINO,
+                    { strictPersonalOverlay: false },
                 );
                 expect(credentials).toEqual(
                     expect.objectContaining({
@@ -6385,6 +6391,7 @@ describe('ProjectService', () => {
                 projectUuid,
                 sessionAccount.user.id,
                 WarehouseTypes.REDSHIFT,
+                { strictPersonalOverlay: false },
             );
             expect(mergedCredentials).toEqual(
                 expect.objectContaining({
@@ -17360,6 +17367,13 @@ describe.each([
                 user: {
                     kind: 'user',
                     userWarehouseCredentialsUuid: 'user-row',
+                    refreshSource: {
+                        credentials: connection,
+                        fallback: connection,
+                        personalCredentialPolicy: {
+                            strictPersonalOverlay: false,
+                        },
+                    },
                 },
                 warehouseConnection: {
                     kind: 'warehouseConnection',
@@ -17453,8 +17467,568 @@ describe.each([
                     ...(kind === 'warehouseConnection' ? [project] : []),
                     `${kind}-row`,
                     { raw },
+                    ...(kind === 'user'
+                        ? [{ strictPersonalOverlay: false }]
+                        : []),
                 );
             }
+        },
+    );
+});
+
+describe('strict personal overlay (agent-identity on)', () => {
+    const reconnect =
+        'Your saved warehouse credentials can no longer be used with this connection. Reconnect your credentials and try again.';
+    const connection: CreateDatabricksCredentials = {
+        type: WarehouseTypes.DATABRICKS,
+        authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+        serverHostName: 'workspace.databricks.com',
+        httpPath: '/sql/connection',
+        database: 'database',
+        oauthClientId: 'shared-client',
+        oauthClientSecret: 'shared-secret',
+        token: 'shared-token',
+        requireUserCredentials: false,
+    };
+    const setupStrict = (
+        stored: object,
+        base: object = connection,
+        enabled = true,
+    ) => {
+        const flags = { get: vi.fn(async () => ({ enabled })) };
+        const configured = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            { featureFlagModel: flags as never },
+        );
+        projectModel.getWarehouseCredentialsForProject.mockResolvedValue(
+            base as never,
+        );
+        const personal = {
+            uuid: 'personal',
+            expiresAt: null,
+            credentials: stored,
+        };
+        const model = configured.userWarehouseCredentialsModel;
+        vi.mocked(model.findForProjectWithSecrets).mockResolvedValue(
+            personal as never,
+        );
+        const materialize = vi
+            .spyOn(configured.warehouseClientFactory, 'materializeCredentials')
+            .mockImplementation(async (credentials) => credentials);
+        const query = () =>
+            configured['getWarehouseCredentials']({
+                projectUuid: projectWithSensitiveFields.projectUuid,
+                userId: user.userUuid,
+                isRegisteredUser: true,
+                binding: { kind: 'original' },
+            });
+        return { configured, flags, model, materialize, query };
+    };
+    test.each([
+        ['original', true],
+        ['extra', true],
+        ['original', false],
+        ['extra', false],
+    ] as const)(
+        'shape G: %s optional connection handles a stale preferred type with strict=%s',
+        async (kind, enabled) => {
+            const f = setupStrict({}, connection, enabled);
+            const database = knex({ client: MockClient, dialect: 'pg' });
+            const tracker = getTracker();
+            tracker.reset();
+            const row = {
+                user_warehouse_credentials_uuid: 'stale',
+                user_uuid: user.userUuid,
+                warehouse_type: WarehouseTypes.POSTGRES,
+                encrypted_credentials: Buffer.from(
+                    JSON.stringify({
+                        type: WarehouseTypes.POSTGRES,
+                        user: 'person',
+                        password: '',
+                    }),
+                ),
+                project_uuid: null,
+                purpose: UserWarehouseCredentialPurpose.DEFAULT,
+                expires_at: null,
+            };
+            tracker.on
+                .select('user_warehouse_credentials')
+                .response((query) => {
+                    const filtersWarehouseType = query.sql.includes(
+                        '"user_warehouse_credentials"."warehouse_type" =',
+                    );
+                    return filtersWarehouseType ? [] : [row];
+                });
+            const encryptionUtil = {
+                decrypt: (value: Buffer) => value.toString(),
+            } as EncryptionUtil;
+            const credentialsModel = new UserWarehouseCredentialsModel({
+                database,
+                encryptionUtil,
+            });
+            const connectionModel = new WarehouseConnectionModel({
+                database,
+                encryptionUtil,
+                organizationWarehouseCredentialsModel: {} as never,
+            });
+            Object.assign(f.model, {
+                findForProjectWithSecrets:
+                    credentialsModel.findForProjectWithSecrets.bind(
+                        credentialsModel,
+                    ),
+                getByUuidWithSecrets:
+                    credentialsModel.getByUuidWithSecrets.bind(
+                        credentialsModel,
+                    ),
+            });
+            Object.assign(f.configured.warehouseConnectionModel, {
+                findPreferredUserCredentialsUuid:
+                    connectionModel.findPreferredUserCredentialsUuid.bind(
+                        connectionModel,
+                    ),
+            });
+            try {
+                const query =
+                    kind === 'original'
+                        ? f.query()
+                        : f.configured.finish(
+                              {
+                                  kind: 'extra',
+                                  projectUuid: 'project',
+                                  organizationUuid: 'resource-org',
+                                  connectionRoute: null,
+                                  warehouseConnectionUuid: 'extra',
+                                  organizationWarehouseCredentialsUuid: null,
+                                  project: {
+                                      projectUuid: 'project',
+                                      organizationUuid: 'resource-org',
+                                      connectionMode: 'multi',
+                                      originalWarehouseType:
+                                          WarehouseTypes.DATABRICKS,
+                                  },
+                                  credentials: connection,
+                              },
+                              connectionContextFromUser(user, {
+                                  organizationUuid: 'resource-org',
+                                  queryContext: null,
+                              }),
+                          );
+                if (enabled) {
+                    await expect(query).rejects.toThrow(reconnect);
+                    expect(f.materialize).not.toHaveBeenCalled();
+                } else {
+                    await expect(query).resolves.toMatchObject({
+                        oauthClientId: 'shared-client',
+                        userWarehouseCredentialsUuid: undefined,
+                    });
+                    expect(f.materialize).toHaveBeenCalled();
+                }
+                expect(tracker.history.select.length).toBeGreaterThan(0);
+            } finally {
+                tracker.reset();
+                await database.destroy();
+            }
+        },
+    );
+    test.each([
+        [
+            'shape A: legacy Databricks OAuth row with empty binding is refused on query and never runs as shared',
+            '',
+        ],
+        [
+            'shape B: Databricks U2M row without a host is refused on query, compile and test-and-compile',
+            undefined,
+        ],
+        [
+            'shape H: Databricks row bound to another host is refused and never runs as shared',
+            'other.databricks.com',
+        ],
+        [
+            'refused personal row on an optional-credential connection never falls back to shared',
+            '',
+        ],
+    ])('%s', async (_name, serverHostName) => {
+        const f = setupStrict({
+            type: WarehouseTypes.DATABRICKS,
+            authenticationType: DatabricksAuthenticationType.OAUTH_U2M,
+            refreshToken: 'personal-refresh',
+            serverHostName,
+        });
+        await expect(f.query()).rejects.toThrow(reconnect);
+        expect(f.materialize).not.toHaveBeenCalled();
+    });
+    test('shape C: Databricks PAT row without a mode never exchanges the connection M2M client', async () => {
+        const f = setupStrict({
+            type: WarehouseTypes.DATABRICKS,
+            personalAccessToken: 'personal-pat',
+        });
+        const result = await f.query();
+        expect(result).toMatchObject({
+            authenticationType:
+                DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
+            personalAccessToken: 'personal-pat',
+        });
+        expect(result).not.toHaveProperty('oauthClientSecret');
+        expect(result).not.toHaveProperty('oauthClientId');
+        expect(f.materialize.mock.calls[0][0]).toMatchObject({
+            authenticationType:
+                DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
+        });
+    });
+    test.each([WarehouseTypes.POSTGRES, WarehouseTypes.REDSHIFT])(
+        'shape D: stored routing extras keep the connection routing on query (%s)',
+        async (type) => {
+            const base = {
+                type,
+                host: 'connection-host',
+                port: 5432,
+                dbname: 'database',
+                schema: 'public',
+                useSshTunnel: true,
+                sshTunnelHost: 'connection-tunnel',
+                sshTunnelPrivateKey: 'connection-key',
+                requireUserCredentials: true,
+            };
+            const f = setupStrict(
+                {
+                    type,
+                    user: 'person',
+                    password: 'personal-password',
+                    host: 'redirect',
+                    port: 123,
+                    sshTunnelHost: 'redirect-tunnel',
+                },
+                base,
+            );
+            const result = await f.query();
+            expect(result).toMatchObject({
+                ...base,
+                user: 'person',
+                password: 'personal-password',
+            });
+            expect(f.materialize.mock.calls[0][0]).toMatchObject(base);
+        },
+    );
+    test('shape E: Athena personal keys run without the connection role on query', async () => {
+        const f = setupStrict(
+            {
+                type: WarehouseTypes.ATHENA,
+                accessKeyId: 'personal-key',
+                secretAccessKey: 'personal-secret',
+            },
+            {
+                type: WarehouseTypes.ATHENA,
+                region: 'eu-west-1',
+                database: 'database',
+                requireUserCredentials: true,
+                assumeRoleArn: 'shared-role',
+            },
+        );
+        const result = await f.query();
+        expect(result).toMatchObject({
+            accessKeyId: 'personal-key',
+            region: 'eu-west-1',
+        });
+        expect(result).not.toHaveProperty('assumeRoleArn');
+    });
+    test.each([
+        [
+            'stored Redshift role-only row is refused on query with the reconnect error',
+            {
+                type: WarehouseTypes.REDSHIFT,
+                authenticationType: 'iam',
+                assumeRoleArn: 'role',
+            },
+        ],
+        [
+            'stored Athena session-token row is refused on query with the reconnect error',
+            {
+                type: WarehouseTypes.ATHENA,
+                accessKeyId: 'key',
+                secretAccessKey: 'secret',
+                sessionToken: 'temporary',
+            },
+        ],
+        [
+            'shape G: stale type preference is refused on query',
+            { type: WarehouseTypes.POSTGRES, user: 'person', password: '' },
+        ],
+    ])('%s', async (_name, stored) => {
+        const type =
+            stored.type === WarehouseTypes.POSTGRES
+                ? WarehouseTypes.SNOWFLAKE
+                : stored.type;
+        await expect(
+            setupStrict(stored, { type, requireUserCredentials: true }).query(),
+        ).rejects.toThrow(reconnect);
+    });
+    test.each([true, false])(
+        'query resolves the resource org and person, with legacy parity when disabled (%s)',
+        async (enabled) => {
+            const f = setupStrict(
+                {
+                    type: WarehouseTypes.POSTGRES,
+                    user: 'person',
+                    password: '',
+                    host: 'legacy-host',
+                },
+                {
+                    type: WarehouseTypes.POSTGRES,
+                    host: 'connection-host',
+                    requireUserCredentials: true,
+                },
+                enabled,
+            );
+            expect(await f.query()).toMatchObject({
+                host: enabled ? 'connection-host' : 'legacy-host',
+            });
+            expect(f.flags.get).toHaveBeenCalledWith({
+                featureFlagId: FeatureFlags.AgentIdentity,
+                user: {
+                    organizationUuid:
+                        projectWithSensitiveFields.organizationUuid,
+                    userUuid: user.userUuid,
+                },
+            });
+            if (!enabled)
+                expect(f.model.findForProjectWithSecrets).toHaveBeenCalledWith(
+                    projectWithSensitiveFields.projectUuid,
+                    user.userUuid,
+                    WarehouseTypes.POSTGRES,
+                    { strictPersonalOverlay: false },
+                );
+        },
+    );
+    test.each([true, false])(
+        'extra connection uses the same policy and retains legacy routing when disabled (%s)',
+        async (enabled) => {
+            const stored = {
+                type: WarehouseTypes.POSTGRES,
+                user: 'person',
+                password: '',
+                host: 'redirect',
+            };
+            const f = setupStrict(stored, connection, enabled);
+            const model = {
+                findPreferredUserCredentialsUuid: vi.fn(async () => 'personal'),
+            };
+            Object.assign(f.configured.warehouseConnectionModel, model);
+            Object.assign(f.model, {
+                getByUuidWithSecrets: vi.fn(async () => ({
+                    uuid: 'personal',
+                    expiresAt: null,
+                    credentials: stored,
+                })),
+            });
+            const result = await f.configured.finish(
+                {
+                    kind: 'extra',
+                    projectUuid: 'project',
+                    organizationUuid: 'resource-org',
+                    connectionRoute: null,
+                    warehouseConnectionUuid: 'extra',
+                    organizationWarehouseCredentialsUuid: null,
+                    project: {
+                        projectUuid: 'project',
+                        organizationUuid: 'resource-org',
+                        connectionMode: 'multi',
+                        originalWarehouseType: WarehouseTypes.POSTGRES,
+                    },
+                    credentials: {
+                        type: WarehouseTypes.POSTGRES,
+                        host: 'connection-host',
+                        port: 5432,
+                        dbname: 'db',
+                        schema: 'public',
+                        user: 'shared',
+                        password: 'shared',
+                        requireUserCredentials: true,
+                    },
+                },
+                connectionContextFromUser(user, {
+                    organizationUuid: 'resource-org',
+                    queryContext: null,
+                }),
+            );
+            expect(result).toMatchObject({
+                host: enabled ? 'connection-host' : 'redirect',
+            });
+            expect(f.flags.get).toHaveBeenCalledWith({
+                featureFlagId: FeatureFlags.AgentIdentity,
+                user: {
+                    organizationUuid: 'resource-org',
+                    userUuid: user.userUuid,
+                },
+            });
+            expect(f.model.getByUuidWithSecrets).toHaveBeenCalledWith(
+                'personal',
+                undefined,
+                { strictPersonalOverlay: enabled },
+            );
+        },
+    );
+    test.each([true, false])(
+        'shape F: preference write rejects a credential from another project (%s)',
+        async (enabled) => {
+            const f = setupStrict({}, connection, enabled);
+            Object.assign(f.model, {
+                getByUuid: vi.fn(async () => ({
+                    userUuid: user.userUuid,
+                    credentials: { type: WarehouseTypes.DATABRICKS },
+                    project: { projectUuid: 'other-project' },
+                })),
+                upsertUserCredentialsPreference: vi.fn(),
+            });
+            const write = f.configured.upsertProjectCredentialsPreference(
+                user,
+                projectWithSensitiveFields.projectUuid,
+                'personal',
+            );
+            if (enabled) await expect(write).rejects.toThrow(ParameterError);
+            else await expect(write).resolves.toBeUndefined();
+            expect(
+                f.model.upsertUserCredentialsPreference,
+            ).toHaveBeenCalledTimes(enabled ? 0 : 1);
+            expect(f.flags.get).toHaveBeenCalledWith({
+                featureFlagId: FeatureFlags.AgentIdentity,
+                user: {
+                    organizationUuid:
+                        projectWithSensitiveFields.organizationUuid,
+                    userUuid: user.userUuid,
+                },
+            });
+        },
+    );
+    test('shape G: preference write rejects a credential of another warehouse type', async () => {
+        const f = setupStrict({});
+        Object.assign(f.model, {
+            getByUuid: vi.fn(async () => ({
+                userUuid: user.userUuid,
+                credentials: { type: WarehouseTypes.POSTGRES },
+                project: null,
+            })),
+            upsertUserCredentialsPreference: vi.fn(),
+        });
+        await expect(
+            f.configured.upsertProjectCredentialsPreference(
+                user,
+                projectWithSensitiveFields.projectUuid,
+                'personal',
+            ),
+        ).rejects.toThrow(ParameterError);
+        expect(f.model.upsertUserCredentialsPreference).not.toHaveBeenCalled();
+    });
+    test.each([true, false])(
+        'shape B: preview personal credential records the workspace host (%s)',
+        async (enabled) => {
+            const f = setupStrict({}, connection, enabled);
+            Object.assign(f.model, {
+                create: vi.fn(async () => 'personal'),
+                upsertUserCredentialsPreference: vi.fn(),
+            });
+            vi.spyOn(
+                f.configured as unknown as {
+                    validateProjectCreationPermissions: () => Promise<true>;
+                },
+                'validateProjectCreationPermissions',
+            ).mockResolvedValue(true);
+            vi.spyOn(f.configured, 'getPreviewExpiresAt').mockResolvedValue(
+                null,
+            );
+            const previewUser = {
+                ...user,
+                organizationUuid: projectWithSensitiveFields.organizationUuid,
+                organizationName: 'Org',
+                organizationCreatedAt: new Date(),
+            };
+            await f.configured.createWithoutCompile(
+                previewUser,
+                {
+                    name: 'Preview',
+                    type: ProjectType.PREVIEW,
+                    dbtConnection: { type: DbtProjectType.NONE },
+                    warehouseConnection: {
+                        ...connection,
+                        requireUserCredentials: true,
+                        authenticationType:
+                            DatabricksAuthenticationType.OAUTH_U2M,
+                        refreshToken: 'personal-refresh',
+                    },
+                    dbtVersion: projectWithSensitiveFields.dbtVersion,
+                },
+                RequestMethod.WEB_APP,
+            );
+            expect(f.model.create).toHaveBeenCalledWith(
+                user.userUuid,
+                {
+                    name: 'Databricks (workspace.databricks.com)',
+                    credentials: {
+                        type: WarehouseTypes.DATABRICKS,
+                        authenticationType:
+                            DatabricksAuthenticationType.OAUTH_U2M,
+                        refreshToken: 'personal-refresh',
+                        oauthClientId: 'shared-client',
+                        ...(enabled
+                            ? { serverHostName: 'workspace.databricks.com' }
+                            : {}),
+                    },
+                },
+                { strictPersonalOverlay: enabled },
+                expect.any(String),
+            );
+            expect(f.flags.get).toHaveBeenCalledWith({
+                featureFlagId: FeatureFlags.AgentIdentity,
+                user: {
+                    organizationUuid: previewUser.organizationUuid,
+                    userUuid: user.userUuid,
+                },
+            });
+        },
+    );
+    test.each(['other-workspace', 123])(
+        'extra optional connection refuses an invalid Databricks binding before materialization (%s)',
+        async (serverHostName) => {
+            const f = setupStrict({});
+            Object.assign(f.configured.warehouseConnectionModel, {
+                findPreferredUserCredentialsUuid: vi.fn(async () => 'personal'),
+            });
+            Object.assign(f.model, {
+                getByUuidWithSecrets: vi.fn(async () => ({
+                    uuid: 'personal',
+                    expiresAt: null,
+                    credentials: {
+                        type: WarehouseTypes.DATABRICKS,
+                        authenticationType:
+                            DatabricksAuthenticationType.OAUTH_U2M,
+                        refreshToken: 'person-refresh',
+                        serverHostName,
+                    },
+                })),
+            });
+            await expect(
+                f.configured.finish(
+                    {
+                        kind: 'extra',
+                        projectUuid: 'project',
+                        organizationUuid: 'resource-org',
+                        connectionRoute: null,
+                        warehouseConnectionUuid: 'extra',
+                        organizationWarehouseCredentialsUuid: null,
+                        project: {
+                            projectUuid: 'project',
+                            organizationUuid: 'resource-org',
+                            connectionMode: 'multi',
+                            originalWarehouseType: WarehouseTypes.DATABRICKS,
+                        },
+                        credentials: connection,
+                    },
+                    connectionContextFromUser(user, {
+                        organizationUuid: 'resource-org',
+                        queryContext: null,
+                    }),
+                ),
+            ).rejects.toThrow(reconnect);
+            expect(f.materialize).not.toHaveBeenCalled();
         },
     );
 });

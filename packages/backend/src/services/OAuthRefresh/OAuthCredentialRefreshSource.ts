@@ -23,7 +23,12 @@ import type { WarehouseConnectionModel } from '../../models/WarehouseConnectionM
 import type {
     CredentialOwner,
     CredentialSelection,
+    CredentialSelectionSource,
 } from '../WarehouseClientFactory/CredentialResolver';
+import {
+    composePersonalWarehouseCredentials,
+    projectPersonalWarehouseCredentials,
+} from '../WarehouseClientFactory/personalCredentialOverlay';
 
 export type OAuthCredentialOwner = Exclude<
     CredentialOwner,
@@ -132,12 +137,14 @@ export class OAuthCredentialRefreshSource<
     }
 
     async readCurrentRefreshToken(
-        input: OAuthRefreshSelection<C>,
-        owner: OAuthCredentialOwner,
+        input: OAuthRefreshSelection<C> & CredentialSelectionSource,
         trx: Knex,
     ): Promise<string | null> {
         try {
             let credentials: OAuthRefreshSourceCredentials;
+            const { refreshSource, owner } = input;
+            if (owner === null || owner.kind === 'aiServiceAccount')
+                throw new RefreshTokenSourceChangedError();
             switch (owner.kind) {
                 case 'project':
                     credentials =
@@ -155,6 +162,8 @@ export class OAuthCredentialRefreshSource<
                     ).credentials;
                     break;
                 case 'user':
+                    if (!refreshSource)
+                        throw new RefreshTokenSourceChangedError();
                     if (this.userPolicy.kind === 'ai') {
                         if (owner.purpose !== UserWarehouseCredentialPurpose.AI)
                             throw new RefreshTokenSourceChangedError();
@@ -164,6 +173,7 @@ export class OAuthCredentialRefreshSource<
                                     userUuid: this.userPolicy.userUuid,
                                     warehouseType: WarehouseTypes.SNOWFLAKE,
                                 },
+                                refreshSource.personalCredentialPolicy,
                                 trx,
                             );
                         if (!current)
@@ -174,12 +184,24 @@ export class OAuthCredentialRefreshSource<
                             throw new RefreshTokenSourceChangedError();
                         break;
                     }
-                    credentials = (
-                        await this.deps.userWarehouseCredentialsModel.getByUuidWithSecrets(
-                            owner.uuid,
-                            trx,
-                        )
-                    ).credentials;
+                    {
+                        const personalPolicy =
+                            refreshSource.personalCredentialPolicy;
+                        const current =
+                            await this.deps.userWarehouseCredentialsModel.getByUuidWithSecrets(
+                                owner.uuid,
+                                trx,
+                                personalPolicy,
+                            );
+                        credentials = personalPolicy.strictPersonalOverlay
+                            ? composePersonalWarehouseCredentials(
+                                  refreshSource.fallback,
+                                  projectPersonalWarehouseCredentials(
+                                      current.credentials,
+                                  ),
+                              )
+                            : current.credentials;
+                    }
                     break;
                 case 'warehouseConnection': {
                     const project = await this.getConnectionProject(input, trx);
@@ -203,7 +225,7 @@ export class OAuthCredentialRefreshSource<
                 !this.policy.matchesIdentity(
                     credentials,
                     input.connection,
-                    input.refreshSource,
+                    refreshSource,
                 )
             ) {
                 throw new RefreshTokenSourceChangedError();

@@ -43,6 +43,7 @@ import {
     type CredentialSelection,
     type ValidatedCredential,
 } from '../CredentialResolver';
+import { resolvePersonalCredentialPolicy } from '../personalCredentialPolicy';
 import { prepareWarehouseOAuthCredentials } from '../preparedOAuthCredentials';
 
 type DatabricksSelection = CredentialSelection<CreateDatabricksCredentials>;
@@ -82,6 +83,12 @@ export class DatabricksOAuthCredentialResolver implements CredentialResolver<Cre
                 return true;
             },
             matchesIdentity: (current, selected, source) => {
+                if (source?.personalCredentialPolicy?.strictPersonalOverlay) {
+                    const selectedIdentity = this.providerIdentity(selected);
+                    return this.providerIdentity(current).every(
+                        (value, index) => value === selectedIdentity[index],
+                    );
+                }
                 const selectedCredentials = source?.credentials ?? selected;
                 const fallback = source?.fallback;
                 if (
@@ -179,6 +186,13 @@ export class DatabricksOAuthCredentialResolver implements CredentialResolver<Cre
                 ? await this.deps.userWarehouseCredentialsModel.findDatabricksOauthU2mForHostWithSecrets(
                       userUuid,
                       input.connection.serverHostName,
+                      await resolvePersonalCredentialPolicy(
+                          this.deps.featureFlagModel,
+                          {
+                              organizationUuid: input.context.organizationUuid,
+                              userUuid,
+                          },
+                      ),
                   )
                 : undefined;
             if (
@@ -290,7 +304,6 @@ export class DatabricksOAuthCredentialResolver implements CredentialResolver<Cre
                               readCurrentRefreshToken: (trx) =>
                                   this.source.readCurrentRefreshToken(
                                       input,
-                                      owner,
                                       trx,
                                   ),
                           }

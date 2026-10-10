@@ -386,6 +386,9 @@ describe('Credential reads by connection binding on the real schema', () => {
         });
         credentialsApi = new ProjectService({
             lightdashConfig: lightdashConfigMock,
+            featureFlagModel: {
+                get: async () => ({ id: 'flag', enabled: false }),
+            },
             projectModel,
             userWarehouseCredentialsModel: new UserWarehouseCredentialsModel({
                 database,

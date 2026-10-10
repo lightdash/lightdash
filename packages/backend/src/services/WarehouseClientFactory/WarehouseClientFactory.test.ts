@@ -9,6 +9,7 @@ import {
     DuckdbConnectionType,
     DucklakeCatalogType,
     DucklakeDataPathType,
+    FeatureFlags,
     QueryExecutionContext,
     QuerySurface,
     RedshiftAuthenticationType,
@@ -269,7 +270,9 @@ const buildFixture = (
         }),
     };
     const logger = { debug: vi.fn(), warn: vi.fn() };
-    const featureFlagModel = {} as FeatureFlagModel;
+    const featureFlagModel = {
+        get: vi.fn().mockResolvedValue({ enabled: false }),
+    } as unknown as FeatureFlagModel;
     const sshKeyPairModel = {
         find: vi.fn<SshKeyPairModel['find']>().mockResolvedValue(null),
     };
@@ -3255,10 +3258,12 @@ describe('AI service account factory scopes', () => {
             async () => undefined,
         );
         expect(materialize.mock.calls[0][4]).toEqual({
-            kind: 'aiServiceAccount',
-            uuid: slotPlan.credentialUuid,
-            identityUuid: slotPlan.identityUuid,
-            sourceProjectUuid: slotPlan.sourceProjectUuid,
+            owner: {
+                kind: 'aiServiceAccount',
+                uuid: slotPlan.credentialUuid,
+                identityUuid: slotPlan.identityUuid,
+                sourceProjectUuid: slotPlan.sourceProjectUuid,
+            },
         });
     });
 
@@ -4634,6 +4639,102 @@ describe('SSH transport materialisation', () => {
     );
 });
 
+describe('identity-resolved credentials', () => {
+    test.each([true, false])(
+        'opens the SSH tunnel for identity-resolved personal credentials, person=%s',
+        async (hasPerson) => {
+            const { factory, featureFlagModel, projectModel, sshKeyPairModel } =
+                buildFixture();
+            vi.mocked(featureFlagModel.get).mockResolvedValue({
+                id: FeatureFlags.AgentIdentity,
+                enabled: true,
+            });
+            sshKeyPairModel.find.mockResolvedValue({
+                organizationUuid: 'org-uuid',
+                publicKey: 'PUBLIC',
+                privateKey: 'RESOLVED-PRIVATE',
+            });
+            const disposeIdentity = vi.fn().mockResolvedValue(undefined);
+            const resolved: MaterializedCredentials & {
+                userWarehouseCredentialsUuid: string;
+            } = {
+                ...sshCredentials[0],
+                sshTunnelPublicKey: 'PUBLIC',
+                sshTunnelPrivateKey: undefined,
+                userWarehouseCredentialsUuid: 'personal-credential',
+                [credentialResolution]: {
+                    agentSignIn: null,
+                    clientOptions: {},
+                    cacheable: true,
+                    cacheKeyIdentity: ['personal-identity'],
+                    dispose: disposeIdentity,
+                },
+            };
+            const context = contextFor();
+            if (!hasPerson) context.actor.person = null;
+            const materialize = vi.spyOn(factory, 'materializeCredentials');
+            connect.mockImplementation(async (creds) => ({
+                ...creds,
+                host: '127.0.0.1',
+                port: 43210,
+            }));
+
+            await factory.withWarehouseClient(
+                {
+                    kind: 'resolved',
+                    projectUuid: 'project-uuid',
+                    credentials: resolved,
+                    aiPlan: null,
+                    warehouseConnectionUuid: null,
+                    connectionRoute: null,
+                },
+                context,
+                async ({ connectionCredentials }) => {
+                    expect(connectionCredentials).toMatchObject({
+                        host: '127.0.0.1',
+                        port: 43210,
+                    });
+                },
+            );
+
+            expect(SshTunnel).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    host: credentials.host,
+                    sshTunnelPrivateKey: 'RESOLVED-PRIVATE',
+                }),
+                undefined,
+            );
+            expect(sshKeyPairModel.find).toHaveBeenCalledExactlyOnceWith(
+                'PUBLIC',
+            );
+            expect(materialize).toHaveBeenCalledOnce();
+            expect(materialize.mock.calls[0][4]).toMatchObject({
+                owner: { kind: 'user', uuid: 'personal-credential' },
+                refreshSource: {
+                    credentials: resolved,
+                    fallback: resolved,
+                    personalCredentialPolicy: { strictPersonalOverlay: true },
+                },
+            });
+            expect(featureFlagModel.get).toHaveBeenCalledWith({
+                user: {
+                    organizationUuid: 'org-uuid',
+                    userUuid: hasPerson ? 'user-uuid' : '',
+                },
+                featureFlagId: FeatureFlags.AgentIdentity,
+            });
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({ host: '127.0.0.1', port: 43210 }),
+                expect.any(Object),
+            );
+            expect(disconnect).toHaveBeenCalledOnce();
+            expect(disposeIdentity).toHaveBeenCalledOnce();
+        },
+    );
+});
+
 describe('prepared OAuth credentials', () => {
     test.each([
         DatabricksAuthenticationType.OAUTH_U2M,
@@ -4709,7 +4810,7 @@ describe('prepared OAuth credentials', () => {
                         contextFor(),
                         'project-uuid',
                         null,
-                        { kind: 'organization', uuid },
+                        { owner: { kind: 'organization', uuid } },
                     );
                     await factory.withWarehouseClient(
                         {

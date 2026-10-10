@@ -268,7 +268,15 @@ describe.each(modes)('Databricks OAuth %s', (mode) => {
         f.deps.warehouseConnectionModel.getOwnCredentials.mockResolvedValue(
             current,
         );
-        await f.resolver.resolve({ ...f.input, owner });
+        await f.resolver.resolve({
+            ...f.input,
+            owner,
+            refreshSource: {
+                credentials: f.input.connection,
+                fallback: f.input.connection,
+                personalCredentialPolicy: { strictPersonalOverlay: false },
+            },
+        });
         expect(f.lockedExchange).toHaveBeenCalledExactlyOnceWith(
             credentials.serverHostName,
             'config-client',
@@ -296,6 +304,7 @@ describe.each(modes)('Databricks OAuth %s', (mode) => {
             ...(kind === 'warehouseConnection' ? [f.project] : []),
             'row',
             { raw: f.raw },
+            ...(kind === 'user' ? [{ strictPersonalOverlay: false }] : []),
         );
     });
 
@@ -471,7 +480,15 @@ describe.each(modes)('Databricks OAuth %s', (mode) => {
                           purpose: UserWarehouseCredentialPurpose.DEFAULT,
                       }
                     : { kind, uuid: 'row' };
-            await f.resolver.resolve({ ...f.input, owner });
+            await f.resolver.resolve({
+                ...f.input,
+                owner,
+                refreshSource: {
+                    credentials: f.input.connection,
+                    fallback: f.input.connection,
+                    personalCredentialPolicy: { strictPersonalOverlay: false },
+                },
+            });
             const rotate = {
                 project: f.deps.projectModel.rotateRefreshToken,
                 organization:
@@ -813,7 +830,9 @@ describe('Databricks client selection and save', () => {
                 expect(
                     f.deps.userWarehouseCredentialsModel
                         .findDatabricksOauthU2mForHostWithSecrets,
-                ).toHaveBeenCalledWith('person', credentials.serverHostName);
+                ).toHaveBeenCalledWith('person', credentials.serverHostName, {
+                    strictPersonalOverlay: true,
+                });
             expect(f.run).not.toHaveBeenCalled();
             expect(
                 f.deps.projectModel.rotateRefreshToken,
@@ -945,8 +964,63 @@ test('rejects removal of a personal client when it changes the effective client'
             refreshSource: {
                 credentials: personal,
                 fallback: f.input.connection,
+                personalCredentialPolicy: { strictPersonalOverlay: false },
             },
         }),
     ).rejects.toBeInstanceOf(RefreshTokenSourceChangedError);
     expect(f.lockedExchange).not.toHaveBeenCalled();
+});
+
+describe('strict personal overlay (agent-identity on)', () => {
+    test.each([true, false])(
+        'provider matching uses the explicit personal policy (%s)',
+        async (supplied) => {
+            const f = setup(true, DatabricksAuthenticationType.OAUTH_U2M);
+            const selected = {
+                ...f.input.connection,
+                oauthClientId: undefined,
+            };
+            f.deps.userWarehouseCredentialsModel.getByUuidWithSecrets.mockResolvedValue(
+                {
+                    credentials: {
+                        ...selected,
+                        oauthClientId: 'connection-client',
+                    },
+                },
+            );
+            const resolution = f.resolver.resolve({
+                ...f.input,
+                connection: selected,
+                stored: selected,
+                owner: {
+                    kind: 'user',
+                    uuid: 'personal',
+                    purpose: UserWarehouseCredentialPurpose.DEFAULT,
+                },
+                refreshSource: {
+                    credentials: selected,
+                    fallback: {
+                        ...selected,
+                        authenticationType:
+                            DatabricksAuthenticationType.OAUTH_M2M,
+                        oauthClientId: 'connection-client',
+                    },
+                    personalCredentialPolicy: {
+                        strictPersonalOverlay: supplied,
+                    },
+                },
+            });
+            if (supplied) {
+                await expect(resolution).rejects.toBeInstanceOf(
+                    RefreshTokenSourceChangedError,
+                );
+                expect(f.lockedExchange).not.toHaveBeenCalled();
+            } else {
+                await expect(resolution).resolves.toMatchObject({
+                    clientCredentials: { token: 'fresh-access' },
+                });
+                expect(f.lockedExchange).toHaveBeenCalledOnce();
+            }
+        },
+    );
 });

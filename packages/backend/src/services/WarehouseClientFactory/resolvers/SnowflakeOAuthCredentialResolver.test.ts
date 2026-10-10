@@ -30,6 +30,7 @@ import {
 import {
     preparedCredentials,
     type CredentialOwner,
+    type CredentialRefreshSource,
     type CredentialSelection,
     type PreparedCredentials,
 } from '../CredentialResolver';
@@ -48,7 +49,14 @@ const credentials: CreateSnowflakeCredentials = {
     token: 'stale-access',
     refreshToken: 'old-refresh',
 };
-const selection = (): CredentialSelection<CreateSnowflakeCredentials> => ({
+const selection = (): CredentialSelection<CreateSnowflakeCredentials> & {
+    refreshSource: CredentialRefreshSource;
+} => ({
+    refreshSource: {
+        credentials,
+        fallback: credentials,
+        personalCredentialPolicy: { strictPersonalOverlay: false },
+    },
     connection: { ...credentials },
     stored: { ...credentials },
     owner: { kind: 'project', uuid: 'project' },
@@ -125,6 +133,22 @@ const setup = (enabled = true) => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('SnowflakeOAuthCredentialResolver', () => {
+    test.each([
+        UserWarehouseCredentialPurpose.DEFAULT,
+        UserWarehouseCredentialPurpose.AI,
+    ])('requires a refresh source for a %s user selection', (purpose) => {
+        const { refreshSource, ...withoutSource } = selection();
+        // @ts-expect-error A user-owned selection requires a refresh source.
+        const invalid: CredentialSelection<CreateSnowflakeCredentials> = {
+            ...withoutSource,
+            owner: { kind: 'user', uuid: 'row', purpose },
+        };
+        expect(invalid.owner?.kind).toBe('user');
+        expect(refreshSource?.personalCredentialPolicy).toEqual({
+            strictPersonalOverlay: false,
+        });
+    });
+
     test('sets the token without changing stored connection fields or leaking secrets in cache identity', async () => {
         const f = setup();
         const input = selection();

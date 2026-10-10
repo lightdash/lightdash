@@ -6,7 +6,10 @@ import {
 } from '@lightdash/common';
 import type { AiServiceAccountSecrets } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
 import { WarehouseCredentialKind } from './ConnectionContext';
-import type { CredentialSelection } from './CredentialResolver';
+import type {
+    CredentialSelection,
+    CredentialSelectionSource,
+} from './CredentialResolver';
 import { CredentialResolverRegistry } from './CredentialResolverRegistry';
 import { AthenaAiServiceAccountCredentialResolver } from './resolvers/AthenaAiServiceAccountCredentialResolver';
 import { BigqueryAiServiceAccountCredentialResolver } from './resolvers/BigqueryAiServiceAccountCredentialResolver';
@@ -100,8 +103,9 @@ registerAiServiceAccountCredentialResolvers(
 
 type AiSelection = Omit<
     CredentialSelection<CreateWarehouseCredentials, AiServiceAccountSecrets>,
-    'credentialKind' | 'aiPlan'
->;
+    'credentialKind' | 'aiPlan' | 'owner' | 'refreshSource'
+> &
+    CredentialSelectionSource;
 
 export const resolveAiServiceAccountCredentials = (selection: AiSelection) =>
     aiServiceAccountCredentialResolvers.resolveCredentialSelection(

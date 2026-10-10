@@ -70,10 +70,12 @@ import {
     preparedCredentials,
     type CredentialOwner,
     type CredentialSelection,
+    type CredentialSelectionSource,
     type MaterializedCredentials,
     type PreparedCredentials,
 } from './CredentialResolver';
 import { CredentialResolverRegistry } from './CredentialResolverRegistry';
+import { resolvePersonalCredentialPolicy } from './personalCredentialPolicy';
 import type {
     ResolvedWarehouseCredentials,
     WarehouseCredentialBase,
@@ -289,23 +291,21 @@ export class WarehouseClientFactory {
         context: WarehouseCredentialResolutionContext,
         projectUuid: string | null,
         warehouseConnectionUuid: string | null,
-        owner: CredentialOwner | null,
+        selectionSource: CredentialSelectionSource,
         aiPlan: AiExecutionPlan | null = null,
         legacyResolve: () => Promise<CreateWarehouseCredentials> = async () =>
             credentials,
-        refreshSource?: CredentialSelection<CreateWarehouseCredentials>['refreshSource'],
     ): Promise<MaterializedCredentials> {
         const selection: CredentialSelection<CreateWarehouseCredentials> = {
             connection: credentials,
             stored: credentials,
-            refreshSource,
-            owner,
+            ...selectionSource,
             context,
             projectUuid,
             warehouseConnectionUuid,
             aiPlan,
             credentialKind:
-                owner?.kind === 'user' &&
+                selectionSource.owner?.kind === 'user' &&
                 aiPlan === null &&
                 context.purpose !== 'compile'
                     ? WarehouseCredentialKind.PERSONAL
@@ -360,6 +360,55 @@ export class WarehouseClientFactory {
         return projectUuid ? { kind: 'project', uuid: projectUuid } : null;
     }
 
+    private async materializeResolvedCredentials(
+        credentials: MaterializedCredentials,
+        context: WarehouseCredentialResolutionContext,
+        projectUuid: string | null,
+        warehouseConnectionUuid: string | null,
+        owner: CredentialOwner | null,
+        aiPlan: AiExecutionPlan | null,
+    ): Promise<MaterializedCredentials> {
+        let selectionSource: CredentialSelectionSource;
+        if (owner?.kind === 'user') {
+            const { person } = context.actor;
+            if (person === null && !credentials[credentialResolution])
+                throw new ForbiddenError(
+                    'Personal credentials require a connection person',
+                );
+            const organizationUuid =
+                context.organizationUuid ??
+                (projectUuid === null
+                    ? null
+                    : (await this.projectModel.getSummary(projectUuid))
+                          .organizationUuid);
+            selectionSource = {
+                owner,
+                refreshSource: {
+                    credentials,
+                    fallback: credentials,
+                    personalCredentialPolicy:
+                        await resolvePersonalCredentialPolicy(
+                            this.featureFlagModel,
+                            {
+                                organizationUuid,
+                                userUuid: person?.userUuid ?? '',
+                            },
+                        ),
+                },
+            };
+        } else {
+            selectionSource = { owner };
+        }
+        return this.materializeCredentials(
+            credentials,
+            context,
+            projectUuid,
+            warehouseConnectionUuid,
+            selectionSource,
+            aiPlan,
+        );
+    }
+
     private async materializeLoadedCredentials(
         credentials: ResolvedWarehouseCredentials,
         base: WarehouseCredentialBase,
@@ -375,7 +424,7 @@ export class WarehouseClientFactory {
                 : base.organizationWarehouseCredentialsUuid,
             aiPlan,
         );
-        const materialized = await this.materializeCredentials(
+        const materialized = await this.materializeResolvedCredentials(
             credentials,
             context,
             base.projectUuid,
@@ -604,7 +653,7 @@ export class WarehouseClientFactory {
                     'Unknown warehouse client reference',
                 );
         }
-        warehouseCredentials = await this.materializeCredentials(
+        warehouseCredentials = await this.materializeResolvedCredentials(
             warehouseCredentials,
             context,
             ref.projectUuid,

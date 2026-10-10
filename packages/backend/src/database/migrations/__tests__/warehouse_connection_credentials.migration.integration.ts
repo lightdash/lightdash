@@ -1260,14 +1260,19 @@ describe('Extra connection credentials on the real schema', () => {
             await new UserWarehouseCredentialsModel({
                 database,
                 encryptionUtil,
-            }).update(organization.userUuid, personal, {
-                name: 'Personal',
-                credentials: {
-                    type: WarehouseTypes.SNOWFLAKE,
-                    user: 'snowflake-user',
-                    password: 'snowflake-password',
-                },
-            } as never);
+            }).update(
+                organization.userUuid,
+                personal,
+                {
+                    name: 'Personal',
+                    credentials: {
+                        type: WarehouseTypes.SNOWFLAKE,
+                        user: 'snowflake-user',
+                        password: 'snowflake-password',
+                    },
+                } as never,
+                { strictPersonalOverlay: false },
+            );
 
             await expect(
                 extraCredentials(project, extra, organization.userUuid),

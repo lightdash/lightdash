@@ -1,6 +1,7 @@
 import {
     DatabricksAuthenticationType,
     DatabricksTokenError,
+    FeatureFlags,
     UserWarehouseCredentialPurpose,
     WarehouseTypes,
     type CreateDatabricksCredentials,
@@ -94,7 +95,13 @@ const setup = (
         projectModel,
         organizationWarehouseCredentialsModel,
         userWarehouseCredentialsModel,
-        featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled }) },
+        featureFlagModel: {
+            get: vi.fn(async ({ featureFlagId }) => ({
+                enabled:
+                    featureFlagId === FeatureFlags.WarehouseOAuthRefreshLock &&
+                    enabled,
+            })),
+        },
     } as unknown as ProjectServiceArguments);
     const probe = service as unknown as {
         _resolveWarehouseClientCredentials: (
@@ -408,7 +415,9 @@ test('U2M save loads host-matching credentials and retains their original token'
     expect(
         f.userWarehouseCredentialsModel
             .findDatabricksOauthU2mForHostWithSecrets,
-    ).toHaveBeenCalledExactlyOnceWith('person', credentials.serverHostName);
+    ).toHaveBeenCalledExactlyOnceWith('person', credentials.serverHostName, {
+        strictPersonalOverlay: false,
+    });
     expect(f.run).not.toHaveBeenCalled();
 });
 
