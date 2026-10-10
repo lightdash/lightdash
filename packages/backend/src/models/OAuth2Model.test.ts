@@ -234,6 +234,60 @@ describe('OAuth2Model.validateRedirectUri', () => {
         );
         expect(result).toBe(false);
     });
+
+    it('accepts an exact registered redirect URI with a query', async () => {
+        const redirectUri = 'https://client.example/callback?flow=oauth';
+        await expect(
+            model.validateRedirectUri(redirectUri, {
+                id: 'client',
+                grants: ['authorization_code'],
+                redirectUris: [redirectUri],
+            }),
+        ).resolves.toBe(true);
+    });
+
+    it.each([
+        ['host', 'https://other.example/callback?flow=oauth'],
+        ['path', 'https://client.example/other?flow=oauth'],
+        ['query', 'https://client.example/callback?flow=other'],
+    ])(
+        'rejects a redirect URI with a different %s',
+        async (_part, redirectUri) => {
+            await expect(
+                model.validateRedirectUri(redirectUri, {
+                    id: 'client',
+                    grants: ['authorization_code'],
+                    redirectUris: [
+                        'https://client.example/callback?flow=oauth',
+                    ],
+                }),
+            ).resolves.toBe(false);
+        },
+    );
+
+    it('accepts a loopback port for the seeded CLI redirect pattern', async () => {
+        await expect(
+            model.validateRedirectUri('http://localhost:53682/callback', {
+                id: 'lightdash-cli',
+                grants: ['authorization_code'],
+                redirectUris: [cliRedirectUri],
+            }),
+        ).resolves.toBe(true);
+    });
+
+    it('matches userinfo authority escape (documents current hole)', async () => {
+        // flips when the wildcard fix lands
+        await expect(
+            model.validateRedirectUri(
+                'http://localhost:8080@evil.example/callback',
+                {
+                    id: 'lightdash-cli',
+                    grants: ['authorization_code'],
+                    redirectUris: [cliRedirectUri],
+                },
+            ),
+        ).resolves.toBe(true);
+    });
 });
 
 describe('isMobileOAuthClient', () => {
