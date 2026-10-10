@@ -327,3 +327,52 @@ CREATE POLICY "ai_agents_rows" ON ${table}
   FOR SELECT TO ${role} USING (<condition>);`,
     };
 };
+
+export interface RedshiftAiServiceAccountCommands {
+    createUser: string;
+    grantReadAccess: string;
+    rowLevelSecurity: string;
+    masking: string;
+}
+
+interface RedshiftAiServiceAccountSetupInput {
+    schema: string | null;
+}
+
+export const buildRedshiftAiServiceAccountCommands = ({
+    schema,
+}: RedshiftAiServiceAccountSetupInput): RedshiftAiServiceAccountCommands => {
+    const quoteIdentifier = (value: string): string =>
+        `"${value.replaceAll('"', '""')}"`;
+    const schemaIdentifier = quoteIdentifier(schema || '<schema>');
+    const table = `${schemaIdentifier}."<table>"`;
+    return {
+        createUser: `CREATE USER ai_agents
+  PASSWORD '<choose-a-strong-password>'
+  NOCREATEDB NOCREATEUSER
+  SYSLOG ACCESS RESTRICTED;`,
+        grantReadAccess: `GRANT USAGE ON SCHEMA ${schemaIdentifier}
+  TO ai_agents;
+GRANT SELECT ON ALL TABLES
+  IN SCHEMA ${schemaIdentifier}
+  TO ai_agents;
+ALTER DEFAULT PRIVILEGES
+  FOR USER "<table-owner>"
+  IN SCHEMA ${schemaIdentifier}
+  GRANT SELECT ON TABLES TO ai_agents;`,
+        rowLevelSecurity: `CREATE RLS POLICY ai_agents_rows
+  WITH ("<column>" <type>)
+  USING (<condition>);
+ATTACH RLS POLICY ai_agents_rows
+  ON ${table}
+  TO ai_agents;
+ALTER TABLE ${table}
+  ROW LEVEL SECURITY ON;`,
+        masking: `CREATE MASKING POLICY ai_agents_mask
+  WITH (value VARCHAR(256))
+  USING ('[redacted]'::VARCHAR(256));
+ATTACH MASKING POLICY ai_agents_mask
+  ON ${table} ("<column>")
+  TO ai_agents;`,
+    };
+};

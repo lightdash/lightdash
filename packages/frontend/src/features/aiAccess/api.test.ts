@@ -120,6 +120,16 @@ const credentialCases: {
     observed: AiServiceAccountTestResult['observed'];
 }[] = [
     {
+        name: 'Redshift',
+        credentials: {
+            type: WarehouseTypes.REDSHIFT,
+            user: 'ai_agents',
+            password: 'secret-value',
+        },
+        method: 'password',
+        observed: { currentUser: 'principal-id' },
+    },
+    {
         name: 'Postgres',
         credentials: {
             type: WarehouseTypes.POSTGRES,

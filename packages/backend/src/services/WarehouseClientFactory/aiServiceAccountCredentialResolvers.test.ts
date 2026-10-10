@@ -10,6 +10,7 @@ import { isSupportedAiServiceAccountSlot } from './aiServiceAccountCredentialRes
 describe('isSupportedAiServiceAccountSlot', () => {
     test.each([
         [WarehouseTypes.POSTGRES, 'password'],
+        [WarehouseTypes.REDSHIFT, 'password'],
         [WarehouseTypes.ATHENA, AthenaAuthenticationType.ACCESS_KEY],
         [WarehouseTypes.BIGQUERY, BigqueryAuthenticationType.PRIVATE_KEY],
         [WarehouseTypes.SNOWFLAKE, SnowflakeAuthenticationType.PRIVATE_KEY],

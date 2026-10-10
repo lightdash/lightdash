@@ -121,7 +121,10 @@ export const AGENT_IDENTITY_SOURCES: Record<
         person: ['marked_person', 'ai_service_account'],
         service_account: ['marked_person', 'ai_service_account'],
     },
-    [WarehouseTypes.REDSHIFT]: markedOnly,
+    [WarehouseTypes.REDSHIFT]: {
+        person: ['marked_person', 'ai_service_account'],
+        service_account: ['marked_person', 'ai_service_account'],
+    },
     [WarehouseTypes.DATABRICKS]: {
         person: ['marked_person', 'ai_service_account'],
         service_account: ['marked_person', 'ai_service_account'],
@@ -262,7 +265,14 @@ export interface PostgresAiServiceAccountCredentialInput {
     password: string;
 }
 
+export interface RedshiftAiServiceAccountCredentialInput {
+    type: WarehouseTypes.REDSHIFT;
+    user: string;
+    password: string;
+}
+
 export type AiServiceAccountCredentialInput =
+    | RedshiftAiServiceAccountCredentialInput
     | PostgresAiServiceAccountCredentialInput
     | AthenaAiServiceAccountCredentialInput
     | BigqueryAiServiceAccountCredentialInput

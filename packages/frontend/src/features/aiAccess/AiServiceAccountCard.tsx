@@ -1,10 +1,13 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
+    supportsAiServiceAccount,
+    type WarehouseCredentials,
     FeatureFlags,
     WarehouseTypes,
     type Project,
     type PostgresCredentials,
+    type RedshiftCredentials,
     type AthenaCredentials,
     type BigqueryCredentials,
     type DatabricksCredentials,
@@ -37,15 +40,22 @@ import { BigQueryAgentSetup } from './BigQueryAgentSetup';
 import { DatabricksAgentSetup } from './DatabricksAgentSetup';
 import { getAiServiceAccountStatus } from './getAiServiceAccountStatus';
 import { PostgresAgentSetup } from './PostgresAgentSetup';
+import { RedshiftAgentSetup } from './RedshiftAgentSetup';
 import { getSnowflakeAiPrincipal } from './snowflakeAiPrincipal';
 import { SnowflakeAiServiceAccountSetup } from './SnowflakeAiServiceAccountSetup';
 
 type AiServiceAccountConnection =
+    | RedshiftCredentials
     | PostgresCredentials
     | AthenaCredentials
     | BigqueryCredentials
     | DatabricksCredentials
     | SnowflakeCredentials;
+
+const isAiServiceAccountConnection = (
+    connection: WarehouseCredentials,
+): connection is AiServiceAccountConnection =>
+    supportsAiServiceAccount(connection.type);
 
 const AiServiceAccountRemoveModal = ({
     opened,
@@ -343,7 +353,8 @@ const getAiPrincipalState = (
         currentTest?.principal ??
         (warehouseType === WarehouseTypes.SNOWFLAKE
             ? getSnowflakeAiPrincipal(observation)
-            : warehouseType === WarehouseTypes.POSTGRES ||
+            : warehouseType === WarehouseTypes.REDSHIFT ||
+                warehouseType === WarehouseTypes.POSTGRES ||
                 warehouseType === WarehouseTypes.DATABRICKS ||
                 warehouseType === WarehouseTypes.ATHENA
               ? observation?.ok
@@ -363,6 +374,14 @@ const AiServiceAccountSetup = ({
     tested: boolean;
 }) => {
     switch (connection.type) {
+        case WarehouseTypes.REDSHIFT:
+            return (
+                <RedshiftAgentSetup
+                    connection={connection}
+                    hasCredentials={hasKey}
+                    tested={tested}
+                />
+            );
         case WarehouseTypes.POSTGRES:
             return (
                 <PostgresAgentSetup
@@ -528,11 +547,8 @@ export const AiServiceAccountCard = ({ project }: { project: Project }) => {
     const ability = useAbilityContext();
     if (
         !project.projectUuid ||
-        (project.warehouseConnection?.type !== WarehouseTypes.POSTGRES &&
-            project.warehouseConnection?.type !== WarehouseTypes.ATHENA &&
-            project.warehouseConnection?.type !== WarehouseTypes.BIGQUERY &&
-            project.warehouseConnection?.type !== WarehouseTypes.DATABRICKS &&
-            project.warehouseConnection?.type !== WarehouseTypes.SNOWFLAKE) ||
+        !project.warehouseConnection ||
+        !isAiServiceAccountConnection(project.warehouseConnection) ||
         !flag?.enabled ||
         !ability.can(
             'manage',

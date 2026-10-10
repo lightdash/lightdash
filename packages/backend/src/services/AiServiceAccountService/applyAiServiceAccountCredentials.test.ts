@@ -9,6 +9,8 @@ import {
     athenaSecrets,
     postgresConnection,
     postgresSecrets,
+    redshiftConnection,
+    redshiftSecrets,
     snowflakeEncryptedKey,
     snowflakePassphrase,
     snowflakeSecrets,
@@ -87,6 +89,7 @@ it.each(
     Object.values(WarehouseTypes).filter(
         (type) =>
             type !== WarehouseTypes.POSTGRES &&
+            type !== WarehouseTypes.REDSHIFT &&
             type !== WarehouseTypes.BIGQUERY &&
             type !== WarehouseTypes.ATHENA &&
             type !== WarehouseTypes.DATABRICKS &&
@@ -335,6 +338,35 @@ it('requires a complete Postgres replacement and never keeps a blank password', 
     ).toEqual(replacement);
     expect(
         applyAiServiceAccountCredentials(postgresConnection, replacement),
+    ).toMatchObject({
+        ...replacement,
+        sshTunnelPrivateKey: 'tunnel-private',
+        requireUserCredentials: false,
+    });
+});
+
+it('requires a complete Redshift replacement and never keeps a blank password', () => {
+    for (const password of ['', undefined]) {
+        expect(() =>
+            mergeAiServiceAccountCredentials(
+                {
+                    ...redshiftSecrets,
+                    password,
+                } as AiServiceAccountCredentialInput,
+                redshiftSecrets,
+            ),
+        ).toThrow('complete');
+    }
+    const replacement = {
+        ...redshiftSecrets,
+        user: 'new_user',
+        password: 'new-password',
+    };
+    expect(
+        mergeAiServiceAccountCredentials(replacement, redshiftSecrets),
+    ).toEqual(replacement);
+    expect(
+        applyAiServiceAccountCredentials(redshiftConnection, replacement),
     ).toMatchObject({
         ...replacement,
         sshTunnelPrivateKey: 'tunnel-private',

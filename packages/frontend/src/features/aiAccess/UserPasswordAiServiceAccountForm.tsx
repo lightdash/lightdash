@@ -1,8 +1,8 @@
 import {
-    WarehouseTypes,
+    type WarehouseTypes,
     type AiServiceAccountSlot,
     type AiServiceAccountTestResult,
-    type PostgresAiServiceAccountCredentialInput,
+    type AiServiceAccountCredentialInput,
 } from '@lightdash/common';
 import { Button, PasswordInput, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -17,11 +17,7 @@ const formSchema = z.object({
     password: z.string().min(1),
 });
 
-export const PostgresAiServiceAccountForm = ({
-    projectUuid,
-    onClose,
-    onSaved,
-}: {
+interface UserPasswordAiServiceAccountFormCallbacks {
     projectUuid: string;
     onClose: () => void;
     onSaved: (
@@ -29,7 +25,20 @@ export const PostgresAiServiceAccountForm = ({
         principal: string | null,
         verification: AiServiceAccountTestResult | null,
     ) => void;
-}) => {
+}
+
+interface UserPasswordAiServiceAccountFormProps extends UserPasswordAiServiceAccountFormCallbacks {
+    warehouseType: WarehouseTypes.POSTGRES | WarehouseTypes.REDSHIFT;
+    userDescription: string;
+}
+
+export const UserPasswordAiServiceAccountForm = ({
+    projectUuid,
+    onClose,
+    onSaved,
+    warehouseType,
+    userDescription,
+}: UserPasswordAiServiceAccountFormProps) => {
     const form = useForm({
         initialValues: { user: '', password: '' },
         validate: zodResolver(formSchema),
@@ -38,8 +47,8 @@ export const PostgresAiServiceAccountForm = ({
     const test = useTestAiServiceAccount(projectUuid);
     const busy = save.isLoading || test.isLoading;
     const valid = formSchema.safeParse(form.values).success;
-    const credentials: PostgresAiServiceAccountCredentialInput = {
-        type: WarehouseTypes.POSTGRES,
+    const credentials: AiServiceAccountCredentialInput = {
+        type: warehouseType,
         user: form.values.user.trim(),
         password: form.values.password,
     };
@@ -86,7 +95,9 @@ export const PostgresAiServiceAccountForm = ({
                     variant="default"
                     disabled={!valid || busy}
                     loading={test.isLoading}
-                    onClick={() => test.mutate({ credentials })}
+                    onClick={() => {
+                        if (valid && !busy) test.mutate({ credentials });
+                    }}
                 >
                     Test
                 </Button>
@@ -95,7 +106,7 @@ export const PostgresAiServiceAccountForm = ({
             <Stack gap="sm">
                 <TextInput
                     label="User"
-                    description="The Postgres login role for agents"
+                    description={userDescription}
                     required
                     disabled={busy}
                     value={form.values.user}

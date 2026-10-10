@@ -52,6 +52,7 @@ describe('identity source map', () => {
                 );
                 expect(actorSources.includes('ai_service_account')).toBe(
                     type === WarehouseTypes.POSTGRES ||
+                        type === WarehouseTypes.REDSHIFT ||
                         type === WarehouseTypes.BIGQUERY ||
                         type === WarehouseTypes.DATABRICKS ||
                         type === WarehouseTypes.ATHENA ||
@@ -60,6 +61,7 @@ describe('identity source map', () => {
             }
             expect(supportsAiServiceAccount(type)).toBe(
                 type === WarehouseTypes.POSTGRES ||
+                    type === WarehouseTypes.REDSHIFT ||
                     type === WarehouseTypes.BIGQUERY ||
                     type === WarehouseTypes.DATABRICKS ||
                     type === WarehouseTypes.ATHENA ||
@@ -70,6 +72,7 @@ describe('identity source map', () => {
                 [WarehouseTypes.SNOWFLAKE]: 3,
                 [WarehouseTypes.BIGQUERY]: 2,
                 [WarehouseTypes.POSTGRES]: 2,
+                [WarehouseTypes.REDSHIFT]: 2,
                 [WarehouseTypes.DATABRICKS]: 2,
                 [WarehouseTypes.ATHENA]: 2,
             };
@@ -141,6 +144,7 @@ describe('organization identity rules', () => {
             WarehouseTypes.SNOWFLAKE,
             WarehouseTypes.BIGQUERY,
             WarehouseTypes.POSTGRES,
+            WarehouseTypes.REDSHIFT,
             WarehouseTypes.DATABRICKS,
             WarehouseTypes.ATHENA,
         ]);
@@ -159,6 +163,7 @@ describe('organization identity rules', () => {
                 isAllowedAgentIdentitySource(type, 'ai_service_account'),
             ).toBe(
                 type === WarehouseTypes.POSTGRES ||
+                    type === WarehouseTypes.REDSHIFT ||
                     type === WarehouseTypes.BIGQUERY ||
                     type === WarehouseTypes.DATABRICKS ||
                     type === WarehouseTypes.ATHENA ||

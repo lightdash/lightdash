@@ -12,8 +12,8 @@ import { BigQueryKeyFileInput } from '../../components/ProjectConnection/Warehou
 import { useSaveAiServiceAccount, useTestAiServiceAccount } from './api';
 import { AthenaAiServiceAccountForm } from './AthenaAiServiceAccountForm';
 import { DatabricksAiServiceAccountForm } from './DatabricksAiServiceAccountForm';
-import { PostgresAiServiceAccountForm } from './PostgresAiServiceAccountForm';
 import { SnowflakeAiServiceAccountForm } from './SnowflakeAiServiceAccountForm';
+import { UserPasswordAiServiceAccountForm } from './UserPasswordAiServiceAccountForm';
 
 interface AiServiceAccountFormProps {
     projectUuid: string;
@@ -114,20 +114,37 @@ const BigqueryAiServiceAccountForm = ({
     );
 };
 
-export const AiServiceAccountForm = ({
-    warehouseType,
-    ...props
-}: AiServiceAccountFormProps & {
+interface WarehouseAiServiceAccountFormProps extends AiServiceAccountFormProps {
     warehouseType:
         | WarehouseTypes.POSTGRES
+        | WarehouseTypes.REDSHIFT
         | WarehouseTypes.ATHENA
         | WarehouseTypes.BIGQUERY
         | WarehouseTypes.DATABRICKS
         | WarehouseTypes.SNOWFLAKE;
-}) => {
+}
+
+export const AiServiceAccountForm = ({
+    warehouseType,
+    ...props
+}: WarehouseAiServiceAccountFormProps) => {
     switch (warehouseType) {
+        case WarehouseTypes.REDSHIFT:
+            return (
+                <UserPasswordAiServiceAccountForm
+                    {...props}
+                    warehouseType={warehouseType}
+                    userDescription="The Redshift database user for agents"
+                />
+            );
         case WarehouseTypes.POSTGRES:
-            return <PostgresAiServiceAccountForm {...props} />;
+            return (
+                <UserPasswordAiServiceAccountForm
+                    {...props}
+                    warehouseType={warehouseType}
+                    userDescription="The Postgres login role for agents"
+                />
+            );
         case WarehouseTypes.ATHENA:
             return <AthenaAiServiceAccountForm {...props} />;
         case WarehouseTypes.BIGQUERY:

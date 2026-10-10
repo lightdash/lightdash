@@ -1,9 +1,11 @@
 import {
     AthenaAuthenticationType,
+    RedshiftAuthenticationType,
     SnowflakeAuthenticationType,
     WarehouseTypes,
     type CreateAthenaCredentials,
     type CreatePostgresCredentials,
+    type CreateRedshiftCredentials,
 } from '@lightdash/common';
 import { generateKeyPairSync } from 'node:crypto';
 
@@ -107,6 +109,55 @@ export const postgresConnection: CreatePostgresCredentials = {
 };
 
 export const postgresVerification = {
+    ok: true,
+    principal: 'ai_agents',
+    observed: { currentUser: 'ai_agents' },
+    message: 'AI service account connection checked.',
+    checkedAt: new Date('2026-10-10T00:00:00Z'),
+};
+
+export const redshiftSecrets = {
+    type: WarehouseTypes.REDSHIFT,
+    user: 'ai_agents',
+    password: 'agent-password',
+} as const;
+
+export const redshiftConnection: CreateRedshiftCredentials = {
+    type: WarehouseTypes.REDSHIFT,
+    host: 'warehouse.internal',
+    port: 5439,
+    authenticationType: RedshiftAuthenticationType.IAM,
+    accessKeyId: 'parent-access',
+    secretAccessKey: 'parent-secret',
+    sessionToken: 'parent-token',
+    assumeRoleArn: 'parent-role',
+    assumeRoleExternalId: 'parent-external-id',
+    awsSsoStartUrl: 'parent-sso-url',
+    awsSsoRegion: 'parent-sso-region',
+    awsSsoAccountId: 'parent-sso-account',
+    awsSsoRoleName: 'parent-sso-role',
+    autoCreate: true,
+    dbGroups: ['parent-group'],
+    region: 'us-east-1',
+    clusterIdentifier: 'cluster',
+    workgroupName: 'workgroup',
+    isServerless: true,
+    ra3Node: true,
+    dbname: 'analytics',
+    schema: 'reporting',
+    user: 'project-user',
+    password: 'project-password',
+    sslmode: 'verify-full',
+    useSshTunnel: true,
+    sshTunnelHost: 'bastion.internal',
+    sshTunnelPort: 22,
+    sshTunnelUser: 'tunnel-user',
+    sshTunnelPublicKey: 'tunnel-public',
+    sshTunnelPrivateKey: 'tunnel-private',
+    requireUserCredentials: true,
+};
+
+export const redshiftVerification = {
     ok: true,
     principal: 'ai_agents',
     observed: { currentUser: 'ai_agents' },

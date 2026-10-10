@@ -1,6 +1,8 @@
 import {
+    assertUnreachable,
     WarehouseConnectionError,
     WarehouseQueryError,
+    WarehouseTypes,
 } from '@lightdash/common';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -228,13 +230,13 @@ export const getAthenaServiceAccountTestErrorMessage = (
     return 'Could not verify the AI service account. Check the credentials and connection settings.';
 };
 
-const postgresErrors = (
+const pgErrors = (
     error: unknown,
     ancestors = new Set<unknown>(),
 ): Record<string, unknown>[] => {
     if (!isRecord(error) || ancestors.has(error)) return [];
     ancestors.add(error);
-    return [error, ...postgresErrors(error.cause, ancestors)];
+    return [error, ...pgErrors(error.cause, ancestors)];
 };
 
 const postgresCredentialRejected =
@@ -243,16 +245,24 @@ const postgresLoginDisabled = /^role "[^"\n]*" is not permitted to log in\s*$/i;
 const postgresNetworkBlocked = /^no pg_hba.conf entry for host /i;
 const postgresDatabaseDenied = /^permission denied for database "[^"\n]*"\s*$/i;
 
-export const isPostgresServiceAccountAuthError = (error: unknown): boolean => {
-    const errors = postgresErrors(error);
+const pgAuthCodeResult = (
+    errors: Record<string, unknown>[],
+): boolean | null => {
     const codes = errors
         .map((entry) => entry.code)
         .filter(
             (code): code is string =>
                 typeof code === 'string' && /^[0-9A-Z]{5}$/.test(code),
         );
-    if (codes.length > 0)
-        return codes.some((code) => code === '28P01' || code === '28000');
+    return codes.length > 0
+        ? codes.some((code) => code === '28P01' || code === '28000')
+        : null;
+};
+
+export const isPostgresServiceAccountAuthError = (error: unknown): boolean => {
+    const errors = pgErrors(error);
+    const codeResult = pgAuthCodeResult(errors);
+    if (codeResult !== null) return codeResult;
     return errors.some(
         (entry) =>
             typeof entry.message === 'string' &&
@@ -265,7 +275,7 @@ export const isPostgresServiceAccountAuthError = (error: unknown): boolean => {
 export const getPostgresServiceAccountTestErrorMessage = (
     error: unknown,
 ): string => {
-    const errors = postgresErrors(error);
+    const errors = pgErrors(error);
     const matches = (pattern: RegExp) =>
         errors.some(
             (entry) =>
@@ -283,4 +293,52 @@ export const getPostgresServiceAccountTestErrorMessage = (
     if (errors.some((entry) => entry.code === '3D000'))
         return 'The Postgres database does not exist. Check the connection database.';
     return 'Could not verify the AI service account. Check the credentials and connection settings.';
+};
+
+const redshiftCredentialRejected =
+    /^(?:password authentication failed for user "[^"\n]*"|(?:role|user) "[^"\n]*" does not exist)\s*$/i;
+
+export const isRedshiftServiceAccountAuthError = (error: unknown): boolean => {
+    const errors = pgErrors(error);
+    const codeResult = pgAuthCodeResult(errors);
+    if (codeResult !== null) return codeResult;
+    return errors.some(
+        (entry) =>
+            typeof entry.message === 'string' &&
+            redshiftCredentialRejected.test(entry.message),
+    );
+};
+
+export const getRedshiftServiceAccountTestErrorMessage = (
+    error: unknown,
+): string => {
+    const errors = pgErrors(error);
+    if (isRedshiftServiceAccountAuthError(error))
+        return 'Redshift rejected the AI service account credentials. Check the user and password.';
+    if (errors.some((entry) => entry.code === '3D000'))
+        return 'The Redshift database does not exist. Check the connection database.';
+    if (
+        errors.some(
+            (entry) =>
+                entry.code === '42501' ||
+                (typeof entry.message === 'string' &&
+                    /^permission denied\b/i.test(entry.message)),
+        )
+    )
+        return 'The Redshift AI service account lacks access. Ask an admin to check its grants.';
+    return 'Could not verify the AI service account. Check the credentials and connection settings.';
+};
+
+export const getUserPasswordServiceAccountTestErrorMessage = (
+    type: WarehouseTypes.POSTGRES | WarehouseTypes.REDSHIFT,
+    error: unknown,
+): string => {
+    switch (type) {
+        case WarehouseTypes.POSTGRES:
+            return getPostgresServiceAccountTestErrorMessage(error);
+        case WarehouseTypes.REDSHIFT:
+            return getRedshiftServiceAccountTestErrorMessage(error);
+        default:
+            return assertUnreachable(type, 'Unknown warehouse type');
+    }
 };

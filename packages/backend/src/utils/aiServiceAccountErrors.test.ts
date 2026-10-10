@@ -1,16 +1,39 @@
 import {
     WarehouseConnectionError,
     WarehouseQueryError,
+    WarehouseTypes,
 } from '@lightdash/common';
 import {
     getAthenaServiceAccountTestErrorMessage,
     getPostgresServiceAccountTestErrorMessage,
+    getRedshiftServiceAccountTestErrorMessage,
+    getUserPasswordServiceAccountTestErrorMessage,
     isAthenaServiceAccountAuthError,
     isBigqueryServiceAccountAuthError,
     isDatabricksServiceAccountAuthError,
     isPostgresServiceAccountAuthError,
+    isRedshiftServiceAccountAuthError,
     isSnowflakeServiceAccountAuthError,
 } from './aiServiceAccountErrors';
+
+describe('User-password AI service account test errors', () => {
+    it.each([
+        [
+            WarehouseTypes.POSTGRES,
+            'Postgres rejected the AI service account credentials. Check the user and password.',
+        ],
+        [
+            WarehouseTypes.REDSHIFT,
+            'Redshift rejected the AI service account credentials. Check the user and password.',
+        ],
+    ] as const)('returns safe guidance for %s', (type, message) => {
+        const error = new WarehouseQueryError('private password bytes');
+        error.cause = { code: '28P01' };
+        expect(getUserPasswordServiceAccountTestErrorMessage(type, error)).toBe(
+            message,
+        );
+    });
+});
 
 describe('BigQuery AI service account authentication errors', () => {
     test.each([
@@ -352,6 +375,78 @@ describe('Postgres AI service account errors', () => {
         expect(isPostgresServiceAccountAuthError(error)).toBe(false);
         expect(getPostgresServiceAccountTestErrorMessage(error)).toContain(
             'Could not verify',
+        );
+    });
+});
+
+describe('Redshift AI service account errors', () => {
+    it.each(['28P01', '28000'])('recognizes nested SQLSTATE %s', (code) => {
+        const error = new WarehouseQueryError('query failed');
+        error.cause = { cause: { code } };
+        expect(isRedshiftServiceAccountAuthError(error)).toBe(true);
+    });
+    it.each([
+        'password authentication failed for user "ai_agents"',
+        'role "ai_agents" does not exist',
+        'user "ai_agents" does not exist',
+    ])('recognizes an anchored login rejection: %s', (message) => {
+        expect(isRedshiftServiceAccountAuthError({ message })).toBe(true);
+    });
+    it.each([
+        {
+            code: '42501',
+            message: 'password authentication failed for user "ai_agents"',
+        },
+        { code: '3D000', message: 'user "ai_agents" does not exist' },
+        { code: '42601' },
+        { code: '08006' },
+        { code: 'ECONNRESET' },
+        {
+            message:
+                'query failed: SELECT \'password authentication failed for user "ai_agents"\'',
+        },
+        { message: 'role "ai_agents" is not permitted to log in' },
+        { message: 'no pg_hba.conf entry for host "host"' },
+        null,
+    ])('preserves non-auth failures %j', (error) => {
+        expect(isRedshiftServiceAccountAuthError(error)).toBe(false);
+    });
+    it.each([
+        [
+            { code: '28P01' },
+            'Redshift rejected the AI service account credentials. Check the user and password.',
+        ],
+        [
+            { code: '28000' },
+            'Redshift rejected the AI service account credentials. Check the user and password.',
+        ],
+        [
+            { code: '3D000' },
+            'The Redshift database does not exist. Check the connection database.',
+        ],
+        [
+            { code: '42501' },
+            'The Redshift AI service account lacks access. Ask an admin to check its grants.',
+        ],
+        [
+            { message: 'permission denied for table "orders"' },
+            'The Redshift AI service account lacks access. Ask an admin to check its grants.',
+        ],
+        [
+            { code: 'ECONNRESET' },
+            'Could not verify the AI service account. Check the credentials and connection settings.',
+        ],
+    ])('returns safe Redshift guidance for %j', (cause, message) => {
+        const error = new WarehouseQueryError('private password bytes');
+        error.cause = cause;
+        expect(getRedshiftServiceAccountTestErrorMessage(error)).toBe(message);
+    });
+    it('handles cyclic driver causes', () => {
+        const error = new Error('private password bytes');
+        error.cause = error;
+        expect(isRedshiftServiceAccountAuthError(error)).toBe(false);
+        expect(getRedshiftServiceAccountTestErrorMessage(error)).toBe(
+            'Could not verify the AI service account. Check the credentials and connection settings.',
         );
     });
 });
