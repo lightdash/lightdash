@@ -100,8 +100,11 @@ describe('agent permission preview', () => {
             try {
                 if (projectUuid)
                     expect(
-                        (await admin.delete(`/api/v1/projects/${projectUuid}`))
-                            .status,
+                        (
+                            await admin.delete(
+                                `/api/v1/org/projects/${projectUuid}`,
+                            )
+                        ).status,
                     ).toBe(200);
             } finally {
                 if (flagChanged)
