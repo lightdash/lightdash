@@ -187,6 +187,61 @@ describe('normalizeWarehouseCredentials', () => {
 });
 
 describe('mergeWarehouseCredentials', () => {
+    const tunnelCredentials: CreateRedshiftCredentials = {
+        type: WarehouseTypes.REDSHIFT,
+        host: 'cluster.redshift.amazonaws.com',
+        port: 5439,
+        user: 'upstream-user',
+        dbname: 'analytics',
+        schema: 'public',
+        useSshTunnel: true,
+        sshTunnelHost: 'bastion.example.com',
+        sshTunnelPort: 22,
+        sshTunnelUser: 'tunnel-user',
+        sshTunnelPublicKey: 'public-key',
+        sshTunnelPrivateKey: 'private-key',
+    };
+
+    test('inherits SSH tunnel settings without the private key', () => {
+        const previewCredentials: CreateRedshiftCredentials = {
+            type: WarehouseTypes.REDSHIFT,
+            host: 'cluster.redshift.amazonaws.com',
+            port: 5439,
+            user: 'preview-user',
+            dbname: 'analytics',
+            schema: 'preview',
+        };
+
+        const merged = mergeWarehouseCredentials(
+            tunnelCredentials,
+            previewCredentials,
+        );
+
+        expect(merged).toMatchObject({
+            ...previewCredentials,
+            useSshTunnel: true,
+            sshTunnelHost: tunnelCredentials.sshTunnelHost,
+            sshTunnelPort: tunnelCredentials.sshTunnelPort,
+            sshTunnelUser: tunnelCredentials.sshTunnelUser,
+            sshTunnelPublicKey: tunnelCredentials.sshTunnelPublicKey,
+        });
+        expect(merged).not.toHaveProperty('sshTunnelPrivateKey');
+    });
+
+    test('keeps an explicit SSH tunnel opt-out from new credentials', () => {
+        const { sshTunnelPrivateKey: _sshTunnelPrivateKey, ...connection } =
+            tunnelCredentials;
+        const previewCredentials: CreateRedshiftCredentials = {
+            ...connection,
+            useSshTunnel: false,
+        };
+
+        expect(
+            mergeWarehouseCredentials(tunnelCredentials, previewCredentials)
+                .useSshTunnel,
+        ).toBe(false);
+    });
+
     test.each([undefined, false, true])(
         'preserves or overrides the BigQuery personal credential opt-in (%s)',
         (allowUserCredentials) => {
