@@ -246,7 +246,7 @@ Roles created through the API or as code get only the scopes in the request.
 The cleanup migration removes the Raw SQL agent scope from every custom role
 that holds another scope, in every organization, whatever the flag state.
 This includes grants an admin chose. A role whose only scope is the Raw SQL
-agent scope keeps it, so that no role is left without scopes.
+agent scope keeps it, so that the migration does not remove a role's last scope.
 
 Managed policy resolution unions system-role matrix grants with custom-role
 capability scopes. The pilot changes the system-role matrix and allowed projects;

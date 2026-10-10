@@ -2,7 +2,7 @@ import { type Knex } from 'knex';
 
 export const classification = {
     kind: 'safe',
-    reason: 'Removes the Raw SQL agent scope from every user-owned custom role that holds another scope, in every organization, including explicit grants. A role whose only scope is the Raw SQL agent scope keeps it, so no role is left without scopes. Previous pods tolerate the missing rows. Legacy and flag-off execution do not change. No schema shape changes.',
+    reason: 'The migration removes the Raw SQL agent scope from every user-owned custom role that holds another scope, in every organization, including explicit grants. A role whose only scope is the Raw SQL agent scope keeps it. The statement locks the other scope row, so the role still holds a scope when the migration commits. Previous pods tolerate the missing rows. Legacy and flag-off execution do not change. The schema shape does not change.',
 };
 
 export async function up(knex: Knex): Promise<void> {
@@ -18,6 +18,7 @@ export async function up(knex: Knex): Promise<void> {
               FROM scoped_roles AS other
               WHERE other.role_uuid = sr.role_uuid
                 AND other.scope_name <> 'view:AgentRawSql'
+              FOR KEY SHARE OF other
           )
     `);
 }

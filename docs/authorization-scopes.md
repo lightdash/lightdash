@@ -74,6 +74,8 @@ errors. Its `down()` throws an error with an `irreversible:` prefix when it
 cannot safely restore the removed grants. A cleanup migration must not leave
 a custom role with no scopes, because a custom role with no scope rows falls
 back to its placeholder built-in role.
+Lock the row that keeps the role non-empty, so that a concurrent edit cannot
+remove it before the migration commits.
 
 ```ts
 import { Knex } from 'knex';
