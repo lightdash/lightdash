@@ -29,10 +29,11 @@ const setup = (
         .mockResolvedValue(
             linkedUserUuid ? { userUuid: linkedUserUuid } : null,
         );
+    const assertOperation = vi.fn();
     const service = new AiAgentService({
         agentPermissionService: {
             assertActorVerified,
-            assertOperation: vi.fn(),
+            assertOperation,
             isManaged: vi.fn().mockResolvedValue(managed),
         },
         aiOrganizationSettingsService: {
@@ -81,6 +82,7 @@ const setup = (
         run,
         modelStart,
         assertActorVerified,
+        assertOperation,
         findIdentityByOpenId,
         onSlackAccessRefusal,
     };
@@ -145,4 +147,20 @@ test('legacy Slack does not add a sender identity check', async () => {
     await expect(h.run()).rejects.toThrow('model started');
     expect(h.findIdentityByOpenId).not.toHaveBeenCalled();
     expect(h.assertActorVerified).not.toHaveBeenCalled();
+});
+
+test('managed Slack reports a turn admission refusal before starting decisions', async () => {
+    const h = setup(true, true);
+    h.assertOperation.mockRejectedValue(
+        new AiAccessRefusedError(AiAccessRefusalReason.AGENT_ACCESS_DISABLED),
+    );
+    await expect(h.run()).rejects.toMatchObject({
+        refusal: { reason: AiAccessRefusalReason.AGENT_ACCESS_DISABLED },
+    });
+    expect(h.modelStart).not.toHaveBeenCalled();
+    expect(h.onSlackAccessRefusal).toHaveBeenCalledWith(
+        expect.objectContaining({
+            reason: AiAccessRefusalReason.AGENT_ACCESS_DISABLED,
+        }),
+    );
 });

@@ -134,6 +134,11 @@ test('refuses unmapped operations and requires external_tools for connected tool
             ...operation,
             kind: 'connected_mcp_tool',
             key: 'new/server/tool',
+            connectedTool: {
+                serverUuid: 'server',
+                toolName: 'tool',
+                enabledToolNames: ['tool'],
+            },
         }),
     ).rejects.toMatchObject({
         refusal: {
@@ -326,6 +331,11 @@ test('allows connected tools only with the external_tools capability', async () 
             ...operation,
             kind: 'connected_mcp_tool',
             key: 'server/tool',
+            connectedTool: {
+                serverUuid: 'server',
+                toolName: 'tool',
+                enabledToolNames: ['tool'],
+            },
         }),
     ).resolves.toBeUndefined();
 });
@@ -437,3 +447,25 @@ test.each([
         });
     },
 );
+
+test('turn admission checks the project and switch without requiring a capability', async () => {
+    const { service, operation, policy, deps } = setup();
+    policy.systemRoleMatrix.viewer = [];
+    const turn = {
+        ...operation,
+        kind: 'agent_turn' as const,
+        key: 'agent_turn',
+    };
+    await expect(service.assertOperation(turn)).resolves.toBeUndefined();
+    policy.allowedProjectUuids = [];
+    await expect(service.assertOperation(turn)).rejects.toMatchObject({
+        refusal: { reason: AiAccessRefusalReason.AGENT_PROJECT_DENIED },
+    });
+    deps.getOrganizationSettings.mockResolvedValue({
+        mcpAgentsEnabled: false,
+        mcpContentWritesEnabled: true,
+    });
+    await expect(service.assertOperation(turn)).rejects.toMatchObject({
+        refusal: { reason: AiAccessRefusalReason.AGENT_ACCESS_DISABLED },
+    });
+});

@@ -13373,6 +13373,19 @@ Use your existing tools to inspect them when relevant to the user's question (re
         };
     }
 
+    private async assertFastChartQuery(user: SessionUser, projectUuid: string) {
+        if (!user.organizationUuid)
+            throw new ForbiddenError('Organization not found');
+        await this.agentPermissionService.assertOperation({
+            account: fromSession(user),
+            organizationUuid: user.organizationUuid,
+            projectUuid,
+            kind: 'agent_tool',
+            key: 'generateVisualization',
+            surface: AgentActorSurface.IN_APP_AGENT,
+        });
+    }
+
     private async searchFilterValueCandidates({
         user,
         projectUuid,
@@ -13390,6 +13403,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         scope: AndFilterGroup | undefined;
         querySurface: QuerySurface;
     }): Promise<string[]> {
+        await this.assertFastChartQuery(user, projectUuid);
         const search = (term: string, limit: number) =>
             this.projectService
                 .searchFieldUniqueValues(
@@ -13794,6 +13808,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         | { type: 'applied'; stream: AgentResponseStream }
         | { type: 'fallback'; reason: string }
     > {
+        await this.assertFastChartQuery(user, prompt.projectUuid);
         const resolved = await this.resolveChartIntent({
             user,
             prompt,
@@ -13952,6 +13967,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             (queryConfig.tableCalculations ?? []).length > 0
         )
             return null;
+        await this.assertFastChartQuery(user, prompt.projectUuid);
         try {
             const vizQuery = await this.getArtifactVizQuery(user, {
                 projectUuid: prompt.projectUuid,
@@ -14714,6 +14730,23 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         }
                     }
                 }
+                try {
+                    await this.agentPermissionService.assertOperation({
+                        account: fromSession(user),
+                        organizationUuid,
+                        projectUuid: agentSettings.projectUuid,
+                        kind: 'agent_turn',
+                        key: 'agent_turn',
+                        surface: isSlackPrompt(prompt)
+                            ? AgentActorSurface.SLACK_AGENT
+                            : AgentActorSurface.IN_APP_AGENT,
+                    });
+                } catch (error) {
+                    if (error instanceof AiAccessRefusedError) {
+                        options.onSlackAccessRefusal?.(error.refusal);
+                    }
+                    throw error;
+                }
                 const battleProfile = isSlackPrompt(prompt)
                     ? null
                     : prompt.battleProfile;
@@ -14948,6 +14981,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                 outputTokens: decisionUsage?.outputTokens ?? 0,
                             }),
                         }).catch((error) => {
+                            if (error instanceof AiAccessRefusedError)
+                                throw error;
                             Logger.warn(
                                 `Fast chart edit failed; falling back to the agent: ${String(error)}`,
                             );
@@ -15870,13 +15905,14 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 };
 
                 const dependencies: AiAgentDependencies = {
-                    assertToolOperation: (kind, key) =>
+                    assertToolOperation: (kind, key, connectedTool) =>
                         this.agentPermissionService.assertOperation({
                             account: fromSession(user),
                             organizationUuid,
                             projectUuid: agentSettings.projectUuid,
                             kind,
                             key,
+                            connectedTool,
                             surface: isSlackPrompt(prompt)
                                 ? AgentActorSurface.SLACK_AGENT
                                 : AgentActorSurface.IN_APP_AGENT,

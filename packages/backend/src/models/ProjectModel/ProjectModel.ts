@@ -1005,7 +1005,15 @@ export class ProjectModel {
                 credential_subject_user_uuid: subjectUserUuid,
             })
             .onConflict('project_id')
-            .merge();
+            .merge({
+                warehouse_type: credentials.type,
+                encrypted_credentials: encryptedCredentials,
+                credential_subject_user_uuid: subjectUserUuid,
+                warehouse_credential_generation: trx.raw('??.?? + 1', [
+                    'warehouse_credentials',
+                    'warehouse_credential_generation',
+                ]),
+            });
     }
 
     async getSharedSignInSubjectForToken(
@@ -5441,6 +5449,9 @@ export class ProjectModel {
             if (!next) return;
             await trx(WarehouseCredentialTableName)
                 .update({
+                    warehouse_credential_generation: trx.raw('?? + 1', [
+                        'warehouse_credential_generation',
+                    ]),
                     encrypted_credentials: this.encryptionUtil.encrypt(
                         JSON.stringify(next),
                     ),
@@ -5506,6 +5517,7 @@ export class ProjectModel {
         update: (
             credentials: CreateWarehouseCredentials,
         ) => CreateWarehouseCredentials | null,
+        change: 'replacement' | 'token_sync' = 'replacement',
     ): Promise<boolean> {
         const swapped = await this.database.transaction(async (trx) => {
             const row = await trx('warehouse_credentials')
@@ -5547,6 +5559,14 @@ export class ProjectModel {
             );
             await trx('warehouse_credentials')
                 .update({
+                    ...(change === 'replacement'
+                        ? {
+                              warehouse_credential_generation: trx.raw(
+                                  '?? + 1',
+                                  ['warehouse_credential_generation'],
+                              ),
+                          }
+                        : {}),
                     encrypted_credentials: this.encryptionUtil.encrypt(
                         JSON.stringify(next),
                     ),
@@ -5631,6 +5651,9 @@ export class ProjectModel {
             await trx(WarehouseCredentialTableName)
                 .where('project_id', row.project_id)
                 .update({
+                    warehouse_credential_generation: trx.raw('?? + 1', [
+                        'warehouse_credential_generation',
+                    ]),
                     encrypted_credentials: this.encryptionUtil.encrypt(
                         JSON.stringify(next),
                     ),

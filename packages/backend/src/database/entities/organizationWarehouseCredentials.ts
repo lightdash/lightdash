@@ -11,6 +11,7 @@ export type DbOrganizationWarehouseCredentials = {
     warehouse_type: string;
     warehouse_connection: Buffer;
     created_at: Date;
+    organization_credential_generation: number;
     created_by_user_uuid: string | null;
 };
 
@@ -27,7 +28,11 @@ type CreateDbOrganizationWarehouseCredentials = Pick<
 type UpdateDbOrganizationWarehouseCredentials = Partial<
     Pick<
         DbOrganizationWarehouseCredentials,
-        'name' | 'description' | 'warehouse_type' | 'warehouse_connection'
+        | 'name'
+        | 'description'
+        | 'warehouse_type'
+        | 'warehouse_connection'
+        | 'organization_credential_generation'
     >
 >;
 

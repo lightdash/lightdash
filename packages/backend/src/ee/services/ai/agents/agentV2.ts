@@ -33,6 +33,7 @@ import {
     languageModelUsageToTokens,
 } from '../../../../analytics/aiUsage';
 import Logger from '../../../../logging/logger';
+import type { ConnectedAgentTool } from '../../../../services/AgentPermissionService/AgentPermissionService';
 import {
     getAiDeepResearchCoordinatorInstructions,
     getAiDeepResearchWorkerInstructions,
@@ -900,6 +901,7 @@ const prepareCandidateSeed = async (
 export type AgentMcpToolSetup = {
     tools: ToolSet;
     mcpToolNameToServerUuid: Record<string, string>;
+    connectedToolInventory?: Record<string, ConnectedAgentTool>;
     unavailableMcpServers: UnavailableMcpServer[];
     closeMcpClients: () => Promise<void>;
 };
@@ -1713,6 +1715,7 @@ export const withAgentToolPermissions = (
     tools: ToolSet,
     dependencies: Pick<AiAgentDependencies, 'assertToolOperation'>,
     connectedToolNames: ReadonlySet<string>,
+    connectedToolInventory: Readonly<Record<string, ConnectedAgentTool>> = {},
 ): ToolSet =>
     Object.fromEntries(
         Object.entries(tools).map(([key, definition]) => {
@@ -1725,10 +1728,18 @@ export const withAgentToolPermissions = (
                     ...definition,
                     execute: async (input: AnyType, options: AnyType) => {
                         try {
-                            await dependencies.assertToolOperation(
-                                connected ? 'connected_mcp_tool' : 'agent_tool',
-                                key,
-                            );
+                            if (connected) {
+                                await dependencies.assertToolOperation(
+                                    'connected_mcp_tool',
+                                    key,
+                                    connectedToolInventory[key],
+                                );
+                            } else {
+                                await dependencies.assertToolOperation(
+                                    'agent_tool',
+                                    key,
+                                );
+                            }
                         } catch (error) {
                             if (!(error instanceof AiAccessRefusedError))
                                 throw error;
@@ -2441,6 +2452,7 @@ export const getAgentTools = (
         finalTools,
         dependencies,
         new Set(mcpToolNames),
+        mcpToolSetup.connectedToolInventory,
     );
 };
 

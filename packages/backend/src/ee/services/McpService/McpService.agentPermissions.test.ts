@@ -1,10 +1,14 @@
 import {
     AGENT_PILOT_CAPABILITIES,
     AgentActorSurface,
+    AgentCapability,
     AiAccessRefusalReason,
+    ForbiddenError,
     OrganizationMemberRole,
     type AgentCapabilityPolicy,
 } from '@lightdash/common';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import {
     fromApiKey,
     fromOauth,
@@ -17,6 +21,12 @@ import {
     agentSystemRoleMatrix,
 } from '../../../services/AgentPermissionService/AgentPermissionService';
 import { McpService } from './McpService';
+import { makeMcpServerOptions } from './McpService.mock';
+
+vi.mock('@sentry/node', () => ({
+    getActiveSpan: () => undefined,
+    wrapMcpServerWithSentry: (server: unknown) => server,
+}));
 
 const projectUuid = 'allowed-project';
 
@@ -317,3 +327,234 @@ test.each(['off', 'legacy'] as const)(
         expect(getContext).not.toHaveBeenCalled();
     },
 );
+
+const setupResourceProtocol = async () => {
+    const fixture = setup();
+    const getMyAccess = vi.fn().mockResolvedValue({
+        refusal: null,
+        identity: 'connected_person',
+        expiresAt: null,
+    });
+    const getMcpSkillResourceBody = vi.fn().mockResolvedValue('built-in body');
+    const service = new McpService({
+        lightdashConfig: {
+            mcp: { runSqlMaxLimit: 500 },
+            siteUrl: 'https://example.com',
+        },
+        mcpContextModel: { getContext: fixture.getContext },
+        projectService: fixture.service['projectService'],
+        aiAccessService: { getMyAccess },
+        aiAgentSkillService: {
+            listMcpSkills: vi.fn().mockResolvedValue([
+                {
+                    name: 'custom-skill',
+                    title: 'Custom skill',
+                    description: 'Private skill',
+                    content: {
+                        files: {
+                            'SKILL.md': 'private skill body',
+                            'resources/guide.md': 'private resource body',
+                        },
+                    },
+                    parsed: {
+                        frontmatter: {},
+                        resources: [
+                            {
+                                fileName: 'guide.md',
+                                name: 'Guide',
+                                description: 'Private guide',
+                            },
+                        ],
+                    },
+                    currentVersion: { contentHash: 'digest' },
+                },
+            ]),
+        },
+        aiAgentToolsService: {
+            listMcpSkillResources: vi.fn().mockResolvedValue([
+                {
+                    name: 'built-in',
+                    uri: 'skill://built-in/SKILL.md',
+                    mimeType: 'text/markdown',
+                },
+            ]),
+            getMcpSkillResourceBody,
+        },
+    } as unknown as ConstructorParameters<typeof McpService>[0]);
+    const options = makeMcpServerOptions({ agentIdentityEnabled: true });
+    options.req.user = fixture.extra.authInfo.extra.user;
+    options.req.account = fixture.extra.authInfo.extra.account;
+    const server = await service.createServer(options);
+    const client = new Client({ name: 'resource-permissions', version: '1' });
+    const [clientTransport, serverTransport] =
+        InMemoryTransport.createLinkedPair();
+    const send = clientTransport.send.bind(clientTransport);
+    clientTransport.send = (message, sendOptions) =>
+        send(message, {
+            ...sendOptions,
+            authInfo: {
+                ...fixture.extra.authInfo,
+                token: 'token',
+                clientId: 'client',
+                scopes: ['mcp:read'],
+            },
+        });
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+    return { ...fixture, client, getMyAccess, getMcpSkillResourceBody };
+};
+
+const resourceUris = [
+    'skill://custom/custom-skill/SKILL.md',
+    'skill://custom/custom-skill/resources/guide.md',
+    'skill://custom/index.json',
+    'skill://built-in/SKILL.md',
+    `lightdash://projects/${projectUuid}/agent-status`,
+];
+
+describe('MCP resource protocol permissions', () => {
+    test.each(resourceUris)('refuses %s without discovery', async (uri) => {
+        const { client, policy, deps } = await setupResourceProtocol();
+        policy.systemRoleMatrix = agentSystemRoleMatrix([
+            AgentCapability.Query,
+        ]);
+        try {
+            await expect(client.readResource({ uri })).rejects.toMatchObject({
+                data: {
+                    refusal: {
+                        reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                    },
+                },
+            });
+            expect(deps.agentActionLogModel.insert).toHaveBeenCalledOnce();
+        } finally {
+            await client.close();
+        }
+    });
+
+    test.each(resourceUris)(
+        'refuses %s when agent access is disabled',
+        async (uri) => {
+            const { client, deps } = await setupResourceProtocol();
+            deps.getOrganizationSettings.mockResolvedValue({
+                mcpAgentsEnabled: false,
+                mcpContentWritesEnabled: true,
+            });
+            try {
+                await expect(
+                    client.readResource({ uri }),
+                ).rejects.toMatchObject({
+                    data: {
+                        refusal: {
+                            reason: AiAccessRefusalReason.AGENT_ACCESS_DISABLED,
+                        },
+                    },
+                });
+            } finally {
+                await client.close();
+            }
+        },
+    );
+
+    test.each(resourceUris)('allows %s with discovery', async (uri) => {
+        const { client } = await setupResourceProtocol();
+        try {
+            expect((await client.readResource({ uri })).contents).toEqual([
+                expect.objectContaining({ uri, text: expect.any(String) }),
+            ]);
+        } finally {
+            await client.close();
+        }
+    });
+
+    test('refuses status for a project outside the ceiling before fetching status', async () => {
+        const { client, getMyAccess } = await setupResourceProtocol();
+        try {
+            await expect(
+                client.readResource({
+                    uri: 'lightdash://projects/forbidden-project/agent-status',
+                }),
+            ).rejects.toMatchObject({
+                data: {
+                    refusal: {
+                        reason: AiAccessRefusalReason.AGENT_PROJECT_DENIED,
+                    },
+                },
+            });
+            expect(getMyAccess).not.toHaveBeenCalled();
+        } finally {
+            await client.close();
+        }
+    });
+
+    test('checks the current project again on each custom resource read', async () => {
+        const { client, getContext } = await setupResourceProtocol();
+        const uri = 'skill://custom/custom-skill/SKILL.md';
+        try {
+            await expect(client.readResource({ uri })).resolves.toMatchObject({
+                contents: [{ uri, text: 'private skill body' }],
+            });
+            getContext.mockResolvedValue({
+                context: { projectUuid: 'forbidden-project' },
+            });
+            await expect(client.readResource({ uri })).rejects.toMatchObject({
+                data: {
+                    refusal: {
+                        reason: AiAccessRefusalReason.AGENT_PROJECT_DENIED,
+                    },
+                },
+            });
+        } finally {
+            await client.close();
+        }
+    });
+
+    test('retains the original project denial before status permissions', async () => {
+        const { client, service, assertOperation, getMyAccess } =
+            await setupResourceProtocol();
+        vi.mocked(service['projectService'].getProject).mockRejectedValue(
+            new ForbiddenError('You do not have access to this project'),
+        );
+        try {
+            await expect(
+                client.readResource({
+                    uri: `lightdash://projects/${projectUuid}/agent-status`,
+                }),
+            ).rejects.toThrow('You do not have access to this project');
+            expect(assertOperation).not.toHaveBeenCalled();
+            expect(getMyAccess).not.toHaveBeenCalled();
+        } finally {
+            await client.close();
+        }
+    });
+
+    test.each(['off', 'legacy'] as const)(
+        '%s preserves resource responses',
+        async (mode) => {
+            const { client, deps, policy, assertOperation } =
+                await setupResourceProtocol();
+            if (mode === 'off')
+                deps.featureFlagModel.get.mockResolvedValue({ enabled: false });
+            else policy.mode = 'legacy';
+            policy.systemRoleMatrix = agentSystemRoleMatrix([]);
+            try {
+                await Promise.all(
+                    resourceUris.map(async (uri) => {
+                        expect(
+                            (await client.readResource({ uri })).contents,
+                        ).toEqual([
+                            expect.objectContaining({
+                                uri,
+                                text: expect.any(String),
+                            }),
+                        ]);
+                    }),
+                );
+                expect(assertOperation).not.toHaveBeenCalled();
+                expect(deps.agentActionLogModel.insert).not.toHaveBeenCalled();
+            } finally {
+                await client.close();
+            }
+        },
+    );
+});

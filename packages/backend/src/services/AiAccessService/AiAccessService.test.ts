@@ -33,7 +33,11 @@ import {
 } from '@lightdash/common';
 import { exchangeDatabricksOAuthCredentials } from '@lightdash/warehouses';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
-import { fromServiceAccount } from '../../auth/account/account';
+import {
+    fromOauth,
+    fromServiceAccount,
+    toSessionUser,
+} from '../../auth/account/account';
 import { buildAccount } from '../../auth/account/account.mock';
 import { snowflakeOAuthRefreshClient as refresh } from '../../auth/snowflakeOAuthRefresh';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
@@ -41,6 +45,7 @@ import { type LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import * as auditLogger from '../../logging/winston';
 import { withCause } from '../../logging/withCause';
+import { AgentCapabilityPolicyModel } from '../../models/AgentCapabilityPolicyModel';
 import {
     type AiServiceAccountCredentialsModel,
     type AiServiceAccountSecrets,
@@ -891,6 +896,51 @@ describe('AiAccessService', () => {
         admin.user.ability = new Ability<PossibleAbilities>([
             { action: 'manage', subject: 'Organization' },
         ]);
+
+        test('refuses managed OAuth identity changes even with human admin access', async () => {
+            const { service, organizationSettings, organizationRules } =
+                setup();
+            const policy = vi
+                .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
+                .mockResolvedValue({
+                    mode: 'managed',
+                    version: 1,
+                    allowedProjectUuids: null,
+                    systemRoleMatrix: {} as never,
+                });
+            const oauth = fromOauth(toSessionUser(admin), {
+                accessToken: 'token',
+                client: { id: 'agent' },
+            });
+            const expected = {
+                refusal: {
+                    reason: 'agent_capability_denied',
+                    settingsUrl: '/generalSettings/agentIdentity',
+                },
+            };
+            await expect(
+                service.updateOrganizationSettings(oauth, {
+                    requireVerifiedAgentSessions: false,
+                }),
+            ).rejects.toMatchObject(expected);
+            await expect(
+                service.updateOrganizationRule(
+                    oauth,
+                    WarehouseTypes.SNOWFLAKE,
+                    { source: 'marked_person' } as never,
+                ),
+            ).rejects.toMatchObject(expected);
+            await expect(
+                service.saveSnowflakeAgentClient(oauth, {
+                    accountUrl: 'https://account.snowflakecomputing.com',
+                    clientId: 'client',
+                    clientSecret: 'secret',
+                }),
+            ).rejects.toMatchObject(expected);
+            expect(organizationSettings.upsert).not.toHaveBeenCalled();
+            expect(organizationRules.set).not.toHaveBeenCalled();
+            policy.mockRestore();
+        });
 
         test.each([
             { previousRequired: false, required: true },

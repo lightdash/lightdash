@@ -19,6 +19,10 @@ export class OrganizationAgentIdentitySettingsModel {
 
     private readonly rulesModel: OrganizationAgentIdentityRulesModel;
 
+    get db(): Knex {
+        return this.database;
+    }
+
     constructor({
         database,
         rulesModel,

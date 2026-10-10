@@ -36,6 +36,7 @@ import {
     getAthenaServiceAccountTestErrorMessage,
     getUserPasswordServiceAccountTestErrorMessage,
 } from '../../utils/aiServiceAccountErrors';
+import { assertHumanManagedMutation } from '../AgentPermissionService/assertHumanManagedMutation';
 import { BaseService } from '../BaseService';
 import { type ProjectService } from '../ProjectService/ProjectService';
 import {
@@ -301,6 +302,13 @@ export class AiServiceAccountService extends BaseService {
         connectionUuid: string | null,
         input: AiServiceAccountCredentialInput,
     ): Promise<Omit<ApiAiServiceAccountSaveResponse, 'status'>> {
+        await assertHumanManagedMutation({
+            organizationUuid: account.organization.organizationUuid,
+            ability: account.user.ability,
+            oauth: account.authentication.type === 'oauth',
+            database: this.deps.aiServiceAccountCredentialsModel.db,
+            featureFlagModel: this.deps.featureFlagModel,
+        });
         const {
             connection,
             warehouseConnectionUuid,
@@ -408,6 +416,13 @@ export class AiServiceAccountService extends BaseService {
         projectUuid: string,
         connectionUuid: string | null,
     ): Promise<void> {
+        await assertHumanManagedMutation({
+            organizationUuid: account.organization.organizationUuid,
+            ability: account.user.ability,
+            oauth: account.authentication.type === 'oauth',
+            database: this.deps.aiServiceAccountCredentialsModel.db,
+            featureFlagModel: this.deps.featureFlagModel,
+        });
         const {
             connection,
             warehouseConnectionUuid,

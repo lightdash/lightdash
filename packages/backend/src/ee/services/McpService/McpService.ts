@@ -2327,12 +2327,20 @@ export class McpService extends BaseService {
     private async getAgentConnectionStatus(
         ctx: McpProtocolContext,
         requestedProjectUuid: string,
+        resourceRequest = false,
     ) {
         const { account } = McpService.getAccount(ctx);
         const projectUuid = await this.resolveToolProjectUuid(
             ctx,
             requestedProjectUuid,
         );
+        if (resourceRequest) {
+            await this.assertAgentResourceAllowed(
+                ctx,
+                McpToolName.CONNECT_AGENT,
+                { projectUuid },
+            );
+        }
         const access = await this.aiAccessService.getMyAccess(
             account,
             projectUuid,
@@ -2448,6 +2456,7 @@ export class McpService extends BaseService {
                     const status = await this.getAgentConnectionStatus(
                         getMcpContext(extra),
                         requestedProjectUuid,
+                        true,
                     );
                     return {
                         contents: [
@@ -4905,7 +4914,11 @@ export class McpService extends BaseService {
                         mimeType: resource.mimeType,
                         size: resource.size,
                     },
-                    async () => {
+                    async (_uri, extra) => {
+                        await this.assertAgentResourceAllowed(
+                            getMcpContext(extra),
+                            McpToolName.READ_SKILL_RESOURCE,
+                        );
                         const text =
                             await this.aiAgentToolsService.getMcpSkillResourceBody(
                                 resource.uri,
@@ -5289,15 +5302,21 @@ export class McpService extends BaseService {
                         mimeType: resource.mimeType,
                         size: resource.size,
                     },
-                    async () => ({
-                        contents: [
-                            {
-                                uri: resource.uri,
-                                mimeType: resource.mimeType,
-                                text: body,
-                            },
-                        ],
-                    }),
+                    async (_uri, extra) => {
+                        await this.assertAgentResourceAllowed(
+                            getMcpContext(extra),
+                            McpToolName.READ_SKILL_RESOURCE,
+                        );
+                        return {
+                            contents: [
+                                {
+                                    uri: resource.uri,
+                                    mimeType: resource.mimeType,
+                                    text: body,
+                                },
+                            ],
+                        };
+                    },
                 );
             });
             if (custom.length > 0) {
@@ -5326,15 +5345,21 @@ export class McpService extends BaseService {
                         mimeType: 'application/json',
                         size: Buffer.byteLength(index, 'utf8'),
                     },
-                    async () => ({
-                        contents: [
-                            {
-                                uri: 'skill://custom/index.json',
-                                mimeType: 'application/json',
-                                text: index,
-                            },
-                        ],
-                    }),
+                    async (_uri, extra) => {
+                        await this.assertAgentResourceAllowed(
+                            getMcpContext(extra),
+                            McpToolName.READ_SKILL_RESOURCE,
+                        );
+                        return {
+                            contents: [
+                                {
+                                    uri: 'skill://custom/index.json',
+                                    mimeType: 'application/json',
+                                    text: index,
+                                },
+                            ],
+                        };
+                    },
                 );
             }
         } catch (error) {
@@ -5413,6 +5438,25 @@ export class McpService extends BaseService {
                 return { objectType: 'ai_writeback_run', action: 'enqueue' };
             default:
                 return null;
+        }
+    }
+
+    private async assertAgentResourceAllowed(
+        context: McpProtocolContext,
+        toolName: McpToolName,
+        toolArgs: object = {},
+    ): Promise<void> {
+        try {
+            await this.assertAgentToolAllowed(context, toolName, toolArgs);
+        } catch (error) {
+            if (!(error instanceof AiAccessRefusedError)) throw error;
+            throw new McpError(
+                ErrorCode.InvalidRequest,
+                error.refusal.message,
+                {
+                    refusal: error.refusal,
+                },
+            );
         }
     }
 

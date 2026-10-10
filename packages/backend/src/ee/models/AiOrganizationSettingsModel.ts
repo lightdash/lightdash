@@ -236,6 +236,10 @@ export class AiOrganizationSettingsModel {
 
     private encryptionUtil: EncryptionUtil;
 
+    get db(): Knex {
+        return this.database;
+    }
+
     constructor(dependencies: Dependencies) {
         this.database = dependencies.database;
         this.encryptionUtil = dependencies.encryptionUtil;

@@ -360,7 +360,7 @@ const AGENT_RUNTIME_TOOL_NAMES = {
     generateDataApp: 'generateDataApp',
     iterateDataApp: 'iterateDataApp',
     listDataAppThemes: 'listDataAppThemes',
-    validateContent: 'createContent',
+    validateContent: null,
     listKnowledgeDocuments: 'listKnowledgeDocuments',
     getKnowledgeDocumentContent: 'getKnowledgeDocumentContent',
     getSavedChart: 'readContent',

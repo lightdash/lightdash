@@ -41,6 +41,7 @@ import { CoderService } from '../../../services/CoderService/CoderService';
 import { PromoteService } from '../../../services/PromoteService/PromoteService';
 import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { getDescribeWarehouseTable } from '../ai/tools/describeWarehouseTable';
+import { getRunContentQuery } from '../ai/tools/runContentQuery';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
 import type { DataAppReadSource } from '../AppGenerateService/AppGenerateService';
 import {
@@ -163,7 +164,9 @@ const makeService = ({
     savedSqlService?: Record<string, unknown> | SavedSqlService;
     asyncQueryService?: Record<string, unknown>;
     coderService?: Record<string, unknown>;
-    aiAgentContentValidation?: Record<string, unknown>;
+    aiAgentContentValidation?:
+        | Record<string, unknown>
+        | AiAgentContentValidation;
     scheduleCompileProject?: import('vitest').Mock;
     jobModel?: Record<string, unknown>;
     aiAgentDocumentModel?: Record<string, unknown>;
@@ -5213,7 +5216,56 @@ test.each([
     },
 );
 
-test('gates every runtime operation before its implementation runs', async () => {
+test.each(['off', 'legacy', 'query-only managed'])(
+    'content query catches synchronous validation errors in %s mode',
+    async (mode) => {
+        const assertOperation = vi.fn().mockImplementation(async ({ key }) => {
+            if (key !== 'runQuery') {
+                throw new AiAccessRefusedError(
+                    AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                );
+            }
+        });
+        const executeAsyncQuery = vi.fn();
+        const runtime = makeService({
+            agentPermissionService: {
+                assertOperation,
+                isManaged: vi
+                    .fn()
+                    .mockResolvedValue(mode === 'query-only managed'),
+            },
+            aiAgentContentValidation: new AiAgentContentValidation(),
+            asyncQueryService: { executeAsyncQuery },
+        }).createRuntime(makeRuntimeContext());
+        const tool = getRunContentQuery({
+            ...runtime,
+            updateProgress: vi.fn().mockResolvedValue(undefined),
+            maxLimit: 100,
+            maxContextRows: 10,
+            enableDataAccess: true,
+        });
+        const result = await tool.execute!(
+            {
+                source: {
+                    type: 'metricQuery',
+                    tableName: 'orders',
+                    metricQuery: { dimensions: 'invalid' },
+                },
+            } as unknown as Parameters<NonNullable<typeof tool.execute>>[0],
+            { toolCallId: 'validation', messages: [], context: {} },
+        );
+        expect(result).toMatchObject({
+            metadata: { status: 'error' },
+            result: expect.stringContaining(
+                '/metricQuery/dimensions must be array',
+            ),
+        });
+        expect(assertOperation).not.toHaveBeenCalled();
+        expect(executeAsyncQuery).not.toHaveBeenCalled();
+    },
+);
+
+test('gates effectful runtime operations before their implementations run', async () => {
     const refusal = new AiAccessRefusedError(
         AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
     );
@@ -5227,7 +5279,12 @@ test('gates every runtime operation before its implementation runs', async () =>
     const runtime = service.createRuntime(makeRuntimeContext());
     await Promise.all(
         Object.entries(runtime)
-            .filter(([name]) => name !== 'recordSqlChartRefusal')
+            .filter(
+                ([name]) =>
+                    !['recordSqlChartRefusal', 'validateContent'].includes(
+                        name,
+                    ),
+            )
             .map(([, execute]) =>
                 expect(
                     (execute as (args: unknown) => Promise<unknown>)({}),
@@ -5235,7 +5292,7 @@ test('gates every runtime operation before its implementation runs', async () =>
             ),
     );
     expect(assertOperation).toHaveBeenCalledTimes(
-        Object.keys(runtime).length - 1,
+        Object.keys(runtime).length - 2,
     );
     for (const key of [
         'createScheduledDelivery',

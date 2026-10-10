@@ -697,6 +697,52 @@ describe('resolveMcpTools', () => {
         },
     );
 
+    it('keeps original tool approvals tied to server UUIDs across namespace collisions', async () => {
+        const servers = [
+            getMcpServer({
+                uuid: 'approved',
+                name: 'Docs MCP',
+                enabledToolNames: ['search'],
+            }),
+            getMcpServer({
+                uuid: 'dynamic',
+                name: 'Docs MCP',
+                enabledToolNames: undefined,
+            }),
+        ];
+        vi.mocked(mcpSdk.createMCPClient).mockResolvedValue({
+            serverInfo: { name: 'Docs MCP', version: '1' },
+            tools: async () => ({
+                search: { description: 'search tool' },
+                new_tool: { description: 'new tool' },
+            }),
+            close: vi.fn().mockResolvedValue(undefined),
+        } as unknown as MCPClient);
+        const result = await runtimeClient.resolveTools({
+            mcpServers: servers,
+            userUuid: 'user',
+            debugLoggingEnabled: false,
+        });
+        expect(result.connectedToolInventory).toEqual({
+            mcp_docs_mcp__search: {
+                serverUuid: 'approved',
+                toolName: 'search',
+                enabledToolNames: ['search'],
+            },
+            mcp_docs_mcp__search_2: {
+                serverUuid: 'dynamic',
+                toolName: 'search',
+                enabledToolNames: null,
+            },
+            mcp_docs_mcp__new_tool: {
+                serverUuid: 'dynamic',
+                toolName: 'new_tool',
+                enabledToolNames: null,
+            },
+        });
+        await result.closeMcpClients();
+    });
+
     it('classifies an unknown setup error only for copy, preserving the OAuth status', async () => {
         const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
             Response.json({

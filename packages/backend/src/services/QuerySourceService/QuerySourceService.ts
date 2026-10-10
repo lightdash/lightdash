@@ -1,6 +1,8 @@
 import { subject } from '@casl/ability';
 import {
+    AgentActorSurface,
     assertIsAccountWithOrg,
+    assertRegisteredAccount,
     FeatureFlags,
     ForbiddenError,
     ParameterError,
@@ -19,6 +21,8 @@ import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlag
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { personaliseStoredSharedSignInError } from '../../utils/sharedSignInExpiry';
+import type { AgentPermissionService } from '../AgentPermissionService/AgentPermissionService';
+import { agentExecutionContext } from '../AiAccessService/agentExecutionContext';
 import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
 import { BaseService } from '../BaseService';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
@@ -34,6 +38,10 @@ export type InternalSourceQuerySubmission = SourceQuerySubmission &
     Pick<SourceQuerySubmissionResult, 'cacheHit'>;
 
 type QuerySourceServiceArguments = {
+    getAgentPermissionService: () => Pick<
+        AgentPermissionService,
+        'isManaged' | 'assertOperation'
+    >;
     projectModel: ProjectModel;
     queryHistoryModel: QueryHistoryModel;
     featureFlagModel: FeatureFlagModel;
@@ -77,12 +85,36 @@ export class QuerySourceService extends BaseService {
 
     private readonly registry: QuerySourceRegistry;
 
+    private readonly getAgentPermissionService: QuerySourceServiceArguments['getAgentPermissionService'];
+
     constructor(args: QuerySourceServiceArguments) {
         super({ serviceName: 'QuerySourceService' });
         this.projectModel = args.projectModel;
         this.queryHistoryModel = args.queryHistoryModel;
         this.featureFlagModel = args.featureFlagModel;
         this.registry = args.registry;
+        this.getAgentPermissionService = args.getAgentPermissionService;
+    }
+
+    private async assertAgentSqlAccess(
+        account: Account,
+        projectUuid: string,
+    ): Promise<void> {
+        const execution = agentExecutionContext.getStore();
+        if (account.authentication.type !== 'oauth' && !execution) return;
+        assertIsAccountWithOrg(account);
+        const { organizationUuid } = account.organization;
+        const permissionService = this.getAgentPermissionService();
+        if (!(await permissionService.isManaged(organizationUuid))) return;
+        assertRegisteredAccount(account);
+        await permissionService.assertOperation({
+            account,
+            organizationUuid,
+            projectUuid,
+            kind: 'agent_tool',
+            key: 'runSql',
+            surface: execution?.surface ?? AgentActorSurface.MCP,
+        });
     }
 
     private async throwIfMultiSourceQueryDisabled(
@@ -149,6 +181,9 @@ export class QuerySourceService extends BaseService {
     ): Promise<ApiScanQuerySourceSchemaResults> {
         await this.throwIfMultiSourceQueryDisabled(account);
         const source = this.registry.get(sourceType);
+        if (source.definition.sourceType === QuerySourceType.SQL) {
+            await this.assertAgentSqlAccess(account, projectUuid);
+        }
         return source.scanSchema({ account, projectUuid });
     }
 
@@ -353,6 +388,14 @@ export class QuerySourceService extends BaseService {
     }): Promise<{ queries: InternalSourceQuerySubmission[] }> {
         const ordered = this.validateQueries(queries, plans);
         QuerySourceService.assertPlansNameDuckdbNodes(ordered, plans);
+        if (
+            ordered.some(
+                ({ source }) =>
+                    source.definition.sourceType === QuerySourceType.SQL,
+            )
+        ) {
+            await this.assertAgentSqlAccess(account, projectUuid);
+        }
 
         // nodeId -> queryUuid, grown as submissions happen so later queries'
         // node-id references resolve

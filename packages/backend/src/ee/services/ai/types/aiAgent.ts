@@ -27,6 +27,7 @@ import {
     AiUsageChannel,
     type AiUsageTokens,
 } from '../../../../analytics/aiUsage';
+import type { ConnectedAgentTool } from '../../../../services/AgentPermissionService/AgentPermissionService';
 import type { AiMcpCredentialPayload } from '../../../models/AiAgentModel';
 import type {
     AiDecisionClient,
@@ -344,6 +345,7 @@ export type AiAgentDependencies = {
     assertToolOperation: (
         kind: 'agent_tool' | 'connected_mcp_tool',
         key: string,
+        connectedTool?: ConnectedAgentTool,
     ) => Promise<void>;
     onAiAccessRefusal?: OnAiAccessRefusal;
     chartExportArtifacts?: ArtifactChartExportAccess;

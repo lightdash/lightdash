@@ -23,10 +23,7 @@ import {
     type RegisteredAccount,
     type UUID,
 } from '@lightdash/common';
-import {
-    getRequiredAgentCapabilities,
-    type RequiredAgentCapabilities,
-} from '../../auth/agentPermissions/capabilityMap';
+import { getRequiredAgentCapabilities } from '../../auth/agentPermissions/capabilityMap';
 import { getOAuthScopeContext } from '../../auth/oauthScopes/scopedAbility';
 import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 import { type AgentCapabilityPolicyModel } from '../../models/AgentCapabilityPolicyModel';
@@ -50,7 +47,7 @@ export interface ResolvedAgentPolicy {
 }
 
 export interface AgentPolicyEvaluation {
-    requiredCapabilities: RequiredAgentCapabilities | null;
+    requiredCapabilities: readonly AgentCapability[] | null;
     projectUuid: string | null;
     mcpAgentsEnabled: boolean;
     mcpContentWritesEnabled: boolean;
@@ -141,6 +138,7 @@ export const evaluate = (
 };
 
 export type AgentPermissionOperationKind =
+    | 'agent_turn'
     | 'mcp_tool'
     | 'agent_tool'
     | 'rest_operation'
@@ -158,6 +156,7 @@ const ORGANIZATION_DISCOVERY_OPERATIONS: Record<
         'get_current_project',
     ],
     agent_tool: ['listProjects'],
+    agent_turn: [],
     connected_mcp_tool: [],
     rest_operation: [
         'UserController.getAccount',
@@ -188,8 +187,11 @@ const ORGANIZATION_DISCOVERY_OPERATIONS: Record<
 const requiredCapabilitiesForOperation = (
     kind: AgentPermissionOperationKind,
     key: string,
-): RequiredAgentCapabilities | null => {
+    connectedTool: ConnectedAgentTool | undefined,
+): readonly AgentCapability[] | null => {
     switch (kind) {
+        case 'agent_turn':
+            return key === 'agent_turn' ? [] : null;
         case 'mcp_tool':
             return getRequiredAgentCapabilities('mcp', key);
         case 'agent_tool':
@@ -197,7 +199,10 @@ const requiredCapabilitiesForOperation = (
         case 'rest_operation':
             return getRequiredAgentCapabilities('rest', key);
         case 'connected_mcp_tool':
-            return [AgentCapability.ExternalTools];
+            return connectedTool?.serverUuid &&
+                connectedTool.enabledToolNames?.includes(connectedTool.toolName)
+                ? [AgentCapability.ExternalTools]
+                : null;
         default:
             return assertUnreachable(kind, 'Unknown agent operation kind');
     }
@@ -209,7 +214,14 @@ interface ResolvePolicyArgs {
     projectUuid: string | null;
 }
 
+export interface ConnectedAgentTool {
+    serverUuid: string;
+    toolName: string;
+    enabledToolNames: readonly string[] | null;
+}
+
 interface AssertOperationArgs extends ResolvePolicyArgs {
+    connectedTool?: ConnectedAgentTool;
     kind: AgentPermissionOperationKind;
     key: string;
     surface: AgentActorSurface;
@@ -397,6 +409,7 @@ export class AgentPermissionService extends BaseService {
         const requiredCapabilities = requiredCapabilitiesForOperation(
             args.kind,
             args.key,
+            args.connectedTool,
         );
         const settings = await this.deps.getOrganizationSettings(
             args.organizationUuid,

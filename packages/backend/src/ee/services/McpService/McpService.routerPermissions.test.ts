@@ -9,7 +9,6 @@ import {
     fromApiKey,
     fromOauth,
     fromServiceAccount,
-    fromSession,
 } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import mcpRouter from '../../../routers/mcpRouter';
@@ -34,7 +33,6 @@ const accounts = {
             scope: ['mcp:read', 'mcp:write'],
             client: { id: 'client' },
         }),
-    session: () => fromSession(user),
     pat: () => fromApiKey(user, 'token'),
     'service-account': () =>
         fromServiceAccount(
@@ -48,7 +46,7 @@ const accounts = {
 
 beforeEach(() => vi.clearAllMocks());
 
-test.each(['oauth', 'session', 'pat', 'service-account'] as const)(
+test.each(['oauth', 'pat', 'service-account'] as const)(
     'router supplies trusted per-call context for %s',
     async (authentication) => {
         const account = accounts[authentication]();
@@ -117,7 +115,7 @@ test.each(['oauth', 'session', 'pat', 'service-account'] as const)(
         );
         expect(response.status).not.toHaveBeenCalled();
         expect(transport.handleRequest).toHaveBeenCalledOnce();
-        if (authentication === 'oauth' || authentication === 'session') {
+        if (authentication === 'oauth') {
             expect(result).toMatchObject({
                 isError: true,
                 structuredContent: { refusal: refusal.refusal },

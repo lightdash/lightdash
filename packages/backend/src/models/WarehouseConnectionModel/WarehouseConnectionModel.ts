@@ -437,6 +437,9 @@ export class WarehouseConnectionModel {
             .where('is_original', false)
             .update({
                 ...this.toCredentialColumns(source),
+                connection_credential_generation: this.database.raw('?? + 1', [
+                    'connection_credential_generation',
+                ]),
                 updated_at: this.database.fn.now(),
             });
     }

@@ -327,6 +327,8 @@ export class OrganizationWarehouseCredentialsModel {
             }
 
             if (data.credentials) {
+                updateData.organization_credential_generation =
+                    existing.organization_credential_generation + 1;
                 updateData.warehouse_type = data.credentials.type;
                 updateData.warehouse_connection = this.encryptionUtil.encrypt(
                     OrganizationWarehouseCredentialsModel.stringifyCredentials(

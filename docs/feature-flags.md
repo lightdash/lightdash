@@ -243,9 +243,29 @@ it leaves custom roles unchanged. The organization agent switch bounds all
 managed agent operations, and the content-write switch bounds content writes.
 Raw SQL additionally needs an admin confirmation for the current warehouse
 binding. The binding fingerprint uses non-secret routing and identity metadata,
-credential generations and database row versions. Credential refreshes can also
-invalidate a confirmation. This records an admin assurance, not a verification
-of warehouse-side permissions. Entry-point enforcement is integrated separately.
+including project and preview-parent links, connection modes, IDs and warehouse types,
+shared-credential links, credential-subject and preview-ownership fields,
+service-account identity slots, organization identity rules, Snowflake client
+versions and credential generations. Separate generation counters on project,
+shared organization and extra-connection credentials change on credential
+replacement, including preview credential copies. Replacing credentials on the
+same connection UUID therefore requires a new confirmation. Token refresh,
+compilation and unrelated project edits do not change these counters. The
+fingerprint does not hash tokens or encrypted credential payloads and does not
+use generic row timestamps. Confirmation records an admin assurance; it does not
+verify warehouse-side permissions.
+
+The ceiling applies to MCP tools and resource reads, in-app and Slack agent tools
+and fast data paths, and OAuth REST operations. SQL nodes in mixed-source
+pipelines and SQL-source schema scans require the raw-SQL grant and current
+confirmation before dispatch or cache access. Semantic-only pipelines require
+the query grant. Connected MCP tools also require `external_tools` and an
+explicit entry in that server's `enabledToolNames`, matched by server UUID and
+original tool name. A null tool list does not admit tools in managed mode.
+Personal-access-token and browser-session REST calls are not narrowed. Existing
+browser-session MCP authentication behavior is unchanged. Managed OAuth and
+agent execution contexts cannot change role grants, role assignments or agent
+identity and AI-access configuration through the existing administration APIs.
 
 ### Snowflake silent agent refresh
 

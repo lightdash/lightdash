@@ -13,7 +13,7 @@ import {
 } from '../../../../services/AgentPermissionService/AgentPermissionService';
 import type { AiAgentArgs, AiAgentDependencies } from '../types/aiAgent';
 import { AgentContext } from '../utils/AgentContext';
-import { getAgentTools } from './agentV2';
+import { getAgentTools, withAgentToolPermissions } from './agentV2';
 
 const setup = () => {
     const account = buildAccount();
@@ -58,7 +58,7 @@ const setup = () => {
         }),
         agentActionLogModel: { insert: vi.fn() },
     });
-    const assertToolOperation = vi.fn((kind, key) =>
+    const assertToolOperation = vi.fn((kind, key, connectedTool) =>
         permissionService.assertOperation({
             account,
             organizationUuid: account.organization.organizationUuid!,
@@ -66,6 +66,7 @@ const setup = () => {
             surface: AgentActorSurface.IN_APP_AGENT,
             kind,
             key,
+            connectedTool,
         }),
     );
     const runSqlJob = vi.fn().mockResolvedValue({
@@ -98,6 +99,11 @@ const setup = () => {
         runSqlMaxLimit: 500,
     } as unknown as AiAgentArgs;
     const connectedExecute = vi.fn().mockResolvedValue({ result: 'connected' });
+    const connectedTool = {
+        serverUuid: 'server',
+        toolName: 'search',
+        enabledToolNames: ['search'] as string[] | null,
+    };
     const buildTools = () =>
         getAgentTools(
             args,
@@ -108,6 +114,7 @@ const setup = () => {
                     connected_search: { execute: connectedExecute } as never,
                 },
                 mcpToolNameToServerUuid: { connected_search: 'server' },
+                connectedToolInventory: { connected_search: connectedTool },
                 unavailableMcpServers: [],
                 closeMcpClients: vi.fn(),
             },
@@ -124,6 +131,7 @@ const setup = () => {
         runSqlJob,
         args,
         connectedExecute,
+        connectedTool,
         buildTools,
     };
 };
@@ -206,6 +214,7 @@ test('connected tools require external_tools and recheck revocation', async () =
     expect(h.assertToolOperation).toHaveBeenCalledWith(
         'connected_mcp_tool',
         'connected_search',
+        h.connectedTool,
     );
 });
 
@@ -240,4 +249,57 @@ test('Deep Research delegation is checked at execution', async () => {
         'agent_tool',
         'delegateResearchTask',
     );
+});
+
+test.each([null, [], ['different_tool']])(
+    'connected tools without explicit approval are unmapped: %j',
+    async (enabledToolNames) => {
+        const h = setup();
+        h.policy.systemRoleMatrix.viewer = [AgentCapability.ExternalTools];
+        h.connectedTool.enabledToolNames = enabledToolNames;
+        await expect(
+            executeTool(h.buildTools().connected_search),
+        ).resolves.toMatchObject({
+            structuredContent: {
+                refusal: {
+                    reason: AiAccessRefusalReason.AGENT_OPERATION_UNMAPPED,
+                },
+            },
+        });
+        expect(h.connectedExecute).not.toHaveBeenCalled();
+    },
+);
+
+test('a namespace collision cannot inherit another server approval', async () => {
+    const h = setup();
+    h.policy.systemRoleMatrix.viewer = [AgentCapability.ExternalTools];
+    const approved = vi.fn().mockResolvedValue('approved');
+    const unlisted = vi.fn();
+    const tools = withAgentToolPermissions(
+        {
+            mcp_docs__search: { execute: approved } as never,
+            mcp_docs__search_2: { execute: unlisted } as never,
+        },
+        { assertToolOperation: h.assertToolOperation },
+        new Set(['mcp_docs__search', 'mcp_docs__search_2']),
+        {
+            mcp_docs__search: {
+                serverUuid: 'approved',
+                toolName: 'search',
+                enabledToolNames: ['search'],
+            },
+            mcp_docs__search_2: {
+                serverUuid: 'unlisted',
+                toolName: 'search',
+                enabledToolNames: null,
+            },
+        },
+    );
+    await expect(executeTool(tools.mcp_docs__search)).resolves.toBe('approved');
+    await expect(executeTool(tools.mcp_docs__search_2)).resolves.toMatchObject({
+        structuredContent: {
+            refusal: { reason: AiAccessRefusalReason.AGENT_OPERATION_UNMAPPED },
+        },
+    });
+    expect(unlisted).not.toHaveBeenCalled();
 });

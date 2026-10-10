@@ -1,10 +1,17 @@
+import { Ability } from '@casl/ability';
 import {
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
     AiOrganizationSettings,
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
     ParameterError,
 } from '@lightdash/common';
+import {
+    fromOauth,
+    fromSession,
+    toSessionUser,
+} from '../../auth/account/account';
 import { aiCopilotConfigSchema } from '../../config/aiConfigSchema';
+import { AgentCapabilityPolicyModel } from '../../models/AgentCapabilityPolicyModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ModelPreset, ModelPresetProvider } from './ai/models/presets';
 import {
@@ -448,7 +455,37 @@ describe('upsertSettings model validation', () => {
         return { service, upsert };
     };
 
-    const user = { organizationUuid: 'org-uuid' } as never;
+    const user = fromSession({
+        organizationUuid: 'org-uuid',
+        ability: new Ability([{ action: 'manage', subject: 'all' }]),
+        abilityRules: [{ action: 'manage', subject: 'all' }],
+    } as never);
+    it('refuses an OAuth admin enabling agent admission without OAuth scope metadata', async () => {
+        const { service, upsert } = buildService();
+        const policy = vi
+            .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
+            .mockResolvedValue({
+                mode: 'managed',
+                version: 1,
+                allowedProjectUuids: null,
+                systemRoleMatrix: {} as never,
+            });
+        const account = fromOauth(toSessionUser(user), {
+            accessToken: 'token',
+            client: { id: 'client' },
+        });
+        await expect(
+            service.upsertSettings(account, { mcpAgentsEnabled: true }),
+        ).rejects.toMatchObject({
+            refusal: {
+                reason: 'agent_capability_denied',
+                settingsUrl: '/generalSettings/agentIdentity',
+            },
+        });
+        expect(upsert).not.toHaveBeenCalled();
+        policy.mockRestore();
+    });
+
     const restrictToSonnet = {
         anthropic: { enabled: true, allowedModels: ['claude-sonnet-5'] },
     };

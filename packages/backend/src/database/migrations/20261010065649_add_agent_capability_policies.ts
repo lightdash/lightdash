@@ -3,6 +3,14 @@ import { type Knex } from 'knex';
 const policyTable = 'organization_agent_capability_policies';
 const matrixTable = 'organization_agent_system_role_capabilities';
 const confirmationTable = 'agent_warehouse_restriction_confirmations';
+const bindingGenerations = [
+    ['warehouse_credentials', 'warehouse_credential_generation'],
+    ['warehouse_connections', 'connection_credential_generation'],
+    [
+        'organization_warehouse_credentials',
+        'organization_credential_generation',
+    ],
+] as const;
 const defaultScopes = [
     'view:AgentReadDiscover',
     'view:AgentQuery',
@@ -17,6 +25,15 @@ export const classification = {
 
 export async function up(knex: Knex): Promise<void> {
     await knex.raw("SET LOCAL lock_timeout = '5s'");
+    await bindingGenerations.reduce<Promise<void>>(
+        async (previous, [name, column]) => {
+            await previous;
+            await knex.schema.alterTable(name, (table) => {
+                table.integer(column).notNullable().defaultTo(0);
+            });
+        },
+        Promise.resolve(),
+    );
     await knex.schema.createTable(policyTable, (table) => {
         table
             .uuid('organization_uuid')
@@ -129,6 +146,14 @@ export async function up(knex: Knex): Promise<void> {
 
 export async function down(knex: Knex): Promise<void> {
     await knex.raw("SET LOCAL lock_timeout = '5s'");
+    await [...bindingGenerations]
+        .reverse()
+        .reduce<Promise<void>>(async (previous, [name, column]) => {
+            await previous;
+            await knex.schema.alterTable(name, (table) =>
+                table.dropColumn(column),
+            );
+        }, Promise.resolve());
     await knex.schema.alterTable('agent_action_log', (table) => {
         table.dropColumns('capability', 'policy_version');
     });

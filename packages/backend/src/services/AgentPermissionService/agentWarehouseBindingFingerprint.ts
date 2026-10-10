@@ -40,6 +40,7 @@ export class AgentWarehouseBindingFingerprint {
         return this.metadata('projects', [
             'project_uuid',
             'project_type',
+            'connection_mode',
             'copied_from_project_uuid',
             'organization_warehouse_credentials_uuid',
         ])
@@ -83,13 +84,32 @@ export class AgentWarehouseBindingFingerprint {
                 'warehouse_type',
                 'credential_subject_user_uuid',
                 'preview_owns_credentials',
+                'warehouse_credential_generation',
             ]).whereIn('project_id', projectIds),
             warehouseConnections: this.metadata('warehouse_connections', [
                 'warehouse_connection_uuid',
+                'connection_credential_generation',
                 'project_uuid',
                 'warehouse_type',
                 'organization_warehouse_credentials_uuid',
             ]).whereIn('project_uuid', projectUuids),
+            organizationCredentials: this.metadata(
+                'organization_warehouse_credentials',
+                [
+                    'organization_warehouse_credentials_uuid',
+                    'organization_credential_generation',
+                ],
+            ).whereIn(
+                'organization_warehouse_credentials_uuid',
+                database('projects')
+                    .select('organization_warehouse_credentials_uuid')
+                    .whereIn('project_uuid', projectUuids)
+                    .union(
+                        database('warehouse_connections')
+                            .select('organization_warehouse_credentials_uuid')
+                            .whereIn('project_uuid', projectUuids),
+                    ),
+            ),
             serviceAccountSlots: this.metadata(
                 'ai_service_account_credentials',
                 [
@@ -141,7 +161,7 @@ export class AgentWarehouseBindingFingerprint {
             .update(
                 JSON.stringify(
                     canonicalize({
-                        version: 2,
+                        version: 3,
                         projectUuid,
                         projects: parent ? [project, parent] : [project],
                         ...metadata,

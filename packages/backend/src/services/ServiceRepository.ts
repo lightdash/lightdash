@@ -1330,6 +1330,8 @@ export class ServiceRepository
             });
 
             return new QuerySourceService({
+                getAgentPermissionService: () =>
+                    this.getAgentPermissionService(),
                 projectModel: this.models.getProjectModel(),
                 queryHistoryModel: this.models.getQueryHistoryModel(),
                 featureFlagModel: this.models.getFeatureFlagModel(),

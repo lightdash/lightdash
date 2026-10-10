@@ -1979,6 +1979,7 @@ export class ProjectService
                                           repair.credentials.keyfileContents,
                                   }
                                 : null,
+                        'token_sync',
                     );
                 if (!swapped) {
                     return this.projectModel.getWarehouseCredentialsForBinding(
