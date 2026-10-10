@@ -1,6 +1,5 @@
 import {
     assertUnreachable,
-    CreateWarehouseCredentials,
     DbtManifestProjectConfig,
     DbtProjectConfig,
     DbtProjectType,
@@ -35,7 +34,6 @@ export const projectAdapterFromConfig = async (
         | Exclude<DbtProjectConfig, DbtManifestProjectConfig>
         | (Omit<DbtManifestProjectConfig, 'manifest'> & ManifestInput),
     warehouseClient: WarehouseClient,
-    _warehouseCredentials: CreateWarehouseCredentials,
     cachedWarehouse: CachedWarehouse,
     dbtVersionOption: DbtVersionOption,
     environmentVariableAllowlist: string[],

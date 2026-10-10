@@ -315,9 +315,9 @@ beforeEach(() => {
         },
     );
     vi.mocked(projectAdapterFromConfig).mockImplementation(
-        async (_dbt, _client, credentials) =>
+        async (_dbt, client) =>
             ({
-                test: () => adapterTest(credentials),
+                test: () => adapterTest(client.credentials),
                 destroy,
                 getLightdashProjectConfig: vi.fn(async () => ({})),
             }) as unknown as ProjectAdapter,
@@ -762,7 +762,8 @@ describe('test-and-compile credential resolution', () => {
                     );
                     expect(projectAdapterFromConfig).toHaveBeenCalledOnce();
                     expect(
-                        vi.mocked(projectAdapterFromConfig).mock.calls[0][2],
+                        vi.mocked(projectAdapterFromConfig).mock.calls[0][1]
+                            .credentials,
                     ).toMatchObject({
                         ...expected,
                         keyfileContents: {

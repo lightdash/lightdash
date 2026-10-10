@@ -126,8 +126,3 @@ export type DbtTargetResult =
           environment: Record<string, string>;
       }
     | { kind: 'none'; reason: string };
-
-export type DbtTargetCredentialResolver<
-    C extends CreateWarehouseCredentials,
-    S = C,
-> = CredentialResolver<C, S>;

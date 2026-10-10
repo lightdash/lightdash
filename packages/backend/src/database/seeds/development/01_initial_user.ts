@@ -271,7 +271,6 @@ export async function seed(knex: Knex): Promise<void> {
         const adapter = await projectAdapterFromConfig(
             projectSettings,
             warehouseClientFromCredentials(warehouseCredentials),
-            warehouseCredentials,
             {
                 warehouseCatalog: undefined,
                 onWarehouseCatalogChange: () => {},

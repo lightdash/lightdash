@@ -51,15 +51,6 @@ describe('native GitHub server compilation', () => {
         projectAdapterFromConfig(
             config,
             warehouseClientMock,
-            {
-                type: WarehouseTypes.POSTGRES,
-                host: 'localhost',
-                port: 5432,
-                user: 'postgres',
-                password: 'test',
-                dbname: 'postgres',
-                schema: 'public',
-            },
             { warehouseCatalog: undefined, onWarehouseCatalogChange: vi.fn() },
             SupportedDbtVersions.V1_10,
             [],

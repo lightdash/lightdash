@@ -6108,6 +6108,7 @@ export class ProjectService
                 cachedWarehouse,
                 dbtVersionOption,
                 dbtPartialParse,
+                dbtTargetPolicy,
             } = await this.jobModel.tryJobStep(
                 job.jobUuid,
                 JobStepType.TESTING_ADAPTOR,
@@ -6160,6 +6161,7 @@ export class ProjectService
                                 cachedWarehouse,
                                 dbtVersionOption,
                                 dbtPartialParse,
+                                dbtTargetPolicy,
                             };
                             if (
                                 (await this.projectModel.getConnectionRoute(
@@ -6450,16 +6452,18 @@ export class ProjectService
         cachedWarehouse: CachedWarehouse;
         dbtVersionOption: DbtVersionOption;
         dbtPartialParse: boolean;
+        dbtTargetPolicy: DbtTargetPolicy;
     }> {
         const onboardingFlow = await this.getOnboardingFlow(user);
         let lease: WarehouseConnectionLease | null = null;
         let adapter: ProjectAdapter | undefined;
         try {
             const organizationUuid =
-                projectUuid === null
-                    ? user.organizationUuid
+                user.organizationUuid ??
+                (projectUuid === null
+                    ? undefined
                     : (await this.projectModel.getSummary(projectUuid))
-                          .organizationUuid;
+                          .organizationUuid);
             if (organizationUuid === undefined) {
                 throw new ForbiddenError('User is not part of an organization');
             }
@@ -6535,13 +6539,16 @@ export class ProjectService
             const dbtPartialParse =
                 projectUuid !== null &&
                 (await this.isDbtPartialParseEnabled(user));
-            const dbtTargetPolicy =
-                await this.getDbtTargetPolicy(organizationUuid);
+            const dbtTargetPolicy = await this.getDbtTargetPolicy(
+                projectUuid === null
+                    ? user.organizationUuid
+                    : (await this.projectModel.getSummary(projectUuid))
+                          .organizationUuid,
+            );
             const resolvedLease = lease;
             adapter = await projectAdapterFromConfig(
                 dbtConnection,
                 lease.warehouseClient,
-                warehouseCredentials,
                 cachedWarehouse,
                 dbtVersionOption,
                 this.lightdashConfig.dbt.environmentVariableAllowlist,
@@ -6598,6 +6605,7 @@ export class ProjectService
                 cachedWarehouse,
                 dbtVersionOption,
                 dbtPartialParse,
+                dbtTargetPolicy,
             };
         } catch (error) {
             const errorType =
@@ -7334,6 +7342,7 @@ export class ProjectService
             cachedWarehouse: CachedWarehouse;
             dbtVersionOption: DbtVersionOption;
             dbtPartialParse: boolean;
+            dbtTargetPolicy: DbtTargetPolicy;
         }) => Promise<T>,
         manifestFetchAdapters: ProjectAdapter[],
     ): Promise<T> {
@@ -7362,7 +7371,6 @@ export class ProjectService
                 const adapter = await projectAdapterFromConfig(
                     dbtConnection,
                     connection.warehouseClient,
-                    connection.connectionCredentials,
                     cachedWarehouse,
                     dbtVersionOption,
                     this.lightdashConfig.dbt.environmentVariableAllowlist,
@@ -7391,6 +7399,7 @@ export class ProjectService
                         cachedWarehouse,
                         dbtVersionOption,
                         dbtPartialParse,
+                        dbtTargetPolicy,
                     });
                 } finally {
                     await this.destroyPrimaryCompileAdapter(
@@ -7436,6 +7445,7 @@ export class ProjectService
             connection: ScopedWarehouseConnection;
         },
         partialParseBaselinePath: string | null,
+        dbtTargetPolicy: DbtTargetPolicy,
     ): Promise<ProjectAdapter> {
         const resolvedConnection =
             await this.resolveDbtConnectionInstallationId(
@@ -7446,11 +7456,9 @@ export class ProjectService
             shared.connection.connectionCredentials,
             warehouseLocation,
         );
-        const dbtTargetPolicy = await this.getDbtTargetPolicy(organizationUuid);
         return projectAdapterFromConfig(
             resolvedConnection,
             shared.connection.deriveClient(warehouseCredentials),
-            warehouseCredentials,
             shared.cachedWarehouse,
             shared.dbtVersionOption,
             this.lightdashConfig.dbt.environmentVariableAllowlist,
@@ -7686,6 +7694,7 @@ export class ProjectService
             cachedWarehouse: CachedWarehouse;
             dbtVersionOption: DbtVersionOption;
             dbtPartialParse: boolean;
+            dbtTargetPolicy: DbtTargetPolicy;
         };
         sources: ProjectDbtSource[];
         manifestFetchAdapters: ProjectAdapter[];
@@ -7823,8 +7832,7 @@ export class ProjectService
                 sourceAdapter = await this.buildSourceAdapter(
                     source.dbtConnection,
                     source.warehouseLocation,
-                    (await this.projectModel.getSummary(projectUuid))
-                        .organizationUuid,
+                    organizationUuid,
                     shared,
                     primary.dbtPartialParse
                         ? getDbtPartialParseBaselinePath({
@@ -7832,6 +7840,7 @@ export class ProjectService
                               dbtSourceUuid: source.projectDbtSourceUuid,
                           })
                         : null,
+                    primary.dbtTargetPolicy,
                 );
             } catch (e) {
                 throw new DbtSourceError(
@@ -8049,7 +8058,6 @@ export class ProjectService
                 shared.connection.deriveClient(
                     shared.connection.connectionCredentials,
                 ),
-                shared.warehouseCredentials,
                 shared.cachedWarehouse,
                 shared.dbtVersionOption,
                 this.lightdashConfig.dbt.environmentVariableAllowlist,
@@ -8087,6 +8095,7 @@ export class ProjectService
             cachedWarehouse: CachedWarehouse;
             dbtVersionOption: DbtVersionOption;
             dbtPartialParse: boolean;
+            dbtTargetPolicy: DbtTargetPolicy;
         };
         manifestFetchAdapters: ProjectAdapter[];
         trackingParams: TrackingParams;
@@ -8130,8 +8139,7 @@ export class ProjectService
                 const sourceAdapter = await this.buildSourceAdapter(
                     source.dbtConnection,
                     source.warehouseLocation,
-                    (await this.projectModel.getSummary(projectUuid))
-                        .organizationUuid,
+                    organizationUuid,
                     {
                         warehouseCredentials,
                         connection,
@@ -8144,6 +8152,7 @@ export class ProjectService
                               dbtSourceUuid: source.projectDbtSourceUuid,
                           })
                         : null,
+                    primary.dbtTargetPolicy,
                 );
                 manifestFetchAdapters.push(sourceAdapter);
                 return sourceAdapter.getDbtManifest();
@@ -8193,6 +8202,7 @@ export class ProjectService
             cachedWarehouse: CachedWarehouse;
             dbtVersionOption: DbtVersionOption;
             dbtPartialParse: boolean;
+            dbtTargetPolicy: DbtTargetPolicy;
         };
         manifestFetchAdapters: ProjectAdapter[];
         onDbtSourceCount?: (dbtSourceCount: number) => void;

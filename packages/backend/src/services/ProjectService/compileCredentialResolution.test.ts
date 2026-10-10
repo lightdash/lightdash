@@ -38,7 +38,7 @@ import { type ProjectAdapter } from '../../types';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { UserService } from '../UserService';
 import { connectionContextFromUser } from '../WarehouseClientFactory/ConnectionContext';
-import type { DbtTargetCredentialResolver } from '../WarehouseClientFactory/CredentialResolver';
+import type { CredentialResolver } from '../WarehouseClientFactory/CredentialResolver';
 import { organizationCredentialStorage } from './organizationCredentialStorage.mock';
 import { type CheckGoogleRefreshToken } from './previewBigquerySsoCredentials';
 import { ProjectService, type ProjectServiceArguments } from './ProjectService';
@@ -817,6 +817,13 @@ describe('compile credential resolution', () => {
         'loads and refreshes each compile group once through the service with switch %s',
         async (enabled) => {
             const f = setup(snowflake(), { enabled });
+            f.project.organizationUuid = 'different-project-organization';
+            const installationLookup = vi.spyOn(
+                f.service as unknown as {
+                    resolveDbtConnectionInstallationId: ProjectService['resolveDbtConnectionInstallationId'];
+                },
+                'resolveDbtConnectionInstallationId',
+            );
             const buildManifest = (name: string): DbtManifest => ({
                 nodes: Object.fromEntries([
                     [
@@ -953,14 +960,15 @@ describe('compile credential resolution', () => {
                 withCompileAdapter: ProjectService['withCompileAdapter'];
                 compileMultiConnectionProject: ProjectService['compileMultiConnectionProject'];
             };
+            const actor = { ...user, organizationUuid: 'actor-organization' };
             const adapters: ProjectAdapter[] = [];
             const compiled = await probe.withCompileAdapter(
                 f.project.projectUuid,
-                user,
+                actor,
                 (primary) =>
                     probe.compileMultiConnectionProject({
                         projectUuid: f.project.projectUuid,
-                        organizationUuid: f.project.organizationUuid,
+                        organizationUuid: actor.organizationUuid,
                         userUuid: user.userUuid,
                         primary,
                         manifestFetchAdapters: adapters,
@@ -972,6 +980,24 @@ describe('compile credential resolution', () => {
                     }),
                 adapters,
             );
+            expect(
+                f.featureFlagModel.get.mock.calls.filter(
+                    ([input]) =>
+                        input.featureFlagId ===
+                        FeatureFlags.DbtExplicitCredentials,
+                ),
+            ).toEqual([
+                [
+                    {
+                        featureFlagId: FeatureFlags.DbtExplicitCredentials,
+                        user: { organizationUuid: f.project.organizationUuid },
+                    },
+                ],
+            ]);
+            expect(installationLookup).toHaveBeenCalledTimes(3);
+            for (const [, organizationUuid] of installationLookup.mock.calls) {
+                expect(organizationUuid).toBe(actor.organizationUuid);
+            }
             expect(compiled.warnings).toEqual([]);
             expect(compiled.carry).toEqual({
                 kind: 'connections',
@@ -1136,32 +1162,31 @@ describe('factory dbt target handoff to the real local adapter', () => {
                     explicitCredentials,
             }),
         );
-        const resolver: DbtTargetCredentialResolver<CreateBigqueryCredentials> =
-            {
-                validateOnSave: vi.fn(async (input) => ({
-                    connection: input.connection,
-                    stored: input.stored,
-                })),
-                resolve: vi.fn(async (input) => ({
-                    agentSignIn: null,
-                    clientCredentials: input.connection,
-                    clientOptions: {},
-                    cacheable: false,
-                })),
-                cacheKeyIdentity: vi.fn(() => ['dbt-target-test']),
-                dispose: vi.fn(async () => undefined),
-                toDbtTarget: vi.fn<
-                    DbtTargetCredentialResolver<CreateBigqueryCredentials>['toDbtTarget']
-                >((_resolved, _connection, policy) =>
-                    policy.explicitCredentials
-                        ? { kind: 'none', reason }
-                        : {
-                              kind: 'target',
-                              target: bigqueryAdcTarget,
-                              environment: {},
-                          },
-                ),
-            };
+        const resolver: CredentialResolver<CreateBigqueryCredentials> = {
+            validateOnSave: vi.fn(async (input) => ({
+                connection: input.connection,
+                stored: input.stored,
+            })),
+            resolve: vi.fn(async (input) => ({
+                agentSignIn: null,
+                clientCredentials: input.connection,
+                clientOptions: {},
+                cacheable: false,
+            })),
+            cacheKeyIdentity: vi.fn(() => ['dbt-target-test']),
+            dispose: vi.fn(async () => undefined),
+            toDbtTarget: vi.fn<
+                CredentialResolver<CreateBigqueryCredentials>['toDbtTarget']
+            >((_resolved, _connection, policy) =>
+                policy.explicitCredentials
+                    ? { kind: 'none', reason }
+                    : {
+                          kind: 'target',
+                          target: bigqueryAdcTarget,
+                          environment: {},
+                      },
+            ),
+        };
         f.service.warehouseClientFactory.credentialResolvers.register(
             WarehouseTypes.BIGQUERY,
             BigqueryAuthenticationType.ADC,
@@ -1179,7 +1204,7 @@ describe('factory dbt target handoff to the real local adapter', () => {
             withCompileAdapter: ProjectService['withCompileAdapter'];
             testProjectAdapter: ProjectService['testProjectAdapter'];
         };
-        const run = async (compilePath: CompilePath) => {
+        const run = async (compilePath: CompilePath, actor = user) => {
             let captured: {
                 profile: string;
                 environment: Record<string, string>;
@@ -1200,7 +1225,7 @@ describe('factory dbt target handoff to the real local adapter', () => {
             if (compilePath === 'compile') {
                 await probe.withCompileAdapter(
                     f.project.projectUuid,
-                    user,
+                    actor,
                     async ({ adapter }) => {
                         capture(adapter);
                         await adapter.test();
@@ -1218,7 +1243,7 @@ describe('factory dbt target handoff to the real local adapter', () => {
                             credentials: bigqueryAdc,
                         },
                     },
-                    user,
+                    actor,
                     'project_update',
                     RequestMethod.WEB_APP,
                     f.project.projectUuid,
@@ -1273,6 +1298,40 @@ describe('factory dbt target handoff to the real local adapter', () => {
             );
         },
     );
+
+    it('flag off keeps the actor credential context and resolves the project flag scope', async () => {
+        const f = setupTarget(false);
+        f.project.organizationUuid = 'different-project-organization';
+        const acquire = vi.spyOn(
+            f.service.warehouseClientFactory,
+            'acquireWarehouseConnection',
+        );
+
+        await f.run('test-and-compile', {
+            ...user,
+            organizationUuid: 'actor-organization',
+        });
+
+        expect(acquire).toHaveBeenCalledExactlyOnceWith(
+            expect.anything(),
+            expect.objectContaining({
+                organizationUuid: 'actor-organization',
+            }),
+        );
+        expect(
+            f.featureFlagModel.get.mock.calls.filter(
+                ([input]) =>
+                    input.featureFlagId === FeatureFlags.DbtExplicitCredentials,
+            ),
+        ).toEqual([
+            [
+                {
+                    featureFlagId: FeatureFlags.DbtExplicitCredentials,
+                    user: { organizationUuid: f.project.organizationUuid },
+                },
+            ],
+        ]);
+    });
 
     it.each(paths)(
         '%s serializes the resolver target and injects its environment',

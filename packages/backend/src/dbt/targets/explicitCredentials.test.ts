@@ -1,9 +1,33 @@
+import { type CreateWarehouseCredentials } from '@lightdash/common';
 import * as yaml from 'js-yaml';
-import { profileFromCredentials } from '../profiles';
+import path from 'path';
 import { toDbtTarget } from './index';
+import { legacyProfiles } from './legacyProfiles.mock';
 import { targetCases } from './targets.mock';
 
+const caBundleDir = path.dirname(
+    require.resolve('@lightdash/warehouses/dist/warehouseClients/ca-bundle-aws-rds-global.pem'),
+);
+
 describe('explicit dbt credential policy', () => {
+    it.each([false, true])(
+        'preserves the unsupported warehouse error with explicit credentials %s',
+        (explicitCredentials) => {
+            expect(() =>
+                toDbtTarget(
+                    {
+                        type: 'unsupported',
+                    } as unknown as CreateWarehouseCredentials,
+                    { explicitCredentials },
+                ),
+            ).toThrowError(
+                new Error(
+                    'No profile implemented for warehouse type: unsupported',
+                ),
+            );
+        },
+    );
+
     it.each(targetCases.filter(({ ambientMode }) => ambientMode !== null))(
         'flag on rejects $name with a mode and an alternative',
         ({ credentials, ambientMode }) => {
@@ -38,8 +62,7 @@ describe('explicit dbt credential policy', () => {
 
     it.each(targetCases)(
         'flag off preserves $name legacy YAML bytes and environment',
-        ({ credentials }) => {
-            const legacy = profileFromCredentials(credentials, '/tmp/profiles');
+        ({ name, credentials, environment }) => {
             const result = toDbtTarget(credentials, {
                 explicitCredentials: false,
             });
@@ -53,8 +76,17 @@ describe('explicit dbt credential policy', () => {
                         outputs: { prod: result.target },
                     },
                 }),
-            ).toBe(legacy.profile);
-            expect(result.environment).toEqual(legacy.environment);
+            ).toBe(
+                legacyProfiles[name].replace(
+                    /sslrootcert: >-\n {8}<CA_BUNDLE_DIR>\/([^\n]+)\n/g,
+                    (_, filename: string) =>
+                        `sslrootcert: ${yaml.dump(
+                            path.join(caBundleDir, filename),
+                            { indent: 8 },
+                        )}`,
+                ),
+            );
+            expect(result.environment).toEqual(environment);
         },
     );
 });

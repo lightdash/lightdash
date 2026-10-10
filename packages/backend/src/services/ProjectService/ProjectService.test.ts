@@ -129,6 +129,7 @@ import { type FileStorageClient } from '../../clients/FileStorage/FileStorageCli
 import { lightdashConfigWithGoogleOAuthMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { getDbtPartialParseBaselinePath } from '../../dbt/dbtPartialParseBaseline';
+import { toDbtTarget } from '../../dbt/targets';
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import type { AiAgentService } from '../../ee/services/AiAgentService/AiAgentService';
 import * as winston from '../../logging/winston';
@@ -8229,6 +8230,7 @@ describe('ProjectService', () => {
                     cachedWarehouse: {},
                     dbtVersionOption: DefaultSupportedDbtVersion,
                     dbtPartialParse: false,
+                    dbtTargetPolicy: { explicitCredentials: false },
                 });
                 vi.spyOn(
                     internals,
@@ -11330,6 +11332,7 @@ type ResolveCompileAdapterArgs = {
         cachedWarehouse: { warehouseCatalog: {}; warehouseTables: {} };
         dbtVersionOption: DbtVersionOptionLatest;
         dbtPartialParse: boolean;
+        dbtTargetPolicy: { explicitCredentials: boolean };
     };
     manifestFetchAdapters: ProjectAdapter[];
 };
@@ -11411,6 +11414,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         cachedWarehouse: { warehouseCatalog: {}, warehouseTables: {} },
         dbtVersionOption: DbtVersionOptionLatest.LATEST,
         dbtPartialParse: false,
+        dbtTargetPolicy: { explicitCredentials: false },
     };
     const baseArgs: ResolveCompileAdapterArgs = {
         projectUuid: 'project-uuid',
@@ -12273,13 +12277,13 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         ).resolves.toBeDefined();
     });
 
-    it('compiles a source with its own warehouse location and the project organization', async () => {
+    it('reuses the primary policy and caller organization for multiple sources without lookups', async () => {
         const projectService = getMockedProjectService(
             lightdashConfigWithGoogleOAuthMock,
         ) as unknown as ProjectServiceInternals;
         const buildSourceAdapter = vi
             .spyOn(projectService, 'buildSourceAdapter')
-            .mockResolvedValue(
+            .mockResolvedValueOnce(
                 buildAdapterWithManifest(
                     buildManifest([
                         {
@@ -12290,6 +12294,20 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                     ]),
                 ),
             );
+        buildSourceAdapter.mockResolvedValueOnce(
+            buildAdapterWithManifest(
+                buildManifest([
+                    {
+                        uniqueId: 'model.pkg_c.payments',
+                        name: 'payments',
+                        packageName: 'pkg_c',
+                    },
+                ]),
+            ),
+        );
+        const getFlag = vi.spyOn(projectService.featureFlagModel, 'get');
+        getFlag.mockClear();
+        projectModel.getSummary.mockClear();
         const warehouseLocation: WarehouseLocation = {
             database: 'source-database',
             schema: 'source_schema',
@@ -12310,18 +12328,30 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                     ]),
                 ),
             },
-            sources: [buildSource('source-b', warehouseLocation)],
+            sources: [
+                buildSource('source-b', warehouseLocation),
+                buildSource('source-c', warehouseLocation),
+            ],
             manifestFetchAdapters: [],
         });
 
-        expect(buildSourceAdapter).toHaveBeenCalledWith(
+        expect(getFlag).not.toHaveBeenCalled();
+        expect(projectModel.getSummary).not.toHaveBeenCalled();
+        expect(buildSourceAdapter).toHaveBeenCalledTimes(2);
+        expect(buildSourceAdapter).toHaveBeenNthCalledWith(
+            1,
             { type: DbtProjectType.NONE },
             warehouseLocation,
-            projectSummary.organizationUuid,
+            'org-uuid',
             expect.objectContaining({
                 warehouseCredentials: primary.warehouseCredentials,
             }),
             null,
+            primary.dbtTargetPolicy,
+        );
+        expect(buildSourceAdapter.mock.calls[1][2]).toBe('org-uuid');
+        expect(buildSourceAdapter.mock.calls[1][5]).toBe(
+            primary.dbtTargetPolicy,
         );
     });
 
@@ -12337,6 +12367,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             'org-uuid',
             primary,
             null,
+            primary.dbtTargetPolicy,
         );
 
         expect(warehouseClientFromCredentials).toHaveBeenCalledWith(
@@ -17107,6 +17138,7 @@ describe('compile adapter connection credentials', () => {
                 cachedWarehouse: {},
                 dbtVersionOption: DbtVersionOptionLatest.LATEST,
                 dbtPartialParse: false,
+                dbtTargetPolicy: { explicitCredentials: false },
             });
             const expected =
                 credentials.type === WarehouseTypes.POSTGRES
@@ -17124,8 +17156,9 @@ describe('compile adapter connection credentials', () => {
             expect(
                 vi
                     .mocked(projectAdapterModule.projectAdapterFromConfig)
-                    .mock.calls.at(-1)?.[2],
-            ).toEqual(expected);
+                    .mock.calls.at(-1)?.[6]
+                    ?.resolve(),
+            ).toEqual(toDbtTarget(expected, { explicitCredentials: false }));
             expect(passedCredentials).toEqual(expected);
         },
     );
@@ -17152,8 +17185,13 @@ describe('compile adapter connection credentials', () => {
             expect(
                 vi
                     .mocked(projectAdapterModule.projectAdapterFromConfig)
-                    .mock.calls.at(-1)?.[2],
-            ).toEqual(ducklakeCredentials);
+                    .mock.calls.at(-1)?.[6]
+                    ?.resolve(),
+            ).toEqual(
+                toDbtTarget(ducklakeCredentials, {
+                    explicitCredentials: false,
+                }),
+            );
         } finally {
             await tested.lease.release();
         }
@@ -17187,6 +17225,7 @@ describe('compile adapter connection credentials', () => {
                         dbtVersionOption: DbtVersionOptionLatest.LATEST,
                     },
                     null,
+                    { explicitCredentials: false },
                 );
                 const expected = {
                     ...ducklakeCredentials,
@@ -17196,8 +17235,11 @@ describe('compile adapter connection credentials', () => {
                 expect(
                     vi
                         .mocked(projectAdapterModule.projectAdapterFromConfig)
-                        .mock.calls.at(-1)?.[2],
-                ).toEqual(expected);
+                        .mock.calls.at(-1)?.[6]
+                        ?.resolve(),
+                ).toEqual(
+                    toDbtTarget(expected, { explicitCredentials: false }),
+                );
             },
         );
     });
@@ -17251,14 +17293,16 @@ describe('compile adapter connection credentials', () => {
                         },
                         dbtVersionOption: DbtVersionOptionLatest.LATEST,
                         dbtPartialParse: false,
+                        dbtTargetPolicy: { explicitCredentials: false },
                     },
                 });
                 expect(derive).toHaveBeenCalledWith(ducklakeCredentials);
                 expect(
                     vi
                         .mocked(projectAdapterModule.projectAdapterFromConfig)
-                        .mock.calls.at(-1)?.[2],
-                ).toEqual(ducklakeCredentials);
+                        .mock.calls.at(-1)?.[6]
+                        ?.resolve(),
+                ).toBeUndefined();
             },
         );
     });

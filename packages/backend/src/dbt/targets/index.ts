@@ -41,6 +41,10 @@ export const toDbtTarget = (
         case WarehouseTypes.ATHENA:
             return athenaTarget(credentials, policy);
         default:
-            return assertUnreachable(credentials, 'Unknown warehouse type');
+            const { type } = credentials;
+            return assertUnreachable(
+                credentials,
+                `No profile implemented for warehouse type: ${type}`,
+            );
     }
 };
