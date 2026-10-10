@@ -284,7 +284,8 @@ describe('Postgres AI service account setup commands', () => {
             schema: 'reporting',
         });
         expect(commands.createRole).toBe(
-            `CREATE ROLE "ai_agents" LOGIN PASSWORD '<choose-a-strong-password>' NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
+            `CREATE ROLE "ai_agents" LOGIN PASSWORD '<choose-a-strong-password>'
+  NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
 ALTER ROLE "ai_agents" SET default_transaction_read_only = on;
 GRANT CONNECT ON DATABASE "analytics" TO "ai_agents";`,
         );
@@ -295,7 +296,8 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA "reporting" GRANT SELECT ON TABLES TO "ai_age
         );
         expect(commands.rowLevelSecurity).toBe(
             `ALTER TABLE "reporting"."<table>" ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "ai_agents_rows" ON "reporting"."<table>" FOR SELECT TO "ai_agents" USING (<condition>);`,
+CREATE POLICY "ai_agents_rows" ON "reporting"."<table>"
+  FOR SELECT TO "ai_agents" USING (<condition>);`,
         );
     });
     it('escapes quotes in identifiers without treating apostrophes as literals', () => {
