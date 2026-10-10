@@ -179,6 +179,7 @@ describe.skipIf(!hasBigqueryCredentials())(
                     .sort(),
             ).toEqual(
                 [
+                    WarehouseTypes.ATHENA,
                     WarehouseTypes.BIGQUERY,
                     WarehouseTypes.DATABRICKS,
                     WarehouseTypes.SNOWFLAKE,
