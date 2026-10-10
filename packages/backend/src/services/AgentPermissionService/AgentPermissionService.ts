@@ -10,23 +10,18 @@ import {
     FeatureFlags,
     FeatureNotEnabledError,
     ForbiddenError,
-    NotFoundError,
     OrganizationMemberRole,
     ParameterError,
     type Account,
-    type AgentAccessPreviewRequest,
     type AgentActorSurface,
     type AgentCapabilityPolicy,
-    type AgentCapabilitySourceAssignment,
     type AgentPermissionCheck,
-    type AgentPermissionExplanation,
     type AgentSystemRoleMatrix,
     type AiAccessRefusal,
     type AiOrganizationSettings,
     type RegisteredAccount,
     type UUID,
 } from '@lightdash/common';
-import { fromSession } from '../../auth/account';
 import { getRequiredAgentCapabilities } from '../../auth/agentPermissions/capabilityMap';
 import { HUMAN_ONLY_IN_MANAGED } from '../../auth/agentPermissions/humanOnlyInManaged';
 import { getOAuthScopeContext } from '../../auth/oauthScopes/scopedAbility';
@@ -43,17 +38,11 @@ import {
 import { recordAgentRefusal } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
 import {
-    AGENT_ACCESS_PREVIEW_BINDINGS,
-    getAgentAccessPreviewActionId,
-} from './agentAccessPreviewCatalogue';
-import {
     agentPermissionChecks,
     permissionBlockers,
-    permissionCheck,
     permissionRefusal,
     type AgentPermissionEvaluationContext,
 } from './agentPermissionEvaluation';
-import { PERSON_PERMISSION_PREVIEWS } from './personPermissionPreview';
 
 export interface ResolvedAgentPolicy {
     mode: 'off' | 'legacy' | 'managed';
@@ -62,9 +51,6 @@ export interface ResolvedAgentPolicy {
     allowedUserUuids: string[] | null;
     version: number;
     editableCustomRoleUuid: string | null;
-    capabilitySources?: Partial<
-        Record<AgentCapability, AgentCapabilitySourceAssignment[]>
-    >;
 }
 
 export interface AgentPolicyEvaluation {
@@ -179,17 +165,6 @@ interface AssertOperationArgs extends ResolvePolicyArgs {
     surface: AgentActorSurface;
 }
 
-export interface ExplainAgentOperationArgs extends ResolvePolicyArgs {
-    action:
-        | { type: 'capability'; capability: AgentCapability }
-        | {
-              type: 'operation';
-              kind: AgentPermissionOperationKind;
-              key: string;
-              connectedTool?: ConnectedAgentTool;
-          };
-}
-
 interface AssertActorVerifiedArgs extends AssertOperationArgs {
     actorVerified: boolean;
 }
@@ -213,10 +188,7 @@ interface Dependencies {
         AgentWarehouseRestrictionConfirmationModel,
         'get' | 'upsert' | 'delete' | 'getCurrentBindingFingerprint'
     >;
-    userModel: Pick<
-        UserModel,
-        'getAgentRoleAssignments' | 'findSessionUserByUUIDInOrganization'
-    >;
+    userModel: Pick<UserModel, 'getAgentRoleAssignments'>;
     projectModel: Pick<ProjectModel, 'getSummary'>;
     getOrganizationSettings: (
         organizationUuid: string,
@@ -277,10 +249,11 @@ export class AgentPermissionService extends BaseService {
         );
     }
 
-    async resolvePolicy(
-        { account, organizationUuid, projectUuid }: ResolvePolicyArgs,
-        options: { explain?: boolean } = {},
-    ): Promise<ResolvedAgentPolicy> {
+    async resolvePolicy({
+        account,
+        organizationUuid,
+        projectUuid,
+    }: ResolvePolicyArgs): Promise<ResolvedAgentPolicy> {
         if (!(await this.isEnabled(organizationUuid)))
             return {
                 mode: 'off',
@@ -314,7 +287,6 @@ export class AgentPermissionService extends BaseService {
             account.user.id,
             organizationUuid,
             projectUuid,
-            ...(options.explain ? ([true] as const) : []),
         );
         const capabilities = new Set<AgentCapability>();
         assignments.systemRoles.forEach((role) =>
@@ -330,37 +302,12 @@ export class AgentPermissionService extends BaseService {
         );
         const canEditRoles =
             this.deps.isCustomRolesLicensed() &&
-            (options.explain
-                ? account.user.ability
-                : this.createAuditedAbility(account)
-            ).can('manage', subject('Organization', { organizationUuid }));
-        const capabilitySources: Partial<
-            Record<AgentCapability, AgentCapabilitySourceAssignment[]>
-        > = {};
-        if (options.explain) {
-            for (const assignment of assignments.sourceAssignments ?? []) {
-                const { role } = assignment;
-                const granted =
-                    role.kind === 'system'
-                        ? policy.systemRoleMatrix[role.role]
-                        : Object.values(AgentCapability).filter((capability) =>
-                              assignments.customRoles
-                                  .find(
-                                      (custom) =>
-                                          custom.roleUuid === role.roleUuid,
-                                  )
-                                  ?.scopes.includes(
-                                      AGENT_CAPABILITY_SCOPES[capability],
-                                  ),
-                          );
-                for (const capability of granted) {
-                    (capabilitySources[capability] ??= []).push(assignment);
-                }
-            }
-        }
+            this.createAuditedAbility(account).can(
+                'manage',
+                subject('Organization', { organizationUuid }),
+            );
         return {
             mode: 'managed',
-            ...(options.explain ? { capabilitySources } : {}),
             version: policy.version,
             allowedProjectUuids: policy.allowedProjectUuids,
             allowedUserUuids: policy.allowedUserUuids,
@@ -396,33 +343,26 @@ export class AgentPermissionService extends BaseService {
 
     private createEvaluation(
         policy: ResolvedAgentPolicy,
-        args: ResolvePolicyArgs,
-        action: ExplainAgentOperationArgs['action'],
+        args: AssertOperationArgs,
     ) {
-        const requiredCapabilities =
-            action.type === 'capability'
-                ? [action.capability]
-                : requiredCapabilitiesForOperation(
-                      action.kind,
-                      action.key,
-                      action.connectedTool,
-                  );
+        const requiredCapabilities = requiredCapabilitiesForOperation(
+            args.kind,
+            args.key,
+            args.connectedTool,
+        );
         const operation: AgentPermissionEvaluationContext = {
             requiredCapabilities,
             projectUuid: args.projectUuid,
             userUuid: args.account.user.id,
             humanOnly:
-                action.type === 'operation' &&
-                action.kind === 'rest_operation' &&
-                HUMAN_ONLY_IN_MANAGED.has(action.key),
+                args.kind === 'rest_operation' &&
+                HUMAN_ONLY_IN_MANAGED.has(args.key),
             mcpAgentsEnabled: true,
             mcpContentWritesEnabled: true,
             warehouseConfirmed: false,
-            isOrganizationDiscovery:
-                action.type === 'operation' &&
-                ORGANIZATION_DISCOVERY_OPERATIONS[action.kind].includes(
-                    action.key,
-                ),
+            isOrganizationDiscovery: ORGANIZATION_DISCOVERY_OPERATIONS[
+                args.kind
+            ].includes(args.key),
         };
         const steps = agentPermissionChecks(policy, operation);
         const checks: AgentPermissionCheck[] = [];
@@ -492,27 +432,10 @@ export class AgentPermissionService extends BaseService {
         };
     }
 
-    private explanationUrl(args: ResolvePolicyArgs): string {
-        const readOnlyAbility = args.account.user.ability;
-        return readOnlyAbility.can(
-            'manage',
-            subject('Organization', {
-                organizationUuid: args.organizationUuid,
-            }),
-        )
-            ? '/generalSettings/agentIdentity#test-agent-access'
-            : '/generalSettings/myAgentConnections';
-    }
-
     async assertOperation(args: AssertOperationArgs): Promise<void> {
         const policy = await this.resolvePolicy(args);
         if (policy.mode !== 'managed') return;
-        const evaluation = this.createEvaluation(policy, args, {
-            type: 'operation',
-            kind: args.kind,
-            key: args.key,
-            connectedTool: args.connectedTool,
-        });
+        const evaluation = this.createEvaluation(policy, args);
         const primary = await evaluation.readChecks(true);
         if (!primary) return;
         const error = permissionRefusal(primary, {
@@ -590,133 +513,10 @@ export class AgentPermissionService extends BaseService {
                     return blocker;
                 }),
             blockersComplete,
-            explanationUrl: this.explanationUrl(args),
+            explanationUrl: '/generalSettings/myAgentConnections',
         });
         await this.recordRefusal(args, error);
         throw error;
-    }
-
-    async explain(
-        args: ExplainAgentOperationArgs,
-    ): Promise<AgentPermissionExplanation> {
-        const policy = await this.resolvePolicy(args, { explain: true });
-        if (policy.mode === 'off')
-            throw new FeatureNotEnabledError(FeatureFlags.AgentIdentity);
-        const evaluation = this.createEvaluation(policy, args, args.action);
-        if (policy.mode === 'managed') {
-            await evaluation.readChecks(false);
-        }
-        const { checks } = evaluation;
-        const requiredCapabilities =
-            policy.mode === 'managed' ? evaluation.requiredCapabilities : [];
-        const blockers = permissionBlockers(checks);
-        const primary = checks.find((check) => check.reason !== null);
-        const previewActionId = getAgentAccessPreviewActionId(args.action);
-        const actionId =
-            previewActionId ??
-            (args.action.type === 'capability'
-                ? args.action.capability
-                : args.action.key);
-        const mainReason = primary
-            ? permissionRefusal(primary, {
-                  operation:
-                      args.action.type === 'capability'
-                          ? args.action.capability
-                          : args.action.key,
-                  policyVersion: policy.version,
-                  projectUuid: args.projectUuid,
-              }).refusal
-            : null;
-        if (mainReason)
-            Object.assign(mainReason, {
-                requiredCapabilities,
-                blockers,
-                blockersComplete: true,
-                explanationUrl: this.explanationUrl(args),
-            });
-        const personPermission = previewActionId
-            ? PERSON_PERMISSION_PREVIEWS[previewActionId](
-                  args.account.user.ability,
-                  {
-                      organizationUuid: args.organizationUuid,
-                      projectUuid: args.projectUuid,
-                  },
-              )
-            : {
-                  status: 'not_checked' as const,
-                  message:
-                      'Person permissions for this action are checked when the agent acts.',
-              };
-        checks.unshift({
-            ...permissionCheck(
-                'person_permission',
-                "Person's permissions",
-                personPermission.status,
-                personPermission.message,
-            ),
-            settingsUrl:
-                args.projectUuid === null
-                    ? '/generalSettings/userManagement'
-                    : `/generalSettings/projectManagement/${args.projectUuid}/projectAccess`,
-        });
-        checks.push(
-            permissionCheck(
-                'connection_grant',
-                'Connection grant',
-                'not_checked',
-                'Connection grant: not checked yet.',
-            ),
-            permissionCheck(
-                'warehouse_access',
-                'Warehouse access',
-                'not_checked',
-                'Warehouse access is not verified.',
-            ),
-        );
-        let result: AgentPermissionExplanation['result'] = 'allowed';
-        if (personPermission.status === 'refused') result = 'refused';
-        else if (policy.mode === 'legacy') result = 'not_checked';
-        else if (blockers.some((blocker) => blocker.status === 'refused'))
-            result = 'refused';
-        else if (blockers.length > 0) result = 'setup_needed';
-        return {
-            mode: policy.mode,
-            policyVersion: policy.version,
-            actionId,
-            requiredCapabilities,
-            result,
-            allowedByCheckedPermissionsOnly: result === 'allowed',
-            mainReason,
-            policyMainReason: mainReason,
-            checks: checks.map((check) => {
-                if (
-                    check.kind === 'agent_enabled' ||
-                    check.kind === 'content_writes'
-                )
-                    return check.status === 'not_checked'
-                        ? check
-                        : {
-                              ...check,
-                              settingsUrl: '/generalSettings/mcp/general',
-                          };
-                if (
-                    check.settingsUrl === null &&
-                    check.status !== 'not_checked' &&
-                    (check.kind === 'agent_admission' ||
-                        check.kind === 'project_scope' ||
-                        check.kind === 'capability')
-                )
-                    return {
-                        ...check,
-                        settingsUrl: '/generalSettings/agentIdentity',
-                    };
-                return check;
-            }),
-            blockers,
-            coverage: 'checked_permissions_only',
-            warehouseAccess: 'not_verified',
-            connectionGrant: 'not_checked_yet',
-        };
     }
 
     private async recordRefusal(
@@ -781,16 +581,10 @@ export class AgentPermissionService extends BaseService {
         return organizationUuid;
     }
 
-    private async assertPolicyAdmin(
-        account: Account,
-        { audit = true }: { audit?: boolean } = {},
-    ): Promise<string> {
+    private async assertPolicyAdmin(account: Account): Promise<string> {
         const organizationUuid = await this.assertHuman(account);
-        const ability = audit
-            ? this.createAuditedAbility(account)
-            : account.user.ability;
         if (
-            ability.cannot(
+            this.createAuditedAbility(account).cannot(
                 'manage',
                 subject('Organization', { organizationUuid }),
             )
@@ -839,44 +633,6 @@ export class AgentPermissionService extends BaseService {
                     );
             }),
         );
-    }
-
-    async previewAgentAccess(
-        caller: RegisteredAccount,
-        request: AgentAccessPreviewRequest,
-    ): Promise<AgentPermissionExplanation> {
-        const organizationUuid = await this.assertPolicyAdmin(caller, {
-            audit: false,
-        });
-        if (!(await this.isEnabled(organizationUuid)))
-            throw new FeatureNotEnabledError(FeatureFlags.AgentIdentity);
-        const unavailable = () =>
-            new NotFoundError(
-                'The selected person or project is not available.',
-            );
-        const targets = await Promise.all([
-            this.deps.userModel.findSessionUserByUUIDInOrganization(
-                request.personUuid,
-                organizationUuid,
-            ),
-            this.deps.projectModel.getSummary(request.projectUuid),
-        ]).catch((error: unknown) => {
-            if (error instanceof NotFoundError) throw unavailable();
-            throw error;
-        });
-        const [person, project] = targets;
-        if (
-            person.organizationUuid !== organizationUuid ||
-            project.organizationUuid !== organizationUuid
-        )
-            throw unavailable();
-        const account = fromSession(person);
-        return this.explain({
-            account,
-            organizationUuid,
-            projectUuid: request.projectUuid,
-            action: AGENT_ACCESS_PREVIEW_BINDINGS[request.actionId],
-        });
     }
 
     async getPolicy(account: Account): Promise<AgentCapabilityPolicyOverview> {

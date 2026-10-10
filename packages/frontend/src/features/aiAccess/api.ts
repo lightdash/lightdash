@@ -1,7 +1,5 @@
 import {
     FeatureFlags,
-    type AgentAccessPreviewRequest,
-    type ApiAgentAccessPreviewResponse,
     type AgentCapabilityPolicy,
     type AgentCapabilityPolicyOverview,
     type AgentCapabilityCeiling,
@@ -502,18 +500,3 @@ export const useDeleteAgentWarehouseConfirmation = (projectUuid: string) =>
         'DELETE',
         'Could not remove the warehouse confirmation.',
     );
-
-export const useExplainAgentAccess = () =>
-    useMutation<
-        ApiAgentAccessPreviewResponse['results'],
-        ApiError,
-        AgentAccessPreviewRequest
-    >({
-        mutationFn: (request) =>
-            lightdashApi<ApiAgentAccessPreviewResponse['results']>({
-                version: 'v2',
-                url: `${agentPolicyUrl}/explain`,
-                method: 'POST',
-                body: JSON.stringify(request),
-            }),
-    });

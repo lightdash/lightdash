@@ -5,7 +5,6 @@ import {
     AiAccessRefusalReason,
     AiAccessRefusedError,
     FeatureFlags,
-    FeatureNotEnabledError,
     ForbiddenError,
     OrganizationMemberRole,
     type AgentCapabilityPolicy,
@@ -48,7 +47,6 @@ const setup = () => {
             delete: vi.fn(),
         },
         userModel: {
-            findSessionUserByUUIDInOrganization: vi.fn(),
             getAgentRoleAssignments: vi.fn().mockResolvedValue({
                 systemRoles: [OrganizationMemberRole.VIEWER],
                 customRoles: [],
@@ -851,91 +849,6 @@ test.each(parityCases)('existing refusal snapshot: %s', async (scenario) => {
     }
 });
 
-test.each(parityCases)(
-    'explain matches runtime and never writes: %s',
-    async (scenario) => {
-        const { service, deps, operation } = paritySetup(scenario);
-        operation.account.user.ability = new Ability<PossibleAbilities>([
-            ...operation.account.user.ability.rules,
-            { action: 'create', subject: 'ScheduledDeliveries' },
-        ]);
-        const refusal = await refusalFrom(service.assertOperation(operation));
-        vi.clearAllMocks();
-        const audited = vi.spyOn(service as never, 'createAuditedAbility');
-        const promise = service.explain({
-            ...operation,
-            action: {
-                type: 'operation',
-                kind: operation.kind,
-                key: operation.key,
-                connectedTool:
-                    'connectedTool' in operation
-                        ? operation.connectedTool
-                        : undefined,
-            },
-        });
-        if (scenario === 'off') {
-            await expect(promise).rejects.toBeInstanceOf(
-                FeatureNotEnabledError,
-            );
-        } else {
-            const result = await promise;
-            expect(result.mainReason).toEqual(refusal);
-            expect(result.policyMainReason).toEqual(refusal);
-            expect(result.coverage).toBe('checked_permissions_only');
-            expect(result.checks.slice(-2)).toMatchObject([
-                {
-                    kind: 'connection_grant',
-                    status: 'not_checked',
-                    message: 'Connection grant: not checked yet.',
-                },
-                {
-                    kind: 'warehouse_access',
-                    status: 'not_checked',
-                    message: 'Warehouse access is not verified.',
-                },
-            ]);
-            if (scenario === 'legacy') {
-                expect(result).toMatchObject({
-                    mode: 'legacy',
-                    result: 'not_checked',
-                    mainReason: null,
-                    blockers: [],
-                });
-                expect(result.checks).toHaveLength(3);
-            } else {
-                expect(result.checks.map((check) => check.kind)).toEqual([
-                    'person_permission',
-                    'agent_admission',
-                    'human_only',
-                    'agent_enabled',
-                    'operation_mapping',
-                    'project_scope',
-                    ...result.requiredCapabilities.map(() => 'capability'),
-                    'content_writes',
-                    'warehouse_confirmation',
-                    'connection_grant',
-                    'warehouse_access',
-                ]);
-                let expectedResult = 'refused';
-                if (scenario === 'allowed') expectedResult = 'allowed';
-                else if (['missing', 'stale'].includes(scenario))
-                    expectedResult = 'setup_needed';
-                expect(result.result).toBe(expectedResult);
-            }
-        }
-        expect(audited).not.toHaveBeenCalled();
-        expect(deps.agentActionLogModel.insert).not.toHaveBeenCalled();
-        expect(deps.agentCapabilityPolicyModel.save).not.toHaveBeenCalled();
-        expect(
-            deps.agentWarehouseRestrictionConfirmationModel.upsert,
-        ).not.toHaveBeenCalled();
-        expect(
-            deps.agentWarehouseRestrictionConfirmationModel.delete,
-        ).not.toHaveBeenCalled();
-    },
-);
-
 test('collects missing delivery capabilities and the write switch in order', async () => {
     const { service, operation, policy, deps } = setup();
     policy.systemRoleMatrix.viewer = [];
@@ -1103,9 +1016,7 @@ test.each([false, true])(
                 : '/generalSettings/agentIdentity',
         });
         expect(refusal?.explanationUrl).toBe(
-            admin
-                ? '/generalSettings/agentIdentity#test-agent-access'
-                : '/generalSettings/myAgentConnections',
+            '/generalSettings/myAgentConnections',
         );
         expect(audited).not.toHaveBeenCalled();
     },
@@ -1203,112 +1114,6 @@ test.each(['allowed', 'off', 'legacy', 'missing', 'stale'] as const)(
     },
 );
 
-test.each(['missing', 'stale', 'current', 'both_absent'] as const)(
-    'explain confirmation: %s',
-    async (state) => {
-        const { service, operation, policy, deps } = setup();
-        policy.systemRoleMatrix.viewer = [AgentCapability.RawSql];
-        deps.agentWarehouseRestrictionConfirmationModel.get.mockResolvedValue(
-            state === 'missing' || state === 'both_absent'
-                ? undefined
-                : { bindingFingerprint: state },
-        );
-        if (state === 'both_absent')
-            deps.agentWarehouseRestrictionConfirmationModel.getCurrentBindingFingerprint.mockResolvedValue(
-                undefined,
-            );
-        const result = await service.explain({
-            ...operation,
-            action: { type: 'capability', capability: AgentCapability.RawSql },
-        });
-        expect(
-            result.checks.find(
-                (check) => check.kind === 'warehouse_confirmation',
-            ),
-        ).toMatchObject({
-            status: state === 'current' ? 'allowed' : 'setup_needed',
-            ...(state === 'stale'
-                ? { message: 'The connection changed since it was confirmed.' }
-                : {}),
-        });
-        expect(JSON.stringify(result)).not.toContain('bindingFingerprint');
-    },
-);
-
-test('explain preserves all granting sources and a custom grant absent from the matrix', async () => {
-    const { service, deps, operation, policy } = setup();
-    policy.systemRoleMatrix.viewer = [AgentCapability.Query];
-    policy.systemRoleMatrix.editor = [AgentCapability.Query];
-    const sources = [
-        {
-            role: { kind: 'system', role: OrganizationMemberRole.VIEWER },
-            assignment: 'organization',
-            projectUuid: null,
-            groupUuid: null,
-        },
-        {
-            role: { kind: 'system', role: OrganizationMemberRole.EDITOR },
-            assignment: 'project_user',
-            projectUuid: 'project',
-            groupUuid: null,
-        },
-        {
-            role: { kind: 'system', role: OrganizationMemberRole.EDITOR },
-            assignment: 'project_group',
-            projectUuid: 'project',
-            groupUuid: 'group',
-        },
-        {
-            role: { kind: 'custom', roleUuid: 'custom', name: 'Analyst' },
-            assignment: 'extra_organization',
-            projectUuid: null,
-            groupUuid: null,
-        },
-    ];
-    deps.userModel.getAgentRoleAssignments.mockResolvedValue({
-        systemRoles: [
-            OrganizationMemberRole.VIEWER,
-            OrganizationMemberRole.EDITOR,
-        ],
-        customRoles: [
-            {
-                roleUuid: 'custom',
-                scopes: ['view:AgentQuery', 'view:AgentRawSql'],
-            },
-        ],
-        sourceAssignments: sources,
-    });
-    const result = await service.explain({
-        ...operation,
-        action: { type: 'capability', capability: AgentCapability.Query },
-    });
-    expect(
-        result.checks.find((check) => check.kind === 'capability')
-            ?.sourceAssignments,
-    ).toEqual(sources);
-    const raw = await service.explain({
-        ...operation,
-        action: { type: 'capability', capability: AgentCapability.RawSql },
-    });
-    expect(
-        raw.checks.find((check) => check.kind === 'capability'),
-    ).toMatchObject({ status: 'allowed', sourceAssignments: [sources[3]] });
-});
-
-test('admin remedy uses plain ability without audit during explain', async () => {
-    const { service, operation, account } = setup();
-    account.user.ability = new Ability<PossibleAbilities>([
-        { action: 'manage', subject: 'all' },
-    ]);
-    const result = await service.explain({
-        ...operation,
-        action: { type: 'operation', kind: operation.kind, key: operation.key },
-    });
-    expect(result.mainReason?.explanationUrl).toBe(
-        '/generalSettings/agentIdentity#test-agent-access',
-    );
-});
-
 test('bounds diagnostics when a confirmation read does not finish', async () => {
     vi.useFakeTimers();
     try {
@@ -1402,28 +1207,3 @@ test('missing organization settings keep the existing enabled defaults', async (
         }),
     ).resolves.toBeUndefined();
 });
-
-test.each([
-    ['disabled', 'agent_enabled'],
-    ['writes', 'content_writes'],
-] as const)(
-    'explain links the disabled %s switch to MCP settings without changing runtime refusals',
-    async (scenario, kind) => {
-        const { service, operation } = paritySetup(scenario);
-        const runtime = await refusalFrom(service.assertOperation(operation));
-        const result = await service.explain({
-            ...operation,
-            action: {
-                type: 'operation',
-                kind: operation.kind,
-                key: operation.key,
-            },
-        });
-        expect(result.checks.find((row) => row.kind === kind)).toMatchObject({
-            status: 'refused',
-            settingsUrl: '/generalSettings/mcp/general',
-        });
-        expect(runtime?.settingsUrl).toBe('/generalSettings/agentIdentity');
-        expect(result.mainReason).toEqual(runtime);
-    },
-);

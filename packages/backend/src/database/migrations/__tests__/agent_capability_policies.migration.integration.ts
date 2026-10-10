@@ -252,10 +252,7 @@ test('departed allowed members do not block a matrix edit or reset to legacy', a
             delete: vi.fn(),
             getCurrentBindingFingerprint: vi.fn(),
         },
-        userModel: {
-            getAgentRoleAssignments: vi.fn(),
-            findSessionUserByUUIDInOrganization: vi.fn(),
-        },
+        userModel: { getAgentRoleAssignments: vi.fn() },
         projectModel: { getSummary: vi.fn() },
         getOrganizationSettings: vi.fn(),
         agentActionLogModel: { insert: vi.fn() },

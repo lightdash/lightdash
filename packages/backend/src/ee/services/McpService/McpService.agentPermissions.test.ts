@@ -84,7 +84,6 @@ const setup = (
             getCurrentBindingFingerprint: vi.fn(),
         },
         userModel: {
-            findSessionUserByUUIDInOrganization: vi.fn(),
             getAgentRoleAssignments: vi.fn().mockResolvedValue({
                 systemRoles: [OrganizationMemberRole.DEVELOPER],
                 customRoles: [],
@@ -683,7 +682,7 @@ test('adds every other blocker and absolute explanation links to MCP refusals', 
             policyLayer: 'org_ceiling',
             requiredCapabilities: [AgentCapability.RawSql],
             blockersComplete: true,
-            explanationUrl: '/generalSettings/agentIdentity#test-agent-access',
+            explanationUrl: '/generalSettings/myAgentConnections',
             blockers: [
                 {
                     checkId: 'capability:raw_sql',
@@ -710,7 +709,7 @@ test('adds every other blocker and absolute explanation links to MCP refusals', 
     handler.mockRejectedValue(error);
     const result = await call('run_sql', { projectUuid });
     const explanationUrl =
-        'https://lightdash.example/generalSettings/agentIdentity#test-agent-access';
+        'https://lightdash.example/generalSettings/myAgentConnections';
     expect(result.content[0].text).toBe(
         `${error.message}\n\nhttps://lightdash.example/generalSettings/agentIdentity\n\nAlso needed: warehouse confirmation for this project\nSee why: ${explanationUrl}`,
     );
@@ -732,7 +731,7 @@ test('adds every other blocker and absolute explanation links to MCP refusals', 
         ],
     });
     expect(error.refusal.explanationUrl).toBe(
-        '/generalSettings/agentIdentity#test-agent-access',
+        '/generalSettings/myAgentConnections',
     );
 });
 

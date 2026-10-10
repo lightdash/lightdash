@@ -21,7 +21,7 @@ export interface AgentPermissionEvaluationContext extends AgentPolicyEvaluation 
     warehouseStale?: boolean;
 }
 
-export const permissionCheck = (
+const permissionCheck = (
     kind: AgentPermissionCheckKind,
     label: string,
     status: AgentPermissionCheck['status'],
@@ -36,7 +36,6 @@ export const permissionCheck = (
     reason: null,
     policyLayer: null,
     settingsUrl: null,
-    sourceAssignments: [],
 });
 
 const refused = (
@@ -205,8 +204,6 @@ export const agentPermissionChecks = (
                               `This person's roles grant ${getAgentCapabilityName(capability)} to agents.`,
                           ),
                           capability,
-                          sourceAssignments:
-                              policy.capabilitySources?.[capability] ?? [],
                       }
                     : refused(
                           'capability',

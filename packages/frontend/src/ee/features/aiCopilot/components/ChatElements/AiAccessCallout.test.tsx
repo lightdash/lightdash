@@ -603,29 +603,21 @@ it.each(['direct', 'sdk', 'main'] as const)(
             </MemoryRouter>
         );
         const personalUrl = '/generalSettings/myAgentConnections';
-        const { rerender } = renderWithProviders(content(personalUrl));
-        for (const url of [
-            personalUrl,
-            '/generalSettings/agentIdentity#test-agent-access',
-        ]) {
-            rerender(content(url));
+        renderWithProviders(content(personalUrl));
+        expect(screen.getByText(managedRefusal.message)).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Also needed: Publish and share, warehouse confirmation for this project',
+            ),
+        ).toBeInTheDocument();
+        if (context === 'main') {
             expect(
-                screen.getByText(managedRefusal.message),
-            ).toBeInTheDocument();
+                screen.getByRole('link', { name: 'See why' }),
+            ).toHaveAttribute('href', personalUrl);
+        } else {
             expect(
-                screen.getByText(
-                    'Also needed: Publish and share, warehouse confirmation for this project',
-                ),
-            ).toBeInTheDocument();
-            if (context === 'main') {
-                expect(
-                    screen.getByRole('link', { name: 'See why' }),
-                ).toHaveAttribute('href', url);
-            } else {
-                expect(
-                    screen.queryByRole('link', { name: 'See why' }),
-                ).not.toBeInTheDocument();
-            }
+                screen.queryByRole('link', { name: 'See why' }),
+            ).not.toBeInTheDocument();
         }
     },
 );

@@ -1,9 +1,7 @@
 import {
     assertRegisteredAccount,
-    type AgentAccessPreviewRequest,
     type AgentCapabilityPolicy,
     type AgentWarehouseRestrictionConfirmation,
-    type ApiAgentAccessPreviewResponse,
     type ApiErrorPayload,
     type UUID,
 } from '@lightdash/common';
@@ -71,21 +69,6 @@ interface ResetPolicyRequest {
 @Tags('v2', 'Organizations')
 @Middlewares([allowApiKeyAuthentication, isAuthenticated, unauthorisedInDemo])
 export class AgentPermissionController extends BaseController {
-    @Post('/explain')
-    @OperationId('explainAgentPermissions')
-    async explain(
-        @Request() req: express.Request,
-        @Body() body: AgentAccessPreviewRequest,
-    ): Promise<ApiAgentAccessPreviewResponse> {
-        assertRegisteredAccount(req.account);
-        return {
-            status: 'ok',
-            results: await this.services
-                .getAgentPermissionService()
-                .previewAgentAccess(req.account, body),
-        };
-    }
-
     @Get()
     @OperationId('getAgentCapabilityPolicy')
     async getPolicy(

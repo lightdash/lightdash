@@ -7,7 +7,6 @@ import { configDefaults, defineConfig } from 'vitest/config';
 const serialFiles = [
     'tests/aiAgentMarkerPostgres.test.ts',
     'tests/agentConnectSnowflakeStub.test.ts',
-    'tests/agentPermissionExplain.test.ts',
     'tests/dataTimezone.test.ts',
     'tests/queryTimezone.test.ts',
     'tests/queryTimezoneBoundary.test.ts',

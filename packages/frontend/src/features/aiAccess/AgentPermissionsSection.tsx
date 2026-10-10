@@ -28,7 +28,6 @@ import {
     AgentAccessPickers,
     type AgentPickerOption,
 } from './AgentAccessPickers';
-import { AgentAccessPreview } from './AgentAccessPreview';
 import { AgentCapabilityMatrix } from './AgentCapabilityMatrix';
 import {
     agentPolicyMutationKey,
@@ -158,13 +157,11 @@ const AgentPermissionLimits = ({
 const AgentPermissionsForm = ({
     policy,
     refetchPolicy,
-    policyFetching,
     projects,
     people,
 }: {
     policy: AgentCapabilityPolicyOverview;
     refetchPolicy: ReturnType<typeof useAgentCapabilityPolicy>['refetch'];
-    policyFetching: boolean;
     projects: AgentPickerOption[];
     people: AgentPickerOption[];
 }) => {
@@ -237,115 +234,105 @@ const AgentPermissionsForm = ({
         );
     };
     return (
-        <Stack gap="lg">
-            <SettingsCard>
-                <Stack gap="lg">
-                    <Title order={5}>Permissions</Title>
-                    {conflict && (
-                        <Alert color="yellow" title="Agent permissions changed">
-                            <Stack gap="sm">
-                                <Text size="sm">
-                                    Someone changed the saved permissions.
-                                    Reload the latest permissions before making
-                                    more changes.
-                                    {dirty &&
-                                        ' This will discard your unsaved changes.'}
-                                </Text>
-                                <Button
-                                    variant="default"
-                                    disabled={saving}
-                                    loading={refreshing}
-                                    onClick={() => void reloadLatest()}
-                                >
-                                    Reload latest
-                                </Button>
-                            </Stack>
-                        </Alert>
-                    )}
-                    <Switch
-                        label="Limit what agents can do"
-                        checked={limitsOn}
-                        disabled={editingDisabled}
-                        onChange={(event) => {
-                            if (event.currentTarget.checked)
-                                change({ mode: 'managed' });
-                            else if (baseline.mode === 'managed')
-                                setModal('reset');
-                            else discard();
-                        }}
-                    />
-                    {!limitsOn && (
-                        <Text size="sm">
-                            Agents follow each person's permissions.
-                        </Text>
-                    )}
-                    {limitsOn && (
-                        <AgentPermissionLimits
-                            values={values}
-                            starting={starting}
-                            dirty={dirty}
-                            disabled={editingDisabled}
-                            saving={saving}
-                            projects={projects}
-                            people={people}
-                            onChange={change}
-                            onDiscard={discard}
-                            onSave={() => {
-                                if (values.allowedUserUuids?.length === 0)
-                                    setModal('empty');
-                                else submit();
-                            }}
-                        />
-                    )}
-                    <Text size="sm" c="dimmed">
-                        Personal access tokens are not limited. An agent that
-                        uses a person's personal access token has that person's
-                        access.
+        <SettingsCard>
+            <Stack gap="lg">
+                <Title order={5}>Permissions</Title>
+                {conflict && (
+                    <Alert color="yellow" title="Agent permissions changed">
+                        <Stack gap="sm">
+                            <Text size="sm">
+                                Someone changed the saved permissions. Reload
+                                the latest permissions before making more
+                                changes.
+                                {dirty &&
+                                    ' This will discard your unsaved changes.'}
+                            </Text>
+                            <Button
+                                variant="default"
+                                disabled={saving}
+                                loading={refreshing}
+                                onClick={() => void reloadLatest()}
+                            >
+                                Reload latest
+                            </Button>
+                        </Stack>
+                    </Alert>
+                )}
+                <Switch
+                    label="Limit what agents can do"
+                    checked={limitsOn}
+                    disabled={editingDisabled}
+                    onChange={(event) => {
+                        if (event.currentTarget.checked)
+                            change({ mode: 'managed' });
+                        else if (baseline.mode === 'managed') setModal('reset');
+                        else discard();
+                    }}
+                />
+                {!limitsOn && (
+                    <Text size="sm">
+                        Agents follow each person's permissions.
                     </Text>
-                </Stack>
-                {!conflict && modal === 'empty' && (
-                    <EmptyAgentAccessConfirmModal
+                )}
+                {limitsOn && (
+                    <AgentPermissionLimits
+                        values={values}
+                        starting={starting}
+                        dirty={dirty}
+                        disabled={editingDisabled}
                         saving={saving}
-                        onCancel={() => {
-                            change({
-                                allowedUserUuids: baseline.allowedUserUuids,
-                            });
-                            setModal(null);
-                        }}
-                        onConfirm={submit}
-                    />
-                )}
-                {!conflict && modal === 'reset' && (
-                    <MantineModal
-                        opened
-                        role="alertdialog"
-                        title="Turn off limits?"
-                        description="Agents will follow each person's permissions again. Project and people limits will no longer apply. Any unsaved changes will be discarded."
-                        onClose={() => {
-                            if (!saving) setModal(null);
-                        }}
-                        confirmLabel="Turn off limits"
-                        confirmLoading={reset.isLoading}
-                        confirmDisabled={saving}
-                        cancelDisabled={saving}
-                        onConfirm={() => {
-                            if (!saving)
-                                reset.mutate(
-                                    { version: values.version },
-                                    {
-                                        onError: () =>
-                                            void onFailed(values.version),
-                                    },
-                                );
+                        projects={projects}
+                        people={people}
+                        onChange={change}
+                        onDiscard={discard}
+                        onSave={() => {
+                            if (values.allowedUserUuids?.length === 0)
+                                setModal('empty');
+                            else submit();
                         }}
                     />
                 )}
-            </SettingsCard>
-            <AgentAccessPreview
-                key={`${Math.max(policy.version, baseline.version)}:${policyFetching}`}
-                dirty={dirty}
-            />
-        </Stack>
+                <Text size="sm" c="dimmed">
+                    Personal access tokens are not limited. An agent that uses a
+                    person's personal access token has that person's access.
+                </Text>
+            </Stack>
+            {!conflict && modal === 'empty' && (
+                <EmptyAgentAccessConfirmModal
+                    saving={saving}
+                    onCancel={() => {
+                        change({ allowedUserUuids: baseline.allowedUserUuids });
+                        setModal(null);
+                    }}
+                    onConfirm={submit}
+                />
+            )}
+            {!conflict && modal === 'reset' && (
+                <MantineModal
+                    opened
+                    role="alertdialog"
+                    title="Turn off limits?"
+                    description="Agents will follow each person's permissions again. Project and people limits will no longer apply. Any unsaved changes will be discarded."
+                    onClose={() => {
+                        if (!saving) setModal(null);
+                    }}
+                    confirmLabel="Turn off limits"
+                    confirmLoading={reset.isLoading}
+                    confirmDisabled={saving}
+                    cancelDisabled={saving}
+                    onConfirm={() => {
+                        if (!saving)
+                            reset.mutate(
+                                { version: values.version },
+                                {
+                                    onError: () =>
+                                        void onFailed(values.version),
+                                },
+                            );
+                    }}
+                />
+            )}
+        </SettingsCard>
     );
 };
 
@@ -379,7 +366,6 @@ const AgentPermissionsContent = () => {
         <AgentPermissionsForm
             policy={policy.data}
             refetchPolicy={policy.refetch}
-            policyFetching={policy.isFetching}
             projects={projectOptions}
             people={peopleOptions}
         />

@@ -87,7 +87,6 @@ const setup = ({
             getCurrentBindingFingerprint: vi.fn(),
         },
         userModel: {
-            findSessionUserByUUIDInOrganization: vi.fn(),
             getAgentRoleAssignments: vi.fn().mockResolvedValue({
                 systemRoles: [OrganizationMemberRole.ADMIN],
                 customRoles: [],
