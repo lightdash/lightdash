@@ -11,6 +11,8 @@ import { defaultSessionUser } from '../../auth/account/account.mock';
 import { LightdashConfig } from '../../config/parseConfig';
 import { OAuth2Model } from '../../models/OAuth2Model';
 import { UserModel } from '../../models/UserModel';
+import { InvalidClientMetadataError } from './InvalidClientMetadataError';
+import { InvalidRedirectUriError } from './InvalidRedirectUriError';
 import { OAuthService } from './OAuthService';
 
 const JAVASCRIPT_REDIRECT_URI = ['javascript', 'alert(1)'].join(':');
@@ -350,6 +352,94 @@ describe('OAuthService edge cases', () => {
     });
 
     describe('registerClient', () => {
+        it.each(['22001', '22P05', '22021', '22P02', '23502'])(
+            'maps database data error %s to invalid client metadata',
+            async (code) => {
+                mockOAuthModel.createClient.mockRejectedValue(
+                    Object.assign(new Error('Private database details'), {
+                        code,
+                    }),
+                );
+
+                const result = oauthService.registerClient({
+                    clientName: 'Test client',
+                    redirectUris: ['https://example.com/callback'],
+                });
+
+                await expect(result).rejects.toBeInstanceOf(
+                    InvalidClientMetadataError,
+                );
+                await expect(result).rejects.toBeInstanceOf(ParameterError);
+                await expect(result).rejects.toThrow(
+                    'Client metadata is invalid',
+                );
+            },
+        );
+
+        it.each([
+            Object.assign(new Error('Duplicate client'), { code: '23505' }),
+            new Error('Database unavailable'),
+        ])(
+            'rethrows unexpected storage errors unchanged: %s',
+            async (error) => {
+                mockOAuthModel.createClient.mockRejectedValue(error);
+
+                await expect(
+                    oauthService.registerClient({
+                        clientName: 'Test client',
+                        redirectUris: ['https://example.com/callback'],
+                    }),
+                ).rejects.toBe(error);
+            },
+        );
+
+        it.each([
+            ['http://example.com/café', 'http://example.com/caf\\u00e9'],
+            [
+                'https://example.com/\ncallback',
+                'https://example.com/\\u000acallback',
+            ],
+        ])(
+            'escapes non-ASCII redirect descriptions for %j',
+            async (uri, escapedUri) => {
+                mockOAuthModel.isSecurityStrict.mockResolvedValue(true);
+
+                await expect(
+                    oauthService.registerClient({
+                        clientName: 'Test client',
+                        redirectUris: [uri],
+                    }),
+                ).rejects.toThrow(`Invalid redirect URI ${escapedUri}`);
+            },
+        );
+
+        it.each([
+            'http://example.com/callback',
+            'https://user@example.com/callback',
+            'https://example.com/\\callback',
+            'unknownscheme://callback',
+            'https://example.com/*',
+        ])(
+            'throws a dedicated redirect error for %s in strict mode',
+            async (uri) => {
+                mockOAuthModel.isSecurityStrict.mockResolvedValue(true);
+
+                const result = oauthService.registerClient({
+                    clientName: 'Test client',
+                    redirectUris: ['https://example.com/callback', uri],
+                });
+
+                await expect(result).rejects.toBeInstanceOf(
+                    InvalidRedirectUriError,
+                );
+                await expect(result).rejects.toBeInstanceOf(ParameterError);
+                await expect(result).rejects.toThrow(
+                    `Invalid redirect URI ${uri}`,
+                );
+                expect(mockOAuthModel.createClient).not.toHaveBeenCalled();
+            },
+        );
+
         it('rejects an unsafe redirect URI scheme', async () => {
             await expect(
                 oauthService.registerClient({
