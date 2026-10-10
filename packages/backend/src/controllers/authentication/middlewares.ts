@@ -6,6 +6,7 @@ import {
     DeactivatedAccountError,
     InvalidUser,
     LightdashMode,
+    SessionUser,
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import { ErrorRequestHandler, Request, RequestHandler } from 'express';
@@ -14,9 +15,36 @@ import { URL } from 'url';
 import { fromApiKey, fromOauth } from '../../auth/account/account';
 import { requestContextFromExpress } from '../../auth/account/requestContext';
 import { buildAccountExistsWarning } from '../../auth/account/warnAccountExists';
+import { resolveOAuthScopeMode } from '../../auth/oauthScopes/mode';
+import { OAuthScopePolicy } from '../../auth/oauthScopes/scopedAbility';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { authenticateServiceAccount } from '../../ee/authentication';
 import Logger from '../../logging/logger';
+
+const getOAuthScopePolicy = async (
+    req: Request,
+    user: SessionUser,
+): Promise<OAuthScopePolicy | null> => {
+    const mode = await resolveOAuthScopeMode(
+        req.services.getFeatureFlagService(),
+        user,
+    );
+    if (mode === null) return null;
+    return {
+        mode,
+        getRequest: () => {
+            const route = req.route as { path: unknown } | undefined;
+            return {
+                method: req.method,
+                routeTemplate:
+                    !req.baseUrl.endsWith('/mcp') &&
+                    typeof route?.path === 'string'
+                        ? route.path
+                        : null,
+            };
+        },
+    };
+};
 
 export const isAuthenticated: RequestHandler = (req, res, next) => {
     if (req.account?.isAuthenticated() || req.user?.userUuid) {
@@ -76,7 +104,7 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
                     id: token.user.userUuid,
                     organization: token.user.organizationUuid,
                 })
-                .then((user) => {
+                .then(async (user) => {
                     if (req.account?.isAuthenticated()) {
                         Logger.warn(
                             buildAccountExistsWarning('OAuth'),
@@ -85,10 +113,19 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
                     }
                     req.user = user;
                     if (user) {
-                        req.account = fromOauth(user, token);
+                        req.account = fromOauth(
+                            user,
+                            token,
+                            await getOAuthScopePolicy(req, user),
+                        );
                         const requestContext = requestContextFromExpress(req);
                         req.account.requestContext = requestContext;
-                        req.user!.requestContext = requestContext;
+                        req.user = {
+                            ...user,
+                            ability: req.account.user.ability,
+                            abilityRules: req.account.user.abilityRules,
+                            requestContext,
+                        };
                     }
                     next();
                 })
@@ -174,7 +211,7 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
                     id: token.user.userUuid,
                     organization: token.user.organizationUuid,
                 })
-                .then((user) => {
+                .then(async (user) => {
                     if (req.account?.isAuthenticated()) {
                         Logger.warn(
                             buildAccountExistsWarning('OAuth'),
@@ -183,10 +220,19 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
                     }
                     req.user = user;
                     if (user) {
-                        req.account = fromOauth(user, token);
+                        req.account = fromOauth(
+                            user,
+                            token,
+                            await getOAuthScopePolicy(req, user),
+                        );
                         const requestContext = requestContextFromExpress(req);
                         req.account.requestContext = requestContext;
-                        req.user!.requestContext = requestContext;
+                        req.user = {
+                            ...user,
+                            ability: req.account.user.ability,
+                            abilityRules: req.account.user.abilityRules,
+                            requestContext,
+                        };
                     }
                     next();
                 })

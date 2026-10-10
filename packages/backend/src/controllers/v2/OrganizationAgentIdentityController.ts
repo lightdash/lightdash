@@ -27,6 +27,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -39,6 +40,11 @@ import { BaseController } from '../baseController';
 @Tags('v2', 'Organizations')
 @Middlewares([allowApiKeyAuthentication, isAuthenticated, unauthorisedInDemo])
 export class OrganizationAgentIdentityController extends BaseController {
+    @Middlewares([
+        requireOAuthScopeOperation(
+            'OrganizationAgentIdentityController.getSettings',
+        ),
+    ])
     @Get()
     @OperationId('getOrganizationAgentIdentitySettings')
     @SuccessResponse('200', 'Success')

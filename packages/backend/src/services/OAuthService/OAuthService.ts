@@ -11,12 +11,14 @@ import {
     type OAuthClientSummary,
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
+import { assertOAuthCredentialOperationAllowed } from '../../auth/oauthScopes/credentials';
 import { LightdashConfig } from '../../config/parseConfig';
 import { OAuth2Model } from '../../models/OAuth2Model';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
 import type { ManagedSignInService } from './managedSignIn/ManagedSignInService';
 import { createMicrosoftTokenExchangeGrantType } from './managedSignIn/microsoftTokenExchangeGrantType';
+import { createScopeCheckedRefreshTokenGrant } from './ScopeCheckedRefreshTokenGrant';
 
 export enum OAuthScope {
     READ = 'read',
@@ -71,14 +73,21 @@ export class OAuthService extends BaseService {
         const { getManagedSignInService } = this;
         this.oauthServer = new OAuth2Server({
             model: this.oauthModel,
-            extendedGrantTypes: getManagedSignInService
-                ? {
-                      [TOKEN_EXCHANGE_GRANT_TYPE]:
-                          createMicrosoftTokenExchangeGrantType(
-                              getManagedSignInService,
-                          ),
-                  }
-                : undefined,
+            extendedGrantTypes: {
+                refresh_token: createScopeCheckedRefreshTokenGrant((user) =>
+                    this.oauthModel.getScopeMode(
+                        user as UserWithOrganizationUuid,
+                    ),
+                ) as unknown as typeof OAuth2Server.AbstractGrantType,
+                ...(getManagedSignInService
+                    ? {
+                          [TOKEN_EXCHANGE_GRANT_TYPE]:
+                              createMicrosoftTokenExchangeGrantType(
+                                  getManagedSignInService,
+                              ),
+                      }
+                    : {}),
+            },
             allowBearerTokensInQueryString: true,
             allowEmptyState: true, // Make state parameter optional for MCP compatibility
             accessTokenLifetime:
@@ -210,6 +219,7 @@ export class OAuthService extends BaseService {
             redirectUris: string[];
         },
     ) {
+        assertOAuthCredentialOperationAllowed(account, 'createOAuthClient');
         const auditedAbility = this.createAuditedAbility(account);
         if (
             !account.organization.organizationUuid ||
@@ -251,6 +261,7 @@ export class OAuthService extends BaseService {
             redirectUris: string[];
         },
     ): Promise<OAuthClientSummary> {
+        assertOAuthCredentialOperationAllowed(account, 'updateOAuthClient');
         const auditedAbility = this.createAuditedAbility(account);
         if (
             !account.organization.organizationUuid ||
@@ -288,6 +299,7 @@ export class OAuthService extends BaseService {
         account: Account,
         clientId: string,
     ): Promise<void> {
+        assertOAuthCredentialOperationAllowed(account, 'deleteOAuthClient');
         const auditedAbility = this.createAuditedAbility(account);
         if (
             !account.organization.organizationUuid ||

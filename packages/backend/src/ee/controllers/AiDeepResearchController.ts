@@ -24,6 +24,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -43,6 +44,7 @@ export class AiDeepResearchController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('AiDeepResearchController.createRun'),
     ])
     @Response<ApiErrorPayload>('409', 'Deep Research run already active')
     @SuccessResponse('202', 'Accepted')
@@ -127,7 +129,11 @@ export class AiDeepResearchController extends BaseController {
      * load its live results.
      * @summary Refresh Deep Research chart
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiDeepResearchController.refreshChart'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{aiDeepResearchRunUuid}/charts/{chartKey}/refresh')
     @OperationId('refreshAiDeepResearchChart')
@@ -213,7 +219,11 @@ export class AiDeepResearchController extends BaseController {
      * Cancel a queued run immediately or request cancellation for a running run.
      * @summary Cancel Deep Research run
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiDeepResearchController.cancelRun'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{aiDeepResearchRunUuid}/cancel')
     @OperationId('cancelAiDeepResearchRun')

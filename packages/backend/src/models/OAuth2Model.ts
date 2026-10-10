@@ -1,5 +1,6 @@
 /* eslint-disable class-methods-use-this */
 import {
+    AuthorizationError,
     AuthTokenPrefix,
     TOKEN_EXCHANGE_GRANT_TYPE,
     UserWithOrganizationUuid,
@@ -15,7 +16,14 @@ import type {
 import { Knex } from 'knex';
 import { nanoid } from 'nanoid';
 import { Scope } from 'oauth2-server';
+import {
+    OAUTH_SCOPES,
+    resolveOAuthScopeMode,
+    scopesForOAuthRecord,
+} from '../auth/oauthScopes/mode';
 import { LightdashConfig } from '../config/parseConfig';
+import Logger from '../logging/logger';
+import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 
 export const DEFAULT_OAUTH_CLIENT_ID = 'lightdash-cli';
 
@@ -35,6 +43,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
     constructor(
         private database: Knex,
         private lightdashConfig: LightdashConfig,
+        private featureFlagModel: Pick<FeatureFlagModel, 'get'>,
     ) {}
 
     private getRefreshTokenLifetime(
@@ -86,6 +95,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
 
         return {
             clientId: client.client_id,
+            scopes: client.scopes ?? [],
             id: client.client_id,
             redirectUris: client.redirect_uris,
             grants: OAuth2Model.withTokenExchangeGrant(
@@ -184,6 +194,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
             codeChallengeMethod: result.code_challenge_method,
             client: {
                 id: result.client_id,
+                scopes: result.scopes ?? [],
                 redirectUris: result.redirect_uris,
                 grants: result.grants,
             },
@@ -278,6 +289,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
             scope: result.scope,
             client: {
                 id: result.client_id,
+                scopes: result.scopes ?? [],
                 redirectUris: result.redirect_uris,
                 grants: result.grants,
             },
@@ -358,6 +370,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
             scope: result.scope,
             client: {
                 id: result.client_id,
+                scopes: result.scopes ?? [],
                 redirectUris: result.redirect_uris,
                 grants: result.grants,
                 refreshTokenLifetime: this.getRefreshTokenLifetime(
@@ -385,6 +398,55 @@ export class OAuth2Model implements AuthorizationCodeModel {
         scope: Scope,
     ): Promise<string> {
         return `${AuthTokenPrefix.OAUTH_REFRESH}${nanoid(64)}`;
+    }
+
+    async getScopeMode(user: UserWithOrganizationUuid) {
+        const storedUser = await this.database('users')
+            .select('user_uuid')
+            .where('user_id', user.userId)
+            .first();
+        if (!storedUser) {
+            throw new AuthorizationError('OAuth user not found');
+        }
+        return resolveOAuthScopeMode(this.featureFlagModel, {
+            organizationUuid: user.organizationUuid,
+            userUuid: storedUser.user_uuid,
+        });
+    }
+
+    async validateScope(
+        user: UserWithOrganizationUuid,
+        client: Client,
+        scope: string[] = [],
+    ): Promise<string[] | false> {
+        const mode = await this.getScopeMode(user);
+        if (mode === null) return scope;
+
+        const registeredScopes: string[] = client.scopes ?? [];
+        const allowedScopes = new Set<string>(
+            OAUTH_SCOPES.filter(
+                (knownScope) =>
+                    registeredScopes.length === 0 ||
+                    registeredScopes.includes(knownScope),
+            ),
+        );
+        if (
+            scope.every((requestedScope) => allowedScopes.has(requestedScope))
+        ) {
+            return scope;
+        }
+
+        Logger.warn('oauth_scope_refusal', {
+            mode,
+            clientId: client.id,
+            scopes: scopesForOAuthRecord(scope),
+            method: null,
+            routeTemplate: null,
+            toolName: null,
+            action: 'validateScope',
+            subjectType: 'OAuthClient',
+        });
+        return mode === 'enforce' ? false : scope;
     }
 
     async validateRedirectUri(

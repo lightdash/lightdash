@@ -20,6 +20,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -57,6 +58,7 @@ export class UserAvatarController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('UserAvatarController.updateMyAvatar'),
     ])
     @SuccessResponse('200', 'Success')
     @Put('/')
@@ -90,6 +92,7 @@ export class UserAvatarController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('UserAvatarController.deleteMyAvatar'),
     ])
     @SuccessResponse('200', 'Success')
     @Delete('/')
@@ -112,7 +115,11 @@ export class UsersAvatarController extends BaseController {
      * are immutable and cached by the browser indefinitely.
      * @summary Get user avatar
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('UsersAvatarController.getUserAvatar'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{userUuid}/avatar/{contentHash}')
     @OperationId('GetUserAvatar')

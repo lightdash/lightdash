@@ -25,6 +25,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -111,6 +112,7 @@ export class DeployController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('DeployController.addDeployBatch'),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/{sessionUuid}/batch')
@@ -147,6 +149,7 @@ export class DeployController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('DeployController.finalizeDeploySession'),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/{sessionUuid}/finalize')

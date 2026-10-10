@@ -823,6 +823,9 @@ importers:
       typescript:
         specifier: 7.0.2
         version: 7.0.2
+      typescript-compiler-api:
+        specifier: npm:typescript@5.9.3
+        version: typescript@5.9.3
 
   packages/backend/src/ee/services/McpService/mcp-chart-app:
     dependencies:

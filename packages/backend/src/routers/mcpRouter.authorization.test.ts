@@ -3,8 +3,14 @@ import type { NextFunction, Request, Response } from 'express';
 import express from 'express';
 import { request as httpRequest, type Server, type ServerResponse } from 'http';
 import type { AddressInfo } from 'net';
+import { defaultSessionUser } from '../auth/account/account.mock';
+import { getOAuthScopeContext } from '../auth/oauthScopes/scopedAbility';
 import { McpService } from '../ee/services/McpService/McpService';
 import mcpRouter, { extractMcpProjectUuid } from './mcpRouter';
+
+vi.mock('../auth/oauthScopes/scopedAbility', () => ({
+    getOAuthScopeContext: vi.fn().mockReturnValue(null),
+}));
 
 const PROJECT_UUID = 'd15384cb-8326-433a-a9e9-6f6bb22718f6';
 
@@ -47,6 +53,7 @@ type TestAuthentication =
 const createAccount = (authentication: TestAuthentication) =>
     ({
         authentication,
+        user: { ability: defaultSessionUser.ability },
         isAuthenticated: () => true,
         isOauthUser: () => authentication.type === 'oauth',
         isPatUser: () => authentication.type === 'pat',
@@ -131,6 +138,7 @@ const requestMcp = async ({
     app.use((request, _response, next) => {
         request.account = account;
         request.user = {
+            ...defaultSessionUser,
             email: 'test@lightdash.com',
             userUuid: 'user-uuid',
             organizationUuid: 'organization-uuid',
@@ -157,6 +165,7 @@ const requestMcp = async ({
 
 afterEach(async () => {
     vi.clearAllMocks();
+    vi.mocked(getOAuthScopeContext).mockReturnValue(null);
     await Promise.all(
         servers.splice(0).map(
             (server) =>
@@ -388,4 +397,72 @@ describe('project-scoped MCP route', () => {
         });
         expect(transport.handleRequest).toHaveBeenCalledOnce();
     });
+});
+
+describe('MCP call-time OAuth scope enforcement', () => {
+    it.each([
+        { mode: null, name: 'create_content', status: 200, records: 0 },
+        {
+            mode: 'log' as const,
+            name: 'create_content',
+            status: 200,
+            records: 1,
+        },
+        {
+            mode: 'enforce' as const,
+            name: 'create_content',
+            status: 403,
+            records: 1,
+        },
+        {
+            mode: 'enforce' as const,
+            name: 'get_context',
+            status: 200,
+            records: 0,
+        },
+        {
+            mode: 'enforce' as const,
+            name: 'unknown_tool',
+            status: 403,
+            records: 1,
+        },
+    ])(
+        'checks $name in mode=$mode',
+        async ({ mode, name, status, records }) => {
+            const record = vi.fn();
+            vi.mocked(getOAuthScopeContext).mockReturnValue(
+                mode === null ? null : { mode, scopes: ['mcp:read'], record },
+            );
+            transport.handleRequest.mockImplementation(
+                async (_request, response) => {
+                    response.status(200).json({ status: 'ok' });
+                },
+            );
+            const { response, mcpService } = await requestMcp({
+                account: createAccount({ type: 'oauth', scopes: ['mcp:read'] }),
+                method: 'POST',
+                requestBody: {
+                    jsonrpc: '2.0',
+                    id: 1,
+                    method: 'tools/call',
+                    params: {
+                        name,
+                        arguments: { sensitive: 'must-not-be-recorded' },
+                    },
+                },
+            });
+            expect(response.status).toBe(status);
+            expect(record).toHaveBeenCalledTimes(records);
+            if (records)
+                expect(record).toHaveBeenCalledWith(
+                    'call',
+                    'McpTool',
+                    name === 'unknown_tool' ? '[unknown]' : name,
+                );
+            if (status === 403) {
+                expect(mcpService.createServer).not.toHaveBeenCalled();
+                expect(transport.handleRequest).not.toHaveBeenCalled();
+            }
+        },
+    );
 });

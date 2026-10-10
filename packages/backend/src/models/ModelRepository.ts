@@ -620,7 +620,12 @@ export class ModelRepository
     public getOauthModel(): OAuth2Model {
         return this.getModel(
             'oauthModel',
-            () => new OAuth2Model(this.database, this.lightdashConfig),
+            () =>
+                new OAuth2Model(
+                    this.database,
+                    this.lightdashConfig,
+                    this.getFeatureFlagModel(),
+                ),
         );
     }
 

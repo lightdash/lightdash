@@ -111,6 +111,7 @@ import {
     requestOAuthRefreshWithDeadline,
     type OAuthRefreshCallback,
 } from '../auth/oauthRequestDeadline';
+import { assertOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfig as configuredLightdashConfig } from '../config/lightdashConfig';
 import { LightdashConfig } from '../config/parseConfig';
@@ -2720,6 +2721,7 @@ export class UserService extends BaseService {
     ): Promise<EmailStatusExpiring> {
         // Attempt to verify the passcode if it's provided
         if (passcode) {
+            assertOAuthScopeOperation(user, 'UserService.verifyEmail');
             const purpose = user.isSetupComplete
                 ? 'email_change'
                 : 'signup_verification';

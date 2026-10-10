@@ -1,7 +1,16 @@
 import { ForbiddenError, NotFoundError } from '@lightdash/common';
 import { McpError } from '@modelcontextprotocol/sdk/types.js'; // eslint-disable-line import/extensions
+import { getOAuthScopeContext } from '../../../auth/oauthScopes/scopedAbility';
 import { McpService, McpToolName } from './McpService';
 import { makeMcpServerOptions } from './McpService.mock';
+
+vi.mock('../../../auth/oauthScopes/scopedAbility', () => ({
+    getOAuthScopeContext: vi.fn().mockReturnValue(null),
+}));
+
+afterEach(() => {
+    vi.mocked(getOAuthScopeContext).mockReturnValue(null);
+});
 
 type RegisteredToolCallback = (
     args: Record<string, unknown>,
@@ -427,6 +436,43 @@ describe('McpService AI writeback MCP tasks', () => {
     });
 
     describe('tasks/cancel', () => {
+        it.each(['log', 'enforce'] as const)(
+            'checks the write scope in %s mode',
+            async (mode) => {
+                const cancelRun = vi.fn().mockResolvedValue({
+                    cancelled: true,
+                    status: 'cancelled',
+                });
+                const record = vi.fn();
+                await createServerWithWriteback({ cancelRun });
+                vi.mocked(getOAuthScopeContext).mockReturnValue({
+                    mode,
+                    scopes: ['mcp:read'],
+                    record,
+                });
+                const result = mockRegisteredRequestHandlers.get(
+                    'tasks/cancel',
+                )!(
+                    { method: 'tasks/cancel', params: { taskId: runUuid } },
+                    makeExtra(tasksOptInMeta),
+                );
+                if (mode === 'enforce') {
+                    await expect(result).rejects.toThrow(ForbiddenError);
+                    expect(cancelRun).not.toHaveBeenCalled();
+                } else {
+                    await expect(result).resolves.toEqual({
+                        resultType: 'complete',
+                    });
+                    expect(cancelRun).toHaveBeenCalledOnce();
+                }
+                expect(record).toHaveBeenCalledWith(
+                    'call',
+                    'McpTool',
+                    'run_ai_writeback',
+                );
+            },
+        );
+
         const cancelTask = (
             taskId: string,
             extra = makeExtra(tasksOptInMeta),

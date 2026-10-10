@@ -25,6 +25,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import { allowApiKeyAuthentication, isAuthenticated } from '../authentication';
 import { BaseController } from '../baseController';
 
@@ -37,7 +38,13 @@ export class DirectAccessController extends BaseController {
      * same permission as managing its direct access assignments.
      * @summary List groups eligible for direct access
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'DirectAccessController.listDirectAccessGroups',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('{resourceType}/{resourceUuid}/groups')
     @OperationId('List direct access groups')
@@ -68,7 +75,13 @@ export class DirectAccessController extends BaseController {
      * its direct access assignments.
      * @summary List users eligible for direct access
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'DirectAccessController.listDirectAccessUsers',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('{resourceType}/{resourceUuid}/users')
     @OperationId('List direct access users')
@@ -99,7 +112,13 @@ export class DirectAccessController extends BaseController {
      * are never reconstructed here.
      * @summary List direct access
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'DirectAccessController.listDirectAccessAssignments',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('{resourceType}/{resourceUuid}/assignments')
     @OperationId('List direct access assignments')
@@ -128,7 +147,13 @@ export class DirectAccessController extends BaseController {
      * Create or replace one principal's direct role on a resource.
      * @summary Replace direct access role
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'DirectAccessController.upsertDirectAccessAssignment',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Put(
         '{resourceType}/{resourceUuid}/assignments/{principalType}/{principalUuid}',
@@ -163,7 +188,13 @@ export class DirectAccessController extends BaseController {
      * not exist succeeds as a no-op.
      * @summary Revoke direct access
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'DirectAccessController.revokeDirectAccessAssignment',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Delete(
         '{resourceType}/{resourceUuid}/assignments/{principalType}/{principalUuid}',
@@ -195,7 +226,13 @@ export class DirectAccessController extends BaseController {
      * Remove every direct access assignment from one resource.
      * @summary Reset direct access
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'DirectAccessController.resetDirectAccessAssignments',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Delete('{resourceType}/{resourceUuid}/assignments')
     @OperationId('Reset direct access')

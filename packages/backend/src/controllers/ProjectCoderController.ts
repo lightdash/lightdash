@@ -73,6 +73,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../auth/account';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import { BaseController } from './baseController';
 import {
     CODE_READ_MIDDLEWARES,
@@ -435,7 +436,10 @@ export class ProjectCoderController extends BaseController {
      * @summary Rebase content draft
      */
     @Tags('Projects')
-    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @Middlewares([
+        ...CODE_WRITE_MIDDLEWARES,
+        requireOAuthScopeOperation('ProjectCoderController.rebaseContentDraft'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/code/drafts/{draftUuid}/rebase')
     @OperationId('rebaseContentDraft')
@@ -507,7 +511,10 @@ export class ProjectCoderController extends BaseController {
      * @summary Reopen content draft
      */
     @Tags('Projects')
-    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @Middlewares([
+        ...CODE_WRITE_MIDDLEWARES,
+        requireOAuthScopeOperation('ProjectCoderController.reopenContentDraft'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/code/drafts/{draftUuid}/reopen')
     @OperationId('reopenContentDraft')

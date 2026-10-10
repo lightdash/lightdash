@@ -140,6 +140,11 @@ import {
     LightdashAnalytics,
     McpToolCallEvent,
 } from '../../../analytics/LightdashAnalytics';
+import {
+    assertOAuthMcpToolAllowed,
+    isMcpToolAllowed,
+} from '../../../auth/oauthScopes/mcpTools';
+import { getOAuthScopeContext } from '../../../auth/oauthScopes/scopedAbility';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { McpContextModel } from '../../../models/McpContextModel';
@@ -1991,6 +1996,7 @@ export class McpService extends BaseService {
         McpService.requireTasksCapability(extra);
         const ctx = getMcpContext(extra);
         const { user } = McpService.getAccount(ctx);
+        assertOAuthMcpToolAllowed(user.ability, McpToolName.RUN_AI_WRITEBACK);
 
         let outcome: {
             cancelled: boolean;
@@ -4622,6 +4628,19 @@ export class McpService extends BaseService {
         options: McpServerToolOptions,
     ): Promise<McpServer> {
         const newServer = this.buildMcpServer(options.featureAvailability);
+        const scopeContext = options.req.user
+            ? getOAuthScopeContext(options.req.user.ability)
+            : null;
+        if (scopeContext?.mode === 'enforce') {
+            const registerTool = newServer.registerTool.bind(newServer);
+            newServer.registerTool = (name, config, handler) => {
+                const tool = registerTool(name, config, handler);
+                if (!isMcpToolAllowed(scopeContext.scopes, name)) {
+                    tool.disable();
+                }
+                return tool;
+            };
+        }
 
         // Temporarily swap the server to register handlers on the new instance.
         // Kept synchronous so concurrent createServer calls can't observe each
@@ -5293,10 +5312,14 @@ export class McpService extends BaseService {
                 cbArgs.length > 1 ? [cbArgs[0], cbArgs[1]] : [{}, cbArgs[0]];
             const startedAt = Date.now();
             try {
+                const context = getMcpContext(extra);
+                const user = context.authInfo?.extra.user;
+                if (user) {
+                    assertOAuthMcpToolAllowed(user.ability, toolName);
+                }
                 const result = await handler(...cbArgs);
                 const legacyContextInjected =
-                    getMcpContext(extra).authInfo?.extra
-                        .legacyContextInjected === true;
+                    context.authInfo?.extra.legacyContextInjected === true;
                 const response =
                     legacyContextInjected && Array.isArray(result?.content)
                         ? {

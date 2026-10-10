@@ -18,6 +18,8 @@ import express, { type RequestHandler, type Router } from 'express';
 import { IncomingMessage } from 'http';
 import { validate as isValidUuid } from 'uuid';
 import { z } from 'zod';
+import { assertOAuthMcpToolAllowed } from '../auth/oauthScopes/mcpTools';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import { allowApiKeyAuthentication } from '../controllers/authentication';
 import {
     ExtraContext,
@@ -272,6 +274,7 @@ mcpRouter.all(
     ['/', '/projects/:projectUuid'],
     aliasMcpBearerPersonalAccessToken,
     authenticateOnlyWithCredentials,
+    requireOAuthScopeOperation('mcpRouter.handle'),
     returnHeaderIfUnauthenticated,
     async (req, res) => {
         try {
@@ -325,6 +328,12 @@ mcpRouter.all(
                 // See: https://github.com/advisories/GHSA-345p-7cg4-v4c7
                 const pinnedProjectUuid = extractMcpProjectUuid(req);
                 const parsedToolCall = legacyToolCallSchema.safeParse(req.body);
+                if (parsedToolCall.success) {
+                    assertOAuthMcpToolAllowed(
+                        req.user!.ability,
+                        parsedToolCall.data.params.name,
+                    );
+                }
                 let legacyContextInjected = false;
                 if (
                     parsedToolCall.success &&

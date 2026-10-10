@@ -33,6 +33,7 @@ import fs from 'fs';
 import path from 'path';
 import { Readable } from 'stream';
 import { toSessionUser } from '../auth/account';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import Logger from '../logging/logger';
 import {
     allowApiKeyAuthentication,
@@ -50,7 +51,11 @@ export class SlackController extends BaseController {
      * @summary Get Slack channels
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('SlackController.get'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/channels')
     @OperationId('getSlackChannels')
@@ -89,7 +94,11 @@ export class SlackController extends BaseController {
      * @param req express request
      * @param channelId Slack channel ID (e.g., C01234567)
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('SlackController.getChannelById'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/channels/{channelId}')
     @OperationId('getSlackChannelById')
@@ -116,6 +125,7 @@ export class SlackController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('SlackController.updateCustomSettings'),
     ])
     @SuccessResponse('200', 'Success')
     @Put('/custom-settings')

@@ -17,6 +17,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import {
     allowApiKeyAuthentication,
@@ -32,7 +33,11 @@ export class SnowflakeController extends BaseController {
      * Check if the user is authenticated with Snowflake SSO
      * @summary Check Snowflake SSO authentication
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('SnowflakeController.ssoIsAuthenticated'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/sso/is-authenticated')
     @OperationId('ssoIsAuthenticated')

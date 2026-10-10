@@ -27,6 +27,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -105,6 +106,9 @@ export class AiAgentMemoryController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation(
+            'AiAgentMemoryController.promoteAiAgentMemory',
+        ),
     ])
     @SuccessResponse('201', 'Created')
     @Post('/{memoryUuid}/promote')
@@ -141,6 +145,9 @@ export class AiAgentMemoryController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation(
+            'AiAgentMemoryController.updateAiAgentMemoryStatus',
+        ),
     ])
     @SuccessResponse('200', 'Success')
     @Patch('/{memoryUuid}/status')
