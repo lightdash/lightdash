@@ -1,3 +1,10 @@
+# [2.546.0](https://github.com/lightdash/lightdash/compare/2.545.0...2.546.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** use one agent vocabulary across settings, cards and refusals ([#30874](https://github.com/lightdash/lightdash/issues/30874)) ([1a3ca91](https://github.com/lightdash/lightdash/commit/1a3ca9163a7ee6dfa32a619e598ad214b3c80567))
+
 # [2.545.0](https://github.com/lightdash/lightdash/compare/2.544.0...2.545.0) (2026-10-10)
 
 

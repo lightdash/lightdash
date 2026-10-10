@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.545.0",
-  "previousVersion": "2.544.0",
-  "releaseDate": "2026-10-10T12:23:59.579Z",
+  "version": "2.546.0",
+  "previousVersion": "2.545.0",
+  "releaseDate": "2026-10-10T13:08:21.030Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261011000001_add_agent_policy_allowed_users.ts",
-        "edition": "core",
-        "tables": [
-          "organization_agent_capability_policies"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
