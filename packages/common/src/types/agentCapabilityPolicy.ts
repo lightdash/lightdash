@@ -18,6 +18,7 @@ export interface AgentCapabilityPolicySave extends Omit<
     AgentCapabilityPolicy,
     'version'
 > {
+    version?: number;
     organizationUuid: string;
     updatedByUserUuid: string | null;
 }
@@ -37,14 +38,16 @@ export interface AgentCapabilityPolicyOverview extends AgentCapabilityPolicy {
     };
 }
 
-export type AgentCapabilityCeiling = Pick<
+export interface AgentCapabilityCeiling extends Pick<
     AgentCapabilityPolicy,
     'systemRoleMatrix' | 'allowedProjectUuids' | 'allowedUserUuids'
->;
+> {
+    version?: number;
+}
 
 export type AgentPilotSelection = Pick<
     AgentCapabilityCeiling,
-    'allowedProjectUuids' | 'allowedUserUuids'
+    'version' | 'allowedProjectUuids' | 'allowedUserUuids'
 >;
 
 export interface AgentWarehouseConfirmationStatus {

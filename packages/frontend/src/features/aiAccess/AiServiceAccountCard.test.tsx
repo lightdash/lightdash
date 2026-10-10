@@ -2864,7 +2864,9 @@ describe('AI service account card', () => {
                 'Agent identity is not available for this warehouse.',
             ),
         ).toBeVisible();
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect.objectContaining({ url: '/org/agent-identity' }),
+        );
     });
     it('keeps the form open and reports a failed save', async () => {
         setup();

@@ -35,6 +35,23 @@ export class AgentCapabilityPolicyModel {
         this.database = database;
     }
 
+    private getAllowedMembers(
+        database: Knex,
+        organizationUuid: string,
+        allowedUserUuids: string[],
+    ) {
+        return database(OrganizationMembershipsTableName)
+            .join('users', 'users.user_id', 'organization_memberships.user_id')
+            .join(
+                'organizations',
+                'organizations.organization_id',
+                'organization_memberships.organization_id',
+            )
+            .where('organizations.organization_uuid', organizationUuid)
+            .whereIn('users.user_uuid', allowedUserUuids)
+            .select('users.user_uuid');
+    }
+
     async get(organizationUuid: string): Promise<AgentCapabilityPolicy> {
         const rows = await this.database(AgentCapabilityPoliciesTableName)
             .leftJoin(
@@ -58,11 +75,21 @@ export class AgentCapabilityPolicyModel {
                 systemRoleMatrix[row.system_role].push(row.capability);
             }
         }
+        const storedUsers = policy?.allowed_user_uuids ?? null;
+        const members = storedUsers?.length
+            ? await this.getAllowedMembers(
+                  this.database,
+                  organizationUuid,
+                  storedUsers,
+              )
+            : [];
+        const memberUuids = new Set(members.map((member) => member.user_uuid));
         return {
             mode: policy?.mode ?? 'legacy',
             version: policy?.version ?? 0,
             allowedProjectUuids: policy?.allowed_project_uuids ?? null,
-            allowedUserUuids: policy?.allowed_user_uuids ?? null,
+            allowedUserUuids:
+                storedUsers?.filter((uuid) => memberUuids.has(uuid)) ?? null,
             systemRoleMatrix,
         };
     }
@@ -70,29 +97,23 @@ export class AgentCapabilityPolicyModel {
     async save({
         organizationUuid,
         mode,
+        version,
         allowedProjectUuids,
         allowedUserUuids,
         systemRoleMatrix,
         updatedByUserUuid,
     }: AgentCapabilityPolicySave): Promise<AgentCapabilityPolicy> {
         return this.database.transaction(async (transaction) => {
-            if (allowedUserUuids !== null && allowedUserUuids.length > 0) {
-                const members = await transaction(
-                    OrganizationMembershipsTableName,
-                )
-                    .join(
-                        'users',
-                        'users.user_id',
-                        'organization_memberships.user_id',
-                    )
-                    .join(
-                        'organizations',
-                        'organizations.organization_id',
-                        'organization_memberships.organization_id',
-                    )
-                    .where('organizations.organization_uuid', organizationUuid)
-                    .whereIn('users.user_uuid', allowedUserUuids)
-                    .select('users.user_uuid');
+            if (
+                mode === 'managed' &&
+                allowedUserUuids !== null &&
+                allowedUserUuids.length > 0
+            ) {
+                const members = await this.getAllowedMembers(
+                    transaction,
+                    organizationUuid,
+                    allowedUserUuids,
+                );
                 const memberUuids = new Set(
                     members.map((member) => member.user_uuid),
                 );
@@ -106,7 +127,7 @@ export class AgentCapabilityPolicyModel {
                     );
                 }
             }
-            const [policy] = await transaction(AgentCapabilityPoliciesTableName)
+            const query = transaction(AgentCapabilityPoliciesTableName)
                 .insert({
                     organization_uuid: organizationUuid,
                     mode,
@@ -128,6 +149,21 @@ export class AgentCapabilityPolicyModel {
                     ]),
                 })
                 .returning('*');
+            if (version !== undefined) {
+                query.where(
+                    `${AgentCapabilityPoliciesTableName}.version`,
+                    version,
+                );
+            }
+            const [policy] = await query;
+            if (
+                !policy ||
+                (version !== undefined && policy.version !== version + 1)
+            ) {
+                throw new ParameterError(
+                    'Agent permissions changed. Reload the latest permissions before saving.',
+                );
+            }
             await transaction(AgentSystemRoleCapabilitiesTableName)
                 .where('organization_uuid', organizationUuid)
                 .delete();

@@ -119,7 +119,7 @@ const AgentScopeHeading = ({
         <>
             {!previousGroup && (
                 <Title order={5} mt="md">
-                    Agent capabilities
+                    Agent permissions
                 </Title>
             )}
             {group !== previousGroup && (
@@ -525,38 +525,35 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
             ),
         );
 
-        const clearedScopes = Object.keys(form.values.scopes || {}).reduce(
-            (acc, scope) => ({
-                ...acc,
-                [scope]: scopesToClear.has(scope)
-                    ? false
-                    : form.values.scopes[scope],
-            }),
-            {},
+        const clearedScopes = Object.fromEntries(
+            Object.entries(form.values.scopes || {}).map(
+                ([scope, selected]) => [
+                    scope,
+                    scopesToClear.has(scope) ? false : selected,
+                ],
+            ),
         );
         form.setFieldValue('scopes', clearedScopes);
     };
 
     const handleClickSelectAllScopes = () => {
-        const allScopesObject = allGroupedScopes
-            .flatMap((group) => group.scopes)
-            .reduce(
-                (acc, scope) => ({
-                    ...acc,
-                    [scope.name]: true,
-                }),
-                { ...form.values.scopes },
-            );
+        const allScopesObject = { ...form.values.scopes };
+        for (const group of allGroupedScopes) {
+            for (const scope of group.scopes) {
+                allScopesObject[scope.name] = true;
+            }
+        }
         form.setFieldValue('scopes', allScopesObject);
     };
 
     const getGroupSelectedCount = (group: GroupedScopes) => {
-        const selectedScopes = Object.entries(form.values.scopes || {})
-            .filter(([_, isSelected]) => isSelected)
-            .map(([scope]) => scope);
-        return group.scopes.filter((scope) =>
-            selectedScopes.includes(scope.name),
-        ).length;
+        const selectedScopes = new Set(
+            Object.entries(form.values.scopes || {})
+                .filter(([_, isSelected]) => isSelected)
+                .map(([scope]) => scope),
+        );
+        return group.scopes.filter((scope) => selectedScopes.has(scope.name))
+            .length;
     };
 
     return (

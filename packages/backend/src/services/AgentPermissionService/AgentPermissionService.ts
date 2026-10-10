@@ -272,6 +272,7 @@ export interface AgentCapabilityPolicyOverview extends AgentCapabilityPolicy {
 }
 
 export interface AgentCapabilityCeiling {
+    version?: number;
     allowedProjectUuids: UUID[] | null;
     allowedUserUuids: UUID[] | null;
     systemRoleMatrix: AgentSystemRoleMatrix;
@@ -671,20 +672,26 @@ export class AgentPermissionService extends BaseService {
         account: Account,
         allowedProjectUuids: string[] | null,
         allowedUserUuids: string[] | null,
+        version: number | undefined,
     ): Promise<AgentCapabilityPolicy> {
         return this.saveCeiling(account, {
+            version,
             allowedProjectUuids,
             allowedUserUuids,
             systemRoleMatrix: agentSystemRoleMatrix(AGENT_PILOT_CAPABILITIES),
         });
     }
 
-    async resetToLegacy(account: Account): Promise<AgentCapabilityPolicy> {
+    async resetToLegacy(
+        account: Account,
+        version: number | undefined,
+    ): Promise<AgentCapabilityPolicy> {
         const organizationUuid = await this.assertPolicyAdmin(account);
         const policy =
             await this.deps.agentCapabilityPolicyModel.get(organizationUuid);
         return this.deps.agentCapabilityPolicyModel.save({
             ...policy,
+            version,
             organizationUuid,
             mode: 'legacy',
             updatedByUserUuid: account.user.id,

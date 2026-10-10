@@ -66,16 +66,19 @@ const operations = [
     (c: AgentPermissionController, req: Request) => c.getPolicy(req),
     (c: AgentPermissionController, req: Request) =>
         c.saveCeiling(req, {
+            version: 0,
             allowedUserUuids: null,
             allowedProjectUuids: null,
             systemRoleMatrix: agentSystemRoleMatrix([]),
         }),
     (c: AgentPermissionController, req: Request) =>
         c.applyPilotPreset(req, {
+            version: 0,
             allowedProjectUuids: ['project'],
             allowedUserUuids: null,
         }),
-    (c: AgentPermissionController, req: Request) => c.resetToLegacy(req),
+    (c: AgentPermissionController, req: Request) =>
+        c.resetToLegacy(req, { version: 0 }),
     (c: AgentPermissionController, req: Request) =>
         c.getWarehouseConfirmation(req, 'project'),
     (c: AgentPermissionController, req: Request) =>
@@ -162,6 +165,7 @@ test('saves the full ceiling as managed and preserves an empty project list', as
     const { controller, req, deps } = setup();
     const matrix = agentSystemRoleMatrix([AgentCapability.Query]);
     await controller.saveCeiling(req, {
+        version: 0,
         allowedUserUuids: null,
         allowedProjectUuids: [],
         systemRoleMatrix: matrix,
@@ -183,6 +187,7 @@ test('rejects cross-org policy projects and confirmation projects', async () => 
     });
     await expect(
         controller.applyPilotPreset(req, {
+            version: 0,
             allowedUserUuids: null,
             allowedProjectUuids: ['other-project'],
         }),
@@ -241,10 +246,12 @@ test('a project connection admin can confirm without organization admin rights',
 test('the pilot replaces the system-role matrix and admission limits', async () => {
     const { controller, req, deps } = setup();
     await controller.applyPilotPreset(req, {
+        version: 0,
         allowedUserUuids: null,
         allowedProjectUuids: ['project'],
     });
     expect(deps.agentCapabilityPolicyModel.save).toHaveBeenCalledWith({
+        version: 0,
         organizationUuid: req.account!.organization.organizationUuid,
         updatedByUserUuid: req.account!.user.id,
         mode: 'managed',
@@ -269,9 +276,24 @@ test('reset preserves grants and admission limits while restoring legacy mode', 
         systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.Query]),
     };
     deps.agentCapabilityPolicyModel.get.mockResolvedValue(policy);
-    await controller.resetToLegacy(req);
+    await controller.resetToLegacy(req, { version: 7 });
     expect(deps.agentCapabilityPolicyModel.save).toHaveBeenCalledWith(
         expect.objectContaining({ ...policy, mode: 'legacy' }),
+    );
+});
+
+test('reset passes the requested version instead of adopting a newer saved version', async () => {
+    const { controller, req, deps } = setup();
+    deps.agentCapabilityPolicyModel.get.mockResolvedValue({
+        mode: 'managed',
+        version: 8,
+        allowedUserUuids: [],
+        allowedProjectUuids: null,
+        systemRoleMatrix: agentSystemRoleMatrix([]),
+    });
+    await controller.resetToLegacy(req, { version: 7 });
+    expect(deps.agentCapabilityPolicyModel.save).toHaveBeenCalledWith(
+        expect.objectContaining({ version: 7, mode: 'legacy' }),
     );
 });
 
@@ -287,19 +309,22 @@ test.each([null, [], ['pilot-user']])(
             },
         );
         const ceiling = {
+            version: 0,
             allowedProjectUuids: ['project'],
             allowedUserUuids,
             systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.Query]),
         };
         expect(
             (await controller.saveCeiling(req, ceiling)).results,
-        ).toMatchObject(ceiling);
-        expect((await controller.getPolicy(req)).results).toMatchObject(
-            ceiling,
-        );
+        ).toMatchObject({ ...ceiling, version: 2 });
+        expect((await controller.getPolicy(req)).results).toMatchObject({
+            ...ceiling,
+            version: 2,
+        });
         expect(
             (
                 await controller.applyPilotPreset(req, {
+                    version: 0,
                     allowedProjectUuids: ['project'],
                     allowedUserUuids,
                 })

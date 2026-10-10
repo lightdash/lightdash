@@ -455,7 +455,7 @@ export const useSaveAgentCapabilityCeiling = () =>
     useAgentPermissionMutation<AgentCapabilityPolicy, AgentCapabilityCeiling>(
         agentPolicyUrl,
         'PUT',
-        'Could not save agent limits.',
+        'Could not save agent permissions.',
     );
 export const useApplyAgentPilotPreset = () =>
     useAgentPermissionMutation<AgentCapabilityPolicy, AgentPilotSelection>(
@@ -464,11 +464,10 @@ export const useApplyAgentPilotPreset = () =>
         'Could not apply the pilot preset.',
     );
 export const useResetAgentCapabilityPolicy = () =>
-    useAgentPermissionMutation<AgentCapabilityPolicy, void>(
-        `${agentPolicyUrl}/reset`,
-        'POST',
-        'Could not turn off agent limits.',
-    );
+    useAgentPermissionMutation<
+        AgentCapabilityPolicy,
+        Pick<AgentCapabilityPolicy, 'version'>
+    >(`${agentPolicyUrl}/reset`, 'POST', 'Could not turn off limits.');
 export const useAgentWarehouseConfirmation = (projectUuid: string) =>
     useAccessQuery(projectUuid, null, 'warehouse-confirmation', () =>
         lightdashApi<AgentWarehouseConfirmationStatus>({

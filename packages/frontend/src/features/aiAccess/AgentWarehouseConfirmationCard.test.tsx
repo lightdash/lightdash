@@ -44,7 +44,7 @@ const confirmation = {
     confirmedAt: new Date('2026-10-10T12:00:00Z'),
 };
 let status: { confirmation: typeof confirmation | null; confirmed: boolean };
-const renderCard = () =>
+const renderCard = (warehouseType = WarehouseTypes.SNOWFLAKE) =>
     render(
         <MantineProvider env="test">
             <QueryClientProvider
@@ -60,7 +60,7 @@ const renderCard = () =>
                             projectUuid: 'project',
                             organizationUuid: 'org',
                             warehouseConnection: {
-                                type: WarehouseTypes.SNOWFLAKE,
+                                type: warehouseType,
                             },
                         } as Project
                     }
@@ -98,6 +98,25 @@ beforeEach(() => {
     });
 });
 describe('Raw SQL for agents', () => {
+    it('allows confirmation on ClickHouse without a shared agent account', async () => {
+        renderCard(WarehouseTypes.CLICKHOUSE);
+        expect(
+            await screen.findByText('Raw SQL for agents'),
+        ).toBeInTheDocument();
+        expect(await screen.findByText('Not confirmed')).toBeInTheDocument();
+        fireEvent.click(
+            screen.getByRole('checkbox', {
+                name: "The warehouse limits what the agent's identity can read",
+            }),
+        );
+        fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+        expect(
+            await screen.findByText(/Confirmed by Sam Smith/),
+        ).toBeInTheDocument();
+        expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect.objectContaining({ url: '/org/agent-identity' }),
+        );
+    });
     it('requires the statement before confirming, then shows the person and date', async () => {
         renderCard();
         expect(await screen.findByText('Not confirmed')).toBeInTheDocument();

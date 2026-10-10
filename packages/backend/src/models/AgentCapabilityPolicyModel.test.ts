@@ -90,6 +90,7 @@ test('increments the stored version and replaces all matrix rows in the same tra
         await model.save({
             organizationUuid: 'org',
             mode: 'managed',
+            version: 3,
             allowedUserUuids: null,
             allowedProjectUuids: ['project'],
             systemRoleMatrix: matrix,
@@ -214,6 +215,85 @@ test.each([null, [], ['member']])(
                 allowed_user_uuids: allowedUserUuids,
             },
         ]);
+        tracker.on
+            .select('organization_memberships')
+            .response([{ user_uuid: 'member' }]);
         expect(await model.get('org')).toMatchObject({ allowedUserUuids });
+    },
+);
+
+test.each([{ members: [] }, { members: [{ user_uuid: 'member' }] }])(
+    'filters departed members on read without widening admission: %j',
+    async ({ members }) => {
+        tracker.on.select('organization_agent_capability_policies').response([
+            {
+                mode: 'managed',
+                version: 1,
+                allowed_user_uuids: ['member', 'departed'],
+            },
+        ]);
+        tracker.on.select('organization_memberships').response(members);
+        expect((await model.get('org')).allowedUserUuids).toEqual(
+            members.map((member) => member.user_uuid),
+        );
+    },
+);
+
+test('does not revalidate a stored member list when resetting to legacy', async () => {
+    tracker.on
+        .insert('organization_agent_capability_policies')
+        .response([{ mode: 'legacy', version: 2 }]);
+    tracker.on
+        .delete('organization_agent_system_role_capabilities')
+        .response(0);
+    await model.save({
+        organizationUuid: 'org',
+        mode: 'legacy',
+        allowedUserUuids: ['departed'],
+        allowedProjectUuids: null,
+        systemRoleMatrix: {
+            member: [],
+            viewer: [],
+            interactive_viewer: [],
+            editor: [],
+            developer: [],
+            admin: [],
+        },
+        updatedByUserUuid: null,
+    });
+    expect(tracker.history.select).toHaveLength(0);
+});
+
+test.each([{ rows: [] }, { rows: [{ version: 1 }] }])(
+    'rejects stale versions before replacing the matrix: %j',
+    async ({ rows }) => {
+        tracker.on
+            .insert('organization_agent_capability_policies')
+            .response(rows);
+        await expect(
+            model.save({
+                organizationUuid: 'org',
+                mode: 'managed',
+                version: 3,
+                allowedUserUuids: null,
+                allowedProjectUuids: null,
+                systemRoleMatrix: {
+                    member: [],
+                    viewer: [],
+                    interactive_viewer: [],
+                    editor: [],
+                    developer: [],
+                    admin: [],
+                },
+                updatedByUserUuid: null,
+            }),
+        ).rejects.toThrow(
+            'Agent permissions changed. Reload the latest permissions before saving.',
+        );
+        expect(tracker.history.insert[0].sql).toContain(
+            'where "organization_agent_capability_policies"."version" =',
+        );
+        expect(tracker.history.insert[0].bindings.at(-1)).toBe(3);
+        expect(tracker.history.delete).toHaveLength(0);
     },
 );

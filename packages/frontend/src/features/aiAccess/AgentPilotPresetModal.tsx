@@ -33,6 +33,7 @@ export const AgentPilotPresetModal = ({
 }) => {
     const form = useForm({
         initialValues: {
+            version: selection.version,
             allowedProjectUuids: selection.allowedProjectUuids ?? [],
             allowedUserUuids: selection.allowedUserUuids ?? [],
         },

@@ -101,7 +101,13 @@ const apiMock = vi.mocked(lightdashApi);
 const mutations = () =>
     apiMock.mock.calls.filter(([request]) => request.method !== 'GET');
 const save = async () =>
-    fireEvent.click(await screen.findByRole('button', { name: 'Save limits' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
+const enableLimits = async () => {
+    const toggle = await screen.findByRole('switch', {
+        name: 'Limit what agents can do',
+    });
+    if (!(toggle as HTMLInputElement).checked) fireEvent.click(toggle);
+};
 const pick = async (label: string, option: string) => {
     fireEvent.click(screen.getByRole('combobox', { name: label }));
     fireEvent.click(await screen.findByRole('option', { name: option }));
@@ -132,7 +138,11 @@ describe('Agent permissions', () => {
             await screen.findByText("Agents follow each person's permissions."),
         ).toBeInTheDocument();
         expect(
-            screen.getByText('Not saved yet — these are the starting limits'),
+            screen.queryByRole('checkbox', { name: 'Admin: Raw SQL' }),
+        ).not.toBeInTheDocument();
+        await enableLimits();
+        expect(
+            screen.getByText('Not saved yet — these are the starting limits.'),
         ).toBeInTheDocument();
         expect(
             screen.getByRole('checkbox', { name: 'Admin: Raw SQL' }),
@@ -148,6 +158,7 @@ describe('Agent permissions', () => {
                 url: '/org/agent-permissions',
                 method: 'PUT',
                 body: JSON.stringify({
+                    version: 0,
                     systemRoleMatrix: policy.defaults,
                     allowedProjectUuids: null,
                     allowedUserUuids: null,
@@ -155,15 +166,19 @@ describe('Agent permissions', () => {
             }),
         );
         expect(
-            await screen.findByText('Agent limits are on.'),
-        ).toBeInTheDocument();
+            screen.getByRole('switch', { name: 'Limit what agents can do' }),
+        ).toBeChecked();
         expect(
-            screen.getByRole('button', { name: 'Save limits' }),
-        ).toBeDisabled();
+            screen.queryByText(
+                'Not saved yet — these are the starting limits.',
+            ),
+        ).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
     });
     it('saves matrix edits, selected projects and named people', async () => {
         renderSection();
-        await screen.findByText('Agent permissions');
+        await screen.findByText('Permissions');
+        await enableLimits();
         fireEvent.click(
             screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
         );
@@ -179,6 +194,7 @@ describe('Agent permissions', () => {
         await waitFor(() => expect(mutations()).toHaveLength(1));
         const payload = JSON.parse(String(mutations()[0][0].body));
         expect(payload).toEqual({
+            version: 0,
             systemRoleMatrix: {
                 ...matrix(AGENT_CAPABILITY_DEFAULTS),
                 admin: [...AGENT_CAPABILITY_DEFAULTS, AgentCapability.Delete],
@@ -195,15 +211,14 @@ describe('Agent permissions', () => {
             systemRoleMatrix: matrix(AGENT_CAPABILITY_DEFAULTS),
         };
         renderSection();
-        await screen.findByText('Agent permissions');
+        await screen.findByText('Permissions');
+        await enableLimits();
         await userEvent
             .setup()
             .click(screen.getByRole('combobox', { name: 'People' }));
         await userEvent.setup().keyboard('{Backspace}');
         await waitFor(() =>
-            expect(
-                screen.getByRole('button', { name: 'Save limits' }),
-            ).toBeEnabled(),
+            expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled(),
         );
         await save();
         const dialog = await screen.findByRole('dialog', {
@@ -219,9 +234,7 @@ describe('Agent permissions', () => {
             .click(screen.getByRole('combobox', { name: 'People' }));
         await userEvent.setup().keyboard('{Backspace}');
         await waitFor(() =>
-            expect(
-                screen.getByRole('button', { name: 'Save limits' }),
-            ).toBeEnabled(),
+            expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled(),
         );
         await save();
         fireEvent.click(
@@ -241,7 +254,8 @@ describe('Agent permissions', () => {
     it('saves null when switching back to Everyone the roles allow', async () => {
         policy.allowedUserUuids = ['person'];
         renderSection();
-        await screen.findByText('Agent permissions');
+        await screen.findByText('Permissions');
+        await enableLimits();
         fireEvent.click(
             screen.getByRole('radio', { name: 'Everyone the roles allow' }),
         );
@@ -253,6 +267,7 @@ describe('Agent permissions', () => {
     });
     it('previews the pilot changes by role and applies the selected projects and people', async () => {
         renderSection();
+        await enableLimits();
         fireEvent.click(
             await screen.findByRole('button', {
                 name: 'Apply restricted pilot preset',
@@ -273,6 +288,7 @@ describe('Agent permissions', () => {
                 url: '/org/agent-permissions/pilot-preset',
                 method: 'POST',
                 body: JSON.stringify({
+                    version: 0,
                     allowedProjectUuids: ['project'],
                     allowedUserUuids: ['person'],
                 }),
@@ -281,6 +297,7 @@ describe('Agent permissions', () => {
     });
     it('confirms an empty pilot list before applying the preset', async () => {
         renderSection();
+        await enableLimits();
         fireEvent.click(
             await screen.findByRole('button', {
                 name: 'Apply restricted pilot preset',
@@ -312,7 +329,9 @@ describe('Agent permissions', () => {
         policy.mode = 'managed';
         renderSection();
         fireEvent.click(
-            await screen.findByRole('button', { name: 'Turn off limits' }),
+            await screen.findByRole('switch', {
+                name: 'Limit what agents can do',
+            }),
         );
         fireEvent.click(
             within(screen.getByRole('dialog')).getByRole('button', {
@@ -320,8 +339,11 @@ describe('Agent permissions', () => {
             }),
         );
         expect(mutations()).toHaveLength(0);
+        expect(
+            screen.getByRole('switch', { name: 'Limit what agents can do' }),
+        ).toBeChecked();
         fireEvent.click(
-            screen.getByRole('button', { name: 'Turn off limits' }),
+            screen.getByRole('switch', { name: 'Limit what agents can do' }),
         );
         fireEvent.click(
             within(screen.getByRole('dialog')).getByRole('button', {
@@ -332,12 +354,21 @@ describe('Agent permissions', () => {
             expect(mutations()[0]?.[0]).toMatchObject({
                 url: '/org/agent-permissions/reset',
                 method: 'POST',
+                body: JSON.stringify({ version: 0 }),
             }),
+        );
+        await waitFor(() =>
+            expect(
+                screen.getByRole('switch', {
+                    name: 'Limit what agents can do',
+                }),
+            ).not.toBeChecked(),
         );
     });
     it('keeps edits on refetch and reports server errors', async () => {
         const client = renderSection();
-        await screen.findByText('Agent permissions');
+        await screen.findByText('Permissions');
+        await enableLimits();
         fireEvent.click(
             screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
         );
@@ -365,7 +396,8 @@ describe('Agent permissions', () => {
     });
     it('disables edits and repeat saves while a save is in progress', async () => {
         renderSection();
-        await screen.findByText('Agent permissions');
+        await screen.findByText('Permissions');
+        await enableLimits();
         let finishSave: (value: AgentCapabilityPolicy) => void = () => {};
         vi.mocked(lightdashApi).mockImplementationOnce(
             () =>
@@ -375,9 +407,7 @@ describe('Agent permissions', () => {
         );
         await save();
         await waitFor(() =>
-            expect(
-                screen.getByRole('button', { name: 'Save limits' }),
-            ).toBeDisabled(),
+            expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled(),
         );
         expect(
             screen.getByRole('checkbox', { name: 'Admin: Raw SQL' }),
@@ -389,11 +419,107 @@ describe('Agent permissions', () => {
             finishSave({ ...policy, mode: 'managed', version: 1 });
         });
     });
+    it('discards the starting draft when switched off before saving', async () => {
+        renderSection();
+        await enableLimits();
+        fireEvent.click(
+            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
+        );
+        fireEvent.click(
+            screen.getByRole('switch', { name: 'Limit what agents can do' }),
+        );
+        expect(
+            screen.queryByRole('checkbox', { name: 'Admin: Delete content' }),
+        ).not.toBeInTheDocument();
+        expect(mutations()).toHaveLength(0);
+        await enableLimits();
+        expect(
+            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
+        ).not.toBeChecked();
+    });
+    it('adopts a newer policy and baseline when the form is clean', async () => {
+        policy = { ...legacy(), mode: 'managed', version: 1 };
+        const client = renderSection();
+        await screen.findByText('Permissions');
+        policy = {
+            ...policy,
+            version: 2,
+            allowedUserUuids: ['person'],
+            systemRoleMatrix: matrix([AgentCapability.Query]),
+        };
+        await act(() => client.invalidateQueries(['ai-access']));
+        await waitFor(() =>
+            expect(
+                screen.getByRole('radio', { name: 'Only these people' }),
+            ).toBeChecked(),
+        );
+        expect(
+            screen.getByRole('checkbox', { name: 'Admin: Query data' }),
+        ).toBeChecked();
+        expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+        fireEvent.click(
+            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
+        );
+        await save();
+        await waitFor(() => expect(mutations()).toHaveLength(1));
+        expect(JSON.parse(String(mutations()[0][0].body))).toMatchObject({
+            version: 2,
+            allowedUserUuids: ['person'],
+        });
+    });
+    it('blocks a dirty draft on a newer version and reload discards it', async () => {
+        policy = { ...legacy(), mode: 'managed', version: 1 };
+        const client = renderSection();
+        await screen.findByText('Permissions');
+        fireEvent.click(
+            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
+        );
+        policy = { ...policy, version: 2, allowedUserUuids: [] };
+        await act(() => client.invalidateQueries(['ai-access']));
+        expect(
+            await screen.findByText('Agent permissions changed'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
+        ).toBeChecked();
+        expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+        expect(
+            screen.getByRole('button', {
+                name: 'Apply restricted pilot preset',
+            }),
+        ).toBeDisabled();
+        expect(mutations()).toHaveLength(0);
+        fireEvent.click(screen.getByRole('button', { name: 'Reload latest' }));
+        expect(
+            screen.queryByText('Agent permissions changed'),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
+        ).not.toBeChecked();
+        await waitFor(() =>
+            expect(
+                screen.getByRole('radio', { name: 'Only these people' }),
+            ).toBeChecked(),
+        );
+        expect(screen.getByRole('combobox', { name: 'People' })).toHaveValue(
+            '',
+        );
+        fireEvent.click(
+            screen.getByRole('checkbox', { name: 'Admin: Query data' }),
+        );
+        await save();
+        expect(
+            await screen.findByRole('dialog', {
+                name: "No one's agents can run",
+            }),
+        ).toBeInTheDocument();
+        expect(mutations()).toHaveLength(0);
+    });
     it.each(['flag', 'permission'])('hides controls without %s', (gate) => {
         mocks.enabled = gate !== 'flag';
         mocks.canManage = gate !== 'permission';
         renderSection();
-        expect(screen.queryByText('Agent permissions')).not.toBeInTheDocument();
+        expect(screen.queryByText('Permissions')).not.toBeInTheDocument();
         expect(lightdashApi).not.toHaveBeenCalled();
     });
 });

@@ -154,13 +154,13 @@ describe('RoleBuilder presets', () => {
     });
 });
 
-describe('Agent capabilities', () => {
+describe('Agent permissions', () => {
     it('shows grouped capabilities and seeds only the four read/query scopes for new roles', async () => {
         flags.enabled = true;
         const { onSubmit } = renderRoleBuilder();
         const user = userEvent.setup();
         await user.click(screen.getByRole('button', { name: /AI Features/ }));
-        expect(screen.getByText('Agent capabilities')).toBeInTheDocument();
+        expect(screen.getByText('Agent permissions')).toBeInTheDocument();
         expect(screen.getByText('Read and query')).toBeInTheDocument();
         expect(screen.getByText('Changes')).toBeInTheDocument();
         expect(screen.getByRole('checkbox', { name: 'Raw SQL' })).toBeChecked();
@@ -216,9 +216,7 @@ describe('Agent capabilities', () => {
         await userEvent
             .setup()
             .click(screen.getByRole('button', { name: /AI Features/ }));
-        expect(
-            screen.queryByText('Agent capabilities'),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByText('Agent permissions')).not.toBeInTheDocument();
         expect(
             screen.queryByRole('checkbox', { name: 'Raw SQL' }),
         ).not.toBeInTheDocument();

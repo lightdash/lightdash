@@ -44,25 +44,23 @@ export const ProjectAgentIdentityPage = ({ project }: { project: Project }) => {
         )
     )
         return null;
-    if (
-        !project.warehouseConnection ||
-        !supportsAiServiceAccount(project.warehouseConnection.type)
-    )
-        return (
-            <Text size="sm" c="dimmed">
-                Agent identity is not available for this warehouse.
-            </Text>
-        );
     return (
         <Stack gap="lg">
             <AgentWarehouseConfirmationCard
                 key={project.projectUuid}
                 projectUuid={project.projectUuid}
             />
-            <ProjectAgentIdentityContent
-                key={project.projectUuid}
-                project={project}
-            />
+            {project.warehouseConnection &&
+            supportsAiServiceAccount(project.warehouseConnection.type) ? (
+                <ProjectAgentIdentityContent
+                    key={project.projectUuid}
+                    project={project}
+                />
+            ) : (
+                <Text size="sm" c="dimmed">
+                    Agent identity is not available for this warehouse.
+                </Text>
+            )}
         </Stack>
     );
 };

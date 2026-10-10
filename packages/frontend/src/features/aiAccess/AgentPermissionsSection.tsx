@@ -3,9 +3,17 @@ import {
     type AgentCapabilityPolicy,
     type AgentCapabilityPolicyOverview,
 } from '@lightdash/common';
-import { Button, Group, Stack, Text, Title } from '@mantine/core';
-import { useForm } from '@mantine/form';
-import { useRef, useState } from 'react';
+import {
+    Alert,
+    Button,
+    Group,
+    Stack,
+    Switch,
+    Text,
+    Title,
+} from '@mantine/core';
+import isEqual from 'lodash/isEqual';
+import { useState } from 'react';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import MantineModal from '../../components/common/MantineModal';
@@ -39,6 +47,114 @@ const formValues = (
     allowedUserUuids: policy.allowedUserUuids,
 });
 
+const useAgentPermissionDraft = (policy: AgentCapabilityPolicyOverview) => {
+    type Values = ReturnType<typeof formValues>;
+    const [draft, setDraft] = useState<{
+        baseline: Values;
+        values: Values;
+    } | null>(null);
+    const dirty = draft !== null && !isEqual(draft.values, draft.baseline);
+    const latest = formValues(policy, policy.defaults);
+    const baseline =
+        draft && (dirty || draft.baseline.version > policy.version)
+            ? draft.baseline
+            : latest;
+    const values = dirty ? draft.values : baseline;
+    const conflict = dirty && policy.version !== baseline.version;
+    const change = (changes: Partial<Values>) =>
+        setDraft({ baseline, values: { ...values, ...changes } });
+    return {
+        baseline,
+        values,
+        dirty,
+        conflict,
+        change,
+        discard: () => setDraft(null),
+        accept: (updated: AgentCapabilityPolicy) => {
+            const saved = formValues(updated, policy.defaults);
+            setDraft({ baseline: saved, values: saved });
+        },
+    };
+};
+
+const AgentPermissionLimits = ({
+    values,
+    starting,
+    dirty,
+    disabled,
+    saving,
+    projects,
+    people,
+    onChange,
+    onDiscard,
+    onPreset,
+    onSave,
+}: {
+    values: ReturnType<typeof formValues>;
+    starting: boolean;
+    dirty: boolean;
+    disabled: boolean;
+    saving: boolean;
+    projects: AgentPickerOption[];
+    people: AgentPickerOption[];
+    onChange: (changes: Partial<ReturnType<typeof formValues>>) => void;
+    onDiscard: () => void;
+    onPreset: () => void;
+    onSave: () => void;
+}) => (
+    <>
+        {starting && (
+            <Text size="sm" c="dimmed">
+                Not saved yet — these are the starting limits.
+            </Text>
+        )}
+        <Text size="sm" c="dimmed">
+            Limits can reduce what agents do. They do not give a person more
+            access than their roles allow.
+        </Text>
+        <AgentCapabilityMatrix
+            matrix={values.systemRoleMatrix}
+            onChange={(systemRoleMatrix) => onChange({ systemRoleMatrix })}
+            disabled={disabled}
+        />
+        <AgentAccessPickers
+            selection={values}
+            projects={projects}
+            people={people}
+            onChange={onChange}
+            disabled={disabled}
+        />
+        <Group justify="space-between">
+            <Button variant="default" disabled={disabled} onClick={onPreset}>
+                Apply restricted pilot preset
+            </Button>
+            <Group gap="sm">
+                {dirty && (
+                    <>
+                        <Text size="sm" c="dimmed">
+                            Unsaved changes
+                        </Text>
+                        <Button
+                            variant="subtle"
+                            disabled={saving}
+                            onClick={onDiscard}
+                        >
+                            Discard changes
+                        </Button>
+                    </>
+                )}
+                <Button
+                    loading={saving}
+                    disabled={disabled || !dirty}
+                    onClick={onSave}
+                >
+                    Save
+                </Button>
+            </Group>
+        </Group>
+    </>
+);
+
 const AgentPermissionsForm = ({
     policy,
     projects,
@@ -48,30 +164,40 @@ const AgentPermissionsForm = ({
     projects: AgentPickerOption[];
     people: AgentPickerOption[];
 }) => {
-    const form = useForm({
-        initialValues: formValues(policy, policy.defaults),
-    });
+    const {
+        baseline,
+        values,
+        dirty,
+        conflict,
+        change,
+        accept,
+        discard: discardDraft,
+    } = useAgentPermissionDraft(policy);
+    const limitsOn = values.mode === 'managed';
+    const starting = limitsOn && baseline.mode === 'legacy';
     const save = useSaveAgentCapabilityCeiling();
     const reset = useResetAgentCapabilityPolicy();
     const [modal, setModal] = useState<'empty' | 'reset' | 'preset' | null>(
         null,
     );
-    const matrixRef = useRef<HTMLDivElement>(null);
     const saving = save.isLoading || reset.isLoading;
+    const editingDisabled = saving || conflict;
     const onSaved = (updated: AgentCapabilityPolicy) => {
-        const values = formValues(updated, policy.defaults);
-        form.setValues(values);
-        form.resetDirty(values);
-        form.setInitialValues(values);
+        accept(updated);
+        setModal(null);
+    };
+    const discard = () => {
+        discardDraft();
         setModal(null);
     };
     const submit = () => {
-        if (saving) return;
+        if (editingDisabled) return;
         save.mutate(
             {
-                systemRoleMatrix: form.values.systemRoleMatrix,
-                allowedProjectUuids: form.values.allowedProjectUuids,
-                allowedUserUuids: form.values.allowedUserUuids,
+                version: values.version,
+                systemRoleMatrix: values.systemRoleMatrix,
+                allowedProjectUuids: values.allowedProjectUuids,
+                allowedUserUuids: values.allowedUserUuids,
             },
             { onSuccess: onSaved },
         );
@@ -79,139 +205,76 @@ const AgentPermissionsForm = ({
     return (
         <SettingsCard>
             <Stack gap="lg">
-                <Title order={5}>Agent permissions</Title>
-                <Stack gap="xs">
-                    <Group justify="space-between">
-                        <Text size="sm">
-                            {form.values.mode === 'legacy'
-                                ? "Agents follow each person's permissions."
-                                : 'Agent limits are on.'}
-                        </Text>
-                        {form.values.mode === 'legacy' ? (
-                            <Button
-                                disabled={saving}
-                                onClick={() =>
-                                    matrixRef.current?.scrollIntoView({
-                                        block: 'center',
-                                    })
-                                }
-                            >
-                                Set limits
-                            </Button>
-                        ) : (
+                <Title order={5}>Permissions</Title>
+                {conflict && (
+                    <Alert color="yellow" title="Agent permissions changed">
+                        <Stack gap="sm">
+                            <Text size="sm">
+                                Someone changed the saved permissions. Reload
+                                the latest permissions before saving. This will
+                                discard your unsaved changes.
+                            </Text>
                             <Button
                                 variant="default"
                                 disabled={saving}
-                                onClick={() => setModal('reset')}
+                                onClick={discard}
                             >
-                                Turn off limits
+                                Reload latest
                             </Button>
-                        )}
-                    </Group>
-                    {form.values.mode === 'managed' && (
-                        <Text size="xs" c="dimmed">
-                            Version {form.values.version}
-                        </Text>
-                    )}
-                    {form.values.mode === 'legacy' && (
-                        <Text size="sm" c="dimmed">
-                            Not saved yet — these are the starting limits
-                        </Text>
-                    )}
-                    <Text size="sm" c="dimmed">
-                        Limits can reduce what agents do. They do not give a
-                        person more access than their roles allow.
-                    </Text>
-                </Stack>
-                <Stack ref={matrixRef} gap="xs">
-                    <AgentCapabilityMatrix
-                        matrix={form.values.systemRoleMatrix}
-                        onChange={(value) =>
-                            form.setFieldValue('systemRoleMatrix', value)
-                        }
-                        disabled={saving}
-                    />
-                </Stack>
-                <AgentAccessPickers
-                    selection={form.values}
-                    projects={projects}
-                    people={people}
-                    onChange={(selection) => {
-                        form.setFieldValue(
-                            'allowedProjectUuids',
-                            selection.allowedProjectUuids,
-                        );
-                        form.setFieldValue(
-                            'allowedUserUuids',
-                            selection.allowedUserUuids,
-                        );
+                        </Stack>
+                    </Alert>
+                )}
+                <Switch
+                    label="Limit what agents can do"
+                    checked={limitsOn}
+                    disabled={editingDisabled}
+                    onChange={(event) => {
+                        if (event.currentTarget.checked)
+                            change({ mode: 'managed' });
+                        else if (baseline.mode === 'managed') setModal('reset');
+                        else discard();
                     }}
-                    disabled={saving}
                 />
+                {!limitsOn && (
+                    <Text size="sm">
+                        Agents follow each person's permissions.
+                    </Text>
+                )}
+                {limitsOn && (
+                    <AgentPermissionLimits
+                        values={values}
+                        starting={starting}
+                        dirty={dirty}
+                        disabled={editingDisabled}
+                        saving={saving}
+                        projects={projects}
+                        people={people}
+                        onChange={change}
+                        onDiscard={discard}
+                        onPreset={() => setModal('preset')}
+                        onSave={() => {
+                            if (values.allowedUserUuids?.length === 0)
+                                setModal('empty');
+                            else submit();
+                        }}
+                    />
+                )}
                 <Text size="sm" c="dimmed">
                     Personal access tokens are not limited. An AI that uses a
                     person's token has that person's access.
                 </Text>
-                <Group justify="space-between">
-                    <Button
-                        variant="default"
-                        disabled={saving}
-                        onClick={() => setModal('preset')}
-                    >
-                        Apply restricted pilot preset
-                    </Button>
-                    <Group gap="sm">
-                        {form.isDirty() && (
-                            <>
-                                <Text size="sm" c="dimmed">
-                                    Unsaved changes
-                                </Text>
-                                <Button
-                                    variant="subtle"
-                                    disabled={saving}
-                                    onClick={() => form.reset()}
-                                >
-                                    Discard changes
-                                </Button>
-                            </>
-                        )}
-                        <Button
-                            variant={
-                                form.values.mode === 'legacy'
-                                    ? 'default'
-                                    : 'filled'
-                            }
-                            loading={save.isLoading}
-                            disabled={
-                                saving ||
-                                (form.values.mode === 'managed' &&
-                                    !form.isDirty())
-                            }
-                            onClick={() => {
-                                if (form.values.allowedUserUuids?.length === 0)
-                                    setModal('empty');
-                                else submit();
-                            }}
-                        >
-                            Save limits
-                        </Button>
-                    </Group>
-                </Group>
             </Stack>
-            {modal === 'empty' && (
+            {!conflict && modal === 'empty' && (
                 <EmptyAgentPilotConfirmModal
                     saving={saving}
                     onCancel={() => {
-                        form.setFieldValue(
-                            'allowedUserUuids',
-                            form.getInitialValues().allowedUserUuids,
-                        );
+                        change({ allowedUserUuids: baseline.allowedUserUuids });
                         setModal(null);
                     }}
                     onConfirm={submit}
                 />
             )}
-            {modal === 'reset' && (
+            {!conflict && modal === 'reset' && (
                 <MantineModal
                     opened
                     role="alertdialog"
@@ -226,15 +289,18 @@ const AgentPermissionsForm = ({
                     cancelDisabled={saving}
                     onConfirm={() => {
                         if (!saving)
-                            reset.mutate(undefined, { onSuccess: onSaved });
+                            reset.mutate(
+                                { version: values.version },
+                                { onSuccess: onSaved },
+                            );
                     }}
                 />
             )}
-            {modal === 'preset' && (
+            {!conflict && modal === 'preset' && (
                 <AgentPilotPresetModal
-                    current={form.values.systemRoleMatrix}
+                    current={values.systemRoleMatrix}
                     preset={policy.pilotPreset.systemRoleMatrix}
-                    selection={form.values}
+                    selection={values}
                     projects={projects}
                     people={people}
                     onClose={() => setModal(null)}
