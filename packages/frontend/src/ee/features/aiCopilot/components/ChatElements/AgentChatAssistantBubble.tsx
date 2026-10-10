@@ -362,7 +362,9 @@ const AssistantBubbleContent: FC<{
     );
     const { mutate: handleRetry } = useRetryAiAgentThreadMessageMutation();
 
-    const isPending = message.status === 'pending';
+    const isPending =
+        message.status === 'pending' &&
+        streamingState?.connection.status !== 'refused';
     const hasError = message.status === 'error';
     const isRecovering = streamingState?.connection.status === 'recovering';
     const streamingError =
@@ -1018,7 +1020,13 @@ export const AssistantBubble: FC<Props> = memo(
             setFeedbackText('');
         }, [closePopover]);
 
-        const isPending = message.status === 'pending';
+        const threadStreamingState = useAiAgentThreadStreamQuery(
+            message.threadUuid,
+        );
+        const isRefused =
+            threadStreamingState?.messageUuid === message.uuid &&
+            threadStreamingState.connection.status === 'refused';
+        const isPending = message.status === 'pending' && !isRefused;
         const isLoading =
             useAiAgentThreadMessageStreaming(
                 message.threadUuid,

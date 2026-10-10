@@ -195,6 +195,12 @@ describe('chat stream access refusals', () => {
             expect(
                 screen.queryByRole('button', { name: 'Try again' }),
             ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('status', {
+                    name: 'Working on your request',
+                }),
+            ).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'copy' })).toBeVisible();
             const link = screen.queryByRole('link', {
                 name: 'Review agent identity',
             });
