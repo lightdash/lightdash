@@ -1,3 +1,10 @@
+# [2.547.0](https://github.com/lightdash/lightdash/compare/2.546.0...2.547.0) (2026-10-10)
+
+
+### Features
+
+* **release-safety:** add a no-external-callers declaration kind ([#30876](https://github.com/lightdash/lightdash/issues/30876)) ([e602088](https://github.com/lightdash/lightdash/commit/e6020880700537667ccb9eb8e9eded980ebf3f42))
+
 # [2.546.0](https://github.com/lightdash/lightdash/compare/2.545.0...2.546.0) (2026-10-10)
 
 
