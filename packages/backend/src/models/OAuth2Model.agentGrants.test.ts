@@ -601,3 +601,42 @@ it('treats an unknown stored bearer as unbound', async () => {
         false,
     );
 });
+
+it('expires a bound access token with SQL that cannot extend expiry', async () => {
+    getTracker().on.update('oauth2_access_tokens').response(1);
+    getTracker().on.delete('oauth2_access_tokens').response(0);
+    expect(await model.deleteAccessToken('access')).toBe(true);
+    const updates = getTracker().history.update;
+    expect(updates).toHaveLength(1);
+    expect(updates[0].sql).toContain(
+        '"agent_connection_grant_uuid" is not null',
+    );
+    expect(updates[0].sql).toContain('least(expires_at, now())');
+    expect(getTracker().history.delete[0]?.sql).toContain(
+        '"agent_connection_grant_uuid" is null',
+    );
+});
+it.each(['access', 'refresh'] as const)(
+    'keeps unbound %s token revocation as deletion',
+    async (kind) => {
+        getTracker()
+            .on.select('oauth2_refresh_tokens')
+            .response(
+                kind === 'refresh'
+                    ? row({ agent_connection_grant_uuid: null })
+                    : undefined,
+            );
+        getTracker().on.update('oauth2_access_tokens').response(0);
+        getTracker().on.delete(`oauth2_${kind}_tokens`).response(1);
+        const service = new OAuthService({
+            oauthModel: model,
+            userModel: {} as UserModel,
+            lightdashConfig: lightdashConfigMock,
+        });
+        expect(await service.revokeToken(kind)).toBe(true);
+        expect(getTracker().history.delete).toHaveLength(1);
+        expect(
+            AgentConnectionGrantModel.prototype.revoke,
+        ).not.toHaveBeenCalled();
+    },
+);
