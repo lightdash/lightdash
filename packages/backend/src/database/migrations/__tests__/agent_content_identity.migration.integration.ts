@@ -88,6 +88,8 @@ describe('content version agent identity migration', () => {
                 'outcome',
                 'policy_layer',
                 'reason_code',
+                'capability',
+                'policy_version',
             ].sort(),
         );
         expect(
