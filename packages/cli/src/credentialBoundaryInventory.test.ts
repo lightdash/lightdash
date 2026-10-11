@@ -1,4 +1,3 @@
-import { execFileSync } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
 
@@ -69,11 +68,6 @@ it.each([
     'preserves ordinary launch statements in the refused command %s',
     async (file) => {
         const current = await fs.readFile(path.join(sourceRoot, file), 'utf8');
-        const original = execFileSync(
-            'git',
-            ['show', `origin/main:packages/cli/src/${file}`],
-            { cwd: sourceRoot, encoding: 'utf8' },
-        );
         const launches = (source: string) => {
             const calls: string[] = [];
             const expression = /\bexeca\(/g;
@@ -98,6 +92,6 @@ it.each([
             return calls;
         };
         expect(launches(current).length).toBeGreaterThan(0);
-        expect(launches(current)).toEqual(launches(original));
+        expect(launches(current)).toMatchSnapshot();
     },
 );

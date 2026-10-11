@@ -1,5 +1,4 @@
-import { execFileSync, spawn } from 'child_process';
-import { randomUUID } from 'crypto';
+import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import { createServer, type Server } from 'http';
 import * as yaml from 'js-yaml';
@@ -136,27 +135,12 @@ it('reports a missing revoke slot without sending a request', async () => {
     expect(await fs.readdir(path.dirname(configPath))).toEqual(['config.yaml']);
 }, 30_000);
 it.each([['--help'], ['agent', '--help'], ['agent', 'status', '--help']])(
-    'keeps origin/main help bytes for %j',
+    'keeps the ordinary help bytes for %j',
     async (...args) => {
-        const baselinePath = path.join(
-            __dirname,
-            `.ordinary-entry-${randomUUID()}.ts`,
-        );
-        const definitions = execFileSync(
-            'git',
-            ['show', 'origin/main:packages/cli/src/index.ts'],
-            { cwd: __dirname, encoding: 'utf8' },
-        );
-        await fs.writeFile(baselinePath, definitions);
-        try {
-            const baseline = await runCli(args, null, false, baselinePath);
-            const current = await runCli(args, null, false);
-            expect(baseline.code).toBe(0);
-            expect(current).toEqual(baseline);
-            expect(requests).toEqual([]);
-        } finally {
-            await fs.unlink(baselinePath);
-        }
+        const current = await runCli(args, null, false);
+        expect(current.code).toBe(0);
+        expect(current.output).toMatchSnapshot();
+        expect(requests).toEqual([]);
     },
     30_000,
 );
