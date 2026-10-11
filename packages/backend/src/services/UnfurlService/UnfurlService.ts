@@ -860,7 +860,7 @@ export class UnfurlService extends BaseService {
         organizationUuid: string | undefined,
         deliveryGuard: AgentDeliveryGuard | null = null,
     ): Promise<string> {
-        await deliveryGuard?.assert();
+        if (deliveryGuard !== null) await deliveryGuard.assert();
         if (this.fileStorageClient.isEnabled()) {
             let imageUrl = await this.fileStorageClient.uploadImage(
                 imageBuffer,

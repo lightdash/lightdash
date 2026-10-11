@@ -2240,7 +2240,7 @@ export class AiAgentService extends BaseService {
     ): Promise<string> {
         const imageId = `slack-ai-agent-chart-${nanoidGenerator()}`;
 
-        await deliveryGuard?.assert();
+        if (deliveryGuard !== null) await deliveryGuard.assert();
         if (this.fileStorageClient.isEnabled()) {
             await this.fileStorageClient.uploadImage(image, imageId);
             const previewId = nanoidGenerator();
@@ -17988,16 +17988,16 @@ Use your existing tools to inspect them when relevant to the user's question (re
         deliveryGuard: AgentDeliveryGuard;
         agentWork: AgentWorkMarker | null;
     }): Promise<boolean> {
-        let deliveryRefusal: AiAccessRefusedError | null = null;
+        let deliveryFailure: { error: unknown } | null = null;
+        const getDeliveryFailure = () => deliveryFailure;
         const checkDelivery = async (check: () => Promise<unknown>) => {
-            if (deliveryRefusal) throw deliveryRefusal;
+            if (deliveryFailure) throw deliveryFailure.error;
             try {
                 await check();
             } catch (error) {
-                if (error instanceof AiAccessRefusedError)
-                    deliveryRefusal = error;
-                throw error;
+                deliveryFailure ??= { error };
             }
+            if (deliveryFailure) throw deliveryFailure.error;
         };
         const deliveryGuard: AgentDeliveryGuard = {
             assert: () => checkDelivery(jobDeliveryGuard.assert),
@@ -18067,8 +18067,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 streamStart ??
                 (async () => {
                     endStatusPhase();
+                    await deliveryGuard.assertIfStale();
                     try {
-                        await deliveryGuard.assertIfStale();
                         const stream = await this.slackClient.startAgentStream({
                             organizationUuid: slackPrompt.organizationUuid,
                             channelId: slackPrompt.slackChannelId,
@@ -18089,7 +18089,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         });
                         streamTs = stream.ts;
                     } catch (error) {
-                        if (error instanceof AiAccessRefusedError) throw error;
                         Sentry.captureException(error, {
                             tags: { tag: 'slack.agentTaskCardFailed' },
                         });
@@ -18142,22 +18141,23 @@ Use your existing tools to inspect them when relevant to the user's question (re
             run: (cardTs: string) => Promise<unknown>,
         ) => {
             taskUpdateChain = taskUpdateChain.then(async () => {
-                if (deliveryRefusal) return;
+                if (deliveryFailure) return;
                 try {
                     await ensureStreamStarted();
                     if (!streamTs) return;
                     await deliveryGuard.assertIfStale();
                     await run(streamTs);
                 } catch (error) {
-                    if (!(error instanceof AiAccessRefusedError)) throw error;
-                    deliveryRefusal = error;
+                    const failure = getDeliveryFailure();
+                    if (!failure || !Object.is(error, failure.error))
+                        throw error;
                 }
             });
         };
 
         const flushTaskUpdates = async () => {
             await taskUpdateChain;
-            if (deliveryRefusal) throw deliveryRefusal;
+            if (deliveryFailure) throw deliveryFailure.error;
         };
 
         const queueReasoningTaskUpdate = ({
@@ -18697,7 +18697,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
             return true;
         } catch (error) {
             await taskUpdateChain;
-            if (deliveryRefusal) throw deliveryRefusal;
+            const failure = getDeliveryFailure();
+            if (failure) throw failure.error;
             if (error instanceof AiAccessRefusedError && streamTs) {
                 const reply = this.getSlackAccessRefusalReply(error.refusal);
                 finalizeToolTasksForSuccess();
@@ -18803,7 +18804,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             Logger.error('Failed to generate Slack agent response', error);
             return answerDelivered;
         } finally {
-            if (deliveryRefusal && streamTs) {
+            if (deliveryFailure && streamTs) {
                 await this.slackClient
                     .stopAgentStream({
                         organizationUuid: slackPrompt.organizationUuid,
@@ -18814,7 +18815,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     })
                     .catch((closeError) =>
                         Logger.warn(
-                            'Failed to close refused Slack stream',
+                            'Failed to close Slack stream after delivery check failure',
                             closeError,
                         ),
                     );

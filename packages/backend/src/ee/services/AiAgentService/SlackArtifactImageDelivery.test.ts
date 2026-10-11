@@ -202,7 +202,7 @@ describe('Slack artifact image selection', () => {
 });
 
 describe('Slack image authority refusals', () => {
-    it.each(['prepare', 'render', 'update'] as const)(
+    it.each(['prepare', 'prepare-throws', 'render', 'update'] as const)(
         'cancels a refusal during %s without retrying',
         async (stage) => {
             const h = setup([
@@ -223,6 +223,8 @@ describe('Slack image authority refusals', () => {
                 AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
             );
             if (stage === 'prepare') h.prepare.mockResolvedValue(null);
+            if (stage === 'prepare-throws')
+                h.prepare.mockRejectedValue(refusal);
             if (stage === 'render') h.runtime.render.mockRejectedValue(refusal);
             if (stage === 'update')
                 h.runtime.updateMessage.mockRejectedValue(refusal);
@@ -255,7 +257,16 @@ describe('Unmarked Slack image refusal parity', () => {
             );
             if (stage === 'render') h.runtime.render.mockRejectedValue(refusal);
             else h.runtime.updateMessage.mockRejectedValue(refusal);
-            await expect(deliverSlackArtifactImages(h)).rejects.toThrow();
+            if (stage === 'render')
+                await expect(deliverSlackArtifactImages(h)).rejects.toEqual(
+                    new Error(
+                        'Some Slack artifact images are still unavailable',
+                    ),
+                );
+            else
+                await expect(deliverSlackArtifactImages(h)).rejects.toBe(
+                    refusal,
+                );
             expect(h.model.finish).not.toHaveBeenCalled();
         },
     );

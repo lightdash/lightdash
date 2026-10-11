@@ -1,11 +1,13 @@
 import {
     AiAccessRefusalReason,
     AiAccessRefusedError,
+    buildAgentIdentityClaim,
     InvalidUser,
     type AgentActorSurface,
     type AgentWorkMarker,
     type SessionUser,
 } from '@lightdash/common';
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { fromSession } from '../../auth/account';
 import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
@@ -118,7 +120,53 @@ export const assertAgentWorkAllowed = async (
             work.organizationUuid,
         );
     } catch (error) {
-        if (error instanceof InvalidUser) throw agentWorkUserRefusal(work);
+        if (error instanceof InvalidUser) {
+            const refusal = agentWorkUserRefusal(work);
+            const current = agentExecutionContext.getStore();
+            const context =
+                current?.agentIdentityEnabled &&
+                current.writerUuid === work.userUuid &&
+                current.organizationUuid === work.organizationUuid
+                    ? current
+                    : {
+                          surface: work.surface,
+                          clientId: null,
+                          agentUuid: null,
+                          claim: buildAgentIdentityClaim({
+                              subject: { type: 'user', uuid: work.userUuid },
+                              surface: work.surface,
+                              clientId: null,
+                              agentUuid: null,
+                          }),
+                          actor: {
+                              type: 'session' as const,
+                              uuid: work.userUuid,
+                              organizationUuid: work.organizationUuid,
+                              organizationRole: 'unknown',
+                          },
+                          organizationUuid: work.organizationUuid,
+                          writerUuid: work.userUuid,
+                          operationId: randomUUID(),
+                          agentIdentityEnabled: true,
+                          agentConnectionExecution: null,
+                      };
+            await agentExecutionContext.run(context, () =>
+                recordAgentRefusal({
+                    model: deps.agentActionLogModel,
+                    userUuid: work.userUuid,
+                    organizationUuid: work.organizationUuid,
+                    projectUuid: work.projectUuid,
+                    objectType: 'agent_operation',
+                    objectId: 'agent_turn',
+                    action: 'agent_turn',
+                    policyLayer: 'organization_setting',
+                    reasonCode: refusal.refusal.reason,
+                    capability: null,
+                    error: refusal,
+                }),
+            );
+            throw refusal;
+        }
         throw error;
     }
     await assertAgentWorkUserActive(deps, work, user);
@@ -156,11 +204,20 @@ export const createAgentDeliveryGuard = <T>({
     now: () => number;
 }): AgentDeliveryGuard<T> => {
     let lastSuccessfulCheck: number | null = null;
+    let failureVersion = 0;
     const assert = async () => {
         if (!enabled) return undefined;
-        const result = await check();
-        lastSuccessfulCheck = now();
-        return result;
+        const startedAtFailureVersion = failureVersion;
+        try {
+            const result = await check();
+            if (failureVersion === startedAtFailureVersion)
+                lastSuccessfulCheck = now();
+            return result;
+        } catch (error) {
+            failureVersion += 1;
+            lastSuccessfulCheck = null;
+            throw error;
+        }
     };
     return {
         assert,

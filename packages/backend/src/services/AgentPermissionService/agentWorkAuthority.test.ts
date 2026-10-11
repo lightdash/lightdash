@@ -136,13 +136,36 @@ describe('assertAgentWorkAllowed', () => {
         });
         expect(await assertAgentWorkAllowed(deps, work)).toBe(user);
     });
-    it('refuses someone who is no longer in the organization', async () => {
+    it('records a refusal for someone who is no longer in the organization', async () => {
         const deps = setup();
         deps.userModel.findSessionUserAndOrgByUuid.mockRejectedValue(
             new InvalidUser('No membership'),
         );
         await expect(assertAgentWorkAllowed(deps, work)).rejects.toBeInstanceOf(
             AiAccessRefusedError,
+        );
+        expect(deps.agentActionLogModel.insert).toHaveBeenCalledExactlyOnceWith(
+            {
+                organization_uuid: marker.organizationUuid,
+                project_uuid: marker.projectUuid,
+                agent_identity: expect.objectContaining({
+                    subject: { type: 'user', uuid: marker.userUuid },
+                    act: expect.objectContaining({
+                        surface: work.surface,
+                        client_id: null,
+                        agent_uuid: null,
+                    }),
+                }),
+                object_type: 'agent_operation',
+                object_uuid: null,
+                object_id: 'agent_turn',
+                version_uuid: null,
+                action: 'agent_turn',
+                outcome: 'denied',
+                policy_layer: 'organization_setting',
+                reason_code: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+                capability: null,
+            },
         );
     });
     it('propagates the policy refusal unchanged', async () => {
@@ -166,6 +189,79 @@ describe('assertAgentWorkAllowed', () => {
 });
 
 describe('createAgentDeliveryGuard', () => {
+    it('checks the first stale assertion without a prior check', async () => {
+        const check = vi.fn().mockResolvedValue('allowed');
+        const guard = createAgentDeliveryGuard({
+            enabled: true,
+            check,
+            now: () => 0,
+        });
+        await expect(guard.assertIfStale()).resolves.toBe('allowed');
+        expect(check).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(['user', 'request'] as const)(
+        'propagates a %s load failure unchanged and retries the check',
+        async (stage) => {
+            const deps = setup();
+            const error = new Error('Database unavailable');
+            const load =
+                stage === 'user'
+                    ? deps.userModel.findSessionUserAndOrgByUuid
+                    : deps.agentPermissionService.loadRequest;
+            load.mockRejectedValueOnce(error);
+            const guard = createAgentDeliveryGuard({
+                enabled: true,
+                check: () => assertAgentWorkAllowed(deps, work),
+                now: () => 0,
+            });
+            await expect(guard.assertIfStale()).rejects.toBe(error);
+            await expect(guard.assertIfStale()).resolves.toBe(
+                defaultSessionUser,
+            );
+            expect(load).toHaveBeenCalledTimes(2);
+        },
+    );
+
+    it.each(['failure-first', 'success-first'] as const)(
+        'does not deduplicate overlapping checks or cache success across a failure: %s',
+        async (order) => {
+            const failure = Promise.withResolvers<void>();
+            const success = Promise.withResolvers<void>();
+            const error = new Error('Check failed');
+            const check = vi
+                .fn()
+                .mockImplementationOnce(() => failure.promise)
+                .mockImplementationOnce(() => success.promise)
+                .mockResolvedValue(undefined);
+            const guard = createAgentDeliveryGuard({
+                enabled: true,
+                check,
+                now: () => 0,
+            });
+            const first = guard.assertIfStale().then(
+                () => null,
+                (checkError: unknown) => checkError,
+            );
+            const second = guard.assertIfStale();
+            expect(check).toHaveBeenCalledTimes(2);
+            if (order === 'failure-first') {
+                failure.reject(error);
+                await first;
+                success.resolve();
+                await second;
+            } else {
+                success.resolve();
+                await second;
+                failure.reject(error);
+                await first;
+            }
+            expect(await first).toBe(error);
+            await guard.assertIfStale();
+            expect(check).toHaveBeenCalledTimes(3);
+        },
+    );
+
     it('never checks while disabled', async () => {
         const check = vi.fn();
         const guard = createAgentDeliveryGuard({

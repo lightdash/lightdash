@@ -297,7 +297,34 @@ describe('Slack image delivery scope', () => {
             const h = setup();
             h.findPending.mockResolvedValue(['prompt', 'prompt-2']);
             h.decisionFlag.mockResolvedValue({ enabled });
+            const otherMarker = {
+                userUuid: 'other-user',
+                organizationUuid: 'other-org',
+                projectUuid: 'other-project',
+            };
+            vi.spyOn(h.service['aiAgentModel'], 'findSlackPrompt')
+                .mockResolvedValueOnce(h.prompt)
+                .mockResolvedValueOnce({
+                    ...h.prompt,
+                    promptUuid: 'prompt-2',
+                    createdByUserUuid: otherMarker.userUuid,
+                    organizationUuid: otherMarker.organizationUuid,
+                    projectUuid: otherMarker.projectUuid,
+                });
             await h.service.sweepSlackArtifactImages();
+            expect(h.slackAiArtifactImages).toHaveBeenCalledTimes(2);
+            expect(h.slackAiArtifactImages).toHaveBeenCalledWith({
+                ...otherMarker,
+                slackPromptUuid: 'prompt-2',
+                ...(enabled ? { agentWork: otherMarker } : {}),
+            });
+            expect(h.decisionFlag).toHaveBeenCalledWith({
+                user: {
+                    userUuid: otherMarker.userUuid,
+                    organizationUuid: otherMarker.organizationUuid,
+                },
+                featureFlagId: FeatureFlags.AgentIdentity,
+            });
             expect(h.decisionFlag).toHaveBeenCalledTimes(2);
             expect(h.decisionFlag).toHaveBeenCalledWith({
                 user: { userUuid: 'user', organizationUuid: 'org' },
@@ -321,7 +348,7 @@ describe('Slack image delivery scope', () => {
         expect(h.decisionFlag).not.toHaveBeenCalled();
     });
 
-    it.each(['allowed', 'before-upload'] as const)(
+    it.each(['allowed', 'before-upload', 'cached-before-update'] as const)(
         'finishes the image job after %s authority checks',
         async (state) => {
             const h = setup();
@@ -330,7 +357,9 @@ describe('Slack image delivery scope', () => {
                 finished_at: null,
                 message_ts: 'ts',
                 render_inputs: { version: h.input },
-                rendered_images: {} as Record<string, string>,
+                rendered_images: (state === 'cached-before-update'
+                    ? { version: 'https://lightdash.test/cached' }
+                    : {}) as Record<string, string>,
             };
             h.service['aiAgentModel'].slackArtifactDeliveries.claim = vi
                 .fn()
@@ -379,9 +408,22 @@ describe('Slack image delivery scope', () => {
                     h.assertOperationWithRequest.mockRejectedValue(refusal);
                     return { rows: [{}], fields: {} };
                 });
+            if (state === 'cached-before-update')
+                vi.mocked(
+                    AiAgentService['isCardImageUrlReachable'],
+                ).mockImplementation(async () => {
+                    h.assertOperationWithRequest.mockRejectedValue(refusal);
+                    return true;
+                });
             await h.service.deliverSlackArtifactImages(payload);
+            if (state === 'cached-before-update') {
+                expect(h.getRawAsyncQueryResults).not.toHaveBeenCalled();
+                expect(
+                    h.service['aiAgentModel'].slackArtifactDeliveries.saveImage,
+                ).not.toHaveBeenCalled();
+            }
             expect(h.fileStorageClient.uploadImage).toHaveBeenCalledTimes(
-                state === 'before-upload' ? 0 : 1,
+                state === 'allowed' ? 1 : 0,
             );
             expect(h.previewCreate).toHaveBeenCalledTimes(
                 state === 'allowed' ? 1 : 0,
@@ -397,7 +439,9 @@ describe('Slack image delivery scope', () => {
             expect(
                 h.service['userModel'].findSessionUserAndOrgByUuid,
             ).toHaveBeenCalledTimes(
-                { allowed: 4, 'before-upload': 2 }[state],
+                { allowed: 4, 'before-upload': 2, 'cached-before-update': 3 }[
+                    state
+                ],
             );
         },
     );
