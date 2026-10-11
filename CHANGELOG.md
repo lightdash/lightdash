@@ -1,3 +1,10 @@
+# [2.560.0](https://github.com/lightdash/lightdash/compare/2.559.1...2.560.0) (2026-10-11)
+
+
+### Features
+
+* **agent-identity:** recheck the person before the Slack agent posts ([#30906](https://github.com/lightdash/lightdash/issues/30906)) ([235fd9a](https://github.com/lightdash/lightdash/commit/235fd9ae1b37ba9e03d2c863f9cfd05adbf49033))
+
 ## [2.559.1](https://github.com/lightdash/lightdash/compare/2.559.0...2.559.1) (2026-10-11)
 
 
