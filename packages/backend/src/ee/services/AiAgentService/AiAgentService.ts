@@ -623,6 +623,7 @@ import { resolveRenderableDataAppVizVersion } from '../AppGenerateService/dataAp
 import { type MobilePushNotificationService } from '../MobilePushNotificationService/MobilePushNotificationService';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
+import { createReviewRemediationAgentWorkGuard } from '../reviewRemediationAgentWork';
 import {
     parseAgentSelectionValue,
     resolveAgentSelectionPrompt,
@@ -939,6 +940,7 @@ type AiAgentServiceDependencies = {
     pullRequestsModel: Pick<PullRequestsModel, 'findByAiThreadUuid' | 'find'>;
     aiAgentReviewClassifierModel: Pick<
         AiAgentReviewClassifierModel,
+        | 'updateReviewRemediationStatus'
         | 'findReviewRemediationByPreviewThread'
         | 'findReviewRemediationByWorkThread'
         | 'createRemediationEvent'
@@ -1337,6 +1339,7 @@ export class AiAgentService extends BaseService {
 
     private readonly aiAgentReviewClassifierModel: Pick<
         AiAgentReviewClassifierModel,
+        | 'updateReviewRemediationStatus'
         | 'findReviewRemediationByPreviewThread'
         | 'findReviewRemediationByWorkThread'
         | 'createRemediationEvent'
@@ -23436,23 +23439,59 @@ Use your existing tools to inspect them when relevant to the user's question (re
         };
     }
 
-    async executeReviewRemediationRun({
-        userUuid,
-        organizationUuid,
-        agentUuid,
-        threadUuid,
-    }: AiAgentReviewRemediationRunJobPayload): Promise<void> {
-        const sessionUser = await this.userModel.findSessionUserAndOrgByUuid(
-            userUuid,
-            organizationUuid,
+    async executeReviewRemediationRun(
+        payload: AiAgentReviewRemediationRunJobPayload,
+        recordVerified?: () => Promise<void>,
+    ): Promise<void> {
+        const { userUuid, organizationUuid, agentUuid, threadUuid } = payload;
+        const guard = createReviewRemediationAgentWorkGuard(
+            {
+                userModel: this.userModel,
+                agentActionLogModel: this.agentActionLogModel,
+            },
+            payload,
         );
-
-        await this.generateAgentThreadResponse(sessionUser, {
-            aiCreditCheck: { isEmbedViewer: false },
-            agentUuid,
-            threadUuid,
-            autoApproveSql: true,
-        });
+        let userLoaded = false;
+        try {
+            if (guard?.malformed) await guard.assert();
+            const sessionUser =
+                await this.userModel.findSessionUserAndOrgByUuid(
+                    userUuid,
+                    organizationUuid,
+                );
+            userLoaded = true;
+            if (guard) await guard.assertUser(sessionUser);
+            await this.generateAgentThreadResponse(sessionUser, {
+                aiCreditCheck: { isEmbedViewer: false },
+                agentUuid,
+                threadUuid,
+                autoApproveSql: true,
+            });
+            if (recordVerified) {
+                if (guard) await guard.assert();
+                await recordVerified();
+            }
+        } catch (error) {
+            if (!guard) throw error;
+            const failure = guard?.getFailure();
+            let accessError = error;
+            if (failure) {
+                accessError = failure.error;
+            } else if (guard && !userLoaded) {
+                accessError = new WritebackAgentAccessError(error);
+            }
+            if (!(accessError instanceof WritebackAgentAccessError))
+                throw error;
+            await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
+                {
+                    organizationUuid,
+                    remediationUuid: payload.remediationUuid,
+                    status: 'failed',
+                    errorMessage: accessError.message,
+                },
+            );
+            if (!accessError.isRefusal) throw accessError;
+        }
     }
 
     async executeEvalResult({

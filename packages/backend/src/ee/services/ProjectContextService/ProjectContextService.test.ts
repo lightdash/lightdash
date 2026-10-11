@@ -346,6 +346,53 @@ describe('ProjectContextService.writebackEntry', () => {
         });
     });
 
+    test.each([1, 2, 3])(
+        'checks access immediately before remote effect %s',
+        async (refuseAt) => {
+            mockGetFileContent.mockRejectedValue(new NotFoundError('missing'));
+            const { service } = makeService({});
+            const error = new Error('access stopped');
+            let calls = 0;
+            const assertPublishAllowed = vi.fn(async () => {
+                calls += 1;
+                if (calls === refuseAt) throw error;
+            });
+            await expect(
+                service.writebackEntry({
+                    user: userWithProjectContextAccess(),
+                    projectUuid: PROJECT_UUID,
+                    entry: judgeEntry,
+                    branchTimestamp: 1000,
+                    sourceThread: null,
+                    assertPublishAllowed,
+                }),
+            ).rejects.toBe(error);
+            expect(mockCreateBranch).toHaveBeenCalledTimes(
+                refuseAt > 1 ? 1 : 0,
+            );
+            expect(mockCreateSignedCommitOnBranch).toHaveBeenCalledTimes(
+                refuseAt > 2 ? 1 : 0,
+            );
+            expect(mockCreatePullRequest).not.toHaveBeenCalled();
+        },
+    );
+
+    test('checks each of the three allowed remote effects', async () => {
+        mockGetFileContent.mockRejectedValue(new NotFoundError('missing'));
+        const { service } = makeService({});
+        const assertPublishAllowed = vi.fn();
+        await service.writebackEntry({
+            user: userWithProjectContextAccess(),
+            projectUuid: PROJECT_UUID,
+            entry: judgeEntry,
+            branchTimestamp: 1000,
+            sourceThread: null,
+            assertPublishAllowed,
+        });
+        expect(assertPublishAllowed).toHaveBeenCalledTimes(3);
+        expect(mockCreatePullRequest).toHaveBeenCalledTimes(1);
+    });
+
     describe.each([
         ...agentActionTestCases,
         ['in-app flag off', AgentActorSurface.IN_APP_AGENT, false, 0],
