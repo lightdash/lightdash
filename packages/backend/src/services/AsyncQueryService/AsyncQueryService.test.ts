@@ -137,6 +137,7 @@ import {
     athenaSecrets,
     clickhouseConnection,
     clickhouseSecrets,
+    postgresConnection,
     postgresSecrets,
     redshiftConnection,
     redshiftSecrets,
@@ -6636,6 +6637,133 @@ describe('AsyncQueryService', () => {
             },
         );
 
+        describe.each([
+            {
+                credentials: { ...postgresConnection, useSshTunnel: false },
+                permission: { code: '42501' },
+                authentication: { code: '28P01' },
+            },
+            {
+                credentials: { ...redshiftConnection, useSshTunnel: false },
+                permission: { code: '42501' },
+                authentication: { code: '28P01' },
+            },
+            {
+                credentials: trinoConnection,
+                permission: {
+                    errorName: 'PERMISSION_DENIED',
+                    errorCode: 4,
+                    errorType: 'USER_ERROR',
+                },
+                authentication: { status: 401 },
+            },
+            {
+                credentials: clickhouseConnection,
+                permission: { code: '497', type: 'ACCESS_DENIED' },
+                authentication: { code: '516' },
+            },
+        ])(
+            '$credentials.type inherited data access guidance',
+            ({ credentials, permission, authentication }) => {
+                test.each([
+                    { inherited: true, failure: 'permission' },
+                    { inherited: false, failure: 'permission' },
+                    { inherited: true, failure: 'authentication' },
+                    { inherited: true, failure: 'syntax' },
+                    { inherited: true, failure: 'timeout' },
+                    { inherited: true, failure: 'missing object' },
+                    { inherited: true, failure: 'message only' },
+                ] as const)(
+                    '$failure inherited=$inherited',
+                    async ({ inherited, failure }) => {
+                        const { service, markErrored, analytics } =
+                            setupRefusal(true);
+                        const inheritedFromProjectUuid = inherited
+                            ? 'parent'
+                            : null;
+                        const plan = {
+                            ...aiServiceAccountPlanMock,
+                            credentials,
+                            sourceProjectUuid: inherited
+                                ? 'parent'
+                                : projectUuid,
+                            inheritedFromProjectUuid,
+                        };
+                        vi.spyOn(
+                            service.warehouseClientFactory,
+                            'resolveWarehouseCredentials',
+                        ).mockResolvedValue({
+                            credentialKind: WarehouseCredentialKind.SHARED,
+                            warehouseCredentials: credentials,
+                            warehouseConnectionUuid: null,
+                            connectionRoute: {
+                                route: 'single',
+                                originalWarehouseConnectionUuid: null,
+                            },
+                            aiPlan: plan,
+                        });
+                        vi.mocked(mockSshTunnel.connect).mockResolvedValueOnce(
+                            credentials,
+                        );
+                        const error = new WarehouseQueryError(
+                            failure === 'message only'
+                                ? 'permission denied PERMISSION_DENIED Code: 497. DB::Exception: ACCESS_DENIED'
+                                : 'original warehouse failure',
+                        );
+                        error.cause = {
+                            permission,
+                            authentication,
+                            syntax: {
+                                code: '42601',
+                                errorName: 'SYNTAX_ERROR',
+                            },
+                            timeout: { code: 'ETIMEDOUT' },
+                            'missing object': {
+                                code: '42P01',
+                                errorName: 'TABLE_NOT_FOUND',
+                            },
+                            'message only': null,
+                        }[failure];
+                        const execute = vi.fn().mockRejectedValue(error);
+                        vi.mocked(
+                            service.projectModel
+                                .getWarehouseClientFromCredentials,
+                        ).mockImplementation((resolvedCredentials) => ({
+                            ...warehouseClientMock,
+                            credentials: resolvedCredentials,
+                            executeAsyncQuery: execute,
+                        }));
+                        await service.runAsyncWarehouseQuery({
+                            ...executionArgs,
+                            isPreviewProject: inherited,
+                        });
+                        expect(execute).toHaveBeenCalledOnce();
+                        expect(markErrored).toHaveBeenCalledOnce();
+                        const [{ errorMessage }] = markErrored.mock.calls[0];
+                        const guidance =
+                            "This preview uses the parent's shared agent account, which can't read this preview's data. Ask an admin to grant it access.";
+                        if (inherited && failure === 'permission') {
+                            expect(errorMessage).toBe(
+                                `${guidance} ${error.message}`,
+                            );
+                        } else if (failure === 'authentication') {
+                            expect(errorMessage).not.toContain(guidance);
+                            expect(analytics.track).toHaveBeenCalledWith(
+                                expect.objectContaining({
+                                    event: 'query.refused',
+                                    properties: expect.objectContaining({
+                                        reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                                    }),
+                                }),
+                            );
+                        } else {
+                            expect(errorMessage).toBe(error.message);
+                        }
+                    },
+                );
+            },
+        );
+
         test('attributes terminal query events to the parent when plan resolution refuses', async () => {
             const { service, resolve } = setupRefusal();
             resolve.mockRejectedValue(
@@ -9222,6 +9350,9 @@ describe('AsyncQueryService', () => {
                 const access = new AiAccessService({
                     agentActionLogModel: {
                         insert: vi.fn().mockResolvedValue(undefined),
+                    },
+                    projectModel: {
+                        getSummary: vi.fn(async () => projectSummary),
                     },
                     featureFlagModel: flags,
                     organizationAgentIdentityRulesModel: rules,

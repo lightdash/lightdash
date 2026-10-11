@@ -368,7 +368,7 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
             >()
             .mockResolvedValue(null),
         getSlot: vi
-            .fn<() => Promise<AiServiceAccountSlot | null>>()
+            .fn<AiServiceAccountCredentialsModel['getSlot']>()
             .mockResolvedValue(null),
     };
     const users = {
@@ -4947,6 +4947,19 @@ describe('preview AI service account inheritance', () => {
     };
     test('carries parent generation and keeps preview settings and actor', async () => {
         const f = previewSetup();
+        f.slots.getSecrets.mockImplementation(async (uuid: string) => ({
+            slot: { ...slot, projectUuid: uuid },
+            secrets:
+                uuid === 'parent'
+                    ? secrets
+                    : {
+                          ...secrets,
+                          keyfileContents: {
+                              ...secrets.keyfileContents,
+                              client_email: 'stale@example.com',
+                          },
+                      },
+        }));
         expect(
             await f.service.resolvePlan({ ...args, connection: bigquery }),
         ).toMatchObject({
@@ -4961,12 +4974,104 @@ describe('preview AI service account inheritance', () => {
             },
             audit: { personUuid: args.userUuid },
         });
+        expect(f.slots.getSecrets).toHaveBeenCalledExactlyOnceWith(
+            'parent',
+            null,
+            true,
+        );
+    });
+    test.each(['missing', 'invalid'] as const)(
+        'does not use a stale own account when the parent is %s',
+        async (state) => {
+            const f = previewSetup();
+            f.slots.getSecrets.mockImplementation(async (uuid: string) => {
+                if (uuid === 'parent') {
+                    if (state === 'invalid')
+                        throw new Error('unreadable parent');
+                    return null;
+                }
+                return { slot, secrets };
+            });
+            await expect(
+                f.service.resolvePlan({ ...args, connection: bigquery }),
+            ).rejects.toMatchObject({
+                refusal: {
+                    reason:
+                        state === 'missing'
+                            ? AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING
+                            : AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                },
+            });
+            expect(f.slots.getSecrets).toHaveBeenCalledExactlyOnceWith(
+                'parent',
+                null,
+                true,
+            );
+            f.slots.getSlot.mockImplementation(async (uuid: string) =>
+                uuid === 'parent' ? null : slot,
+            );
+            expect(
+                await f.service.getAiAccessForUser({
+                    ...args,
+                    connection: bigquery,
+                }),
+            ).toMatchObject({
+                refusal: {
+                    reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+                },
+            });
+            expect(f.slots.getSlot).toHaveBeenCalledExactlyOnceWith(
+                'parent',
+                null,
+            );
+        },
+    );
+    test('reports existing parent metadata when the parent secrets cannot be read', async () => {
+        const f = previewSetup();
+        f.slots.getSecrets.mockRejectedValue(new Error('unreadable parent'));
+        f.slots.getSlot.mockImplementation(async (uuid: string) =>
+            uuid === 'parent' ? { ...slot, projectUuid: 'parent' } : null,
+        );
+        expect(
+            await f.service.getAiAccessForUser({
+                ...args,
+                connection: bigquery,
+            }),
+        ).toMatchObject({ identity: 'ai_service_account', refusal: null });
+        expect(f.slots.getSlot).toHaveBeenCalledExactlyOnceWith('parent', null);
+        expect(f.slots.getSecrets).not.toHaveBeenCalled();
+        await expect(
+            f.service.resolvePlan({ ...args, connection: bigquery }),
+        ).rejects.toMatchObject({
+            inheritedFromProjectUuid: 'parent',
+            refusal: {
+                reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+            },
+        });
+    });
+    test('preserves missing-project runtime and metadata errors', async () => {
+        const f = previewSetup();
+        f.projects.getSummary.mockRejectedValue(
+            new NotFoundError('missing project'),
+        );
+        f.slots.getSecrets.mockResolvedValue(null);
+        f.slots.getSlot.mockResolvedValue(null);
+        await expect(
+            f.service.resolvePlan({ ...args, connection: bigquery }),
+        ).rejects.toMatchObject({
+            refusal: {
+                reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+            },
+        });
+        await expect(
+            f.service.getAiAccessForUser({ ...args, connection: bigquery }),
+        ).rejects.toBeInstanceOf(NotFoundError);
     });
     test('attributes an unreadable parent key refusal to the parent', async () => {
         const f = previewSetup();
-        f.slots.getSecrets
-            .mockResolvedValueOnce(null)
-            .mockRejectedValueOnce(new Error('broken parent key'));
+        f.slots.getSecrets.mockRejectedValueOnce(
+            new Error('broken parent key'),
+        );
         await expect(
             f.service.resolvePlan({ ...args, connection: bigquery }),
         ).rejects.toMatchObject({
@@ -4987,7 +5092,7 @@ describe('preview AI service account inheritance', () => {
     });
     test('reports inherited slot metadata without decrypting', async () => {
         const f = previewSetup();
-        f.slots.getSlot.mockResolvedValueOnce(null).mockResolvedValueOnce(slot);
+        f.slots.getSlot.mockResolvedValue(slot);
         expect(
             await f.service.getAiAccessForUser({
                 ...args,
@@ -6345,9 +6450,9 @@ describe('preview ClickHouse AI service account inheritance', () => {
     });
     test('attributes an unreadable parent key refusal to the parent', async () => {
         const f = previewSetup();
-        f.slots.getSecrets
-            .mockResolvedValueOnce(null)
-            .mockRejectedValueOnce(new Error('broken parent key'));
+        f.slots.getSecrets.mockRejectedValueOnce(
+            new Error('broken parent key'),
+        );
         await expect(
             f.service.resolvePlan({
                 ...args,
@@ -6371,7 +6476,7 @@ describe('preview ClickHouse AI service account inheritance', () => {
     });
     test('reports inherited slot metadata without decrypting', async () => {
         const f = previewSetup();
-        f.slots.getSlot.mockResolvedValueOnce(null).mockResolvedValueOnce({
+        f.slots.getSlot.mockResolvedValue({
             ...slot,
             warehouseType: WarehouseTypes.CLICKHOUSE,
             method: 'password',

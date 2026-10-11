@@ -4,6 +4,8 @@ import {
     supportsAiServiceAccount,
     type WarehouseCredentials,
     FeatureFlags,
+    ProjectType,
+    getProjectAgentIdentitySettingsPath,
     WarehouseTypes,
     type Project,
     type PostgresCredentials,
@@ -20,8 +22,9 @@ import {
     type AiServiceAccountParent,
     type OrganizationAgentIdentityRule,
 } from '@lightdash/common';
-import { Alert, Button, Group, Stack, Text } from '@mantine/core';
+import { Alert, Anchor, Button, Group, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
+import { Link } from 'react-router';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import MantineModal from '../../components/common/MantineModal';
@@ -65,57 +68,30 @@ const isAiServiceAccountConnection = (
 
 const AiServiceAccountRemoveModal = ({
     opened,
-    inherit,
-    warehouseType,
-    parent,
     loading,
     onClose,
     onConfirm,
 }: {
     opened: boolean;
-    inherit: boolean;
-    warehouseType: AiServiceAccountConnection['type'];
-    parent: AiServiceAccountParent | null;
     loading: boolean;
     onClose: () => void;
     onConfirm: () => void;
-}) => {
-    const parentPrincipal =
-        warehouseType === WarehouseTypes.SNOWFLAKE
-            ? (getSnowflakeAiPrincipal(parent?.verification ?? null) ??
-              parent?.principal ??
-              null)
-            : (parent?.principal ??
-              (parent?.verification?.ok
-                  ? parent.verification.principal
-                  : null));
-    return (
-        <MantineModal
-            opened={opened}
-            title={
-                inherit
-                    ? "Use the parent's account"
-                    : 'Remove shared agent account'
-            }
-            variant={inherit ? 'default' : 'delete'}
-            confirmLabel={inherit ? "Use the parent's account" : 'Remove'}
-            confirmLoading={loading}
-            onClose={onClose}
-            onConfirm={onConfirm}
-        >
-            <Stack gap="sm">
-                <Text size="sm">
-                    {inherit
-                        ? "Remove this preview's own account and use the parent project's account? Agents use it on the next query."
-                        : 'Remove this shared agent account? Agent queries are refused if your organization requires it.'}
-                </Text>
-                {inherit && parentPrincipal && (
-                    <Text size="sm">{parentPrincipal}</Text>
-                )}
-            </Stack>
-        </MantineModal>
-    );
-};
+}) => (
+    <MantineModal
+        opened={opened}
+        title="Remove shared agent account"
+        variant="delete"
+        confirmLabel="Remove"
+        confirmLoading={loading}
+        onClose={onClose}
+        onConfirm={onConfirm}
+    >
+        <Text size="sm">
+            Remove this shared agent account? Agent queries are refused if your
+            organization requires it.
+        </Text>
+    </MantineModal>
+);
 
 const AiServiceAccountTestFeedback = ({
     result,
@@ -165,7 +141,7 @@ const AiServiceAccountSummary = ({
     testedPrincipal: string | null;
     observation: AiServiceAccountTestResult | null;
     warehouseType: AiServiceAccountConnection['type'];
-    onReplace: () => void;
+    onReplace: (() => void) | null;
     onTestSuccess: (
         principal: string,
         verification: AiServiceAccountTestResult | null,
@@ -173,9 +149,7 @@ const AiServiceAccountSummary = ({
 }) => {
     const remove = useDeleteAiServiceAccount(projectUuid);
     const test = useTestAiServiceAccount(projectUuid);
-    const [confirmation, setConfirmation] = useState<
-        'remove' | 'inherit' | null
-    >(null);
+    const [confirmation, setConfirmation] = useState(false);
     const busy = test.isLoading || remove.isLoading;
     return (
         <>
@@ -213,32 +187,23 @@ const AiServiceAccountSummary = ({
                     >
                         Test
                     </Button>
-                    <Button
-                        variant="default"
-                        disabled={busy}
-                        onClick={() => {
-                            test.reset();
-                            onReplace();
-                        }}
-                    >
-                        {slot ? 'Replace' : "Add this preview's own account"}
-                    </Button>
-                    {slot && (
+                    {onReplace !== null && (
                         <>
-                            {parent && (
-                                <Button
-                                    variant="default"
-                                    disabled={busy}
-                                    onClick={() => setConfirmation('inherit')}
-                                >
-                                    Use the parent's account
-                                </Button>
-                            )}
+                            <Button
+                                variant="default"
+                                disabled={busy}
+                                onClick={() => {
+                                    test.reset();
+                                    onReplace();
+                                }}
+                            >
+                                Replace
+                            </Button>
                             <Button
                                 variant="subtle"
                                 color="red"
                                 disabled={busy}
-                                onClick={() => setConfirmation('remove')}
+                                onClick={() => setConfirmation(true)}
                             >
                                 Remove
                             </Button>
@@ -252,30 +217,30 @@ const AiServiceAccountSummary = ({
                 observation={observation}
                 warehouseType={warehouseType}
             />
-            <AiServiceAccountRemoveModal
-                opened={confirmation !== null}
-                warehouseType={warehouseType}
-                inherit={confirmation === 'inherit'}
-                parent={parent}
-                loading={remove.isLoading}
-                onClose={() => {
-                    if (!remove.isLoading) setConfirmation(null);
-                }}
-                onConfirm={() =>
-                    remove.mutate(undefined, {
-                        onSuccess: () => {
-                            test.reset();
-                            setConfirmation(null);
-                        },
-                    })
-                }
-            />
+            {onReplace !== null && (
+                <AiServiceAccountRemoveModal
+                    opened={confirmation}
+                    loading={remove.isLoading}
+                    onClose={() => {
+                        if (!remove.isLoading) setConfirmation(false);
+                    }}
+                    onConfirm={() =>
+                        remove.mutate(undefined, {
+                            onSuccess: () => {
+                                test.reset();
+                                setConfirmation(false);
+                            },
+                        })
+                    }
+                />
+            )}
         </>
     );
 };
 
 const AiServiceAccountSettingsContent = ({
     projectUuid,
+    upstreamProjectUuid,
     slot,
     credentialsReadable,
     parent,
@@ -287,6 +252,7 @@ const AiServiceAccountSettingsContent = ({
     onEdit,
 }: {
     projectUuid: string;
+    upstreamProjectUuid: string | null;
     slot: AiServiceAccountSlot | null;
     credentialsReadable: boolean;
     parent: AiServiceAccountParent | null;
@@ -300,15 +266,46 @@ const AiServiceAccountSettingsContent = ({
     ) => void;
     onEdit: () => void;
 }) => {
+    const status = getAiServiceAccountStatus({
+        rule: { ...rule, warehouseType },
+        slot,
+        parent,
+        credentialsReadable,
+        isPreview: upstreamProjectUuid !== null,
+    });
+    const parentLink =
+        upstreamProjectUuid !== null ? (
+            <Anchor
+                component={Link}
+                to={getProjectAgentIdentitySettingsPath(upstreamProjectUuid)}
+                size="sm"
+            >
+                the parent project
+            </Anchor>
+        ) : null;
+    const missingRequiredParent =
+        upstreamProjectUuid !== null &&
+        !slot &&
+        !parent &&
+        rule.source === 'ai_service_account';
     return (
         <Stack gap="sm">
             <AiServiceAccountStatus
-                status={getAiServiceAccountStatus({
-                    rule: { ...rule, warehouseType },
-                    slot,
-                    parent,
-                    credentialsReadable,
-                })}
+                status={{
+                    ...status,
+                    alert:
+                        missingRequiredParent && status.alert
+                            ? {
+                                  ...status.alert,
+                                  message: (
+                                      <>
+                                          {status.alert.message} Ask an admin to
+                                          add one on {parentLink}.
+                                      </>
+                                  ),
+                              }
+                            : status.alert,
+                }}
             />
             {slot || parent ? (
                 <AiServiceAccountSummary
@@ -319,8 +316,15 @@ const AiServiceAccountSettingsContent = ({
                     observation={observation}
                     warehouseType={warehouseType}
                     onTestSuccess={onTestSuccess}
-                    onReplace={onEdit}
+                    onReplace={upstreamProjectUuid === null ? onEdit : null}
                 />
+            ) : upstreamProjectUuid !== null ? (
+                !missingRequiredParent && (
+                    <Text size="sm">
+                        The parent project has no shared agent account. Add one
+                        on {parentLink}.
+                    </Text>
+                )
             ) : (
                 <Group>
                     <Button variant="filled" onClick={onEdit}>
@@ -401,6 +405,7 @@ const AiServiceAccountSetup = ({
 
 const AiServiceAccountSettingsBody = ({
     projectUuid,
+    upstreamProjectUuid,
     connection,
     slot,
     credentialsReadable,
@@ -409,6 +414,7 @@ const AiServiceAccountSettingsBody = ({
     verification,
 }: {
     projectUuid: string;
+    upstreamProjectUuid: string | null;
     connection: AiServiceAccountConnection;
     verification: AiServiceAccountTestResult | null;
     slot: AiServiceAccountSlot | null;
@@ -435,6 +441,7 @@ const AiServiceAccountSettingsBody = ({
                         : (identityKey ?? 'empty')
                 }
                 projectUuid={projectUuid}
+                upstreamProjectUuid={upstreamProjectUuid}
                 slot={slot}
                 credentialsReadable={credentialsReadable}
                 parent={parent}
@@ -452,10 +459,10 @@ const AiServiceAccountSettingsBody = ({
                 }}
                 onEdit={() => setEditing(true)}
             />
-            {!slot && !parent && (
+            {upstreamProjectUuid === null && !slot && !parent && (
                 <AiServiceAccountSetup connection={connection} />
             )}
-            {editing && (
+            {upstreamProjectUuid === null && editing && (
                 <AiServiceAccountForm
                     projectUuid={projectUuid}
                     warehouseType={connection.type}
@@ -479,9 +486,11 @@ const AiServiceAccountSettingsBody = ({
 
 const AiServiceAccountSettings = ({
     projectUuid,
+    upstreamProjectUuid,
     connection,
 }: {
     projectUuid: string;
+    upstreamProjectUuid: string | null;
     connection: AiServiceAccountConnection;
 }) => {
     const settings = useOrganizationAgentIdentitySettings();
@@ -503,9 +512,10 @@ const AiServiceAccountSettings = ({
     return (
         <AiServiceAccountSettingsBody
             projectUuid={projectUuid}
+            upstreamProjectUuid={upstreamProjectUuid}
             connection={connection}
             verification={status.data.verification ?? null}
-            slot={status.data.results}
+            slot={upstreamProjectUuid === null ? status.data.results : null}
             credentialsReadable={status.data.credentialsReadable}
             parent={status.data.parent}
             rule={rule}
@@ -536,6 +546,11 @@ export const AiServiceAccountCard = ({ project }: { project: Project }) => {
                 <AiServiceAccountSettings
                     key={project.projectUuid}
                     projectUuid={project.projectUuid}
+                    upstreamProjectUuid={
+                        project.type === ProjectType.PREVIEW
+                            ? (project.upstreamProjectUuid ?? null)
+                            : null
+                    }
                     connection={project.warehouseConnection}
                 />
             </Stack>

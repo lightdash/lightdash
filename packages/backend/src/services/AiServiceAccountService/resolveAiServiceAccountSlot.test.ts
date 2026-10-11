@@ -152,29 +152,113 @@ describe.each([
         };
     };
 
-    it('uses an own slot before the parent', async () => {
+    it.each(['resolve', 'resolveMetadata'] as const)(
+        '%s reads each project summary once',
+        async (method) => {
+            const f = setup();
+            await f.resolver[method]({
+                projectUuid: 'preview',
+                connection: null,
+            });
+            expect(f.deps.projectModel.getSummary.mock.calls).toEqual([
+                ['preview'],
+                ['parent'],
+            ]);
+        },
+    );
+    it.each(['resolve', 'resolveMetadata'] as const)(
+        '%s preserves missing-project behavior',
+        async (method) => {
+            const f = setup();
+            f.projects.delete('preview');
+            await expect(
+                f.resolver[method]({
+                    projectUuid: 'preview',
+                    connection: null,
+                }),
+            ).rejects.toBeInstanceOf(NotFoundError);
+            f.slots.set('preview:null', record('preview'));
+            await expect(
+                f.resolver[method]({
+                    projectUuid: 'preview',
+                    connection: null,
+                }),
+            ).resolves.toMatchObject({
+                sourceProjectUuid: 'preview',
+                inherited: false,
+            });
+        },
+    );
+
+    it('ignores a readable own slot in credential and metadata resolution', async () => {
         const f = setup();
         f.slots.set('preview:null', record('preview'));
         expect(await f.resolve()).toMatchObject({
-            sourceProjectUuid: 'preview',
-            inherited: false,
-            slot: record('preview'),
+            sourceProjectUuid: 'parent',
+            inherited: true,
+            slot: record('parent'),
         });
-        expect(f.deps.projectModel.getSummary).not.toHaveBeenCalled();
-    });
-    it('never falls back from an unreadable own slot', async () => {
-        const f = setup();
-        f.deps.aiServiceAccountCredentialsModel.getSecrets.mockRejectedValueOnce(
-            new Error('invalid key'),
-        );
-        await expect(f.resolve()).rejects.toMatchObject({
-            inheritedFromProjectUuid: null,
+        expect(
+            await f.resolver.resolveMetadata({
+                projectUuid: 'preview',
+                connection: null,
+            }),
+        ).toMatchObject({
+            sourceProjectUuid: 'parent',
+            slot: record('parent').slot,
         });
         expect(
             f.deps.aiServiceAccountCredentialsModel.getSecrets,
-        ).toHaveBeenCalledTimes(1);
-        expect(f.deps.projectModel.getSummary).not.toHaveBeenCalled();
+        ).toHaveBeenCalledExactlyOnceWith('parent', null, true);
+        expect(
+            f.deps.aiServiceAccountCredentialsModel.getSlot,
+        ).toHaveBeenCalledExactlyOnceWith('parent', null);
     });
+    it('ignores an unreadable own slot without reading or decrypting it', async () => {
+        const f = setup();
+        f.deps.aiServiceAccountCredentialsModel.getSecrets.mockImplementation(
+            async (uuid) => {
+                if (uuid === 'preview') throw new Error('invalid own key');
+                return record('parent');
+            },
+        );
+        expect(await f.resolve()).toMatchObject({
+            sourceProjectUuid: 'parent',
+            inherited: true,
+        });
+        expect(
+            f.deps.aiServiceAccountCredentialsModel.getSecrets,
+        ).toHaveBeenCalledExactlyOnceWith('parent', null, true);
+    });
+    it('returns missing when only the preview has an account', async () => {
+        const f = setup();
+        f.slots.set('preview:null', record('preview'));
+        f.slots.delete('parent:null');
+        expect(await f.resolve()).toBeNull();
+        expect(
+            await f.resolver.resolveMetadata({
+                projectUuid: 'preview',
+                connection: null,
+            }),
+        ).toBeNull();
+        expect(
+            f.deps.aiServiceAccountCredentialsModel.getSecrets,
+        ).toHaveBeenCalledExactlyOnceWith('parent', null, true);
+    });
+    it.each(['default', 'no-upstream'] as const)(
+        'keeps the own account for %s projects',
+        async (scenario) => {
+            const f = setup();
+            f.slots.set('preview:null', record('preview'));
+            if (scenario === 'default')
+                f.projects.get('preview')!.type = ProjectType.DEFAULT;
+            else f.projects.get('preview')!.upstreamProjectUuid = undefined;
+            expect(await f.resolve()).toMatchObject({
+                sourceProjectUuid: 'preview',
+                inherited: false,
+            });
+        },
+    );
     it('maps the original slot to the parent original', async () => {
         const f = setup();
         expect(await f.resolve()).toEqual({
@@ -196,7 +280,7 @@ describe.each([
         });
         expect(
             f.deps.aiServiceAccountCredentialsModel.getSecrets,
-        ).toHaveBeenNthCalledWith(1, 'preview', null, true);
+        ).toHaveBeenCalledExactlyOnceWith('parent', null, true);
     });
     it('maps extras by name and warehouse type', async () => {
         const f = setup();
@@ -212,6 +296,7 @@ describe.each([
         async (mismatch) => {
             const f = setup();
             f.slots.set('parent:parent-extra', record('parent'));
+            f.slots.set('preview:extra', record('preview'));
             if (mismatch === 'name') f.parentConnection.name = 'Other';
             if (mismatch === 'type')
                 f.parentConnection.warehouseType = WarehouseTypes.POSTGRES;
@@ -261,9 +346,9 @@ describe.each([
     });
     it('attributes an unreadable inherited slot to its parent', async () => {
         const f = setup();
-        f.deps.aiServiceAccountCredentialsModel.getSecrets
-            .mockResolvedValueOnce(null)
-            .mockRejectedValueOnce(new Error('broken'));
+        f.deps.aiServiceAccountCredentialsModel.getSecrets.mockRejectedValueOnce(
+            new Error('broken'),
+        );
         await expect(f.resolve()).rejects.toEqual(
             new AiServiceAccountSlotResolutionError('parent'),
         );
@@ -301,8 +386,8 @@ describe.each([
                     secrets: databricks,
                 });
             expect(await f.resolve()).toMatchObject({
-                sourceProjectUuid: local ? 'preview' : 'parent',
-                inherited: !local,
+                sourceProjectUuid: 'parent',
+                inherited: true,
                 slot: { secrets: databricks },
             });
         },

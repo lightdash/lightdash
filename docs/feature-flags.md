@@ -229,6 +229,30 @@ page to update the UI. ENV and OAuth configuration changes need a process
 restart. Disabling the flag preserves saved credentials and restores normal query
 identity. It does not cancel queries in progress or revoke Snowflake tokens.
 
+### Preview shared agent accounts
+
+With `agent-identity` enabled, a preview with a parent project uses the parent's
+shared agent account. The original connection matches the parent's original
+connection. Additional connections match by name and warehouse type.
+The preview ignores its stored account. Save and Test with submitted credentials
+are refused. The Agent identity page shows the inherited account read-only.
+Test checks the parent's account against the preview's connection. A preview
+without a parent keeps its own account.
+
+When the rule requires a shared agent account and the parent has none for the
+matching connection, agents are refused on the preview. The page links to the
+parent's Agent identity settings.
+
+An inherited account's query failure keeps the warehouse error message.
+Postgres and Redshift SQLSTATE `42501`, Trino `PERMISSION_DENIED`, and ClickHouse
+code `497` or type `ACCESS_DENIED` add this guidance before it:
+"This preview uses the parent's shared agent account, which can't read this
+preview's data. Ask an admin to grant it access."
+These checks use structured error fields. They do not match message text.
+BigQuery, Snowflake, Databricks and Athena do not receive this guidance.
+Authentication failures retain their existing handling. Other query failures
+retain their original messages.
+
 ### Agent capability policy
 
 The capability-policy API and `AgentPermissionService` resolve `agent-identity`

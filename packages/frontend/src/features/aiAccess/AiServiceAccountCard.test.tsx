@@ -49,6 +49,23 @@ const project = {
     },
     dbtConnection: { type: DbtProjectType.NONE },
 } as Project;
+const asPreview = (value: Project): Project => ({
+    ...value,
+    type: ProjectType.PREVIEW,
+    upstreamProjectUuid: 'parent-project',
+});
+const expectReadOnly = () => {
+    for (const name of [
+        'Add shared agent account',
+        'Replace',
+        'Remove',
+        "Use the parent's account",
+        "Add this preview's own account",
+    ]) {
+        expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+    }
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+};
 vi.mock('../../components/common/CodeBlock/CodeBlock', () => ({
     default: ({ code }: { code: string }) => <pre>{code}</pre>,
 }));
@@ -239,8 +256,8 @@ describe('AI service account card', () => {
                     status: 'ok',
                     results: slot,
                     parent,
-                    verification,
-                    credentialsReadable,
+                    verification: parent ? null : verification,
+                    credentialsReadable: parent ? false : credentialsReadable,
                 };
             if (method === 'PUT') {
                 slot = savedSlot;
@@ -269,7 +286,7 @@ describe('AI service account card', () => {
         const unused = `Agents on this project use each person's own ${name} credentials. The organization rule decides this.`;
         const used = `Agents on this project run as this account. The organization rule for ${name} requires it.`;
         const unreadableParent =
-            "This preview can't read the parent project's shared agent account. Add this preview's own account, or ask an admin of Production to replace it.";
+            "This preview can't read the parent project's shared agent account. Ask an admin of Production to replace it.";
         const scenarios = [
             'in use',
             'not in use',
@@ -314,7 +331,7 @@ describe('AI service account card', () => {
                 if (owner === 'own')
                     slot = { ...savedSlot, warehouseType: type };
                 else parent = { ...parentAccount, principal: null };
-                setup(props);
+                setup(owner === 'inherited' ? asPreview(props) : props);
                 await screen.findByRole('button', { name: 'Test' });
                 expectSteps(false, name);
             },
@@ -330,7 +347,7 @@ describe('AI service account card', () => {
                         ...parentAccount,
                         verification: snowflakeVerification,
                     };
-                setup(props);
+                setup(owner === 'inherited' ? asPreview(props) : props);
                 await screen.findByRole('button', { name: 'Test' });
                 expectSteps(false, name);
             },
@@ -362,10 +379,14 @@ describe('AI service account card', () => {
                               !scenario.startsWith('unreadable parent'),
                       }
                     : null;
-                credentialsReadable = !scenario.startsWith('own unreadable');
+                credentialsReadable =
+                    !inherited && !scenario.startsWith('own unreadable');
                 const { container } = setup({
                     ...props,
                     type: inherited ? ProjectType.PREVIEW : ProjectType.DEFAULT,
+                    upstreamProjectUuid: inherited
+                        ? 'parent-project'
+                        : undefined,
                 });
                 await screen.findByRole('button', {
                     name: empty ? 'Add shared agent account' : 'Test',
@@ -457,9 +478,7 @@ describe('AI service account card', () => {
                             .getAllByRole('button')
                             .map((button) => button.textContent),
                     ).toEqual(
-                        inherited
-                            ? ['Test', "Add this preview's own account"]
-                            : ['Test', 'Replace', 'Remove'],
+                        inherited ? ['Test'] : ['Test', 'Replace', 'Remove'],
                     );
                     if (scenario === 'inherited') {
                         expect(
@@ -467,7 +486,7 @@ describe('AI service account card', () => {
                                 /Uses the shared agent account from/,
                             ),
                         ).toHaveTextContent(
-                            'Uses the shared agent account from Production, the parent project. Changes there apply here on the next query.',
+                            'Uses the shared agent account from Production.',
                         );
                         expect(
                             screen.getByRole('link', { name: 'Production' }),
@@ -525,7 +544,7 @@ describe('AI service account card', () => {
         it('keeps a readable parent with no principal in use', async () => {
             source = 'ai_service_account';
             parent = { ...parentAccount, principal: null };
-            setup(props);
+            setup(asPreview(props));
             expect(await screen.findByText('In use')).toBeVisible();
             expect(screen.queryByRole('alert')).not.toBeInTheDocument();
             expect(
@@ -534,39 +553,17 @@ describe('AI service account card', () => {
                 ),
             ).toBeVisible();
         });
-        it('uses own credentials ahead of an unreadable parent and orders preview controls', async () => {
+        it('ignores stale own credentials when the parent is unreadable', async () => {
             source = 'ai_service_account';
             slot = { ...savedSlot, warehouseType: type };
             parent = { ...parentAccount, credentialsReadable: false };
-            setup({ ...props, type: ProjectType.PREVIEW });
-            await screen.findByText('In use');
-            expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-            expect(
-                screen
-                    .getAllByRole('button')
-                    .map((button) => button.textContent),
-            ).toEqual([
-                'Test',
-                'Replace',
-                "Use the parent's account",
-                'Remove',
-            ]);
-            fireEvent.click(
-                screen.getByRole('button', {
-                    name: "Use the parent's account",
-                }),
+            setup(asPreview(props));
+            expect(await screen.findByRole('alert')).toHaveTextContent(
+                `Agents are refused on this preview. ${unreadableParent}`,
             );
-            const dialog = await screen.findByRole('dialog', {
-                name: "Use the parent's account",
-            });
-            expect(
-                within(dialog).getByText(
-                    "Remove this preview's own account and use the parent project's account? Agents use it on the next query.",
-                ),
-            ).toBeVisible();
-            expect(
-                within(dialog).getByText('parent@example.test'),
-            ).toBeVisible();
+            expectReadOnly();
+            expect(screen.getByRole('button', { name: 'Test' })).toBeEnabled();
+            expectSteps(false, name);
         });
         it('uses a plain parent reference when its name is unavailable', async () => {
             source = 'ai_service_account';
@@ -575,9 +572,9 @@ describe('AI service account card', () => {
                 projectName: null,
                 credentialsReadable: false,
             };
-            setup(props);
+            setup(asPreview(props));
             expect(await screen.findByRole('alert')).toHaveTextContent(
-                "Agents are refused on this preview. This preview can't read the parent project's shared agent account. Add this preview's own account, or ask an admin of the parent project to replace it.",
+                "Agents are refused on this preview. This preview can't read the parent project's shared agent account. Ask an admin of the parent project to replace it.",
             );
             expect(
                 screen.queryByRole('link', { name: 'Production' }),
@@ -585,7 +582,7 @@ describe('AI service account card', () => {
         });
         it('shows passed observations and dates without treating a BigQuery parent principal as a passed Test', async () => {
             parent = { ...parentAccount, verification: snowflakeVerification };
-            setup(props);
+            setup(asPreview(props));
             await screen.findByRole('button', { name: 'Test' });
             if (type === WarehouseTypes.BIGQUERY) {
                 expect(
@@ -627,6 +624,7 @@ describe('AI service account card', () => {
                 scenario === 'missing required' ||
                 scenario === 'empty not in use';
             const result = getAiServiceAccountStatus({
+                isPreview: inherited,
                 rule: {
                     warehouseType: type,
                     source: required ? 'ai_service_account' : 'marked_person',
@@ -640,7 +638,8 @@ describe('AI service account card', () => {
                               !scenario.startsWith('unreadable parent'),
                       }
                     : null,
-                credentialsReadable: !scenario.startsWith('own unreadable'),
+                credentialsReadable:
+                    !inherited && !scenario.startsWith('own unreadable'),
             });
             expect(result).toEqual({
                 badge:
@@ -707,7 +706,7 @@ describe('AI service account card', () => {
     });
     it('keeps the BigQuery parent principal gate after a passed Test', async () => {
         parent = { ...parentAccount, principal: null };
-        setup();
+        setup(asPreview(project));
         fireEvent.click(await screen.findByRole('button', { name: 'Test' }));
         await screen.findByText(/^Tested /);
         expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
@@ -720,7 +719,7 @@ describe('AI service account card', () => {
             screen.queryByText('Create the account in BigQuery'),
         ).not.toBeInTheDocument();
     });
-    it('derives own-slot precedence and readable unknown-parent status without mutation', () => {
+    it('derives unreadable and unknown-parent status without mutation', () => {
         const rule = {
             warehouseType: WarehouseTypes.BIGQUERY as const,
             source: 'ai_service_account' as const,
@@ -732,15 +731,24 @@ describe('AI service account card', () => {
         };
         expect(
             getAiServiceAccountStatus({
+                isPreview: true,
                 rule,
-                slot: savedSlot,
+                slot: null,
                 parent: unreadableParent,
                 credentialsReadable: true,
             }),
-        ).toMatchObject({ badge: 'In use', alert: null });
+        ).toMatchObject({
+            badge: null,
+            alert: {
+                color: 'red',
+                message:
+                    "Agents are refused on this preview. This preview can't read the parent project's shared agent account. Ask an admin of Production to replace it.",
+            },
+        });
         expect(unreadableParent.credentialsReadable).toBe(false);
         expect(
             getAiServiceAccountStatus({
+                isPreview: true,
                 rule,
                 slot: null,
                 parent: { ...parentAccount, principal: null },
@@ -749,6 +757,7 @@ describe('AI service account card', () => {
         ).toMatchObject({ badge: 'In use', alert: null });
         expect(
             getAiServiceAccountStatus({
+                isPreview: false,
                 rule: {
                     ...rule,
                     warehouseType: WarehouseTypes.SNOWFLAKE,
@@ -854,14 +863,14 @@ describe('AI service account card', () => {
             ).toBeVisible();
             expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
         });
-        it('shows parent verification and permits a preview override with warehouse-correct copy', async () => {
+        it('shows the inherited account read-only with warehouse-correct details', async () => {
             slot = null;
             parent = {
                 ...parentAccount,
                 principal: null,
                 verification: recorded,
             };
-            setup({ ...databricksProject, type: ProjectType.PREVIEW });
+            setup(asPreview(databricksProject));
             expect(
                 await screen.findByText('Signs in as recorded-principal'),
             ).toBeVisible();
@@ -874,46 +883,19 @@ describe('AI service account card', () => {
             expect(
                 screen.queryByText(/key file|different key|could not be read/),
             ).not.toBeInTheDocument();
-            fireEvent.click(
-                screen.getByRole('button', {
-                    name: "Add this preview's own account",
-                }),
-            );
-            expect(
-                await screen.findByLabelText('Client secret', { exact: false }),
-            ).toBeVisible();
-            expect(
-                screen.getByRole('button', { name: 'Test and save' }),
-            ).toBeDisabled();
+            expectReadOnly();
         });
-        it('restores the parent credentials after confirmation', async () => {
+        it('ignores a stale stored preview account without removing it', async () => {
             parent = {
                 ...parentAccount,
                 principal: recorded.principal,
                 verification: recorded,
             };
-            setup({ ...databricksProject, type: ProjectType.PREVIEW });
-            fireEvent.click(
-                await screen.findByRole('button', {
-                    name: "Use the parent's account",
-                }),
-            );
-            const dialog = await screen.findByRole('dialog');
-            expect(dialog).not.toHaveTextContent('key');
-            expect(lightdashApi).not.toHaveBeenCalledWith(
-                expect.objectContaining({ method: 'DELETE' }),
-            );
-            fireEvent.click(
-                within(dialog).getByRole('button', {
-                    name: "Use the parent's account",
-                }),
-            );
+            setup(asPreview(databricksProject));
             expect(
                 await screen.findByText(/Uses the shared agent account from/),
             ).toBeVisible();
-            expect(
-                screen.getByText('Signs in as recorded-principal'),
-            ).toBeVisible();
+            expectReadOnly();
         });
         it('warns about required missing credentials and offers Add', async () => {
             slot = null;
@@ -1040,14 +1022,14 @@ describe('AI service account card', () => {
             ).toBeVisible();
             expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
         });
-        it('shows parent verification and permits a preview override with warehouse-correct copy', async () => {
+        it('shows the inherited account read-only with warehouse-correct details', async () => {
             slot = null;
             parent = {
                 ...parentAccount,
                 principal: null,
                 verification: recorded,
             };
-            setup({ ...athenaProject, type: ProjectType.PREVIEW });
+            setup(asPreview(athenaProject));
             expect(
                 await screen.findByText(
                     'Signs in as arn:aws:sts::123456789012:assumed-role/agent/session',
@@ -1062,59 +1044,19 @@ describe('AI service account card', () => {
             expect(
                 screen.queryByText(/key file|different key|could not be read/),
             ).not.toBeInTheDocument();
-            fireEvent.click(
-                screen.getByRole('button', {
-                    name: "Add this preview's own account",
-                }),
-            );
-            expect(
-                await screen.findByLabelText('Secret access key', {
-                    exact: false,
-                }),
-            ).toBeVisible();
-            expect(
-                screen.getByLabelText('Agent workgroup', { exact: false }),
-            ).toHaveValue('');
-            expect(
-                screen.getByLabelText('S3 results location', { exact: false }),
-            ).toHaveValue('');
-            expect(
-                screen.getByLabelText('Access key ID', { exact: false }),
-            ).toHaveValue('');
-            expect(
-                screen.getByRole('button', { name: 'Test and save' }),
-            ).toBeDisabled();
+            expectReadOnly();
         });
-        it('restores the parent credentials after confirmation', async () => {
+        it('ignores a stale stored preview account without removing it', async () => {
             parent = {
                 ...parentAccount,
                 principal: recorded.principal,
                 verification: recorded,
             };
-            setup({ ...athenaProject, type: ProjectType.PREVIEW });
-            fireEvent.click(
-                await screen.findByRole('button', {
-                    name: "Use the parent's account",
-                }),
-            );
-            const dialog = await screen.findByRole('dialog');
-            expect(dialog).not.toHaveTextContent('key');
-            expect(lightdashApi).not.toHaveBeenCalledWith(
-                expect.objectContaining({ method: 'DELETE' }),
-            );
-            fireEvent.click(
-                within(dialog).getByRole('button', {
-                    name: "Use the parent's account",
-                }),
-            );
+            setup(asPreview(athenaProject));
             expect(
                 await screen.findByText(/Uses the shared agent account from/),
             ).toBeVisible();
-            expect(
-                screen.getByText(
-                    'Signs in as arn:aws:sts::123456789012:assumed-role/agent/session',
-                ),
-            ).toBeVisible();
+            expectReadOnly();
         });
         it('replaces credentials without prefill and removes them only after confirmation', async () => {
             const handler = vi.mocked(lightdashApi).getMockImplementation()!;
@@ -1295,14 +1237,14 @@ describe('AI service account card', () => {
             ).toBeVisible();
             expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
         });
-        it('shows parent verification and permits a preview override with warehouse-correct copy', async () => {
+        it('shows the inherited account read-only with warehouse-correct details', async () => {
             slot = null;
             parent = {
                 ...parentAccount,
                 principal: null,
                 verification: recorded,
             };
-            setup({ ...postgresProject, type: ProjectType.PREVIEW });
+            setup(asPreview(postgresProject));
             expect(
                 await screen.findByText('Signs in as ai_agents'),
             ).toBeVisible();
@@ -1315,43 +1257,19 @@ describe('AI service account card', () => {
             expect(
                 screen.queryByText(/key file|different key|could not be read/),
             ).not.toBeInTheDocument();
-            fireEvent.click(
-                screen.getByRole('button', {
-                    name: "Add this preview's own account",
-                }),
-            );
-            expect(await screen.findByLabelText(/^Password/)).toBeVisible();
-            expect(screen.getByLabelText(/^User/)).toHaveValue('');
-            expect(
-                screen.getByRole('button', { name: 'Test and save' }),
-            ).toBeDisabled();
+            expectReadOnly();
         });
-        it('restores the parent credentials after confirmation', async () => {
+        it('ignores a stale stored preview account without removing it', async () => {
             parent = {
                 ...parentAccount,
                 principal: recorded.principal,
                 verification: recorded,
             };
-            setup({ ...postgresProject, type: ProjectType.PREVIEW });
-            fireEvent.click(
-                await screen.findByRole('button', {
-                    name: "Use the parent's account",
-                }),
-            );
-            const dialog = await screen.findByRole('dialog');
-            expect(dialog).not.toHaveTextContent('key');
-            expect(lightdashApi).not.toHaveBeenCalledWith(
-                expect.objectContaining({ method: 'DELETE' }),
-            );
-            fireEvent.click(
-                within(dialog).getByRole('button', {
-                    name: "Use the parent's account",
-                }),
-            );
+            setup(asPreview(postgresProject));
             expect(
                 await screen.findByText(/Uses the shared agent account from/),
             ).toBeVisible();
-            expect(screen.getByText('Signs in as ai_agents')).toBeVisible();
+            expectReadOnly();
         });
         it('replaces credentials without prefill and removes them only after confirmation', async () => {
             const handler = vi.mocked(lightdashApi).getMockImplementation()!;
@@ -1529,14 +1447,14 @@ describe('AI service account card', () => {
             ).toBeVisible();
             expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
         });
-        it('shows parent verification and permits a preview override with warehouse-correct copy', async () => {
+        it('shows the inherited account read-only with warehouse-correct details', async () => {
             slot = null;
             parent = {
                 ...parentAccount,
                 principal: null,
                 verification: recorded,
             };
-            setup({ ...redshiftProject, type: ProjectType.PREVIEW });
+            setup(asPreview(redshiftProject));
             expect(
                 await screen.findByText('Signs in as ai_agents'),
             ).toBeVisible();
@@ -1549,43 +1467,19 @@ describe('AI service account card', () => {
             expect(
                 screen.queryByText(/key file|different key|could not be read/),
             ).not.toBeInTheDocument();
-            fireEvent.click(
-                screen.getByRole('button', {
-                    name: "Add this preview's own account",
-                }),
-            );
-            expect(await screen.findByLabelText(/^Password/)).toBeVisible();
-            expect(screen.getByLabelText(/^User/)).toHaveValue('');
-            expect(
-                screen.getByRole('button', { name: 'Test and save' }),
-            ).toBeDisabled();
+            expectReadOnly();
         });
-        it('restores the parent credentials after confirmation', async () => {
+        it('ignores a stale stored preview account without removing it', async () => {
             parent = {
                 ...parentAccount,
                 principal: recorded.principal,
                 verification: recorded,
             };
-            setup({ ...redshiftProject, type: ProjectType.PREVIEW });
-            fireEvent.click(
-                await screen.findByRole('button', {
-                    name: "Use the parent's account",
-                }),
-            );
-            const dialog = await screen.findByRole('dialog');
-            expect(dialog).not.toHaveTextContent('key');
-            expect(lightdashApi).not.toHaveBeenCalledWith(
-                expect.objectContaining({ method: 'DELETE' }),
-            );
-            fireEvent.click(
-                within(dialog).getByRole('button', {
-                    name: "Use the parent's account",
-                }),
-            );
+            setup(asPreview(redshiftProject));
             expect(
                 await screen.findByText(/Uses the shared agent account from/),
             ).toBeVisible();
-            expect(screen.getByText('Signs in as ai_agents')).toBeVisible();
+            expectReadOnly();
         });
         it('replaces credentials without prefill and removes them only after confirmation', async () => {
             const handler = vi.mocked(lightdashApi).getMockImplementation()!;
@@ -1768,14 +1662,14 @@ describe('AI service account card', () => {
             ).toBeVisible();
             expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
         });
-        it('shows parent verification and permits a preview override with warehouse-correct copy', async () => {
+        it('shows the inherited account read-only with warehouse-correct details', async () => {
             slot = null;
             parent = {
                 ...parentAccount,
                 principal: null,
                 verification: recorded,
             };
-            setup({ ...trinoProject, type: ProjectType.PREVIEW });
+            setup(asPreview(trinoProject));
             expect(
                 await screen.findByText(
                     'Signs in as MappedAgent/RestrictedRole',
@@ -1790,45 +1684,19 @@ describe('AI service account card', () => {
             expect(
                 screen.queryByText(/key file|different key|could not be read/),
             ).not.toBeInTheDocument();
-            fireEvent.click(
-                screen.getByRole('button', {
-                    name: "Add this preview's own account",
-                }),
-            );
-            expect(await screen.findByLabelText(/^Password/)).toBeVisible();
-            expect(screen.getByLabelText(/^User/)).toHaveValue('');
-            expect(
-                screen.getByRole('button', { name: 'Test and save' }),
-            ).toBeDisabled();
+            expectReadOnly();
         });
-        it('restores the parent credentials after confirmation', async () => {
+        it('ignores a stale stored preview account without removing it', async () => {
             parent = {
                 ...parentAccount,
                 principal: recorded.principal,
                 verification: recorded,
             };
-            setup({ ...trinoProject, type: ProjectType.PREVIEW });
-            fireEvent.click(
-                await screen.findByRole('button', {
-                    name: "Use the parent's account",
-                }),
-            );
-            const dialog = await screen.findByRole('dialog');
-            expect(dialog).not.toHaveTextContent('key');
-            expect(lightdashApi).not.toHaveBeenCalledWith(
-                expect.objectContaining({ method: 'DELETE' }),
-            );
-            fireEvent.click(
-                within(dialog).getByRole('button', {
-                    name: "Use the parent's account",
-                }),
-            );
+            setup(asPreview(trinoProject));
             expect(
                 await screen.findByText(/Uses the shared agent account from/),
             ).toBeVisible();
-            expect(
-                screen.getByText('Signs in as MappedAgent/RestrictedRole'),
-            ).toBeVisible();
+            expectReadOnly();
         });
         it('replaces credentials without prefill and removes them only after confirmation', async () => {
             const handler = vi.mocked(lightdashApi).getMockImplementation()!;
@@ -2022,14 +1890,14 @@ describe('AI service account card', () => {
             ).toBeVisible();
             expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
         });
-        it('shows parent verification and permits a preview override with warehouse-correct copy', async () => {
+        it('shows the inherited account read-only with warehouse-correct details', async () => {
             slot = null;
             parent = {
                 ...parentAccount,
                 principal: null,
                 verification: recorded,
             };
-            setup({ ...clickhouseProject, type: ProjectType.PREVIEW });
+            setup(asPreview(clickhouseProject));
             expect(
                 await screen.findByText('Signs in as ai_agents'),
             ).toBeVisible();
@@ -2042,43 +1910,19 @@ describe('AI service account card', () => {
             expect(
                 screen.queryByText(/key file|different key|could not be read/),
             ).not.toBeInTheDocument();
-            fireEvent.click(
-                screen.getByRole('button', {
-                    name: "Add this preview's own account",
-                }),
-            );
-            expect(await screen.findByLabelText(/^Password/)).toBeVisible();
-            expect(screen.getByLabelText(/^User/)).toHaveValue('');
-            expect(
-                screen.getByRole('button', { name: 'Test and save' }),
-            ).toBeDisabled();
+            expectReadOnly();
         });
-        it('restores the parent credentials after confirmation', async () => {
+        it('ignores a stale stored preview account without removing it', async () => {
             parent = {
                 ...parentAccount,
                 principal: recorded.principal,
                 verification: recorded,
             };
-            setup({ ...clickhouseProject, type: ProjectType.PREVIEW });
-            fireEvent.click(
-                await screen.findByRole('button', {
-                    name: "Use the parent's account",
-                }),
-            );
-            const dialog = await screen.findByRole('dialog');
-            expect(dialog).not.toHaveTextContent('key');
-            expect(lightdashApi).not.toHaveBeenCalledWith(
-                expect.objectContaining({ method: 'DELETE' }),
-            );
-            fireEvent.click(
-                within(dialog).getByRole('button', {
-                    name: "Use the parent's account",
-                }),
-            );
+            setup(asPreview(clickhouseProject));
             expect(
                 await screen.findByText(/Uses the shared agent account from/),
             ).toBeVisible();
-            expect(screen.getByText('Signs in as ai_agents')).toBeVisible();
+            expectReadOnly();
         });
         it('replaces credentials without prefill and removes them only after confirmation', async () => {
             const handler = vi.mocked(lightdashApi).getMockImplementation()!;
@@ -2167,10 +2011,10 @@ describe('AI service account card', () => {
             },
         );
     });
-    it('shows an inherited key and opens the form for a different key', async () => {
+    it('shows the inherited account read-only with warehouse-correct details', async () => {
         source = 'ai_service_account';
         parent = parentAccount;
-        setup();
+        setup(asPreview(project));
         expect(
             await screen.findByText(/Uses the shared agent account from/),
         ).toBeVisible();
@@ -2195,27 +2039,7 @@ describe('AI service account card', () => {
         ).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Test' })).toBeEnabled();
         expectSteps(false, 'BigQuery');
-        fireEvent.click(
-            screen.getByRole('button', {
-                name: "Add this preview's own account",
-            }),
-        );
-        const dialog = await screen.findByRole('dialog', {
-            name: 'Shared agent account',
-        });
-        upload();
-        const save = within(dialog).getByRole('button', { name: 'Save' });
-        await waitFor(() => expect(save).toBeEnabled());
-        fireEvent.click(save);
-        expect(
-            await screen.findByRole('button', { name: 'Replace' }),
-        ).toBeVisible();
-        expect(
-            screen.queryByText(/Uses the shared agent account from/),
-        ).not.toBeInTheDocument();
-        expect(
-            screen.getByRole('button', { name: "Use the parent's account" }),
-        ).toBeVisible();
+        expectReadOnly();
     });
     it('keeps inherited controls available when the parent key cannot be read', async () => {
         parent = {
@@ -2223,23 +2047,19 @@ describe('AI service account card', () => {
             principal: null,
             credentialsReadable: false,
         };
-        setup();
+        setup(asPreview(project));
         expect(
             await screen.findByText(
-                "This preview can't read the parent project's shared agent account. Add this preview's own account, or ask an admin of Production to replace it.",
+                "This preview can't read the parent project's shared agent account. Ask an admin of Production to replace it.",
             ),
         ).toBeVisible();
         expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
-        expect(
-            screen.getByRole('button', {
-                name: "Add this preview's own account",
-            }),
-        ).toBeEnabled();
+        expectReadOnly();
         expect(screen.getByRole('button', { name: 'Test' })).toBeEnabled();
     });
     it('clears inherited test results when the parent key rotates with the same principal', async () => {
         parent = parentAccount;
-        const { client } = setup();
+        const { client } = setup(asPreview(project));
         fireEvent.click(await screen.findByRole('button', { name: 'Test' }));
         await screen.findByText('Signs in as tested-principal');
         expect(
@@ -2264,10 +2084,10 @@ describe('AI service account card', () => {
     });
     it('does not link a parent the user cannot view', async () => {
         parent = { ...parentAccount, projectName: null };
-        setup();
+        setup(asPreview(project));
         expect(
             await screen.findByText(
-                'Uses the shared agent account from the parent project. Changes there apply here on the next query.',
+                'Uses the shared agent account from the parent project.',
             ),
         ).toBeVisible();
         expect(
@@ -2279,7 +2099,7 @@ describe('AI service account card', () => {
     });
     it('tests inherited credentials through the preview project', async () => {
         parent = parentAccount;
-        setup();
+        setup(asPreview(project));
         fireEvent.click(await screen.findByRole('button', { name: 'Test' }));
         expect(
             await screen.findByText('Signs in as tested-principal'),
@@ -2292,61 +2112,14 @@ describe('AI service account card', () => {
             }),
         );
     });
-    it('uses the parent key only after confirmation and refreshes the summary', async () => {
+    it('ignores a stale stored preview account without removing it', async () => {
         slot = savedSlot;
         parent = parentAccount;
-        const { invalidate } = setup();
-        fireEvent.click(
-            await screen.findByRole('button', {
-                name: "Use the parent's account",
-            }),
-        );
-        const dialog = await screen.findByRole('dialog', {
-            name: "Use the parent's account",
-        });
-        expect(dialog).toHaveTextContent(
-            "Remove this preview's own account and use the parent project's account? Agents use it on the next query.",
-        );
-        expect(lightdashApi).not.toHaveBeenCalledWith(
-            expect.objectContaining({ method: 'DELETE' }),
-        );
-        fireEvent.click(
-            within(dialog).getByRole('button', {
-                name: "Use the parent's account",
-            }),
-        );
+        setup(asPreview(project));
         expect(
             await screen.findByText(/Uses the shared agent account from/),
         ).toBeVisible();
-        expect(lightdashApi).toHaveBeenCalledWith({
-            version: 'v2',
-            url: '/projects/project/ai-access/service-account',
-            method: 'DELETE',
-            body: undefined,
-        });
-        expect(invalidate).toHaveBeenCalledWith(['ai-access']);
-        expect(
-            screen.queryByRole('button', { name: 'Remove' }),
-        ).not.toBeInTheDocument();
-    });
-    it('keeps the own key when switching to the parent is cancelled', async () => {
-        slot = savedSlot;
-        parent = parentAccount;
-        setup();
-        fireEvent.click(
-            await screen.findByRole('button', {
-                name: "Use the parent's account",
-            }),
-        );
-        fireEvent.click(
-            within(await screen.findByRole('dialog')).getByRole('button', {
-                name: 'Cancel',
-            }),
-        );
-        expect(lightdashApi).not.toHaveBeenCalledWith(
-            expect.objectContaining({ method: 'DELETE' }),
-        );
-        expect(screen.getByText('Key file')).toBeVisible();
+        expectReadOnly();
     });
     it('hides the parent action when an own key has no parent', async () => {
         slot = savedSlot;
@@ -2357,6 +2130,102 @@ describe('AI service account card', () => {
         expect(
             screen.queryByRole('button', { name: "Use the parent's account" }),
         ).not.toBeInTheDocument();
+    });
+    describe.each([WarehouseTypes.POSTGRES, WarehouseTypes.BIGQUERY] as const)(
+        '%s empty preview',
+        (type) => {
+            it.each([
+                { stale: false, required: true },
+                { stale: true, required: true },
+                { stale: false, required: false },
+                { stale: true, required: false },
+            ])(
+                'shows parent guidance with stale=$stale and required=$required',
+                async ({ stale, required }) => {
+                    warehouseType = type;
+                    source = required ? 'ai_service_account' : 'marked_person';
+                    credentialsReadable = false;
+                    verification = null;
+                    slot = stale ? { ...savedSlot, warehouseType: type } : null;
+                    setup(
+                        asPreview({
+                            ...project,
+                            warehouseConnection: {
+                                ...project.warehouseConnection,
+                                type,
+                            },
+                        } as Project),
+                    );
+                    if (required) {
+                        expect(
+                            await screen.findByRole('alert'),
+                        ).toHaveTextContent(
+                            'Agents are refused on this preview until the parent project has a shared agent account for this connection. Ask an admin to add one on the parent project.',
+                        );
+                        expect(
+                            getAiServiceAccountStatus({
+                                rule: {
+                                    warehouseType: type,
+                                    source,
+                                    projectsMissingAiServiceAccount: null,
+                                },
+                                slot: null,
+                                parent: null,
+                                credentialsReadable: false,
+                                isPreview: true,
+                            }).alert?.color,
+                        ).toBe('yellow');
+                        expect(
+                            screen.queryByText(
+                                /The parent project has no shared agent account/,
+                            ),
+                        ).not.toBeInTheDocument();
+                    } else {
+                        expect(
+                            await screen.findByText(
+                                /The parent project has no shared agent account. Add one on/,
+                            ),
+                        ).toHaveTextContent(
+                            'The parent project has no shared agent account. Add one on the parent project.',
+                        );
+                        expect(screen.getByText('Not in use')).toBeVisible();
+                        expect(
+                            screen.queryByText(/Agents are refused/),
+                        ).not.toBeInTheDocument();
+                        expect(
+                            screen.queryByRole('alert'),
+                        ).not.toBeInTheDocument();
+                    }
+                    expect(
+                        screen.getByRole('link', {
+                            name: 'the parent project',
+                        }),
+                    ).toHaveAttribute(
+                        'href',
+                        '/generalSettings/projectManagement/parent-project/agentIdentity',
+                    );
+                    expectReadOnly();
+                    expect(
+                        screen.queryByRole('button', { name: 'Test' }),
+                    ).not.toBeInTheDocument();
+                    expectSteps(
+                        false,
+                        type === WarehouseTypes.POSTGRES
+                            ? 'Postgres'
+                            : 'BigQuery',
+                    );
+                },
+            );
+        },
+    );
+    it('keeps setup available for a preview with no upstream project', async () => {
+        setup({ ...project, type: ProjectType.PREVIEW });
+        expect(
+            await screen.findByRole('button', {
+                name: 'Add shared agent account',
+            }),
+        ).toBeEnabled();
+        expectSteps(true, 'BigQuery');
     });
     it.each(['warehouse', 'flag', 'permission', 'unsaved'])(
         'hides for %s',
@@ -3164,7 +3033,11 @@ describe('AI service account card', () => {
                         principal: null,
                         verification: snowflakeVerification,
                     };
-                setup(snowflakeProject);
+                setup(
+                    owner === 'inherited'
+                        ? asPreview(snowflakeProject)
+                        : snowflakeProject,
+                );
                 expect(
                     await screen.findByText(
                         'Signs in as OBSERVED_USER with role OBSERVED_ROLE',
@@ -3224,11 +3097,15 @@ describe('AI service account card', () => {
                         credentialsReadable: false,
                     };
                 }
-                setup(snowflakeProject);
+                setup(
+                    owner === 'inherited'
+                        ? asPreview(snowflakeProject)
+                        : snowflakeProject,
+                );
                 expect(await screen.findByRole('alert')).toHaveTextContent(
                     owner === 'own'
                         ? "The shared agent account can't be read. Replace it."
-                        : "Agents are refused on this preview. This preview can't read the parent project's shared agent account. Add this preview's own account, or ask an admin of Production to replace it.",
+                        : "Agents are refused on this preview. This preview can't read the parent project's shared agent account. Ask an admin of Production to replace it.",
                 );
                 if (owner === 'own')
                     expect(
@@ -3242,14 +3119,11 @@ describe('AI service account card', () => {
                             'Not tested yet. Select Test to see who it signs in as.',
                         ),
                     ).toBeVisible();
-                expect(
-                    screen.getByRole('button', {
-                        name:
-                            owner === 'own'
-                                ? 'Replace'
-                                : "Add this preview's own account",
-                    }),
-                ).toBeEnabled();
+                if (owner === 'own')
+                    expect(
+                        screen.getByRole('button', { name: 'Replace' }),
+                    ).toBeEnabled();
+                else expectReadOnly();
                 expect(lightdashApi).not.toHaveBeenCalledWith(
                     expect.objectContaining({ method: 'POST' }),
                 );
@@ -3268,7 +3142,11 @@ describe('AI service account card', () => {
                         verification: null,
                     };
                 }
-                setup(snowflakeProject);
+                setup(
+                    owner === 'inherited'
+                        ? asPreview(snowflakeProject)
+                        : snowflakeProject,
+                );
                 const guidance = await screen.findByText(
                     'Not tested yet. Select Test to see who it signs in as.',
                 );
@@ -3279,14 +3157,11 @@ describe('AI service account card', () => {
                 });
                 expect(screen.queryByRole('alert')).not.toBeInTheDocument();
                 expect(screen.queryByText(/Tested/)).not.toBeInTheDocument();
-                expect(
-                    screen.getByRole('button', {
-                        name:
-                            owner === 'own'
-                                ? 'Replace'
-                                : "Add this preview's own account",
-                    }),
-                ).toBeEnabled();
+                if (owner === 'own')
+                    expect(
+                        screen.getByRole('button', { name: 'Replace' }),
+                    ).toBeEnabled();
+                else expectReadOnly();
                 vi.mocked(lightdashApi).mockResolvedValueOnce({
                     ...snowflakeVerification,
                     ok: false,
@@ -3400,7 +3275,7 @@ describe('AI service account card', () => {
                 ),
             ).toBeVisible();
         });
-        it('returns to the parent only after removal is confirmed', async () => {
+        it('ignores a stale stored preview account without removing it', async () => {
             saved();
             parent = {
                 ...parentAccount,
@@ -3413,35 +3288,11 @@ describe('AI service account card', () => {
                     },
                 },
             };
-            setup(snowflakeProject);
-            fireEvent.click(
-                await screen.findByRole('button', {
-                    name: "Use the parent's account",
-                }),
-            );
-            const modal = within(await screen.findByRole('dialog'));
+            setup(asPreview(snowflakeProject));
             expect(
-                modal.getByText('PARENT with role PARENT_ROLE'),
+                await screen.findByText(/Uses the shared agent account from/),
             ).toBeVisible();
-            expect(lightdashApi).not.toHaveBeenCalledWith(
-                expect.objectContaining({ method: 'DELETE' }),
-            );
-            fireEvent.click(
-                modal.getByRole('button', { name: "Use the parent's account" }),
-            );
-            expect(
-                await screen.findByText(
-                    'Signs in as PARENT with role PARENT_ROLE',
-                ),
-            ).toBeVisible();
-            expect(
-                screen.queryByText(
-                    'Signs in as OBSERVED_USER with role OBSERVED_ROLE',
-                ),
-            ).not.toBeInTheDocument();
-            expect(
-                screen.queryByRole('button', { name: 'Remove' }),
-            ).not.toBeInTheDocument();
+            expectReadOnly();
         });
         it.each(['flag', 'permission'])(
             'renders no card or setup and makes no request without %s',

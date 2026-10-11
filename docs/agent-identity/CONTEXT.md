@@ -40,6 +40,7 @@ _Avoid_: separate agent sign-in, agent connection
 **Shared agent account**:
 One warehouse account that a project admin adds to a project. All agents on
 that project run as it. Code value `ai_service_account`.
+A preview with a parent project uses the parent's shared agent account.
 _Avoid_: AI service account. Do not confuse with Lightdash **service
 accounts**, which are API tokens for automation, not warehouse accounts.
 
