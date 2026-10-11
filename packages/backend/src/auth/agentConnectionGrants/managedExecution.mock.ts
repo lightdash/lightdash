@@ -41,6 +41,7 @@ export const managedExecutionFixture = () => {
         version: 1,
         allowedProjectUuids: null,
         allowedUserUuids: null,
+        allowedGroupUuids: null,
         systemRoleMatrix: agentSystemRoleMatrix(Object.values(AgentCapability)),
     };
     const assignments = {
@@ -50,6 +51,8 @@ export const managedExecutionFixture = () => {
     const permissions = new AgentPermissionService({
         resolveResourceProjectUuid: vi.fn().mockResolvedValue(projectUuid),
         isCustomRolesLicensed: () => true,
+        groupsModel: { findUserInGroups: vi.fn().mockResolvedValue([]) },
+        areGroupsAvailable: vi.fn().mockResolvedValue(true),
         featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
         agentCapabilityPolicyModel: {
             get: vi.fn().mockResolvedValue(policy),

@@ -670,7 +670,7 @@ describe.each([
                 f.req.isAuthenticated = (() =>
                     true) as Request['isAuthenticated'];
             }
-            f.permissions.isManaged.mockResolvedValue(true);
+            f.permissions.getEnforcementMode.mockResolvedValue('managed');
             f.downstream.mockImplementation(async () => {
                 const scope = agentExecutionContext.getStore();
                 expect(scope).toMatchObject({
@@ -810,7 +810,7 @@ describe.each([
     });
     it('keeps the connection on a refused permission check without running downstream', async () => {
         const f = setup();
-        f.permissions.isManaged.mockResolvedValue(true);
+        f.permissions.getEnforcementMode.mockResolvedValue('managed');
         const refusal = new Error('Permission refused');
         f.permissions.assertOperation.mockImplementation(async () => {
             expect(
