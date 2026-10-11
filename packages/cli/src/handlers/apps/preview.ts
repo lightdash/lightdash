@@ -9,6 +9,7 @@ import { promises as fs } from 'fs';
 import inquirer from 'inquirer';
 import * as path from 'path';
 import { getConfig } from '../../config';
+import { refuseAgentConnection } from '../../credentials';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
 import { checkLightdashVersion } from '../dbt/apiClient';
@@ -32,6 +33,7 @@ export const buildPreviewChildEnv = (args: {
     browserImageOrigins?: string[];
     parentEnv?: NodeJS.ProcessEnv;
 }): Record<string, string> => {
+    refuseAgentConnection();
     const parentEnv = args.parentEnv ?? process.env;
     const passthroughKeys = [
         'APPDATA',
@@ -87,6 +89,7 @@ export const fetchBrowserImageOrigins = async (args: {
     proxyAuthorization?: string;
     fetchFn?: typeof fetch;
 }): Promise<string[]> => {
+    refuseAgentConnection();
     const linkedSlugs = new Set(
         (args.manifest.externalConnections ?? []).map(
             ({ connectionSlug }) => connectionSlug,
@@ -267,6 +270,7 @@ export const ensureNodeModules = async (args: {
     appDir: string;
     assumeYes: boolean;
 }): Promise<void> => {
+    refuseAgentConnection();
     if (await hasNodeModules(args.appDir)) return;
 
     const interactive =
@@ -358,6 +362,7 @@ export const preflightPreviewRequest = async (args: {
     proxyAuthorization?: string;
     fetchFn?: typeof fetch;
 }): Promise<boolean> => {
+    refuseAgentConnection();
     const fetchFn = args.fetchFn ?? fetch;
     try {
         const res = await fetchFn(new URL(args.apiPath, args.serverUrl), {
@@ -446,6 +451,7 @@ export const appsPreviewHandler = async (
     pathArg: string | undefined,
     options: AppsPreviewOptions,
 ): Promise<void> => {
+    refuseAgentConnection();
     GlobalState.setVerbose(options.verbose);
     const devServerPort = resolvePreviewPort(options.port);
 

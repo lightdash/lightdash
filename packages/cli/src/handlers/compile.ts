@@ -30,6 +30,7 @@ import {
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
+import { getAgentConnectionSelection } from '../credentials';
 import { getDbtContext } from '../dbt/context';
 import {
     combineManifests,
@@ -529,6 +530,7 @@ export const compileProject = async (
                 combineSource = 'manifest from the server';
                 isAutomaticServerManifest = true;
             } catch (error) {
+                if (getAgentConnectionSelection() !== null) throw error;
                 if (
                     error instanceof LightdashError &&
                     error.statusCode === 404

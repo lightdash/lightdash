@@ -9,6 +9,7 @@ import {
     setContext,
     setDefaultUser,
 } from '../config';
+import { refuseAgentConnection } from '../credentials';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { checkLightdashVersion } from './dbt/apiClient';
@@ -83,7 +84,10 @@ const getLoginMethod = (options: LoginOptions): string => {
 export const isApiKeyEnvVarShadowing = (
     token: string | undefined,
     env: NodeJS.ProcessEnv = process.env,
-): boolean => !!env.LIGHTDASH_API_KEY && env.LIGHTDASH_API_KEY !== token;
+): boolean => {
+    refuseAgentConnection(true);
+    return !!env.LIGHTDASH_API_KEY && env.LIGHTDASH_API_KEY !== token;
+};
 
 const apiKeyEnvVarWarning = (when: 'before-login' | 'after-login') =>
     styles.warning(
@@ -97,6 +101,7 @@ const apiKeyEnvVarWarning = (when: 'before-login' | 'after-login') =>
     );
 
 const loginWithToken = async (url: string, token: string) => {
+    refuseAgentConnection(true);
     const userInfoUrl = new URL(`/api/v1/user`, url).href;
     const response = await fetch(userInfoUrl, {
         method: 'GET',
@@ -125,6 +130,7 @@ const loginWithEmailPassword = async (
     email: string,
     password: string,
 ) => {
+    refuseAgentConnection(true);
     const loginUrl = new URL('/api/v1/login', url).href;
     const loginResponse = await fetch(loginUrl, {
         method: 'POST',
@@ -210,6 +216,7 @@ export const login = async (
     urlInput: string | undefined,
     options: LoginOptions,
 ) => {
+    refuseAgentConnection(true);
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
 

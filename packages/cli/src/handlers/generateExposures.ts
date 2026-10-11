@@ -11,6 +11,7 @@ import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
+import { getAgentConnectionSelection } from '../credentials';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
@@ -28,7 +29,13 @@ export const generateExposuresHandler = async (
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
     const executionId = uuidv4();
-    const config = await getConfig();
+    const config = await (getAgentConnectionSelection() === null
+        ? getConfig()
+        : getConfig({ readOnly: true }).then(async (currentConfig) =>
+              (
+                  await import('../agentConnections/projectSelection')
+              ).configWithAgentProject(currentConfig),
+          ));
     if (!(config.context?.project && config.context.serverUrl)) {
         throw new AuthorizationError(
             `No active Lightdash project. Run 'lightdash login --help'`,

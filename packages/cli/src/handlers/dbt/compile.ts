@@ -10,6 +10,10 @@ import execa from 'execa';
 import { promises as fs } from 'fs';
 import { xor } from 'lodash';
 import * as path from 'path';
+import {
+    getAgentConnectionChildEnvironment,
+    getAgentConnectionSelection,
+} from '../../credentials';
 import { loadManifest, LoadManifestArgs } from '../../dbt/manifest';
 import GlobalState from '../../globalState';
 import { getDbtVersion } from './getDbtVersion';
@@ -79,7 +83,12 @@ const dbtCompile = async (options: DbtCompileOptions) => {
     try {
         const args = optionsToArgs(options);
         GlobalState.debug(`> Running: dbt compile ${args.join(' ')}`);
-        const { stdout, stderr } = await execa('dbt', ['compile', ...args]);
+        const { stdout, stderr } = await (getAgentConnectionSelection() !== null
+            ? execa('dbt', ['compile', ...args], {
+                  extendEnv: false,
+                  env: await getAgentConnectionChildEnvironment(),
+              })
+            : execa('dbt', ['compile', ...args]));
         console.error(stdout);
         console.error(stderr);
     } catch (e: unknown) {
@@ -171,7 +180,12 @@ export async function dbtList(options: DbtCompileOptions): Promise<string[]> {
             args.push('--quiet');
         }
         GlobalState.debug(`> Running: dbt ls ${args.join(' ')}`);
-        const { stdout, stderr } = await execa('dbt', ['ls', ...args]);
+        const { stdout, stderr } = await (getAgentConnectionSelection() !== null
+            ? execa('dbt', ['ls', ...args], {
+                  extendEnv: false,
+                  env: await getAgentConnectionChildEnvironment(),
+              })
+            : execa('dbt', ['ls', ...args]));
         const models = stdout
             .split('\n')
             .map<string>((line) => {

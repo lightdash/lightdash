@@ -7,6 +7,7 @@ import * as http from 'http';
 import fetch from 'node-fetch';
 import { generators, Issuer } from 'openid-client';
 import { URL } from 'url';
+import { refuseAgentConnection } from '../credentials';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { openBrowser } from './login/oauth';
@@ -16,6 +17,7 @@ export const loginWithOauth = async (
     url: string,
     oauthPort?: number,
 ): Promise<{ userUuid: string; organizationUuid: string; token: string }> => {
+    refuseAgentConnection(true);
     // Create a promise that will be resolved when we get the authorization code
     let resolveAuth: (value: { code: string; state: string }) => void;
     let rejectAuth: (reason: Error) => void;

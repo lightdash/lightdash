@@ -14,6 +14,7 @@ import {
 } from '@lightdash/common';
 import inquirer from 'inquirer';
 import path from 'path';
+import { assertAgentCommandAllowed } from '../agentConnections/commandPolicy';
 import { getConfig, setAnswer } from '../config';
 import { getDbtContext } from '../dbt/context';
 import GlobalState from '../globalState';
@@ -307,6 +308,7 @@ export const loadWarehouseCredentialsFromProfiles = async (
 export const createProject = async (
     options: CreateProjectOptions,
 ): Promise<ApiCreateProjectResults | undefined> => {
+    assertAgentCommandAllowed('deploy', { create: true });
     await checkProjectCreationPermission(
         options.upstreamProjectUuid,
         options.type,

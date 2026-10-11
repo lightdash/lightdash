@@ -24,6 +24,10 @@ import execa from 'execa';
 import path from 'path';
 import { getConfig } from '../../config';
 import {
+    getAgentConnectionChildEnvironment,
+    getAgentConnectionSelection,
+} from '../../credentials';
+import {
     loadDbtTarget,
     warehouseCredentialsFromDbtTarget,
 } from '../../dbt/profile';
@@ -87,10 +91,17 @@ const DBT_CLOUD_CONNECTION_TYPE_REGEX = /Connection type\s+(\w+)/;
 
 const getDbtCloudConnectionType = async (): Promise<SupportedDbtAdapter> => {
     try {
-        const { all } = await execa('dbt', ['environment', 'show'], {
-            all: true,
-            stdio: ['pipe', 'pipe', 'pipe'],
-        });
+        const { all } = await (getAgentConnectionSelection() !== null
+            ? execa('dbt', ['environment', 'show'], {
+                  all: true,
+                  stdio: ['pipe', 'pipe', 'pipe'],
+                  extendEnv: false,
+                  env: await getAgentConnectionChildEnvironment({}),
+              })
+            : execa('dbt', ['environment', 'show'], {
+                  all: true,
+                  stdio: ['pipe', 'pipe', 'pipe'],
+              }));
         const logs = all || '';
         const connectionType = logs.match(DBT_CLOUD_CONNECTION_TYPE_REGEX);
         if (connectionType === null || connectionType.length === 0) {
@@ -290,7 +301,13 @@ export default async function getWarehouseClient(
                 ? options.startOfWeek
                 : undefined,
         });
-        const config = await getConfig();
+        const config = await (getAgentConnectionSelection() === null
+            ? getConfig()
+            : getConfig({ readOnly: true }).then(async (currentConfig) =>
+                  (
+                      await import('../../agentConnections/projectSelection')
+                  ).configWithAgentProject(currentConfig),
+              ));
         // Overwrite methods that need to connect to the warehouse
         warehouseClient.getCatalog = async (refs) =>
             refs.reduce<Promise<WarehouseCatalog>>(async (accPromise, ref) => {

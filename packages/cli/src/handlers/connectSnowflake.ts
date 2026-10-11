@@ -17,6 +17,7 @@ import {
 import fetch, { type Response } from 'node-fetch';
 import { generateKeyPairSync } from 'node:crypto';
 import { categorizeError, LightdashAnalytics } from '../analytics/analytics';
+import { refuseAgentConnection } from '../credentials';
 
 export type ConnectSnowflakeOptions = {
     code: string;
@@ -440,6 +441,7 @@ export const connectSnowflakeHandler = async (
     options: ConnectSnowflakeOptions,
     dependencies: ConnectSnowflakeDependencies = defaultDependencies,
 ): Promise<void> => {
+    refuseAgentConnection();
     await LightdashAnalytics.track({
         event: 'connect_snowflake.started',
         properties: {},

@@ -67,11 +67,17 @@ import groupBy from 'lodash/groupBy';
 import pLimit from 'p-limit';
 import * as path from 'path';
 import { validate as isUuid } from 'uuid';
+import { assertAgentCommandAllowed } from '../agentConnections/commandPolicy';
 import {
     LightdashAnalytics,
     type ProjectContentAsCodeCounts,
 } from '../analytics/analytics';
 import { getConfig, setAnswer } from '../config';
+import {
+    getAgentConnectionSelection,
+    refuseAgentConnection,
+    resolveCredential,
+} from '../credentials';
 import { CLI_VERSION } from '../env';
 import GlobalState from '../globalState';
 import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
@@ -1973,6 +1979,7 @@ const listAppsViaContentApi = async (
 export const downloadHandler = async (
     options: DownloadHandlerOptions,
 ): Promise<void> => {
+    assertAgentCommandAllowed('download', options);
     GlobalState.setVerbose(options.verbose);
 
     const isOrganizationDownload = options.organization === true;
@@ -2128,8 +2135,12 @@ export const downloadHandler = async (
 
     await checkLightdashVersion();
 
-    const config = await getConfig();
-    if (!config.context?.apiKey || !config.context.serverUrl) {
+    const config = await (getAgentConnectionSelection() === null
+        ? getConfig()
+        : getConfig({ readOnly: true }));
+    if (getAgentConnectionSelection() !== null) {
+        await resolveCredential(config);
+    } else if (!config.context?.apiKey || !config.context.serverUrl) {
         throw new AuthorizationError(
             `Not logged in. Run 'lightdash login --help'`,
         );
@@ -3121,7 +3132,8 @@ export const downloadHandler = async (
                     `\nNote: ${METADATA_FILENAME} was written to ${baseDir}. Consider adding it to your .gitignore.`,
                 ),
             );
-            await setAnswer({ metadataFileGitignoreNoticeShown: true });
+            if (getAgentConnectionSelection() === null)
+                await setAnswer({ metadataFileGitignoreNoticeShown: true });
         }
         output.completeItem('timestamps written');
         const end = Date.now();
@@ -3452,7 +3464,9 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
     total: number;
     failedSlugs: string[];
 }> => {
-    const config = await getConfig();
+    const config = await (getAgentConnectionSelection() === null
+        ? getConfig()
+        : getConfig({ readOnly: true }));
 
     const folderItems = await readCodeFiles<T>(type, customPath);
     const items = [...folderItems, ...extraItems];
@@ -3824,6 +3838,7 @@ const getStampedContentPath = (uploadRoot: string): string | undefined => {
 export const uploadHandler = async (
     options: DownloadHandlerOptions,
 ): Promise<void> => {
+    refuseAgentConnection();
     GlobalState.setVerbose(options.verbose);
     const projectConfig = await readUploadProjectConfig();
     // --path wins; otherwise content_as_code.path from lightdash.config.yml
@@ -3914,7 +3929,9 @@ export const uploadHandler = async (
         setGzipEnabled(true);
     }
     await checkLightdashVersion();
-    const config = await getConfig();
+    const config = await (getAgentConnectionSelection() === null
+        ? getConfig()
+        : getConfig({ readOnly: true }));
     if (!config.context?.apiKey || !config.context.serverUrl) {
         throw new AuthorizationError(
             `Not logged in. Run 'lightdash login --help'`,

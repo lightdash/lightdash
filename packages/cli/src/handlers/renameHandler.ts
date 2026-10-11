@@ -13,6 +13,7 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { categorizeError, LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
+import { refuseAgentConnection } from '../credentials';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
@@ -77,6 +78,7 @@ const listResources = (
 };
 
 export const renameHandler = async (options: RenameHandlerOptions) => {
+    refuseAgentConnection();
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
 

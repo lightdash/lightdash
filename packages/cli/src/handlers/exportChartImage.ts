@@ -2,6 +2,7 @@ import { promises as fs } from 'fs';
 import fetch from 'node-fetch';
 import { validate as isValidUuid } from 'uuid';
 import { getConfig } from '../config';
+import { refuseAgentConnection } from '../credentials';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { lightdashApi } from './dbt/apiClient';
@@ -17,6 +18,7 @@ export const exportChartImageHandler = async (
     chartUuidOrSlug: string,
     options: ExportChartImageOptions,
 ): Promise<void> => {
+    refuseAgentConnection();
     GlobalState.setVerbose(options.verbose ?? false);
 
     const spinner = GlobalState.startSpinner(

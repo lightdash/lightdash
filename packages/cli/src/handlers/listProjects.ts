@@ -1,4 +1,5 @@
 import { OrganizationProject, ProjectType } from '@lightdash/common';
+import { assertAgentCommandAllowed } from '../agentConnections/commandPolicy';
 import { LightdashAnalytics } from '../analytics/analytics';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
@@ -9,6 +10,7 @@ type ListProjectsOptions = {
 };
 
 export const listProjectsHandler = async (options: ListProjectsOptions) => {
+    assertAgentCommandAllowed('config list-projects');
     const startTime = Date.now();
     let success = true;
     GlobalState.setVerbose(options.verbose);

@@ -4,12 +4,14 @@ import {
     formatDate,
 } from '@lightdash/common';
 import fetch from 'node-fetch';
+import { refuseAgentConnection } from '../../credentials';
 
 export const generatePersonalAccessToken = async (
     headers: Record<string, string>,
     url: string,
     hoursToExpire: number = 720, // Default to 30 days (30 * 24 hours)
 ): Promise<string> => {
+    refuseAgentConnection(true);
     const patUrl = new URL(`/api/v1/user/me/personal-access-tokens`, url).href;
     const now = new Date();
     const createToken: CreatePersonalAccessToken = {

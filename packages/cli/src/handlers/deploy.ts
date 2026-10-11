@@ -21,8 +21,10 @@ import inquirer from 'inquirer';
 import path from 'path';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
+import { assertAgentCommandAllowed } from '../agentConnections/commandPolicy';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig, setProject } from '../config';
+import { getAgentConnectionSelection } from '../credentials';
 import { getDbtContext } from '../dbt/context';
 import {
     loadDbtTarget,
@@ -253,6 +255,7 @@ const retryBatchUpload = async <T>(
     task: () => Promise<T>,
     batchNumber: number,
 ): Promise<T> => {
+    if (getAgentConnectionSelection() !== null) return task();
     let backoffMs = BATCH_UPLOAD_INITIAL_BACKOFF_MS;
     for (let attempt = 1; attempt <= BATCH_UPLOAD_MAX_ATTEMPTS; attempt += 1) {
         try {
@@ -319,6 +322,7 @@ const deployBatched = async (
         })) as { deploySessionUuid: string };
         sessionUuid = startSessionResponse.deploySessionUuid;
     } catch (error) {
+        if (getAgentConnectionSelection() !== null) throw error;
         if (error instanceof LightdashError && error.statusCode === 404) {
             GlobalState.log(
                 styles.info(
@@ -434,6 +438,11 @@ export const deploy = async (
     explores: (Explore | ExploreError)[],
     options: DeployArgs,
 ): Promise<void> => {
+    if (getAgentConnectionSelection() !== null)
+        assertAgentCommandAllowed('deploy', {
+            source: options.sourceUuid,
+            target: options.deployTarget,
+        });
     if (explores.length === 0) {
         GlobalState.log(styles.warning('No explores found'));
         process.exit(1);
@@ -546,6 +555,7 @@ export const deploy = async (
                     body: deployPayload,
                 },
             ).catch(async (error: unknown) => {
+                if (getAgentConnectionSelection() !== null) throw error;
                 if (
                     options.dbtModelNames === undefined ||
                     !(error instanceof LightdashError) ||
@@ -703,6 +713,7 @@ const createNewProject = async (
 };
 
 export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
+    assertAgentCommandAllowed('deploy', originalOptions);
     const options = {
         ...originalOptions,
     };
@@ -789,7 +800,9 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
     }
     await checkLightdashVersion();
     const executionId = uuidv4();
-    const config = await getConfig();
+    const config = await (getAgentConnectionSelection() === null
+        ? getConfig()
+        : getConfig({ readOnly: true }));
 
     let existingProjectSelection: ProjectSelection | undefined;
     let sourceUuid: string | undefined;

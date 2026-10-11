@@ -7,6 +7,7 @@ import {
 import { timingSafeEqual } from 'crypto';
 import * as http from 'http';
 import * as https from 'https';
+import { refuseAgentConnection } from '../../credentials';
 
 // Per-run shared secret between the browser, Vite, and the CLI proxy. Vite
 // forwards the browser's scoped Authorization value and adds this header;
@@ -98,6 +99,7 @@ export const startPreviewProxy = (args: {
     projectUuid: string;
     nonce: string;
 }): Promise<PreviewProxyHandle> => {
+    refuseAgentConnection();
     const upstream = new URL(args.upstreamUrl);
     const requestFn =
         upstream.protocol === 'https:' ? https.request : http.request;

@@ -382,3 +382,90 @@ describe('deploy dbt source and target transport', () => {
         );
     });
 });
+
+describe('selected deploy writes', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.stubEnv('LIGHTDASH_AGENT_CONNECTION', 'work');
+        vi.mocked(readAndLoadLightdashProjectConfig).mockResolvedValue({
+            spotlight: { default_visibility: 'show' },
+        });
+        vi.mocked(LightdashAnalytics.track).mockResolvedValue(undefined);
+    });
+    afterEach(() => vi.unstubAllEnvs());
+    it('does not retry a failed batch', async () => {
+        let attempts = 0;
+        const failure = new Error('Connection failed');
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+            if (url.endsWith('/deploy'))
+                return { deploySessionUuid: 'session' } as never;
+            if (url.endsWith('/batch')) {
+                attempts += 1;
+                if (attempts === 1) throw failure;
+                return { batchNumber: 0, exploreCount: 1 } as never;
+            }
+            if (url.endsWith('/finalize'))
+                return {
+                    exploreCount: 1,
+                    status: DeploySessionStatus.COMPLETED,
+                    warnings: { warningCount: 0, exploresWithWarnings: [] },
+                } as never;
+            return null as never;
+        });
+        await expect(deploy([compiledExplore], deployOptions)).rejects.toBe(
+            failure,
+        );
+        expect(attempts).toBe(1);
+        expect(
+            vi
+                .mocked(lightdashApi)
+                .mock.calls.some(([props]) => props.url.endsWith('/finalize')),
+        ).toBe(false);
+    });
+    it.each([
+        { sourceUuid: 'source' },
+        { deployTarget: { database: 'other' } },
+    ])(
+        'refuses direct deploy destination overrides %j before requests',
+        async (override) => {
+            await expect(
+                deploy([compiledExplore], { ...deployOptions, ...override }),
+            ).rejects.toThrow('not available');
+            expect(lightdashApi).not.toHaveBeenCalled();
+        },
+    );
+});
+
+it('does not fall back to another deploy write after a selected legacy 404', async () => {
+    vi.clearAllMocks();
+    vi.stubEnv('LIGHTDASH_AGENT_CONNECTION', 'work');
+    vi.mocked(readAndLoadLightdashProjectConfig).mockResolvedValue({
+        spotlight: { default_visibility: 'show' },
+    });
+    const failure = new LightdashError({
+        name: 'NotFoundError',
+        statusCode: 404,
+        message: 'missing',
+        data: {},
+    });
+    vi.mocked(lightdashApi).mockImplementation(async ({ method, url }) => {
+        if (method === 'PUT' && url.endsWith('/deploy')) throw failure;
+        return null as never;
+    });
+    try {
+        await expect(
+            deploy([compiledExplore], {
+                ...deployOptions,
+                batchedDeploy: false,
+                dbtModelNames: ['orders'],
+            }),
+        ).rejects.toBe(failure);
+        expect(
+            vi
+                .mocked(lightdashApi)
+                .mock.calls.some(([props]) => props.url.includes('/explores?')),
+        ).toBe(false);
+    } finally {
+        vi.unstubAllEnvs();
+    }
+});

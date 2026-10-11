@@ -1,5 +1,6 @@
 import { ParameterError, type AiAccessForUser } from '@lightdash/common';
 import { getConfig } from '../config';
+import { getAgentConnectionSelection } from '../credentials';
 import { lightdashApi } from './dbt/apiClient';
 import { resolveProjectFlag } from './resolveProjectFlag';
 
@@ -14,8 +15,15 @@ export const isUsingSharedAgentAccount = (access: AiAccessForUser): boolean =>
 export const resolveAgentProject = async (
     project?: string,
 ): Promise<string> => {
+    if (getAgentConnectionSelection() !== null) {
+        const { resolveAgentConnectionProject } =
+            await import('../agentConnections/projectSelection');
+        return resolveAgentConnectionProject(project);
+    }
     if (project !== undefined) return resolveProjectFlag(project);
-    const config = await getConfig();
+    const config = await (getAgentConnectionSelection() === null
+        ? getConfig()
+        : getConfig({ readOnly: true }));
     if (!config.context?.project) {
         throw new ParameterError(
             'No project selected. Run `lightdash config set-project` or pass --project <uuid or slug>.',

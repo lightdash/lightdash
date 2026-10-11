@@ -107,9 +107,11 @@ const setAnonymousUuid = async (anonymousUuid: string): Promise<Config> => {
     return newConfig;
 };
 
-export const getConfig = async (): Promise<Config> => {
+export const getConfig = async ({
+    readOnly = false,
+}: { readOnly?: boolean } = {}): Promise<Config> => {
     let rawConfig = await getRawConfig();
-    if (rawConfig.user?.anonymousUuid === undefined) {
+    if (!readOnly && rawConfig.user?.anonymousUuid === undefined) {
         rawConfig = await setAnonymousUuid(uuidv4());
     }
     return {

@@ -118,3 +118,23 @@ describe('resolveProjectSourceUuid', () => {
         });
     });
 });
+
+it('ignores a personal default source when selected and refuses an override before reads', async () => {
+    vi.clearAllMocks();
+    vi.stubEnv('LIGHTDASH_AGENT_CONNECTION', 'work');
+    vi.mocked(getConfig).mockResolvedValue({
+        context: { project: 'project-uuid', source: 'finance' },
+    });
+    try {
+        await expect(
+            resolveProjectSourceUuid('project-uuid', undefined),
+        ).resolves.toBeUndefined();
+        await expect(
+            resolveProjectSourceUuid('project-uuid', 'finance'),
+        ).rejects.toThrow('--source');
+        expect(getConfig).not.toHaveBeenCalled();
+        expect(lightdashApi).not.toHaveBeenCalled();
+    } finally {
+        vi.unstubAllEnvs();
+    }
+});
