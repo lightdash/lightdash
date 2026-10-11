@@ -16,6 +16,7 @@ import {
 } from '@lightdash/common';
 import type { WarehouseClient } from '@lightdash/warehouses';
 import Logger from '../logging/logger';
+import { agentExecutionContext } from '../services/AiAccessService/agentExecutionContext';
 import type { CachedWarehouse, DbtClient } from '../types';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 
@@ -201,6 +202,33 @@ describe('DbtBaseProjectAdapter warehouse catalog cache', () => {
     afterEach(() => {
         vi.restoreAllMocks();
     });
+
+    it.each([false, true])(
+        'uses the fetched catalog to compile but only persists it when unbound, bound=%s',
+        async (bound) => {
+            const harness = makeHarness({
+                models: [makeModel('orders')],
+                cachedCatalog: undefined,
+                warehouseTables: { orders: ['id'] },
+            });
+            const result = await agentExecutionContext.run(
+                {
+                    agentConnectionExecution: bound
+                        ? { grantUuid: 'grant', revision: 1 }
+                        : null,
+                } as never,
+                harness.compile,
+            );
+            expect(result).toEqual([
+                { name: 'orders', typed: DimensionType.NUMBER },
+            ]);
+            expect(harness.getCatalog).toHaveBeenCalledOnce();
+            if (bound)
+                expect(harness.onWarehouseCatalogChange).not.toHaveBeenCalled();
+            else
+                expect(harness.onWarehouseCatalogChange).toHaveBeenCalledOnce();
+        },
+    );
 
     it('records missing tables and columns on a full fetch', async () => {
         const harness = makeHarness({

@@ -4657,6 +4657,48 @@ describe('connection compile jobs', () => {
     );
 
     test.each(methods)(
+        '%s retries every later plain revalidation failure with the same binding',
+        async (method) => {
+            const successful = setup(method);
+            await successful.run();
+            const validationCount =
+                successful.assertActiveExecution.mock.calls.length;
+            expect(validationCount).toBeGreaterThan(1);
+            await Promise.all(
+                Array.from(
+                    { length: validationCount - 1 },
+                    async (_, index) => {
+                        const failureAt = index + 2;
+                        const f = setup(method);
+                        const error = new Error(
+                            `revalidation ${failureAt} unavailable`,
+                        );
+                        let calls = 0;
+                        f.assertActiveExecution.mockImplementation(async () => {
+                            calls += 1;
+                            if (calls === failureAt) throw error;
+                            return { account: f.account, scope: f.scope };
+                        });
+                        const payload = structuredClone(f.payload);
+                        await expect(f.run(payload)).rejects.toBe(error);
+                        const callsBeforeRetry = calls;
+                        await expect(f.run(payload)).resolves.toBeUndefined();
+                        expect(calls).toBeGreaterThan(callsBeforeRetry);
+                        expect(payload.agentConnectionExecution).toEqual(
+                            f.execution,
+                        );
+                        expect(f.getSession).not.toHaveBeenCalled();
+                        expect(f.getAccount).not.toHaveBeenCalled();
+                        for (const [execution] of f.assertActiveExecution.mock
+                            .calls as unknown[][])
+                            expect(execution).toEqual(f.execution);
+                    },
+                ),
+            );
+        },
+    );
+
+    test.each(methods)(
         '%s restores a serialized connection and never reconstructs a session',
         async (method) => {
             const f = setup(method);

@@ -3751,14 +3751,25 @@ export class ProjectService
             await this.preAggregateModel.getPreAggregateDefinitionsForProject(
                 projectUuid,
             );
-        if (definitions.some((definition) => definition.refreshCron !== null))
+        const cachedExplores =
+            await this.projectModel.getAllExploresFromCache(projectUuid);
+        if (
+            definitions.some((definition) => definition.refreshCron !== null) ||
+            Object.values(cachedExplores).some(
+                (explore) =>
+                    'preAggregates' in explore &&
+                    explore.preAggregates?.some(
+                        (definition) => definition.refresh?.cron != null,
+                    ),
+            )
+        )
             throw new ForbiddenError(
                 'This agent connection cannot deploy to, refresh or change parameters of this project, because the project has pre-aggregates with a scheduled refresh. A person can do this, or use a project without scheduled pre-aggregate refreshes.',
             );
         if (
             explores.some(
                 (explore) =>
-                    !isExploreError(explore) &&
+                    'preAggregates' in explore &&
                     explore.preAggregates?.some(
                         (definition) => definition.refresh?.cron != null,
                     ),
@@ -16798,6 +16809,8 @@ export class ProjectService
         payload: CreateVirtualViewPayload,
         resolveParameterValues = true,
     ) {
+        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.assertConnectionPreAggregateRefresh(projectUuid);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
@@ -16880,6 +16893,8 @@ export class ProjectService
         resolveParameterValues = true,
         expectedExplore?: Explore,
     ) {
+        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.assertConnectionPreAggregateRefresh(projectUuid);
         const explores = await this.findExplores({
             account,
             projectUuid,

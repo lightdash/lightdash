@@ -90,6 +90,7 @@ import * as warehouses from '@lightdash/warehouses';
 import type express from 'express';
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
+import { StringCodec, type JsMsg } from 'nats';
 import ExecutionContext from 'node-execution-context';
 import { PassThrough, Readable, Writable } from 'stream';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -187,6 +188,11 @@ import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConn
 import { type WarehouseConnectionIdentityModel } from '../../models/WarehouseConnectionIdentityModel/WarehouseConnectionIdentityModel';
 import { WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { WarehouseConnectionTablesModel } from '../../models/WarehouseConnectionTablesModel/WarehouseConnectionTablesModel';
+import {
+    registerPreAggregateStream,
+    STREAM_CONFIGS,
+} from '../../nats/natsConfig';
+import { NatsWorker } from '../../nats/NatsWorker';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { buildCacheHash as buildIdentityCacheHash } from '../../utils/cacheUtils';
 import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
@@ -9161,6 +9167,69 @@ describe('AsyncQueryService', () => {
         preAggregateFallbackReason: null,
         processingStartedAt: null,
         agentIdentity: null,
+    });
+
+    describe('queued argument rebuild failures', () => {
+        test.each([
+            { kind: 'warehouse', bound: false },
+            { kind: 'warehouse', bound: true },
+            { kind: 'pre-aggregate', bound: false },
+            { kind: 'pre-aggregate', bound: true },
+        ])(
+            '$kind preserves the rebuild error, bound=$bound',
+            async ({ kind, bound }) => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                const error = new Error('argument rebuild failed');
+                vi.spyOn(
+                    service,
+                    'prepareQueuedQueryForExecution',
+                ).mockImplementation(
+                    async (
+                        _queryUuid,
+                        _worker,
+                        _timeout,
+                        onConnectionClaimed,
+                    ) => {
+                        if (bound) onConnectionClaimed?.();
+                        return true;
+                    },
+                );
+                const builder =
+                    kind === 'warehouse'
+                        ? 'buildWarehouseQueryArgs'
+                        : 'buildPreAggregateQueryArgs';
+                vi.spyOn(
+                    service as unknown as Record<
+                        typeof builder,
+                        () => Promise<unknown>
+                    >,
+                    builder,
+                ).mockRejectedValue(error);
+                const execute = vi.spyOn(service, 'runAsyncWarehouseQuery');
+                const run =
+                    kind === 'warehouse'
+                        ? service.runAsyncWarehouseQueryFromHistory.bind(
+                              service,
+                          )
+                        : service.runAsyncPreAggregateQueryFromHistory.bind(
+                              service,
+                          );
+                await expect(run('query', 'worker')).rejects.toBe(error);
+                expect(execute).not.toHaveBeenCalled();
+                if (bound) {
+                    expect(
+                        service.queryHistoryModel.updateClaimedQueryToError,
+                    ).toHaveBeenCalledExactlyOnceWith('query', error.message);
+                } else {
+                    expect(
+                        service.queryHistoryModel.updateClaimedQueryToError,
+                    ).not.toHaveBeenCalled();
+                    expect(
+                        service.queryHistoryModel.updateStatusToError,
+                    ).not.toHaveBeenCalled();
+                }
+            },
+        );
     });
 
     describe('prepareQueuedQueryForExecution', () => {
@@ -25739,6 +25808,202 @@ describe('fresh execution producer to result reader', () => {
         const response = await auth.run(allowApiKeyAuthentication);
         expect(response).toEqual({ status: 200, error: undefined });
     };
+
+    test.each(
+        (['warehouse', 'pre-aggregate', 'duckdb'] as const).flatMap((kind) =>
+            [
+                'claim validation',
+                'rebuild history',
+                'onboarding',
+                'usage',
+                'wrapper history',
+                'wrapper validation',
+                'result access',
+                ...(kind === 'duckdb'
+                    ? ['duckdb spec']
+                    : ['overrides', 'override lookup', 'executor flag']),
+            ].map((failure) => ({ kind, failure })),
+        ),
+    )(
+        'bound $kind terminalises $failure and NATS terminates the delivery',
+        async ({ kind, failure }) => {
+            await boundFixture(async (f, _auth, queryUuid) => {
+                const preparation = f.service as unknown as {
+                    getOnboardingFlow: () => Promise<unknown>;
+                    isExcludedFromUsage: () => Promise<unknown>;
+                    deriveWarehouseCredentialsOverrides: () => Promise<unknown>;
+                };
+                const row = f.rows.get(queryUuid)!;
+                row.status = QueryHistoryStatus.QUEUED;
+                row.preAggregateCompiledSql = 'SELECT 999';
+                const error = new Error(`failed ${failure}`);
+                f.execute.mockClear();
+                const duckdb = vi.spyOn(
+                    f.service,
+                    'runDuckdbQueryInScope' as never,
+                );
+                vi.mocked(
+                    f.service.queryHistoryModel.getDuckdbExecution,
+                ).mockResolvedValue({
+                    invalidateCache: true,
+                    references: {},
+                    guard: null,
+                    columns: { mode: 'supplied' },
+                    storedCompiledSql: 'SELECT 1',
+                    engine: 'scopedToReferencedResults',
+                    cacheHit: false,
+                    refusal: null,
+                    referenceLabels: {},
+                });
+                const validation = vi.spyOn(
+                    f.service.aiAccessService,
+                    'assertQueryConnectionExecution',
+                );
+                const getHistory = vi.mocked(
+                    f.service.queryHistoryModel.getByQueryUuid,
+                );
+                if (failure === 'claim validation')
+                    validation.mockRejectedValueOnce(error);
+                if (failure === 'rebuild history')
+                    getHistory
+                        .mockResolvedValueOnce(row)
+                        .mockResolvedValueOnce(row)
+                        .mockRejectedValueOnce(error);
+                if (failure === 'wrapper history')
+                    getHistory
+                        .mockResolvedValueOnce(row)
+                        .mockResolvedValueOnce(row)
+                        .mockResolvedValueOnce(row)
+                        .mockRejectedValueOnce(error);
+                if (failure === 'wrapper validation') {
+                    const validate = validation.getMockImplementation()!;
+                    validation
+                        .mockImplementationOnce(validate)
+                        .mockRejectedValueOnce(error);
+                }
+                if (failure === 'onboarding')
+                    vi.spyOn(
+                        preparation,
+                        'getOnboardingFlow',
+                    ).mockRejectedValueOnce(error);
+                if (failure === 'usage')
+                    vi.spyOn(
+                        preparation,
+                        'isExcludedFromUsage',
+                    ).mockRejectedValueOnce(error);
+                if (failure === 'overrides')
+                    vi.spyOn(
+                        preparation,
+                        'deriveWarehouseCredentialsOverrides',
+                    ).mockRejectedValueOnce(error);
+                if (failure === 'override lookup') {
+                    delete (row.requestParameters as { sql?: string }).sql;
+                    delete row.requestParameters.resultSource;
+                    row.metricQuery.exploreName = 'orders';
+                    vi.mocked(
+                        f.service.projectModel.getExploreFromCache,
+                    ).mockRejectedValueOnce(error);
+                }
+                if (failure === 'duckdb spec')
+                    vi.mocked(
+                        f.service.queryHistoryModel.getDuckdbExecution,
+                    ).mockRejectedValueOnce(error);
+                if (failure === 'result access')
+                    vi.spyOn(
+                        f.service,
+                        'assertCanReadStoredResults',
+                    ).mockRejectedValueOnce(error);
+                if (failure === 'executor flag') {
+                    const read = f.service.assertCanReadStoredResults.bind(
+                        f.service,
+                    );
+                    vi.spyOn(
+                        f.service,
+                        'assertCanReadStoredResults',
+                    ).mockImplementationOnce(async (...args) => {
+                        await read(...args);
+                        vi.mocked(
+                            f.service.featureFlagModel.get,
+                        ).mockRejectedValueOnce(error);
+                    });
+                }
+                registerPreAggregateStream();
+                const message = {
+                    subject: STREAM_CONFIGS[kind].subjects.query,
+                    data: StringCodec().encode(
+                        JSON.stringify({
+                            jobId: 'job',
+                            payload: { queryUuid },
+                        }),
+                    ),
+                    ack: vi.fn(),
+                    nak: vi.fn(),
+                    term: vi.fn(),
+                    working: vi.fn(),
+                } as unknown as JsMsg;
+                const worker = new NatsWorker({
+                    natsClient: {} as never,
+                    asyncQueryService: f.service,
+                    queryHistoryModel: f.service.queryHistoryModel,
+                    streams: [],
+                    workerConcurrency: 1,
+                });
+                await agentExecutionContext.exit(() =>
+                    worker.handleMessage(message, 'worker'),
+                );
+                expect(row.status).toBe(QueryHistoryStatus.ERROR);
+                expect(row.error).toBe(error.message);
+                expect(f.execute).not.toHaveBeenCalled();
+                expect(duckdb).not.toHaveBeenCalled();
+                expect(message.term).toHaveBeenCalledOnce();
+                expect(message.nak).not.toHaveBeenCalled();
+                expect(message.ack).not.toHaveBeenCalled();
+            });
+        },
+    );
+
+    test('an unbound override lookup failure retains the best-effort fallback', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.mocked(
+            service.projectModel.getExploreFromCache,
+        ).mockRejectedValueOnce(new Error('cache unavailable'));
+        await expect(
+            service['deriveWarehouseCredentialsOverrides']({
+                projectUuid,
+                metricQuery: { ...metricQueryMock, exploreName: 'orders' },
+                requestParameters: {},
+                agentIdentity: null,
+            } as QueryHistory),
+        ).resolves.toBeUndefined();
+        expect(
+            service.queryHistoryModel.updateClaimedQueryToError,
+        ).not.toHaveBeenCalled();
+    });
+
+    test('an unbound warehouse flag failure keeps the executing row and the same error', async () => {
+        const f = setup(false, false, false, false, authenticated('session'));
+        const result = await writeSql(
+            f,
+            QueryExecutionContext.CLI,
+            QuerySurface.CLI,
+        );
+        const row = f.rows.get(result.queryUuid)!;
+        row.status = QueryHistoryStatus.QUEUED;
+        f.execute.mockClear();
+        const error = new Error('flag unavailable');
+        vi.mocked(f.service.featureFlagModel.get).mockRejectedValueOnce(error);
+        await expect(
+            f.service.runAsyncWarehouseQueryFromHistory(
+                result.queryUuid,
+                'worker',
+            ),
+        ).rejects.toBe(error);
+        expect(row.status).toBe(QueryHistoryStatus.EXECUTING);
+        expect(f.execute).not.toHaveBeenCalled();
+        expect(
+            f.service.queryHistoryModel.updateClaimedQueryToError,
+        ).not.toHaveBeenCalled();
+    });
 
     test.each(['history reload', 'subject lookup'] as const)(
         'terminalises a claimed connection failure during %s',

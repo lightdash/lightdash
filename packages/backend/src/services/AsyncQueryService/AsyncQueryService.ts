@@ -4434,7 +4434,6 @@ export class AsyncQueryService extends ProjectService {
         );
         if (!submittedBinding && !scopeBinding) return execute(false);
         return (async () => {
-            let setupComplete = false;
             try {
                 const row = await this.queryHistoryModel.getByQueryUuid(
                     args.queryUuid,
@@ -4472,20 +4471,14 @@ export class AsyncQueryService extends ProjectService {
                             row!.projectUuid!,
                             row!,
                         );
-                        setupComplete = true;
                         return execute(true);
                     },
                 );
             } catch (error) {
-                if (
-                    !setupComplete ||
-                    error instanceof ForbiddenError ||
-                    error instanceof AiAccessRefusedError
-                )
-                    await this.queryHistoryModel.updateClaimedQueryToError(
-                        args.queryUuid,
-                        getErrorMessage(error),
-                    );
+                await this.queryHistoryModel.updateClaimedQueryToError(
+                    args.queryUuid,
+                    getErrorMessage(error),
+                );
                 throw error;
             }
         })();
@@ -4543,18 +4536,24 @@ export class AsyncQueryService extends ProjectService {
         }
 
         let args: RunAsyncWarehouseQueryArgs;
-        try {
-            args = await this.buildWarehouseQueryArgs(
-                queryUuid,
-                queryTagsOverride,
-            );
-        } catch (error) {
-            if (connectionClaimed)
+        if (connectionClaimed) {
+            try {
+                args = await this.buildWarehouseQueryArgs(
+                    queryUuid,
+                    queryTagsOverride,
+                );
+            } catch (error) {
                 await this.queryHistoryModel.updateClaimedQueryToError(
                     queryUuid,
                     getErrorMessage(error),
                 );
-            throw error;
+                throw error;
+            }
+        } else {
+            args = await this.buildWarehouseQueryArgs(
+                queryUuid,
+                queryTagsOverride,
+            );
         }
         await this.runAsyncWarehouseQuery(args);
         return true;
@@ -4582,18 +4581,24 @@ export class AsyncQueryService extends ProjectService {
         }
 
         let args: RunAsyncPreAggregateQueryArgs;
-        try {
-            args = await this.buildPreAggregateQueryArgs(
-                queryUuid,
-                queryTagsOverride,
-            );
-        } catch (error) {
-            if (connectionClaimed)
+        if (connectionClaimed) {
+            try {
+                args = await this.buildPreAggregateQueryArgs(
+                    queryUuid,
+                    queryTagsOverride,
+                );
+            } catch (error) {
                 await this.queryHistoryModel.updateClaimedQueryToError(
                     queryUuid,
                     getErrorMessage(error),
                 );
-            throw error;
+                throw error;
+            }
+        } else {
+            args = await this.buildPreAggregateQueryArgs(
+                queryUuid,
+                queryTagsOverride,
+            );
         }
         await this.runAsyncPreAggregateQuery(args);
         return true;
@@ -5898,7 +5903,8 @@ export class AsyncQueryService extends ProjectService {
                 snowflakeVirtualWarehouse: explore.warehouse,
                 databricksCompute: explore.databricksCompute,
             };
-        } catch {
+        } catch (error) {
+            if (isConnectionProducedQuery(query)) throw error;
             this.logger.warn(
                 `Could not derive warehouse credentials overrides for explore "${exploreName}" in project "${query.projectUuid}"`,
             );
