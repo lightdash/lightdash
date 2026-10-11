@@ -1,4 +1,9 @@
-import { toolRunQueryArgsSchemaTransformed } from '@lightdash/common';
+import {
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
+    toolRunQueryArgsSchemaTransformed,
+} from '@lightdash/common';
+import { type ParsedAgentWorkMarker } from '../../../services/AgentPermissionService/agentWorkAuthority';
 import {
     type DbAiSlackArtifactDelivery,
     type SlackArtifactRenderInput,
@@ -194,4 +199,64 @@ describe('Slack artifact image selection', () => {
             1,
         );
     });
+});
+
+describe('Slack image authority refusals', () => {
+    it.each(['prepare', 'render', 'update'] as const)(
+        'cancels a refusal during %s without retrying',
+        async (stage) => {
+            const h = setup([
+                {
+                    type: 'card',
+                    block_id: getSlackArtifactCardBlockId('selected'),
+                },
+            ]);
+            const agentWork: ParsedAgentWorkMarker = {
+                status: 'valid',
+                marker: {
+                    userUuid: 'user',
+                    organizationUuid: 'org',
+                    projectUuid: 'project',
+                },
+            };
+            const refusal = new AiAccessRefusedError(
+                AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+            );
+            if (stage === 'prepare') h.prepare.mockResolvedValue(null);
+            if (stage === 'render') h.runtime.render.mockRejectedValue(refusal);
+            if (stage === 'update')
+                h.runtime.updateMessage.mockRejectedValue(refusal);
+            await expect(
+                deliverSlackArtifactImages(h, agentWork),
+            ).resolves.toBeUndefined();
+            expect(h.model.finish).toHaveBeenCalledExactlyOnceWith(
+                'prompt',
+                'cancelled',
+                1,
+            );
+            if (stage !== 'update')
+                expect(h.runtime.updateMessage).not.toHaveBeenCalled();
+        },
+    );
+});
+
+describe('Unmarked Slack image refusal parity', () => {
+    it.each(['render', 'update'] as const)(
+        'keeps the existing retry path for an unmarked %s refusal',
+        async (stage) => {
+            const h = setup([
+                {
+                    type: 'card',
+                    block_id: getSlackArtifactCardBlockId('selected'),
+                },
+            ]);
+            const refusal = new AiAccessRefusedError(
+                AiAccessRefusalReason.AGENT_PROJECT_DENIED,
+            );
+            if (stage === 'render') h.runtime.render.mockRejectedValue(refusal);
+            else h.runtime.updateMessage.mockRejectedValue(refusal);
+            await expect(deliverSlackArtifactImages(h)).rejects.toThrow();
+            expect(h.model.finish).not.toHaveBeenCalled();
+        },
+    );
 });

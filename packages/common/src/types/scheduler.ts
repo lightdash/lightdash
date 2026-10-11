@@ -684,9 +684,16 @@ export type ApiReassignUserSchedulersResponse = ApiSuccess<{
     reassignedCount: number;
 }>;
 
+export type AgentWorkMarker = {
+    userUuid: string;
+    organizationUuid: string;
+    projectUuid: string;
+};
+
 export type TraceTaskBase = {
     agentConnectionExecution?: AgentConnectionExecution | null;
     agentConnectionEffect?: AgentConnectionTaskEffect;
+    agentWork?: AgentWorkMarker;
     organizationUuid: string;
     projectUuid: string;
     userUuid: string;

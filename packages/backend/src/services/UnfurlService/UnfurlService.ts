@@ -83,6 +83,7 @@ import { SlackUnfurlImageModel } from '../../models/SlackUnfurlImageModel';
 import { UserModel } from '../../models/UserModel';
 import { traceSpan } from '../../tracing/tracing';
 import { validatePublicHttpUrl } from '../../utils/ssrfProtection';
+import { type AgentDeliveryGuard } from '../AgentPermissionService/agentWorkAuthority';
 import { BaseService } from '../BaseService';
 import type { DocumentService } from '../DocumentService/DocumentService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -857,7 +858,9 @@ export class UnfurlService extends BaseService {
         imageBuffer: Buffer,
         imageId: string,
         organizationUuid: string | undefined,
+        deliveryGuard: AgentDeliveryGuard | null = null,
     ): Promise<string> {
+        await deliveryGuard?.assert();
         if (this.fileStorageClient.isEnabled()) {
             let imageUrl = await this.fileStorageClient.uploadImage(
                 imageBuffer,
@@ -1235,6 +1238,7 @@ export class UnfurlService extends BaseService {
             cachedQueryUuid?: string;
             signal?: AbortSignal;
         },
+        deliveryGuard: AgentDeliveryGuard | null = null,
     ): Promise<{ imageBuffer: Buffer; imageUrl: string }> {
         const { artifactUuid, versionUuid } = artifact;
         if (artifact.chartConfig?.source !== 'customChartType') {
@@ -1294,6 +1298,7 @@ export class UnfurlService extends BaseService {
             result.imageBuffer,
             imageId,
             user.organizationUuid,
+            deliveryGuard,
         );
         this.logger.info(`AI artifact exported successfully`, {
             userUuid: user.userUuid,

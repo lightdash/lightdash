@@ -756,6 +756,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 prometheusMetrics,
             }) =>
                 new AiAgentService({
+                    agentActionLogModel: models.getAgentActionLogModel(),
                     agentPermissionService:
                         repository.getAgentPermissionService(),
                     lightdashConfig: context.lightdashConfig,

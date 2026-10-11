@@ -392,3 +392,73 @@ test('Slack table reads carry the loaded agent UUID and installed app id', async
             }),
         );
 });
+
+describe('Agent dbt job markers', () => {
+    test.each([false, true])(
+        'carries the turn marker only when enabled: %s',
+        async (enabled) => {
+            const user = defaultSessionUser;
+            const aiAgentEditDbtProjectPipeline = vi
+                .fn()
+                .mockResolvedValue(undefined);
+            const service = new AiAgentService({
+                projectModel: {
+                    getAgentSqlScope: vi.fn().mockResolvedValue(null),
+                },
+                aiAgentToolsService: {
+                    createRuntime: vi.fn().mockReturnValue({}),
+                },
+                aiWritebackService: {
+                    createPendingRun: vi
+                        .fn()
+                        .mockResolvedValue({ aiWritebackRunUuid: 'run' }),
+                },
+                schedulerClient: { aiAgentEditDbtProjectPipeline },
+            } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
+            vi.spyOn(
+                service as unknown as {
+                    getAgentSettings: () => Promise<AiAgent>;
+                },
+                'getAgentSettings',
+            ).mockResolvedValue({ uuid: 'agent', tags: [] } as never);
+            const prompt = {
+                promptUuid: 'prompt',
+                threadUuid: 'thread',
+                projectUuid: 'project',
+                organizationUuid: user.organizationUuid,
+                createdByUserUuid: user.userUuid,
+                slackUserId: 'slack-user',
+                slackChannelId: 'channel',
+            } as SlackPrompt;
+            await agentExecutionContext.run(
+                createAgentExecutionContext({
+                    account: fromSession(user),
+                    surface: AgentActorSurface.SLACK_AGENT,
+                    clientId: null,
+                    agentUuid: 'agent',
+                    agentIdentityEnabled: enabled,
+                }),
+                async () => {
+                    const dependencies = await service[
+                        'getAiAgentDependencies'
+                    ](user, prompt);
+                    await dependencies.editDbtProject({
+                        prompt: 'Add a metric',
+                        progressId: 'tool',
+                        prUrl: null,
+                        startNewPullRequest: null,
+                    });
+                },
+            );
+            expect(aiAgentEditDbtProjectPipeline).toHaveBeenCalledTimes(1);
+            const payload = aiAgentEditDbtProjectPipeline.mock.calls[0][0];
+            if (enabled)
+                expect(payload.agentWork).toEqual({
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                    projectUuid: 'project',
+                });
+            else expect(payload).not.toHaveProperty('agentWork');
+        },
+    );
+});
