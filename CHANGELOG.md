@@ -1,3 +1,10 @@
+## [2.559.1](https://github.com/lightdash/lightdash/compare/2.559.0...2.559.1) (2026-10-11)
+
+
+### Bug Fixes
+
+* **agent-identity:** delete the stored agent sign-in when a person is deactivated ([#30905](https://github.com/lightdash/lightdash/issues/30905)) ([ef0ca89](https://github.com/lightdash/lightdash/commit/ef0ca8912e7866742bea7206abc4729ea2b42610))
+
 # [2.559.0](https://github.com/lightdash/lightdash/compare/2.558.0...2.559.0) (2026-10-11)
 
 
