@@ -2,6 +2,7 @@ import {
     AgentActorSurface,
     AiAccessRefusalReason,
     AiAccessRefusedError,
+    ForbiddenError,
     InvalidUser,
     QueryExecutionContext,
     type SendNowScheduler,
@@ -430,9 +431,10 @@ describe('scheduled summary authority', () => {
             if (failure === 'missing') {
                 await expect(result).rejects.toBeInstanceOf(InvalidUser);
             } else {
-                await expect(result).rejects.toThrow(
-                    AGENT_SUMMARY_REFUSED_MESSAGE,
-                );
+                await expect(result).rejects.toBeInstanceOf(ForbiddenError);
+                await expect(result).rejects.toMatchObject({
+                    message: AGENT_SUMMARY_REFUSED_MESSAGE,
+                });
                 await expect(result).rejects.not.toBeInstanceOf(
                     AiAccessRefusedError,
                 );

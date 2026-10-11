@@ -3552,7 +3552,7 @@ describe('handleScheduledDelivery — app delivery capture', () => {
         );
 
     test.each([
-        new AiAccessRefusedError(AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED),
+        new ForbiddenError(AGENT_SUMMARY_REFUSED_MESSAGE),
         new AiAccessRefusedError(AiAccessRefusalReason.NEEDS_SIGN_IN),
         new InvalidUser('Person is no longer in the organisation'),
     ])(
