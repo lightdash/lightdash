@@ -8,6 +8,7 @@ import {
     DatabricksAuthenticationType,
     databricksOauthU2mUserCredentialsSchema,
     DatabricksTokenError,
+    DeactivatedAccountError,
     getBigqueryKeyfileError,
     LightdashError,
     NotFoundError,
@@ -36,6 +37,7 @@ import {
     normalizeDatabricksHostLenient,
 } from '../../controllers/authentication/strategies/databricksStrategy';
 import { ProjectTableName } from '../../database/entities/projects';
+import { UserTableName } from '../../database/entities/users';
 import {
     DbUserWarehouseCredentials,
     ProjectUserWarehouseCredentialPreferenceTableName,
@@ -398,33 +400,42 @@ export class UserWarehouseCredentialsModel {
         const encryptedCredentials = this.encryptionUtil.encrypt(
             JSON.stringify(credentials),
         );
-        const [created] = await this.database(UserWarehouseCredentialsTableName)
-            .insert({
-                user_uuid: userUuid,
-                name: 'Snowflake agent sign-in',
-                warehouse_type: WarehouseTypes.SNOWFLAKE,
-                encrypted_credentials: encryptedCredentials,
-                project_uuid: null,
-                purpose: UserWarehouseCredentialPurpose.AI,
-                expires_at: expiresAt,
-            })
-            .onConflict(
-                this.database.raw(
-                    "(user_uuid, warehouse_type) WHERE purpose = 'ai'",
-                ),
-            )
-            .merge({
-                user_warehouse_credentials_uuid: randomUUID(),
-                expires_at: expiresAt,
-                encrypted_credentials: encryptedCredentials,
-                updated_at: new Date(),
-            })
-            .returning('user_warehouse_credentials_uuid');
-        if (!created)
-            throw new UnexpectedServerError(
-                'Could not save Snowflake agent sign-in credentials',
-            );
-        return created.user_warehouse_credentials_uuid;
+        return this.database.transaction(async (trx) => {
+            const user = await trx(UserTableName)
+                .select('is_active')
+                .where('user_uuid', userUuid)
+                .forShare()
+                .first();
+            if (user?.is_active !== true) {
+                throw new DeactivatedAccountError();
+            }
+
+            const [created] = await trx(UserWarehouseCredentialsTableName)
+                .insert({
+                    user_uuid: userUuid,
+                    name: 'Snowflake agent sign-in',
+                    warehouse_type: WarehouseTypes.SNOWFLAKE,
+                    encrypted_credentials: encryptedCredentials,
+                    project_uuid: null,
+                    purpose: UserWarehouseCredentialPurpose.AI,
+                    expires_at: expiresAt,
+                })
+                .onConflict(
+                    trx.raw("(user_uuid, warehouse_type) WHERE purpose = 'ai'"),
+                )
+                .merge({
+                    user_warehouse_credentials_uuid: randomUUID(),
+                    expires_at: expiresAt,
+                    encrypted_credentials: encryptedCredentials,
+                    updated_at: new Date(),
+                })
+                .returning('user_warehouse_credentials_uuid');
+            if (!created)
+                throw new UnexpectedServerError(
+                    'Could not save Snowflake agent sign-in credentials',
+                );
+            return created.user_warehouse_credentials_uuid;
+        });
     }
 
     async deleteAiCredential(
