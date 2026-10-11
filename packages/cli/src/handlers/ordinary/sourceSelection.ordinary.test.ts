@@ -146,3 +146,24 @@ it('refuses a source setter without a project before fetching or writing', async
     expect(console.error).not.toHaveBeenCalled();
     await expectFile();
 });
+
+it.each([true, false])(
+    'pins an explicit source override for the saved project=%s',
+    async (sameProject) => {
+        expect(before).toBe(yaml.dump(config));
+        expect(await fs.readdir(path.dirname(file))).toEqual(['config.yaml']);
+        const { get, resolveProjectSourceUuid } = await prepare();
+        const project = sameProject
+            ? config.context!.project!
+            : 'another-project';
+        const trace = request('GET', `/api/v1/projects/${project}/dbt-sources`);
+        server.replies.push({ ...trace, results: sources });
+        await expect(
+            resolveProjectSourceUuid(project, 'primary'),
+        ).resolves.toBe('primary-source');
+        expect(server.requests).toEqual([trace]);
+        expect(get.mock.calls).toEqual([[], []]);
+        expect(console.error).not.toHaveBeenCalled();
+        await expectFile();
+    },
+);

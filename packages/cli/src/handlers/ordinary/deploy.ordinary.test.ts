@@ -3,7 +3,6 @@ import chalk from 'chalk';
 import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
-import { setTimeout as realSetTimeout } from 'timers';
 import {
     OrdinaryServer,
     personalConfig,
@@ -121,17 +120,6 @@ const legacy = request(
     '/api/v1/projects/project-uuid/explores?complete=false',
     JSON.stringify([compiledExplore]),
 );
-const waitUntil = async (
-    condition: () => boolean,
-    attempt = 0,
-): Promise<void> => {
-    if (condition()) return;
-    expect(attempt).toBeLessThan(200);
-    await new Promise<void>((resolve) => {
-        realSetTimeout(resolve, 5);
-    });
-    await waitUntil(condition, attempt + 1);
-};
 const prepare = async () => {
     const module = await import('../../config');
     const get = vi.spyOn(module, 'getConfig');
@@ -192,6 +180,23 @@ it.each([false, true])(
                 : [{ ...finalize, results: { exploreCount: 1 } }]),
         );
         vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+        const backoffs = [500, 1000, 2000].map((delay) => {
+            let scheduled!: () => void;
+            const ready = new Promise<void>((resolve) => {
+                scheduled = resolve;
+            });
+            return { delay, ready, scheduled };
+        });
+        const fakeSetTimeout = global.setTimeout;
+        vi.spyOn(global, 'setTimeout').mockImplementation(
+            (callback, delay, ...args) => {
+                const timer = fakeSetTimeout(callback, delay, ...args);
+                backoffs
+                    .find((backoff) => backoff.delay === delay)
+                    ?.scheduled();
+                return timer;
+            },
+        );
         const began = Date.now();
         const result = deploy([compiledExplore], options).then(
             () => null,
@@ -199,11 +204,9 @@ it.each([false, true])(
         );
         await [500, 1000, 2000].reduce(async (previous, delay, index) => {
             await previous;
-            await waitUntil(
-                () =>
-                    server.requests.length === 4 + index &&
-                    vi.getTimerCount() === 1,
-            );
+            await server.waitForRequest(4 + index);
+            await backoffs[index].ready;
+            expect(vi.getTimerCount()).toBe(1);
             expect(Date.now() - began).toBe([0, 500, 1500][index]);
             await vi.advanceTimersByTimeAsync(delay - 1);
             expect(server.requests.length).toBe(4 + index);
@@ -240,6 +243,7 @@ it.each([false, true])(
             ],
         );
     },
+    30_000,
 );
 it.each([400, 403])('never retries batch status %s', async (status) => {
     const { get, deploy, options } = await prepare();

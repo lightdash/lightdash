@@ -162,3 +162,51 @@ it('retains a stale preview if its ordinary cleanup write fails', async () => {
     expect(process.exit).not.toHaveBeenCalled();
     expect(process.exitCode).toBeUndefined();
 });
+
+it.each(['uuid', 'slug'] as const)(
+    'pins explicit project %s over saved and environment projects',
+    async (kind) => {
+        config.context = {
+            ...config.context,
+            previewProject: preview,
+            previewName: 'Preview',
+        };
+        await saveConfig(location.home, config);
+        before = await fs.readFile(file, 'utf8');
+        expect(before).toBe(yaml.dump(config));
+        expect(await fs.readdir(path.dirname(file))).toEqual(['config.yaml']);
+        vi.stubEnv('LIGHTDASH_PROJECT', '33333333-3333-4333-8333-333333333333');
+        const configModule = await import('../../config');
+        const get = vi.spyOn(configModule, 'getConfig');
+        const { selectProject } = await import('../selectProject');
+        const explicit = '44444444-4444-4444-8444-444444444444';
+        const trace = request('GET', '/api/v1/org/projects');
+        if (kind === 'slug')
+            server.replies.push({
+                ...trace,
+                results: [
+                    {
+                        projectUuid: explicit,
+                        slug: 'chosen',
+                        name: 'Chosen',
+                        type: 'DEFAULT',
+                    },
+                ],
+            });
+        await expect(
+            selectProject(
+                await configModule.getConfig(),
+                kind === 'uuid' ? explicit : 'chosen',
+            ),
+        ).resolves.toEqual({ projectUuid: explicit, isPreview: false });
+        expect(server.requests).toEqual(kind === 'uuid' ? [] : [trace]);
+        server.expectComplete();
+        expect(get.mock.calls).toEqual(kind === 'uuid' ? [[]] : [[], []]);
+        expect(await fs.readFile(file, 'utf8')).toBe(before);
+        expect(await fs.readdir(path.dirname(file))).toEqual(['config.yaml']);
+        expect(console.error).not.toHaveBeenCalled();
+        expect(console.log).not.toHaveBeenCalled();
+        expect(process.exit).not.toHaveBeenCalled();
+        expect(process.exitCode).toBeUndefined();
+    },
+);

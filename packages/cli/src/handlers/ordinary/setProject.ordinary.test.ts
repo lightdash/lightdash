@@ -151,3 +151,58 @@ it.each(['same', 'different', 'first', 'unset', 'unknown', 'preview'])(
         expect(process.exitCode).toBeUndefined();
     },
 );
+
+it.each(['uuid', 'name'] as const)(
+    'pins the non-interactive handler with --%s',
+    async (flag) => {
+        const before = await fs.readFile(file, 'utf8');
+        expect(before).toBe(yaml.dump(config));
+        expect(await fs.readdir(path.dirname(file))).toEqual(['config.yaml']);
+        const configModule = await import('../../config');
+        const get = vi.spyOn(configModule, 'getConfig');
+        const { setProjectHandler } = await import('../setProject');
+        const projectUuid = '22222222-2222-4222-8222-222222222222';
+        const trace = request('GET', '/api/v1/org/projects');
+        server.replies.push({
+            ...trace,
+            results: [
+                {
+                    projectUuid: config.context!.project,
+                    name: 'Main',
+                    type: 'DEFAULT',
+                },
+                { projectUuid, name: 'Chosen', type: 'DEFAULT' },
+            ],
+        });
+        await expect(
+            setProjectHandler({
+                verbose: false,
+                name: flag === 'name' ? 'Chosen' : '',
+                uuid: flag === 'uuid' ? projectUuid : '',
+            }),
+        ).resolves.toBeUndefined();
+        expect(server.requests).toEqual([trace]);
+        server.expectComplete();
+        expect(get.mock.calls).toEqual([[], []]);
+        expect(await fs.readFile(file, 'utf8')).toBe(
+            yaml.dump({
+                ...config,
+                context: {
+                    ...config.context,
+                    project: projectUuid,
+                    projectName: 'Chosen',
+                    source: undefined,
+                },
+            }),
+        );
+        expect(await fs.readdir(path.dirname(file))).toEqual(['config.yaml']);
+        expect(vi.mocked(console.error).mock.calls).toEqual([
+            [
+                `\n  ✅️ Connected to Lightdash project: ${server.url}/projects/${projectUuid}/home\n`,
+            ],
+        ]);
+        expect(console.log).not.toHaveBeenCalled();
+        expect(process.exit).not.toHaveBeenCalled();
+        expect(process.exitCode).toBeUndefined();
+    },
+);

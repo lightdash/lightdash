@@ -1,8 +1,13 @@
 import { spawn } from 'child_process';
+import { EventEmitter } from 'events';
 import { promises as fs } from 'fs';
 import { createServer, type IncomingHttpHeaders, type Server } from 'http';
 import * as yaml from 'js-yaml';
 import path from 'path';
+import {
+    clearTimeout as clearRealTimeout,
+    setTimeout as realSetTimeout,
+} from 'timers';
 import type { Config } from '../../config';
 
 export type RecordedRequest = {
@@ -22,6 +27,7 @@ export type Reply = {
     raw?: string;
 };
 export class OrdinaryServer {
+    private readonly received = new EventEmitter();
     readonly requests: RecordedRequest[] = [];
     readonly headers: IncomingHttpHeaders[] = [];
     readonly unexpected: RecordedRequest[] = [];
@@ -45,6 +51,7 @@ export class OrdinaryServer {
                 this.requests.push(request);
                 this.headers.push(req.headers);
                 this.onRequest?.();
+                this.received.emit('request');
                 const reply = this.replies.shift();
                 if (
                     !reply ||
@@ -102,7 +109,20 @@ export class OrdinaryServer {
             throw new Error('Missing server');
         this.url = `http://127.0.0.1:${address.port}`;
     }
+    async waitForRequest(count: number) {
+        if (this.requests.length >= count) return;
+        await new Promise<void>((resolve) => {
+            const check = () => {
+                if (this.requests.length >= count) {
+                    this.received.off('request', check);
+                    resolve();
+                }
+            };
+            this.received.on('request', check);
+        });
+    }
     async close() {
+        this.received.removeAllListeners();
         this.server.closeAllConnections();
         await new Promise<void>((resolve) => {
             this.server.close(() => resolve());
@@ -160,12 +180,21 @@ export const runOrdinaryCli = async (home: string, args: string[]) => {
         FORCE_COLOR: '0',
         CI: 'true',
     };
-    return new Promise<{ code: number | null; stdout: string; stderr: string }>(
-        (resolve, reject) => {
-            const child = spawn(
-                process.execPath,
-                ['--import', 'tsx', entry, ...args],
-                { env, stdio: ['ignore', 'pipe', 'pipe'] },
+    const child = spawn(process.execPath, ['--import', 'tsx', entry, ...args], {
+        env,
+        stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let timer: ReturnType<typeof realSetTimeout> | undefined;
+    try {
+        return await new Promise<{
+            code: number | null;
+            stdout: string;
+            stderr: string;
+        }>((resolve, reject) => {
+            timer = realSetTimeout(
+                () =>
+                    reject(new Error('Ordinary CLI child timed out after 20s')),
+                20_000,
             );
             let stdout = '';
             let stderr = '';
@@ -177,6 +206,10 @@ export const runOrdinaryCli = async (home: string, args: string[]) => {
             });
             child.on('error', reject);
             child.on('close', (code) => resolve({ code, stdout, stderr }));
-        },
-    );
+        });
+    } finally {
+        clearRealTimeout(timer);
+        if (child.exitCode === null && child.signalCode === null)
+            child.kill('SIGKILL');
+    }
 };
