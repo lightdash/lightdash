@@ -1,3 +1,10 @@
+# [2.559.0](https://github.com/lightdash/lightdash/compare/2.558.0...2.559.0) (2026-10-11)
+
+
+### Features
+
+* **agent-identity:** end the whole OAuth refresh family when a refresh token is revoked ([#30903](https://github.com/lightdash/lightdash/issues/30903)) ([8db1925](https://github.com/lightdash/lightdash/commit/8db1925d828ffc54077db96cf16a0fa8e8bd0091))
+
 # [2.558.0](https://github.com/lightdash/lightdash/compare/2.557.1...2.558.0) (2026-10-11)
 
 
