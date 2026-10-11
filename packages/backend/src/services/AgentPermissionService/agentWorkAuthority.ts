@@ -112,13 +112,25 @@ export const assertAgentWorkUserActive = async (
 export const assertAgentWorkAllowed = async (
     deps: AgentWorkDependencies,
     work: AgentWork,
+    options?: { freshlyLoadedUser: SessionUser },
 ): Promise<SessionUser> => {
     let user: SessionUser;
     try {
-        user = await deps.userModel.findSessionUserAndOrgByUuid(
-            work.userUuid,
-            work.organizationUuid,
-        );
+        user =
+            options?.freshlyLoadedUser ??
+            (await deps.userModel.findSessionUserAndOrgByUuid(
+                work.userUuid,
+                work.organizationUuid,
+            ));
+        if (
+            options &&
+            (user.userUuid !== work.userUuid ||
+                user.organizationUuid !== work.organizationUuid)
+        ) {
+            throw new InvalidUser(
+                'The person does not match the delivery identity.',
+            );
+        }
     } catch (error) {
         if (error instanceof InvalidUser) {
             const refusal = agentWorkUserRefusal(work);

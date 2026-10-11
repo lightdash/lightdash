@@ -124,6 +124,7 @@ import {
     WarehouseConnectionError,
     type Account as AccountType,
     type AgentConnectionTaskEffect,
+    type AgentWorkMarker,
     type BatchDeliveryResult,
     type CapturedQuery,
     type DeliveryCaptureManifest,
@@ -188,6 +189,7 @@ import type { ExecutionContextInfo } from '../logging/winston';
 import { AiUsageLedgerModel } from '../models/AiUsageLedgerModel';
 import { OrganizationSettingsModel } from '../models/OrganizationSettingsModel';
 import { WarehouseConnectCodeModel } from '../models/WarehouseConnectCodeModel';
+import { parseAgentWorkMarker } from '../services/AgentPermissionService/agentWorkAuthority';
 import { agentExecutionContext } from '../services/AiAccessService/agentExecutionContext';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { SCHEDULER_POLLING_OPTIONS } from '../services/AsyncQueryService/types';
@@ -223,7 +225,10 @@ import {
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { sanitizeGenericFileName } from '../utils/FileDownloadUtils/FileDownloadUtils';
 import { buildGoogleSheetsFilterSummaryRows } from '../utils/googleSheetsFilterSummary';
-import { SchedulerClient } from './SchedulerClient';
+import {
+    SchedulerClient,
+    type SchedulerAiSummaryDelivery,
+} from './SchedulerClient';
 import { SchedulerDeliveryError } from './SchedulerDeliveryError';
 
 // AI augmentation runner. Implemented by the EE SchedulerAiAugmentationService
@@ -236,12 +241,18 @@ export type SchedulerDeliveryQuery = {
     queryUuid: string;
 };
 
+export interface SchedulerAiAugmentationResult {
+    message: string;
+    agentWork: AgentWorkMarker | null;
+}
+
 export interface SchedulerAiAugmentationRunner {
+    assertDeliveryAllowed(marker: AgentWorkMarker): Promise<void>;
     runForDelivery(args: {
         scheduler: SchedulerAndTargets | SendNowScheduler;
         createdBy: string;
         deliveryQueries?: SchedulerDeliveryQuery[];
-    }): Promise<string | null>;
+    }): Promise<SchedulerAiAugmentationResult | null>;
 }
 
 type SlackDeliveryFile = NonNullable<
@@ -2072,10 +2083,55 @@ export default class SchedulerTask {
         }
     }
 
+    private async checkSummaryBeforeSend<
+        T extends NotificationPayloadBase & TraceTaskBase,
+    >(notification: T): Promise<T> {
+        try {
+            const parsed = parseAgentWorkMarker({
+                agentWork: notification.agentWork,
+                organizationUuid: notification.organizationUuid,
+                projectUuid: notification.projectUuid,
+            });
+            if (parsed.status !== 'valid' || !this.schedulerAiAugmentation) {
+                throw new Error('The summary could not be verified.');
+            }
+            await this.schedulerAiAugmentation.assertDeliveryAllowed(
+                parsed.marker,
+            );
+            return notification;
+        } catch (error) {
+            return {
+                ...notification,
+                agentWork: undefined,
+                scheduler: {
+                    ...notification.scheduler,
+                    message: notification.aiSummaryOriginalMessage ?? undefined,
+                },
+                page: {
+                    ...notification.page,
+                    failures: [
+                        ...(notification.page.failures ?? []),
+                        {
+                            type: PartialFailureType.AI_AUGMENTATION,
+                            error:
+                                error instanceof AiAccessRefusedError
+                                    ? error.message
+                                    : 'The summary could not be verified.',
+                        },
+                    ],
+                },
+            };
+        }
+    }
+
     protected async sendSlackNotification(
         jobId: string,
-        notification: SlackNotificationPayload,
+        payload: SlackNotificationPayload,
     ) {
+        const notification =
+            payload.agentWork === undefined
+                ? payload
+                : await this.checkSummaryBeforeSend(payload);
         const {
             schedulerUuid,
             schedulerSlackTargetUuid,
@@ -2490,8 +2546,12 @@ export default class SchedulerTask {
 
     protected async sendMsTeamsNotification(
         jobId: string,
-        notification: MsTeamsNotificationPayload,
+        payload: MsTeamsNotificationPayload,
     ) {
+        const notification =
+            payload.agentWork === undefined
+                ? payload
+                : await this.checkSummaryBeforeSend(payload);
         const {
             schedulerUuid,
             schedulerMsTeamsTargetUuid,
@@ -3827,8 +3887,12 @@ export default class SchedulerTask {
 
     protected async sendEmailNotification(
         jobId: string,
-        notification: EmailNotificationPayload,
+        payload: EmailNotificationPayload,
     ) {
+        const notification =
+            payload.agentWork === undefined
+                ? payload
+                : await this.checkSummaryBeforeSend(payload);
         const {
             schedulerUuid,
             schedulerEmailTargetUuid,
@@ -5606,6 +5670,7 @@ export default class SchedulerTask {
             // and the threshold gate has already run so unmet alerts never pay
             // for it.
             let deliveryScheduler = scheduler;
+            let aiSummaryDelivery: SchedulerAiSummaryDelivery | undefined;
             const aiPartialFailures: PartialFailure[] = [];
             if (
                 this.schedulerAiAugmentation &&
@@ -5621,8 +5686,15 @@ export default class SchedulerTask {
                     if (aiMessage !== null) {
                         deliveryScheduler = {
                             ...scheduler,
-                            message: aiMessage,
+                            message: aiMessage.message,
                         };
+                        if (aiMessage.agentWork) {
+                            aiSummaryDelivery = {
+                                agentWork: aiMessage.agentWork,
+                                aiSummaryOriginalMessage:
+                                    scheduler.message ?? null,
+                            };
+                        }
                     }
                 } catch (e) {
                     Logger.error(
@@ -5678,6 +5750,7 @@ export default class SchedulerTask {
                     jobId,
                     traceProperties,
                     perChannelPages,
+                    aiSummaryDelivery,
                 );
 
             // The notification jobs are now queued: nothing below may
@@ -7067,8 +7140,12 @@ export default class SchedulerTask {
 
     protected async sendSlackBatchNotification(
         jobId: string,
-        notification: SlackBatchNotificationPayload,
+        payload: SlackBatchNotificationPayload,
     ): Promise<BatchDeliveryResult> {
+        const notification =
+            payload.agentWork === undefined
+                ? payload
+                : await this.checkSummaryBeforeSend(payload);
         const { schedulerUuid, targets, scheduledTime, scheduler, page } =
             notification;
 
@@ -7299,8 +7376,12 @@ export default class SchedulerTask {
 
     protected async sendEmailBatchNotification(
         jobId: string,
-        notification: EmailBatchNotificationPayload,
+        payload: EmailBatchNotificationPayload,
     ): Promise<BatchDeliveryResult> {
+        const notification =
+            payload.agentWork === undefined
+                ? payload
+                : await this.checkSummaryBeforeSend(payload);
         const { schedulerUuid, targets, scheduledTime, scheduler, page } =
             notification;
 
@@ -7521,8 +7602,12 @@ export default class SchedulerTask {
 
     protected async sendMsTeamsBatchNotification(
         jobId: string,
-        notification: MsTeamsBatchNotificationPayload,
+        payload: MsTeamsBatchNotificationPayload,
     ): Promise<BatchDeliveryResult> {
+        const notification =
+            payload.agentWork === undefined
+                ? payload
+                : await this.checkSummaryBeforeSend(payload);
         const { schedulerUuid, targets, scheduledTime, scheduler, page } =
             notification;
 
@@ -7739,8 +7824,12 @@ export default class SchedulerTask {
 
     protected async sendGoogleChatNotification(
         jobId: string,
-        notification: GoogleChatNotificationPayload,
+        payload: GoogleChatNotificationPayload,
     ) {
+        const notification =
+            payload.agentWork === undefined
+                ? payload
+                : await this.checkSummaryBeforeSend(payload);
         const {
             schedulerUuid,
             schedulerGoogleChatTargetUuid,
@@ -7985,8 +8074,12 @@ export default class SchedulerTask {
 
     protected async sendGoogleChatBatchNotification(
         jobId: string,
-        notification: GoogleChatBatchNotificationPayload,
+        payload: GoogleChatBatchNotificationPayload,
     ): Promise<BatchDeliveryResult> {
+        const notification =
+            payload.agentWork === undefined
+                ? payload
+                : await this.checkSummaryBeforeSend(payload);
         const { schedulerUuid, targets, scheduledTime, scheduler, page } =
             notification;
 

@@ -53,6 +53,7 @@ import {
     UploadGsheetFromRowsPayload,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
+    type AgentWorkMarker,
     type DownloadAsyncQueryResultsPayload,
     type PreAggregateSchedulerDetails,
     type SchedulerCreateProjectWithCompilePayload,
@@ -75,6 +76,11 @@ import {
 } from '../services/LearnSandboxService/runtime';
 import { continueTrace, getTraceHeaders, traceSpan } from '../tracing/tracing';
 import { normalizeAgentConnectionTaskPayload } from '../utils/agentConnectionExecution';
+
+export interface SchedulerAiSummaryDelivery {
+    agentWork: AgentWorkMarker;
+    aiSummaryOriginalMessage: string | null;
+}
 
 type SchedulerClientArguments = {
     lightdashConfig: LightdashConfig;
@@ -1014,6 +1020,7 @@ export class SchedulerClient {
             msteams?: NotificationPayloadBase['page'];
             googlechat?: NotificationPayloadBase['page'];
         },
+        aiSummary?: SchedulerAiSummaryDelivery,
     ) {
         const schedulerUuid = getSchedulerUuid(scheduler);
 
@@ -1036,6 +1043,10 @@ export class SchedulerClient {
                 return [{ ...job, target: undefined }];
             }
 
+            const notificationTraceProperties = aiSummary
+                ? { ...traceProperties, ...aiSummary }
+                : traceProperties;
+
             // For saved schedulers, use batch jobs (one job per delivery type)
             // For "Send Now" (unsaved schedulers), fall back to individual jobs
             if (hasSchedulerUuid(scheduler)) {
@@ -1044,7 +1055,7 @@ export class SchedulerClient {
                     scheduler,
                     page,
                     parentJobId,
-                    traceProperties,
+                    notificationTraceProperties,
                     perChannelPages,
                 );
             }
@@ -1072,7 +1083,7 @@ export class SchedulerClient {
                     target,
                     getSchedulerTargetUuid(target),
                     targetPage,
-                    traceProperties,
+                    notificationTraceProperties,
                 );
                 return { ...result, type };
             });

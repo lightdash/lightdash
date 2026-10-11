@@ -377,3 +377,44 @@ describe('assertAgentWorkUserActive', () => {
         expect(deps.agentActionLogModel.insert).toHaveBeenCalledTimes(1);
     });
 });
+
+test('reuses an explicitly supplied fresh person without loading them again', async () => {
+    const deps = setup();
+    await expect(
+        assertAgentWorkAllowed(deps, work, {
+            freshlyLoadedUser: defaultSessionUser,
+        }),
+    ).resolves.toBe(defaultSessionUser);
+    expect(deps.userModel.findSessionUserAndOrgByUuid).not.toHaveBeenCalled();
+    expect(deps.agentPermissionService.loadRequest).toHaveBeenCalledOnce();
+    expect(
+        deps.agentPermissionService.assertOperationWithRequest,
+    ).toHaveBeenCalledOnce();
+});
+
+test.each(['userUuid', 'organizationUuid'] as const)(
+    'rejects a supplied person with a different %s',
+    async (key) => {
+        const deps = setup();
+        await expect(
+            assertAgentWorkAllowed(deps, work, {
+                freshlyLoadedUser: { ...defaultSessionUser, [key]: 'other' },
+            }),
+        ).rejects.toBeInstanceOf(AiAccessRefusedError);
+        expect(
+            deps.agentPermissionService.assertOperationWithRequest,
+        ).not.toHaveBeenCalled();
+    },
+);
+
+test('validates summary organisation and project independently of the trace user', () => {
+    const payload = { ...marker, userUuid: 'trace-user', agentWork: marker };
+    expect(parseAgentWorkMarker(payload)).toEqual({ status: 'malformed' });
+    expect(
+        parseAgentWorkMarker({
+            agentWork: payload.agentWork,
+            organizationUuid: payload.organizationUuid,
+            projectUuid: payload.projectUuid,
+        }),
+    ).toEqual({ status: 'valid', marker });
+});
