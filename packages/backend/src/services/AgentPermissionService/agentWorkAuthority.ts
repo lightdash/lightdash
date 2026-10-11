@@ -201,6 +201,9 @@ export const assertAgentWorkAllowed = async (
 
 export const AGENT_DELIVERY_CHECK_INTERVAL_MS = 30_000;
 
+export const AGENT_SUMMARY_REFUSED_MESSAGE =
+    'Agents are not available for this delivery. Ask an admin to review agent access.';
+
 export type AgentDeliveryGuard<T = unknown> = {
     assert: () => Promise<T | undefined>;
     assertIfStale: () => Promise<T | undefined>;

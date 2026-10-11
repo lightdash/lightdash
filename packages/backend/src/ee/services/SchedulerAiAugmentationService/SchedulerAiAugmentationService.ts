@@ -34,7 +34,10 @@ import type {
     SchedulerDeliveryQuery,
 } from '../../../scheduler/SchedulerTask';
 import { type AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
-import { assertAgentWorkAllowed } from '../../../services/AgentPermissionService/agentWorkAuthority';
+import {
+    AGENT_SUMMARY_REFUSED_MESSAGE,
+    assertAgentWorkAllowed,
+} from '../../../services/AgentPermissionService/agentWorkAuthority';
 import {
     agentExecutionContext,
     createAgentExecutionContext,
@@ -341,15 +344,22 @@ export class SchedulerAiAugmentationService
             ? { userUuid: createdBy, organizationUuid, projectUuid }
             : null;
         if (agentWork) {
-            await assertAgentWorkAllowed(
-                {
-                    userModel: this.userModel,
-                    agentPermissionService: this.agentPermissionService,
-                    agentActionLogModel: this.agentActionLogModel,
-                },
-                { ...agentWork, surface: AgentActorSurface.AI_SUMMARY },
-                { freshlyLoadedUser: creator },
-            );
+            try {
+                await assertAgentWorkAllowed(
+                    {
+                        userModel: this.userModel,
+                        agentPermissionService: this.agentPermissionService,
+                        agentActionLogModel: this.agentActionLogModel,
+                    },
+                    { ...agentWork, surface: AgentActorSurface.AI_SUMMARY },
+                    { freshlyLoadedUser: creator },
+                );
+            } catch (error) {
+                if (error instanceof AiAccessRefusedError) {
+                    throw new ForbiddenError(AGENT_SUMMARY_REFUSED_MESSAGE);
+                }
+                throw error;
+            }
         }
         const message = await agentExecutionContext.run(
             createAgentExecutionContext({

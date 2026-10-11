@@ -7,6 +7,7 @@ import {
     type SendNowScheduler,
 } from '@lightdash/common';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
+import { AGENT_SUMMARY_REFUSED_MESSAGE } from '../../../services/AgentPermissionService/agentWorkAuthority';
 import {
     agentActionTestCases,
     withAgentActionScope,
@@ -422,11 +423,20 @@ describe('scheduled summary authority', () => {
                         AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
                     ),
                 );
-            await expect(
-                service.runForDelivery({ scheduler, createdBy: 'user' }),
-            ).rejects.toBeInstanceOf(
-                failure === 'missing' ? InvalidUser : AiAccessRefusedError,
-            );
+            const result = service.runForDelivery({
+                scheduler,
+                createdBy: 'user',
+            });
+            if (failure === 'missing') {
+                await expect(result).rejects.toBeInstanceOf(InvalidUser);
+            } else {
+                await expect(result).rejects.toThrow(
+                    AGENT_SUMMARY_REFUSED_MESSAGE,
+                );
+                await expect(result).rejects.not.toBeInstanceOf(
+                    AiAccessRefusedError,
+                );
+            }
             expect(aiService.generateDeliverySummary).not.toHaveBeenCalled();
             expect(
                 aiAgentService.generateScheduledReport,

@@ -57,6 +57,7 @@ import { managedExecutionFixture } from '../auth/agentConnectionGrants/managedEx
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
 import type { ExecutionContextInfo } from '../logging/winston';
+import { AGENT_SUMMARY_REFUSED_MESSAGE } from '../services/AgentPermissionService/agentWorkAuthority';
 import {
     agentExecutionContext,
     createAgentExecutionContext,
@@ -4130,8 +4131,9 @@ describe('app delivery target senders', () => {
                     else expect(output).toContain('Stored message');
                     const failureText =
                         scenario === 'refused' || scenario === 'null message'
-                            ? refusal.message
+                            ? AGENT_SUMMARY_REFUSED_MESSAGE
                             : 'The summary could not be verified.';
+                    expect(output).not.toContain(refusal.message);
                     expect(output).toContain(
                         method.includes('Slack')
                             ? 'AI summary could not be generated'

@@ -189,7 +189,10 @@ import type { ExecutionContextInfo } from '../logging/winston';
 import { AiUsageLedgerModel } from '../models/AiUsageLedgerModel';
 import { OrganizationSettingsModel } from '../models/OrganizationSettingsModel';
 import { WarehouseConnectCodeModel } from '../models/WarehouseConnectCodeModel';
-import { parseAgentWorkMarker } from '../services/AgentPermissionService/agentWorkAuthority';
+import {
+    AGENT_SUMMARY_REFUSED_MESSAGE,
+    parseAgentWorkMarker,
+} from '../services/AgentPermissionService/agentWorkAuthority';
 import { agentExecutionContext } from '../services/AiAccessService/agentExecutionContext';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { SCHEDULER_POLLING_OPTIONS } from '../services/AsyncQueryService/types';
@@ -2115,7 +2118,7 @@ export default class SchedulerTask {
                             type: PartialFailureType.AI_AUGMENTATION,
                             error:
                                 error instanceof AiAccessRefusedError
-                                    ? error.message
+                                    ? AGENT_SUMMARY_REFUSED_MESSAGE
                                     : 'The summary could not be verified.',
                         },
                     ],
