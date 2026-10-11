@@ -48,7 +48,7 @@ type QuerySourceServiceArguments = {
     >;
     getAgentPermissionService: () => Pick<
         AgentPermissionService,
-        'isEnforced' | 'assertOperation'
+        'loadRequest' | 'assertOperationWithRequest'
     >;
     projectModel: ProjectModel;
     queryHistoryModel: QueryHistoryModel;
@@ -135,15 +135,19 @@ export class QuerySourceService extends BaseService {
         assertIsAccountWithOrg(account);
         const { organizationUuid } = account.organization;
         const permissionService = this.getAgentPermissionService();
-        if (!(await permissionService.isEnforced(organizationUuid))) return;
+        const request = await permissionService.loadRequest(organizationUuid);
+        if (request.enforcementMode === 'off') return;
         assertRegisteredAccount(account);
-        await permissionService.assertOperation({
-            account,
-            organizationUuid,
-            projectUuid,
-            kind: 'agent_tool',
-            key: 'runSql',
-            surface: execution?.surface ?? AgentActorSurface.MCP,
+        await permissionService.assertOperationWithRequest({
+            request,
+            operation: {
+                account,
+                organizationUuid,
+                projectUuid,
+                kind: 'agent_tool',
+                key: 'runSql',
+                surface: execution?.surface ?? AgentActorSurface.MCP,
+            },
         });
     }
 

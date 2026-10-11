@@ -30,10 +30,10 @@ test.each(['off', 'legacy', 'managed'] as const)(
     async (mode) => {
         const account = fromSession(defaultSessionUser);
         const getAgentPermissionService = vi.fn(() => ({
-            getEnforcementMode: vi
-                .fn()
-                .mockResolvedValue(mode === 'managed' ? 'managed' : 'off'),
-            assertOperation: vi.fn(),
+            loadRequest: vi.fn().mockResolvedValue({
+                enforcementMode: mode === 'managed' ? 'managed' : 'off',
+            }),
+            assertOperationWithRequest: vi.fn(),
         }));
         const service = new McpService({
             lightdashConfig: {

@@ -13,6 +13,8 @@ import {
     type SourceQuery,
 } from '@lightdash/common';
 import type { Request } from 'express';
+import knex from 'knex';
+import { getTracker, MockClient } from 'knex-mock-client';
 import {
     fromApiKey,
     fromOauth,
@@ -25,6 +27,10 @@ import {
 import { QuerySourceController } from '../../controllers/v2/QuerySourceController';
 import { AiAgentToolsService } from '../../ee/services/AiAgentToolsService/AiAgentToolsService';
 import { CatalogSearchContext } from '../../models/CatalogModel/CatalogModel';
+import {
+    expectAdmissionSql,
+    setupPermissionSql,
+} from '../../services/AgentPermissionService/agentPermissionSqlFixture';
 import {
     AgentPermissionService,
     agentSystemRoleMatrix,
@@ -80,6 +86,14 @@ const setup = (
         projectModel,
         agentCapabilityPolicyModel: {
             get: vi.fn().mockResolvedValue(policy),
+            getForEnforcement: vi.fn().mockImplementation(async () => ({
+                ...policy,
+                storedAllowedGroupUuids: policy.allowedGroupUuids,
+                hasExistingAllowedGroup:
+                    policy.allowedGroupUuids === null
+                        ? null
+                        : policy.allowedGroupUuids.length > 0,
+            })),
             save: vi.fn(),
         },
         userModel: {
@@ -193,6 +207,7 @@ const setup = (
         header: () => undefined,
     } as unknown as Request;
     return {
+        service,
         groupsModel,
         policy,
         composer,
@@ -469,3 +484,49 @@ test('legacy group admission protects OAuth source dispatch and scans', async ()
     expect(h.asyncQueryService.executeAsyncSqlQuery).not.toHaveBeenCalled();
     expect(h.projectService.getWarehouseTables).not.toHaveBeenCalled();
 });
+
+const admissionDatabase = knex({ client: MockClient, dialect: 'pg' });
+const admissionTracker = getTracker();
+beforeEach(() => admissionTracker.reset());
+afterAll(async () => admissionDatabase.destroy());
+
+test.each(['scan', 'dispatch', 'semantic'] as const)(
+    'SQL admission shares the query-source %s gate',
+    async (surface) => {
+        const h = setup('legacy');
+        const sql = setupPermissionSql(
+            admissionDatabase,
+            admissionTracker,
+            fromOauth(defaultSessionUser, {
+                accessToken: 'token',
+                client: { id: 'client' },
+            }),
+        );
+        Object.assign(h.service, {
+            getAgentPermissionService: () => sql.service,
+        });
+        if (surface === 'scan')
+            await h.controller.scanQuerySourceSchema(
+                projectUuid,
+                QuerySourceType.SQL,
+                h.request,
+            );
+        else
+            await h.controller.executeSourceQueries(
+                {
+                    queries:
+                        surface === 'semantic'
+                            ? [semanticQuery]
+                            : [sqlQuery, { ...sqlQuery, nodeId: 'second' }],
+                },
+                projectUuid,
+                h.request,
+            );
+        expectAdmissionSql(admissionTracker, {
+            policy: surface === 'semantic' ? 0 : 1,
+            groups: 0,
+            people: 0,
+            membership: surface === 'semantic' ? 0 : 1,
+        });
+    },
+);

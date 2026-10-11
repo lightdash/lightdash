@@ -412,7 +412,7 @@ type BuiltInSkillsClient = Pick<
 type AiAgentToolsServiceDependencies = {
     agentPermissionService: Pick<
         AgentPermissionService,
-        'assertOperation' | 'isEnforced'
+        'loadRequest' | 'assertOperationWithRequest'
     >;
     agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     builtInSkills: BuiltInSkillsClient;
@@ -779,24 +779,25 @@ export class AiAgentToolsService extends BaseService {
             !mcpAgentPermissionsApply(context.account.authentication.type)
         )
             return;
-        if (
-            !(await this.agentPermissionService.isEnforced(
-                context.organizationUuid,
-            ))
-        )
-            return;
+        const request = await this.agentPermissionService.loadRequest(
+            context.organizationUuid,
+        );
+        if (request.enforcementMode === 'off') return;
         assertRegisteredAccount(context.account);
-        await this.agentPermissionService.assertOperation({
-            account: context.account,
-            organizationUuid: context.organizationUuid,
-            projectUuid: context.projectUuid,
-            kind: 'tool_effect',
-            key,
-            surface:
-                agentExecutionContext.getStore()?.surface ??
-                (context.source === 'mcp'
-                    ? AgentActorSurface.MCP
-                    : AgentActorSurface.IN_APP_AGENT),
+        await this.agentPermissionService.assertOperationWithRequest({
+            request,
+            operation: {
+                account: context.account,
+                organizationUuid: context.organizationUuid,
+                projectUuid: context.projectUuid,
+                kind: 'tool_effect',
+                key,
+                surface:
+                    agentExecutionContext.getStore()?.surface ??
+                    (context.source === 'mcp'
+                        ? AgentActorSurface.MCP
+                        : AgentActorSurface.IN_APP_AGENT),
+            },
         });
     }
 
@@ -812,22 +813,29 @@ export class AiAgentToolsService extends BaseService {
                 return [
                     name,
                     async (...args: unknown[]) => {
-                        if (
-                            await this.agentPermissionService.isEnforced(
+                        const request =
+                            await this.agentPermissionService.loadRequest(
                                 context.organizationUuid,
-                            )
-                        ) {
+                            );
+                        if (request.enforcementMode !== 'off') {
                             assertRegisteredAccount(context.account);
-                            await this.agentPermissionService.assertOperation({
-                                account: context.account,
-                                organizationUuid: context.organizationUuid,
-                                projectUuid: context.projectUuid,
-                                kind: 'agent_tool',
-                                key,
-                                surface:
-                                    agentExecutionContext.getStore()?.surface ??
-                                    AgentActorSurface.IN_APP_AGENT,
-                            });
+                            await this.agentPermissionService.assertOperationWithRequest(
+                                {
+                                    request,
+                                    operation: {
+                                        account: context.account,
+                                        organizationUuid:
+                                            context.organizationUuid,
+                                        projectUuid: context.projectUuid,
+                                        kind: 'agent_tool',
+                                        key,
+                                        surface:
+                                            agentExecutionContext.getStore()
+                                                ?.surface ??
+                                            AgentActorSurface.IN_APP_AGENT,
+                                    },
+                                },
+                            );
                         }
                         return (
                             execute as (...input: unknown[]) => Promise<unknown>

@@ -54,6 +54,14 @@ const setup = () => {
         featureFlagModel,
         agentCapabilityPolicyModel: {
             get: vi.fn().mockResolvedValue(policy),
+            getForEnforcement: vi.fn().mockImplementation(async () => ({
+                ...policy,
+                storedAllowedGroupUuids: policy.allowedGroupUuids,
+                hasExistingAllowedGroup:
+                    policy.allowedGroupUuids === null
+                        ? null
+                        : policy.allowedGroupUuids.length > 0,
+            })),
             save: vi.fn(),
         },
         userModel: {

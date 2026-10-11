@@ -26,7 +26,10 @@ import { getRequiredAgentCapabilities } from '../../auth/agentPermissions/capabi
 import { HUMAN_ONLY_IN_MANAGED } from '../../auth/agentPermissions/humanOnlyInManaged';
 import { getOAuthScopeContext } from '../../auth/oauthScopes/scopedAbility';
 import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
-import { type AgentCapabilityPolicyModel } from '../../models/AgentCapabilityPolicyModel';
+import {
+    type AgentCapabilityPolicyModel,
+    type AgentEnforcementPolicy,
+} from '../../models/AgentCapabilityPolicyModel';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type GroupsModel } from '../../models/GroupsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -192,7 +195,7 @@ interface Dependencies {
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     agentCapabilityPolicyModel: Pick<
         AgentCapabilityPolicyModel,
-        'get' | 'save'
+        'get' | 'getForEnforcement' | 'save'
     >;
     userModel: Pick<UserModel, 'getAgentRoleAssignments'>;
     projectModel: Pick<ProjectModel, 'getSummary'>;
@@ -230,6 +233,124 @@ export const agentSystemRoleMatrix = (
     admin: [...capabilities],
 });
 
+type ImmutableAgentEnforcementPolicy = {
+    readonly mode: 'legacy' | 'managed';
+    readonly version: number;
+    readonly allowedProjectUuids: readonly string[] | null;
+    readonly allowedUserUuids: readonly string[] | null;
+    readonly storedAllowedGroupUuids: readonly string[] | null;
+    readonly hasExistingAllowedGroup: boolean | null;
+    readonly systemRoleMatrix: Readonly<
+        Record<OrganizationMemberRole, readonly AgentCapability[]>
+    >;
+};
+
+class AgentPermissionRequestHandle {
+    private readonly memberships = new Map<string, Promise<boolean>>();
+
+    constructor(
+        readonly organizationUuid: string,
+        readonly policy: ImmutableAgentEnforcementPolicy | null,
+        private readonly findGroupMembership: (
+            userUuid: string,
+            groupUuids: string[],
+        ) => Promise<boolean>,
+    ) {
+        Object.freeze(this);
+    }
+
+    get enforcementMode(): 'off' | 'admission' | 'managed' {
+        if (this.policy === null) return 'off';
+        if (this.policy.mode === 'managed') return 'managed';
+        return this.policy.storedAllowedGroupUuids === null
+            ? 'off'
+            : 'admission';
+    }
+
+    readGroupMembership(userUuid: string): Promise<boolean> {
+        if (
+            !this.policy?.hasExistingAllowedGroup ||
+            !this.policy.storedAllowedGroupUuids?.length
+        )
+            return Promise.resolve(false);
+        const existing = this.memberships.get(userUuid);
+        if (existing) return existing;
+        const membership = this.findGroupMembership(userUuid, [
+            ...this.policy.storedAllowedGroupUuids,
+        ]);
+        this.memberships.set(userUuid, membership);
+        return membership;
+    }
+}
+
+export type AgentPermissionRequest = AgentPermissionRequestHandle;
+
+interface AgentPermissionEvaluation {
+    checks: AgentPermissionCheck[];
+    readChecks(
+        stopAtRefusal: boolean,
+        options?: { signal?: AbortSignal },
+        index?: number,
+    ): Promise<AgentPermissionCheck | null>;
+    requiredCapabilities: AgentCapability[];
+}
+
+const freezePolicy = (
+    policy: AgentEnforcementPolicy,
+): ImmutableAgentEnforcementPolicy =>
+    Object.freeze({
+        ...policy,
+        allowedProjectUuids:
+            policy.allowedProjectUuids === null
+                ? null
+                : Object.freeze([...policy.allowedProjectUuids]),
+        allowedUserUuids:
+            policy.allowedUserUuids === null
+                ? null
+                : Object.freeze([...policy.allowedUserUuids]),
+        storedAllowedGroupUuids:
+            policy.storedAllowedGroupUuids === null
+                ? null
+                : Object.freeze([...policy.storedAllowedGroupUuids]),
+        systemRoleMatrix: Object.freeze(
+            Object.fromEntries(
+                Object.entries(policy.systemRoleMatrix).map(
+                    ([role, capabilities]) => [
+                        role,
+                        Object.freeze([...capabilities]),
+                    ],
+                ),
+            ),
+        ) as ImmutableAgentEnforcementPolicy['systemRoleMatrix'],
+    });
+
+const projectEnforcementPolicy = (
+    policy: ImmutableAgentEnforcementPolicy,
+): AgentCapabilityPolicy => {
+    const allowedGroupUuids = policy.hasExistingAllowedGroup
+        ? [...(policy.storedAllowedGroupUuids ?? [])]
+        : [];
+    return {
+        mode: policy.mode,
+        version: policy.version,
+        allowedProjectUuids:
+            policy.allowedProjectUuids === null
+                ? null
+                : [...policy.allowedProjectUuids],
+        allowedUserUuids:
+            policy.allowedUserUuids === null
+                ? null
+                : [...policy.allowedUserUuids],
+        allowedGroupUuids:
+            policy.storedAllowedGroupUuids === null ? null : allowedGroupUuids,
+        systemRoleMatrix: Object.fromEntries(
+            Object.entries(policy.systemRoleMatrix).map(
+                ([role, capabilities]) => [role, [...capabilities]],
+            ),
+        ) as AgentSystemRoleMatrix,
+    };
+};
+
 export class AgentPermissionService extends BaseService {
     constructor(private readonly deps: Dependencies) {
         super();
@@ -250,26 +371,92 @@ export class AgentPermissionService extends BaseService {
         ).enabled;
     }
 
+    async loadRequest(
+        organizationUuid: string,
+    ): Promise<AgentPermissionRequest> {
+        const policy = (await this.isEnabled(organizationUuid))
+            ? freezePolicy(
+                  await this.deps.agentCapabilityPolicyModel.getForEnforcement(
+                      organizationUuid,
+                  ),
+              )
+            : null;
+        return new AgentPermissionRequestHandle(
+            organizationUuid,
+            policy,
+            async (userUuid, groupUuids) =>
+                (
+                    await this.deps.groupsModel.findUserInGroups({
+                        userUuid,
+                        organizationUuid,
+                        groupUuids,
+                    })
+                ).length > 0,
+        );
+    }
+
     async isManaged(organizationUuid: string): Promise<boolean> {
-        if (!(await this.isEnabled(organizationUuid))) return false;
         return (
-            (await this.deps.agentCapabilityPolicyModel.get(organizationUuid))
-                .mode === 'managed'
+            (await this.loadRequest(organizationUuid)).enforcementMode ===
+            'managed'
         );
     }
 
     async getEnforcementMode(
         organizationUuid: string,
     ): Promise<'off' | 'admission' | 'managed'> {
-        if (!(await this.isEnabled(organizationUuid))) return 'off';
-        const policy =
-            await this.deps.agentCapabilityPolicyModel.get(organizationUuid);
-        if (policy.mode === 'managed') return 'managed';
-        return policy.allowedGroupUuids !== null ? 'admission' : 'off';
+        return (await this.loadRequest(organizationUuid)).enforcementMode;
     }
 
     async isEnforced(organizationUuid: string): Promise<boolean> {
-        return (await this.getEnforcementMode(organizationUuid)) !== 'off';
+        return (
+            (await this.loadRequest(organizationUuid)).enforcementMode !== 'off'
+        );
+    }
+
+    private static assertRequestOrganization(
+        request: AgentPermissionRequest,
+        organizationUuid: string,
+    ): void {
+        if (!(request instanceof AgentPermissionRequestHandle))
+            throw new ForbiddenError(
+                'The permission request was not created by the permission service',
+            );
+        if (request.organizationUuid !== organizationUuid)
+            throw new ForbiddenError(
+                'The permission request belongs to a different organization',
+            );
+    }
+
+    private async resolvePolicyWithRequest({
+        request,
+        operation,
+    }: {
+        request: AgentPermissionRequest;
+        operation: ResolvePolicyArgs;
+    }): Promise<ResolvedAgentPolicy> {
+        AgentPermissionService.assertRequestOrganization(
+            request,
+            operation.organizationUuid,
+        );
+        if (request.policy === null)
+            return {
+                mode: 'off',
+                capabilities: null,
+                allowedProjectUuids: null,
+                allowedUserUuids: null,
+                allowedGroupUuids: null,
+                version: 0,
+                editableCustomRoleUuid: null,
+            };
+        const policy = projectEnforcementPolicy(request.policy);
+        if (policy.mode === 'legacy')
+            return {
+                ...policy,
+                capabilities: null,
+                editableCustomRoleUuid: null,
+            };
+        return this.resolveManagedPolicy({ ...operation, policy });
     }
 
     async resolvePolicy({
@@ -295,6 +482,22 @@ export class AgentPermissionService extends BaseService {
                 capabilities: null,
                 editableCustomRoleUuid: null,
             };
+        return this.resolveManagedPolicy({
+            account,
+            organizationUuid,
+            projectUuid,
+            policy,
+        });
+    }
+
+    private async resolveManagedPolicy({
+        account,
+        organizationUuid,
+        projectUuid,
+        policy,
+    }: ResolvePolicyArgs & {
+        policy: AgentCapabilityPolicy;
+    }): Promise<ResolvedAgentPolicy> {
         if (account.organization.organizationUuid !== organizationUuid)
             throw new ForbiddenError(
                 'Your account does not belong to this organization',
@@ -344,16 +547,29 @@ export class AgentPermissionService extends BaseService {
     }
 
     async assertActorVerified(args: AssertActorVerifiedArgs): Promise<void> {
-        if (
-            args.actorVerified ||
-            !(await this.isEnabled(args.organizationUuid))
-        )
-            return;
-        const policy = await this.deps.agentCapabilityPolicyModel.get(
+        if (args.actorVerified) return;
+        const request = await this.loadRequest(args.organizationUuid);
+        return this.assertActorVerifiedWithRequest({
+            request,
+            operation: args,
+        });
+    }
+
+    async assertActorVerifiedWithRequest({
+        request,
+        operation: args,
+    }: {
+        request: AgentPermissionRequest;
+        operation: AssertActorVerifiedArgs;
+    }): Promise<void> {
+        AgentPermissionService.assertRequestOrganization(
+            request,
             args.organizationUuid,
         );
-        if (policy.mode !== 'managed' && policy.allowedGroupUuids === null)
+        if (args.actorVerified) return;
+        if (request.enforcementMode === 'off' || request.policy === null)
             return;
+        const { policy } = request;
         const error = new AiAccessRefusedError(
             AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED,
             {
@@ -370,7 +586,8 @@ export class AgentPermissionService extends BaseService {
     private createEvaluation(
         policy: ResolvedAgentPolicy,
         args: AssertOperationArgs,
-    ) {
+        request: AgentPermissionRequest,
+    ): AgentPermissionEvaluation {
         const requiredCapabilities =
             policy.mode === 'managed'
                 ? requiredCapabilitiesForOperation(
@@ -404,14 +621,10 @@ export class AgentPermissionService extends BaseService {
                 if (policy.allowedGroupUuids.length === 0)
                     operation.groupMember = false;
                 else {
-                    membershipPromise ??= this.deps.groupsModel
-                        .findUserInGroups({
-                            userUuid: args.account.user.id,
-                            organizationUuid: args.organizationUuid,
-                            groupUuids: policy.allowedGroupUuids,
-                        })
-                        .then((groups) => {
-                            operation.groupMember = groups.length > 0;
+                    membershipPromise ??= request
+                        .readGroupMembership(args.account.user.id)
+                        .then((member) => {
+                            operation.groupMember = member;
                         });
                     await membershipPromise;
                 }
@@ -453,13 +666,27 @@ export class AgentPermissionService extends BaseService {
     }
 
     async assertOperation(args: AssertOperationArgs): Promise<void> {
-        const policy = await this.resolvePolicy(args);
+        const request = await this.loadRequest(args.organizationUuid);
+        return this.assertOperationWithRequest({ request, operation: args });
+    }
+
+    async assertOperationWithRequest({
+        request,
+        operation: args,
+    }: {
+        request: AgentPermissionRequest;
+        operation: AssertOperationArgs;
+    }): Promise<void> {
+        const policy = await this.resolvePolicyWithRequest({
+            request,
+            operation: args,
+        });
         if (
             policy.mode === 'off' ||
             (policy.mode === 'legacy' && policy.allowedGroupUuids === null)
         )
             return;
-        const evaluation = this.createEvaluation(policy, args);
+        const evaluation = this.createEvaluation(policy, args, request);
         const primary = await evaluation.readChecks(true);
         if (!primary) return;
         const error = permissionRefusal(primary, {

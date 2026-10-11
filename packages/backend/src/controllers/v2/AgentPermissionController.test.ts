@@ -3,6 +3,7 @@ import {
     AgentActorSurface,
     AgentCapability,
     ForbiddenError,
+    type AgentCapabilityPolicy,
     type PossibleAbilities,
 } from '@lightdash/common';
 import { type Request } from 'express';
@@ -24,7 +25,7 @@ const setup = () => {
     account.user.ability = new Ability<PossibleAbilities>([
         { action: 'manage', subject: 'all' },
     ]);
-    const policy = {
+    const policy: AgentCapabilityPolicy = {
         mode: 'legacy' as const,
         version: 0,
         allowedUserUuids: null,
@@ -40,6 +41,14 @@ const setup = () => {
         featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
         agentCapabilityPolicyModel: {
             get: vi.fn().mockResolvedValue(policy),
+            getForEnforcement: vi.fn().mockImplementation(async () => ({
+                ...policy,
+                storedAllowedGroupUuids: policy.allowedGroupUuids,
+                hasExistingAllowedGroup:
+                    policy.allowedGroupUuids === null
+                        ? null
+                        : policy.allowedGroupUuids.length > 0,
+            })),
             save: vi.fn().mockResolvedValue(policy),
         },
         userModel: { getAgentRoleAssignments: vi.fn() },

@@ -50,9 +50,8 @@ export const setupGrantAuthentication = (sessionUser = defaultSessionUser) => {
     };
     const service = new AgentConnectionGrantService(deps);
     const permissions = {
-        getEnforcementMode: vi.fn().mockResolvedValue('off'),
-        isEnforced: vi.fn().mockResolvedValue(false),
-        assertOperation: vi.fn(),
+        loadRequest: vi.fn().mockResolvedValue({ enforcementMode: 'off' }),
+        assertOperationWithRequest: vi.fn(),
         resolveResourceProjectUuid: vi.fn(),
     };
     const handler = Object.defineProperty(() => {}, 'name', {

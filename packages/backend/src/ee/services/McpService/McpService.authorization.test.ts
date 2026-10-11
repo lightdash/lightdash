@@ -162,10 +162,10 @@ describe('MCP scoped tool catalogue', () => {
                         extra: {
                             user: defaultSessionUser,
                             getAgentPermissionService: () => ({
-                                getEnforcementMode: vi
-                                    .fn()
-                                    .mockResolvedValue('off'),
-                                assertOperation: vi.fn(),
+                                loadRequest: vi.fn().mockResolvedValue({
+                                    enforcementMode: 'off',
+                                }),
+                                assertOperationWithRequest: vi.fn(),
                             }),
                             account: createAccount({
                                 isOauthUser: true,
@@ -362,10 +362,10 @@ test('MCP catch/rethrow does not duplicate a lower policy refusal', async () => 
                         extra: {
                             user: defaultSessionUser,
                             getAgentPermissionService: () => ({
-                                getEnforcementMode: vi
-                                    .fn()
-                                    .mockResolvedValue('off'),
-                                assertOperation: vi.fn(),
+                                loadRequest: vi.fn().mockResolvedValue({
+                                    enforcementMode: 'off',
+                                }),
+                                assertOperationWithRequest: vi.fn(),
                             }),
                             account: fromSession(defaultSessionUser),
                         },
@@ -401,10 +401,10 @@ test.each(agentActionTestCases)(
                         extra: {
                             user: defaultSessionUser,
                             getAgentPermissionService: () => ({
-                                getEnforcementMode: vi
-                                    .fn()
-                                    .mockResolvedValue('off'),
-                                assertOperation: vi.fn(),
+                                loadRequest: vi.fn().mockResolvedValue({
+                                    enforcementMode: 'off',
+                                }),
+                                assertOperationWithRequest: vi.fn(),
                             }),
                             account: fromSession(defaultSessionUser),
                         },

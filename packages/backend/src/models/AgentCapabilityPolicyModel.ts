@@ -14,6 +14,7 @@ import {
 } from '../database/entities/agentCapabilityPolicies';
 import { GroupTableName } from '../database/entities/groups';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
+import { OrganizationTableName } from '../database/entities/organizations';
 
 const emptyMatrix = (): AgentSystemRoleMatrix => ({
     [OrganizationMemberRole.MEMBER]: [],
@@ -27,6 +28,16 @@ const emptyMatrix = (): AgentSystemRoleMatrix => ({
 interface PolicyWithCapability extends DbAgentCapabilityPolicy {
     system_role: DbAgentSystemRoleCapability['system_role'] | null;
     capability: DbAgentSystemRoleCapability['capability'] | null;
+}
+
+export interface AgentEnforcementPolicy {
+    mode: 'legacy' | 'managed';
+    version: number;
+    allowedProjectUuids: string[] | null;
+    allowedUserUuids: string[] | null;
+    storedAllowedGroupUuids: string[] | null;
+    hasExistingAllowedGroup: boolean | null;
+    systemRoleMatrix: AgentSystemRoleMatrix;
 }
 
 export class AgentCapabilityPolicyModel {
@@ -121,6 +132,74 @@ export class AgentCapabilityPolicyModel {
             allowedProjectUuids: policy?.allowed_project_uuids ?? null,
             allowedUserUuids:
                 storedUsers?.filter((uuid) => memberUuids.has(uuid)) ?? null,
+            systemRoleMatrix,
+        };
+    }
+
+    async getForEnforcement(
+        organizationUuid: string,
+    ): Promise<AgentEnforcementPolicy> {
+        const rows = await this.database(AgentCapabilityPoliciesTableName)
+            .leftJoin(
+                AgentSystemRoleCapabilitiesTableName,
+                `${AgentCapabilityPoliciesTableName}.organization_uuid`,
+                `${AgentSystemRoleCapabilitiesTableName}.organization_uuid`,
+            )
+            .where(
+                `${AgentCapabilityPoliciesTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .select<
+                (PolicyWithCapability & {
+                    has_existing_allowed_group: boolean | null;
+                })[]
+            >(
+                `${AgentCapabilityPoliciesTableName}.*`,
+                `${AgentSystemRoleCapabilitiesTableName}.system_role`,
+                `${AgentSystemRoleCapabilitiesTableName}.capability`,
+                this.database.raw(
+                    `CASE WHEN ?? IS NULL THEN NULL ELSE EXISTS (
+                        SELECT 1 FROM ?? JOIN ?? ON ?? = ??
+                        WHERE ?? = ?? AND ?? = ANY(??)
+                    ) END AS ??`,
+                    [
+                        `${AgentCapabilityPoliciesTableName}.allowed_group_uuids`,
+                        GroupTableName,
+                        OrganizationTableName,
+                        `${OrganizationTableName}.organization_id`,
+                        `${GroupTableName}.organization_id`,
+                        `${OrganizationTableName}.organization_uuid`,
+                        `${AgentCapabilityPoliciesTableName}.organization_uuid`,
+                        `${GroupTableName}.group_uuid`,
+                        `${AgentCapabilityPoliciesTableName}.allowed_group_uuids`,
+                        'has_existing_allowed_group',
+                    ],
+                ),
+            );
+        const systemRoleMatrix = emptyMatrix();
+        const [policy] = rows;
+        for (const row of rows) {
+            if (row.system_role && row.capability) {
+                systemRoleMatrix[row.system_role].push(row.capability);
+            }
+        }
+        const storedUsers = policy?.allowed_user_uuids ?? null;
+        const members = storedUsers?.length
+            ? await this.getAllowedMembers(
+                  this.database,
+                  organizationUuid,
+                  storedUsers,
+              )
+            : [];
+        const memberUuids = new Set(members.map((member) => member.user_uuid));
+        return {
+            mode: policy?.mode ?? 'legacy',
+            version: policy?.version ?? 0,
+            allowedProjectUuids: policy?.allowed_project_uuids ?? null,
+            allowedUserUuids:
+                storedUsers?.filter((uuid) => memberUuids.has(uuid)) ?? null,
+            storedAllowedGroupUuids: policy?.allowed_group_uuids ?? null,
+            hasExistingAllowedGroup: policy?.has_existing_allowed_group ?? null,
             systemRoleMatrix,
         };
     }

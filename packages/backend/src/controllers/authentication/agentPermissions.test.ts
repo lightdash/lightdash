@@ -9,9 +9,12 @@ import {
     type PossibleAbilities,
 } from '@lightdash/common';
 import { type Request, type RequestHandler, type Response } from 'express';
+import knex from 'knex';
+import { getTracker, MockClient } from 'knex-mock-client';
 import passport from 'passport';
 import { fromSession } from '../../auth/account/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
+import { grantFixture } from '../../auth/agentConnectionGrants/grant.mock';
 import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { authenticateServiceAccount } from '../../ee/authentication';
@@ -21,6 +24,10 @@ import {
     AgentPermissionService,
     agentSystemRoleMatrix,
 } from '../../services/AgentPermissionService/AgentPermissionService';
+import {
+    expectAdmissionSql,
+    setupPermissionSql,
+} from '../../services/AgentPermissionService/agentPermissionSqlFixture';
 import { type ServiceRepository } from '../../services/ServiceRepository';
 import { SpaceService } from '../../services/SpaceService/SpaceService';
 import { SpaceController } from '../spaceController';
@@ -85,7 +92,21 @@ const setup = ({
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: mode !== 'off' }),
         },
-        agentCapabilityPolicyModel: { get: getPolicy, save: vi.fn() },
+        agentCapabilityPolicyModel: {
+            get: getPolicy,
+            getForEnforcement: async () => {
+                const policy = await getPolicy();
+                return {
+                    ...policy,
+                    storedAllowedGroupUuids: policy.allowedGroupUuids,
+                    hasExistingAllowedGroup:
+                        policy.allowedGroupUuids === null
+                            ? null
+                            : policy.allowedGroupUuids.length > 0,
+                };
+            },
+            save: vi.fn(),
+        },
         userModel: {
             getAgentRoleAssignments: vi.fn().mockResolvedValue({
                 systemRoles: [OrganizationMemberRole.ADMIN],
@@ -103,7 +124,10 @@ const setup = ({
         }),
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
     });
-    const assertOperation = vi.spyOn(service, 'assertOperation');
+    const assertOperationWithRequest = vi.spyOn(
+        service,
+        'assertOperationWithRequest',
+    );
     const handler = Object.defineProperty(vi.fn(), 'name', {
         value: operation,
     });
@@ -172,7 +196,7 @@ const setup = ({
         request,
         groupsModel,
         run,
-        assertOperation,
+        assertOperationWithRequest,
         getPolicy,
         resolveResourceProjectUuid,
     };
@@ -185,7 +209,7 @@ describe.each([
     { name: 'API-key OAuth', middleware: allowApiKeyAuthentication },
 ])('$name agent policy', ({ middleware }) => {
     it('refuses content writes for a managed pilot and preserves typed 403 data', async () => {
-        const { run, assertOperation } = setup();
+        const { run, assertOperationWithRequest } = setup();
         const error = await run(middleware);
         expect(error).toBeInstanceOf(AiAccessRefusedError);
         const message =
@@ -201,14 +225,18 @@ describe.each([
                 projectUuid: 'project',
             },
         });
-        expect(assertOperation).toHaveBeenCalledWith(
+        expect(assertOperationWithRequest).toHaveBeenCalledWith(
             expect.objectContaining({
-                kind: 'rest_operation',
-                projectUuid: 'project',
-                key: 'ProjectController.createDashboard',
+                operation: expect.objectContaining({
+                    kind: 'rest_operation',
+                    projectUuid: 'project',
+                    key: 'ProjectController.createDashboard',
+                }),
             }),
         );
-        expect(assertOperation.mock.calls[0][0].surface).toBe('api');
+        expect(
+            assertOperationWithRequest.mock.calls[0][0].operation.surface,
+        ).toBe('api');
         expect(passport.authenticate).not.toHaveBeenCalled();
         expect(authenticateServiceAccount).not.toHaveBeenCalled();
     });
@@ -238,18 +266,20 @@ describe.each([
         },
     );
     it('checks unchecked OAuth scopes before the agent gate', async () => {
-        const { run, assertOperation } = setup({ scopes: ['read'] });
+        const { run, assertOperationWithRequest } = setup({ scopes: ['read'] });
         expect(await run(middleware)).toBeInstanceOf(ForbiddenError);
-        expect(assertOperation).not.toHaveBeenCalled();
+        expect(assertOperationWithRequest).not.toHaveBeenCalled();
     });
     it('passes null when the route has no project path parameter', async () => {
-        const { run, assertOperation } = setup({
+        const { run, assertOperationWithRequest } = setup({
             operation: 'OrganizationController_getProjects',
             projectUuid: null,
         });
         await expect(run(middleware)).resolves.toBeUndefined();
-        expect(assertOperation).toHaveBeenCalledWith(
-            expect.objectContaining({ projectUuid: null }),
+        expect(assertOperationWithRequest).toHaveBeenCalledWith(
+            expect.objectContaining({
+                operation: expect.objectContaining({ projectUuid: null }),
+            }),
         );
     });
     it('allows a managed pilot query in its permitted project', async () => {
@@ -289,7 +319,7 @@ describe.each([
             const {
                 request,
                 run,
-                assertOperation,
+                assertOperationWithRequest,
                 resolveResourceProjectUuid,
             } = setup({
                 operation: 'QueryController_executeAsyncMetricQuery',
@@ -304,9 +334,10 @@ describe.each([
                 type,
                 uuid,
             });
-            expect(assertOperation.mock.calls[0][0].projectUuid).toBe(
-                'project',
-            );
+            expect(
+                assertOperationWithRequest.mock.calls[0][0].operation
+                    .projectUuid,
+            ).toBe('project');
         },
     );
     it.each(['off', 'legacy'] as const)(
@@ -340,16 +371,20 @@ describe.each([
         expect(resolveResourceProjectUuid).not.toHaveBeenCalled();
     });
     it('fails closed when a managed resource lookup fails', async () => {
-        const { request, run, resolveResourceProjectUuid, assertOperation } =
-            setup({ projectUuid: null });
+        const {
+            request,
+            run,
+            resolveResourceProjectUuid,
+            assertOperationWithRequest,
+        } = setup({ projectUuid: null });
         request.params.dashboardUuid = 'ae9b5604-df2a-47bb-b04f-85822df26f7d';
         const failure = new Error('Resource unavailable');
         resolveResourceProjectUuid.mockRejectedValue(failure);
         expect(await run(middleware)).toBe(failure);
-        expect(assertOperation).not.toHaveBeenCalled();
+        expect(assertOperationWithRequest).not.toHaveBeenCalled();
     });
     it('refuses an unresolved resource project when the policy limits projects', async () => {
-        const { request, run, assertOperation } = setup({
+        const { request, run, assertOperationWithRequest } = setup({
             operation: 'QueryController_executeAsyncMetricQuery',
             projectUuid: null,
             allowedProjectUuids: ['project'],
@@ -359,15 +394,23 @@ describe.each([
             statusCode: 403,
             refusal: { reason: AiAccessRefusalReason.AGENT_PROJECT_DENIED },
         });
-        expect(assertOperation.mock.calls[0][0].projectUuid).toBeNull();
+        expect(
+            assertOperationWithRequest.mock.calls[0][0].operation.projectUuid,
+        ).toBeNull();
     });
     it('does not send a slug to UUID resource lookup', async () => {
-        const { request, run, resolveResourceProjectUuid, assertOperation } =
-            setup({ projectUuid: null });
+        const {
+            request,
+            run,
+            resolveResourceProjectUuid,
+            assertOperationWithRequest,
+        } = setup({ projectUuid: null });
         request.params.dashboardUuidOrSlug = 'dashboard-slug';
         expect(await run(middleware)).toBeInstanceOf(AiAccessRefusedError);
         expect(resolveResourceProjectUuid).not.toHaveBeenCalled();
-        expect(assertOperation.mock.calls[0][0].projectUuid).toBeNull();
+        expect(
+            assertOperationWithRequest.mock.calls[0][0].operation.projectUuid,
+        ).toBeNull();
     });
     it('prefers the project path over a resource lookup', async () => {
         const { request, run, resolveResourceProjectUuid } = setup({
@@ -378,13 +421,13 @@ describe.each([
         expect(resolveResourceProjectUuid).not.toHaveBeenCalled();
     });
     it('leaves MCP requests to the per-tool gate', async () => {
-        const { request, run, assertOperation } = setup();
+        const { request, run, assertOperationWithRequest } = setup();
         request.baseUrl = '/api/v1/mcp';
         await expect(run(middleware)).resolves.toBeUndefined();
-        expect(assertOperation).not.toHaveBeenCalled();
+        expect(assertOperationWithRequest).not.toHaveBeenCalled();
     });
     it('uses a route scope guard for a handwritten route', async () => {
-        const { request, run, assertOperation } = setup({
+        const { request, run, assertOperationWithRequest } = setup({
             operation: 'anonymous',
         });
         request.route.stack.unshift({
@@ -393,9 +436,11 @@ describe.each([
             ),
         });
         expect(await run(middleware)).toBeInstanceOf(AiAccessRefusedError);
-        expect(assertOperation).toHaveBeenCalledWith(
+        expect(assertOperationWithRequest).toHaveBeenCalledWith(
             expect.objectContaining({
-                key: 'ProjectController.createDashboard',
+                operation: expect.objectContaining({
+                    key: 'ProjectController.createDashboard',
+                }),
             }),
         );
     });
@@ -404,12 +449,12 @@ describe.each([
 it.each(['pat', 'session'] as const)(
     'leaves %s outside the agent policy',
     async (authentication) => {
-        const { run, assertOperation, getPolicy } = setup({
+        const { run, assertOperationWithRequest, getPolicy } = setup({
             authentication,
             allowedUserUuids: [],
         });
         await expect(run(allowApiKeyAuthentication)).resolves.toBeUndefined();
-        expect(assertOperation).not.toHaveBeenCalled();
+        expect(assertOperationWithRequest).not.toHaveBeenCalled();
         expect(getPolicy).not.toHaveBeenCalled();
     },
 );
@@ -618,3 +663,144 @@ test.each([allowOauthAuthentication, allowApiKeyAuthentication])(
         expect(h.resolveResourceProjectUuid).not.toHaveBeenCalled();
     },
 );
+
+const admissionDatabase = knex({ client: MockClient, dialect: 'pg' });
+const admissionTracker = getTracker();
+beforeEach(() => admissionTracker.reset());
+afterAll(async () => admissionDatabase.destroy());
+
+test.each([allowOauthAuthentication, allowApiKeyAuthentication])(
+    'SQL admission uses one handle in REST %s',
+    async (middleware) => {
+        const h = setup({
+            mode: 'legacy',
+            operation: 'UserController_getAccount',
+        });
+        const sql = setupPermissionSql(
+            admissionDatabase,
+            admissionTracker,
+            fromSession(defaultSessionUser),
+        );
+        h.request.services.getAgentPermissionService = () => sql.service;
+        await expect(h.run(middleware)).resolves.toBeUndefined();
+        expectAdmissionSql(admissionTracker, {
+            policy: 1,
+            groups: 0,
+            people: 0,
+            membership: 1,
+        });
+    },
+);
+
+test.each([0, 1, 3])(
+    'SQL admission shares bound REST fan-out for %i projects',
+    async (count) => {
+        const h = setup({ operation: 'UserController_getAccount' });
+        const sql = setupPermissionSql(
+            admissionDatabase,
+            admissionTracker,
+            fromSession(defaultSessionUser),
+        );
+        sql.state.policy.mode = 'managed';
+        const grant = { ...grantFixture(), clientId: 'lightdash-cli' };
+        const oauth = Object.assign(h.request.services.getOauthService(), {
+            getSiteUrl: () => grant.resource,
+        });
+        const authenticate = oauth.authenticate.bind(oauth);
+        vi.spyOn(oauth, 'authenticate').mockImplementation(async (...args) => {
+            const token = await authenticate(...args);
+            return {
+                ...token,
+                agentConnectionGrantUuid: grant.grantUuid,
+                familyUuid: 'family',
+                resource: grant.resource,
+                client: { ...token.client, id: grant.clientId },
+            };
+        });
+        h.request.services.getOauthService = () => oauth;
+        h.request.services.getAgentConnectionGrantService = () =>
+            ({
+                authenticate: vi.fn().mockResolvedValue({
+                    ...grant,
+                    revision: grant.grantRevision,
+                }),
+                assertRestOperation: vi
+                    .fn()
+                    .mockResolvedValue(
+                        Array.from({ length: count }, (_, n) => `project-${n}`),
+                    ),
+            }) as unknown as ReturnType<
+                ServiceRepository['getAgentConnectionGrantService']
+            >;
+        h.request.services.getAgentPermissionService = () => sql.service;
+        const assertion = vi.spyOn(sql.service, 'assertOperationWithRequest');
+        await expect(h.run(allowOauthAuthentication)).resolves.toBeUndefined();
+        expect(assertion).toHaveBeenCalledTimes(Math.max(1, count));
+        expect(
+            sql.deps.userModel.getAgentRoleAssignments,
+        ).toHaveBeenCalledTimes(Math.max(1, count));
+        expectAdmissionSql(admissionTracker, {
+            policy: 1,
+            groups: 0,
+            people: 0,
+            membership: 1,
+        });
+    },
+);
+
+test('bound REST retains every refusal and activity record in concurrent fan-out', async () => {
+    const h = setup({ operation: 'UserController_getAccount' });
+    const sql = setupPermissionSql(
+        admissionDatabase,
+        admissionTracker,
+        fromSession(defaultSessionUser),
+    );
+    sql.state.policy.mode = 'managed';
+    sql.state.members = [];
+    const grant = { ...grantFixture(), clientId: 'lightdash-cli' };
+    const oauth = Object.assign(h.request.services.getOauthService(), {
+        getSiteUrl: () => grant.resource,
+    });
+    const authenticate = oauth.authenticate.bind(oauth);
+    vi.spyOn(oauth, 'authenticate').mockImplementation(async (...args) => {
+        const token = await authenticate(...args);
+        return {
+            ...token,
+            agentConnectionGrantUuid: grant.grantUuid,
+            familyUuid: 'family',
+            resource: grant.resource,
+            client: { ...token.client, id: grant.clientId },
+        };
+    });
+    h.request.services.getOauthService = () => oauth;
+    h.request.services.getAgentConnectionGrantService = () =>
+        ({
+            authenticate: vi.fn().mockResolvedValue({
+                ...grant,
+                revision: grant.grantRevision,
+            }),
+            assertRestOperation: vi
+                .fn()
+                .mockResolvedValue(['one', 'two', 'three']),
+        }) as unknown as ReturnType<
+            ServiceRepository['getAgentConnectionGrantService']
+        >;
+    h.request.services.getAgentPermissionService = () => sql.service;
+    expect(await h.run(allowOauthAuthentication)).toBeInstanceOf(
+        AiAccessRefusedError,
+    );
+    await vi.waitFor(() =>
+        expect(sql.deps.agentActionLogModel.insert).toHaveBeenCalledTimes(3),
+    );
+    expect(
+        sql.deps.agentActionLogModel.insert.mock.calls
+            .map(([entry]) => entry.project_uuid)
+            .sort(),
+    ).toEqual(['one', 'three', 'two']);
+    expectAdmissionSql(admissionTracker, {
+        policy: 1,
+        groups: 0,
+        people: 0,
+        membership: 1,
+    });
+});

@@ -85,9 +85,12 @@ describe('Document runtime access', () => {
         async ({ slack, trusted, authorized, enabled, expected }) => {
             const service = new AiAgentService({
                 agentPermissionService: {
-                    isEnforced: vi.fn().mockResolvedValue(false),
+                    loadRequest: vi.fn().mockResolvedValue({
+                        enforcementMode: 'off',
+                    }),
                     assertOperation: vi.fn(),
-                    assertActorVerified: vi.fn(),
+                    assertActorVerifiedWithRequest: vi.fn(),
+                    assertOperationWithRequest: vi.fn(),
                 },
                 aiCreditService: {
                     assertAiCreditsAvailable: async () => undefined,

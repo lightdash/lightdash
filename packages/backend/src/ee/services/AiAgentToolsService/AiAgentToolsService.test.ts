@@ -32,10 +32,16 @@ import {
     type PersistedDataAppDataReferences,
 } from '@lightdash/common';
 import { EventEmitter } from 'events';
+import knex from 'knex';
+import { getTracker, MockClient } from 'knex-mock-client';
 import { fromSession } from '../../../auth/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { singleRouteProjectModelMethods } from '../../../models/ProjectModel/ProjectModel.mock';
+import {
+    expectAdmissionSql,
+    setupPermissionSql,
+} from '../../../services/AgentPermissionService/agentPermissionSqlFixture';
 import {
     agentActionTestCases,
     withAgentActionScope,
@@ -107,8 +113,8 @@ const makeExplore = ({
 
 const makeService = ({
     agentPermissionService = {
-        assertOperation: vi.fn().mockResolvedValue(undefined),
-        isEnforced: vi.fn().mockResolvedValue(false),
+        assertOperationWithRequest: vi.fn().mockResolvedValue(undefined),
+        loadRequest: vi.fn().mockResolvedValue({ enforcementMode: 'off' }),
     },
     explores = {},
     userAttributes = {},
@@ -147,10 +153,10 @@ const makeService = ({
     savedChartModel = {},
     dashboardModel = {},
 }: {
-    agentPermissionService?: {
-        assertOperation: import('vitest').Mock;
-        isEnforced: import('vitest').Mock;
-    };
+    agentPermissionService?: Pick<
+        import('../../../services/AgentPermissionService/AgentPermissionService').AgentPermissionService,
+        'assertOperationWithRequest' | 'loadRequest'
+    >;
     explores?: Record<string, Explore>;
     userAttributes?: Record<string, string[]>;
     searchCatalog?: import('vitest').Mock;
@@ -2478,10 +2484,10 @@ describe('AiAgentToolsService', () => {
         }: {
             upsertSqlChart?: import('vitest').Mock;
             spaceModel?: Record<string, unknown>;
-            agentPermissionService?: {
-                assertOperation: import('vitest').Mock;
-                isEnforced: import('vitest').Mock;
-            };
+            agentPermissionService?: Pick<
+                import('../../../services/AgentPermissionService/AgentPermissionService').AgentPermissionService,
+                'assertOperationWithRequest' | 'loadRequest'
+            >;
         } = {}) => {
             const getSqlChartsForRead = vi.fn(
                 async (_user: SessionUser, _project: string, [slug]) => ({
@@ -2528,8 +2534,12 @@ describe('AiAgentToolsService', () => {
                                 policyLayer: 'org_ceiling',
                             },
                         );
-                        const assertOperation = vi.fn(
-                            async (operation: { kind: string }) => {
+                        const assertOperationWithRequest = vi.fn(
+                            async ({
+                                operation,
+                            }: {
+                                operation: { kind: string };
+                            }) => {
                                 if (operation.kind === 'tool_effect')
                                     throw refusal;
                             },
@@ -2537,8 +2547,10 @@ describe('AiAgentToolsService', () => {
                         const { service, upsertSqlChart } = makeSqlChartService(
                             {
                                 agentPermissionService: {
-                                    isEnforced: vi.fn().mockResolvedValue(true),
-                                    assertOperation,
+                                    loadRequest: vi.fn().mockResolvedValue({
+                                        enforcementMode: 'managed',
+                                    }),
+                                    assertOperationWithRequest,
                                 },
                             },
                         );
@@ -2587,24 +2599,28 @@ describe('AiAgentToolsService', () => {
                         if (source === 'mcp' && authenticationType === 'pat') {
                             await expect(result).resolves.toBeDefined();
                             expect(upsertSqlChart).toHaveBeenCalledOnce();
-                            expect(assertOperation).not.toHaveBeenCalled();
+                            expect(
+                                assertOperationWithRequest,
+                            ).not.toHaveBeenCalled();
                             return;
                         }
                         await expect(result).rejects.toBe(refusal);
-                        expect(assertOperation).toHaveBeenCalledWith(
+                        expect(assertOperationWithRequest).toHaveBeenCalledWith(
                             expect.objectContaining({
-                                kind: 'tool_effect',
-                                key:
-                                    change === 'create'
-                                        ? 'createContent.sql_chart'
-                                        : 'editContent.sql_chart',
-                                account: effectAccount,
-                                organizationUuid,
-                                projectUuid,
-                                surface:
-                                    source === 'mcp'
-                                        ? AgentActorSurface.MCP
-                                        : AgentActorSurface.IN_APP_AGENT,
+                                operation: expect.objectContaining({
+                                    kind: 'tool_effect',
+                                    key:
+                                        change === 'create'
+                                            ? 'createContent.sql_chart'
+                                            : 'editContent.sql_chart',
+                                    account: effectAccount,
+                                    organizationUuid,
+                                    projectUuid,
+                                    surface:
+                                        source === 'mcp'
+                                            ? AgentActorSurface.MCP
+                                            : AgentActorSurface.IN_APP_AGENT,
+                                }),
                             }),
                         );
                         expect(approveSql).not.toHaveBeenCalled();
@@ -2615,16 +2631,18 @@ describe('AiAgentToolsService', () => {
                 it.each([true, false])(
                     'saves SQL content when the effect is allowed (managed=%s)',
                     async (managed) => {
-                        const assertOperation = vi
+                        const assertOperationWithRequest = vi
                             .fn()
                             .mockResolvedValue(undefined);
                         const { service, upsertSqlChart } = makeSqlChartService(
                             {
                                 agentPermissionService: {
-                                    isEnforced: vi
-                                        .fn()
-                                        .mockResolvedValue(managed),
-                                    assertOperation,
+                                    loadRequest: vi.fn().mockResolvedValue({
+                                        enforcementMode: managed
+                                            ? 'managed'
+                                            : 'off',
+                                    }),
+                                    assertOperationWithRequest,
                                 },
                             },
                         );
@@ -2665,20 +2683,30 @@ describe('AiAgentToolsService', () => {
                         });
                         expect(upsertSqlChart).toHaveBeenCalledTimes(2);
                         if (managed && authenticationType !== 'pat') {
-                            expect(assertOperation).toHaveBeenCalledWith(
+                            expect(
+                                assertOperationWithRequest,
+                            ).toHaveBeenCalledWith(
                                 expect.objectContaining({
-                                    kind: 'tool_effect',
-                                    key: 'createContent.sql_chart',
+                                    operation: expect.objectContaining({
+                                        kind: 'tool_effect',
+                                        key: 'createContent.sql_chart',
+                                    }),
                                 }),
                             );
-                            expect(assertOperation).toHaveBeenCalledWith(
+                            expect(
+                                assertOperationWithRequest,
+                            ).toHaveBeenCalledWith(
                                 expect.objectContaining({
-                                    kind: 'tool_effect',
-                                    key: 'editContent.sql_chart',
+                                    operation: expect.objectContaining({
+                                        kind: 'tool_effect',
+                                        key: 'editContent.sql_chart',
+                                    }),
                                 }),
                             );
                         } else {
-                            expect(assertOperation).not.toHaveBeenCalled();
+                            expect(
+                                assertOperationWithRequest,
+                            ).not.toHaveBeenCalled();
                         }
                     },
                 );
@@ -5368,11 +5396,13 @@ test.each([
         const refusal = new AiAccessRefusedError(
             AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
         );
-        const assertOperation = vi.fn().mockRejectedValue(refusal);
+        const assertOperationWithRequest = vi.fn().mockRejectedValue(refusal);
         const service = makeService({
             agentPermissionService: {
-                assertOperation,
-                isEnforced: vi.fn().mockResolvedValue(true),
+                assertOperationWithRequest,
+                loadRequest: vi.fn().mockResolvedValue({
+                    enforcementMode: 'managed',
+                }),
             },
         });
         const context = makeRuntimeContext();
@@ -5380,17 +5410,19 @@ test.each([
         await expect(
             (runtime[method] as (args: unknown) => Promise<unknown>)({}),
         ).rejects.toBe(refusal);
-        expect(assertOperation).toHaveBeenCalledWith(
+        expect(assertOperationWithRequest).toHaveBeenCalledWith(
             expect.objectContaining({
-                kind: 'agent_tool',
-                key: {
-                    runSqlJob: 'runSql',
-                    runAsyncQuery: 'runQuery',
-                    editContent: 'editContent',
-                    createContent: 'createContent',
-                }[method],
-                projectUuid,
-                surface: AgentActorSurface.IN_APP_AGENT,
+                operation: expect.objectContaining({
+                    kind: 'agent_tool',
+                    key: {
+                        runSqlJob: 'runSql',
+                        runAsyncQuery: 'runQuery',
+                        editContent: 'editContent',
+                        createContent: 'createContent',
+                    }[method],
+                    projectUuid,
+                    surface: AgentActorSurface.IN_APP_AGENT,
+                }),
             }),
         );
     },
@@ -5399,20 +5431,23 @@ test.each([
 test.each(['off', 'legacy', 'query-only managed'])(
     'content query catches synchronous validation errors in %s mode',
     async (mode) => {
-        const assertOperation = vi.fn().mockImplementation(async ({ key }) => {
-            if (key !== 'runQuery') {
-                throw new AiAccessRefusedError(
-                    AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
-                );
-            }
-        });
+        const assertOperationWithRequest = vi
+            .fn()
+            .mockImplementation(async ({ operation: { key } }) => {
+                if (key !== 'runQuery') {
+                    throw new AiAccessRefusedError(
+                        AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                    );
+                }
+            });
         const executeAsyncQuery = vi.fn();
         const runtime = makeService({
             agentPermissionService: {
-                assertOperation,
-                isEnforced: vi
-                    .fn()
-                    .mockResolvedValue(mode === 'query-only managed'),
+                assertOperationWithRequest,
+                loadRequest: vi.fn().mockResolvedValue({
+                    enforcementMode:
+                        mode === 'query-only managed' ? 'managed' : 'off',
+                }),
             },
             aiAgentContentValidation: new AiAgentContentValidation(),
             asyncQueryService: { executeAsyncQuery },
@@ -5440,7 +5475,7 @@ test.each(['off', 'legacy', 'query-only managed'])(
                 '/metricQuery/dimensions must be array',
             ),
         });
-        expect(assertOperation).not.toHaveBeenCalled();
+        expect(assertOperationWithRequest).not.toHaveBeenCalled();
         expect(executeAsyncQuery).not.toHaveBeenCalled();
     },
 );
@@ -5449,11 +5484,13 @@ test('gates effectful runtime operations before their implementations run', asyn
     const refusal = new AiAccessRefusedError(
         AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
     );
-    const assertOperation = vi.fn().mockRejectedValue(refusal);
+    const assertOperationWithRequest = vi.fn().mockRejectedValue(refusal);
     const service = makeService({
         agentPermissionService: {
-            assertOperation,
-            isEnforced: vi.fn().mockResolvedValue(true),
+            assertOperationWithRequest,
+            loadRequest: vi.fn().mockResolvedValue({
+                enforcementMode: 'managed',
+            }),
         },
     });
     const runtime = service.createRuntime(makeRuntimeContext());
@@ -5471,7 +5508,7 @@ test('gates effectful runtime operations before their implementations run', asyn
                 ).rejects.toBe(refusal),
             ),
     );
-    expect(assertOperation).toHaveBeenCalledTimes(
+    expect(assertOperationWithRequest).toHaveBeenCalledTimes(
         Object.keys(runtime).length - 2,
     );
     for (const key of [
@@ -5481,8 +5518,53 @@ test('gates effectful runtime operations before their implementations run', asyn
         'generateDataApp',
         'updateUserName',
     ]) {
-        expect(assertOperation).toHaveBeenCalledWith(
-            expect.objectContaining({ key, kind: 'agent_tool', projectUuid }),
+        expect(assertOperationWithRequest).toHaveBeenCalledWith(
+            expect.objectContaining({
+                operation: expect.objectContaining({
+                    key,
+                    kind: 'agent_tool',
+                    projectUuid,
+                }),
+            }),
         );
     }
+});
+
+const admissionDatabase = knex({ client: MockClient, dialect: 'pg' });
+const admissionTracker = getTracker();
+beforeEach(() => admissionTracker.reset());
+afterAll(async () => admissionDatabase.destroy());
+
+test('SQL admission uses a fresh handle on each invocation of one mapped runtime', async () => {
+    const sql = setupPermissionSql(
+        admissionDatabase,
+        admissionTracker,
+        account,
+    );
+    const getWarehouseTables = vi.fn().mockResolvedValue({});
+    const runtime = makeService({
+        agentPermissionService: sql.service,
+        projectService: { getWarehouseTables },
+    }).createRuntime(makeRuntimeContext());
+    await runtime.listWarehouseTables(QueryExecutionContext.AI);
+    expect(getWarehouseTables).toHaveBeenCalledOnce();
+    expectAdmissionSql(admissionTracker, {
+        policy: 1,
+        groups: 0,
+        people: 0,
+        membership: 1,
+    });
+    sql.state.policy.allowedGroupUuids = [];
+    await expect(
+        runtime.listWarehouseTables(QueryExecutionContext.AI),
+    ).rejects.toMatchObject({
+        refusal: { reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED },
+    });
+    expect(getWarehouseTables).toHaveBeenCalledOnce();
+    expectAdmissionSql(admissionTracker, {
+        policy: 2,
+        groups: 0,
+        people: 0,
+        membership: 1,
+    });
 });

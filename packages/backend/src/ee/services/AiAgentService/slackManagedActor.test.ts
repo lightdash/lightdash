@@ -5,7 +5,14 @@ import {
     type AiAgent,
     type SlackPrompt,
 } from '@lightdash/common';
+import knex from 'knex';
+import { getTracker, MockClient } from 'knex-mock-client';
+import { fromSession } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
+import {
+    expectAdmissionSql,
+    setupPermissionSql,
+} from '../../../services/AgentPermissionService/agentPermissionSqlFixture';
 import { AiAgentService } from './AiAgentService';
 
 const setup = (
@@ -32,9 +39,20 @@ const setup = (
     const assertOperation = vi.fn();
     const service = new AiAgentService({
         agentPermissionService: {
-            assertActorVerified,
+            assertActorVerifiedWithRequest: ({
+                operation,
+            }: {
+                operation: Parameters<typeof assertActorVerified>[0];
+            }) => assertActorVerified(operation),
             assertOperation,
-            isEnforced: vi.fn().mockResolvedValue(managed),
+            assertOperationWithRequest: ({
+                operation,
+            }: {
+                operation: unknown;
+            }) => assertOperation(operation),
+            loadRequest: vi.fn().mockResolvedValue({
+                enforcementMode: managed ? 'managed' : 'off',
+            }),
         },
         aiOrganizationSettingsService: {
             isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(false),
@@ -85,6 +103,7 @@ const setup = (
             },
         );
     return {
+        service,
         run,
         modelStart,
         assertActorVerified,
@@ -181,3 +200,39 @@ test('managed linked Slack passes actor verification with OAuth requirement off'
         expect.objectContaining({ actorVerified: true }),
     );
 });
+
+const admissionDatabase = knex({ client: MockClient, dialect: 'pg' });
+const admissionTracker = getTracker();
+beforeEach(() => admissionTracker.reset());
+afterAll(async () => admissionDatabase.destroy());
+
+test.each([true, false])(
+    'Slack response shares sender and turn admission: verified %s',
+    async (verified) => {
+        const h = setup(
+            true,
+            false,
+            verified ? defaultSessionUser.userUuid : null,
+        );
+        const sql = setupPermissionSql(
+            admissionDatabase,
+            admissionTracker,
+            fromSession(defaultSessionUser),
+        );
+        Object.assign(h.service, { agentPermissionService: sql.service });
+        if (verified) await expect(h.run()).rejects.toThrow('model started');
+        else
+            await expect(h.run()).rejects.toMatchObject({
+                refusal: {
+                    reason: AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED,
+                },
+            });
+        expectAdmissionSql(admissionTracker, {
+            policy: 1,
+            groups: 0,
+            people: 0,
+            membership: verified ? 1 : 0,
+        });
+        expect(h.modelStart).toHaveBeenCalledTimes(verified ? 1 : 0);
+    },
+);

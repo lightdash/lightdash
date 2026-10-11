@@ -211,8 +211,10 @@ const extra = {
             user,
             account,
             getAgentPermissionService: () => ({
-                getEnforcementMode: vi.fn().mockResolvedValue('off'),
-                assertOperation: vi.fn(),
+                loadRequest: vi
+                    .fn()
+                    .mockResolvedValue({ enforcementMode: 'off' }),
+                assertOperationWithRequest: vi.fn(),
             }),
         },
     },
