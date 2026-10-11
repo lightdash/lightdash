@@ -18723,11 +18723,30 @@ const models: TsoaRoute.Models = {
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentConnectionGrantRef: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                revision: { dataType: 'double', required: true },
+                grantUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AgentActorClaim: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                agent_connection_grant: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AgentConnectionGrantRef' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 agent_uuid: {
                     dataType: 'union',
                     subSchemas: [

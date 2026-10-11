@@ -1,3 +1,10 @@
+# [2.557.0](https://github.com/lightdash/lightdash/compare/2.556.0...2.557.0) (2026-10-11)
+
+
+### Features
+
+* **agent-identity:** run agent connection requests as the agent ([#30895](https://github.com/lightdash/lightdash/issues/30895)) ([0455b09](https://github.com/lightdash/lightdash/commit/0455b09fab9f25b6345500511d082e634ef5cebf))
+
 # [2.556.0](https://github.com/lightdash/lightdash/compare/2.555.0...2.556.0) (2026-10-11)
 
 
