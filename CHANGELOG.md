@@ -1,3 +1,10 @@
+# [2.561.0](https://github.com/lightdash/lightdash/compare/2.560.0...2.561.0) (2026-10-11)
+
+
+### Features
+
+* **agent-identity:** recheck the person before a delivery sends its AI summary ([#30907](https://github.com/lightdash/lightdash/issues/30907)) ([29a18e1](https://github.com/lightdash/lightdash/commit/29a18e1aad9575c9efe125d859e7c582a2000834))
+
 # [2.560.0](https://github.com/lightdash/lightdash/compare/2.559.1...2.560.0) (2026-10-11)
 
 
