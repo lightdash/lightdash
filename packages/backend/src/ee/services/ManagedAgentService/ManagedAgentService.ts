@@ -1946,16 +1946,10 @@ export class ManagedAgentService extends BaseService {
             ));
         } catch (error) {
             if (error instanceof AiAccessRefusedError) {
-                await this.withAutopilotScope(actor, async (enabled) => {
-                    if (enabled) {
-                        ctx.authority = this.createHeartbeatAuthority(
-                            ctx,
-                            actor,
-                            { error },
-                        );
-                        await ctx.authority.assert();
-                    }
+                ctx.authority = this.createHeartbeatAuthority(ctx, actor, {
+                    error,
                 });
+                await ctx.authority.assert().catch(() => undefined);
             }
             throw error;
         }
@@ -2080,7 +2074,10 @@ export class ManagedAgentService extends BaseService {
             ]);
         const verifiedFieldUsage = await runtime
             .getVerifiedFieldUsage()
-            .catch(() => new Map<string, number>());
+            .catch((error) => {
+                if (error instanceof AiAccessRefusedError) throw error;
+                return new Map<string, number>();
+            });
         const { siteUrl } = this.lightdashConfig;
         const { maxQueryLimit, toolDescriptionMaxChars } =
             this.lightdashConfig.ai.copilot;

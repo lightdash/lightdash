@@ -2077,36 +2077,21 @@ describe('ManagedAgentService authority review regressions', () => {
         vi.restoreAllMocks();
     });
 
-    it.each([true, false])(
-        'handles preparation refusal with flag %s',
-        async (enabled) => {
+    it.each(['listExplores', 'getVerifiedFieldUsage'] as const)(
+        'blocks the run when %s refuses during preparation',
+        async (method) => {
             const fixture = buildAuthorityFixture();
-            fixture.featureFlagModel.get.mockResolvedValue({ enabled });
             const refusal = new AiAccessRefusedError(
                 AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
             );
-            fixture.dataRuntime.listExplores.mockImplementation(async () => {
+            fixture.dataRuntime[method].mockImplementation(async () => {
                 await fixture.agentActionLogModel.insert({ status: 'refused' });
                 throw refusal;
             });
             await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
-            if (enabled) expectAuthorityBlocked(fixture, blockedPersonMessage);
-            else {
-                expect(
-                    fixture.managedAgentModel.finishRun,
-                ).toHaveBeenCalledExactlyOnceWith(
-                    'run-uuid',
-                    expect.objectContaining({
-                        status: 'error',
-                        error: refusal.message,
-                    }),
-                );
-                expect(fixture.slackClient.postMessage).toHaveBeenCalledTimes(
-                    2,
-                );
-            }
+            expectAuthorityBlocked(fixture, blockedPersonMessage);
             expect(fixture.doGenerate).not.toHaveBeenCalled();
-            expect(fixture.featureFlagModel.get).toHaveBeenCalledTimes(1);
+            expect(fixture.featureFlagModel.get).not.toHaveBeenCalled();
             expect(
                 fixture.userModel.findSessionUserAndOrgByUuid,
             ).toHaveBeenCalledTimes(1);
@@ -2114,11 +2099,22 @@ describe('ManagedAgentService authority review regressions', () => {
             expect(
                 fixture.agentPermissionService.loadRequest,
             ).not.toHaveBeenCalled();
-            expect(captureAutopilotFailure).toHaveBeenCalledTimes(
-                enabled ? 0 : 1,
-            );
+            expect(captureAutopilotFailure).not.toHaveBeenCalled();
         },
     );
+
+    it('keeps the field usage fallback for an ordinary error', async () => {
+        const fixture = buildAuthorityFixture();
+        fixture.dataRuntime.getVerifiedFieldUsage.mockRejectedValue(
+            new Error('usage unavailable'),
+        );
+        await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+        expect(fixture.doGenerate).toHaveBeenCalled();
+        expect(fixture.managedAgentModel.finishRun).toHaveBeenCalledWith(
+            'run-uuid',
+            expect.objectContaining({ status: 'completed', error: null }),
+        );
+    });
 
     it.each(
         (
@@ -2285,10 +2281,14 @@ describe('ManagedAgentService authority review regressions', () => {
         vi.spyOn(Date, 'now').mockImplementation(() => now);
         fixture.doGenerate.mockImplementation(async () => {
             now += 31000;
-            fixture.userModel.findSessionUserAndOrgByUuid.mockResolvedValue({
-                ...user,
-                isActive: false,
-            });
+            fixture.userModel.findSessionUserAndOrgByUuid.mockImplementation(
+                async () => {
+                    await new Promise((resolve) => {
+                        setTimeout(resolve, 20);
+                    });
+                    return { ...user, isActive: false };
+                },
+            );
             const first = authorityToolTurn('findContent', {
                 searchQueries: [{ label: 'sales', query: 'sales' }],
                 spaceSlug: null,
