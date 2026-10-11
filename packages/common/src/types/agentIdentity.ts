@@ -60,7 +60,8 @@ export type AgentActorClaim = {
     surface: AgentActorSurface;
     client_id: string | null;
     agent_uuid: string | null;
-    agent_connection_grant: AgentConnectionGrantRef | null;
+    // Omission means no connection and preserves stored claims from before connections.
+    agent_connection_grant?: AgentConnectionGrantRef | null;
 };
 export type AgentIdentityClaim = {
     sub: string;
@@ -88,10 +89,12 @@ export const buildAgentIdentityClaim = ({
         surface,
         client_id: clientId,
         agent_uuid: agentUuid,
-        agent_connection_grant:
-            agentConnectionGrant === null
-                ? null
-                : parseAgentConnectionGrantRef(agentConnectionGrant),
+        ...(agentConnectionGrant === null
+            ? {}
+            : {
+                  agent_connection_grant:
+                      parseAgentConnectionGrantRef(agentConnectionGrant),
+              }),
     },
 });
 
@@ -100,6 +103,13 @@ export type StoredAgentIdentityClaim = Omit<AgentIdentityClaim, 'act'> & {
         agent_uuid?: string | null;
         agent_connection_grant?: AgentConnectionGrantRef | null;
     };
+};
+
+export const getAgentConnectionGrantRef = (
+    claim: StoredAgentIdentityClaim | null | undefined,
+): AgentConnectionGrantRef | null => {
+    const reference = claim?.act?.agent_connection_grant;
+    return reference == null ? null : parseAgentConnectionGrantRef(reference);
 };
 
 export const normalizeAgentIdentityClaim = (
@@ -113,12 +123,12 @@ export const normalizeAgentIdentityClaim = (
               act: {
                   ...claim.act,
                   agent_uuid: claim.act.agent_uuid ?? null,
-                  agent_connection_grant:
-                      claim.act.agent_connection_grant == null
-                          ? null
-                          : parseAgentConnectionGrantRef(
-                                claim.act.agent_connection_grant,
-                            ),
+                  ...(getAgentConnectionGrantRef(claim) === null
+                      ? {}
+                      : {
+                            agent_connection_grant:
+                                getAgentConnectionGrantRef(claim),
+                        }),
               },
           };
 

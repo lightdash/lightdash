@@ -520,7 +520,7 @@ export class MultiConnectionCompiler {
         compilation: MultiConnectionSave,
         beforeEffect?: () => Promise<void>,
     ): Promise<{ cachedExploreUuids: string[] }> {
-        await beforeEffect?.();
+        if (beforeEffect) await beforeEffect();
         const saved = await this.projectModel.saveMultiConnectionExplores(
             projectUuid,
             (async function* boundExplores(): AsyncIterable<BoundExplore> {
@@ -535,7 +535,7 @@ export class MultiConnectionCompiler {
             })(),
             compilation.carry,
         );
-        await beforeEffect?.();
+        if (beforeEffect) await beforeEffect();
         await compilation.persistArtifacts();
         return saved;
     }

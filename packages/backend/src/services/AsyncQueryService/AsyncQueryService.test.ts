@@ -454,6 +454,7 @@ const inMemoryDuckdbHistory = ({
         updateStatusToExecuting: vi.fn(async () => 1),
         updateStatusToQueued: vi.fn(async () => 1),
         updateStatusToError: vi.fn(async () => 1),
+        updateClaimedQueryToError: vi.fn(async () => 1),
         updateStatusToExpired: vi.fn(async () => 1),
         setDuckdbExecution: vi.fn(
             async (uuid: string, spec: DuckdbExecutionSpec) => {
@@ -605,6 +606,7 @@ const getMockedAsyncQueryService = (
             recordResultProducer: vi.fn(),
             update: vi.fn(),
             updateStatusToError: vi.fn(async () => 1),
+            updateClaimedQueryToError: vi.fn(async () => 1),
             updateStatusToQueued: vi.fn(async () => 1),
             updateStatusToExecuting: vi.fn(async () => 1),
             updateStatusToExpired: vi.fn(async () => 1),
@@ -9192,7 +9194,7 @@ describe('AsyncQueryService', () => {
                 }[kind];
                 await expect(entry(row.queryUuid, 'worker')).rejects.toThrow();
                 expect(
-                    service.queryHistoryModel.updateStatusToError,
+                    service.queryHistoryModel.updateClaimedQueryToError,
                 ).toHaveBeenCalled();
                 expect(execute).not.toHaveBeenCalled();
             },
@@ -21316,6 +21318,15 @@ describe('fresh execution producer to result reader', () => {
                     return { queryUuid };
                 },
             ),
+            updateClaimedQueryToError: vi.fn(
+                async (uuid: string, error: string) => {
+                    Object.assign(rows.get(uuid)!, {
+                        status: QueryHistoryStatus.ERROR,
+                        error,
+                    });
+                    return 1;
+                },
+            ),
             updateStatusToExecuting: vi.fn(async (uuid: string) => {
                 rows.get(uuid)!.status = QueryHistoryStatus.EXECUTING;
                 return 1;
@@ -25728,6 +25739,41 @@ describe('fresh execution producer to result reader', () => {
         const response = await auth.run(allowApiKeyAuthentication);
         expect(response).toEqual({ status: 200, error: undefined });
     };
+
+    test.each(['history reload', 'subject lookup'] as const)(
+        'terminalises a claimed connection failure during %s',
+        async (failure) => {
+            await boundFixture(async (f, auth, queryUuid) => {
+                const row = f.rows.get(queryUuid)!;
+                row.status = QueryHistoryStatus.QUEUED;
+                f.execute.mockClear();
+                if (failure === 'history reload') {
+                    vi.mocked(f.service.queryHistoryModel.getByQueryUuid)
+                        .mockResolvedValueOnce(row)
+                        .mockRejectedValueOnce(
+                            new Error('history unavailable'),
+                        );
+                } else {
+                    auth.deps.userModel.findSessionUserAndOrgByUuid
+                        .mockResolvedValueOnce(auth.user)
+                        .mockImplementationOnce(async () => {
+                            row.createdByUserUuid = null;
+                            throw new Error('subject deleted');
+                        });
+                }
+                await expect(
+                    agentExecutionContext.exit(() =>
+                        f.service.runAsyncWarehouseQueryFromHistory(
+                            queryUuid,
+                            'worker',
+                        ),
+                    ),
+                ).rejects.toThrow();
+                expect(row.status).toBe(QueryHistoryStatus.ERROR);
+                expect(f.execute).not.toHaveBeenCalled();
+            });
+        },
+    );
 
     test('refuses a queued binding removed between claiming and rebuilding arguments', async () => {
         await boundFixture(async (f, _auth, queryUuid) => {

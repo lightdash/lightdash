@@ -369,8 +369,11 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
                             abilityRules: req.account.user.abilityRules,
                             requestContext,
                         };
-                        await continueOAuthAuthentication(req, next, token);
-                        return;
+                        if (grant) {
+                            await continueOAuthAuthentication(req, next, token);
+                            return;
+                        }
+                        await assertOAuthAgentOperation(req);
                     }
                     next();
                 })
@@ -518,8 +521,11 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
                             abilityRules: req.account.user.abilityRules,
                             requestContext,
                         };
-                        await continueOAuthAuthentication(req, next, token);
-                        return;
+                        if (grant) {
+                            await continueOAuthAuthentication(req, next, token);
+                            return;
+                        }
+                        await assertOAuthAgentOperation(req);
                     }
                     next();
                 })

@@ -247,7 +247,6 @@ describe('Slack image delivery scope', () => {
                             surface: AgentActorSurface.SLACK_AGENT,
                             client_id: 'installed-app',
                             agent_uuid: 'agent',
-                            agent_connection_grant: null,
                         },
                     }),
                 },

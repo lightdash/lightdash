@@ -100,11 +100,9 @@ import {
     type ExploreError,
     type Job,
     type LightdashProjectConfig,
-    type MaterializePreAggregatePayload,
     type MergeQuery,
     type MergeQueryMetricSource,
     type PossibleAbilities,
-    type PreAggregateDefinition,
     type Project,
     type ProjectDbtSource,
     type RegisteredAccount,
@@ -9629,6 +9627,9 @@ describe('ProjectService', () => {
         const cachedExplores =
             projectModel.getAllExploresFromCache.getMockImplementation()!;
         afterEach(() => {
+            preAggregateModel.getPreAggregateDefinitionsForProject
+                .mockReset()
+                .mockResolvedValue([]);
             projectModel.getAllExploresFromCache
                 .mockReset()
                 .mockImplementation(cachedExplores);
@@ -9685,6 +9686,318 @@ describe('ProjectService', () => {
                 },
             ],
         });
+        test.each([
+            'set',
+            'direct',
+            'source',
+            'start',
+            'batch',
+            'finalize',
+            'enqueue',
+            'compile',
+            'parameters',
+        ] as const)(
+            'refuses %s before any effect when the registry contains a scheduled definition',
+            async (operation) => {
+                preAggregateModel.getPreAggregateDefinitionsForProject.mockResolvedValueOnce(
+                    [
+                        {
+                            refreshCron: '0 * * * *',
+                            materializationQueryError: 'missing explore',
+                        },
+                    ] as never,
+                );
+                const deployUser = {
+                    ...user,
+                    organizationUuid: 'organizationUuid',
+                    ability: connectionAccount.user.ability,
+                };
+                const staged = {
+                    createSession: vi.fn(),
+                    addBatch: vi.fn(),
+                    updateStatus: vi.fn(),
+                    getSession: vi.fn().mockResolvedValue({
+                        projectUuid,
+                        userUuid: user.userUuid,
+                        status: 'uploading',
+                    }),
+                    getDeployData: vi.fn().mockResolvedValue({
+                        explores: [validExplore],
+                        complete: true,
+                    }),
+                };
+                const deploy = new DeployService({
+                    projectService: service,
+                    projectModel,
+                    schedulerClient,
+                    deploySessionModel: staged,
+                } as never);
+                const replace = vi.spyOn(
+                    (
+                        service as unknown as {
+                            projectParametersModel: ProjectParametersModel;
+                        }
+                    ).projectParametersModel,
+                    'replace',
+                );
+                const run = () => {
+                    switch (operation) {
+                        case 'set':
+                            return service.setExplores(
+                                deployUser,
+                                projectUuid,
+                                [
+                                    {
+                                        ...validExplore,
+                                        name: getPreAggregateExploreName(
+                                            validExplore.name,
+                                            'daily',
+                                        ),
+                                        type: ExploreType.DEFAULT,
+                                    },
+                                ],
+                            );
+                        case 'direct':
+                            return service.saveExploresToCacheAndIndexCatalog({
+                                userUuid: user.userUuid,
+                                projectUuid,
+                                explores: [validExplore],
+                                compilationSource: 'cli_deploy',
+                            });
+                        case 'source':
+                            return service.saveDeployExplores({
+                                userUuid: user.userUuid,
+                                projectUuid,
+                                explores: [validExplore],
+                                compilationSource: 'cli_deploy',
+                                complete: true,
+                                cliDeploy: {
+                                    sourceUuid: 'source',
+                                    target: null,
+                                },
+                            });
+                        case 'start':
+                            return deploy.startDeploySession(
+                                connectionAccount,
+                                projectUuid,
+                            );
+                        case 'batch':
+                            return deploy.addDeployBatch(
+                                deployUser,
+                                projectUuid,
+                                'session',
+                                [validExplore],
+                                1,
+                            );
+                        case 'finalize':
+                            return deploy.finalizeDeploy(
+                                deployUser,
+                                projectUuid,
+                                'session',
+                            );
+                        case 'enqueue':
+                            return service.scheduleCompileProject(
+                                deployUser,
+                                projectUuid,
+                                RequestMethod.CLI,
+                            );
+                        case 'compile':
+                            return service.compileProject(
+                                deployUser,
+                                projectUuid,
+                                RequestMethod.CLI,
+                                'job',
+                            );
+                        case 'parameters':
+                            return service.replaceProjectParameters({
+                                user: deployUser,
+                                projectUuid,
+                                parameters: {
+                                    region: {
+                                        type: 'string',
+                                        default: 'changed',
+                                    },
+                                } as never,
+                            });
+                        default:
+                            throw new Error('unexpected operation');
+                    }
+                };
+                await expect(
+                    agentExecutionContext.run(scope(true), run),
+                ).rejects.toThrow(
+                    'This agent connection cannot deploy to, refresh or change parameters of this project, because the project has pre-aggregates with a scheduled refresh. A person can do this, or use a project without scheduled pre-aggregate refreshes.',
+                );
+                expect(staged.createSession).not.toHaveBeenCalled();
+                expect(staged.addBatch).not.toHaveBeenCalled();
+                expect(staged.updateStatus).not.toHaveBeenCalled();
+                expect(projectModel.saveExploresToCache).not.toHaveBeenCalled();
+                expect(
+                    projectModel.saveExploreStreamToCache,
+                ).not.toHaveBeenCalled();
+                expect(replace).not.toHaveBeenCalled();
+                expect(jobModel.create).not.toHaveBeenCalled();
+                expect(schedulerClient.compileProject).not.toHaveBeenCalled();
+                expect(schedulerClient.indexCatalog).not.toHaveBeenCalled();
+            },
+        );
+        test.each([false, true])(
+            'a no-cron definition materializes as a child, bound=%s',
+            async (bound) => {
+                const configured = getMockedProjectService({
+                    ...lightdashConfigWithGoogleOAuthMock,
+                    preAggregates: {
+                        ...lightdashConfigWithGoogleOAuthMock.preAggregates,
+                        enabled: true,
+                    },
+                });
+                Object.assign(configured, {
+                    getAgentConnectionGrantService: () => ({
+                        assertActiveExecution: vi
+                            .fn()
+                            .mockResolvedValue({ account: connectionAccount }),
+                    }),
+                });
+                preAggregateModel.getPreAggregateDefinitionsForProject.mockResolvedValue(
+                    [
+                        {
+                            preAggregateDefinitionUuid: 'definition',
+                            refreshCron: bound ? null : '0 * * * *',
+                            materializationMetricQuery: metricQueryMock,
+                        },
+                    ] as never,
+                );
+                await agentExecutionContext.run(scope(bound), () =>
+                    configured.saveExploresToCacheAndIndexCatalog({
+                        userUuid: user.userUuid,
+                        projectUuid,
+                        explores: [exploreWithCron(bound ? null : '0 * * * *')],
+                        compilationSource: 'cli_deploy',
+                    }),
+                );
+                expect(
+                    schedulerClient.materializePreAggregate,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        preAggregateDefinitionUuid: 'definition',
+                        ...(bound
+                            ? {
+                                  agentConnectionEffect:
+                                      'materializePreAggregate',
+                                  agentConnectionExecution:
+                                      scope(true).agentConnectionExecution,
+                              }
+                            : {}),
+                    }),
+                );
+                if (bound)
+                    expect(
+                        schedulerClient.schedulePreAggregateCronJobs,
+                    ).not.toHaveBeenCalled();
+                else
+                    expect(
+                        schedulerClient.schedulePreAggregateCronJobs,
+                    ).toHaveBeenCalledWith(
+                        [
+                            expect.objectContaining({
+                                createdByUserUuid: user.userUuid,
+                                refreshCron: '0 * * * *',
+                            }),
+                        ],
+                        expect.any(Date),
+                    );
+            },
+        );
+
+        test.each([
+            'start',
+            'batch',
+            'finalize',
+            'set',
+            'enqueue',
+            'parameters',
+        ] as const)(
+            'ordinary %s ignores scheduled registry definitions',
+            async (operation) => {
+                preAggregateModel.getPreAggregateDefinitionsForProject.mockRejectedValue(
+                    new Error('must not read registry'),
+                );
+                const deployUser = {
+                    ...user,
+                    organizationUuid: 'organizationUuid',
+                    ability: connectionAccount.user.ability,
+                };
+                const staged = {
+                    createSession: vi.fn().mockResolvedValue('session'),
+                    addBatch: vi.fn(),
+                    updateStatus: vi.fn(),
+                    deleteSession: vi.fn(),
+                    getSession: vi.fn().mockResolvedValue({
+                        projectUuid,
+                        userUuid: user.userUuid,
+                        status: 'uploading',
+                    }),
+                    getDeployData: vi.fn().mockResolvedValue({
+                        explores: [validExplore],
+                        complete: true,
+                    }),
+                };
+                const deploy = new DeployService({
+                    projectService: service,
+                    projectModel,
+                    schedulerClient,
+                    deploySessionModel: staged,
+                } as never);
+                const run = () => {
+                    switch (operation) {
+                        case 'start':
+                            return deploy.startDeploySession(
+                                connectionAccount,
+                                projectUuid,
+                            );
+                        case 'batch':
+                            return deploy.addDeployBatch(
+                                deployUser,
+                                projectUuid,
+                                'session',
+                                [validExplore],
+                                1,
+                            );
+                        case 'finalize':
+                            return deploy.finalizeDeploy(
+                                deployUser,
+                                projectUuid,
+                                'session',
+                            );
+                        case 'set':
+                            return service.setExplores(
+                                deployUser,
+                                projectUuid,
+                                [validExplore],
+                            );
+                        case 'enqueue':
+                            return service.scheduleCompileProject(
+                                deployUser,
+                                projectUuid,
+                                RequestMethod.CLI,
+                            );
+                        case 'parameters':
+                            return service.replaceProjectParameters({
+                                user: deployUser,
+                                projectUuid,
+                                parameters: {},
+                            });
+                        default:
+                            throw new Error('unexpected operation');
+                    }
+                };
+                await agentExecutionContext.run(scope(false), run);
+                expect(
+                    preAggregateModel.getPreAggregateDefinitionsForProject,
+                ).not.toHaveBeenCalled();
+            },
+        );
+
         test('does not delete a published manifest while preparing a bound compile', async () => {
             const configured = getMockedProjectService(
                 lightdashConfigWithGoogleOAuthMock,
@@ -9806,7 +10119,7 @@ describe('ProjectService', () => {
                 await expect(
                     agentExecutionContext.run(scope(true), run),
                 ).rejects.toThrow(
-                    'Agent connections cannot add or change recurring pre-aggregate refreshes',
+                    'This agent connection cannot add a pre-aggregate with a scheduled refresh. A person can add it.',
                 );
                 expect(addBatch).not.toHaveBeenCalled();
                 expect(projectModel.saveExploresToCache).not.toHaveBeenCalled();
@@ -9814,418 +10127,6 @@ describe('ProjectService', () => {
                     schedulerClient.generateValidation,
                 ).not.toHaveBeenCalled();
                 expect(schedulerClient.indexCatalog).not.toHaveBeenCalled();
-            },
-        );
-        test.each([
-            'filter',
-            'metric',
-            'dimension',
-            'role',
-            'source SQL',
-            'field SQL',
-            'sort',
-            'limit',
-            'rename',
-            'remove cron',
-            'remove definition',
-            'remove explore',
-        ] as const)(
-            'refuses a scheduled workload change to %s before persistence',
-            async (change) => {
-                const previous = exploreWithCron('0 2 * * *');
-                const next = structuredClone(previous);
-                const definition = next.preAggregates![0];
-                if (change === 'filter')
-                    definition.filters = [
-                        {
-                            id: 'filter',
-                            target: { fieldRef: 'dim1' },
-                            operator: FilterOperator.EQUALS,
-                            values: ['restricted'],
-                        },
-                    ];
-                if (change === 'metric') definition.metrics = ['a_metric1'];
-                if (change === 'dimension') definition.dimensions = ['a_dim1'];
-                if (change === 'role')
-                    definition.materializationRole = {
-                        email: 'agent@example.com',
-                        attributes: { region: ['west'] },
-                    };
-                if (change === 'source SQL')
-                    next.tables.a.sqlTable = 'changed_source';
-                if (change === 'field SQL')
-                    next.tables.a.dimensions.dim1.sql = 'changed_expression';
-                if (change === 'sort')
-                    definition.sorts = [
-                        { fieldId: 'a_dim1', descending: true },
-                    ];
-                if (change === 'limit') definition.maxRows = 10;
-                if (change === 'rename') definition.name = 'renamed';
-                if (change === 'remove cron') delete definition.refresh;
-                if (change === 'remove definition') next.preAggregates = [];
-                projectModel.getAllExploresFromCache.mockResolvedValue({
-                    existing: previous,
-                });
-                await expect(
-                    agentExecutionContext.run(scope(true), () =>
-                        service.saveExploresToCacheAndIndexCatalog({
-                            userUuid: user.userUuid,
-                            projectUuid,
-                            explores: change === 'remove explore' ? [] : [next],
-                            complete: true,
-                            compilationSource: 'cli_deploy',
-                        }),
-                    ),
-                ).rejects.toThrow('recurring pre-aggregate refreshes');
-                expect(projectModel.saveExploresToCache).not.toHaveBeenCalled();
-                expect(
-                    preAggregateModel.upsertPreAggregateDefinitions,
-                ).not.toHaveBeenCalled();
-                expect(
-                    schedulerClient.schedulePreAggregateCronJobs,
-                ).not.toHaveBeenCalled();
-            },
-        );
-
-        test('staging permits unchanged workload before server source bindings are restored', async () => {
-            const previous = structuredClone(exploreWithCron('0 2 * * *'));
-            previous.tables.a.dbtSourceUuid = 'source';
-            const incoming = structuredClone(previous);
-            delete incoming.tables.a.dbtSourceUuid;
-            projectModel.getAllExploresFromCache.mockResolvedValue({
-                existing: previous,
-            });
-            await expect(
-                agentExecutionContext.run(scope(true), () =>
-                    service.assertConnectionPreAggregateRefresh(
-                        projectUuid,
-                        [incoming],
-                        { staging: true },
-                    ),
-                ),
-            ).resolves.toBeUndefined();
-            await expect(
-                agentExecutionContext.run(scope(true), () =>
-                    service.assertConnectionPreAggregateRefresh(projectUuid, [
-                        incoming,
-                    ]),
-                ),
-            ).rejects.toThrow('recurring pre-aggregate refreshes');
-        });
-
-        test.each([
-            'partial',
-            'carried source',
-            'carried connection',
-            'unscheduled definition',
-        ] as const)(
-            'keeps an unchanged schedule when updating a %s',
-            async (kind) => {
-                const previous = structuredClone(exploreWithCron('0 2 * * *'));
-                previous.tables.a.dbtSourceUuid = 'retained-source';
-                const next = structuredClone(previous);
-                next.preAggregates!.push({
-                    name: 'unscheduled',
-                    dimensions: ['dim1'],
-                    metrics: [],
-                });
-                projectModel.getAllExploresFromCache.mockResolvedValue({
-                    existing: previous,
-                });
-                projectModel.getExploreWarehouseConnectionUuid.mockResolvedValue(
-                    'retained-connection',
-                );
-                const options = {
-                    'carried source': {
-                        complete: true,
-                        carry: {
-                            kind: 'otherDbtSources' as const,
-                            dbtSourceUuid: 'changed-source',
-                            warehouseConnectionUuid: null,
-                        },
-                    },
-                    'carried connection': {
-                        complete: true,
-                        carry: {
-                            kind: 'connections' as const,
-                            warehouseConnectionUuids: ['retained-connection'],
-                        },
-                    },
-                    partial: {},
-                    'unscheduled definition': {},
-                }[kind];
-                await expect(
-                    agentExecutionContext.run(scope(true), () =>
-                        service.assertConnectionPreAggregateRefresh(
-                            projectUuid,
-                            kind === 'unscheduled definition' ? [next] : [],
-                            options,
-                        ),
-                    ),
-                ).resolves.toBeUndefined();
-            },
-        );
-
-        test('refuses removal through the dbt model list of a partial deploy', async () => {
-            Object.assign(service.projectDbtSourcesModel, {
-                hasSources: vi.fn().mockResolvedValue(false),
-            });
-            projectModel.getAllExploresFromCache.mockResolvedValue({
-                existing: exploreWithCron('0 2 * * *'),
-            });
-            await expect(
-                agentExecutionContext.run(scope(true), () =>
-                    service.saveExploresToCacheAndIndexCatalog({
-                        userUuid: user.userUuid,
-                        projectUuid,
-                        explores: [],
-                        complete: false,
-                        dbtModelNames: [],
-                        compilationSource: 'cli_deploy',
-                    }),
-                ),
-            ).rejects.toThrow('remove recurring');
-            expect(projectModel.saveExploresToCache).not.toHaveBeenCalled();
-        });
-
-        test.each([
-            { bound: true, owner: 'project-owner' },
-            { bound: false, owner: 'project-owner' },
-            { bound: true, owner: null },
-        ])(
-            'full refresh preserves recurring jobs after definition UUIDs change, bound=$bound owner=$owner',
-            async ({ bound, owner }) => {
-                const source = exploreWithCron('0 * * * *');
-                source.preAggregates![0].dimensions = ['dim1'];
-                source.preAggregates!.push({
-                    ...source.preAggregates![0],
-                    name: 'second',
-                });
-                const explores = [
-                    source,
-                    ...source.preAggregates!.map((definition) => ({
-                        ...validExplore,
-                        name: getPreAggregateExploreName(
-                            source.name,
-                            definition.name,
-                        ),
-                        type: ExploreType.PRE_AGGREGATE,
-                    })),
-                ];
-                let cache = Object.fromEntries(
-                    explores.map((explore, index) => [
-                        `old-cache-${index}`,
-                        explore,
-                    ]),
-                );
-                const definitions = new Map<string, PreAggregateDefinition>();
-                const cronJobs = new Map<
-                    string,
-                    MaterializePreAggregatePayload
-                >();
-                for (const definition of source.preAggregates!) {
-                    const uuid = `old-${definition.name}`;
-                    definitions.set(uuid, {
-                        preAggregateDefinitionUuid: uuid,
-                        preAggregateDefinition: definition,
-                        refreshCron: definition.refresh!.cron!,
-                    } as PreAggregateDefinition);
-                    cronJobs.set(uuid, {
-                        preAggregateDefinitionUuid: uuid,
-                        trigger: 'cron',
-                        userUuid: 'project-owner',
-                        organizationUuid: 'organizationUuid',
-                        projectUuid,
-                    });
-                }
-                const oldUuids = [...definitions.keys()];
-                const model = {
-                    ...projectModel,
-                    getAllExploresFromCache: vi.fn(async () => cache),
-                    saveExploresToCache: vi.fn(async () => {
-                        definitions.clear();
-                        cache = Object.fromEntries(
-                            explores.map((explore, index) => [
-                                `new-cache-${index}`,
-                                explore,
-                            ]),
-                        );
-                        return { cachedExploreUuids: Object.keys(cache) };
-                    }),
-                };
-                const registry = {
-                    ...preAggregateModel,
-                    upsertPreAggregateDefinitions: vi.fn<
-                        PreAggregateModel['upsertPreAggregateDefinitions']
-                    >(async (rows) => {
-                        for (const row of rows) {
-                            const uuid = `new-${row.pre_aggregate_definition.name}`;
-                            definitions.set(uuid, {
-                                preAggregateDefinitionUuid: uuid,
-                                projectUuid,
-                                sourceCachedExploreUuid:
-                                    row.source_cached_explore_uuid,
-                                preAggCachedExploreUuid:
-                                    row.pre_agg_cached_explore_uuid,
-                                preAggregateDefinition:
-                                    row.pre_aggregate_definition,
-                                materializationMetricQuery:
-                                    row.materialization_metric_query,
-                                materializationQueryError:
-                                    row.materialization_query_error,
-                                refreshCron: row.refresh_cron,
-                                createdAt: new Date(),
-                                updatedAt: new Date(),
-                            });
-                        }
-                    }),
-                    getPreAggregateDefinitionsForProject: vi.fn(async () => [
-                        ...definitions.values(),
-                    ]),
-                    getProjectSchedulerDetailsForPreAggregates: vi.fn(
-                        async () =>
-                            [...definitions.values()].map((definition) => ({
-                                projectUuid,
-                                organizationUuid: 'organizationUuid',
-                                createdByUserUuid: owner,
-                                schedulerTimezone: 'UTC',
-                                preAggregateDefinitionUuid:
-                                    definition.preAggregateDefinitionUuid,
-                                refreshCron: definition.refreshCron!,
-                                preAggExploreName: getPreAggregateExploreName(
-                                    source.name,
-                                    definition.preAggregateDefinition.name,
-                                ),
-                            })),
-                    ),
-                };
-                const scheduler = {
-                    ...schedulerClient,
-                    materializePreAggregate: vi.fn<
-                        SchedulerClient['materializePreAggregate']
-                    >(async (payload) => {
-                        if (payload.trigger === 'cron')
-                            cronJobs.set(
-                                payload.preAggregateDefinitionUuid,
-                                payload,
-                            );
-                        return { jobId: payload.preAggregateDefinitionUuid };
-                    }),
-                    schedulePreAggregateCronJobs:
-                        vi.fn<
-                            SchedulerClient['schedulePreAggregateCronJobs']
-                        >(),
-                    deleteScheduledPreAggregateCronJobsForDefinition: vi.fn(
-                        async (uuid: string) => {
-                            cronJobs.delete(uuid);
-                        },
-                    ),
-                };
-                scheduler.schedulePreAggregateCronJobs.mockImplementation(
-                    (...args) =>
-                        SchedulerClient.prototype.schedulePreAggregateCronJobs.apply(
-                            scheduler as unknown as SchedulerClient,
-                            args,
-                        ),
-                );
-                const configured = getMockedProjectService({
-                    ...lightdashConfigWithGoogleOAuthMock,
-                    preAggregates: {
-                        ...lightdashConfigWithGoogleOAuthMock.preAggregates,
-                        enabled: true,
-                    },
-                });
-                Object.assign(configured, {
-                    projectModel: model,
-                    preAggregateModel: registry,
-                    schedulerClient: scheduler,
-                    getAgentConnectionGrantService: () => ({
-                        assertActiveExecution: vi
-                            .fn()
-                            .mockResolvedValue({ account: connectionAccount }),
-                    }),
-                });
-                vi.useFakeTimers();
-                vi.setSystemTime(new Date('2026-10-11T12:00:00Z'));
-                try {
-                    const save = () =>
-                        configured.saveExploresToCacheAndIndexCatalog({
-                            userUuid: user.userUuid,
-                            projectUuid,
-                            explores,
-                            complete: true,
-                            compilationSource: 'cli_deploy',
-                        });
-                    if (bound && owner === null) {
-                        await expect(
-                            agentExecutionContext.run(scope(true), save),
-                        ).rejects.toThrow('without a project owner');
-                        expect(
-                            model.saveExploresToCache,
-                        ).not.toHaveBeenCalled();
-                        expect([...definitions.keys()]).toEqual(oldUuids);
-                        expect([...cronJobs.keys()]).toEqual(oldUuids);
-                        expect(
-                            scheduler.schedulePreAggregateCronJobs,
-                        ).not.toHaveBeenCalled();
-                        return;
-                    }
-                    await (bound
-                        ? agentExecutionContext.run(scope(true), save)
-                        : save());
-                    expect(model.saveExploresToCache).toHaveBeenCalledOnce();
-                    expect([...definitions.keys()]).toEqual([
-                        'new-daily',
-                        'new-second',
-                    ]);
-                    expect(
-                        scheduler.schedulePreAggregateCronJobs,
-                    ).toHaveBeenCalledOnce();
-                    if (bound)
-                        expect([...cronJobs.keys()].sort()).toEqual(
-                            [...definitions.keys()].sort(),
-                        );
-                    for (const [uuid, definition] of definitions) {
-                        expect(oldUuids).not.toContain(uuid);
-                        expect(cache[definition.sourceCachedExploreUuid]).toBe(
-                            source,
-                        );
-                        expect(
-                            cache[definition.preAggCachedExploreUuid],
-                        ).toBeDefined();
-                        expect(
-                            definition.materializationMetricQuery,
-                        ).not.toBeNull();
-                        expect(cronJobs.get(uuid)).toMatchObject({
-                            userUuid: bound ? 'project-owner' : user.userUuid,
-                            trigger: 'cron',
-                            preAggregateDefinitionUuid: uuid,
-                        });
-                        expect(cronJobs.get(uuid)).not.toHaveProperty(
-                            'agentConnectionExecution',
-                        );
-                        expect(cronJobs.get(uuid)).not.toHaveProperty(
-                            'agentConnectionEffect',
-                        );
-                    }
-                    expect(
-                        scheduler.materializePreAggregate,
-                    ).toHaveBeenCalledWith(
-                        expect.objectContaining({
-                            trigger: 'compile',
-                            ...(bound
-                                ? {
-                                      agentConnectionExecution:
-                                          scope(true).agentConnectionExecution,
-                                      agentConnectionEffect:
-                                          'materializePreAggregate',
-                                  }
-                                : {}),
-                        }),
-                    );
-                } finally {
-                    vi.useRealTimers();
-                }
             },
         );
         test.each(['new', 'changed', 'enabled'] as const)(
@@ -10252,7 +10153,7 @@ describe('ProjectService', () => {
                         }),
                     ),
                 ).rejects.toThrow(
-                    'Agent connections cannot add or change recurring pre-aggregate refreshes',
+                    'This agent connection cannot add a pre-aggregate with a scheduled refresh. A person can add it.',
                 );
                 expect(projectModel.saveExploresToCache).not.toHaveBeenCalled();
                 expect(
@@ -10264,12 +10165,7 @@ describe('ProjectService', () => {
                 ).not.toHaveBeenCalled();
             },
         );
-        test.each([
-            'unchanged',
-            'no-cron',
-            'ordinary-agent',
-            'person',
-        ] as const)(
+        test.each(['no-cron', 'ordinary-agent', 'person'] as const)(
             'allows %s definitions through production persistence',
             async (kind) => {
                 vi.mocked(
@@ -10335,7 +10231,7 @@ describe('ProjectService', () => {
                     }),
                 ),
             ).rejects.toThrow(
-                'Agent connections cannot add or change recurring pre-aggregate refreshes',
+                'This agent connection cannot add a pre-aggregate with a scheduled refresh. A person can add it.',
             );
             expect(saveStream).not.toHaveBeenCalled();
             expect(schedulerClient.indexCatalog).not.toHaveBeenCalled();
@@ -14504,7 +14400,12 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         });
     };
 
-    it.each(['success', 'recurring', 'revoked'] as const)(
+    it.each([
+        'success',
+        'recurring',
+        'scheduled-after-enqueue',
+        'revoked',
+    ] as const)(
         'bound refresh %s validates before configuration and cache effects',
         async (outcome) => {
             vi.clearAllMocks();
@@ -14565,6 +14466,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 }),
             });
             projectModel.getAllExploresFromCache.mockResolvedValueOnce({});
+            if (outcome === 'scheduled-after-enqueue')
+                preAggregateModel.getPreAggregateDefinitionsForProject.mockResolvedValueOnce(
+                    [{ refreshCron: '0 * * * *' }] as never,
+                );
             const tags = vi.spyOn(
                 configured as unknown as {
                     replaceYamlTagsWithoutPermissionCheck: (
@@ -14596,9 +14501,13 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 );
             } else {
                 await expect(run()).rejects.toThrow(
-                    outcome === 'recurring'
-                        ? 'Agent connections cannot add or change recurring pre-aggregate refreshes'
-                        : 'revoked',
+                    {
+                        'scheduled-after-enqueue':
+                            'This agent connection cannot deploy to, refresh or change parameters of this project, because the project has pre-aggregates with a scheduled refresh. A person can do this, or use a project without scheduled pre-aggregate refreshes.',
+                        recurring:
+                            'This agent connection cannot add a pre-aggregate with a scheduled refresh. A person can add it.',
+                        revoked: 'revoked',
+                    }[outcome],
                 );
                 expect(tags).not.toHaveBeenCalled();
                 expect(parameters).not.toHaveBeenCalled();

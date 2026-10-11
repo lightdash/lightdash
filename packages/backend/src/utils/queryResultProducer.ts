@@ -8,13 +8,13 @@ import {
     DuckdbConnectionType,
     DucklakeCatalogType,
     DucklakeDataPathType,
+    getAgentConnectionGrantRef,
     getIntrinsicUserAttributeRegex,
     getParsedReference,
     getReferencedDimension,
     getReferencedMetric,
     getUserAttributeRegex,
     lightdashVariablePattern,
-    normalizeAgentIdentityClaim,
     parameterRegex,
     WarehouseTypes,
     type AgentConnectionExecution,
@@ -652,10 +652,8 @@ const isSameAgentConnection = (
     stored: AgentIdentityClaim,
     current: AgentIdentityClaim,
 ): boolean => {
-    const storedConnection =
-        normalizeAgentIdentityClaim(stored)!.act.agent_connection_grant;
-    const currentConnection =
-        normalizeAgentIdentityClaim(current)!.act.agent_connection_grant;
+    const storedConnection = getAgentConnectionGrantRef(stored);
+    const currentConnection = getAgentConnectionGrantRef(current);
     return storedConnection === null || currentConnection === null
         ? storedConnection === currentConnection
         : storedConnection.grantUuid === currentConnection.grantUuid &&
@@ -707,8 +705,8 @@ export const isSameResultProducerOwner = (
     stored: QueryResultProducer,
     current: QueryResultProducer,
 ): boolean =>
-    ((stored.agentIdentity?.act.agent_connection_grant == null &&
-        current.agentIdentity?.act.agent_connection_grant == null) ||
+    ((getAgentConnectionGrantRef(stored.agentIdentity) == null &&
+        getAgentConnectionGrantRef(current.agentIdentity) == null) ||
         (current.agentIdentity !== null &&
             isSameResultAgent(
                 stored.agentIdentity,
@@ -735,9 +733,10 @@ export const isSameResultProducer = (
 export const isConnectionProducedQuery = (
     query: Pick<QueryHistory, 'agentIdentity' | 'requestParameters'>,
 ): boolean =>
-    query.agentIdentity?.act.agent_connection_grant != null ||
-    query.requestParameters?.resultProducer?.agentIdentity?.act
-        .agent_connection_grant != null ||
+    getAgentConnectionGrantRef(query.agentIdentity) != null ||
+    getAgentConnectionGrantRef(
+        query.requestParameters?.resultProducer?.agentIdentity,
+    ) != null ||
     query.requestParameters?.agentConnectionExecution != null;
 
 export const assertQueryConnectionBinding = (
@@ -753,10 +752,10 @@ export const assertQueryConnectionBinding = (
     const claim = query.agentIdentity;
     const producer = query.requestParameters?.resultProducer;
     const execution = query.requestParameters?.agentConnectionExecution;
-    const binding = claim?.act.agent_connection_grant;
+    const binding = getAgentConnectionGrantRef(claim);
     if (
         !binding &&
-        !producer?.agentIdentity?.act.agent_connection_grant &&
+        !getAgentConnectionGrantRef(producer?.agentIdentity) &&
         execution == null
     )
         return null;

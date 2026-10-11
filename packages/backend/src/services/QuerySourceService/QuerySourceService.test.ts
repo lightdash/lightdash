@@ -2,6 +2,7 @@ import {
     AgentActorSurface,
     AgentCapability,
     DimensionType,
+    FeatureFlags,
     ForbiddenError,
     ParameterError,
     QueryExecutionContext,
@@ -582,9 +583,15 @@ describe('QuerySourceService', () => {
 
     describe('getSourceQueryStatuses', () => {
         it('refuses protected status and error before emitting a batch', async () => {
-            const { service, assertCanReadStoredResults } = createService(
-                createRegistryWithFakes().registry,
-            );
+            const { service, mocks, assertCanReadStoredResults } =
+                createService(createRegistryWithFakes().registry);
+            mocks.queryHistoryModel.get.mockResolvedValue({
+                queryUuid: 'protected',
+                status: QueryHistoryStatus.ERROR,
+                requestParameters: {
+                    agentConnectionExecution: { grantUuid: 'grant' },
+                },
+            });
             assertCanReadStoredResults.mockRejectedValue(new ForbiddenError());
             const emit = vi.fn();
             await expect(
@@ -594,6 +601,111 @@ describe('QuerySourceService', () => {
             ).rejects.toThrow(ForbiddenError);
             expect(assertCanReadStoredResults).toHaveBeenCalledOnce();
             expect(emit).not.toHaveBeenCalled();
+        });
+
+        it.each([false, true])(
+            'ordinary polling retains lost-access statuses with identity=%s',
+            async (enabled) => {
+                const { service, mocks, assertCanReadStoredResults } =
+                    createService(createRegistryWithFakes().registry);
+                mocks.featureFlagModel.get.mockImplementation(
+                    async ({ featureFlagId }) => ({
+                        enabled:
+                            featureFlagId === FeatureFlags.AgentIdentity
+                                ? enabled
+                                : true,
+                    }),
+                );
+                assertCanReadStoredResults.mockRejectedValue(
+                    new ForbiddenError(
+                        'content or credentials no longer accessible',
+                    ),
+                );
+                const uuids = [
+                    'lost-chart',
+                    'lost-dashboard',
+                    'lost-attachment',
+                    'expired-results',
+                    'missing-ancestor',
+                    'expired-account',
+                ];
+                mocks.queryHistoryModel.get.mockImplementation(
+                    async (queryUuid) => ({
+                        queryUuid,
+                        status: QueryHistoryStatus.ERROR,
+                        error: 'original error',
+                        agentIdentity: null,
+                        requestParameters: {},
+                    }),
+                );
+                const result = await service.getSourceQueryStatuses(
+                    account,
+                    projectUuid,
+                    uuids,
+                );
+                expect(result.statuses.map((row) => row.queryUuid)).toEqual(
+                    uuids,
+                );
+                expect(
+                    result.statuses.every(
+                        (row) => row.error === 'original error',
+                    ),
+                ).toBe(true);
+                expect(assertCanReadStoredResults).not.toHaveBeenCalled();
+                expect(mocks.featureFlagModel.get).not.toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        featureFlagId: FeatureFlags.AgentIdentity,
+                    }),
+                );
+                Object.assign(service, { getAsyncQueryService: undefined });
+                await expect(
+                    service.getSourceQueryStatuses(account, projectUuid, [
+                        'no-getter',
+                    ]),
+                ).resolves.toMatchObject({
+                    statuses: [{ queryUuid: 'no-getter' }],
+                });
+            },
+        );
+
+        it('rechecks a connection result after the slowest history finishes', async () => {
+            const { service, mocks, assertCanReadStoredResults } =
+                createService(createRegistryWithFakes().registry);
+            let resolveSlow: (value: unknown) => void = () => {};
+            const slow = new Promise((resolve) => {
+                resolveSlow = resolve;
+            });
+            let fastChecked = false;
+            let revoked = false;
+            const row = (queryUuid: string) => ({
+                queryUuid,
+                status: QueryHistoryStatus.READY,
+                error: null,
+                requestParameters: {
+                    agentConnectionExecution: { grantUuid: 'grant' },
+                },
+            });
+            mocks.queryHistoryModel.get.mockImplementation(
+                async (queryUuid: string) =>
+                    queryUuid === 'slow' ? slow : row(queryUuid),
+            );
+            assertCanReadStoredResults.mockImplementation(
+                async (_account, _project, history) => {
+                    if (history.queryUuid === 'fast') {
+                        fastChecked = true;
+                        if (revoked) throw new ForbiddenError('revoked');
+                    }
+                },
+            );
+            const result = service.getSourceQueryStatuses(
+                account,
+                projectUuid,
+                ['fast', 'slow'],
+            );
+            await vi.waitFor(() => expect(fastChecked).toBe(true));
+            revoked = true;
+            resolveSlow(row('slow'));
+            await expect(result).rejects.toThrow('revoked');
         });
 
         it('returns the standard status per query uuid', async () => {

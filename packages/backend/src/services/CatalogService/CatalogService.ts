@@ -499,7 +499,7 @@ export class CatalogService<
 
         const projectYamlTags = await this.tagsModel.getYamlTags(projectUuid);
 
-        await beforeEffect?.();
+        if (beforeEffect) await beforeEffect();
         const result = await this.catalogModel.indexCatalog(
             projectUuid,
             cachedExploresMap,
@@ -603,7 +603,7 @@ export class CatalogService<
                 },
             );
 
-        await beforeEffect?.();
+        if (beforeEffect) await beforeEffect();
         return this.catalogModel.migrateCatalogItemTags(catalogTagsMigrateIn);
     }
 
@@ -658,7 +658,7 @@ export class CatalogService<
             },
         );
 
-        await beforeEffect?.();
+        if (beforeEffect) await beforeEffect();
         await this.catalogModel.updateCatalogItemIcon(iconMigrationUpdates);
     }
 
@@ -707,7 +707,7 @@ export class CatalogService<
                 return acc;
             }, []);
 
-        await beforeEffect?.();
+        if (beforeEffect) await beforeEffect();
         return this.catalogModel.migrateMetricsTreeEdges(metricEdgesMigrateIn);
     }
 
@@ -767,7 +767,7 @@ export class CatalogService<
             `Migrating ${nodesMigrateIn.length} metrics tree nodes for project ${projectUuid} (${droppedCount} dropped)`,
         );
 
-        await beforeEffect?.();
+        if (beforeEffect) await beforeEffect();
         await this.catalogModel.migrateMetricsTreeNodes(nodesMigrateIn);
     }
 
@@ -1113,7 +1113,7 @@ export class CatalogService<
             })
             .filter((c): c is ChartUsageIn => Boolean(c));
 
-        await beforeEffect?.();
+        if (beforeEffect) await beforeEffect();
         await this.catalogModel.setChartUsages(projectUuid, chartUsageUpdates);
 
         return {

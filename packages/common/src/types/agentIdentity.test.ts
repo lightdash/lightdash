@@ -5,6 +5,7 @@ import {
     AgentActorSurface,
     buildAgentIdentityClaim,
     getAgentClientLabel,
+    getAgentConnectionGrantRef,
     getAgentIdentityWarehouseTypes,
     getWarehouseServiceAuthMethods,
     isAllowedAgentIdentitySource,
@@ -295,7 +296,6 @@ describe('buildAgentIdentityClaim', () => {
                     surface: 'in_app_agent',
                     client_id: 'lightdash-chat',
                     agent_uuid: null,
-                    agent_connection_grant: null,
                 },
             });
         },
@@ -312,7 +312,6 @@ describe('buildAgentIdentityClaim', () => {
             surface: 'mcp',
             client_id: null,
             agent_uuid: null,
-            agent_connection_grant: null,
         });
     });
 });
@@ -365,7 +364,6 @@ describe('agent identity history', () => {
             act: {
                 ...historical.act,
                 agent_uuid: null,
-                agent_connection_grant: null,
             },
         });
         expect(historical.act).not.toHaveProperty('agent_uuid');
@@ -383,7 +381,6 @@ describe('agent identity history', () => {
             surface: AgentActorSurface.IN_APP_AGENT,
             client_id: 'lightdash-chat',
             agent_uuid: 'agent',
-            agent_connection_grant: null,
         });
         expect(normalizeAgentIdentityClaim(claim)).toEqual(claim);
     });
@@ -401,7 +398,6 @@ test('records OAuth REST as its own agent surface', () => {
         surface: 'api',
         client_id: 'oauth-client',
         agent_uuid: null,
-        agent_connection_grant: null,
     });
 });
 
@@ -411,10 +407,10 @@ describe('agent connection references', () => {
         surface: AgentActorSurface.CLI,
         clientId: 'lightdash-cli',
     };
-    test('builds explicit null and exact connection references', () => {
+    test('omits absent connections and builds exact connection references', () => {
         expect(
             buildAgentIdentityClaim(input).act.agent_connection_grant,
-        ).toBeNull();
+        ).toBeUndefined();
         const reference = { grantUuid: 'grant', revision: 2 };
         expect(
             buildAgentIdentityClaim({
@@ -429,7 +425,7 @@ describe('agent connection references', () => {
         const legacy = { ...claim, act };
         expect(
             normalizeAgentIdentityClaim(legacy)?.act.agent_connection_grant,
-        ).toBeNull();
+        ).toBeUndefined();
         expect(legacy.act).not.toHaveProperty('agent_connection_grant');
     });
     test.each([
@@ -451,4 +447,22 @@ describe('agent connection references', () => {
             } as never),
         ).toThrow();
     });
+});
+
+test.each([
+    null,
+    undefined,
+    {},
+    { act: null },
+    { act: {} },
+    { act: { agent_connection_grant: null } },
+])('an absent reference in a legacy claim is no connection: %j', (claim) => {
+    expect(getAgentConnectionGrantRef(claim as never)).toBeNull();
+});
+test('the connection reader rejects a malformed present reference', () => {
+    expect(() =>
+        getAgentConnectionGrantRef({
+            act: { agent_connection_grant: {} },
+        } as never),
+    ).toThrow('Invalid agent connection reference');
 });

@@ -19,6 +19,7 @@ import {
     FeatureFlags,
     FeatureNotEnabledError,
     ForbiddenError,
+    getAgentConnectionGrantRef,
     getAgentIdentityWarehouseTypes,
     getAiAccessRefusalMessage,
     getAiExecutionCredentialUuid,
@@ -86,6 +87,7 @@ import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCr
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import {
     assertQueryConnectionBinding,
+    isConnectionProducedQuery,
     isSameResultAgent,
     isSameResultProducerOwner,
     isSameResultReader,
@@ -501,7 +503,7 @@ export class AiAccessService extends BaseService {
         const execution = assertQueryConnectionBinding(node);
         const readerBinding =
             reader.kind === 'agent'
-                ? reader.claim.act.agent_connection_grant
+                ? getAgentConnectionGrantRef(reader.claim)
                 : null;
         const accountBinding =
             account.authentication.type === 'oauth'
@@ -1978,19 +1980,30 @@ export class AiAccessService extends BaseService {
         const organizationUuid =
             queryHistory.organizationUuid ??
             (await this.projectModel.getSummary(projectUuid)).organizationUuid;
-        await uniqueRoots.reduce(async (previous, root) => {
-            await previous;
-            await this.assertConnectionResultRead(
-                account,
-                projectUuid,
-                root.queryHistory,
-                reader,
-                evaluation,
-            );
-        }, Promise.resolve());
+        const connectionReader =
+            (reader.kind === 'agent' &&
+                getAgentConnectionGrantRef(reader.claim) !== null) ||
+            (account.authentication.type === 'oauth' &&
+                account.authentication.agentConnectionGrant != null);
+        const connectionRoots = uniqueRoots.filter(
+            (root) =>
+                connectionReader ||
+                isConnectionProducedQuery(root.queryHistory),
+        );
+        if (connectionRoots.length > 0)
+            await connectionRoots.reduce(async (previous, root) => {
+                await previous;
+                await this.assertConnectionResultRead(
+                    account,
+                    projectUuid,
+                    root.queryHistory,
+                    reader,
+                    evaluation,
+                );
+            }, Promise.resolve());
         const enabled =
             (reader.kind === 'agent' &&
-                reader.claim.act.agent_connection_grant != null) ||
+                getAgentConnectionGrantRef(reader.claim) != null) ||
             (identityEnabled ??
                 (await this.isEnabled({
                     userUuid: account.user.id,
@@ -2086,16 +2099,22 @@ export class AiAccessService extends BaseService {
             depth: number,
         ): Promise<void> => {
             const next = new Set<string>();
-            await level.reduce(async (previous, node) => {
-                await previous;
-                await this.assertConnectionResultRead(
-                    currentAccount,
-                    projectUuid,
-                    node.queryHistory,
-                    reader,
-                    evaluation,
-                );
-            }, Promise.resolve());
+            const connectionNodes = level.filter(
+                (node) =>
+                    connectionReader ||
+                    isConnectionProducedQuery(node.queryHistory),
+            );
+            if (connectionNodes.length > 0)
+                await connectionNodes.reduce(async (previous, node) => {
+                    await previous;
+                    await this.assertConnectionResultRead(
+                        currentAccount,
+                        projectUuid,
+                        node.queryHistory,
+                        reader,
+                        evaluation,
+                    );
+                }, Promise.resolve());
             for (const node of level) {
                 const { references } = getQuerySourceParameters(
                     node.queryHistory.requestParameters,
@@ -2221,7 +2240,7 @@ export class AiAccessService extends BaseService {
                 await authorizeNode?.(node);
                 const storedProducer = node.requestParameters?.resultProducer;
                 const checksEnabled =
-                    node.agentIdentity?.act.agent_connection_grant != null ||
+                    getAgentConnectionGrantRef(node.agentIdentity) != null ||
                     this.lightdashConfig?.ai
                         ?.agentResultIdentityCheckEnabled !== false;
                 if (node.status === QueryHistoryStatus.READY) {

@@ -4513,6 +4513,7 @@ describe('connection compile jobs', () => {
             },
             projectService: {
                 assertAgentConnectionEffect: vi.fn(),
+                assertConnectionPreAggregateRefresh: vi.fn(),
                 compileProject: effect,
                 replaceCustomFields: effect,
                 findReplaceableCustomFields: findFields,
@@ -4604,6 +4605,54 @@ describe('connection compile jobs', () => {
             expect(f.effect).not.toHaveBeenCalled();
             expect(f.getSession).not.toHaveBeenCalled();
             expect(f.getAccount).not.toHaveBeenCalled();
+        },
+    );
+
+    test('ordinary compile launches both child jobs before their promises settle', async () => {
+        const f = setup('compileProject');
+        const order: string[] = [];
+        f.children.generateValidation.mockImplementation(() => {
+            order.push('validation');
+            return Promise.resolve().then(() => {
+                order.push('validation settled');
+            });
+        });
+        f.children.replaceCustomFields.mockImplementation(() => {
+            order.push('replacement');
+        });
+        const {
+            agentConnectionExecution: ignoredExecution,
+            agentConnectionEffect: ignoredEffect,
+            ...payload
+        } = f.payload;
+        await f.run(payload);
+        expect(order).toEqual([
+            'validation',
+            'replacement',
+            'validation settled',
+        ]);
+    });
+
+    test.each(methods)(
+        '%s terminalises non-refusal setup errors',
+        async (method) => {
+            const f = setup(method);
+            f.assertActiveExecution.mockRejectedValueOnce(
+                new Error('subject deleted'),
+            );
+            await expect(f.run()).resolves.toBeUndefined();
+            expect(f.effect).not.toHaveBeenCalled();
+            expect(f.getSession).not.toHaveBeenCalled();
+            expect(f.getAccount).not.toHaveBeenCalled();
+            expect(
+                f.task['schedulerService'].logSchedulerJob,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({ status: SchedulerJobStatus.ERROR }),
+            );
+            if (method === 'compileProject')
+                expect(
+                    f.task['projectService']._markJobAsFailed,
+                ).toHaveBeenCalledWith('compile-1');
         },
     );
 

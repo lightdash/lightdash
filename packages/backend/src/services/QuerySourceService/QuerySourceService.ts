@@ -22,6 +22,7 @@ import { sourceRequiresRawSql } from '../../auth/agentConnectionGrants/operation
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
+import { isConnectionProducedQuery } from '../../utils/queryResultProducer';
 import { personaliseStoredSharedSignInError } from '../../utils/sharedSignInExpiry';
 import type { AgentPermissionService } from '../AgentPermissionService/AgentPermissionService';
 import { agentExecutionContext } from '../AiAccessService/agentExecutionContext';
@@ -41,7 +42,7 @@ export type InternalSourceQuerySubmission = SourceQuerySubmission &
     Pick<SourceQuerySubmissionResult, 'cacheHit'>;
 
 type QuerySourceServiceArguments = {
-    getAsyncQueryService: () => Pick<
+    getAsyncQueryService?: () => Pick<
         AsyncQueryService,
         'assertCanReadStoredResults'
     >;
@@ -501,19 +502,36 @@ export class QuerySourceService extends BaseService {
             );
         }
 
-        const queries = await Promise.all(
-            queryUuids.map((queryUuid) =>
-                this.queryHistoryModel.get(queryUuid, projectUuid, account),
-            ),
-        );
+        const connectionReader =
+            account.authentication.type === 'oauth' &&
+            account.authentication.agentConnectionGrant != null;
+        const connectionChecks: (() => Promise<void>)[] = [];
         const statuses = await Promise.all(
-            queries.map(async (queryHistory) => {
-                await this.getAsyncQueryService().assertCanReadStoredResults(
-                    account,
+            queryUuids.map(async (queryUuid) => {
+                const queryHistory = await this.queryHistoryModel.get(
+                    queryUuid,
                     projectUuid,
-                    queryHistory,
+                    account,
                 );
-                return {
+                const connection =
+                    connectionReader || isConnectionProducedQuery(queryHistory);
+                const check = connection ? this.getAsyncQueryService?.() : null;
+                if (connection && !check) throw new ForbiddenError();
+                if (check) {
+                    await check.assertCanReadStoredResults(
+                        account,
+                        projectUuid,
+                        queryHistory,
+                    );
+                    connectionChecks.push(() =>
+                        check.assertCanReadStoredResults(
+                            account,
+                            projectUuid,
+                            queryHistory,
+                        ),
+                    );
+                }
+                const status = {
                     queryUuid: queryHistory.queryUuid,
                     status: queryHistory.status,
                     error: await personaliseStoredSharedSignInError({
@@ -524,21 +542,11 @@ export class QuerySourceService extends BaseService {
                         featureFlagModel: this.featureFlagModel,
                     }),
                 };
+                return status;
             }),
         );
-        if (
-            account.authentication.type === 'oauth' &&
-            account.authentication.agentConnectionGrant
-        ) {
-            await queries.reduce(async (previous, queryHistory) => {
-                await previous;
-                await this.getAsyncQueryService().assertCanReadStoredResults(
-                    account,
-                    projectUuid,
-                    queryHistory,
-                );
-            }, Promise.resolve());
-        }
+        if (connectionChecks.length > 0)
+            await Promise.all(connectionChecks.map((check) => check()));
 
         return { statuses };
     }

@@ -64,7 +64,12 @@ describe('NatsWorker subject dispatch', () => {
 
         expect(
             asyncQueryService.runAsyncDuckdbQueryFromHistory,
-        ).toHaveBeenCalledWith('query-1', 'worker-1', undefined);
+        ).toHaveBeenCalledWith(
+            'query-1',
+            'worker-1',
+            undefined,
+            expect.any(Function),
+        );
         expect(message.ack).toHaveBeenCalled();
     });
 
@@ -77,7 +82,12 @@ describe('NatsWorker subject dispatch', () => {
 
         expect(
             asyncQueryService.runAsyncDuckdbQueryFromHistory,
-        ).toHaveBeenCalledWith('query-1', 'worker-1', undefined);
+        ).toHaveBeenCalledWith(
+            'query-1',
+            'worker-1',
+            undefined,
+            expect.any(Function),
+        );
         expect(
             asyncQueryService.runAsyncPreAggregateQueryFromHistory,
         ).not.toHaveBeenCalled();
@@ -117,6 +127,58 @@ describe('NatsWorker subject dispatch', () => {
             expect(runner).toHaveBeenCalledOnce();
         },
     );
+
+    it('terminates a connection setup failure that is not a permission error', async () => {
+        const message = jobMessage(STREAM_CONFIGS.warehouse.subjects.query);
+        asyncQueryService.runAsyncWarehouseQueryFromHistory.mockRejectedValueOnce(
+            new Error('subject deleted'),
+        );
+        queryHistoryModel.getByQueryUuid.mockResolvedValue({
+            status: QueryHistoryStatus.ERROR,
+            requestParameters: {
+                agentConnectionExecution: { grantUuid: 'grant' },
+            },
+        } as QueryHistory);
+        await buildWorker().handleMessage(message, 'worker-1');
+        expect(message.term).toHaveBeenCalledOnce();
+        expect(message.nak).not.toHaveBeenCalled();
+    });
+
+    it('terminates ERROR after a malformed connection reference fails setup', async () => {
+        const message = jobMessage(STREAM_CONFIGS.warehouse.subjects.query);
+        asyncQueryService.runAsyncWarehouseQueryFromHistory.mockRejectedValueOnce(
+            new Error('Invalid agent connection reference'),
+        );
+        queryHistoryModel.getByQueryUuid.mockResolvedValue({
+            status: QueryHistoryStatus.ERROR,
+            agentIdentity: {
+                act: { agent_connection_grant: { grantUuid: 'partial' } },
+            },
+            requestParameters: {},
+        } as QueryHistory);
+        await buildWorker().handleMessage(message, 'worker-1');
+        expect(message.term).toHaveBeenCalledOnce();
+        expect(message.nak).not.toHaveBeenCalled();
+    });
+
+    it('uses the claim signal when the earlier Sentry history read fails', async () => {
+        const message = jobMessage(STREAM_CONFIGS.warehouse.subjects.query);
+        asyncQueryService.runAsyncWarehouseQueryFromHistory.mockImplementationOnce(
+            async (...args: unknown[]) => {
+                (args[3] as (() => void) | undefined)?.();
+                throw new Error('subject deleted');
+            },
+        );
+        queryHistoryModel.getByQueryUuid
+            .mockRejectedValueOnce(new Error('history unavailable'))
+            .mockResolvedValueOnce({
+                status: QueryHistoryStatus.ERROR,
+                requestParameters: {},
+            } as QueryHistory);
+        await buildWorker().handleMessage(message, 'worker-1');
+        expect(message.term).toHaveBeenCalledOnce();
+        expect(message.nak).not.toHaveBeenCalled();
+    });
 
     it.each([new Error('warehouse failed'), new ForbiddenError()])(
         'keeps retry acknowledgement for an ordinary error: %s',

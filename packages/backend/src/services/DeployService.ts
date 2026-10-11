@@ -18,6 +18,7 @@ import { DeploySessionModel } from '../models/DeploySessionModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { SchedulerClient } from '../scheduler/SchedulerClient';
 import { captureAgentConnectionTask } from '../utils/agentConnectionExecution';
+import { agentExecutionContext } from './AiAccessService/agentExecutionContext';
 import { BaseService } from './BaseService';
 import { NO_CLI_DEPLOY_SELECTION, type CliDeploySelection } from './cliDeploy';
 
@@ -33,8 +34,7 @@ type ProjectServiceInterface = {
     ) => Promise<unknown>;
     assertConnectionPreAggregateRefresh: (
         projectUuid: string,
-        explores: (Explore | ExploreError)[],
-        options?: { staging: boolean },
+        explores?: (Explore | ExploreError)[],
     ) => Promise<void>;
     saveDeployExplores: (args: {
         userUuid: string;
@@ -134,6 +134,11 @@ export class DeployService extends BaseService {
             );
         }
 
+        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.projectService.assertConnectionPreAggregateRefresh(
+                projectUuid,
+            );
+
         // Create a new deploy session
         const sessionUuid = await this.deploySessionModel.createSession(
             projectUuid,
@@ -157,6 +162,11 @@ export class DeployService extends BaseService {
         batchNumber: number,
         complete?: boolean,
     ): Promise<{ batchNumber: number; exploreCount: number }> {
+        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.projectService.assertConnectionPreAggregateRefresh(
+                projectUuid,
+                explores,
+            );
         try {
             const session =
                 await this.deploySessionModel.getSession(sessionUuid);
@@ -179,12 +189,6 @@ export class DeployService extends BaseService {
                     `Deploy session is not in uploading state`,
                 );
             }
-
-            await this.projectService.assertConnectionPreAggregateRefresh(
-                projectUuid,
-                explores,
-                { staging: true },
-            );
 
             // Add explores to the staging table
             await this.deploySessionModel.addBatch(
@@ -258,6 +262,17 @@ export class DeployService extends BaseService {
             );
         }
 
+        if (agentExecutionContext.getStore()?.agentConnectionExecution) {
+            await this.projectService.assertConnectionPreAggregateRefresh(
+                projectUuid,
+            );
+            const data =
+                await this.deploySessionModel.getDeployData(sessionUuid);
+            await this.projectService.assertConnectionPreAggregateRefresh(
+                projectUuid,
+                data.explores,
+            );
+        }
         try {
             // Update status to finalizing
             await this.deploySessionModel.updateStatus(
@@ -297,10 +312,11 @@ export class DeployService extends BaseService {
             });
 
             // Schedule validation (same as in original finalizeDeploy)
-            await this.projectService.assertAgentConnectionEffect(
-                projectUuid,
-                'validateProject',
-            );
+            if (agentExecutionContext.getStore()?.agentConnectionExecution)
+                await this.projectService.assertAgentConnectionEffect(
+                    projectUuid,
+                    'validateProject',
+                );
             await this.schedulerClient.generateValidation({
                 ...captureAgentConnectionTask('validateProject', {
                     userUuid: user.userUuid,

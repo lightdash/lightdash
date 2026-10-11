@@ -1,6 +1,4 @@
 import {
-    AiAccessRefusedError,
-    ForbiddenError,
     getErrorMessage,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -169,14 +167,16 @@ export class NatsWorker {
               queryUuid: string,
               worker: string,
               queryTags?: AsyncQueryJobPayload['queryTags'],
+              onConnectionClaimed?: () => void,
           ) => Promise<boolean>)
         | null {
         if (subject === STREAM_CONFIGS.warehouse.subjects.query) {
-            return (queryUuid, worker, queryTags) =>
+            return (queryUuid, worker, queryTags, onConnectionClaimed) =>
                 this.asyncQueryService.runAsyncWarehouseQueryFromHistory(
                     queryUuid,
                     worker,
                     queryTags,
+                    onConnectionClaimed,
                 );
         }
 
@@ -185,29 +185,32 @@ export class NatsWorker {
             subject === STREAM_CONFIGS.duckdb.subjects.query ||
             (preAgg && subject === preAgg.subjects.duckdb)
         ) {
-            return (queryUuid, worker, queryTags) =>
+            return (queryUuid, worker, queryTags, onConnectionClaimed) =>
                 this.asyncQueryService.runAsyncDuckdbQueryFromHistory(
                     queryUuid,
                     worker,
                     queryTags,
+                    onConnectionClaimed,
                 );
         }
 
         if (preAgg && subject === preAgg.subjects.query) {
-            return (queryUuid, worker, queryTags) =>
+            return (queryUuid, worker, queryTags, onConnectionClaimed) =>
                 this.asyncQueryService.runAsyncPreAggregateQueryFromHistory(
                     queryUuid,
                     worker,
                     queryTags,
+                    onConnectionClaimed,
                 );
         }
 
         if (preAgg && subject === preAgg.subjects.materialization) {
-            return (queryUuid, worker, queryTags) =>
+            return (queryUuid, worker, queryTags, onConnectionClaimed) =>
                 this.asyncQueryService.runAsyncWarehouseQueryFromHistory(
                     queryUuid,
                     worker,
                     queryTags,
+                    onConnectionClaimed,
                 );
         }
 
@@ -221,6 +224,7 @@ export class NatsWorker {
             queryUuid: string,
             worker: string,
             queryTags?: AsyncQueryJobPayload['queryTags'],
+            onConnectionClaimed?: () => void,
         ) => Promise<boolean>,
     ): Promise<void> {
         const parsed = this.parseMessage(message);
@@ -275,6 +279,9 @@ export class NatsWorker {
                                         parsed.payload.queryUuid,
                                         workerLabel,
                                         parsed.payload.queryTags,
+                                        () => {
+                                            isConnectionQuery = true;
+                                        },
                                     );
                                 },
                             ),
@@ -297,19 +304,12 @@ export class NatsWorker {
                 `Worker ${workerLabel} failed query job ${parsed.jobId ?? '<unknown>'} on ${message.subject}: ${getErrorMessage(error)}`,
                 { error, ...jobMetadata },
             );
-            const query =
-                isConnectionQuery &&
-                (error instanceof ForbiddenError ||
-                    error instanceof AiAccessRefusedError)
-                    ? await this.queryHistoryModel
-                          .getByQueryUuid(parsed.payload.queryUuid)
-                          .catch(() => null)
-                    : null;
-            if (
-                query?.status === QueryHistoryStatus.ERROR &&
-                isConnectionProducedQuery(query)
-            )
-                message.term();
+            const query = isConnectionQuery
+                ? await this.queryHistoryModel
+                      .getByQueryUuid(parsed.payload.queryUuid)
+                      .catch(() => null)
+                : null;
+            if (query?.status === QueryHistoryStatus.ERROR) message.term();
             else message.nak();
         }
     }
@@ -385,7 +385,11 @@ export class NatsWorker {
             const queryHistory =
                 await this.queryHistoryModel.getByQueryUuid(queryUuid);
             if (!queryHistory) return false;
-            isConnectionQuery = isConnectionProducedQuery(queryHistory);
+            try {
+                isConnectionQuery = isConnectionProducedQuery(queryHistory);
+            } catch {
+                isConnectionQuery = true;
+            }
 
             const { organizationUuid, createdByUserUuid } = queryHistory;
 

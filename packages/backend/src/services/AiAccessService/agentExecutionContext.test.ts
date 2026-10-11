@@ -224,7 +224,7 @@ test('connection query, reader and write claims share an immutable reference acr
             expect(
                 getContentWriteAgentIdentity(writer)?.act
                     .agent_connection_grant,
-            ).toBeNull();
+            ).toBeUndefined();
         });
         expect(getContentWriteAgentIdentity(writer)).toBe(parent.claim);
     });

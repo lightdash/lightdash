@@ -2876,86 +2876,95 @@ export default class SchedulerTask {
         }
     }
 
-    private async runConnectionTask(
+    private runConnectionTask(
         payload: TraceTaskBase,
         jobId: string,
         scheduledTime: Date,
         effect: AgentConnectionTaskEffect,
         run: (
             account: RegisteredAccount | null,
-            revalidate: () => Promise<void>,
+            revalidate: (() => Promise<void>) | null,
         ) => Promise<void>,
     ): Promise<void> {
         if (
             payload.agentConnectionExecution == null &&
             payload.agentConnectionEffect === undefined
         ) {
-            await run(null, async () => {});
-            return;
+            return run(null, null);
         }
-        try {
-            const normalized = normalizeAgentConnectionTaskPayload(payload);
-            if (
-                !normalized.agentConnectionExecution ||
-                normalized.agentConnectionEffect !== effect ||
-                !this.getAgentConnectionGrantService
-            )
-                throw new ForbiddenError('Invalid agent connection effect');
-            const validate = () =>
-                this.getAgentConnectionGrantService!().assertActiveExecution(
-                    normalized.agentConnectionExecution!,
-                    {
-                        projectUuid: payload.projectUuid,
-                        capabilities: getAgentConnectionEffectCapabilities(
+        return (async () => {
+            let setupComplete = false;
+            try {
+                const normalized = normalizeAgentConnectionTaskPayload(payload);
+                if (
+                    !normalized.agentConnectionExecution ||
+                    normalized.agentConnectionEffect !== effect ||
+                    !this.getAgentConnectionGrantService
+                )
+                    throw new ForbiddenError('Invalid agent connection effect');
+                const validate = () =>
+                    this
+                        .getAgentConnectionGrantService!().assertActiveExecution(
+                        normalized.agentConnectionExecution!,
+                        {
+                            projectUuid: payload.projectUuid,
+                            capabilities: getAgentConnectionEffectCapabilities(
+                                effect,
+                                normalized.agentConnectionExecution!,
+                            ),
+                            recheckOperation: true,
+                        },
+                    );
+                const { account, scope } = await validate();
+                await agentExecutionContext.run(scope, async () => {
+                    const revalidate = async () => {
+                        await validate();
+                        await this.projectService.assertAgentConnectionEffect(
+                            payload.projectUuid,
                             effect,
-                            normalized.agentConnectionExecution!,
-                        ),
-                        recheckOperation: true,
-                    },
-                );
-            const { account, scope } = await validate();
-            await agentExecutionContext.run(scope, async () => {
-                const revalidate = async () => {
-                    await validate();
+                        );
+                    };
                     await this.projectService.assertAgentConnectionEffect(
                         payload.projectUuid,
                         effect,
                     );
-                };
-                await this.projectService.assertAgentConnectionEffect(
-                    payload.projectUuid,
-                    effect,
-                );
-                await run(account, revalidate);
-            });
-        } catch (error) {
-            if (
-                !(error instanceof ForbiddenError) &&
-                !(error instanceof AiAccessRefusedError)
-            )
-                throw error;
-            if (
-                effect === 'compileProject' &&
-                'jobUuid' in payload &&
-                typeof payload.jobUuid === 'string'
-            )
-                await this.projectService._markJobAsFailed(payload.jobUuid);
-            await this.schedulerService.logSchedulerJob({
-                task: effect,
-                jobId,
-                scheduledTime,
-                status: SchedulerJobStatus.ERROR,
-                details: {
-                    projectUuid: payload.projectUuid,
-                    organizationUuid: payload.organizationUuid,
-                    userUuid: payload.userUuid,
-                    error: getErrorMessage(error),
-                },
-            });
-        }
+                    if (effect === 'compileProject')
+                        await this.projectService.assertConnectionPreAggregateRefresh(
+                            payload.projectUuid,
+                        );
+                    setupComplete = true;
+                    await run(account, revalidate);
+                });
+            } catch (error) {
+                if (
+                    setupComplete &&
+                    !(error instanceof ForbiddenError) &&
+                    !(error instanceof AiAccessRefusedError)
+                )
+                    throw error;
+                if (
+                    effect === 'compileProject' &&
+                    'jobUuid' in payload &&
+                    typeof payload.jobUuid === 'string'
+                )
+                    await this.projectService._markJobAsFailed(payload.jobUuid);
+                await this.schedulerService.logSchedulerJob({
+                    task: effect,
+                    jobId,
+                    scheduledTime,
+                    status: SchedulerJobStatus.ERROR,
+                    details: {
+                        projectUuid: payload.projectUuid,
+                        organizationUuid: payload.organizationUuid,
+                        userUuid: payload.userUuid,
+                        error: getErrorMessage(error),
+                    },
+                });
+            }
+        })();
     }
 
-    protected async compileProject(
+    protected compileProject(
         jobId: string,
         scheduledTime: Date,
         payload: CompileProjectPayload,
@@ -2988,7 +2997,7 @@ export default class SchedulerTask {
                               payload.createdByUserUuid,
                           );
 
-                    await revalidate();
+                    if (revalidate) await revalidate();
                     await this.schedulerService.logSchedulerJob({
                         ...baseLog,
                         details: {
@@ -2999,7 +3008,7 @@ export default class SchedulerTask {
                         status: SchedulerJobStatus.STARTED,
                     });
 
-                    await revalidate();
+                    if (revalidate) await revalidate();
                     await this.projectService.compileProject(
                         user,
                         payload.projectUuid,
@@ -3016,7 +3025,7 @@ export default class SchedulerTask {
                               }
                             : undefined,
                     );
-                    await revalidate();
+                    if (revalidate) await revalidate();
                     await this.schedulerService.logSchedulerJob({
                         ...baseLog,
                         details: {
@@ -3031,7 +3040,7 @@ export default class SchedulerTask {
                         (!payload.isPreview ||
                             payload.validateAfterCompile === true)
                     ) {
-                        await revalidate();
+                        if (revalidate) await revalidate();
                         const validationJob =
                             this.schedulerClient.generateValidation({
                                 ...captureAgentConnectionTask(
@@ -3046,7 +3055,7 @@ export default class SchedulerTask {
                         if (account) await validationJob;
                     }
                     // Don't wait for replaceCustomFields response
-                    await revalidate();
+                    if (revalidate) await revalidate();
                     const replacementJob =
                         this.schedulerClient.replaceCustomFields({
                             ...captureAgentConnectionTask(
@@ -3094,7 +3103,7 @@ export default class SchedulerTask {
         }
     }
 
-    protected async materializePreAggregate(
+    protected materializePreAggregate(
         jobId: string,
         scheduledTime: Date,
         payload: MaterializePreAggregatePayload,
@@ -3135,12 +3144,12 @@ export default class SchedulerTask {
                         status: SchedulerJobStatus.STARTED,
                     });
 
-                    await revalidate();
+                    if (revalidate) await revalidate();
                     const result =
                         await this.preAggregateMaterializationService.materializePreAggregate(
                             {
                                 account: materializationAccount,
-                                ...(account
+                                ...(revalidate
                                     ? { beforeEffect: revalidate }
                                     : {}),
                                 projectUuid: payload.projectUuid,
@@ -3263,7 +3272,7 @@ export default class SchedulerTask {
         );
     }
 
-    protected async validateProject(
+    protected validateProject(
         jobId: string,
         scheduledTime: Date,
         payload: ValidateProjectPayload,
@@ -3320,7 +3329,7 @@ export default class SchedulerTask {
                         return validation.name;
                     });
 
-                    await revalidate();
+                    if (revalidate) await revalidate();
                     await this.validationService.storeValidation(
                         payload.projectUuid,
                         errors,
@@ -5977,7 +5986,7 @@ export default class SchedulerTask {
         }
     }
 
-    protected async indexCatalog(
+    protected indexCatalog(
         jobId: string,
         scheduledTime: Date,
         payload: SchedulerIndexCatalogJobPayload,
@@ -6004,42 +6013,42 @@ export default class SchedulerTask {
                             await this.catalogService.indexCatalog(
                                 payload.projectUuid,
                                 payload.userUuid,
-                                ...(account ? [revalidate] : []),
+                                ...(revalidate ? [revalidate] : []),
                             );
 
-                        await revalidate();
+                        if (revalidate) await revalidate();
                         await this.catalogService.migrateCatalogItemTags(
                             payload.projectUuid,
                             payload.prevCatalogItemsWithTags,
-                            ...(account ? [revalidate] : []),
+                            ...(revalidate ? [revalidate] : []),
                         );
 
-                        await revalidate();
+                        if (revalidate) await revalidate();
                         await this.catalogService.migrateCatalogItemIcons(
                             payload.projectUuid,
                             payload.prevCatalogItemsWithIcons,
-                            ...(account ? [revalidate] : []),
+                            ...(revalidate ? [revalidate] : []),
                         );
 
-                        await revalidate();
+                        if (revalidate) await revalidate();
                         await this.catalogService.migrateMetricsTreeEdges(
                             payload.projectUuid,
                             payload.prevMetricTreeEdges,
-                            ...(account ? [revalidate] : []),
+                            ...(revalidate ? [revalidate] : []),
                         );
 
-                        await revalidate();
+                        if (revalidate) await revalidate();
                         await this.catalogService.migrateMetricsTreeNodes(
                             payload.projectUuid,
                             payload.prevMetricsTreeNodes,
-                            ...(account ? [revalidate] : []),
+                            ...(revalidate ? [revalidate] : []),
                         );
 
-                        await revalidate();
+                        if (revalidate) await revalidate();
                         await this.catalogService.setChartUsages(
                             payload.projectUuid,
                             catalogFieldMap,
-                            ...(account ? [revalidate] : []),
+                            ...(revalidate ? [revalidate] : []),
                         );
 
                         return {}; // Don't pollute with more details
@@ -6897,7 +6906,7 @@ export default class SchedulerTask {
         );
     }
 
-    protected async replaceCustomFields(
+    protected replaceCustomFields(
         jobId: string,
         scheduledTime: Date,
         payload: ReplaceCustomFieldsPayload,
@@ -6935,10 +6944,10 @@ export default class SchedulerTask {
                             convertReplaceableFieldMatchMapToReplaceCustomFields(
                                 replaceableCustomFields,
                             );
-                        await revalidate();
+                        if (revalidate) await revalidate();
                         const updatedCharts =
                             await this.projectService.replaceCustomFields({
-                                ...(account
+                                ...(revalidate
                                     ? { beforeEffect: revalidate }
                                     : {}),
                                 userUuid: payload.userUuid,

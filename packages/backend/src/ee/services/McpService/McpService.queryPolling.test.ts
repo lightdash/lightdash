@@ -1661,7 +1661,6 @@ describe('MCP async query polling', () => {
                                 surface: AgentActorSurface.MCP,
                                 client_id: 'oauth-agent-client',
                                 agent_uuid: null,
-                                agent_connection_grant: null,
                             },
                         }),
                     },

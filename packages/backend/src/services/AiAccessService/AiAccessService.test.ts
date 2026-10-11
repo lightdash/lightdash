@@ -616,7 +616,6 @@ describe('AiAccessService', () => {
                 surface: 'in_app_agent',
                 client_id: 'lightdash-chat',
                 agent_uuid: null,
-                agent_connection_grant: null,
             },
         });
         expect(flags.get).toHaveBeenCalledOnce();
@@ -721,7 +720,6 @@ describe('AiAccessService', () => {
             surface: AgentActorSurface.MCP,
             client_id: 'oauth-client',
             agent_uuid: null,
-            agent_connection_grant: null,
         });
         const info = vi
             .spyOn(service['logger'], 'info')
