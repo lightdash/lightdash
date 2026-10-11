@@ -1,11 +1,6 @@
 import { LightdashAnalytics } from './analytics/analytics';
 import { getConfig } from './config';
-import {
-    agentCommandUnavailable,
-    personalLoginRequired,
-    resetCredentialContext,
-    setAgentConnectionSelection,
-} from './credentials';
+import { agentCommandUnavailable, personalLoginRequired } from './credentials';
 import { agentConnectHandler } from './handlers/agentConnect';
 import { createAppHandler } from './handlers/apps/createApp';
 import {
@@ -34,7 +29,6 @@ vi.mock('./config', async (importOriginal) => ({
 const invokeWithoutArguments = (handler: unknown): unknown =>
     (handler as (...args: unknown[]) => unknown)();
 afterEach(() => {
-    resetCredentialContext();
     vi.clearAllMocks();
     vi.unstubAllEnvs();
 });
@@ -60,7 +54,7 @@ it.each([
 ])(
     'refuses direct %s before reading config or arguments',
     async (_name, handler, personal) => {
-        setAgentConnectionSelection('selected');
+        vi.stubEnv('LIGHTDASH_AGENT_CONNECTION', 'selected');
         await expect(
             Promise.resolve().then(() => invokeWithoutArguments(handler)),
         ).rejects.toThrow(
@@ -70,7 +64,7 @@ it.each([
     },
 );
 it('does not resolve a human analytics identity with a selection', async () => {
-    setAgentConnectionSelection('selected');
+    vi.stubEnv('LIGHTDASH_AGENT_CONNECTION', 'selected');
     await LightdashAnalytics.identify({});
     expect(getConfig).not.toHaveBeenCalled();
 });

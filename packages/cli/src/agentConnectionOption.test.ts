@@ -1,12 +1,8 @@
 import { Command } from 'commander';
 import { registerAgentConnectionOption } from './agentConnectionOption';
-import {
-    getAgentConnectionSelection,
-    resetCredentialContext,
-} from './credentials';
+import { getAgentConnectionSelection } from './credentials';
 
 afterEach(() => {
-    resetCredentialContext();
     vi.unstubAllEnvs();
 });
 it.each([

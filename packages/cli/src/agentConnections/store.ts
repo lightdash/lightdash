@@ -115,6 +115,18 @@ export class AgentConnectionStore {
                     : record(previous.tokens)),
                 ...slot.tokens,
             },
+            refreshState: {
+                ...(own(previous, 'refreshState') === undefined
+                    ? {}
+                    : record(previous.refreshState)),
+                ...slot.refreshState,
+            },
+            revokeState: {
+                ...(own(previous, 'revokeState') === undefined
+                    ? {}
+                    : record(previous.revokeState)),
+                ...slot.revokeState,
+            },
             lastReported: {
                 ...(own(previous, 'lastReported') === undefined
                     ? {}

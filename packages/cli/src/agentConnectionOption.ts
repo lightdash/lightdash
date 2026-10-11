@@ -2,8 +2,7 @@ import { Option, type Command } from 'commander';
 import {
     getAgentConnectionSelection,
     refuseAgentConnection,
-    resetCredentialContext,
-    setAgentConnectionSelection,
+    runWithParsedAgentConnectionSelection,
 } from './credentials';
 
 export const registerAgentConnectionOption = (program: Command): void => {
@@ -13,12 +12,26 @@ export const registerAgentConnectionOption = (program: Command): void => {
             'Use an agent connection slot',
         ).hideHelp(),
     );
-    program.hook('preAction', (root, command) => {
-        resetCredentialContext();
-        const selection: unknown = root.opts().agentConnection;
-        if (selection !== undefined && typeof selection !== 'string')
-            throw new Error('Invalid agent connection selection.');
-        setAgentConnectionSelection(selection ?? null);
+    const { parseAsync } = program;
+    const parseWithContext: Command['parseAsync'] = function parseWithSelection(
+        this: Command,
+        ...args
+    ) {
+        this.setOptionValueWithSource('agentConnection', undefined, 'default');
+        const environmentSelection =
+            process.env.LIGHTDASH_AGENT_CONNECTION ?? null;
+        return runWithParsedAgentConnectionSelection(
+            () => {
+                const selection: unknown = this.opts().agentConnection;
+                if (selection !== undefined && typeof selection !== 'string')
+                    throw new Error('Invalid agent connection selection.');
+                return selection ?? environmentSelection;
+            },
+            () => parseAsync.apply(this, args),
+        );
+    };
+    Object.assign(program, { parseAsync: parseWithContext });
+    program.hook('preAction', (_root, command) => {
         if (getAgentConnectionSelection() === null) return;
         if (
             command.name() === 'login' ||

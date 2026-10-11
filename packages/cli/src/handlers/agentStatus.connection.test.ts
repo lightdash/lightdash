@@ -7,10 +7,7 @@ import { slotFixture } from '../agentConnections/fixtures';
 import { type AgentConnectionSlot } from '../agentConnections/schema';
 import { AgentConnectionStore } from '../agentConnections/store';
 import { getConfig } from '../config';
-import {
-    resetCredentialContext,
-    setAgentConnectionSelection,
-} from '../credentials';
+import {} from '../credentials';
 import { agentProjectUuid, connectedAgentAccess } from './agentAccess.mock';
 import { agentStatusHandler } from './agentStatus';
 
@@ -60,7 +57,6 @@ const output = () =>
 const textOutput = () => vi.mocked(console.error).mock.calls.flat().join('\n');
 
 beforeEach(async () => {
-    resetCredentialContext();
     vi.stubEnv('LIGHTDASH_AGENT_CONNECTION', '');
     delete process.env.LIGHTDASH_AGENT_CONNECTION;
     vi.stubEnv('LIGHTDASH_API_KEY', 'env-human-secret');
@@ -188,7 +184,6 @@ afterEach(async () => {
     });
     await fs.rm(directory, { recursive: true, force: true });
     process.exitCode = originalExitCode;
-    resetCredentialContext();
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
 });
@@ -467,7 +462,7 @@ it.each([
     );
 });
 it('uses global selection and rejects a conflicting name before any request', async () => {
-    setAgentConnectionSelection(slot.name);
+    vi.stubEnv('LIGHTDASH_AGENT_CONNECTION', slot.name);
     await agentStatusHandler({ json: true, verbose: false });
     expect(output().connectionState).toBe('active');
     requests = [];

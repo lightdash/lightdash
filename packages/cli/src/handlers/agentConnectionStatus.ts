@@ -19,7 +19,10 @@ import {
     type WarehouseStatus,
 } from '../agentConnections/warehouseStatus';
 import { getConfig } from '../config';
-import { humanCredential } from '../credentials';
+import {
+    humanCredential,
+    runWithAgentConnectionSelection,
+} from '../credentials';
 import { type AgentOptions } from './agentAccess';
 import { lightdashRawApi } from './dbt/apiClient';
 
@@ -71,9 +74,9 @@ export const agentConnectionStatusHandler = async (
     options: ConnectionStatusOptions,
 ): Promise<void> => {
     const selection = selectLifecycleSlot(options.name);
-    try {
+    return runWithAgentConnectionSelection(selection, async () => {
         const config = await getConfig();
-        const key = connectionKey(config, selection.name);
+        const key = connectionKey(config, selection);
         const store = new AgentConnectionStore();
         let slot: AgentConnectionSlot | null = null;
         let state: ConnectionState = key === null ? 'mismatched' : 'missing';
@@ -164,7 +167,7 @@ export const agentConnectionStatusHandler = async (
                       };
         const result = {
             version: 1,
-            slot: selection.name,
+            slot: selection,
             instanceUrl:
                 slot?.instanceUrl ??
                 key?.instanceUrl ??
@@ -218,7 +221,7 @@ export const agentConnectionStatusHandler = async (
                 label = 'Expired (local)';
             else if (state === 'revoked' && source === 'local')
                 label = 'Revoked (last reported)';
-            console.error(`Connection: ${selection.name} | ${label} | CLI`);
+            console.error(`Connection: ${selection} | ${label} | CLI`);
             console.error(`Instance: ${result.instanceUrl ?? 'unknown'}`);
             console.error(
                 `Person: ${result.personUuid ?? 'unknown'} | Organisation: ${result.organizationUuid ?? 'unknown'}`,
@@ -305,7 +308,5 @@ export const agentConnectionStatusHandler = async (
             (!approvedData || effectiveData)
                 ? 0
                 : 1;
-    } finally {
-        selection.restore();
-    }
+    });
 };

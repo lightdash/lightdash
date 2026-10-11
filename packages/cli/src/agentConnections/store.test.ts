@@ -149,3 +149,40 @@ it('serializes independent slot saves without losing either', async () => {
     expect(await store.readSlot(slot)).not.toBeNull();
     expect(await store.readSlot({ ...slot, name: 'second' })).not.toBeNull();
 });
+
+it('preserves future fields inside refresh and revoke states through transitions', async () => {
+    const slot = slotFixture();
+    await store.saveSlot(slot);
+    const raw = parseStore(await fs.readFile(store.filePath, 'utf8'));
+    slotsFor(raw, slot).default.refreshState = {
+        kind: 'idle',
+        futureRefresh: { keep: true },
+    };
+    slotsFor(raw, slot).default.revokeState = {
+        kind: 'none',
+        futureRevoke: 'keep',
+    };
+    await fs.writeFile(store.filePath, yaml.dump(raw));
+    await store.setRefreshState(slot, {
+        kind: 'reconnect_required',
+        since: new Date().toISOString(),
+    });
+    await store.setRevokeState(slot, {
+        kind: 'unconfirmed',
+        attemptedAt: new Date().toISOString(),
+    });
+    await store.setRefreshState(slot, { kind: 'idle' });
+    await store.setRevokeState(slot, { kind: 'none' });
+    const saved = slotsFor(
+        parseStore(await fs.readFile(store.filePath, 'utf8')),
+        slot,
+    ).default;
+    expect(saved.refreshState).toMatchObject({
+        kind: 'idle',
+        futureRefresh: { keep: true },
+    });
+    expect(saved.revokeState).toMatchObject({
+        kind: 'none',
+        futureRevoke: 'keep',
+    });
+});

@@ -2293,6 +2293,7 @@ const errorHandler = (err: Error) => {
         );
     } else if (
         err.name === 'AuthorizationError' &&
+        program.opts().agentConnection === undefined &&
         getAgentConnectionSelection() === null
     ) {
         console.error(

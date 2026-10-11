@@ -254,3 +254,29 @@ it('uses a newer generation after a 401 instead of refreshing again', async () =
         fetchMock.mock.calls.filter(([url]) => url.endsWith('/oauth/token')),
     ).toHaveLength(0);
 });
+
+it.each(['personUuid', 'organizationUuid'] as const)(
+    'does not share cached proof across %s',
+    async (field) => {
+        const provider = new AgentTokenProvider(store);
+        await store.saveSlot(slot);
+        await provider.getToken(slot);
+        fetchMock.mockClear();
+        slot = { ...slot, [field]: '44444444-4444-4444-8444-444444444444' };
+        await store.saveSlot(slot);
+        await provider.getToken(slot);
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+    },
+);
+it('uses the instance sub-path for refresh and both proofs', async () => {
+    slot.instanceUrl = 'https://example.com/lightdash';
+    slot.resource = slot.instanceUrl;
+    expiredAccess();
+    await store.saveSlot(slot);
+    await new AgentTokenProvider(store).getToken(slot);
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+        'https://example.com/lightdash/api/v1/oauth/token',
+        'https://example.com/lightdash/api/v1/user',
+        `https://example.com/lightdash/api/v2/user/agent-connections/${slot.grantUuid}/status`,
+    ]);
+});

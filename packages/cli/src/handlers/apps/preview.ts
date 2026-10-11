@@ -270,6 +270,7 @@ export const ensureNodeModules = async (args: {
     appDir: string;
     assumeYes: boolean;
 }): Promise<void> => {
+    refuseAgentConnection();
     if (await hasNodeModules(args.appDir)) return;
 
     const interactive =

@@ -1,7 +1,7 @@
 import { type Config } from '../config';
 import {
     getAgentConnectionSelection,
-    setAgentConnectionSelection,
+    validateAgentConnectionSelection,
 } from '../credentials';
 import {
     canonicalInstanceUrl,
@@ -23,9 +23,7 @@ export class AgentConnectionRequestError extends Error {
         );
     }
 }
-export const selectLifecycleSlot = (
-    name: string | undefined,
-): { name: string; restore: () => void } => {
+export const selectLifecycleSlot = (name: string | undefined): string => {
     const selection = getAgentConnectionSelection();
     if (name !== undefined && selection !== null && name !== selection)
         throw new Error(
@@ -34,17 +32,8 @@ export const selectLifecycleSlot = (
     const selected = name ?? selection;
     if (selected === null)
         throw new Error('Specify an agent connection with --name <slot>.');
-    setAgentConnectionSelection(selected);
-    try {
-        getAgentConnectionSelection();
-    } catch (error) {
-        setAgentConnectionSelection(selection);
-        throw error;
-    }
-    return {
-        name: selected,
-        restore: () => setAgentConnectionSelection(selection),
-    };
+    validateAgentConnectionSelection(selected);
+    return selected;
 };
 export const connectionKey = (config: Config, name: string): SlotKey | null =>
     config.context?.serverUrl &&

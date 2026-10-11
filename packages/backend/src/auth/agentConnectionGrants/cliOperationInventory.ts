@@ -50,6 +50,12 @@ const external = (
 
 export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryEntry[] =
     [
+        external(
+            'agentConnections/apiUrl.ts:44',
+            'GET',
+            'agentConnectionApiUrl(instanceUrl, url)',
+            'Selected provider transport forwards the method and applies the shared instance API join rule. Authorization is recorded at its inventoried identity, own-status and refresh callers.',
+        ),
         allowed(
             'agentConnections/warehouseStatus.ts:144',
             'GET',
@@ -57,40 +63,40 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             ['AiAccessController.getMyAccess'],
         ),
         external(
-            'handlers/agentConnectionStatus.ts:89',
+            'handlers/agentConnectionStatus.ts:92',
             'GET',
             '`/api/v2/user/agent-connections/${slot.grantUuid}/status`',
             'Own-connection lifecycle transport: AgentConnectionController.getConnectionStatus is recorded in CLI_CONNECTION_LIFECYCLE_OPERATIONS, outside the project capability inventory.',
         ),
         external(
-            'handlers/agentRevoke.ts:101',
+            'handlers/agentRevoke.ts:107',
             'DELETE',
             '`/api/v2/user/agent-connections/${slot.grantUuid}`',
             'Own-connection lifecycle transport: AgentConnectionController.revoke is recorded in CLI_CONNECTION_LIFECYCLE_OPERATIONS. Personal recovery requires an explicit matching human login.',
         ),
-        allowed('handlers/agentRevoke.ts:65', 'GET', "'/api/v1/user'", [
+        allowed('handlers/agentRevoke.ts:70', 'GET', "'/api/v1/user'", [
             'UserController.getAuthenticatedUser',
         ]),
         external(
-            'handlers/dbt/apiClient.ts:248',
+            'handlers/dbt/apiClient.ts:246',
             'GET',
             '{ ...props }',
             'API transport delegates authorization to the selected agent credential for an explicitly safe read.',
         ),
         allowed(
-            'agentConnections/agentTokenProvider.ts:123',
+            'agentConnections/agentTokenProvider.ts:125',
             'GET',
             '`${slot.instanceUrl}/api/v1/user`',
             ['UserController.getAuthenticatedUser'],
         ),
         external(
-            'agentConnections/agentTokenProvider.ts:137',
+            'agentConnections/agentTokenProvider.ts:139',
             'GET',
             '`${slot.instanceUrl}/api/v2/user/agent-connections/${slot.grantUuid}/status`',
             'Own-connection lifecycle transport: AgentConnectionController.getConnectionStatus is recorded in CLI_CONNECTION_LIFECYCLE_OPERATIONS, outside the project capability inventory.',
         ),
         external(
-            'agentConnections/agentTokenProvider.ts:264',
+            'agentConnections/agentTokenProvider.ts:267',
             'POST',
             '`${slot.instanceUrl}/api/v1/oauth/token`',
             'OAuth protocol refresh only: this token endpoint call sends grant_type=refresh_token for an existing connection, never an initial grant. It is outside the REST capability inventory.',
@@ -136,13 +142,13 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'App authoring, uploads and cross-project references need reviewed destination and effect contracts.',
         ),
         allowed(
-            'handlers/apps/validate.ts:551',
+            'handlers/apps/validate.ts:564',
             'GET',
             '`/api/v1/projects/${projectUuid}/explores`',
             ['ExploreController.GetExplores'],
         ),
         allowed(
-            'handlers/apps/validate.ts:562',
+            'handlers/apps/validate.ts:575',
             'GET',
             '`/api/v1/projects/${projectUuid}/explores/${encodeURIComponent(summary.name)}`',
             ['ExploreController.GetExplore'],
@@ -196,28 +202,28 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'External fetch or API transport delegates authorization to the inventoried Lightdash caller.',
         ),
         external(
-            'handlers/dbt/apiClient.ts:302',
+            'handlers/dbt/apiClient.ts:300',
             'GET',
             '{\n        method,\n        url,\n        body: requestBody,\n        headers,\n        signal,\n    }',
             'External fetch or API transport delegates authorization to the inventoried Lightdash caller.',
         ),
-        allowed('handlers/dbt/apiClient.ts:330', 'GET', '`/api/v1/user`', [
+        allowed('handlers/dbt/apiClient.ts:328', 'GET', '`/api/v1/user`', [
             'UserController.getAuthenticatedUser',
         ]),
         allowed(
-            'handlers/dbt/apiClient.ts:353',
+            'handlers/dbt/apiClient.ts:351',
             'GET',
             '`/api/v1/projects/${projectUuid}`',
             ['ProjectController.getProject'],
         ),
         allowed(
-            'handlers/dbt/apiClient.ts:567',
+            'handlers/dbt/apiClient.ts:565',
             'GET',
             '`/api/v1/health?skipMigrationCheck=true`',
             ['apiV1Router GET /health'],
         ),
         allowed(
-            'handlers/dbt/getWarehouseClient.ts:80',
+            'handlers/dbt/getWarehouseClient.ts:84',
             'GET',
             '`/api/v1/projects/${projectUuid}/sqlRunner/fields?tableName=${tableName}&schemaName=${schemaName}&databaseName=${databaseName}`',
             ['SqlRunnerController.getTableFields'],

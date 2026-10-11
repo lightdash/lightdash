@@ -6,9 +6,8 @@ import { slotFixture } from './agentConnections/fixtures';
 import { AgentConnectionStore } from './agentConnections/store';
 import {
     getAgentConnectionSelection,
-    resetCredentialContext,
     resolveCredential,
-    setAgentConnectionSelection,
+    runWithAgentConnectionSelection,
 } from './credentials';
 
 const fetchMock = vi.hoisted(() => vi.fn());
@@ -18,7 +17,6 @@ let store: AgentConnectionStore;
 let provider: AgentTokenProvider;
 let slot: ReturnType<typeof slotFixture>;
 beforeEach(async () => {
-    resetCredentialContext();
     vi.stubEnv('LIGHTDASH_AGENT_CONNECTION', undefined);
     directory = await fs.mkdtemp(path.join(tmpdir(), 'agent-credentials-'));
     store = new AgentConnectionStore(
@@ -46,7 +44,6 @@ beforeEach(async () => {
     }));
 });
 afterEach(async () => {
-    resetCredentialContext();
     vi.unstubAllEnvs();
     await fs.rm(directory, { recursive: true, force: true });
 });
@@ -57,12 +54,11 @@ const config = () => ({
     },
     context: { serverUrl: slot.instanceUrl, apiKey: 'stored-person' },
 });
-it('uses flag over env and resets per invocation', () => {
+it('uses flag over env only within the invocation', () => {
     vi.stubEnv('LIGHTDASH_AGENT_CONNECTION', 'env');
-    expect(getAgentConnectionSelection()).toBe('env');
-    setAgentConnectionSelection('flag');
-    expect(getAgentConnectionSelection()).toBe('flag');
-    resetCredentialContext();
+    runWithAgentConnectionSelection('flag', () => {
+        expect(getAgentConnectionSelection()).toBe('flag');
+    });
     expect(getAgentConnectionSelection()).toBe('env');
 });
 it.each(['', ' ', '../slot'])(
@@ -70,13 +66,13 @@ it.each(['', ' ', '../slot'])(
     (name) => {
         vi.stubEnv('LIGHTDASH_AGENT_CONNECTION', name);
         expect(() => getAgentConnectionSelection()).toThrow('agent connection');
-        setAgentConnectionSelection(name);
+        vi.stubEnv('LIGHTDASH_AGENT_CONNECTION', name);
         expect(() => getAgentConnectionSelection()).toThrow('agent connection');
     },
 );
 it('ignores both personal keys and always returns an agent Bearer credential', async () => {
     await store.saveSlot(slot);
-    setAgentConnectionSelection('default');
+    vi.stubEnv('LIGHTDASH_AGENT_CONNECTION', 'default');
     vi.stubEnv('LIGHTDASH_API_KEY', 'env-person');
     const credential = await resolveCredential(config(), provider);
     expect(credential.kind).toBe('agent_connection');
@@ -121,7 +117,10 @@ it.each([
         });
     if (state === 'malformed')
         await fs.writeFile(store.filePath, 'version: 999');
-    setAgentConnectionSelection(state === 'missing' ? 'missing' : 'default');
+    vi.stubEnv(
+        'LIGHTDASH_AGENT_CONNECTION',
+        state === 'missing' ? 'missing' : 'default',
+    );
     const current = config();
     if (state === 'mismatched')
         current.user.userUuid = '44444444-4444-4444-8444-444444444444';

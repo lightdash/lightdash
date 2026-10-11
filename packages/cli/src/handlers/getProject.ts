@@ -1,5 +1,6 @@
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
+import { getAgentConnectionSelection, resolveCredential } from '../credentials';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 
@@ -15,7 +16,21 @@ export const getProjectHandler = async (options: GetProjectOptions) => {
     try {
         const config = await getConfig();
 
-        GlobalState.debug(`> Config: ${JSON.stringify(config)}`);
+        if (getAgentConnectionSelection() !== null) {
+            await resolveCredential(config);
+            GlobalState.debug(
+                `> Config: ${JSON.stringify({
+                    ...config,
+                    context: {
+                        ...config.context,
+                        apiKey: '[REDACTED]',
+                        proxyAuthorization: '[REDACTED]',
+                    },
+                })}`,
+            );
+        } else {
+            GlobalState.debug(`> Config: ${JSON.stringify(config)}`);
+        }
 
         const projectUuid = config.context?.project;
         const projectName = config.context?.projectName;

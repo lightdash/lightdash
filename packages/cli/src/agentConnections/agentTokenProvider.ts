@@ -1,7 +1,8 @@
 import { assertUnreachable } from '@lightdash/common';
 import Ajv from 'ajv';
 import { randomUUID } from 'crypto';
-import fetch, { type Response } from 'node-fetch';
+import { type Response } from 'node-fetch';
+import { createAgentConnectionFetch } from './apiUrl';
 import { validateSlot, type AgentConnectionSlot, type SlotKey } from './schema';
 import { AgentConnectionStore, type LockedStore } from './store';
 
@@ -113,6 +114,7 @@ export class AgentTokenProvider {
         slot: AgentConnectionSlot,
         proxyAuthorization: string | null,
     ): Promise<AgentConnectionSlot> {
+        const fetch = createAgentConnectionFetch(slot.instanceUrl);
         const headers = {
             Authorization: `Bearer ${slot.tokens.accessToken}`,
             ...(proxyAuthorization === null
@@ -261,6 +263,7 @@ export class AgentTokenProvider {
                         resource: slot.resource,
                         scope: slot.tokens.scopes.join(' '),
                     });
+                    const fetch = createAgentConnectionFetch(slot.instanceUrl);
                     const response = await fetch(
                         `${slot.instanceUrl}/api/v1/oauth/token`,
                         {
@@ -334,6 +337,8 @@ export class AgentTokenProvider {
             }
             const verificationKey = JSON.stringify([
                 slot.instanceUrl,
+                slot.organizationUuid,
+                slot.personUuid,
                 slot.grantUuid,
                 slot.tokens.generation,
             ]);

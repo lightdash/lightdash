@@ -1,14 +1,11 @@
 import {
     assertUnreachable,
+    AuthTokenPrefix,
     LightdashCliVersionHeader,
     LightdashRequestMethodHeader,
     RequestMethod,
 } from '@lightdash/common';
-import {
-    humanCredential,
-    refuseAgentConnection,
-    type Credential,
-} from '../credentials';
+import { refuseAgentConnection, type Credential } from '../credentials';
 import { CLI_VERSION } from '../env';
 
 enum TokenType {
@@ -46,7 +43,10 @@ export function getCredentialAuthHeader(credential: Credential): string {
  */
 export function getAuthHeader(token: string) {
     refuseAgentConnection();
-    return getCredentialAuthHeader(humanCredential(token));
+    const authType = token?.startsWith(AuthTokenPrefix.SERVICE_ACCOUNT)
+        ? TokenType.Bearer
+        : TokenType.ApiKey;
+    return `${authType} ${token}`;
 }
 
 function buildHeaders(authorization: string) {
@@ -69,7 +69,22 @@ function buildHeaders(authorization: string) {
 }
 
 export function buildRequestHeaders(token: string) {
-    return buildHeaders(getAuthHeader(token));
+    const headers: RequestHeader = {
+        'Content-Type': 'application/json',
+        Authorization: getAuthHeader(token),
+        [LightdashRequestMethodHeader]:
+            process.env.CI === 'true'
+                ? RequestMethod.CLI_CI
+                : RequestMethod.CLI,
+        [LightdashCliVersionHeader]: CLI_VERSION,
+    };
+
+    if (process.env.LIGHTDASH_PROXY_AUTHORIZATION) {
+        headers['Proxy-Authorization'] =
+            process.env.LIGHTDASH_PROXY_AUTHORIZATION;
+    }
+
+    return headers;
 }
 
 export function buildCredentialHeaders(

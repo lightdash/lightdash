@@ -120,22 +120,12 @@ export const lightdashRawApi = async ({
             throw new Error(
                 'No instance is configured for this agent connection.',
             );
-        const { canonicalInstanceUrl } =
-            await import('../../agentConnections/schema');
-        const instance = canonicalInstanceUrl(config.context.serverUrl);
-        const destination = new URL(url, `${instance}/`);
-        const base = new URL(instance);
-        if (
-            destination.origin !== base.origin ||
-            destination.username ||
-            destination.password ||
-            !destination.pathname.startsWith(
-                `${base.pathname.replace(/\/$/, '')}/api/`,
-            )
-        )
-            throw new Error(
-                'Agent connection requests must stay within the selected instance API.',
-            );
+        const { agentConnectionApiUrl } =
+            await import('../../agentConnections/apiUrl');
+        const destination = agentConnectionApiUrl(
+            config.context.serverUrl,
+            url,
+        );
         if (lifecycle) {
             const statusPath = `/api/v2/user/agent-connections/${lifecycle.grantUuid}/status`;
             const revokePath = `/api/v2/user/agent-connections/${lifecycle.grantUuid}`;
@@ -151,9 +141,14 @@ export const lightdashRawApi = async ({
                 throw new Error('Invalid connection lifecycle request.');
         }
         let credential = await resolveCredential(config, null, null, lifecycle);
+        let retried = false;
         const send = async () => {
+            if (credential.kind !== 'agent_connection')
+                throw new Error(
+                    'The selected request requires an agent connection credential.',
+                );
             try {
-                return await fetchWithTimeout(destination.href, {
+                return await fetchWithTimeout(destination, {
                     method,
                     headers: {
                         ...buildCredentialHeaders(
@@ -173,7 +168,9 @@ export const lightdashRawApi = async ({
                     throw new AgentConnectionRequestError('unreachable');
                 }
                 throw new Error(
-                    'The agent connection request failed. No request was retried.',
+                    retried
+                        ? 'The agent connection request failed. No further retry was attempted.'
+                        : 'The agent connection request failed. No request was retried.',
                 );
             }
         };
@@ -192,6 +189,7 @@ export const lightdashRawApi = async ({
                 credential.slot.tokens.generation,
                 lifecycle,
             );
+            retried = true;
             response = await send();
         }
         if (!response.ok && lifecycle) {

@@ -189,3 +189,127 @@ it('never forwards credentials through a real cross-origin redirect', async () =
         );
     }
 });
+
+it.each(['human_api_key', 'service_account'])(
+    'refuses a resolved %s credential without sending',
+    async (kind) => {
+        mocks.resolve.mockResolvedValue({ kind, token: 'personal-token' });
+        await expect(
+            lightdashRawApi({
+                method: 'GET',
+                url: '/api/v1/user',
+                body: undefined,
+            }),
+        ).rejects.toThrow('agent connection credential');
+        expect(mocks.fetch).not.toHaveBeenCalled();
+    },
+);
+it('refuses a non-agent credential returned for a retry', async () => {
+    mocks.fetch.mockResolvedValueOnce(response(401));
+    mocks.resolve
+        .mockResolvedValueOnce({
+            kind: 'agent_connection',
+            token: 'private-access',
+            slot,
+        })
+        .mockResolvedValueOnce({
+            kind: 'human_api_key',
+            token: 'personal-token',
+        });
+    await expect(
+        lightdashRawApi({
+            method: 'GET',
+            url: '/api/v1/user',
+            body: undefined,
+            safeToRetry: true,
+        }),
+    ).rejects.toThrow('agent connection credential');
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+});
+
+it.each([
+    ['https://example.com', '/api/v1/user', 'https://example.com/api/v1/user'],
+    ['https://example.com/', '/api/v1/user', 'https://example.com/api/v1/user'],
+    [
+        'https://example.com/lightdash',
+        '/api/v1/user',
+        'https://example.com/lightdash/api/v1/user',
+    ],
+    [
+        'https://example.com/lightdash/',
+        'api/v1/user',
+        'https://example.com/lightdash/api/v1/user',
+    ],
+    [
+        'https://example.com/lightdash',
+        'https://example.com/lightdash/api/v1/user',
+        'https://example.com/lightdash/api/v1/user',
+    ],
+])(
+    'joins %s with %s inside the instance API',
+    async (instance, url, destination) => {
+        slot.instanceUrl = instance;
+        await lightdashRawApi({ method: 'GET', url, body: undefined });
+        expect(mocks.fetch.mock.calls[0][0]).toBe(destination);
+    },
+);
+it.each([
+    '//example.com/api/v1/user',
+    '/api/%2foutside',
+    '/api/%5Coutside',
+    '/api/%2e%2e/outside',
+    '/api/.%2E/outside',
+    '/api/%252foutside',
+    '/api/../outside',
+    '/api/..\\outside',
+    'https://example.com/api/v1/user',
+    'https://person@example.com/lightdash/api/v1/user',
+    'https://external.example/lightdash/api/v1/user',
+])('rejects ambiguous or outside sub-path destination %s', async (url) => {
+    slot.instanceUrl = 'https://example.com/lightdash';
+    await expect(
+        lightdashRawApi({ method: 'GET', url, body: undefined }),
+    ).rejects.toThrow('selected instance API');
+    expect(mocks.resolve).not.toHaveBeenCalled();
+    expect(mocks.fetch).not.toHaveBeenCalled();
+});
+it('reports a failed retry truthfully without leaking the error', async () => {
+    mocks.fetch
+        .mockResolvedValueOnce(response(401))
+        .mockRejectedValueOnce(new Error('private-access'));
+    await expect(
+        lightdashRawApi({
+            method: 'GET',
+            url: '/api/v1/user',
+            body: undefined,
+            safeToRetry: true,
+        }),
+    ).rejects.toThrow(
+        'The agent connection request failed. No further retry was attempted.',
+    );
+    expect(mocks.fetch).toHaveBeenCalledTimes(2);
+});
+it.each([
+    '//example.com/api/v1/user',
+    '/api/%2foutside',
+    '/api/%5Coutside',
+    '/api/%2e%2e%2foutside',
+    '/api/%252foutside',
+])('rejects ambiguous root destination %s before tokens', async (url) => {
+    await expect(
+        lightdashRawApi({ method: 'GET', url, body: undefined }),
+    ).rejects.toThrow('selected instance API');
+    expect(mocks.resolve).not.toHaveBeenCalled();
+    expect(mocks.fetch).not.toHaveBeenCalled();
+});
+it.each([
+    '/api/%25%32%66outside',
+    '/api/%25%35%63outside',
+    '/api/%25%32%65%25%32%65/outside',
+])('rejects separately encoded separator bytes in %s', async (url) => {
+    await expect(
+        lightdashRawApi({ method: 'GET', url, body: undefined }),
+    ).rejects.toThrow('selected instance API');
+    expect(mocks.resolve).not.toHaveBeenCalled();
+    expect(mocks.fetch).not.toHaveBeenCalled();
+});

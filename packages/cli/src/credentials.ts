@@ -1,4 +1,5 @@
 import { AuthorizationError, AuthTokenPrefix } from '@lightdash/common';
+import { AsyncLocalStorage } from 'async_hooks';
 import { type AgentTokenProvider } from './agentConnections/agentTokenProvider';
 import { type LifecycleOperation } from './agentConnections/lifecycle';
 import { type AgentConnectionSlot } from './agentConnections/schema';
@@ -8,18 +9,14 @@ export type Credential =
     | { kind: 'human_api_key'; token: string }
     | { kind: 'service_account'; token: string }
     | { kind: 'agent_connection'; token: string; slot: AgentConnectionSlot };
-let selectedFlag: string | null = null;
-let tokenProvider: AgentTokenProvider | null = null;
-export const resetCredentialContext = (): void => {
-    selectedFlag = null;
-    tokenProvider = null;
+type Invocation = {
+    readonly selection: string | null;
+    provider: Promise<AgentTokenProvider> | null;
 };
-export const setAgentConnectionSelection = (selection: string | null): void => {
-    selectedFlag = selection;
-};
-export const getAgentConnectionSelection = (): string | null => {
-    const selection =
-        selectedFlag ?? process.env.LIGHTDASH_AGENT_CONNECTION ?? null;
+const invocations = new AsyncLocalStorage<Invocation>();
+export const validateAgentConnectionSelection = (
+    selection: string | null,
+): string | null => {
     if (
         selection !== null &&
         !/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(selection)
@@ -28,6 +25,36 @@ export const getAgentConnectionSelection = (): string | null => {
             'Select a non-empty agent connection slot name (letters, numbers, dots, underscores and hyphens).',
         );
     return selection;
+};
+export const runWithParsedAgentConnectionSelection = <T>(
+    readSelection: () => string | null,
+    action: () => T,
+): T => {
+    let captured: { value: string | null } | null = null;
+    return invocations.run(
+        {
+            get selection() {
+                captured ??= {
+                    value: validateAgentConnectionSelection(readSelection()),
+                };
+                return captured.value;
+            },
+            provider: null,
+        },
+        action,
+    );
+};
+export const runWithAgentConnectionSelection = <T>(
+    selection: string | null,
+    action: () => T,
+): T => runWithParsedAgentConnectionSelection(() => selection, action);
+export const getAgentConnectionSelection = (): string | null => {
+    const invocation = invocations.getStore();
+    return invocation === undefined
+        ? validateAgentConnectionSelection(
+              process.env.LIGHTDASH_AGENT_CONNECTION ?? null,
+          )
+        : invocation.selection;
 };
 export const humanCredential = (token: string): Credential => ({
     kind: token?.startsWith(AuthTokenPrefix.SERVICE_ACCOUNT)
@@ -60,14 +87,18 @@ export const resolveCredential = async (
             'This agent connection requires the configured instance, person and organisation. Use your personal CLI login first.',
         );
     const { canonicalInstanceUrl } = await import('./agentConnections/schema');
-    if (provider === null && tokenProvider === null) {
-        const { AgentTokenProvider: Provider } =
-            await import('./agentConnections/agentTokenProvider');
-        tokenProvider ??= new Provider();
+    let selectedProvider = provider;
+    if (selectedProvider === null) {
+        const invocation = invocations.getStore();
+        const createProvider = async () => {
+            const { AgentTokenProvider: Provider } =
+                await import('./agentConnections/agentTokenProvider');
+            return new Provider();
+        };
+        selectedProvider = await (invocation === undefined
+            ? createProvider()
+            : (invocation.provider ??= createProvider()));
     }
-    const selectedProvider = provider ?? tokenProvider;
-    if (selectedProvider === null)
-        throw new Error('Agent connection provider is unavailable.');
     const getToken =
         lifecycle === null
             ? selectedProvider.getToken.bind(selectedProvider)
@@ -103,4 +134,25 @@ export const refuseAgentConnection = (personalOnly = false): void => {
         throw new Error(
             personalOnly ? personalLoginRequired : agentCommandUnavailable,
         );
+};
+
+export const getAgentConnectionChildEnvironment = async (
+    overrides: NodeJS.ProcessEnv = {},
+): Promise<NodeJS.ProcessEnv> => {
+    const selection = getAgentConnectionSelection();
+    if (selection === null)
+        throw new Error('An agent connection selection is required.');
+    const { getConfig } = await import('./config');
+    const credential = await resolveCredential(await getConfig());
+    if (credential.kind !== 'agent_connection')
+        throw new Error(
+            'The selected child requires an agent connection credential.',
+        );
+    const env: NodeJS.ProcessEnv = {
+        ...process.env,
+        ...overrides,
+        LIGHTDASH_AGENT_CONNECTION: selection,
+    };
+    delete env.LIGHTDASH_API_KEY;
+    return env;
 };
