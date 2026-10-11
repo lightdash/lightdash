@@ -72,6 +72,7 @@ import {
     type ProjectContentAsCodeCounts,
 } from '../analytics/analytics';
 import { getConfig, setAnswer } from '../config';
+import { refuseAgentConnection } from '../credentials';
 import { CLI_VERSION } from '../env';
 import GlobalState from '../globalState';
 import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
@@ -1973,6 +1974,7 @@ const listAppsViaContentApi = async (
 export const downloadHandler = async (
     options: DownloadHandlerOptions,
 ): Promise<void> => {
+    refuseAgentConnection();
     GlobalState.setVerbose(options.verbose);
 
     const isOrganizationDownload = options.organization === true;
@@ -3824,6 +3826,7 @@ const getStampedContentPath = (uploadRoot: string): string | undefined => {
 export const uploadHandler = async (
     options: DownloadHandlerOptions,
 ): Promise<void> => {
+    refuseAgentConnection();
     GlobalState.setVerbose(options.verbose);
     const projectConfig = await readUploadProjectConfig();
     // --path wins; otherwise content_as_code.path from lightdash.config.yml

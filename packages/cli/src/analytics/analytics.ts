@@ -1,6 +1,7 @@
 import { LightdashError, LightdashUser } from '@lightdash/common';
 import fetch from 'node-fetch';
 import { Config, getConfig } from '../config';
+import { refuseAgentConnection } from '../credentials';
 import { getInstallMethod } from '../env';
 import GlobalState from '../globalState';
 import { lightdashApi } from '../handlers/dbt/apiClient';
@@ -26,6 +27,7 @@ const detectCI = (): CIInfo => {
 };
 
 const identifyUser = async (): Promise<Config['user']> => {
+    refuseAgentConnection();
     const config = await getConfig();
     if (config.context?.serverUrl && config.context.apiKey) {
         try {

@@ -7,6 +7,8 @@ import {
     ValidationTarget,
 } from '@lightdash/common';
 import { InvalidArgumentError, Option, program, type Command } from 'commander';
+import { registerAgentConnectionOption } from './agentConnectionOption';
+import { getAgentConnectionSelection } from './credentials';
 import {
     DEFAULT_DBT_PROFILES_DIR as defaultProfilesDir,
     DEFAULT_DBT_PROJECT_DIR as defaultProjectDir,
@@ -121,6 +123,8 @@ function parseProjectArgument(value: string | undefined): string | undefined {
 
     return value;
 }
+
+registerAgentConnectionOption(program);
 
 program
     .version(getVersionWithSkills())
@@ -2242,7 +2246,10 @@ const errorHandler = (err: Error) => {
         console.error(
             `\n💡 Contact your Lightdash administrator to request project creation access or if you believe this is incorrect.\n`,
         );
-    } else if (err.name === 'AuthorizationError') {
+    } else if (
+        err.name === 'AuthorizationError' &&
+        getAgentConnectionSelection() === null
+    ) {
         console.error(
             `Looks like you did not authenticate or the personal access token expired.${
                 process.env.LIGHTDASH_API_KEY

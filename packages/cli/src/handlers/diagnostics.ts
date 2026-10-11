@@ -2,6 +2,7 @@ import { getErrorMessage } from '@lightdash/common';
 import execa from 'execa';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
+import { refuseAgentConnection } from '../credentials';
 import {
     CLI_VERSION,
     DEFAULT_DBT_PROFILES_DIR,
@@ -146,6 +147,7 @@ const runDbtDebug = async (
 };
 
 export const diagnosticsHandler = async (options: DiagnosticsOptions) => {
+    refuseAgentConnection();
     const startTime = Date.now();
     let success = true;
 

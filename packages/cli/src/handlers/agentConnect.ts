@@ -8,6 +8,7 @@ import {
 import * as http from 'http';
 import type { Ora } from 'ora';
 import { getConfig } from '../config';
+import { refuseAgentConnection } from '../credentials';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import {
@@ -53,6 +54,7 @@ const isConnected = (access: AiAccessForUser): boolean =>
 export const agentConnectHandler = async (
     options: AgentConnectOptions,
 ): Promise<void> => {
+    refuseAgentConnection(true);
     GlobalState.setVerbose(options.verbose);
     const projectUuid = await resolveAgentProject(options.project);
     const access = await getAgentAccess(projectUuid);

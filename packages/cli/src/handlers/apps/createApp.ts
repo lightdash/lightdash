@@ -15,6 +15,7 @@ import inquirer from 'inquirer';
 import * as path from 'path';
 import { LightdashAnalytics } from '../../analytics/analytics';
 import { getConfig } from '../../config';
+import { refuseAgentConnection } from '../../credentials';
 import { CLI_VERSION } from '../../env';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
@@ -323,6 +324,7 @@ export const createAppHandler = async (
     name: string,
     options: CreateAppHandlerOptions,
 ): Promise<void> => {
+    refuseAgentConnection();
     const startTime = Date.now();
     let success = false;
     GlobalState.setVerbose(options.verbose);

@@ -13,19 +13,25 @@ import {
     type Project,
 } from '@lightdash/common';
 import fetch, { BodyInit, type Response } from 'node-fetch';
+import { Readable } from 'stream';
 import { URL } from 'url';
 import { gzipSync } from 'zlib';
 import { getConfig } from '../../config';
+import {
+    getAgentConnectionSelection,
+    resolveCredential,
+} from '../../credentials';
 import { CLI_VERSION, getUpdateInstructions } from '../../env';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
-import { buildRequestHeaders } from '../utils';
+import { buildCredentialHeaders, buildRequestHeaders } from '../utils';
 
 type LightdashApiProps = {
     method: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
     url: string;
     body: BodyInit | undefined;
     signal?: AbortSignal;
+    safeToRetry?: boolean;
 };
 
 type LightdashRawApiProps = LightdashApiProps & {
@@ -59,6 +65,7 @@ const fetchWithTimeout = async (
         headers: Record<string, string>;
         body?: BodyInit;
         signal?: AbortSignal;
+        redirect?: 'error';
     },
 ): Promise<Response> => {
     const timeoutMs = getRequestTimeoutMs();
@@ -93,8 +100,82 @@ export const lightdashRawApi = async ({
     body,
     headers: requestHeaders = {},
     signal,
+    safeToRetry = false,
 }: LightdashRawApiProps): Promise<Response> => {
     const config = await getConfig();
+    if (getAgentConnectionSelection() !== null) {
+        if (
+            Object.keys(requestHeaders).some((header) =>
+                ['authorization', 'cookie'].includes(header.toLowerCase()),
+            )
+        )
+            throw new Error(
+                'Agent connection requests cannot override Authorization or include Cookie headers.',
+            );
+        if (!config.context?.serverUrl)
+            throw new Error(
+                'No instance is configured for this agent connection.',
+            );
+        const { canonicalInstanceUrl } =
+            await import('../../agentConnections/schema');
+        const instance = canonicalInstanceUrl(config.context.serverUrl);
+        const destination = new URL(url, `${instance}/`);
+        const base = new URL(instance);
+        if (
+            destination.origin !== base.origin ||
+            destination.username ||
+            destination.password ||
+            !destination.pathname.startsWith(
+                `${base.pathname.replace(/\/$/, '')}/api/`,
+            )
+        )
+            throw new Error(
+                'Agent connection requests must stay within the selected instance API.',
+            );
+        let credential = await resolveCredential(config);
+        const send = async () => {
+            try {
+                return await fetchWithTimeout(destination.href, {
+                    method,
+                    headers: {
+                        ...buildCredentialHeaders(
+                            credential,
+                            config.context?.proxyAuthorization ?? null,
+                        ),
+                        ...requestHeaders,
+                    },
+                    body,
+                    signal,
+                    redirect: 'error',
+                });
+            } catch {
+                throw new Error(
+                    'The agent connection request failed. No request was retried.',
+                );
+            }
+        };
+        let response = await send();
+        if (
+            response.status === 401 &&
+            safeToRetry &&
+            method === 'GET' &&
+            body === undefined &&
+            credential.kind === 'agent_connection'
+        ) {
+            if (response.body instanceof Readable) response.body.destroy();
+            credential = await resolveCredential(
+                config,
+                null,
+                credential.slot.tokens.generation,
+            );
+            response = await send();
+        }
+        if (!response.ok)
+            throw new Error(
+                `The server rejected the agent connection request (status ${response.status}).`,
+            );
+        return response;
+    }
     if (!(config.context?.apiKey && config.context.serverUrl)) {
         throw new AuthorizationError(
             `Not logged in. Run 'lightdash login --help'`,
@@ -130,12 +211,39 @@ export const lightdashRawApi = async ({
     return response;
 };
 
+async function agentSafeReadApi<T extends ApiResponse['results']>(
+    props: LightdashApiProps,
+): Promise<T> {
+    return lightdashRawApi({ ...props })
+        .then((r) => r.json())
+        .then((d: ApiResponse | ApiError) => {
+            GlobalState.debug(`> HTTP request returned status: ${d.status}`);
+            switch (d.status) {
+                case 'ok':
+                    return d.results as T;
+                case 'error':
+                    throw new LightdashError(d.error);
+                default:
+                    throw new Error(d);
+            }
+        });
+}
+
 export const lightdashApi = async <T extends ApiResponse['results']>({
     method,
     url,
     body,
     signal,
+    safeToRetry,
 }: LightdashApiProps): Promise<T> => {
+    if (
+        getAgentConnectionSelection() !== null &&
+        safeToRetry &&
+        method === 'GET' &&
+        body === undefined
+    ) {
+        return agentSafeReadApi<T>({ method, url, body, signal, safeToRetry });
+    }
     const headers: Record<string, string> = {};
 
     let requestBody: BodyInit | undefined = body;
@@ -192,6 +300,7 @@ export const getUserContext =
             method: 'GET',
             url: `/api/v1/user`,
             body: undefined,
+            safeToRetry: true,
         });
 
 export type ContentAsCodeUploadPermissions = {
@@ -428,6 +537,7 @@ export const checkLightdashVersion = async (): Promise<void> => {
             method: 'GET',
             url: `/api/v1/health?skipMigrationCheck=true`,
             body: undefined,
+            safeToRetry: true,
         });
 
         const cliMajor = CLI_VERSION.split('.')[0];
@@ -447,6 +557,7 @@ export const checkLightdashVersion = async (): Promise<void> => {
             );
         }
     } catch (err) {
+        if (getAgentConnectionSelection() !== null) throw err;
         GlobalState.debug(`> Health check failed: ${err}`);
     }
 };
