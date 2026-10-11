@@ -2757,7 +2757,10 @@ export class AiAgentAdminService extends BaseService {
 
         let strategy: AiAgentReviewItemWritebackStrategy | null = null;
         try {
-            const user = await this.userModel.findSessionUserByUUID(userUuid);
+            const user = await this.userModel.findSessionUserAndOrgByUuid(
+                userUuid,
+                organizationUuid,
+            );
             await setProgress('Starting writeback…');
 
             const runWritebackReadContext: ExploreCacheReadContext & {

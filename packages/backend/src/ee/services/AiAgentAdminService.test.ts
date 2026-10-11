@@ -4,7 +4,9 @@ import {
     DbtProjectType,
     ExpectedNotFoundError,
     ForbiddenError,
+    InvalidUser,
     JobStatusType,
+    NotFoundError,
     OrganizationMemberRole,
     PullRequestProvider,
     type AiAgentReviewItemSummary,
@@ -510,6 +512,9 @@ const makeService = ({
         },
         userModel: {
             findSessionUserByUUID: vi.fn().mockResolvedValue(makeAdminUser()),
+            findSessionUserAndOrgByUuid: vi
+                .fn()
+                .mockResolvedValue(makeAdminUser()),
             getUserDetailsByUuid: vi
                 .fn()
                 .mockResolvedValue({ organizationUuid: ORGANIZATION_UUID }),
@@ -2762,6 +2767,105 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
+
+    it('loads the person for the payload organisation', async () => {
+        const findSessionUserAndOrgByUuid = vi
+            .fn()
+            .mockResolvedValue(makeAdminUser());
+        const findSessionUserByUUID = vi
+            .fn()
+            .mockResolvedValue(makeAdminUser());
+        const service = makeService({
+            userModel: { findSessionUserAndOrgByUuid, findSessionUserByUUID },
+        });
+
+        await service.runReviewItemWritebackJob(payload);
+
+        expect(findSessionUserAndOrgByUuid).toHaveBeenCalledExactlyOnceWith(
+            USER_UUID,
+            ORGANIZATION_UUID,
+        );
+        expect(findSessionUserByUUID).not.toHaveBeenCalled();
+    });
+
+    it('uses the job membership when the person has an older organisation', async () => {
+        const jobUser = makeAdminUser();
+        const olderUser = {
+            ...jobUser,
+            organizationUuid: 'older-organisation',
+        };
+        const findSessionUserByUUID = vi.fn().mockResolvedValue(olderUser);
+        const findSessionUserAndOrgByUuid = vi
+            .fn()
+            .mockImplementation(
+                async (userUuid: string, organizationUuid: string) => {
+                    expect(userUuid).toBe(USER_UUID);
+                    return organizationUuid === ORGANIZATION_UUID
+                        ? jobUser
+                        : olderUser;
+                },
+            );
+        const generateAgentThreadResponse = vi
+            .fn()
+            .mockResolvedValue('Opened a pull request.');
+        const service = makeService({
+            userModel: { findSessionUserByUUID, findSessionUserAndOrgByUuid },
+            aiAgentService: { generateAgentThreadResponse },
+        });
+
+        await service.runReviewItemWritebackJob(payload);
+
+        expect(generateAgentThreadResponse).toHaveBeenCalledWith(
+            jobUser,
+            expect.anything(),
+        );
+        expect(findSessionUserByUUID).not.toHaveBeenCalled();
+    });
+
+    it.each(['removed membership', 'missing person'])(
+        'fails through the existing path for a %s with InvalidUser',
+        async () => {
+            const error = new InvalidUser(
+                `Cannot find user with uuid ${USER_UUID} and org ${ORGANIZATION_UUID}`,
+            );
+            const updateReviewRemediationStatus = vi.fn();
+            const setReviewItemWritebackStatus = vi.fn();
+            const generateAgentThreadResponse = vi.fn();
+            const service = makeService({
+                userModel: {
+                    findSessionUserAndOrgByUuid: vi
+                        .fn()
+                        .mockRejectedValue(error),
+                },
+                aiAgentReviewClassifierModel: {
+                    updateReviewRemediationStatus,
+                    setReviewItemWritebackStatus,
+                },
+                aiAgentService: { generateAgentThreadResponse },
+            });
+
+            await expect(
+                service.runReviewItemWritebackJob(payload),
+            ).rejects.toBe(error);
+            expect(error).toBeInstanceOf(InvalidUser);
+            expect(error).not.toBeInstanceOf(NotFoundError);
+            expect(updateReviewRemediationStatus).toHaveBeenLastCalledWith({
+                remediationUuid: REMEDIATION_UUID,
+                organizationUuid: ORGANIZATION_UUID,
+                status: 'failed',
+                errorMessage: error.message,
+            });
+            expect(setReviewItemWritebackStatus).toHaveBeenLastCalledWith({
+                fingerprint: payload.fingerprint,
+                organizationUuid: ORGANIZATION_UUID,
+                projectUuid: PROJECT_UUID,
+                agentUuid: AGENT_UUID,
+                status: 'failed',
+                message: error.message,
+            });
+            expect(generateAgentThreadResponse).not.toHaveBeenCalled();
+        },
+    );
 
     it('enqueues a compile poll instead of seeding the verification thread inline', async () => {
         const aiAgentModel = {
