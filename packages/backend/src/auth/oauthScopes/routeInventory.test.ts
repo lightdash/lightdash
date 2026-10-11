@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { AGENT_CONNECTION_OWNER_OPERATIONS } from '../agentConnectionGrants/operationContracts';
 import { OAUTH_CASL_CHECKED_ROUTES } from './caslCheckedRoutes';
 import { classifyOAuthOperation } from './scopeMap';
 import {
@@ -29,6 +30,7 @@ it('requires a reviewed authorization boundary for every OAuth route', () => {
             .filter(
                 (route) =>
                     !OAUTH_CASL_CHECKED_ROUTES.includes(route.id) &&
+                    !AGENT_CONNECTION_OWNER_OPERATIONS.includes(route.id) &&
                     route.guards.length === 0,
             )
             .map((route) => route.id),
@@ -212,3 +214,16 @@ it.each(['rebaseContentDraft', 'reopenContentDraft'] as const)(
         expect(OAUTH_UNCHECKED_OPERATIONS[id]).toBe('write');
     },
 );
+
+it('reviews exactly the three live owner-authorised connection operations', () => {
+    expect(AGENT_CONNECTION_OWNER_OPERATIONS).toEqual([
+        'AgentConnectionController.list',
+        'AgentConnectionController.getConnectionStatus',
+        'AgentConnectionController.revoke',
+    ]);
+    expect(
+        AGENT_CONNECTION_OWNER_OPERATIONS.every((id) =>
+            routes.some((route) => route.id === id),
+        ),
+    ).toBe(true);
+});

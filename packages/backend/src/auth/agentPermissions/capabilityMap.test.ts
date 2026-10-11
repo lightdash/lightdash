@@ -21,6 +21,7 @@ import {
 } from '../../ee/services/McpService/McpService';
 import { makeMcpServerOptions } from '../../ee/services/McpService/McpService.mock';
 import { evaluate } from '../../services/AgentPermissionService/AgentPermissionService';
+import { AGENT_CONNECTION_OWNER_OPERATIONS } from '../agentConnectionGrants/operationContracts';
 import { OAUTH_CASL_CHECKED_ROUTES } from '../oauthScopes/caslCheckedRoutes';
 import { MCP_TOOL_SCOPE_MAP } from '../oauthScopes/mcpTools';
 import {
@@ -85,7 +86,11 @@ it('covers the exact OAuth REST route and guard inventory without stale entries'
     expect(routes.length).toBeGreaterThan(100);
     expect(Object.keys(REST_OPERATION_CAPABILITIES).sort()).toEqual(
         sortedUnique([
-            ...routes.map(({ id }) => id),
+            ...routes
+                .map(({ id }) => id)
+                .filter(
+                    (id) => !AGENT_CONNECTION_OWNER_OPERATIONS.includes(id),
+                ),
             ...routes.flatMap(({ guards }) => guards),
         ]),
     );

@@ -3,6 +3,7 @@ import { Knex } from 'knex';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { AgentConnectionGrantResourceResolver } from '../auth/agentConnectionGrants/AgentConnectionGrantResourceResolver';
 import { AgentConnectionGrantService } from '../auth/agentConnectionGrants/AgentConnectionGrantService';
+import { AgentConnectionService } from '../auth/agentConnectionGrants/AgentConnectionService';
 import { ClientRepository } from '../clients/ClientRepository';
 import {
     closePullRequest,
@@ -164,6 +165,7 @@ interface ServiceManifest {
     aiAccessService: AiAccessService;
     agentPermissionService: AgentPermissionService;
     agentConnectionGrantService: AgentConnectionGrantService;
+    agentConnectionService: AgentConnectionService;
     aiServiceAccountService: AiServiceAccountService;
     projectService: ProjectService;
     analyticsProjectService: AnalyticsProjectService;
@@ -989,6 +991,21 @@ export class ServiceRepository
                     warehouseConnectionModel:
                         this.models.getWarehouseConnectionModel(),
                     projectService: this.getProjectService(),
+                }),
+        );
+    }
+
+    public getAgentConnectionService(): AgentConnectionService {
+        return this.getService(
+            'agentConnectionService',
+            () =>
+                new AgentConnectionService({
+                    model: this.models.getAgentConnectionGrantModel(),
+                    userModel: this.models.getUserModel(),
+                    projectModel: this.models.getProjectModel(),
+                    featureFlags: this.models.getFeatureFlagModel(),
+                    getAgentPermissionService: () =>
+                        this.getAgentPermissionService(),
                 }),
         );
     }

@@ -24,6 +24,7 @@ import { URL } from 'url';
 import { fromApiKey, fromOauth } from '../../auth/account/account';
 import { requestContextFromExpress } from '../../auth/account/requestContext';
 import { buildAccountExistsWarning } from '../../auth/account/warnAccountExists';
+import { getGrantOperationContract } from '../../auth/agentConnectionGrants/operationContracts';
 import { resolveOAuthScopeMode } from '../../auth/oauthScopes/mode';
 import {
     oauthApiResource,
@@ -128,6 +129,12 @@ const assertOAuthAgentOperation = async (req: Request): Promise<void> => {
                   .getAgentConnectionGrantService()
                   .assertRestOperation(req, operation)
             : null;
+    if (
+        grantProjectUuids !== null &&
+        operation !== null &&
+        getGrantOperationContract(operation)?.kind === 'connection_lifecycle'
+    )
+        return;
     const scopeOperation =
         operation !== null &&
         Object.hasOwn(OAUTH_UNCHECKED_OPERATIONS, operation)

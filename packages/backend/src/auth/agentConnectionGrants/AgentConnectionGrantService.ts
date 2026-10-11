@@ -5,6 +5,7 @@ import {
     AgentCapability,
     assertUnreachable,
     ForbiddenError,
+    NotFoundError,
     QuerySourceType,
     type AgentConnectionExecution,
     type OAuthAgentConnectionGrant,
@@ -313,6 +314,17 @@ export class AgentConnectionGrantService {
             return body.data;
         };
         switch (contract.kind) {
+            case 'connection_lifecycle':
+                if (req.method !== contract.method)
+                    throw new ForbiddenError(
+                        'This agent connection cannot use this operation.',
+                    );
+                if (
+                    req.params.grantUuid !==
+                    req.account.authentication.agentConnectionGrant.grantUuid
+                )
+                    throw new NotFoundError('Agent connection not found');
+                return [];
             case 'org_discovery':
                 if (req.method !== 'GET')
                     throw new ForbiddenError(

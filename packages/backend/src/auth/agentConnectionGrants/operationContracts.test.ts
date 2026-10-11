@@ -11,14 +11,17 @@ import {
     sourceFiles,
 } from '../oauthScopes/testing/routeInventory';
 import { AgentConnectionGrantService } from './AgentConnectionGrantService';
-import { CLI_GRANT_OPERATION_INVENTORY } from './cliOperationInventory';
+import {
+    CLI_CONNECTION_LIFECYCLE_OPERATIONS,
+    CLI_GRANT_OPERATION_INVENTORY,
+} from './cliOperationInventory';
 import { grantFixture } from './grant.mock';
 import {
     GRANT_MCP_TOOL_CONTRACTS,
     GRANT_OPERATION_CONTRACTS,
 } from './operationContracts';
 
-it('contains only live REST operations with a capability mapping', () => {
+it('contains only live REST operations with a capability mapping or an own-connection lifecycle contract', () => {
     const root = path.resolve(__dirname, '../..');
     const sources = [
         'controllers',
@@ -42,7 +45,11 @@ it('contains only live REST operations with a capability mapping', () => {
         expect({ key, live: ids.has(key) }).toMatchObject({ live: true });
         expect({
             key,
-            mapped: key in REST_OPERATION_CAPABILITIES,
+            mapped:
+                key in REST_OPERATION_CAPABILITIES ||
+                GRANT_OPERATION_CONTRACTS[
+                    key as keyof typeof GRANT_OPERATION_CONTRACTS
+                ].kind === 'connection_lifecycle',
         }).toMatchObject({ mapped: true });
     }
 });
@@ -229,4 +236,16 @@ it('explicitly refuses PNG export because its person cookie and public preview c
         disposition: 'refused',
         reason: expect.stringMatching(/person.*public/i),
     });
+});
+
+it('prepares exactly two lifecycle operations without inventing CLI call sites', () => {
+    expect(CLI_CONNECTION_LIFECYCLE_OPERATIONS).toEqual([
+        'AgentConnectionController.getConnectionStatus',
+        'AgentConnectionController.revoke',
+    ]);
+    expect(
+        Object.entries(GRANT_OPERATION_CONTRACTS)
+            .filter(([, contract]) => contract.kind === 'connection_lifecycle')
+            .map(([key]) => key),
+    ).toEqual(CLI_CONNECTION_LIFECYCLE_OPERATIONS);
 });

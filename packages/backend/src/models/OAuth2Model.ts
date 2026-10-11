@@ -339,6 +339,14 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 revokedByUserUuid: null,
                 reason: 'refresh_reuse',
             });
+            if (familyUuid !== null)
+                Logger.warn('oauth_refresh_token_reuse', {
+                    clientId: token.client.id,
+                    userUuid: token.user.userUuid ?? null,
+                    familyUuid,
+                    reason,
+                });
+            return;
         }
         if (familyUuid === null) return;
         await database('oauth2_refresh_tokens')

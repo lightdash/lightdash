@@ -985,3 +985,77 @@ describe.each([
         ).not.toHaveBeenCalled();
     });
 });
+
+describe('connection lifecycle operations', () => {
+    const route = (req: Request, operation: string) => {
+        req.route.stack = [
+            {
+                handle: Object.defineProperty(() => {}, 'name', {
+                    value: `AgentConnectionController_${operation}`,
+                }),
+            },
+        ];
+        req.params = { grantUuid: 'grant' };
+    };
+    it.each([
+        ['getConnectionStatus', 'GET'],
+        ['revoke', 'DELETE'],
+    ])(
+        'allows own %s without current agent admission or capabilities',
+        async (operation, method) => {
+            const f = setup();
+            route(f.req, operation);
+            f.req.method = method;
+            f.grant.approvedCapabilities = [];
+            f.permissions.getEnforcementMode.mockResolvedValue('managed');
+            f.permissions.assertOperation.mockRejectedValue(
+                new Error('admission removed'),
+            );
+            expect(await f.run(allowApiKeyAuthentication)).toEqual({
+                status: 200,
+                error: undefined,
+            });
+            expect(f.permissions.getEnforcementMode).not.toHaveBeenCalled();
+            expect(
+                f.deps.resourceResolver.resolveProjectUuid,
+            ).not.toHaveBeenCalled();
+        },
+    );
+    it.each([
+        ['getConnectionStatus', 'GET'],
+        ['revoke', 'DELETE'],
+    ])(
+        'hides another grant for %s even for the same person',
+        async (operation, method) => {
+            const f = setup();
+            route(f.req, operation);
+            f.req.method = method;
+            f.req.params.grantUuid = 'other';
+            const result = await f.run(allowApiKeyAuthentication);
+            expect(result.error).toMatchObject({ statusCode: 404 });
+        },
+    );
+    it('refuses listing with a connection token', async () => {
+        const f = setup();
+        route(f.req, 'list');
+        expect((await f.run(allowApiKeyAuthentication)).error).toBeDefined();
+    });
+    it.each(['revoked', 'flag_off'])(
+        'refuses %s connection even with a live session',
+        async (reason) => {
+            const f = setup();
+            route(f.req, 'revoke');
+            f.req.method = 'DELETE';
+            f.req.isAuthenticated = (() => true) as Request['isAuthenticated'];
+            f.req.user = f.user;
+            f.oauth.isAccessTokenBoundToGrant.mockResolvedValue(true);
+            if (reason === 'revoked')
+                f.deps.model.findActive.mockResolvedValue(null);
+            else f.deps.featureFlags.get.mockResolvedValue({ enabled: false });
+            expect(await f.run(allowApiKeyAuthentication)).toMatchObject({
+                status: 401,
+            });
+            expect(f.downstream).not.toHaveBeenCalled();
+        },
+    );
+});

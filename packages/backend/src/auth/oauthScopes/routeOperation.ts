@@ -1,5 +1,6 @@
 import { type Request, type RequestHandler } from 'express';
 import { validate as isUuid } from 'uuid';
+import { AGENT_CONNECTION_OWNER_OPERATIONS } from '../agentConnectionGrants/operationContracts';
 import { OAUTH_CASL_CHECKED_ROUTES } from './caslCheckedRoutes';
 import {
     getOAuthScopeOperation,
@@ -7,6 +8,7 @@ import {
 } from './unchecked';
 
 const operations = new Set([
+    ...AGENT_CONNECTION_OWNER_OPERATIONS,
     ...OAUTH_CASL_CHECKED_ROUTES,
     ...Object.keys(OAUTH_UNCHECKED_OPERATIONS),
 ]);

@@ -7,6 +7,7 @@ import {
     projectGrantFixture,
 } from '../auth/agentConnectionGrants/grant.mock';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
+import Logger from '../logging/logger';
 import oauthRouter from '../routers/oauthRouter';
 import { OAuthService } from '../services/OAuthService/OAuthService';
 import { AgentConnectionGrantModel } from './AgentConnectionGrantModel';
@@ -175,6 +176,7 @@ it.each([
     });
 });
 it('revokes the connection on reuse even with the ordinary flag off', async () => {
+    const warning = vi.spyOn(Logger, 'warn');
     flags.get.mockResolvedValue({ enabled: false });
     getTracker()
         .on.select('oauth2_refresh_tokens')
@@ -185,11 +187,13 @@ it('revokes the connection on reuse even with the ordinary flag off', async () =
     getTracker().on.update('oauth2_refresh_tokens').response(1);
     getTracker().on.delete('oauth2_access_tokens').response(1);
     expect(await model.getRefreshToken('refresh')).toBe(false);
-    expect(
-        getTracker().history.delete.find((query) =>
-            query.sql.includes('oauth2_access_tokens'),
-        )?.sql,
-    ).toContain('"agent_connection_grant_uuid" is null');
+    expect(warning).toHaveBeenCalledWith('oauth_refresh_token_reuse', {
+        clientId: 'client',
+        userUuid: null,
+        familyUuid: 'family',
+        reason: 'reused',
+    });
+    expect(getTracker().history.delete).toHaveLength(0);
     expect(AgentConnectionGrantModel.prototype.revoke).toHaveBeenCalledWith({
         grantUuid: 'grant',
         organizationUuid: 'org',
@@ -505,22 +509,15 @@ it('commits grant and family revocation when a bound refresh loses the rotation 
             user,
         ),
     ).rejects.toMatchObject({ name: 'invalid_grant' });
-    expect(
-        getTracker().history.delete.find((query) =>
-            query.sql.includes('oauth2_access_tokens'),
-        )?.sql,
-    ).toContain('"agent_connection_grant_uuid" is null');
+    expect(getTracker().history.delete).toHaveLength(0);
     expect(AgentConnectionGrantModel.prototype.revoke).toHaveBeenCalledWith({
         grantUuid: 'grant',
         organizationUuid: 'org',
         revokedByUserUuid: null,
         reason: 'refresh_reuse',
     });
-    expect(tracker.history.update.at(-1)?.bindings).toContain('family');
-    expect(tracker.history.delete.at(-1)?.bindings).toContain('family');
-    expect(tracker.history.delete.at(-1)?.sql).toContain(
-        '"agent_connection_grant_uuid" is null',
-    );
+    expect(tracker.history.update).toHaveLength(1);
+    expect(tracker.history.update[0].sql).toContain('and "refresh_token" = $2');
     expect(
         tracker.history.transactions.every(
             (transaction) => transaction.state === 'committed',

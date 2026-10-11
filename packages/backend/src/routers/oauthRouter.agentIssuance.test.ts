@@ -5,6 +5,11 @@ import { getTracker, MockClient } from 'knex-mock-client';
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import {
+    collectOAuthRoutesFromSources,
+    parseSource,
+    sourceFiles,
+} from '../auth/oauthScopes/testing/routeInventory';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { RegisterRoutes } from '../generated/routes';
 import { AgentConnectionGrantModel } from '../models/AgentConnectionGrantModel';
@@ -150,11 +155,59 @@ it('registered authorize and token handlers cannot issue an agent connection wit
             .filter((layer: { route?: unknown }) => layer.route)
             .map((layer: { route: { path: string } }) => layer.route.path);
         expect(routes.length).toBeGreaterThan(100);
-        expect(
-            routes.filter((route: string) =>
-                /agent.?connection|agent.?grant/i.test(route),
+        const expected = [
+            'AgentConnectionController.getConnectionStatus',
+            'AgentConnectionController.list',
+            'AgentConnectionController.revoke',
+        ];
+        const root = path.resolve(__dirname, '..');
+        const inventory = collectOAuthRoutesFromSources(
+            ['controllers', 'ee/controllers', 'routers', 'ee/routers'].flatMap(
+                (directory) =>
+                    sourceFiles(path.join(root, directory)).map((file) =>
+                        parseSource(file),
+                    ),
             ),
-        ).toEqual([]);
+        );
+        expect(
+            inventory
+                .filter(({ id }) => /agent.?connection|agent.?grant/i.test(id))
+                .map(({ id }) => id)
+                .sort(),
+        ).toEqual(expected);
+        const expectedMethods: Record<string, string> = {
+            'AgentConnectionController.list': '@Get()',
+            'AgentConnectionController.getConnectionStatus':
+                "@Get('{grantUuid}/status')",
+            'AgentConnectionController.revoke': "@Delete('{grantUuid}')",
+        };
+        for (const route of inventory.filter(({ id }) =>
+            expected.includes(id),
+        )) {
+            expect(
+                route.handler.parent
+                    .getText()
+                    .match(/@(Get|Post|Put|Patch|Delete)\([^)]*\)/g),
+            ).toEqual([expectedMethods[route.id]]);
+            expect(route.handler.parent.parent.getText()).toContain(
+                "@Route('/api/v2/user/agent-connections')",
+            );
+        }
+        const connectionRoutes = app._router.stack.filter(
+            (layer: { route?: { path: string } }) =>
+                layer.route &&
+                /agent.?connection|agent.?grant/i.test(layer.route.path),
+        );
+        for (const layer of connectionRoutes) {
+            expect(
+                Object.keys(layer.route.methods).every((method) =>
+                    ['get', 'delete'].includes(method),
+                ),
+            ).toBe(true);
+            expect(layer.route.path).toMatch(
+                /^\/api\/v2\/user\/agent-connections(?:\/:grantUuid(?:\/status)?)?$/,
+            );
+        }
     } finally {
         vi.restoreAllMocks();
         tracker.reset();

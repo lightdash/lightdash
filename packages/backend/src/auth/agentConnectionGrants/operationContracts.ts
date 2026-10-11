@@ -20,6 +20,7 @@ export type GrantOperationContract =
           scope: GrantResourceScope;
       }
     | { kind: 'org_discovery' }
+    | { kind: 'connection_lifecycle'; method: 'GET' | 'DELETE' }
     | { kind: 'project_filter'; query: 'projectUuids' }
     | {
           kind: 'deployment';
@@ -92,6 +93,14 @@ const sourceQueriesSchema = z
     .passthrough();
 
 const operationContracts = {
+    'AgentConnectionController.getConnectionStatus': {
+        kind: 'connection_lifecycle',
+        method: 'GET',
+    },
+    'AgentConnectionController.revoke': {
+        kind: 'connection_lifecycle',
+        method: 'DELETE',
+    },
     'UserController.getAuthenticatedUser': { kind: 'org_discovery' },
     'OrganizationController.getOrganization': { kind: 'org_discovery' },
     'apiV1Router GET /health': { kind: 'org_discovery' },
@@ -247,3 +256,9 @@ export const sourceEffectCapabilities = (
     sources: QuerySourceType[],
 ): AgentCapability[] =>
     sources.some(sourceRequiresRawSql) ? [AgentCapability.RawSql] : [];
+
+export const AGENT_CONNECTION_OWNER_OPERATIONS: readonly string[] = [
+    'AgentConnectionController.list',
+    'AgentConnectionController.getConnectionStatus',
+    'AgentConnectionController.revoke',
+];
