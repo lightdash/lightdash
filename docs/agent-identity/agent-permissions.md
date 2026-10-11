@@ -3,6 +3,9 @@
 What each agent capability allows, how checks combine, what is covered, and
 what is not. Words follow the [Agent identity glossary](./CONTEXT.md).
 
+How soon a change to these permissions takes effect, and what happens to work
+that is already queued, is in [revocation.md](./revocation.md).
+
 The source of truth in code:
 
 | What | Where |
