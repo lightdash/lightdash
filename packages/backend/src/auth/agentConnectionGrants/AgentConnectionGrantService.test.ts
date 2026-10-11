@@ -894,11 +894,13 @@ describe.each([false, true])(
 
 it('checks every project resolved by a multi-project REST contract', async () => {
     const f = setup();
+    const a = '11111111-1111-4111-8111-111111111111';
+    const b = '22222222-2222-4222-8222-222222222222';
     Object.assign(
         f.grant,
         projectGrantFixture({
-            a: [AgentCapability.ReadDiscover],
-            b: [AgentCapability.DeployUpload],
+            [a]: [AgentCapability.ReadDiscover],
+            [b]: [AgentCapability.DeployUpload],
         }),
     );
     const account = fromOauth(
@@ -918,6 +920,6 @@ it('checks every project resolved by a multi-project REST contract', async () =>
             },
             'ContentController.listContent',
         );
-    await expect(run(['a'])).resolves.toEqual(['a']);
-    await expect(run(['a', 'b'])).rejects.toThrow();
+    await expect(run([a])).resolves.toEqual([a]);
+    await expect(run([a, b])).rejects.toThrow();
 });

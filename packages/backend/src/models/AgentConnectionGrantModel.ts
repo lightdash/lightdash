@@ -9,7 +9,10 @@ import {
     type AgentConnectionGrantWithStatus,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
-import { hasValidGrantResourceConstraints } from '../auth/agentConnectionGrants/resourceConstraints';
+import {
+    hasValidGrantResourceConstraints,
+    parseGrantResourceConstraints,
+} from '../auth/agentConnectionGrants/resourceConstraints';
 import {
     AgentConnectionGrantsTableName,
     type DbAgentConnectionGrant,
@@ -71,7 +74,8 @@ export class AgentConnectionGrantModel {
         database: Knex,
         input: AgentConnectionGrantCreate,
     ): Promise<AgentConnectionGrant> {
-        if (!hasValidGrantResourceConstraints(input))
+        const resourceConstraints = parseGrantResourceConstraints(input);
+        if (!resourceConstraints)
             throw new ParameterError(
                 'Invalid agent connection resource constraints',
             );
@@ -127,7 +131,7 @@ export class AgentConnectionGrantModel {
                 resource: input.resource,
                 approved_capabilities: approvedCapabilities,
                 approved_project_uuids: approvedProjectUuids,
-                resource_constraints: input.resourceConstraints,
+                resource_constraints: resourceConstraints,
                 grant_contract_version: AGENT_CONNECTION_GRANT_CONTRACT_VERSION,
                 grant_revision: 1,
                 approval_policy_version: input.approvalPolicyVersion,

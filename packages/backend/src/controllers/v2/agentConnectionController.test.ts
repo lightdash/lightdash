@@ -206,3 +206,82 @@ it('runs own status and revoke through real authentication despite lost admissio
     });
     expect(auth.downstream).not.toHaveBeenCalled();
 });
+
+const unreadableLimits = [
+    { version: 2 },
+    {
+        version: 2,
+        projectCapabilities: {
+            '22222222-2222-4222-8222-222222222222': [AgentCapability.Query],
+        },
+    },
+    { version: 2, projectCapabilities: {} },
+    { version: 99 },
+    {
+        version: 2,
+        projectCapabilities: {
+            '11111111-1111-4111-8111-111111111111': ['unknown'],
+        },
+    },
+];
+it.each(unreadableLimits)(
+    'lists unreadable stored limits %j without approximating approvals',
+    async (limits) => {
+        const f = setup();
+        Object.assign(f.grant, { resourceConstraints: limits });
+        const { results } = await f.controller.list(f.req);
+        expect(results[0]).toMatchObject({
+            limitsStatus: 'invalid',
+            lastUsedAt: null,
+            revokedAt: null,
+        });
+        expect(results[0].approvedProjects).toEqual([
+            {
+                projectUuid: f.projectUuid,
+                name: 'Visible',
+                approvedCapabilities: [],
+            },
+        ]);
+    },
+);
+it.each(unreadableLimits)(
+    'denies every action for unreadable stored limits %j',
+    async (limits) => {
+        const f = setup();
+        Object.assign(f.grant, { resourceConstraints: limits });
+        const policy = vi.spyOn(f.permissions, 'assertOperation');
+        const { results } = await f.controller.getConnectionStatus(
+            f.req,
+            'grant',
+        );
+        expect(results.limitsStatus).toBe('invalid');
+        expect(results.effectiveProjects).toEqual([
+            {
+                projectUuid: f.projectUuid,
+                capabilities: Object.values(AgentCapability).map(
+                    (capability) => ({
+                        capability,
+                        allowed: false,
+                        reason: 'invalid_grant',
+                    }),
+                ),
+            },
+        ]);
+        expect(policy).not.toHaveBeenCalled();
+    },
+);
+it.each(unreadableLimits)(
+    'revokes and returns unreadable stored limits %j',
+    async (limits) => {
+        const f = setup();
+        Object.assign(f.grant, { resourceConstraints: limits });
+        const { results } = await f.controller.revoke(f.req, 'grant');
+        expect(results).toMatchObject({
+            limitsStatus: 'invalid',
+            status: 'revoked',
+            revokedAt: expect.any(Date),
+        });
+        expect(results.approvedProjects[0].approvedCapabilities).toEqual([]);
+        expect(f.model.revoke).toHaveBeenCalledOnce();
+    },
+);

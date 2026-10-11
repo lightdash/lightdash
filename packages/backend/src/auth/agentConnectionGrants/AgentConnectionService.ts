@@ -9,6 +9,7 @@ import {
     type RegisteredAccount,
     type UUID,
 } from '@lightdash/common';
+import { validate as isUuid } from 'uuid';
 import { type AgentConnectionGrantModel } from '../../models/AgentConnectionGrantModel';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -17,11 +18,14 @@ import { type AgentPermissionService } from '../../services/AgentPermissionServi
 import { BaseService } from '../../services/BaseService';
 import { fromSession } from '../account/account';
 import { agentConnectionGrantEnabled } from './oauthGrantBinding';
+import { supportsAgentConnectionCapability } from './operationContracts';
+import { parseGrantResourceConstraints } from './resourceConstraints';
 
 export type AgentConnectionRecord = {
     grantUuid: UUID;
     name: string;
     clientId: string;
+    limitsStatus: 'ok' | 'invalid';
     approvedProjects: {
         projectUuid: UUID;
         name: string | null;
@@ -39,8 +43,17 @@ export type AgentConnectionStatus = AgentConnectionRecord & {
         projectUuid: UUID;
         capabilities: {
             capability: AgentCapability;
+            /**
+             * Current person permissions and organisation agent policy permit this
+             * action in this project, and an agent connection supports it.
+             * A request can still be refused by private-space access, a protected
+             * branch, a second required action (uploads also need Deploy and upload),
+             * or scheduled pre-aggregate refreshes in the project.
+             */
             allowed: boolean;
             reason:
+                | 'invalid_grant'
+                | 'not_supported'
                 | 'revoked'
                 | 'expired'
                 | 'agent_identity_disabled'
@@ -146,36 +159,54 @@ export class AgentConnectionService extends BaseService {
             account.organization.organizationUuid!,
         );
         const ability = this.createAuditedAbility(account);
-        return grants.map((grant) => ({
-            grantUuid: grant.grantUuid,
-            name: grant.name,
-            clientId: grant.clientId,
-            approvedProjects: grant.approvedProjectUuids.map((projectUuid) => ({
-                projectUuid,
-                name: ability.can(
-                    'view',
-                    subject('Project', {
-                        organizationUuid: grant.organizationUuid,
+        return grants.map((grant) => {
+            const constraints = parseGrantResourceConstraints(grant);
+            const projectUuids = constraints
+                ? grant.approvedProjectUuids
+                : grant.approvedProjectUuids.filter(isUuid);
+            return {
+                limitsStatus: constraints ? 'ok' : 'invalid',
+                grantUuid: grant.grantUuid,
+                name: grant.name,
+                clientId: grant.clientId,
+                approvedProjects: projectUuids.map((projectUuid) => {
+                    let approvedCapabilities: AgentCapability[] = [];
+                    if (constraints?.version === 1) {
+                        approvedCapabilities = grant.approvedCapabilities;
+                    } else if (
+                        constraints?.version === 2 &&
+                        Object.hasOwn(
+                            constraints.projectCapabilities,
+                            projectUuid,
+                        )
+                    ) {
+                        approvedCapabilities =
+                            constraints.projectCapabilities[projectUuid];
+                    }
+                    return {
                         projectUuid,
-                    }),
-                )
-                    ? (projects.find(
-                          (project) => project.projectUuid === projectUuid,
-                      )?.name ?? null)
-                    : null,
-                approvedCapabilities:
-                    grant.resourceConstraints.version === 2
-                        ? grant.resourceConstraints.projectCapabilities[
-                              projectUuid
-                          ]
-                        : grant.approvedCapabilities,
-            })),
-            approvedAt: grant.approvedAt,
-            expiresAt: grant.expiresAt,
-            lastUsedAt: grant.lastUsedAt,
-            status: AgentConnectionService.getState(grant),
-            revokedAt: grant.revokedAt,
-        }));
+                        name: ability.can(
+                            'view',
+                            subject('Project', {
+                                organizationUuid: grant.organizationUuid,
+                                projectUuid,
+                            }),
+                        )
+                            ? (projects.find(
+                                  (project) =>
+                                      project.projectUuid === projectUuid,
+                              )?.name ?? null)
+                            : null,
+                        approvedCapabilities,
+                    };
+                }),
+                approvedAt: grant.approvedAt,
+                expiresAt: grant.expiresAt,
+                lastUsedAt: grant.lastUsedAt,
+                status: AgentConnectionService.getState(grant),
+                revokedAt: grant.revokedAt,
+            };
+        });
     }
 
     async list(account: RegisteredAccount): Promise<AgentConnectionRecord[]> {
@@ -185,6 +216,7 @@ export class AgentConnectionService extends BaseService {
             organizationUuid: person.organization.organizationUuid!,
             subjectUserUuid: person.user.id,
         });
+        if (grants.length === 0) return [];
         return this.records(person, grants);
     }
 
@@ -344,10 +376,16 @@ export class AgentConnectionService extends BaseService {
             record.approvedProjects.map(async (project) => ({
                 projectUuid: project.projectUuid,
                 capabilities: await Promise.all(
-                    project.approvedCapabilities.map(async (capability) => {
+                    (record.limitsStatus === 'invalid'
+                        ? Object.values(AgentCapability)
+                        : project.approvedCapabilities
+                    ).map(async (capability) => {
                         let reason: AgentConnectionStatus['effectiveProjects'][number]['capabilities'][number]['reason'] =
                             null;
-                        if (record.status !== 'active') reason = record.status;
+                        if (record.limitsStatus === 'invalid')
+                            reason = 'invalid_grant';
+                        else if (record.status !== 'active')
+                            reason = record.status;
                         else if (!enabled) reason = 'agent_identity_disabled';
                         else if (
                             project.name === null ||
@@ -368,6 +406,8 @@ export class AgentConnectionService extends BaseService {
                             )
                         )
                             reason = 'person_permission';
+                        else if (!supportsAgentConnectionCapability(capability))
+                            reason = 'not_supported';
                         else {
                             try {
                                 await this.deps

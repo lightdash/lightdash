@@ -19,6 +19,7 @@ import { grantFixture } from './grant.mock';
 import {
     GRANT_MCP_TOOL_CONTRACTS,
     GRANT_OPERATION_CONTRACTS,
+    supportsAgentConnectionCapability,
 } from './operationContracts';
 
 it('contains only live REST operations with a capability mapping or an own-connection lifecycle contract', () => {
@@ -248,4 +249,66 @@ it('prepares exactly two lifecycle operations without inventing CLI call sites',
             .filter(([, contract]) => contract.kind === 'connection_lifecycle')
             .map(([key]) => key),
     ).toEqual(CLI_CONNECTION_LIFECYCLE_OPERATIONS);
+});
+
+it.each(Object.values(AgentCapability))(
+    'derives support for %s from admitted operations and effects',
+    (capability) => {
+        const supported = Object.entries(GRANT_OPERATION_CONTRACTS).some(
+            ([key, contract]) => {
+                const base = REST_OPERATION_CAPABILITIES[
+                    key as keyof typeof REST_OPERATION_CAPABILITIES
+                ] as readonly AgentCapability[] | undefined;
+                let effects: AgentCapability[] = [];
+                if (contract.kind === 'content_upload') {
+                    effects = [
+                        AgentCapability.DeployUpload,
+                        AgentCapability.Publish,
+                    ];
+                } else if (
+                    ['source_queries', 'source_schema'].includes(contract.kind)
+                ) {
+                    effects = [AgentCapability.RawSql];
+                }
+                return [...(base ?? []), ...effects].includes(capability);
+            },
+        );
+        expect(supportsAgentConnectionCapability(capability)).toBe(supported);
+    },
+);
+it('derives Publish from upload verification even without a Publish operation', () => {
+    expect(
+        Object.keys(GRANT_OPERATION_CONTRACTS).some((key) =>
+            (
+                REST_OPERATION_CAPABILITIES[
+                    key as keyof typeof REST_OPERATION_CAPABILITIES
+                ] as readonly AgentCapability[] | undefined
+            )?.includes(AgentCapability.Publish),
+        ),
+    ).toBe(false);
+    expect(supportsAgentConnectionCapability(AgentCapability.Publish)).toBe(
+        true,
+    );
+});
+
+it('recognises a newly admitted operation without a separate support list', () => {
+    const key = 'SavedChartController.exportSavedChartImage';
+    expect(supportsAgentConnectionCapability(AgentCapability.Export)).toBe(
+        false,
+    );
+    Object.defineProperty(GRANT_OPERATION_CONTRACTS, key, {
+        value: { kind: 'path_project', param: 'projectUuid' },
+        enumerable: true,
+        configurable: true,
+    });
+    try {
+        expect(supportsAgentConnectionCapability(AgentCapability.Export)).toBe(
+            true,
+        );
+    } finally {
+        Reflect.deleteProperty(GRANT_OPERATION_CONTRACTS, key);
+    }
+    expect(supportsAgentConnectionCapability(AgentCapability.Export)).toBe(
+        false,
+    );
 });

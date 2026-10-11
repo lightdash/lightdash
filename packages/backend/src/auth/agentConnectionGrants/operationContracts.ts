@@ -1,5 +1,6 @@
 import { AgentCapability, QuerySourceType } from '@lightdash/common';
 import { z } from 'zod';
+import { getRequiredAgentCapabilities } from '../agentPermissions/capabilityMap';
 
 export type GrantResourceType =
     | 'sql_chart'
@@ -262,3 +263,25 @@ export const AGENT_CONNECTION_OWNER_OPERATIONS: readonly string[] = [
     'AgentConnectionController.getConnectionStatus',
     'AgentConnectionController.revoke',
 ];
+
+export const supportsAgentConnectionCapability = (
+    capability: AgentCapability,
+): boolean =>
+    Object.entries(GRANT_OPERATION_CONTRACTS).some(([key, contract]) => {
+        if (getRequiredAgentCapabilities('rest', key)?.includes(capability))
+            return true;
+        switch (contract.kind) {
+            case 'content_upload':
+                return [
+                    AgentCapability.DeployUpload,
+                    ...uploadEffectCapabilities({ verified: true }),
+                ].includes(capability);
+            case 'source_queries':
+            case 'source_schema':
+                return sourceEffectCapabilities(
+                    Object.values(QuerySourceType),
+                ).includes(capability);
+            default:
+                return false;
+        }
+    });

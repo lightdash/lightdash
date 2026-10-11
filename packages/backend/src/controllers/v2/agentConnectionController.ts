@@ -47,6 +47,11 @@ export class AgentConnectionController extends BaseController {
 
     /**
      * Reads stored approval and current project and action restrictions.
+     * An allowed action has current person permission, organisation agent policy
+     * approval, and support from an agent connection in that project.
+     * A request can still be refused by a narrower rule: private-space access,
+     * a protected branch, a second required action (uploads need Deploy and upload),
+     * or scheduled pre-aggregate refreshes in the project.
      * @summary Get connection status
      */
     @Get('{grantUuid}/status')

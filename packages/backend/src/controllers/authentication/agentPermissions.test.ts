@@ -724,6 +724,12 @@ test.each([0, 1, 3])(
                     ...grant,
                     revision: grant.grantRevision,
                 }),
+                loadSessionUser: vi.fn(
+                    async (id: string, organization: string) =>
+                        h.request.services
+                            .getUserService()
+                            .findSessionUser({ id, organization }),
+                ),
                 assertRestOperation: vi
                     .fn()
                     .mockResolvedValue(
@@ -779,6 +785,11 @@ test('bound REST retains every refusal and activity record in concurrent fan-out
                 ...grant,
                 revision: grant.grantRevision,
             }),
+            loadSessionUser: vi.fn(async (id: string, organization: string) =>
+                h.request.services
+                    .getUserService()
+                    .findSessionUser({ id, organization }),
+            ),
             assertRestOperation: vi
                 .fn()
                 .mockResolvedValue(['one', 'two', 'three']),

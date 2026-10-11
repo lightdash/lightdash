@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     type AgentConnectionGrant,
 } from '@lightdash/common';
+import { validate as isUuid } from 'uuid';
 import { z } from 'zod';
 
 type GrantApproval = Pick<
@@ -21,33 +22,79 @@ const constraintsSchema = z.discriminatedUnion('version', [
     }),
 ]);
 
-const sameSet = <T>(left: T[], right: T[]): boolean =>
-    new Set(left).size === left.length &&
-    new Set(right).size === right.length &&
-    left.length === right.length &&
-    left.every((value) => right.includes(value));
+export const MAX_AGENT_CONNECTION_PROJECTS = 500;
 
-export const hasValidGrantResourceConstraints = (
+const sameSet = <T>(left: T[], right: T[]): boolean => {
+    const rightSet = new Set(right);
+    return (
+        new Set(left).size === left.length &&
+        rightSet.size === right.length &&
+        left.length === right.length &&
+        left.every((value) => rightSet.has(value))
+    );
+};
+
+export const parseGrantResourceConstraints = (
     grant: GrantApproval,
-): boolean => {
-    const parsed = constraintsSchema.safeParse(grant.resourceConstraints);
-    if (!parsed.success) return false;
+): AgentConnectionGrant['resourceConstraints'] | null => {
+    if (
+        grant.approvedProjectUuids.length > MAX_AGENT_CONNECTION_PROJECTS ||
+        grant.approvedCapabilities.some(
+            (capability) =>
+                !Object.values(AgentCapability).includes(capability),
+        )
+    )
+        return null;
+    const raw = grant.resourceConstraints;
+    if (raw?.version === 2) {
+        const map = raw.projectCapabilities;
+        if (
+            !map ||
+            typeof map !== 'object' ||
+            Array.isArray(map) ||
+            Object.getPrototypeOf(map) !== Object.prototype
+        )
+            return null;
+        const keys = Object.keys(map);
+        if (
+            keys.length === 0 ||
+            keys.length > MAX_AGENT_CONNECTION_PROJECTS ||
+            keys.some(
+                (key) =>
+                    ['__proto__', 'constructor', 'prototype'].includes(key) ||
+                    !isUuid(key),
+            ) ||
+            !sameSet(keys, grant.approvedProjectUuids)
+        )
+            return null;
+    }
+    const parsed = constraintsSchema.safeParse(raw);
+    if (!parsed.success) return null;
     const constraints = parsed.data;
     switch (constraints.version) {
         case 1:
-            return true;
+            return constraints;
         case 2: {
-            const projects = Object.keys(constraints.projectCapabilities);
             const values = Object.values(constraints.projectCapabilities);
-            return (
-                projects.length > 0 &&
-                sameSet(projects, grant.approvedProjectUuids) &&
-                values.every(
+            if (
+                !values.every(
                     (capabilities) =>
                         new Set(capabilities).size === capabilities.length,
-                ) &&
-                sameSet([...new Set(values.flat())], grant.approvedCapabilities)
-            );
+                ) ||
+                !sameSet(
+                    [...new Set(values.flat())],
+                    grant.approvedCapabilities,
+                )
+            )
+                return null;
+            return {
+                version: 2,
+                projectCapabilities: Object.fromEntries(
+                    Object.entries(constraints.projectCapabilities)
+                        .sort(([left], [right]) => left.localeCompare(right))
+                        .map(([key, capabilities]) => [key, [...capabilities]]),
+                ),
+            };
         }
         default:
             return assertUnreachable(
@@ -56,6 +103,10 @@ export const hasValidGrantResourceConstraints = (
             );
     }
 };
+
+export const hasValidGrantResourceConstraints = (
+    grant: GrantApproval,
+): boolean => parseGrantResourceConstraints(grant) !== null;
 
 export const grantAllowsCapabilities = (
     grant: GrantApproval,

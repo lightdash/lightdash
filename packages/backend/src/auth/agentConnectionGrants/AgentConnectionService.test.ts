@@ -153,6 +153,7 @@ it('lists only the owner and organisation with a safe explicit projection', asyn
             expiresAt: f.grant.expiresAt,
             lastUsedAt: null,
             status: 'active',
+            limitsStatus: 'ok',
             revokedAt: null,
         },
     ]);
@@ -233,7 +234,13 @@ it('allows human recovery with the shared flag off and explains unavailable effe
 });
 it.each(
     Object.values(AgentCapability).filter(
-        (c) => c !== AgentCapability.ReadDiscover,
+        (c) =>
+            ![
+                AgentCapability.ReadDiscover,
+                AgentCapability.Export,
+                AgentCapability.DbtWriteback,
+                AgentCapability.ExternalTools,
+            ].includes(c),
     ),
 )(
     'reports lost ordinary person rights for %s even if agent policy still permits it',
@@ -306,4 +313,28 @@ it('re-evaluates current person role assignments through the real policy service
         allowed: false,
         reason: 'agent_policy',
     });
+});
+
+it('does not load organisation projects for an empty connection list', async () => {
+    const f = setup();
+    f.model.listForSubject.mockResolvedValue([]);
+    await expect(f.service.list(f.account)).resolves.toEqual([]);
+    expect(f.deps.projectModel.getAllByOrganizationUuid).not.toHaveBeenCalled();
+});
+it.each([
+    AgentCapability.Export,
+    AgentCapability.DbtWriteback,
+    AgentCapability.ExternalTools,
+])('refuses unsupported %s before checking policy', async (capability) => {
+    const f = setup();
+    f.user.ability = new Ability([{ action: 'manage', subject: 'all' }]);
+    f.grant.approvedCapabilities = [capability];
+    const policy = vi
+        .spyOn(f.permissions, 'assertOperation')
+        .mockResolvedValue();
+    const result = await f.service.status(f.account, 'grant');
+    expect(result.effectiveProjects[0].capabilities).toEqual([
+        { capability, allowed: false, reason: 'not_supported' },
+    ]);
+    expect(policy).not.toHaveBeenCalled();
 });
