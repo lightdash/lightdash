@@ -192,6 +192,7 @@ export const AGENT_DELIVERY_CHECK_INTERVAL_MS = 30_000;
 export type AgentDeliveryGuard<T = unknown> = {
     assert: () => Promise<T | undefined>;
     assertIfStale: () => Promise<T | undefined>;
+    getFailure: () => { error: unknown } | null;
 };
 
 export const createAgentDeliveryGuard = <T>({
@@ -204,24 +205,28 @@ export const createAgentDeliveryGuard = <T>({
     now: () => number;
 }): AgentDeliveryGuard<T> => {
     let lastSuccessfulCheck: number | null = null;
-    let failureVersion = 0;
+    let failure: { error: unknown } | null = null;
+    const getFailure = () => failure;
     const assert = async () => {
         if (!enabled) return undefined;
-        const startedAtFailureVersion = failureVersion;
+        if (failure) throw failure.error;
         try {
             const result = await check();
-            if (failureVersion === startedAtFailureVersion)
-                lastSuccessfulCheck = now();
+            const previousFailure = getFailure();
+            if (previousFailure) throw previousFailure.error;
+            lastSuccessfulCheck = now();
             return result;
         } catch (error) {
-            failureVersion += 1;
+            failure ??= { error };
             lastSuccessfulCheck = null;
-            throw error;
+            throw failure.error;
         }
     };
     return {
         assert,
+        getFailure,
         assertIfStale: async () => {
+            if (failure) throw failure.error;
             if (
                 enabled &&
                 (lastSuccessfulCheck === null ||

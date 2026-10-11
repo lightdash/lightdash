@@ -642,3 +642,38 @@ describe('runEditDbtProjectPipeline Slack work authority', () => {
         },
     );
 });
+
+it.each(['error', 'refusal'] as const)(
+    'withholds a later outcome in the same run after a check %s',
+    async (kind) => {
+        const h = buildService({
+            isSlack: true,
+            run: vi
+                .fn()
+                .mockResolvedValue({
+                    ...WRITEBACK_RESULT,
+                    needsDbtSourceSelection: true,
+                }),
+        });
+        const error =
+            kind === 'refusal'
+                ? new AiAccessRefusedError(
+                      AiAccessRefusalReason.AGENT_PROJECT_DENIED,
+                  )
+                : new Error('Database unavailable');
+        h.loadRequest.mockRejectedValueOnce(error);
+        await h.service.runEditDbtProjectPipeline({
+            ...PAYLOAD,
+            isSlackPrompt: true,
+            agentWork: {
+                userUuid: 'user-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'proj-1',
+            },
+        });
+        expect(h.updateModelResponse).toHaveBeenCalledTimes(1);
+        expect(h.setPromptNeedsUserInput).toHaveBeenCalledTimes(1);
+        expect(h.loadRequest).toHaveBeenCalledTimes(1);
+        expect(h.postMessage).not.toHaveBeenCalled();
+    },
+);

@@ -10,9 +10,11 @@ import {
     type SessionUser,
     type SlackPrompt,
 } from '@lightdash/common';
+import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { parseAgentWorkMarker } from '../../../services/AgentPermissionService/agentWorkAuthority';
 import { type SlackArtifactRenderInput } from '../../database/entities/aiSlackArtifactDeliveries';
+import { renderEcharts } from '../ai/utils/renderEcharts';
 import { getSlackArtifactCardBlockId } from '../ai/utils/slackArtifactImages';
 import { AiAgentService } from './AiAgentService';
 
@@ -245,6 +247,7 @@ describe('Slack image delivery scope', () => {
                 vi.mocked(
                     h.service['userModel'].findSessionUserAndOrgByUuid,
                 ).mockResolvedValue({
+                    ...defaultSessionUser,
                     userUuid: 'user',
                     organizationUuid: 'org',
                     isActive: false,
@@ -415,7 +418,19 @@ describe('Slack image delivery scope', () => {
                     h.assertOperationWithRequest.mockRejectedValue(refusal);
                     return true;
                 });
+            const prepare = vi.spyOn(
+                h.service as unknown as {
+                    prepareSlackArtifactImageDelivery: AiAgentService['prepareSlackArtifactImageDelivery'];
+                },
+                'prepareSlackArtifactImageDelivery',
+            );
             await h.service.deliverSlackArtifactImages(payload);
+            if (state === 'allowed') {
+                expect(h.loadRequest).toHaveBeenCalledTimes(4);
+                expect(prepare).toHaveBeenCalledTimes(2);
+                expect(prepare.mock.calls[0][3]).toBeDefined();
+                expect(prepare.mock.calls[1][3]).toBe(prepare.mock.calls[0][3]);
+            }
             if (state === 'cached-before-update') {
                 expect(h.getRawAsyncQueryResults).not.toHaveBeenCalled();
                 expect(
@@ -442,6 +457,91 @@ describe('Slack image delivery scope', () => {
                 { allowed: 4, 'before-upload': 2, 'cached-before-update': 3 }[
                     state
                 ],
+            );
+        },
+    );
+
+    it.each(['error', 'refusal', 'render-marked', 'render-unmarked'] as const)(
+        'withholds cached images on upload check failure but retries render failures: %s',
+        async (kind) => {
+            const h = setup();
+            const cached = { ...h.input, versionUuid: 'cached' };
+            const delivery = {
+                attempts: 1,
+                finished_at: null,
+                message_ts: 'ts',
+                render_inputs: { cached, version: h.input },
+                rendered_images: { cached: 'https://lightdash.test/cached' },
+            };
+            const model = h.service['aiAgentModel'].slackArtifactDeliveries;
+            model.claim = vi.fn().mockResolvedValue(delivery);
+            model.setMessage = vi.fn().mockResolvedValue(undefined);
+            model.saveImage = vi.fn().mockResolvedValue(undefined);
+            h.getDelivery.mockResolvedValue(delivery);
+            h.replies.mockResolvedValue({
+                messages: [
+                    {
+                        user: 'our-bot',
+                        ts: 'ts',
+                        text: 'Answer',
+                        blocks: ['cached', 'version'].map((version) => ({
+                            type: 'card',
+                            block_id: getSlackArtifactCardBlockId(version),
+                        })),
+                    },
+                ],
+            });
+            h.getRawAsyncQueryResults.mockResolvedValue({
+                rows: [{}],
+                fields: {},
+            });
+            vi.spyOn(
+                AiAgentService as unknown as {
+                    isCardImageUrlReachable: () => Promise<boolean>;
+                },
+                'isCardImageUrlReachable',
+            ).mockResolvedValue(true);
+            const error =
+                kind === 'refusal'
+                    ? new AiAccessRefusedError(
+                          AiAccessRefusalReason.AGENT_PROJECT_DENIED,
+                      )
+                    : new Error('Database unavailable');
+            const checkFailure = kind === 'error' || kind === 'refusal';
+            if (checkFailure)
+                h.loadRequest
+                    .mockResolvedValueOnce({})
+                    .mockRejectedValueOnce(error);
+            else vi.mocked(renderEcharts).mockRejectedValueOnce(error);
+            const job = h.service.deliverSlackArtifactImages(
+                kind === 'render-unmarked'
+                    ? { ...marker, slackPromptUuid: 'prompt' }
+                    : payload,
+            );
+            if (kind === 'refusal') await expect(job).resolves.toBeUndefined();
+            else if (checkFailure) await expect(job).rejects.toBe(error);
+            else
+                await expect(job).rejects.toThrow(
+                    'Some Slack artifact images are still unavailable',
+                );
+            expect(h.fileStorageClient.uploadImage).not.toHaveBeenCalled();
+            expect(h.previewCreate).not.toHaveBeenCalled();
+            expect(model.saveImage).not.toHaveBeenCalled();
+            expect(h.updateMessage).toHaveBeenCalledTimes(checkFailure ? 0 : 1);
+            if (kind === 'refusal')
+                expect(h.finish).toHaveBeenCalledExactlyOnceWith(
+                    'prompt',
+                    'cancelled',
+                    1,
+                );
+            else expect(h.finish).not.toHaveBeenCalled();
+            expect(h.loadRequest).toHaveBeenCalledTimes(
+                {
+                    error: 2,
+                    refusal: 2,
+                    'render-marked': 3,
+                    'render-unmarked': 0,
+                }[kind],
             );
         },
     );

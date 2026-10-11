@@ -201,7 +201,7 @@ describe('createAgentDeliveryGuard', () => {
     });
 
     it.each(['user', 'request'] as const)(
-        'propagates a %s load failure unchanged and retries the check',
+        'latches a %s load failure unchanged without retrying',
         async (stage) => {
             const deps = setup();
             const error = new Error('Database unavailable');
@@ -216,10 +216,10 @@ describe('createAgentDeliveryGuard', () => {
                 now: () => 0,
             });
             await expect(guard.assertIfStale()).rejects.toBe(error);
-            await expect(guard.assertIfStale()).resolves.toBe(
-                defaultSessionUser,
-            );
-            expect(load).toHaveBeenCalledTimes(2);
+            await expect(guard.assertIfStale()).rejects.toBe(error);
+            await expect(guard.assert()).rejects.toBe(error);
+            expect(guard.getFailure()).toEqual({ error });
+            expect(load).toHaveBeenCalledTimes(1);
         },
     );
 
@@ -243,7 +243,10 @@ describe('createAgentDeliveryGuard', () => {
                 () => null,
                 (checkError: unknown) => checkError,
             );
-            const second = guard.assertIfStale();
+            const second = guard.assertIfStale().then(
+                () => null,
+                (checkError: unknown) => checkError,
+            );
             expect(check).toHaveBeenCalledTimes(2);
             if (order === 'failure-first') {
                 failure.reject(error);
@@ -257,13 +260,41 @@ describe('createAgentDeliveryGuard', () => {
                 await first;
             }
             expect(await first).toBe(error);
-            await guard.assertIfStale();
-            expect(check).toHaveBeenCalledTimes(3);
+            expect(await second).toBe(order === 'failure-first' ? error : null);
+            await expect(guard.assertIfStale()).rejects.toBe(error);
+            await expect(guard.assert()).rejects.toBe(error);
+            expect(check).toHaveBeenCalledTimes(2);
+        },
+    );
+
+    it.each([
+        new AiAccessRefusedError(AiAccessRefusalReason.AGENT_PROJECT_DENIED),
+        new Error('Database unavailable'),
+        null,
+        undefined,
+    ])(
+        'keeps the first thrown value for every later assertion: %s',
+        async (error) => {
+            const check = vi
+                .fn()
+                .mockRejectedValueOnce(error)
+                .mockResolvedValue('allowed');
+            const guard = createAgentDeliveryGuard({
+                enabled: true,
+                check,
+                now: () => 0,
+            });
+            expect(guard.getFailure()).toBeNull();
+            await expect(guard.assert()).rejects.toBe(error);
+            await expect(guard.assert()).rejects.toBe(error);
+            await expect(guard.assertIfStale()).rejects.toBe(error);
+            expect(guard.getFailure()?.error).toBe(error);
+            expect(check).toHaveBeenCalledTimes(1);
         },
     );
 
     it('never checks while disabled', async () => {
-        const check = vi.fn();
+        const check = vi.fn().mockRejectedValue(new Error('Must not run'));
         const guard = createAgentDeliveryGuard({
             enabled: false,
             check,
@@ -272,6 +303,7 @@ describe('createAgentDeliveryGuard', () => {
         await guard.assert();
         await guard.assertIfStale();
         expect(check).not.toHaveBeenCalled();
+        expect(guard.getFailure()).toBeNull();
     });
     it('always checks forced assertions', async () => {
         const check = vi.fn();
@@ -311,10 +343,11 @@ describe('createAgentDeliveryGuard', () => {
         });
         await guard.assert();
         time = 30_000;
-        check.mockRejectedValueOnce(new Error('refused'));
+        const error = new Error('refused');
+        check.mockRejectedValueOnce(error);
         await expect(guard.assertIfStale()).rejects.toThrow('refused');
-        await guard.assertIfStale();
-        expect(check).toHaveBeenCalledTimes(3);
+        await expect(guard.assertIfStale()).rejects.toBe(error);
+        expect(check).toHaveBeenCalledTimes(2);
     });
 });
 

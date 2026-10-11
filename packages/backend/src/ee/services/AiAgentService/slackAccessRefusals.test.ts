@@ -8,6 +8,8 @@ import type { ModelMessage } from 'ai';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import type { SlackClient } from '../../../clients/Slack/SlackClient';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import Logger from '../../../logging/logger';
+import { AiAgentModel } from '../../models/AiAgentModel';
 import { getAiAccessRefusalBlocks } from '../ai/utils/getSlackBlocks';
 import { getSlackArtifactCardBlockId } from '../ai/utils/slackArtifactImages';
 import { AiAgentService } from './AiAgentService';
@@ -61,6 +63,16 @@ describe.each([false, true])(
                 .mockResolvedValue({ ok: true });
             const updateSlackResponseTs = vi.fn().mockResolvedValue(undefined);
             const postDeliveryStore = vi.fn().mockResolvedValue(undefined);
+            const refusalStore = vi.fn().mockResolvedValue(undefined);
+            const updateModelResponse = vi
+                .fn()
+                .mockImplementation((data) =>
+                    data.errorMessage &&
+                    'response' in data &&
+                    data.response === undefined
+                        ? refusalStore(data)
+                        : postDeliveryStore(data),
+                );
             const getPendingSqlApprovalForPrompt = vi
                 .fn()
                 .mockResolvedValue(null);
@@ -119,7 +131,7 @@ describe.each([false, true])(
                     getToolResultsForPrompt: vi.fn().mockResolvedValue([]),
                     getToolCallsForPrompt: vi.fn().mockResolvedValue([]),
                     updateSlackResponseTs,
-                    updateModelResponse: postDeliveryStore,
+                    updateModelResponse,
                     slackArtifactDeliveries: {
                         get: vi.fn().mockResolvedValue(null),
                     },
@@ -202,6 +214,8 @@ describe.each([false, true])(
                 stopAgentStream,
                 updateSlackResponseTs,
                 postDeliveryStore,
+                refusalStore,
+                updateModelResponse,
                 generate,
                 getChatHistory,
                 getPromptErrorMessage,
@@ -239,6 +253,112 @@ describe.each([false, true])(
                 ...getAiAccessRefusalBlocks(error.refusal, siteUrl),
             ]);
         };
+
+        it.each([
+            'refusal',
+            'error',
+            'after-delivery',
+            'cleanup-error',
+        ] as const)(
+            'clears only a withheld answer after a guard refusal: %s',
+            async (stage) => {
+                const log = vi.spyOn(Logger, 'error');
+                vi.useFakeTimers();
+                try {
+                    const h = setup({ card: false, refusals: [] });
+                    const error =
+                        stage === 'error'
+                            ? new Error('Database unavailable')
+                            : refusal();
+                    const row: {
+                        response: string | null;
+                        error_message: string | null;
+                        responded_at?: Date;
+                    } = { response: 'Private answer', error_message: null };
+                    const update = vi.fn().mockImplementation((data) => {
+                        Object.assign(row, data);
+                        return {
+                            where: vi
+                                .fn()
+                                .mockReturnValue({
+                                    returning: vi
+                                        .fn()
+                                        .mockResolvedValue([
+                                            { ai_prompt_uuid: 'prompt-1' },
+                                        ]),
+                                }),
+                        };
+                    });
+                    const database = Object.assign(
+                        vi.fn().mockReturnValue({ update }),
+                        { fn: { now: () => new Date() } },
+                    );
+                    h.refusalStore.mockImplementation((data) =>
+                        AiAgentModel.prototype.updateModelResponse.call(
+                            { database } as unknown as AiAgentModel,
+                            data,
+                        ),
+                    );
+                    if (stage === 'cleanup-error')
+                        h.refusalStore.mockRejectedValue(
+                            new Error('Write failed'),
+                        );
+                    if (stage === 'after-delivery')
+                        h.postMessage.mockImplementationOnce(async () => {
+                            vi.setSystemTime(Date.now() + 30_001);
+                            h.loadRequest.mockRejectedValueOnce(error);
+                            return { ok: true, ts: 'answer-ts' };
+                        });
+                    else
+                        h.finalBlocks.mockImplementation(async () => {
+                            h.loadRequest.mockRejectedValueOnce(error);
+                            return [];
+                        });
+                    if (agentIdentityEnabled && stage === 'error')
+                        await expect(
+                            h.service.replyToSlackPrompt('prompt-1'),
+                        ).rejects.toThrow('Failed to generate response');
+                    else await h.service.replyToSlackPrompt('prompt-1');
+                    const cleans =
+                        agentIdentityEnabled &&
+                        (stage === 'refusal' || stage === 'cleanup-error');
+                    if (cleans) {
+                        const expected = {
+                            promptUuid: 'prompt-1',
+                            response: undefined,
+                            errorMessage: (error as AiAccessRefusedError)
+                                .refusal.message,
+                        };
+                        expect(h.refusalStore).toHaveBeenCalledExactlyOnceWith(
+                            expected,
+                        );
+                        expect(
+                            h.updateModelResponse,
+                        ).toHaveBeenCalledExactlyOnceWith(expected);
+                        expectRefusalOnce(h, error as AiAccessRefusedError);
+                    } else expect(h.refusalStore).not.toHaveBeenCalled();
+                    if (agentIdentityEnabled && stage === 'refusal') {
+                        expect(row.response).toBeNull();
+                        expect(row.error_message).toBe(
+                            (error as AiAccessRefusedError).refusal.message,
+                        );
+                        expect(JSON.stringify(row)).not.toContain(
+                            'Private answer',
+                        );
+                    } else expect(row.response).toBe('Private answer');
+                    if (agentIdentityEnabled && stage === 'cleanup-error')
+                        expect(log).toHaveBeenCalledWith(
+                            'Failed to persist withheld Slack answer refusal:',
+                            expect.objectContaining({
+                                message: 'Write failed',
+                            }),
+                        );
+                } finally {
+                    vi.useRealTimers();
+                    log.mockRestore();
+                }
+            },
+        );
 
         it('fails closed on a queued check error, closes the stream and uses the generic error path', async () => {
             if (!agentIdentityEnabled) return;

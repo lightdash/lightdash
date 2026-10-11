@@ -323,6 +323,7 @@ describe('UnfurlService', () => {
                     service.exportAiAgentArtifact(ACTING_USER, EXPORT_ARGS, {
                         assert,
                         assertIfStale: assert,
+                        getFailure: () => ({ error: refusal }),
                     }),
                 ).rejects.toBe(refusal);
                 expect(assert).toHaveBeenCalledTimes(1);

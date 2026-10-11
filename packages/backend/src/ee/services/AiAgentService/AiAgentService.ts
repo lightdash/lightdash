@@ -1902,6 +1902,23 @@ export class AiAgentService extends BaseService {
         };
     }
 
+    private createSlackDeliveryGuard(agentWork: ParsedAgentWorkMarker) {
+        return createAgentDeliveryGuard({
+            enabled: agentWork.status === 'valid',
+            check: () => {
+                if (agentWork.status !== 'valid')
+                    throw new UnexpectedServerError(
+                        'Missing agent work marker',
+                    );
+                return assertAgentWorkAllowed(this.getAgentWorkDependencies(), {
+                    ...agentWork.marker,
+                    surface: AgentActorSurface.SLACK_AGENT,
+                });
+            },
+            now: Date.now,
+        });
+    }
+
     async sweepSlackArtifactImages(): Promise<void> {
         const promptUuids =
             await this.aiAgentModel.slackArtifactDeliveries.findPending();
@@ -1942,6 +1959,7 @@ export class AiAgentService extends BaseService {
     ): Promise<void> {
         const promptUuid = payload.slackPromptUuid;
         const agentWork = parseAgentWorkMarker(payload);
+        const deliveryGuard = this.createSlackDeliveryGuard(agentWork);
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 55_000);
         try {
@@ -1954,10 +1972,12 @@ export class AiAgentService extends BaseService {
                             promptUuid,
                             controller.signal,
                             agentWork,
+                            deliveryGuard,
                         ),
                     signal: controller.signal,
                 },
                 agentWork,
+                deliveryGuard,
             );
         } finally {
             clearTimeout(timer);
@@ -1968,6 +1988,7 @@ export class AiAgentService extends BaseService {
         promptUuid: string,
         signal?: AbortSignal,
         agentWork: ParsedAgentWorkMarker = { status: 'absent' },
+        deliveryGuard = this.createSlackDeliveryGuard(agentWork),
     ): Promise<
         | (SlackArtifactDeliveryRuntime & { resultReader: QueryResultReader })
         | null
@@ -1992,20 +2013,6 @@ export class AiAgentService extends BaseService {
             }).status !== 'valid'
         )
             return null;
-        const deliveryGuard = createAgentDeliveryGuard({
-            enabled: agentWork.status === 'valid',
-            check: () => {
-                if (agentWork.status !== 'valid')
-                    throw new UnexpectedServerError(
-                        'Missing agent work marker',
-                    );
-                return assertAgentWorkAllowed(this.getAgentWorkDependencies(), {
-                    ...agentWork.marker,
-                    surface: AgentActorSurface.SLACK_AGENT,
-                });
-            },
-            now: Date.now,
-        });
         const settings =
             await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
                 prompt.organizationUuid,
@@ -2019,13 +2026,7 @@ export class AiAgentService extends BaseService {
         try {
             user =
                 agentWork.status === 'valid'
-                    ? await assertAgentWorkAllowed(
-                          this.getAgentWorkDependencies(),
-                          {
-                              ...agentWork.marker,
-                              surface: AgentActorSurface.SLACK_AGENT,
-                          },
-                      )
+                    ? (await deliveryGuard.assert())!
                     : await this.userModel.findSessionUserAndOrgByUuid(
                           prompt.createdByUserUuid,
                           prompt.organizationUuid,
@@ -2036,6 +2037,9 @@ export class AiAgentService extends BaseService {
                 prompt.projectUuid,
             );
         } catch (error) {
+            const failure = deliveryGuard.getFailure();
+            if (failure && !(failure.error instanceof AiAccessRefusedError))
+                throw failure.error;
             if (
                 error instanceof ForbiddenError ||
                 error instanceof NotFoundError
@@ -12158,6 +12162,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         payload: AiAgentEditDbtProjectPipelineJobPayload,
     ): Promise<void> {
         const agentWork = parseAgentWorkMarker(payload);
+        const deliveryGuard = this.createSlackDeliveryGuard(agentWork);
         const {
             aiWritebackRunUuid,
             organizationUuid,
@@ -12250,6 +12255,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     getMarkdownBlocks(`:x: ${toolResult}`),
                     toolResult,
                     agentWork,
+                    deliveryGuard,
                 );
             }
             return;
@@ -12398,6 +12404,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         prCardBlocks,
                         'Your pull request is ready.',
                         agentWork,
+                        deliveryGuard,
                     );
                 }
             } catch (error) {
@@ -12450,6 +12457,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     getMarkdownBlocks(sourceSelectionMessage),
                     sourceSelectionMessage,
                     agentWork,
+                    deliveryGuard,
                 );
             }
         }
@@ -12464,6 +12472,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
         if (!aiAgentToolCall) {
             return;
         }
+        const agentWork = parseAgentWorkMarker(payload);
+        const deliveryGuard = this.createSlackDeliveryGuard(agentWork);
         try {
             const [app, appVersion] = await Promise.all([
                 this.appModel.findAppByUuid(appUuid),
@@ -12508,7 +12518,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 await this.postDataAppBuildOutcomeToSlack(
                     aiAgentToolCall.promptUuid,
                     outcome,
-                    parseAgentWorkMarker(payload),
+                    agentWork,
+                    deliveryGuard,
                 );
             }
         } catch (error) {
@@ -12543,6 +12554,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         blocks: (Block | KnownBlock)[],
         text: string,
         agentWork: ParsedAgentWorkMarker,
+        deliveryGuard: AgentDeliveryGuard,
     ): Promise<void> {
         if (agentWork.status === 'malformed') return;
         try {
@@ -12557,11 +12569,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             } catch {
                 // Fall back to the app's default name.
             }
-            if (agentWork.status === 'valid')
-                await assertAgentWorkAllowed(this.getAgentWorkDependencies(), {
-                    ...agentWork.marker,
-                    surface: AgentActorSurface.SLACK_AGENT,
-                });
+            await deliveryGuard.assert();
             await this.slackClient.postMessage({
                 organizationUuid: prompt.organizationUuid,
                 channel: prompt.slackChannelId,
@@ -12583,6 +12591,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         promptUuid: string,
         outcome: ToolGenerateDataAppTerminalResult,
         agentWork: ParsedAgentWorkMarker,
+        deliveryGuard: AgentDeliveryGuard,
     ): Promise<void> {
         if (agentWork.status === 'malformed') return;
         const prompt = await this.aiAgentModel.findSlackPrompt(promptUuid);
@@ -12594,7 +12603,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             const screenshotBlock = await this.tryBuildDataAppScreenshotBlock(
                 prompt,
                 metadata,
-                agentWork,
+                deliveryGuard,
             );
             const isFirstVersion = metadata.version === 1;
             const readyPhrase = isFirstVersion
@@ -12613,6 +12622,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 ],
                 readyText,
                 agentWork,
+                deliveryGuard,
             );
             return;
         }
@@ -12622,6 +12632,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             getMarkdownBlocks(`:x: ${text}`),
             text,
             agentWork,
+            deliveryGuard,
         );
     }
 
@@ -12632,7 +12643,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
     private async tryBuildDataAppScreenshotBlock(
         prompt: SlackPrompt,
         metadata: { appUuid: string; name: string },
-        agentWork: ParsedAgentWorkMarker,
+        deliveryGuard: AgentDeliveryGuard,
     ): Promise<KnownBlock | undefined> {
         const capture = async (): Promise<KnownBlock | undefined> => {
             const { imageBuffer, imageUrl } =
@@ -12645,11 +12656,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     context: ScreenshotContext.SLACK,
                     contextId: prompt.promptUuid,
                 });
-            if (agentWork.status === 'valid')
-                await assertAgentWorkAllowed(this.getAgentWorkDependencies(), {
-                    ...agentWork.marker,
-                    surface: AgentActorSurface.SLACK_AGENT,
-                });
+            await deliveryGuard.assert();
             const image = await this.slackClient.tryUploadingImageToSlack({
                 organizationUuid: prompt.organizationUuid,
                 imageUrl,
@@ -12687,11 +12694,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 }),
             ]);
         } catch (error) {
-            if (
-                agentWork.status === 'valid' &&
-                error instanceof AiAccessRefusedError
-            )
-                throw error;
             this.logger.warn('Data app build outcome screenshot skipped', {
                 appUuid: metadata.appUuid,
                 promptUuid: prompt.promptUuid,
@@ -18002,6 +18004,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const deliveryGuard: AgentDeliveryGuard = {
             assert: () => checkDelivery(jobDeliveryGuard.assert),
             assertIfStale: () => checkDelivery(jobDeliveryGuard.assertIfStale),
+            getFailure: jobDeliveryGuard.getFailure,
         };
         const threadTs = slackPrompt.slackThreadTs || slackPrompt.promptSlackTs;
         const getAccessRefusalBlocks = () =>
@@ -18444,6 +18447,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         let runtimeTableResults: ReadonlyMap<string, SlackTableQueryResults> =
             new Map();
         let answerDelivered = false;
+        let answerPublished = false;
         try {
             const response = await this.generateOrStreamAgentResponse(
                 user,
@@ -18636,6 +18640,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 });
             }
 
+            answerPublished = true;
             Logger.info('AI agent Slack answer delivered', {
                 event: 'ai_agent.slack_answer_delivered',
                 promptId: slackPrompt.promptUuid,
@@ -18698,7 +18703,26 @@ Use your existing tools to inspect them when relevant to the user's question (re
         } catch (error) {
             await taskUpdateChain;
             const failure = getDeliveryFailure();
-            if (failure) throw failure.error;
+            if (failure) {
+                if (
+                    failure.error instanceof AiAccessRefusedError &&
+                    !answerPublished
+                ) {
+                    try {
+                        await this.aiAgentModel.updateModelResponse({
+                            promptUuid: slackPrompt.promptUuid,
+                            response: undefined,
+                            errorMessage: failure.error.refusal.message,
+                        });
+                    } catch (persistError) {
+                        Logger.error(
+                            'Failed to persist withheld Slack answer refusal:',
+                            persistError,
+                        );
+                    }
+                }
+                throw failure.error;
+            }
             if (error instanceof AiAccessRefusedError && streamTs) {
                 const reply = this.getSlackAccessRefusalReply(error.refusal);
                 finalizeToolTasksForSuccess();

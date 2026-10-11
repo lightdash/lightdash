@@ -1,6 +1,9 @@
 import { AiAccessRefusedError } from '@lightdash/common';
 import { type Block, type KnownBlock } from '@slack/web-api';
-import { type ParsedAgentWorkMarker } from '../../../services/AgentPermissionService/agentWorkAuthority';
+import {
+    type AgentDeliveryGuard,
+    type ParsedAgentWorkMarker,
+} from '../../../services/AgentPermissionService/agentWorkAuthority';
 import { type SlackArtifactRenderInput } from '../../database/entities/aiSlackArtifactDeliveries';
 import {
     SLACK_ARTIFACT_DELIVERY_MAX_ATTEMPTS,
@@ -46,6 +49,7 @@ export const deliverSlackArtifactImages = async (
         signal?: AbortSignal;
     },
     agentWork: ParsedAgentWorkMarker = { status: 'absent' },
+    deliveryGuard: AgentDeliveryGuard | null = null,
 ): Promise<void> => {
     const delivery = await model.claim(promptUuid);
     if (!delivery) return;
@@ -88,11 +92,9 @@ export const deliverSlackArtifactImages = async (
                         await model.saveImage(promptUuid, version, url);
                     } else unavailable = true;
                 } catch (error) {
-                    if (
-                        agentWork.status === 'valid' &&
-                        error instanceof AiAccessRefusedError
-                    )
-                        throw error;
+                    const failure = deliveryGuard?.getFailure();
+                    if (agentWork.status === 'valid' && failure)
+                        throw failure.error;
                     // Persisted successes can be delivered even when another chart
                     // is temporarily unavailable; only failed renders repeat.
                     retryNeeded = true;
