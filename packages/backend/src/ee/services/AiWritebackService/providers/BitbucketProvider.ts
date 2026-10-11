@@ -345,6 +345,7 @@ export class BitbucketProvider extends BaseService implements GitProvider {
         await args.sandbox.git.createBranch(CWD, branch);
         const landed = await this.landChanges(args, branch);
         args.setStage('pull_request');
+        if (args.assertPublishAllowed) await args.assertPublishAllowed();
         const pullRequest = await BitbucketClient.createPullRequest({
             ...asInstallation(args.installation),
             title: args.title,
@@ -372,6 +373,7 @@ export class BitbucketProvider extends BaseService implements GitProvider {
         }
         const landed = await this.landChanges(args, branch);
         args.setStage('pull_request');
+        if (args.assertPublishAllowed) await args.assertPublishAllowed();
         await BitbucketClient.updatePullRequest({
             ...asInstallation(args.installation),
             pullNumber: pullRequest.number,
@@ -447,6 +449,7 @@ export class BitbucketProvider extends BaseService implements GitProvider {
             installation.commitAuthor,
         );
         args.setStage('push');
+        if (args.assertPublishAllowed) await args.assertPublishAllowed();
         try {
             const remote = quoteShellArgument(
                 this.getCloneTarget(connection, installation).url,

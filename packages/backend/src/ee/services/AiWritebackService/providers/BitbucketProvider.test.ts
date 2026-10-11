@@ -20,6 +20,7 @@ import type { SandboxHandle } from '../../SandboxRuntime';
 import { CWD } from '../constants';
 import { DeniedPathError } from '../deniedPaths';
 import {
+    WritebackAgentAccessError,
     WritebackCredentialCleanupError,
     WritebackGitNotConnectedError,
 } from '../errors';
@@ -139,6 +140,7 @@ const writeArgs = (sandbox: ReturnType<typeof sandboxFixture>) => ({
     setStage: vi.fn(),
     onRemoteCommitted: vi.fn().mockResolvedValue(undefined),
     assertStagedChangesAllowed: null,
+    assertPublishAllowed: null,
 });
 
 afterEach(() => vi.restoreAllMocks());
@@ -711,4 +713,67 @@ describe('Bitbucket PR lifecycle', () => {
             provider.closePullRequest({ ...args, owner: 'other' }),
         ).rejects.toBeInstanceOf(ForbiddenError);
     });
+});
+
+describe('BitbucketProvider publication authority', () => {
+    it.each(
+        ['open', 'update'].flatMap((action) =>
+            [1, 2, null].map((failAt) => ({ action, failAt })),
+        ),
+    )(
+        '$action keeps guard errors unchanged at push and PR calls, failing at $failAt',
+        async ({ action, failAt }) => {
+            const { provider } = setup();
+            const create = vi
+                .spyOn(BitbucketClient, 'createPullRequest')
+                .mockResolvedValue(pullRequest);
+            const update = vi
+                .spyOn(BitbucketClient, 'updatePullRequest')
+                .mockResolvedValue(pullRequest);
+            vi.spyOn(BitbucketClient, 'getPullRequest').mockResolvedValue(
+                pullRequest,
+            );
+            create.mockClear();
+            update.mockClear();
+            const sandbox = sandboxFixture();
+            if (action === 'update')
+                sandbox.git.status.mockResolvedValue({
+                    currentBranch: pullRequest.head,
+                });
+            const error = new WritebackAgentAccessError(
+                new Error('person deactivated'),
+            );
+            let checks = 0;
+            const assertPublishAllowed = vi.fn(async () => {
+                checks += 1;
+                if (checks === failAt) throw error;
+            });
+            const args = { ...writeArgs(sandbox), assertPublishAllowed };
+            const result =
+                action === 'open'
+                    ? provider.openPullRequest(args)
+                    : provider.updatePullRequest({ ...args, prUrl });
+            if (failAt) await expect(result).rejects.toBe(error);
+            else await result;
+            expect(sandbox.git.push).toHaveBeenCalledTimes(
+                failAt !== 1 ? 1 : 0,
+            );
+            expect(create).toHaveBeenCalledTimes(
+                action === 'open' && failAt === null ? 1 : 0,
+            );
+            expect(update).toHaveBeenCalledTimes(
+                action === 'update' && failAt === null ? 1 : 0,
+            );
+            expect(assertPublishAllowed).toHaveBeenCalledTimes(failAt ?? 2);
+            if (failAt === 1)
+                expect(sandbox.commands.run).not.toHaveBeenCalledWith(
+                    expect.stringContaining('--get-all remote.origin.pushurl'),
+                );
+            expect(
+                sandbox.commands.run.mock.calls.filter(([command]) =>
+                    command.includes('--remove-section credential'),
+                ),
+            ).toHaveLength(failAt === 1 ? 1 : 2);
+        },
+    );
 });

@@ -58,12 +58,18 @@ type AgentWorkDependencies = {
     agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
 };
 
-type AgentWork = AgentWorkMarker & { surface: AgentActorSurface };
+type AgentWork = AgentWorkMarker & {
+    surface: AgentActorSurface;
+    operation?: Pick<
+        Parameters<AgentPermissionService['assertOperation']>[0],
+        'kind' | 'key'
+    >;
+};
 
 const agentWorkUserRefusal = (work: AgentWork) =>
     new AiAccessRefusedError(AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED, {
         projectUuid: work.projectUuid,
-        operation: 'agent_turn',
+        operation: work.operation?.key ?? 'agent_turn',
         policyLayer: 'organization_setting',
     });
 
@@ -97,8 +103,8 @@ export const assertAgentWorkUserActive = async (
                 organizationUuid: work.organizationUuid,
                 projectUuid: work.projectUuid,
                 objectType: 'agent_operation',
-                objectId: 'agent_turn',
-                action: 'agent_turn',
+                objectId: work.operation?.key ?? 'agent_turn',
+                action: work.operation?.key ?? 'agent_turn',
                 policyLayer: 'organization_setting',
                 reasonCode: error.refusal.reason,
                 capability: null,
@@ -169,8 +175,8 @@ export const assertAgentWorkAllowed = async (
                     organizationUuid: work.organizationUuid,
                     projectUuid: work.projectUuid,
                     objectType: 'agent_operation',
-                    objectId: 'agent_turn',
-                    action: 'agent_turn',
+                    objectId: work.operation?.key ?? 'agent_turn',
+                    action: work.operation?.key ?? 'agent_turn',
                     policyLayer: 'organization_setting',
                     reasonCode: refusal.refusal.reason,
                     capability: null,
@@ -191,8 +197,8 @@ export const assertAgentWorkAllowed = async (
             account: fromSession(user),
             organizationUuid: work.organizationUuid,
             projectUuid: work.projectUuid,
-            kind: 'agent_turn',
-            key: 'agent_turn',
+            kind: work.operation?.kind ?? 'agent_turn',
+            key: work.operation?.key ?? 'agent_turn',
             surface: work.surface,
         },
     });

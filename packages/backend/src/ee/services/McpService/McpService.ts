@@ -1563,7 +1563,7 @@ export class McpService extends BaseService {
      * so setupHandlers can register it conditionally (dark launch — see the
      * AiWriteback gate in setupHandlers).
      */
-    private registerRunAiWritebackTool(): void {
+    private registerRunAiWritebackTool(agentIdentityEnabled: boolean): void {
         this.registerTrackedTool(
             mcpRunAiWritebackTool.name,
             {
@@ -1585,6 +1585,7 @@ export class McpService extends BaseService {
                 try {
                     const { aiWritebackRunUuid, createdAt, updatedAt } =
                         await this.aiWritebackService.enqueueWriteback({
+                            agentIdentityEnabled,
                             user,
                             projectUuid,
                             prompt: args.prompt,
@@ -4326,7 +4327,7 @@ export class McpService extends BaseService {
 
         this.registerSkillToolHandlers();
 
-        this.registerRunAiWritebackTool();
+        this.registerRunAiWritebackTool(options.agentIdentityEnabled);
         this.registerGetAiWritebackStatusTool();
         this.registerAiWritebackTaskHandlers();
 

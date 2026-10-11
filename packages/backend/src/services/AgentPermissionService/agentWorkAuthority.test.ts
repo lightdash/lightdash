@@ -99,6 +99,20 @@ describe('assertAgentWorkAllowed', () => {
             }),
         });
     });
+    it.each([
+        { kind: 'mcp_tool' as const, key: 'run_ai_writeback' },
+        { kind: 'agent_tool' as const, key: 'editDbtProject' },
+    ])('asserts the explicit $kind writeback operation', async (operation) => {
+        const deps = setup();
+        await assertAgentWorkAllowed(deps, { ...work, operation });
+        expect(
+            deps.agentPermissionService.assertOperationWithRequest,
+        ).toHaveBeenCalledExactlyOnceWith({
+            request: {},
+            operation: expect.objectContaining(operation),
+        });
+    });
+
     it('refuses an inactive human and records the admission refusal', async () => {
         const deps = setup();
         deps.userModel.findSessionUserAndOrgByUuid.mockResolvedValue({

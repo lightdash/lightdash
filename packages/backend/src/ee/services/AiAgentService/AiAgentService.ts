@@ -611,8 +611,12 @@ import { findAiDeepResearchRunDocuments } from '../AiDeepResearchService/runDocu
 import { isDeepResearchRawSqlMcpTool } from '../AiDeepResearchService/toolClassification';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
-import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
+import {
+    WritebackAgentAccessError,
+    WritebackThreadPrClosedError,
+} from '../AiWritebackService/errors';
 import type { AiWritebackSource } from '../AiWritebackService/types';
+import { createWritebackAgentDeliveryGuard } from '../AiWritebackService/writebackAgentWork';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import type { AppGenerateService } from '../AppGenerateService/AppGenerateService';
 import { resolveRenderableDataAppVizVersion } from '../AppGenerateService/dataAppVizRender';
@@ -12162,7 +12166,29 @@ Use your existing tools to inspect them when relevant to the user's question (re
         payload: AiAgentEditDbtProjectPipelineJobPayload,
     ): Promise<void> {
         const agentWork = parseAgentWorkMarker(payload);
-        const deliveryGuard = this.createSlackDeliveryGuard(agentWork);
+        const writebackGuard =
+            agentWork.status === 'absent'
+                ? null
+                : createWritebackAgentDeliveryGuard(
+                      this.getAgentWorkDependencies(),
+                      agentWork,
+                      {
+                          surface: payload.isSlackPrompt
+                              ? AgentActorSurface.SLACK_AGENT
+                              : AgentActorSurface.IN_APP_AGENT,
+                          operation: {
+                              kind: 'agent_tool',
+                              key: 'editDbtProject',
+                          },
+                          agentPermissionsApply: true,
+                      },
+                  );
+        const deliveryGuard =
+            writebackGuard ?? this.createSlackDeliveryGuard(agentWork);
+        const assertPublishAllowed = writebackGuard?.assert ?? null;
+        let toolResultReady = false;
+        let toolResultWritten = false;
+        let userLoaded = false;
         const {
             aiWritebackRunUuid,
             organizationUuid,
@@ -12178,288 +12204,348 @@ Use your existing tools to inspect them when relevant to the user's question (re
             suppressWritebackPreview,
         } = payload;
 
-        const user = await this.userModel.findSessionUserAndOrgByUuid(
-            userUuid,
-            organizationUuid,
-        );
-        const prompt = payload.isSlackPrompt
-            ? await this.aiAgentModel.findSlackPrompt(promptUuid)
-            : await this.aiAgentModel.findWebAppPrompt(promptUuid);
-        if (!prompt) {
-            Logger.warn(
-                `AiAgent.runEditDbtProjectPipeline: prompt ${promptUuid} not found — skipping`,
-            );
-            return;
-        }
-
-        // This job is enqueued mid-step, so it can outrun the onStepFinish
-        // insert of its own tool-result row — wait for it before any
-        // updateToolResult below would otherwise no-op and strand the card.
-        await this.waitForToolResultWritten(promptUuid, toolCallId);
-
-        let result: AiWritebackRunResult;
         try {
-            result = await wrapSentryTransaction(
-                'AiAgent.editDbtProject',
-                {},
-                () =>
-                    this.aiWritebackService.run({
-                        agentPermissionsApply: true,
-                        user,
-                        projectUuid,
-                        prompt: writebackPrompt,
-                        dbtSourceUuid,
-                        prUrl,
-                        startNewPullRequest: startNewPullRequest ?? false,
-                        aiThreadUuid: prompt.threadUuid,
-                        promptUuid,
-                        source,
-                        aiWritebackRunUuid,
-                    }),
+            if (writebackGuard) await writebackGuard.assert();
+            const user = await this.userModel.findSessionUserAndOrgByUuid(
+                userUuid,
+                organizationUuid,
             );
-        } catch (error) {
-            if (
-                await this.isRunAlreadyFinalizedDifferently(
-                    user,
-                    aiWritebackRunUuid,
-                    'error',
-                )
-            ) {
+            userLoaded = true;
+            const prompt = payload.isSlackPrompt
+                ? await this.aiAgentModel.findSlackPrompt(promptUuid)
+                : await this.aiAgentModel.findWebAppPrompt(promptUuid);
+            if (!prompt) {
                 Logger.warn(
-                    `AiAgent.runEditDbtProjectPipeline: run ${aiWritebackRunUuid} failed after already being finalized as ready (likely a job timeout raced a fast completion) — skipping stale tool-result update`,
+                    `AiAgent.runEditDbtProjectPipeline: prompt ${promptUuid} not found — skipping`,
                 );
                 return;
             }
-            let toolResult: string;
-            let errorCode: ReturnType<typeof classifyWritebackError>;
-            if (error instanceof WritebackThreadPrClosedError) {
-                toolResult = error.message;
-                errorCode = 'pull_request_not_open';
-            } else if (error instanceof InsufficientGitPermissionsError) {
-                toolResult = GIT_WRITE_PERMISSION_AGENT_MESSAGE;
-                errorCode = 'git_write_permission';
-            } else {
-                toolResult = toolErrorHandler(
-                    error,
-                    'Error running AI writeback. No pull request was opened.',
-                );
-                errorCode = classifyWritebackError(error);
-            }
-            await this.aiAgentModel.updateToolResult(promptUuid, toolCallId, {
-                result: toolResult,
-                metadata: { status: 'error', errorCode },
-            });
-            if (isSlackPrompt(prompt)) {
-                await this.postOutcomeToSlack(
-                    prompt,
-                    getMarkdownBlocks(`:x: ${toolResult}`),
-                    toolResult,
-                    agentWork,
-                    deliveryGuard,
-                );
-            }
-            return;
-        }
 
-        // run() marks the run row 'error' for a source-selection outcome even
-        // though it's not a failure, so the guard must not apply to it here.
-        if (
-            !result.needsDbtSourceSelection &&
-            (await this.isRunAlreadyFinalizedDifferently(
-                user,
-                aiWritebackRunUuid,
-                'ready',
-            ))
-        ) {
-            Logger.warn(
-                `AiAgent.runEditDbtProjectPipeline: run ${aiWritebackRunUuid} succeeded after already being finalized as an error (likely a job timeout) — skipping stale tool-result update`,
-            );
-            return;
-        }
+            // This job is enqueued mid-step, so it can outrun the onStepFinish
+            // insert of its own tool-result row — wait for it before any
+            // updateToolResult below would otherwise no-op and strand the card.
+            await this.waitForToolResultWritten(promptUuid, toolCallId);
+            toolResultReady = true;
 
-        const reviewRemediation =
-            await this.aiAgentReviewClassifierModel.findReviewRemediationByWorkThread(
-                {
-                    organizationUuid,
-                    workThreadUuid: prompt.threadUuid,
-                },
-            );
-        if (reviewRemediation && result.prUrl) {
-            await this.aiAgentReviewClassifierModel.createRemediationEvent({
-                remediationUuid: reviewRemediation.uuid,
-                organizationUuid: reviewRemediation.organizationUuid,
-                event: {
-                    eventType: 'pr_updated',
-                    payload: { prUrl: result.prUrl },
-                },
-            });
-        }
-
-        if (result.prUrl && isSlackPrompt(prompt)) {
-            void this.slackClient
-                .addReaction({
-                    organizationUuid,
-                    channel: prompt.slackChannelId,
-                    timestamp: prompt.promptSlackTs,
-                    name: 'white_check_mark',
-                })
-                .catch((err) => {
-                    Logger.debug(
-                        'Failed to add :white_check_mark: reaction to writeback mention:',
-                        err,
-                    );
-                });
-        }
-
-        const isBitbucketPullRequest =
-            result.prUrl?.startsWith('https://bitbucket.org/') === true;
-        let previewDeployConfigured: boolean | null = null;
-        try {
-            const { enabled: previewDeploySetupEnabled } =
-                await this.featureFlagService.get({
-                    user,
-                    featureFlagId: FeatureFlags.AiPreviewDeploySetup,
-                });
-            if (previewDeploySetupEnabled && !isBitbucketPullRequest) {
-                const ciStatus =
-                    await this.previewDeploySetupService.getOrScanProjectCiStatus(
-                        user,
-                        projectUuid,
-                    );
-                previewDeployConfigured = ciStatus
-                    ? ciStatus.hasPreviewDeployWorkflow
-                    : null;
-            }
-        } catch (err) {
-            Logger.debug(
-                'Failed to resolve preview-deploy CI status after writeback:',
-                err,
-            );
-        }
-
-        let previewUrl: string | null = null;
-        if (
-            result.prUrl &&
-            !isBitbucketPullRequest &&
-            !suppressWritebackPreview &&
-            !reviewRemediation
-        ) {
-            const preview =
-                await this.writebackPreviewService.createPreviewForPullRequest({
+            let result: AiWritebackRunResult;
+            try {
+                const runArgs = {
+                    agentPermissionsApply: true,
                     user,
                     projectUuid,
-                    prUrl: result.prUrl,
-                });
-            previewUrl = preview?.previewUrl ?? null;
-        }
-
-        const target = `Lightdash project "${result.projectName}" (repository ${result.repository})`;
-        const prVerb = result.prAction === 'updated' ? 'Updated' : 'Opened';
-        let base: string;
-        if (result.needsDbtSourceSelection) {
-            base = `${result.output}\n\nTell the user which dbt sources they can choose from and ask them to re-run naming one.`;
-        } else if (result.prUrl) {
-            base = `${prVerb} a pull request against ${target}. A "View pull request" button is shown to the user, so do NOT include the pull request URL or number in your reply — just summarise the change and which project/repository it targeted.\n\nAgent summary:\n${result.output}`;
-        } else {
-            base = `Ran against ${target} but made no file changes, so no pull request was opened.\n\nAgent summary:\n${result.output}`;
-        }
-
-        let toolResult = base;
-        if (result.prUrl && previewUrl) {
-            toolResult += `\n\nA Lightdash preview environment was created from the pull request's branch: ${previewUrl} — include this link in your reply so the user can review the change in Lightdash before merging. Explores may take a minute to appear while the preview compiles.`;
-        } else if (previewDeployConfigured === false) {
-            toolResult += `\n\nIMPORTANT — also tell the user: this project does NOT have Lightdash preview deploys set up via GitHub Actions. Offer to set it up by opening a pull request that adds the preview workflow (a preview Lightdash project per PR, torn down on close). If they agree, call the \`setupPreviewDeploy\` tool. Do not call it unless they say yes.`;
-        }
-
-        await this.aiAgentModel.updateToolResult(promptUuid, toolCallId, {
-            result: toolResult,
-            metadata: {
-                status: 'success',
-                prUrl: result.prUrl ?? null,
-                prAction: result.prAction ?? null,
-                commitSha: result.commitSha ?? null,
-                additions: result.additions ?? null,
-                deletions: result.deletions ?? null,
-                previewUrl: previewUrl ?? null,
-                steps: result.steps,
-                needsDbtSourceSelection: result.needsDbtSourceSelection ?? null,
-                dbtSourceOptions: result.dbtSourceOptions ?? null,
-            },
-        });
-
-        // Deliver the PR card to Slack now that the tool result is final — the
-        // agent's own message already went out (cardless) when its turn ended.
-        // Reuses the same renderer as the in-turn card, so it reads identically.
-        // Best-effort: the run has already succeeded, so a Slack/read failure
-        // here must never bubble up and fail the job.
-        if (result.prUrl && isSlackPrompt(prompt)) {
-            try {
-                const finalToolResults =
-                    await this.aiAgentModel.getToolResultsForPrompt(promptUuid);
-                const prCardBlocks =
-                    getModernPullRequestCardBlocks(finalToolResults);
-                if (prCardBlocks.length > 0) {
+                    prompt: writebackPrompt,
+                    dbtSourceUuid,
+                    prUrl,
+                    startNewPullRequest: startNewPullRequest ?? false,
+                    aiThreadUuid: prompt.threadUuid,
+                    promptUuid,
+                    source,
+                    aiWritebackRunUuid,
+                };
+                result = await wrapSentryTransaction(
+                    'AiAgent.editDbtProject',
+                    {},
+                    () =>
+                        writebackGuard
+                            ? this.aiWritebackService.run(
+                                  runArgs,
+                                  writebackGuard.assert,
+                              )
+                            : this.aiWritebackService.run(runArgs),
+                );
+            } catch (error) {
+                if (writebackGuard?.getFailure()) throw error;
+                if (
+                    await this.isRunAlreadyFinalizedDifferently(
+                        user,
+                        aiWritebackRunUuid,
+                        'error',
+                    )
+                ) {
+                    Logger.warn(
+                        `AiAgent.runEditDbtProjectPipeline: run ${aiWritebackRunUuid} failed after already being finalized as ready (likely a job timeout raced a fast completion) — skipping stale tool-result update`,
+                    );
+                    return;
+                }
+                let toolResult: string;
+                let errorCode: ReturnType<typeof classifyWritebackError>;
+                if (error instanceof WritebackThreadPrClosedError) {
+                    toolResult = error.message;
+                    errorCode = 'pull_request_not_open';
+                } else if (error instanceof InsufficientGitPermissionsError) {
+                    toolResult = GIT_WRITE_PERMISSION_AGENT_MESSAGE;
+                    errorCode = 'git_write_permission';
+                } else {
+                    toolResult = toolErrorHandler(
+                        error,
+                        'Error running AI writeback. No pull request was opened.',
+                    );
+                    errorCode = classifyWritebackError(error);
+                }
+                await this.aiAgentModel.updateToolResult(
+                    promptUuid,
+                    toolCallId,
+                    {
+                        result: toolResult,
+                        metadata: { status: 'error', errorCode },
+                    },
+                );
+                toolResultWritten = true;
+                if (isSlackPrompt(prompt)) {
                     await this.postOutcomeToSlack(
                         prompt,
-                        prCardBlocks,
-                        'Your pull request is ready.',
+                        getMarkdownBlocks(`:x: ${toolResult}`),
+                        toolResult,
                         agentWork,
                         deliveryGuard,
                     );
+                    const failure = writebackGuard?.getFailure();
+                    if (failure) throw failure.error;
                 }
-            } catch (error) {
-                Logger.error(
-                    'Failed to deliver AI writeback PR card to Slack:',
-                    error,
-                );
+                return;
             }
-        }
 
-        if (result.needsDbtSourceSelection) {
-            await this.waitForOriginalResponseWritten(
-                promptUuid,
-                payload.isSlackPrompt,
-            );
-            const sourceNames = (result.dbtSourceOptions ?? [])
-                .map((option) => option.name)
-                .join(', ');
-            const sourceSelectionMessage = sourceNames
-                ? `This project has more than one dbt source: ${sourceNames}. Reply naming one and I'll try again.`
-                : "This project has more than one dbt source, so I couldn't tell which one to change. Reply naming one and I'll try again.";
-            await this.aiAgentModel.updateModelResponse({
-                promptUuid,
-                response: sourceSelectionMessage,
-            });
-            const needsInputSaved =
-                await this.aiAgentModel.setPromptNeedsUserInput({
-                    promptUuid,
-                    needsUserInput: true,
-                    metadata: {
-                        gate: 'structured',
-                        reason: 'writeback_source_selection',
+            // run() marks the run row 'error' for a source-selection outcome even
+            // though it's not a failure, so the guard must not apply to it here.
+            if (
+                !result.needsDbtSourceSelection &&
+                (await this.isRunAlreadyFinalizedDifferently(
+                    user,
+                    aiWritebackRunUuid,
+                    'ready',
+                ))
+            ) {
+                Logger.warn(
+                    `AiAgent.runEditDbtProjectPipeline: run ${aiWritebackRunUuid} succeeded after already being finalized as an error (likely a job timeout) — skipping stale tool-result update`,
+                );
+                return;
+            }
+
+            const reviewRemediation =
+                await this.aiAgentReviewClassifierModel.findReviewRemediationByWorkThread(
+                    {
+                        organizationUuid,
+                        workThreadUuid: prompt.threadUuid,
+                    },
+                );
+            if (reviewRemediation && result.prUrl) {
+                if (assertPublishAllowed) await assertPublishAllowed();
+                await this.aiAgentReviewClassifierModel.createRemediationEvent({
+                    remediationUuid: reviewRemediation.uuid,
+                    organizationUuid: reviewRemediation.organizationUuid,
+                    event: {
+                        eventType: 'pr_updated',
+                        payload: { prUrl: result.prUrl },
                     },
                 });
-            if (needsInputSaved) {
-                this.trackAgentRequestLifecycle(
-                    'ai_agent_request.clarification_requested',
-                    {
-                        organizationUuid: prompt.organizationUuid,
-                        projectUuid: prompt.projectUuid,
-                        agentUuid: prompt.agentUuid,
-                        threadUuid: prompt.threadUuid,
+            }
+
+            if (result.prUrl && isSlackPrompt(prompt)) {
+                if (assertPublishAllowed) await assertPublishAllowed();
+                void this.slackClient
+                    .addReaction({
+                        organizationUuid,
+                        channel: prompt.slackChannelId,
+                        timestamp: prompt.promptSlackTs,
+                        name: 'white_check_mark',
+                    })
+                    .catch((err) => {
+                        Logger.debug(
+                            'Failed to add :white_check_mark: reaction to writeback mention:',
+                            err,
+                        );
+                    });
+            }
+
+            const isBitbucketPullRequest =
+                result.prUrl?.startsWith('https://bitbucket.org/') === true;
+            let previewDeployConfigured: boolean | null = null;
+            try {
+                const { enabled: previewDeploySetupEnabled } =
+                    await this.featureFlagService.get({
+                        user,
+                        featureFlagId: FeatureFlags.AiPreviewDeploySetup,
+                    });
+                if (previewDeploySetupEnabled && !isBitbucketPullRequest) {
+                    const ciStatus =
+                        await this.previewDeploySetupService.getOrScanProjectCiStatus(
+                            user,
+                            projectUuid,
+                        );
+                    previewDeployConfigured = ciStatus
+                        ? ciStatus.hasPreviewDeployWorkflow
+                        : null;
+                }
+            } catch (err) {
+                Logger.debug(
+                    'Failed to resolve preview-deploy CI status after writeback:',
+                    err,
+                );
+            }
+
+            let previewUrl: string | null = null;
+            if (
+                result.prUrl &&
+                !isBitbucketPullRequest &&
+                !suppressWritebackPreview &&
+                !reviewRemediation
+            ) {
+                const preview =
+                    await this.writebackPreviewService.createPreviewForPullRequest(
+                        {
+                            user,
+                            projectUuid,
+                            prUrl: result.prUrl,
+                            ...(assertPublishAllowed
+                                ? { assertPublishAllowed }
+                                : {}),
+                        },
+                    );
+                previewUrl = preview?.previewUrl ?? null;
+            }
+
+            const target = `Lightdash project "${result.projectName}" (repository ${result.repository})`;
+            const prVerb = result.prAction === 'updated' ? 'Updated' : 'Opened';
+            let base: string;
+            if (result.needsDbtSourceSelection) {
+                base = `${result.output}\n\nTell the user which dbt sources they can choose from and ask them to re-run naming one.`;
+            } else if (result.prUrl) {
+                base = `${prVerb} a pull request against ${target}. A "View pull request" button is shown to the user, so do NOT include the pull request URL or number in your reply — just summarise the change and which project/repository it targeted.\n\nAgent summary:\n${result.output}`;
+            } else {
+                base = `Ran against ${target} but made no file changes, so no pull request was opened.\n\nAgent summary:\n${result.output}`;
+            }
+
+            let toolResult = base;
+            if (result.prUrl && previewUrl) {
+                toolResult += `\n\nA Lightdash preview environment was created from the pull request's branch: ${previewUrl} — include this link in your reply so the user can review the change in Lightdash before merging. Explores may take a minute to appear while the preview compiles.`;
+            } else if (previewDeployConfigured === false) {
+                toolResult += `\n\nIMPORTANT — also tell the user: this project does NOT have Lightdash preview deploys set up via GitHub Actions. Offer to set it up by opening a pull request that adds the preview workflow (a preview Lightdash project per PR, torn down on close). If they agree, call the \`setupPreviewDeploy\` tool. Do not call it unless they say yes.`;
+            }
+
+            if (assertPublishAllowed) await assertPublishAllowed();
+            await this.aiAgentModel.updateToolResult(promptUuid, toolCallId, {
+                result: toolResult,
+                metadata: {
+                    status: 'success',
+                    prUrl: result.prUrl ?? null,
+                    prAction: result.prAction ?? null,
+                    commitSha: result.commitSha ?? null,
+                    additions: result.additions ?? null,
+                    deletions: result.deletions ?? null,
+                    previewUrl: previewUrl ?? null,
+                    steps: result.steps,
+                    needsDbtSourceSelection:
+                        result.needsDbtSourceSelection ?? null,
+                    dbtSourceOptions: result.dbtSourceOptions ?? null,
+                },
+            });
+            toolResultWritten = true;
+
+            // Deliver the PR card to Slack now that the tool result is final — the
+            // agent's own message already went out (cardless) when its turn ended.
+            // Reuses the same renderer as the in-turn card, so it reads identically.
+            // Best-effort: the run has already succeeded, so a Slack/read failure
+            // here must never bubble up and fail the job.
+            if (result.prUrl && isSlackPrompt(prompt)) {
+                try {
+                    const finalToolResults =
+                        await this.aiAgentModel.getToolResultsForPrompt(
+                            promptUuid,
+                        );
+                    const prCardBlocks =
+                        getModernPullRequestCardBlocks(finalToolResults);
+                    if (prCardBlocks.length > 0) {
+                        await this.postOutcomeToSlack(
+                            prompt,
+                            prCardBlocks,
+                            'Your pull request is ready.',
+                            agentWork,
+                            deliveryGuard,
+                        );
+                        const failure = writebackGuard?.getFailure();
+                        if (failure) throw failure.error;
+                    }
+                } catch (error) {
+                    if (writebackGuard?.getFailure()) throw error;
+                    Logger.error(
+                        'Failed to deliver AI writeback PR card to Slack:',
+                        error,
+                    );
+                }
+            }
+
+            if (result.needsDbtSourceSelection) {
+                await this.waitForOriginalResponseWritten(
+                    promptUuid,
+                    payload.isSlackPrompt,
+                );
+                const sourceNames = (result.dbtSourceOptions ?? [])
+                    .map((option) => option.name)
+                    .join(', ');
+                const sourceSelectionMessage = sourceNames
+                    ? `This project has more than one dbt source: ${sourceNames}. Reply naming one and I'll try again.`
+                    : "This project has more than one dbt source, so I couldn't tell which one to change. Reply naming one and I'll try again.";
+                if (assertPublishAllowed) await assertPublishAllowed();
+                await this.aiAgentModel.updateModelResponse({
+                    promptUuid,
+                    response: sourceSelectionMessage,
+                });
+                if (assertPublishAllowed) await assertPublishAllowed();
+                const needsInputSaved =
+                    await this.aiAgentModel.setPromptNeedsUserInput({
                         promptUuid,
-                    },
-                );
+                        needsUserInput: true,
+                        metadata: {
+                            gate: 'structured',
+                            reason: 'writeback_source_selection',
+                        },
+                    });
+                if (needsInputSaved) {
+                    this.trackAgentRequestLifecycle(
+                        'ai_agent_request.clarification_requested',
+                        {
+                            organizationUuid: prompt.organizationUuid,
+                            projectUuid: prompt.projectUuid,
+                            agentUuid: prompt.agentUuid,
+                            threadUuid: prompt.threadUuid,
+                            promptUuid,
+                        },
+                    );
+                }
+                if (isSlackPrompt(prompt)) {
+                    await this.postOutcomeToSlack(
+                        prompt,
+                        getMarkdownBlocks(sourceSelectionMessage),
+                        sourceSelectionMessage,
+                        agentWork,
+                        deliveryGuard,
+                    );
+                    const failure = writebackGuard?.getFailure();
+                    if (failure) throw failure.error;
+                }
             }
-            if (isSlackPrompt(prompt)) {
-                await this.postOutcomeToSlack(
-                    prompt,
-                    getMarkdownBlocks(sourceSelectionMessage),
-                    sourceSelectionMessage,
-                    agentWork,
-                    deliveryGuard,
-                );
+        } catch (error) {
+            const failure = writebackGuard?.getFailure();
+            let accessError = failure?.error;
+            if (writebackGuard && !userLoaded && !accessError) {
+                accessError = new WritebackAgentAccessError(error);
             }
+            if (!(accessError instanceof WritebackAgentAccessError))
+                throw error;
+            if (!accessError.isRefusal)
+                Sentry.captureException(accessError.originalError);
+            if (toolResultWritten) return;
+            await this.aiWritebackService.markRunError(
+                aiWritebackRunUuid,
+                accessError.message,
+            );
+            if (!toolResultReady)
+                await this.waitForToolResultWritten(promptUuid, toolCallId);
+            await this.markEditDbtProjectToolResultError(
+                promptUuid,
+                toolCallId,
+                accessError.message,
+            );
         }
     }
 

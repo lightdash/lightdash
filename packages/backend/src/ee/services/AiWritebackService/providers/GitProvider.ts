@@ -24,6 +24,7 @@ export type OpenPullRequestArgs = {
     setStage: SetStage;
     onRemoteCommitted: () => Promise<void>;
     assertStagedChangesAllowed: (() => Promise<void>) | null;
+    assertPublishAllowed: (() => Promise<void>) | null;
 };
 
 export type UpdatePullRequestArgs = OpenPullRequestArgs & {

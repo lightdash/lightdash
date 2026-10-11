@@ -61,6 +61,7 @@ import type { PullRequestsModel } from '../../../models/PullRequestsModel';
 import type { UserModel } from '../../../models/UserModel';
 import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { type AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
+import { parseAgentWorkMarker } from '../../../services/AgentPermissionService/agentWorkAuthority';
 import {
     agentExecutionContext,
     getContentWriteAgentIdentity,
@@ -135,7 +136,9 @@ import {
 import { DeniedPathError } from './deniedPaths';
 import {
     RepoTooLargeError,
+    WRITEBACK_AGENT_ACCESS_REFUSED_MESSAGE,
     WritebackAccessError,
+    WritebackAgentAccessError,
     WritebackCredentialCleanupError,
     WritebackGitNotConnectedError,
     WritebackRunAbortedError,
@@ -190,6 +193,7 @@ import {
     summarizeRepoListing,
     summarizeToolInput,
 } from './utils';
+import { createWritebackAgentDeliveryGuard } from './writebackAgentWork';
 
 export type { AiWritebackRunArgs, AiWritebackSource } from './types';
 
@@ -248,7 +252,10 @@ type DbtTargetCandidate = {
 type AiWritebackServiceDeps = {
     agentPermissionService: Pick<
         AgentPermissionService,
-        'isManaged' | 'assertOperation'
+        | 'isManaged'
+        | 'assertOperation'
+        | 'loadRequest'
+        | 'assertOperationWithRequest'
     >;
     agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     lightdashConfig: LightdashConfig;
@@ -1871,9 +1878,16 @@ export class AiWritebackService extends BaseService {
      *   session preserved), run the agent with `--continue`, push to the same
      *   branch (updates the existing PR), pause the sandbox again.
      */
-    async run(args: AiWritebackRunArgs): Promise<AiWritebackRunResult> {
+    async run(
+        args: AiWritebackRunArgs,
+        assertPublishAllowed: (() => Promise<void>) | null = null,
+    ): Promise<AiWritebackRunResult> {
         await this.assertWritebackProviderSupported(args.user.organizationUuid);
-        return this.runCodingAgent(args, this.dbtWritebackConfig());
+        return this.runCodingAgent(
+            args,
+            this.dbtWritebackConfig(),
+            assertPublishAllowed,
+        );
     }
 
     async createPendingRun(args: {
@@ -1923,7 +1937,9 @@ export class AiWritebackService extends BaseService {
     }
 
     async enqueueWriteback(
-        args: Omit<AiWritebackRunArgs, 'onProgress' | 'aiWritebackRunUuid'>,
+        args: Omit<AiWritebackRunArgs, 'onProgress' | 'aiWritebackRunUuid'> & {
+            agentIdentityEnabled?: boolean;
+        },
     ): Promise<{
         aiWritebackRunUuid: string;
         createdAt: Date;
@@ -1961,6 +1977,15 @@ export class AiWritebackService extends BaseService {
             action: 'enqueue',
         });
         await this.schedulerClient.aiWritebackPipeline({
+            ...(args.agentIdentityEnabled
+                ? {
+                      agentWork: {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                          projectUuid,
+                      },
+                  }
+                : {}),
             aiWritebackRunUuid: runRow.ai_writeback_run_uuid,
             organizationUuid: user.organizationUuid,
             projectUuid,
@@ -1981,7 +2006,37 @@ export class AiWritebackService extends BaseService {
     }
 
     async runPipeline(payload: AiWritebackPipelineJobPayload): Promise<void> {
+        const agentWork = parseAgentWorkMarker(payload);
         const { aiWritebackRunUuid, organizationUuid, userUuid } = payload;
+        if (agentWork.status === 'malformed') {
+            await this.markRunError(
+                aiWritebackRunUuid,
+                WRITEBACK_AGENT_ACCESS_REFUSED_MESSAGE,
+            );
+            return;
+        }
+        const deliveryGuard =
+            agentWork.status === 'absent'
+                ? null
+                : createWritebackAgentDeliveryGuard(
+                      {
+                          userModel: this.userModel,
+                          agentPermissionService: this.agentPermissionService,
+                          agentActionLogModel: this.agentActionLogModel,
+                      },
+                      agentWork,
+                      {
+                          surface: AiWritebackService.getAgentSurface(
+                              payload.source,
+                          ),
+                          operation: {
+                              kind: 'mcp_tool',
+                              key: 'run_ai_writeback',
+                          },
+                          agentPermissionsApply:
+                              resolveWritebackAgentPermissionsApply(payload),
+                      },
+                  );
         const runRow =
             await this.aiWritebackRunModel.findByUuid(aiWritebackRunUuid);
         if (!runRow || !isAiWritebackRunInProgress(runRow.status)) {
@@ -1992,12 +2047,15 @@ export class AiWritebackService extends BaseService {
             );
             return;
         }
-        const user = await this.userModel.findSessionUserAndOrgByUuid(
-            userUuid,
-            organizationUuid,
-        );
+        let userLoaded = false;
         try {
-            await this.run({
+            if (deliveryGuard) await deliveryGuard.assert();
+            const user = await this.userModel.findSessionUserAndOrgByUuid(
+                userUuid,
+                organizationUuid,
+            );
+            userLoaded = true;
+            const args: AiWritebackRunArgs = {
                 user,
                 projectUuid: payload.projectUuid,
                 prompt: payload.prompt,
@@ -2009,8 +2067,31 @@ export class AiWritebackService extends BaseService {
                 agentPermissionsApply:
                     resolveWritebackAgentPermissionsApply(payload),
                 aiWritebackRunUuid,
-            });
+            };
+            if (deliveryGuard) {
+                await this.run(args, deliveryGuard.assert);
+            } else {
+                await this.run(args);
+            }
         } catch (error) {
+            if (deliveryGuard) {
+                let accessError: WritebackAgentAccessError | null = null;
+                if (error instanceof WritebackAgentAccessError)
+                    accessError = error;
+                else if (!userLoaded)
+                    accessError = new WritebackAgentAccessError(error);
+                if (accessError) {
+                    await this.markRunError(
+                        aiWritebackRunUuid,
+                        accessError.message,
+                    );
+                    if (accessError.isRefusal) return;
+                    if (!userLoaded)
+                        Sentry.captureException(accessError.originalError);
+                    throw accessError;
+                }
+            }
+            if (!userLoaded) throw error;
             // A mid-run abort of an already-terminal run is expected after
             // tasks/cancel — swallow it so the scheduler job doesn't retry
             // or report a failure for a deliberate cancellation.
@@ -2273,6 +2354,7 @@ export class AiWritebackService extends BaseService {
     private async runCodingAgent(
         args: AiWritebackRunArgs,
         config: CodingAgentConfig,
+        assertPublishAllowed: (() => Promise<void>) | null = null,
     ): Promise<AiWritebackRunResult> {
         await this.assertWritebackProviderSupported(
             args.user.organizationUuid,
@@ -2760,6 +2842,7 @@ export class AiWritebackService extends BaseService {
                 workstream: config.mode,
                 aiWritebackRunUuid,
                 assertStagedChangesAllowed,
+                assertPublishAllowed,
             });
             pauseOnExit = applied.pauseOnExit;
 
@@ -2847,17 +2930,20 @@ export class AiWritebackService extends BaseService {
                 performance.now() - runStartedAt,
                 'error',
             );
-            Sentry.captureException(error, {
-                tags: {
-                    errorType: 'AiWritebackRunFailed',
-                    failureStage,
-                },
-                extra: {
-                    projectUuid,
-                    aiThreadUuid: aiThreadUuid ?? null,
-                    sandboxId: sandbox?.sandboxId ?? null,
-                },
-            });
+            if (
+                !(error instanceof WritebackAgentAccessError && error.isRefusal)
+            )
+                Sentry.captureException(error, {
+                    tags: {
+                        errorType: 'AiWritebackRunFailed',
+                        failureStage,
+                    },
+                    extra: {
+                        projectUuid,
+                        aiThreadUuid: aiThreadUuid ?? null,
+                        sandboxId: sandbox?.sandboxId ?? null,
+                    },
+                });
             tracker.failed(failureStage, error, repoContext);
             await persistRunFailed(error);
             throw error;
@@ -5000,6 +5086,7 @@ export class AiWritebackService extends BaseService {
         workstream,
         aiWritebackRunUuid,
         assertStagedChangesAllowed,
+        assertPublishAllowed,
     }: {
         sandbox: SandboxHandle;
         sandboxUuid: string;
@@ -5017,6 +5104,7 @@ export class AiWritebackService extends BaseService {
         workstream: CodingAgentConfig['mode'];
         aiWritebackRunUuid?: string;
         assertStagedChangesAllowed: (() => Promise<void>) | null;
+        assertPublishAllowed: (() => Promise<void>) | null;
     }): Promise<AppliedChanges> {
         if (!hasChanges) {
             this.logger.info(
@@ -5074,6 +5162,7 @@ export class AiWritebackService extends BaseService {
                     setStage,
                     onRemoteCommitted,
                     assertStagedChangesAllowed,
+                    assertPublishAllowed,
                 });
             this.logger.info(
                 `AiWriteback: updated PR ${targetPrUrl} (sandboxId=${sandbox.sandboxId})`,
@@ -5121,6 +5210,7 @@ export class AiWritebackService extends BaseService {
                 setStage,
                 onRemoteCommitted,
                 assertStagedChangesAllowed,
+                assertPublishAllowed,
             });
         this.logger.info(
             `AiWriteback: opened PR ${prUrl} (sandboxId=${sandbox.sandboxId})`,

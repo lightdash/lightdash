@@ -245,9 +245,11 @@ export class GitlabProvider implements GitProvider {
             setStage,
             onRemoteCommitted: args.onRemoteCommitted,
             assertStagedChangesAllowed: args.assertStagedChangesAllowed,
+            assertPublishAllowed: args.assertPublishAllowed,
         });
 
         setStage('pull_request');
+        if (args.assertPublishAllowed) await args.assertPublishAllowed();
         const mr = await createPullRequest({
             owner: connection.owner,
             repo: connection.repo,
@@ -287,9 +289,11 @@ export class GitlabProvider implements GitProvider {
             setStage,
             onRemoteCommitted: args.onRemoteCommitted,
             assertStagedChangesAllowed: args.assertStagedChangesAllowed,
+            assertPublishAllowed: args.assertPublishAllowed,
         });
 
         setStage('pull_request');
+        if (args.assertPublishAllowed) await args.assertPublishAllowed();
         await updateMergeRequest({
             owner: connection.owner,
             repo: connection.repo,
@@ -427,6 +431,7 @@ export class GitlabProvider implements GitProvider {
         setStage,
         onRemoteCommitted,
         assertStagedChangesAllowed,
+        assertPublishAllowed,
     }: {
         sandbox: SandboxHandle;
         connection: GitlabConnection;
@@ -437,6 +442,7 @@ export class GitlabProvider implements GitProvider {
         setStage: SetStage;
         onRemoteCommitted: () => Promise<void>;
         assertStagedChangesAllowed: (() => Promise<void>) | null;
+        assertPublishAllowed: (() => Promise<void>) | null;
     }): Promise<LandedCommit> {
         setStage('commit');
         const paths = await resolveConnectionPaths(
@@ -457,6 +463,7 @@ export class GitlabProvider implements GitProvider {
         await commitLocal(sandbox, message, installation.commitAuthor);
 
         setStage('push');
+        if (assertPublishAllowed) await assertPublishAllowed();
         await sandbox.git.push(CWD, {
             remote: 'origin',
             branch,
