@@ -1866,7 +1866,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 organizationUuid: ORG,
                 projectUuid: 'p1',
             };
-            await runPipelineService(
+            const pipeline = runPipelineService(
                 sandbox,
                 {
                     agentWork:
@@ -1892,9 +1892,12 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                         markError,
                     },
                 },
-            ).catch((error: unknown) => {
-                if (reason !== 'check error') throw error;
-            });
+            );
+            if (reason === 'check error')
+                await expect(pipeline).rejects.toThrow(
+                    'The access check could not run. This task stopped.',
+                );
+            else await pipeline;
             expect(markError).toHaveBeenCalledWith(
                 'run-1',
                 reason === 'check error'

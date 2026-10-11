@@ -12189,6 +12189,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         let toolResultReady = false;
         let toolResultWritten = false;
         let userLoaded = false;
+        let checkFailedInEngine = false;
         const {
             aiWritebackRunUuid,
             organizationUuid,
@@ -12254,7 +12255,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             : this.aiWritebackService.run(runArgs),
                 );
             } catch (error) {
-                if (writebackGuard?.getFailure()) throw error;
+                if (writebackGuard?.getFailure()) {
+                    checkFailedInEngine = true;
+                    throw error;
+                }
                 if (
                     await this.isRunAlreadyFinalizedDifferently(
                         user,
@@ -12532,13 +12536,21 @@ Use your existing tools to inspect them when relevant to the user's question (re
             }
             if (!(accessError instanceof WritebackAgentAccessError))
                 throw error;
-            if (!accessError.isRefusal)
+            if (!accessError.isRefusal && !checkFailedInEngine)
                 Sentry.captureException(accessError.originalError);
             if (toolResultWritten) return;
-            await this.aiWritebackService.markRunError(
-                aiWritebackRunUuid,
-                accessError.message,
-            );
+            try {
+                await this.aiWritebackService.markRunError(
+                    aiWritebackRunUuid,
+                    accessError.message,
+                );
+            } catch (markError) {
+                Logger.error(
+                    'Failed to mark the AI writeback run after an access check failure:',
+                    markError,
+                );
+                Sentry.captureException(markError);
+            }
             if (!toolResultReady)
                 await this.waitForToolResultWritten(promptUuid, toolCallId);
             await this.markEditDbtProjectToolResultError(

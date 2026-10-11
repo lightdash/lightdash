@@ -1216,3 +1216,54 @@ it('preserves the source-selection card when the response check refuses', async 
     expect(h.postMessage).not.toHaveBeenCalled();
     expect(h.loadRequest).toHaveBeenCalledTimes(3);
 });
+
+it('settles the tool card when the run status write fails after a start refusal', async () => {
+    const capture = vi.mocked(Sentry.captureException);
+    capture.mockClear();
+    const h = buildService({});
+    h.userModel.findSessionUserAndOrgByUuid.mockResolvedValue({
+        ...defaultSessionUser,
+        isActive: false,
+    });
+    const writeError = new Error('run write failed');
+    h.aiWritebackService.markRunError.mockRejectedValue(writeError);
+    await h.service.runEditDbtProjectPipeline(markedPayload);
+    expect(h.updateToolResult).toHaveBeenCalledWith('prompt-1', 'tool-call-1', {
+        result: refusalText,
+        metadata: { status: 'error', errorCode: 'unknown' },
+    });
+    expect(capture).toHaveBeenCalledExactlyOnceWith(writeError);
+    expect(h.aiWritebackService.run).not.toHaveBeenCalled();
+});
+
+it('does not report a mid-engine check error a second time from the job', async () => {
+    const enabled = vi.spyOn(Sentry, 'isEnabled').mockReturnValue(true);
+    const capture = vi.mocked(Sentry.captureException);
+    capture.mockClear();
+    const h = buildService({});
+    const checkError = new Error('db unavailable');
+    h.loadRequest.mockResolvedValueOnce({}).mockRejectedValueOnce(checkError);
+    h.aiWritebackService.run.mockImplementation(
+        async (_args, assertPublishAllowed) => {
+            await assertPublishAllowed();
+            return WRITEBACK_RESULT;
+        },
+    );
+    try {
+        await h.service.runEditDbtProjectPipeline(markedPayload);
+        expect(capture).toHaveBeenCalledExactlyOnceWith(
+            expect.any(WritebackAgentAccessError),
+        );
+        expect(capture).not.toHaveBeenCalledWith(checkError);
+        expect(h.updateToolResult).toHaveBeenCalledWith(
+            'prompt-1',
+            'tool-call-1',
+            {
+                result: checkErrorText,
+                metadata: { status: 'error', errorCode: 'unknown' },
+            },
+        );
+    } finally {
+        enabled.mockRestore();
+    }
+});
