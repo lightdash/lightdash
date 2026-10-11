@@ -1,4 +1,8 @@
-import { AiAccessRefusedError, InvalidUser } from '@lightdash/common';
+import {
+    AiAccessRefusedError,
+    InvalidUser,
+    type SessionUser,
+} from '@lightdash/common';
 import {
     assertAgentWorkAllowed,
     assertAgentWorkUserActive,
@@ -22,14 +26,22 @@ export const getAutopilotAuthorityError = (error: unknown): string =>
 export const createAutopilotAuthority = (
     deps: Parameters<typeof assertAgentWorkAllowed>[0],
     work: Parameters<typeof assertAgentWorkAllowed>[1],
+    options: {
+        initialFailure: { error: unknown } | null;
+        onFailure: (error: unknown) => void;
+    },
 ) => {
     const controller = new AbortController();
-    let toolFailure: { error: unknown } | null = null;
+    let toolFailure = options.initialFailure;
+    let inFlightCheck: ReturnType<typeof assertAgentWorkAllowed> | null = null;
     const guard = createAgentDeliveryGuard({
         enabled: true,
         check: () => {
             if (toolFailure) throw toolFailure.error;
-            return assertAgentWorkAllowed(deps, work);
+            inFlightCheck ??= assertAgentWorkAllowed(deps, work).finally(() => {
+                inFlightCheck = null;
+            });
+            return inFlightCheck;
         },
         now: Date.now,
     });
@@ -38,30 +50,47 @@ export const createAutopilotAuthority = (
             if (force) await guard.assert();
             else await guard.assertIfStale();
         } catch (error) {
-            controller.abort(new Error(getAutopilotAuthorityError(error)));
+            if (!controller.signal.aborted) {
+                controller.abort(new Error(getAutopilotAuthorityError(error)));
+                if (!isAutopilotAuthorityRefusal(error))
+                    options.onFailure(error);
+            }
             throw error;
         }
     };
     return {
         guard,
+        isStoppingError: (error: unknown): boolean => {
+            const failure = guard.getFailure();
+            return (
+                failure !== null &&
+                (error === failure.error || error === controller.signal.reason)
+            );
+        },
         abortSignal: controller.signal,
         assert: () => check(true),
         assertIfStale: () => check(false),
         loadToolUser: async () => {
             controller.signal.throwIfAborted();
+            let user: SessionUser;
             try {
-                const user = await deps.userModel.findSessionUserAndOrgByUuid(
+                user = await deps.userModel.findSessionUserAndOrgByUuid(
                     work.userUuid,
                     work.organizationUuid,
                 );
+            } catch (error) {
+                await check(true);
+                throw error;
+            }
+            try {
                 await assertAgentWorkUserActive(deps, work, user);
-                await check(false);
-                return user;
             } catch (error) {
                 toolFailure ??= { error };
                 await check(true);
                 throw error;
             }
+            await check(false);
+            return user;
         },
     };
 };

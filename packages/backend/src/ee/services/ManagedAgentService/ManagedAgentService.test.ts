@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     AgentActorSurface,
     AiAccessRefusalReason,
+    AiAccessRefusedError,
     AnyType,
     ConflictError,
     DEFAULT_MANAGED_AGENT_POLICY,
@@ -25,10 +26,12 @@ import {
 } from '../../../services/ProjectService/ProjectService.mock';
 import { AiDecisionClient } from '../ai/decisions/AiDecisionClient';
 import { getAvailableModels, getModel } from '../ai/models';
+import { type getFindContent } from '../ai/tools/findContent';
 import { type getRunMetricQuery } from '../ai/tools/runMetricQuery';
 import {
     AUTOPILOT_AUTHORITY_CHECK_FAILED_MESSAGE,
     AUTOPILOT_AUTHORITY_REFUSED_MESSAGE,
+    createAutopilotAuthority,
 } from './autopilotAuthority';
 import { ManagedAgentService } from './ManagedAgentService';
 
@@ -1779,7 +1782,7 @@ describe('ManagedAgentService enabled heartbeat authority', () => {
             ).toContain('Saved chart');
             expect(
                 fixture.userModel.findSessionUserAndOrgByUuid,
-            ).toHaveBeenCalledTimes(4);
+            ).toHaveBeenCalledTimes(failure === 'database' ? 5 : 4);
         },
     );
 
@@ -1937,7 +1940,12 @@ describe('ManagedAgentService enabled heartbeat authority', () => {
         });
         await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
         expect(fixture.slackClient.postMessage).not.toHaveBeenCalled();
-        expect(fixture.managedAgentModel.finishRun).toHaveBeenCalledTimes(1);
+        expect(
+            fixture.managedAgentModel.finishRun,
+        ).toHaveBeenCalledExactlyOnceWith(
+            'run-uuid',
+            expect.objectContaining({ status: 'completed', error: null }),
+        );
         expect(fixture.analytics.track).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: 'managed_agent.run_completed',
@@ -2060,4 +2068,423 @@ describe('ManagedAgentService authority check cadence', () => {
             fixture.managedAgentModel.finishRun.mock.calls[0][1].summary,
         ).toContain('Saved report.');
     });
+});
+
+describe('ManagedAgentService authority review regressions', () => {
+    beforeEach(() => captureAutopilotFailure.mockClear());
+    afterEach(() => {
+        vi.useRealTimers();
+        vi.restoreAllMocks();
+    });
+
+    it.each([true, false])(
+        'handles preparation refusal with flag %s',
+        async (enabled) => {
+            const fixture = buildAuthorityFixture();
+            fixture.featureFlagModel.get.mockResolvedValue({ enabled });
+            const refusal = new AiAccessRefusedError(
+                AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+            );
+            fixture.dataRuntime.listExplores.mockImplementation(async () => {
+                await fixture.agentActionLogModel.insert({ status: 'refused' });
+                throw refusal;
+            });
+            await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+            if (enabled) expectAuthorityBlocked(fixture, blockedPersonMessage);
+            else {
+                expect(
+                    fixture.managedAgentModel.finishRun,
+                ).toHaveBeenCalledExactlyOnceWith(
+                    'run-uuid',
+                    expect.objectContaining({
+                        status: 'error',
+                        error: refusal.message,
+                    }),
+                );
+                expect(fixture.slackClient.postMessage).toHaveBeenCalledTimes(
+                    2,
+                );
+            }
+            expect(fixture.doGenerate).not.toHaveBeenCalled();
+            expect(fixture.featureFlagModel.get).toHaveBeenCalledTimes(1);
+            expect(
+                fixture.userModel.findSessionUserAndOrgByUuid,
+            ).toHaveBeenCalledTimes(1);
+            expect(fixture.agentActionLogModel.insert).toHaveBeenCalledTimes(1);
+            expect(
+                fixture.agentPermissionService.loadRequest,
+            ).not.toHaveBeenCalled();
+            expect(captureAutopilotFailure).toHaveBeenCalledTimes(
+                enabled ? 0 : 1,
+            );
+        },
+    );
+
+    it.each(
+        (
+            ['final', 'narrative', 'slack-parent', 'slack-chunk'] as const
+        ).flatMap((stage) =>
+            [false, true].map((refused) => ({ stage, refused })),
+        ),
+    )(
+        'reports errors at $stage with refusal $refused',
+        async ({ stage, refused }) => {
+            captureAutopilotFailure.mockClear();
+            const fixture = buildAuthorityFixture();
+            let now = 1000;
+            vi.spyOn(Date, 'now').mockImplementation(() => now);
+            const error = new Error('authority database unavailable');
+            const fail = () => {
+                if (refused)
+                    fixture.userModel.findSessionUserAndOrgByUuid.mockResolvedValue(
+                        { ...user, isActive: false },
+                    );
+                else
+                    fixture.agentPermissionService.loadRequest.mockRejectedValue(
+                        error,
+                    );
+            };
+            fixture.doGenerate.mockImplementation(async (options) => {
+                if (stage === 'final' && options.tools) fail();
+                if (stage === 'narrative' && !options.tools) {
+                    now += 31000;
+                    fail();
+                }
+                return authorityTextTurn('Saved narrative.');
+            });
+            if (stage === 'slack-parent')
+                fixture.managedAgentModel.finishRun.mockImplementation(
+                    async () => {
+                        now += 31000;
+                        fail();
+                    },
+                );
+            if (stage === 'slack-chunk')
+                fixture.slackClient.postMessage.mockImplementation(async () => {
+                    now += 31000;
+                    fail();
+                    return { ts: '1' };
+                });
+            await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+            expect(captureAutopilotFailure).toHaveBeenCalledTimes(
+                refused ? 0 : 1,
+            );
+            if (!refused)
+                expect(captureAutopilotFailure).toHaveBeenCalledWith(
+                    error,
+                    expect.anything(),
+                );
+            expect(fixture.slackClient.postMessage).toHaveBeenCalledTimes(
+                stage === 'slack-chunk' ? 1 : 0,
+            );
+            expect(fixture.agentActionLogModel.insert).toHaveBeenCalledTimes(
+                refused ? 1 : 0,
+            );
+            expect(fixture.analytics.track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'managed_agent.run_completed',
+                    properties: expect.objectContaining({
+                        slackPosted: false,
+                    }),
+                }),
+            );
+        },
+    );
+
+    it('reports a timeout even when a data check subsequently refuses', async () => {
+        vi.useFakeTimers();
+        const fixture = buildAuthorityFixture();
+        let personLoads = 0;
+        fixture.userModel.findSessionUserAndOrgByUuid.mockImplementation(
+            async () => {
+                personLoads += 1;
+                if (personLoads === 3) {
+                    await vi.advanceTimersByTimeAsync(5001);
+                    return { ...user, isActive: false };
+                }
+                return user;
+            },
+        );
+        fixture.doGenerate.mockImplementation(async () => {
+            vi.setSystemTime(Date.now() + 31000);
+            return authorityToolTurn('findContent', {
+                searchQueries: [{ label: 'sales', query: 'sales' }],
+                spaceSlug: null,
+            });
+        });
+        await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+        expectAuthorityBlocked(
+            fixture,
+            'Autopilot timed out after 5 seconds at step 1',
+        );
+        expect(captureAutopilotFailure).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({ name: 'AutopilotTimeoutError' }),
+            expect.objectContaining({ stage: 'timeout' }),
+        );
+    });
+
+    it.each(['removed', 'transient'] as const)(
+        'handles a %s custom-tool person load',
+        async (failure) => {
+            const fixture = buildAuthorityFixture();
+            const error =
+                failure === 'removed'
+                    ? new InvalidUser('Removed')
+                    : new Error('Temporary person load failure');
+            fixture.userModel.findSessionUserAndOrgByUuid
+                .mockResolvedValueOnce(user)
+                .mockResolvedValueOnce(user)
+                .mockRejectedValueOnce(error);
+            if (failure === 'removed')
+                fixture.userModel.findSessionUserAndOrgByUuid.mockRejectedValue(
+                    error,
+                );
+            let turn = 0;
+            fixture.doGenerate.mockImplementation(async (options) => {
+                if (!options.tools) return authorityTextTurn();
+                turn += 1;
+                if (turn === 1) return authorityToolTurn('get_recent_actions');
+                expect(JSON.stringify(options.prompt)).toContain(error.message);
+                return authorityTextTurn();
+            });
+            await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+            if (failure === 'removed') {
+                expectAuthorityBlocked(fixture, blockedPersonMessage);
+                expect(
+                    fixture.agentActionLogModel.insert,
+                ).toHaveBeenCalledTimes(1);
+                expect(fixture.doGenerate).toHaveBeenCalledTimes(1);
+            } else {
+                expect(
+                    fixture.managedAgentModel.finishRun,
+                ).toHaveBeenCalledWith(
+                    'run-uuid',
+                    expect.objectContaining({
+                        status: 'completed',
+                        error: null,
+                    }),
+                );
+                expect(fixture.doGenerate).toHaveBeenCalledTimes(3);
+                expect(
+                    fixture.agentActionLogModel.insert,
+                ).not.toHaveBeenCalled();
+            }
+            expect(
+                fixture.managedAgentModel.getRecentActions,
+            ).not.toHaveBeenCalled();
+            expect(
+                fixture.userModel.findSessionUserAndOrgByUuid,
+            ).toHaveBeenCalledTimes(failure === 'removed' ? 4 : 5);
+            expect(captureAutopilotFailure).not.toHaveBeenCalled();
+        },
+    );
+
+    it('shares concurrent stale data checks and audits a refusal once', async () => {
+        const fixture = buildAuthorityFixture();
+        let now = 1000;
+        vi.spyOn(Date, 'now').mockImplementation(() => now);
+        fixture.doGenerate.mockImplementation(async () => {
+            now += 31000;
+            fixture.userModel.findSessionUserAndOrgByUuid.mockResolvedValue({
+                ...user,
+                isActive: false,
+            });
+            const first = authorityToolTurn('findContent', {
+                searchQueries: [{ label: 'sales', query: 'sales' }],
+                spaceSlug: null,
+            });
+            const second = authorityToolTurn('findContent', {
+                searchQueries: [{ label: 'cost', query: 'cost' }],
+                spaceSlug: null,
+            });
+            second.content[0].toolCallId = 'second-data-call';
+            return { ...first, content: [...first.content, ...second.content] };
+        });
+        await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+        expectAuthorityBlocked(fixture, blockedPersonMessage);
+        expect(
+            fixture.userModel.findSessionUserAndOrgByUuid,
+        ).toHaveBeenCalledTimes(3);
+        expect(fixture.agentActionLogModel.insert).toHaveBeenCalledTimes(1);
+        expect(fixture.dataRuntime.findContent).not.toHaveBeenCalled();
+        expect(captureAutopilotFailure).not.toHaveBeenCalled();
+    });
+
+    it.each([true, false])(
+        'preserves empty provider errors with flag %s',
+        async (enabled) => {
+            const fixture = buildAuthorityFixture();
+            fixture.featureFlagModel.get.mockResolvedValue({ enabled });
+            const error = new Error('');
+            fixture.doGenerate.mockImplementation(async () => {
+                fixture.userModel.findSessionUserAndOrgByUuid.mockResolvedValue(
+                    { ...user, isActive: false },
+                );
+                throw error;
+            });
+            await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+            if (enabled) expectAuthorityBlocked(fixture, blockedPersonMessage);
+            else {
+                expect(
+                    fixture.managedAgentModel.finishRun,
+                ).toHaveBeenCalledWith(
+                    'run-uuid',
+                    expect.objectContaining({ status: 'completed', error: '' }),
+                );
+                expect(fixture.slackClient.postMessage).toHaveBeenCalledTimes(
+                    2,
+                );
+            }
+            expect(captureAutopilotFailure).toHaveBeenCalledExactlyOnceWith(
+                error,
+                expect.anything(),
+            );
+        },
+    );
+
+    it.each(['space', 'reverse'] as const)(
+        'stops a pending %s effect when a data check refuses',
+        async (effect) => {
+            const fixture = buildAuthorityFixture();
+            const { service } = fixture;
+            let now = 1000;
+            vi.spyOn(Date, 'now').mockImplementation(() => now);
+            const authority = createAutopilotAuthority(
+                fixture,
+                {
+                    userUuid: USER_UUID,
+                    organizationUuid: ORGANIZATION_UUID,
+                    projectUuid: PROJECT_UUID,
+                    surface: AgentActorSurface.IN_APP_AGENT,
+                },
+                { initialFailure: null, onFailure: vi.fn() },
+            );
+            await authority.assert();
+            const { tools } = await service['buildAutopilotDataTools'](
+                user,
+                PROJECT_UUID,
+                ORGANIZATION_UUID,
+                () => authority,
+            );
+            const paused = Promise.withResolvers<void>();
+            const resume = Promise.withResolvers<void>();
+            const pause = async () => {
+                paused.resolve();
+                await resume.promise;
+            };
+            const createSpace = vi
+                .fn()
+                .mockResolvedValue({ uuid: 'created-space' });
+            let name: string;
+            let input: Record<string, unknown>;
+            if (effect === 'space') {
+                name = 'create_content_from_code';
+                input = {
+                    chart_as_code: {
+                        name: 'Revenue',
+                        tableName: 'orders',
+                        metricQuery: {
+                            dimensions: ['orders_status'],
+                            metrics: ['orders_total_revenue'],
+                            filters: {},
+                            sorts: [],
+                            limit: 500,
+                            tableCalculations: [],
+                        },
+                        chartConfig: { type: 'table', config: {} },
+                    },
+                    description: 'Revenue',
+                };
+                fixture.projectModel.findExploresFromCache.mockResolvedValue({
+                    orders: {
+                        tables: {
+                            orders: {
+                                dimensions: { status: {} },
+                                metrics: { total_revenue: {} },
+                            },
+                        },
+                    },
+                });
+                vi.spyOn(
+                    service as AnyType,
+                    'assertActorCanCreateSpace',
+                ).mockResolvedValue(undefined);
+                vi.spyOn(
+                    service as AnyType,
+                    'assertActorCanCreateChart',
+                ).mockResolvedValue(undefined);
+                service['spaceModel'].find = vi.fn().mockResolvedValue([]);
+                service['spaceModel'].createSpace = createSpace;
+                service['userModel'].getUserDetailsByUuid = vi
+                    .fn()
+                    .mockImplementation(async () => {
+                        await pause();
+                        return { userId: 1 };
+                    });
+                fixture.managedAgentModel.getSettings.mockResolvedValue({
+                    ...settings,
+                    policy: DEFAULT_MANAGED_AGENT_POLICY,
+                } as AnyType);
+            } else {
+                name = 'reverse_own_action';
+                input = { action_uuid: 'action', reason: 'Duplicate finding' };
+                fixture.managedAgentModel.getAction.mockResolvedValue({
+                    actionUuid: 'action',
+                    projectUuid: PROJECT_UUID,
+                    managedAgentRunUuid: 'run-uuid',
+                    actionType: ManagedAgentActionType.INSIGHT,
+                    reversedAt: null,
+                });
+                fixture.managedAgentModel.reverseAction.mockResolvedValue({
+                    actionUuid: 'action',
+                });
+                fixture.managedAgentModel.getSettings.mockImplementation(
+                    async () => {
+                        await pause();
+                        return settings;
+                    },
+                );
+            }
+            const custom = service['handleToolCall'](
+                PROJECT_UUID,
+                'run-uuid',
+                'run-uuid',
+                name,
+                input,
+                authority.abortSignal,
+                true,
+                authority,
+            );
+            const outcome = custom.then(
+                () => null,
+                (error: unknown) => error,
+            );
+            await paused.promise;
+            now += 31000;
+            fixture.userModel.findSessionUserAndOrgByUuid.mockResolvedValue({
+                ...user,
+                isActive: false,
+            });
+            await expect(
+                (tools.findContent as ReturnType<typeof getFindContent>)
+                    .execute!(
+                    {
+                        searchQueries: [{ label: 'sales' }],
+                        spaceSlug: null,
+                    },
+                    { toolCallId: 'data', messages: [], context: {} },
+                ),
+            ).rejects.toThrow();
+            resume.resolve();
+            expect(await outcome).toEqual(
+                expect.objectContaining({ message: blockedPersonMessage }),
+            );
+            expect(createSpace).not.toHaveBeenCalled();
+            expect(fixture.savedChartModel.create).not.toHaveBeenCalled();
+            expect(
+                fixture.managedAgentModel.reverseAction,
+            ).not.toHaveBeenCalled();
+            expect(fixture.agentActionLogModel.insert).toHaveBeenCalledTimes(1);
+        },
+    );
 });

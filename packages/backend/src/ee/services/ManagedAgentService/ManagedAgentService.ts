@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AGENT_SUGGESTIONS_SPACE_SLUG,
     AgentActorSurface,
+    AiAccessRefusedError,
     assertUnreachable,
     computeAutopilotExcludedSpaceUuids,
     ConflictError,
@@ -97,7 +98,6 @@ import { runAutopilotAgent } from './AutopilotAgentRunner';
 import {
     createAutopilotAuthority,
     getAutopilotAuthorityError,
-    isAutopilotAuthorityRefusal,
     type AutopilotAuthority,
 } from './autopilotAuthority';
 import {
@@ -1741,13 +1741,10 @@ export class ManagedAgentService extends BaseService {
                 `Heartbeat session error for project ${projectUuid}: ${error instanceof Error ? error.message : 'Unknown'}`,
             );
             const authorityFailure = ctx.authority?.guard.getFailure();
-            if (
-                !authorityFailure ||
-                !isAutopilotAuthorityRefusal(authorityFailure.error)
-            )
+            if (!ctx.authority?.isStoppingError(error))
                 this.reportHeartbeatFailure(ctx, 'session', error);
             runError = error instanceof Error ? error.message : 'Unknown';
-            if (authorityFailure)
+            if (authorityFailure && ctx.authority?.isStoppingError(error))
                 runError = getAutopilotAuthorityError(authorityFailure.error);
         } finally {
             let savedActions: ManagedAgentAction[] | null = null;
@@ -1778,7 +1775,7 @@ export class ManagedAgentService extends BaseService {
                 try {
                     await ctx.authority.assert();
                 } catch (error) {
-                    runError ??= getAutopilotAuthorityError(error);
+                    runError ||= getAutopilotAuthorityError(error);
                 }
             }
             const narrative =
@@ -1797,7 +1794,7 @@ export class ManagedAgentService extends BaseService {
                 try {
                     await ctx.authority.assertIfStale();
                 } catch (error) {
-                    runError ??= getAutopilotAuthorityError(error);
+                    runError ||= getAutopilotAuthorityError(error);
                 }
             }
             const report = renderHeartbeatSummary({
@@ -1847,6 +1844,31 @@ export class ManagedAgentService extends BaseService {
                 error: runError,
             });
         }
+    }
+
+    private createHeartbeatAuthority(
+        ctx: HeartbeatContext,
+        actor: SessionUser,
+        initialFailure: { error: unknown } | null,
+    ): AutopilotAuthority {
+        return createAutopilotAuthority(
+            {
+                userModel: this.userModel,
+                agentPermissionService: this.agentPermissionService,
+                agentActionLogModel: this.agentActionLogModel,
+            },
+            {
+                userUuid: actor.userUuid,
+                organizationUuid: ctx.organizationUuid,
+                projectUuid: ctx.projectUuid,
+                surface: AgentActorSurface.IN_APP_AGENT,
+            },
+            {
+                initialFailure,
+                onFailure: (error) =>
+                    this.reportHeartbeatFailure(ctx, 'run', error),
+            },
+        );
     }
 
     private reportHeartbeatFailure(
@@ -1914,12 +1936,29 @@ export class ManagedAgentService extends BaseService {
             providerOptions,
             keyManagement,
         } = resolvedModel;
-        const { tools: dataTools } = await this.buildAutopilotDataTools(
-            actor,
-            projectUuid,
-            organizationUuid,
-            () => ctx.authority,
-        );
+        let dataTools: ToolSet;
+        try {
+            ({ tools: dataTools } = await this.buildAutopilotDataTools(
+                actor,
+                projectUuid,
+                organizationUuid,
+                () => ctx.authority,
+            ));
+        } catch (error) {
+            if (error instanceof AiAccessRefusedError) {
+                await this.withAutopilotScope(actor, async (enabled) => {
+                    if (enabled) {
+                        ctx.authority = this.createHeartbeatAuthority(
+                            ctx,
+                            actor,
+                            { error },
+                        );
+                        await ctx.authority.assert();
+                    }
+                });
+            }
+            throw error;
+        }
         const telemetry = getAiCallTelemetry({
             functionId: 'autopilotHeartbeat',
             extra: { runUuid },
@@ -1936,19 +1975,7 @@ export class ManagedAgentService extends BaseService {
 
         const result = await this.withAutopilotScope(actor, async (enabled) => {
             if (enabled) {
-                ctx.authority = createAutopilotAuthority(
-                    {
-                        userModel: this.userModel,
-                        agentPermissionService: this.agentPermissionService,
-                        agentActionLogModel: this.agentActionLogModel,
-                    },
-                    {
-                        userUuid: actor.userUuid,
-                        organizationUuid,
-                        projectUuid,
-                        surface: AgentActorSurface.IN_APP_AGENT,
-                    },
-                );
+                ctx.authority = this.createHeartbeatAuthority(ctx, actor, null);
                 await ctx.authority.assert();
             }
             return runAutopilotAgent({
@@ -1972,11 +1999,9 @@ export class ManagedAgentService extends BaseService {
             });
         });
 
-        const authorityFailure = ctx.authority?.guard.getFailure();
         if (
             result.cause !== null &&
-            (!authorityFailure ||
-                !isAutopilotAuthorityRefusal(authorityFailure.error))
+            !ctx.authority?.isStoppingError(result.cause)
         ) {
             this.reportHeartbeatFailure(
                 ctx,
@@ -2583,6 +2608,7 @@ export class ManagedAgentService extends BaseService {
                     runUuid,
                     call.input,
                     abortSignal,
+                    authority,
                 );
             case 'get_user_questions':
                 return this.handleGetUserQuestions(
@@ -2616,6 +2642,7 @@ export class ManagedAgentService extends BaseService {
                     call.input,
                     abortSignal,
                     allowContentDeletion,
+                    authority,
                 );
             case 'write_slack_summary':
                 return JSON.stringify({
@@ -3249,6 +3276,7 @@ chartConfig:
     private async getOrCreateAgentSpace(
         actor: SessionUser,
         projectUuid: string,
+        authority: AutopilotAuthority | null,
     ): Promise<string> {
         const existingSpace = await this.findAgentSpace(projectUuid);
         if (existingSpace) {
@@ -3280,6 +3308,7 @@ chartConfig:
         // Audience 'admins' keeps the space restricted to its admin creator
         const audience =
             settings?.policy.audience ?? DEFAULT_MANAGED_AGENT_POLICY.audience;
+        authority?.abortSignal.throwIfAborted();
         const space = await this.spaceModel.createSpace(
             {
                 name: 'Agent Suggestions',
@@ -3297,7 +3326,8 @@ chartConfig:
         sessionId: string,
         runUuid: string,
         input: AutopilotToolInput<'create_content_from_code'>,
-        abortSignal?: AbortSignal,
+        abortSignal: AbortSignal | undefined,
+        authority: AutopilotAuthority | null,
     ): Promise<string> {
         const { chart_as_code: chartAsCode, description } = input;
         const chartName = (chartAsCode.name as string) ?? 'Untitled';
@@ -3386,7 +3416,11 @@ chartConfig:
         );
         // Get or create the Agent Suggestions space
         abortSignal?.throwIfAborted();
-        const spaceUuid = await this.getOrCreateAgentSpace(actor, projectUuid);
+        const spaceUuid = await this.getOrCreateAgentSpace(
+            actor,
+            projectUuid,
+            authority,
+        );
         await this.assertActorCanCreateChart(
             actor,
             projectUuid,
@@ -4583,8 +4617,9 @@ chartConfig:
         projectUuid: string,
         runUuid: string,
         input: AutopilotToolInput<'reverse_own_action'>,
-        abortSignal?: AbortSignal,
-        allowContentDeletion = true,
+        abortSignal: AbortSignal | undefined,
+        allowContentDeletion: boolean,
+        authority: AutopilotAuthority | null,
     ): Promise<string> {
         const { action_uuid: actionUuid, reason } = input;
 
@@ -4674,6 +4709,7 @@ chartConfig:
             ? actor.userUuid
             : (settings?.enabledByUserUuid ?? projectUuid);
 
+        authority?.abortSignal.throwIfAborted();
         const reversed = await this.managedAgentModel.reverseAction(
             actionUuid,
             actorUuid,
