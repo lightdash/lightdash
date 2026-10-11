@@ -1,7 +1,10 @@
 import { Option, type Command } from 'commander';
 import {
+    agentCommandPath,
+    assertAgentCommandAllowed,
+} from './agentConnections/commandPolicy';
+import {
     getAgentConnectionSelection,
-    refuseAgentConnection,
     runWithParsedAgentConnectionSelection,
 } from './credentials';
 
@@ -61,27 +64,6 @@ export const registerAgentConnectionOption = (
     Object.assign(program, { parseAsync: parseWithContext });
     program.hook('preAction', (_root, command) => {
         if (getAgentConnectionSelection() === null) return;
-        if (
-            command.name() === 'login' ||
-            (command.parent?.name() === 'agent' && command.name() === 'connect')
-        )
-            refuseAgentConnection(true);
-        if (
-            [
-                'connect-snowflake',
-                'export-chart-image',
-                'download',
-                'upload',
-                'rename',
-                'slug-update',
-                'diagnostics',
-                'preview',
-                'start-preview',
-                'stop-preview',
-            ].includes(command.name()) ||
-            (command.parent?.name() === 'apps' &&
-                ['preview', 'create'].includes(command.name()))
-        )
-            refuseAgentConnection();
+        assertAgentCommandAllowed(agentCommandPath(command), command.opts());
     });
 };

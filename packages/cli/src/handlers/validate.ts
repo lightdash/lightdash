@@ -19,6 +19,7 @@ import {
 } from '@lightdash/common';
 import columnify from 'columnify';
 import { v4 as uuidv4 } from 'uuid';
+import { assertAgentCommandAllowed } from '../agentConnections/commandPolicy';
 import { categorizeError, LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
 import GlobalState from '../globalState';
@@ -148,6 +149,7 @@ export const waitUntilFinished = async ({
 export const validateHandler = async (
     originalOptions: ValidateHandlerOptions,
 ) => {
+    assertAgentCommandAllowed('validate');
     const options = { ...originalOptions };
     GlobalState.setVerbose(options.verbose);
     if (options.showChartConfigurationWarnings) {

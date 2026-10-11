@@ -1,4 +1,5 @@
 import { ParameterError, ProjectSummary } from '@lightdash/common';
+import { assertAgentCommandAllowed } from '../agentConnections/commandPolicy';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig, setProject } from '../config';
 import GlobalState from '../globalState';
@@ -35,6 +36,7 @@ const renameProjectCommand = async (name: string) => {
 };
 
 export const renameProjectHandler = async (options: RenameProjectOptions) => {
+    assertAgentCommandAllowed('config rename-project');
     const startTime = Date.now();
     let success = true;
     GlobalState.setVerbose(options.verbose);

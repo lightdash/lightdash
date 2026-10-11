@@ -301,7 +301,13 @@ export default async function getWarehouseClient(
                 ? options.startOfWeek
                 : undefined,
         });
-        const config = await getConfig();
+        const config = await (getAgentConnectionSelection() === null
+            ? getConfig()
+            : getConfig({ readOnly: true }).then(async (currentConfig) =>
+                  (
+                      await import('../../agentConnections/projectSelection')
+                  ).configWithAgentProject(currentConfig),
+              ));
         // Overwrite methods that need to connect to the warehouse
         warehouseClient.getCatalog = async (refs) =>
             refs.reduce<Promise<WarehouseCatalog>>(async (accPromise, ref) => {

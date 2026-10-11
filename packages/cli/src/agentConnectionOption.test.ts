@@ -6,14 +6,14 @@ afterEach(() => {
     vi.unstubAllEnvs();
 });
 it.each([
-    ['--agent-connection', 'flag', 'read'],
-    ['read', '--agent-connection', 'flag'],
+    ['--agent-connection', 'flag', 'sql'],
+    ['sql', '--agent-connection', 'flag'],
 ])('selects the global flag before the handler: %j', async (...args) => {
     vi.stubEnv('LIGHTDASH_AGENT_CONNECTION', 'env');
     const command = new Command();
     registerAgentConnectionOption(command);
     let selected: string | null = null;
-    command.command('read').action(() => {
+    command.command('sql').action(() => {
         selected = getAgentConnectionSelection();
     });
     await command.parseAsync(args, { from: 'user' });
@@ -52,7 +52,6 @@ it.each([
     ['apps', 'create'],
     ['connect-snowflake'],
     ['export-chart-image'],
-    ['download'],
     ['upload'],
     ['rename'],
     ['slug-update'],

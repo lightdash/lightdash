@@ -1,5 +1,6 @@
 import { createServer, type Server } from 'http';
 import { slotFixture } from '../../agentConnections/fixtures';
+import type { AgentConnectionSlot } from '../../agentConnections/schema';
 import {
     checkLightdashVersion,
     lightdashApi,
@@ -18,7 +19,7 @@ vi.mock('../../credentials', async (original) => ({
     resolveCredential: mocks.resolve,
     getAgentConnectionSelection: () => 'default',
 }));
-let slot: ReturnType<typeof slotFixture>;
+let slot: AgentConnectionSlot;
 const response = (status = 200) => ({
     status,
     ok: status === 200,
@@ -27,6 +28,9 @@ const response = (status = 200) => ({
 });
 beforeEach(() => {
     slot = slotFixture();
+    slot.lastReported.approvedProjects = [
+        { projectUuid: 'fixture', name: null, approvedCapabilities: [] },
+    ];
     mocks.fetch.mockReset().mockResolvedValue(response());
     mocks.config.mockReset().mockImplementation(async () => ({
         user: {
@@ -111,11 +115,25 @@ it.each([
     async (method, safeToRetry, status) => {
         mocks.fetch.mockResolvedValue(response(status));
         await expect(
-            lightdashApi({
+            lightdashRawApi({
                 method,
-                url: '/api/v1/user',
+                url: {
+                    GET: '/api/v1/user',
+                    POST: '/api/v1/projects/fixture/refresh',
+                    PUT: '/api/v1/projects/fixture/explores',
+                    DELETE: `/api/v2/user/agent-connections/${slot.grantUuid}`,
+                }[method],
                 body: undefined,
                 safeToRetry,
+                ...(method === 'DELETE'
+                    ? {
+                          lifecycle: {
+                              kind: 'revoke' as const,
+                              grantUuid: slot.grantUuid,
+                              generation: slot.tokens.generation,
+                          },
+                      }
+                    : {}),
             }),
         ).rejects.toThrow();
         expect(mocks.fetch).toHaveBeenCalledTimes(1);
@@ -312,4 +330,40 @@ it.each([
     ).rejects.toThrow('selected instance API');
     expect(mocks.resolve).not.toHaveBeenCalled();
     expect(mocks.fetch).not.toHaveBeenCalled();
+});
+
+it('refuses unknown routes before obtaining credentials or sending a request', async () => {
+    await expect(
+        lightdashRawApi({
+            method: 'GET',
+            url: '/api/v1/future',
+            body: undefined,
+        }),
+    ).rejects.toThrow('not available with an agent connection');
+    expect(mocks.resolve).not.toHaveBeenCalled();
+    expect(mocks.fetch).not.toHaveBeenCalled();
+});
+
+it('refuses a project outside the approved slot before sending its request', async () => {
+    await expect(
+        lightdashRawApi({
+            method: 'GET',
+            url: '/api/v1/projects/outside',
+            body: undefined,
+        }),
+    ).rejects.toThrow('approved');
+    expect(mocks.fetch).not.toHaveBeenCalled();
+});
+
+it('reports connection-specific authentication guidance without personal login advice', async () => {
+    mocks.fetch.mockResolvedValue(response(401));
+    await expect(
+        lightdashRawApi({
+            method: 'GET',
+            url: '/api/v1/user',
+            body: undefined,
+        }),
+    ).rejects.toThrow(
+        'Agent connection default could not authenticate. No personal credential was used.',
+    );
 });

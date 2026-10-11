@@ -104,7 +104,9 @@ export const lightdashRawApi = async ({
     safeToRetry = false,
     lifecycle,
 }: LightdashRawApiProps): Promise<Response> => {
-    const config = await getConfig();
+    const config = await (getAgentConnectionSelection() === null
+        ? getConfig()
+        : getConfig({ readOnly: true }));
     if (lifecycle && getAgentConnectionSelection() === null)
         throw new Error('An agent connection selection is required.');
     if (getAgentConnectionSelection() !== null) {
@@ -126,6 +128,18 @@ export const lightdashRawApi = async ({
             config.context.serverUrl,
             url,
         );
+        const { assertAgentRequestAllowed } =
+            await import('../../agentConnections/requestPolicy');
+        const requestPath = new URL(destination).pathname.slice(
+            new URL(config.context.serverUrl).pathname.replace(/\/$/, '')
+                .length,
+        );
+        assertAgentRequestAllowed(method, requestPath);
+        if (
+            requestPath.startsWith('/api/v2/user/agent-connections/') &&
+            !lifecycle
+        )
+            throw new Error('Invalid connection lifecycle request.');
         if (lifecycle) {
             const statusPath = `/api/v2/user/agent-connections/${lifecycle.grantUuid}/status`;
             const revokePath = `/api/v2/user/agent-connections/${lifecycle.grantUuid}`;
@@ -147,6 +161,32 @@ export const lightdashRawApi = async ({
                 throw new Error(
                     'The selected request requires an agent connection credential.',
                 );
+            if (!lifecycle) {
+                const { approvedProjects } = credential.slot.lastReported;
+                const pathProject = requestPath.match(
+                    /^\/api\/v[12]\/(?:ee\/)?projects\/([^/]+)/,
+                )?.[1];
+                const queryProjects = new URL(destination).searchParams
+                    .getAll('projectUuids')
+                    .flatMap((value) => value.split(','));
+                const projects = pathProject
+                    ? [pathProject, ...queryProjects]
+                    : queryProjects;
+                if (
+                    (requestPath === '/api/v2/content' &&
+                        projects.length === 0) ||
+                    projects.some(
+                        (projectUuid) =>
+                            !approvedProjects.some(
+                                (project) =>
+                                    project.projectUuid === projectUuid,
+                            ),
+                    )
+                )
+                    throw new Error(
+                        'This project is not approved for the selected agent connection. No request was sent.',
+                    );
+            }
             try {
                 return await fetchWithTimeout(destination, {
                     method,
@@ -199,6 +239,10 @@ export const lightdashRawApi = async ({
                 response.status >= 500 ? 'unreachable' : 'rejected',
             );
         }
+        if (response.status === 401)
+            throw new Error(
+                `Agent connection ${getAgentConnectionSelection()} could not authenticate. No personal credential was used.`,
+            );
         if (!response.ok)
             throw new Error(
                 `The server rejected the agent connection request (status ${response.status}).`,
@@ -572,7 +616,9 @@ export const checkLightdashVersion = async (): Promise<void> => {
         const cliMajor = CLI_VERSION.split('.')[0];
         const serverMajor = health.version.split('.')[0];
         if (cliMajor !== serverMajor) {
-            const config = await getConfig();
+            const config = await (getAgentConnectionSelection() === null
+                ? getConfig()
+                : getConfig({ readOnly: true }));
             console.error(
                 `${styles.title(
                     'Warning',

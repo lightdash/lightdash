@@ -4,7 +4,9 @@ import {
     type ApiProjectDbtSourcesResponse,
     type ProjectDbtSourceSummary,
 } from '@lightdash/common';
+import { assertAgentCommandAllowed } from '../agentConnections/commandPolicy';
 import { getConfig, setSource } from '../config';
+import { getAgentConnectionSelection } from '../credentials';
 import GlobalState from '../globalState';
 import { lightdashApi } from './dbt/apiClient';
 
@@ -38,7 +40,13 @@ export const resolveProjectSourceUuid = async (
     sourceOverride: string | undefined,
     configuredProjectUuid: string = projectUuid,
 ): Promise<string | undefined> => {
-    const config = await getConfig();
+    if (getAgentConnectionSelection() !== null) {
+        assertAgentCommandAllowed('deploy', { source: sourceOverride });
+        return undefined;
+    }
+    const config = await (getAgentConnectionSelection() === null
+        ? getConfig()
+        : getConfig({ readOnly: true }));
     const name =
         sourceOverride ??
         (config.context?.project === configuredProjectUuid
@@ -53,8 +61,11 @@ export const setSourceHandler = async (
     name: string,
     options: { verbose: boolean },
 ) => {
+    assertAgentCommandAllowed('config set-source');
     GlobalState.setVerbose(options.verbose);
-    const config = await getConfig();
+    const config = await (getAgentConnectionSelection() === null
+        ? getConfig()
+        : getConfig({ readOnly: true }));
     if (!config.context?.project) {
         throw new AuthorizationError(
             `No project selected. Run 'lightdash config set-project' first.`,

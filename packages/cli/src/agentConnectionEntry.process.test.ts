@@ -4,6 +4,8 @@ import { createServer, type Server } from 'http';
 import * as yaml from 'js-yaml';
 import { tmpdir } from 'os';
 import path from 'path';
+import { slotFixture } from './agentConnections/fixtures';
+import { AgentConnectionStore } from './agentConnections/store';
 import { agentCommandUnavailable, personalLoginRequired } from './credentials';
 
 let directory: string;
@@ -103,7 +105,7 @@ it.each([true, false])(
     'never falls back from a missing slot to human credentials (env=%s)',
     async (humanEnv) => {
         const result = await runCli(
-            ['config', 'list-projects'],
+            ['warehouse-catalog', '--json'],
             'missing',
             humanEnv,
         );
@@ -424,3 +426,137 @@ it('does not create missing personal config when starting with environment crede
     );
     expect(await fs.readdir(path.dirname(configPath))).toEqual([]);
 }, 30_000);
+
+it('refuses a selected deploy mode before requests or config reads create a file', async () => {
+    await fs.rm(configPath);
+    const result = await runCli(['deploy', '--create'], 'work', true);
+    expect(result.code).toBe(1);
+    expect(result.output).toContain(
+        '--create is not available with an agent connection.',
+    );
+    expect(requests).toEqual([]);
+    await expect(fs.stat(configPath)).rejects.toMatchObject({ code: 'ENOENT' });
+}, 30_000);
+
+it.each(['warehouse-catalog', 'sql', 'download'] as const)(
+    'runs selected %s with Bearer only and preserves config without an anonymous ID',
+    async (command) => {
+        const slot = slotFixture();
+        slot.instanceUrl = instance;
+        slot.resource = instance;
+        const projectUuid = '44444444-4444-4444-8444-444444444444';
+        slot.lastReported.approvedProjects = [
+            { projectUuid, name: 'Approved', approvedCapabilities: [] },
+        ];
+        slot.lastReported.effectiveProjects = [
+            { projectUuid, capabilities: [] },
+        ];
+        contents = yaml.dump({
+            user: {
+                userUuid: slot.personUuid,
+                organizationUuid: slot.organizationUuid,
+            },
+            context: {
+                serverUrl: instance,
+                apiKey: 'stored-human-key',
+                project: 'personal-project',
+                previewProject: 'personal-preview',
+            },
+        });
+        await fs.writeFile(configPath, contents);
+        await new AgentConnectionStore(
+            path.join(path.dirname(configPath), 'agent-connections.yaml'),
+        ).saveSlot(slot);
+        server.removeAllListeners('request');
+        server.on('request', (req, res) => {
+            requests.push({
+                url: req.url,
+                authorization: req.headers.authorization,
+                cookie: req.headers.cookie,
+            });
+            let results: unknown;
+            if (req.url === '/api/v1/user')
+                results = {
+                    userUuid: slot.personUuid,
+                    organizationUuid: slot.organizationUuid,
+                };
+            else if (req.url?.endsWith('/status'))
+                results = {
+                    grantUuid: slot.grantUuid,
+                    clientId: slot.clientId,
+                    approvedAt: slot.approvedAt,
+                    expiresAt: slot.grantExpiresAt,
+                    ...slot.lastReported,
+                };
+            else if (req.url?.startsWith('/api/v1/health'))
+                results = { version: '2.0.0' };
+            else if (req.url === `/api/v1/projects/${projectUuid}`)
+                results = { projectUuid, name: 'Approved', slug: 'approved' };
+            else if (req.url?.endsWith('/sqlRunner/tables')) results = {};
+            else if (req.url?.endsWith('/query/sql'))
+                results = { queryUuid: 'query' };
+            else if (req.url?.includes('/query/query'))
+                results = { status: 'ready', columns: {}, rows: [] };
+            else {
+                res.writeHead(500);
+                res.end('{}');
+                return;
+            }
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ status: 'ok', results }));
+        });
+        const args = {
+            'warehouse-catalog': [command, '--json'],
+            sql: [
+                command,
+                'select 1',
+                '--output',
+                path.join(directory, 'results.csv'),
+            ],
+            download: [
+                command,
+                '--skip-spaces',
+                '--skip-charts',
+                '--skip-dashboards',
+                '--path',
+                path.join(directory, 'download'),
+            ],
+        }[command];
+        if (!args) throw new Error('Unknown test command');
+        const result = await runCli(args, slot.name, true);
+        expect({
+            code: result.code,
+            failure: result.code === 0 ? null : result.output,
+        }).toEqual({ code: 0, failure: null });
+        expect(requests.length).toBeGreaterThanOrEqual(3);
+        for (const request of requests)
+            expect(request).toMatchObject({
+                authorization: 'Bearer private-access',
+                cookie: undefined,
+            });
+        expect(JSON.stringify(requests)).not.toContain('personal');
+        expect(JSON.stringify(requests)).not.toContain('/org/projects');
+        expect(await fs.readFile(configPath, 'utf8')).toBe(contents);
+    },
+    30_000,
+);
+
+it.each([
+    ['warehouse-catalog', '--json'],
+    ['sql', 'select 1', '--output', 'unused.csv'],
+    ['download'],
+    ['agent', 'status', '--json'],
+    ['agent', 'revoke', '--name', 'missing', '--json'],
+])(
+    'does not create config.yaml for a selected %j with no config',
+    async (...args) => {
+        await fs.rm(configPath);
+        const result = await runCli(args, 'missing', true);
+        expect(result.code).toBe(1);
+        expect(requests).toEqual([]);
+        await expect(fs.stat(configPath)).rejects.toMatchObject({
+            code: 'ENOENT',
+        });
+    },
+    30_000,
+);

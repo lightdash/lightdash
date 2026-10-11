@@ -43,7 +43,7 @@ const request = () =>
 const program = () => {
     const command = new Command();
     registerAgentConnectionOption(command);
-    command.command('read').action(async () => {
+    command.command('sql').action(async () => {
         await request();
     });
     return command;
@@ -56,7 +56,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllEnvs());
 it('does not leak a selected action into a later direct handler call', async () => {
-    await program().parseAsync(['read', '--agent-connection', slot.name], {
+    await program().parseAsync(['sql', '--agent-connection', slot.name], {
         from: 'user',
     });
     await request();
@@ -67,10 +67,10 @@ it('does not leak a selected action into a later direct handler call', async () 
 });
 it('clears the retained selection on a reused Commander program', async () => {
     const command = program();
-    await command.parseAsync(['read', '--agent-connection', slot.name], {
+    await command.parseAsync(['sql', '--agent-connection', slot.name], {
         from: 'user',
     });
-    await command.parseAsync(['read'], { from: 'user' });
+    await command.parseAsync(['sql'], { from: 'user' });
     expect(
         mocks.fetch.mock.calls.map(([, init]) => init.headers.Authorization),
     ).toEqual(['Bearer private-access', 'ApiKey ordinary-key']);
@@ -85,10 +85,10 @@ it('keeps a selected invocation bound while an ordinary invocation completes dur
         return config;
     });
     const selected = program().parseAsync(
-        ['read', '--agent-connection', slot.name],
+        ['sql', '--agent-connection', slot.name],
         { from: 'user' },
     );
-    await program().parseAsync(['read'], { from: 'user' });
+    await program().parseAsync(['sql'], { from: 'user' });
     expect(mocks.fetch.mock.calls[0][1].headers.Authorization).toBe(
         'ApiKey ordinary-key',
     );
@@ -110,12 +110,12 @@ it('releases a failed invocation without leaking its selection', async () => {
     mocks.token.mockRejectedValueOnce(new Error('Connection unavailable'));
     const command = program();
     await expect(
-        command.parseAsync(['read', '--agent-connection', slot.name], {
+        command.parseAsync(['sql', '--agent-connection', slot.name], {
             from: 'user',
         }),
     ).rejects.toThrow('Connection unavailable');
     await request();
-    await command.parseAsync(['read'], { from: 'user' });
+    await command.parseAsync(['sql'], { from: 'user' });
     expect(
         mocks.fetch.mock.calls.map(([, init]) => init.headers.Authorization),
     ).toEqual(['ApiKey ordinary-key', 'ApiKey ordinary-key']);
@@ -340,7 +340,7 @@ it('guards a pre-action host hook on a flag-selected parse', async () => {
         }),
     );
     await expect(
-        command.parseAsync(['--agent-connection', slot.name, 'read'], {
+        command.parseAsync(['--agent-connection', slot.name, 'sql'], {
             from: 'user',
         }),
     ).rejects.toThrow(guard);

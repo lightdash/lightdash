@@ -32,6 +32,16 @@ vi.mock('@lightdash/warehouses', () => ({
     warehouseClientFromCredentials: () => ({}),
 }));
 const slot = slotFixture();
+slot.lastReported.approvedProjects = [
+    {
+        projectUuid: '44444444-4444-4444-8444-444444444444',
+        name: null,
+        approvedCapabilities: [],
+    },
+];
+slot.lastReported.effectiveProjects = [
+    { projectUuid: '44444444-4444-4444-8444-444444444444', capabilities: [] },
+];
 const options = {} as DbtCompileOptions;
 const pipes = { all: true, stdio: ['pipe', 'pipe', 'pipe'] };
 const sites: { name: string; call: () => Promise<unknown>; args: unknown[] }[] =

@@ -897,7 +897,15 @@ export const appsValidateHandler = async (
         ),
     ];
     const liveProjectUuid = options.live
-        ? (await getConfig()).context?.project
+        ? (
+              await (getAgentConnectionSelection() === null
+                  ? getConfig()
+                  : getConfig({ readOnly: true }).then(async (currentConfig) =>
+                        (
+                            await import('../../agentConnections/projectSelection')
+                        ).configWithAgentProject(currentConfig),
+                    ))
+          ).context?.project
         : undefined;
     const liveIndexes = new Map<string, Promise<DataAppExploreIndex>>();
     const loadLiveIndex = (

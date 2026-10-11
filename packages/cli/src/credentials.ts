@@ -203,7 +203,11 @@ export const getAgentConnectionChildEnvironment = async (
     if (selection === null)
         throw new Error('An agent connection selection is required.');
     const { getConfig } = await import('./config');
-    const credential = await resolveCredential(await getConfig());
+    const credential = await resolveCredential(
+        await (getAgentConnectionSelection() === null
+            ? getConfig()
+            : getConfig({ readOnly: true })),
+    );
     if (credential.kind !== 'agent_connection')
         throw new Error(
             'The selected child requires an agent connection credential.',

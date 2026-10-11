@@ -133,3 +133,27 @@ it('retains environment precedence and raw caller header precedence', async () =
     );
     expect(mocks.fetch.mock.calls[1][1].headers.Cookie).toBe('caller-cookie');
 });
+
+it('keeps routes outside the selected catalogue available to ordinary transport', async () => {
+    await fs.writeFile(
+        configPath,
+        yaml.dump({
+            user: { anonymousUuid: 'existing' },
+            context: { serverUrl: 'https://example.com', apiKey: 'ordinary' },
+        }),
+    );
+    const { lightdashRawApi } = await import('./apiClient');
+    await lightdashRawApi({
+        method: 'GET',
+        url: '/api/v1/future',
+        body: undefined,
+    });
+    expect(mocks.fetch).toHaveBeenCalledWith(
+        'https://example.com/api/v1/future',
+        expect.objectContaining({
+            headers: expect.objectContaining({
+                Authorization: 'ApiKey ordinary',
+            }),
+        }),
+    );
+});

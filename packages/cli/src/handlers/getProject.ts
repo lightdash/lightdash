@@ -14,7 +14,9 @@ export const getProjectHandler = async (options: GetProjectOptions) => {
     GlobalState.setVerbose(options.verbose);
 
     try {
-        const config = await getConfig();
+        const config = await (getAgentConnectionSelection() === null
+            ? getConfig()
+            : getConfig({ readOnly: true }));
 
         if (getAgentConnectionSelection() !== null) {
             await resolveCredential(config);

@@ -11,19 +11,33 @@ import {
 } from './handlers/apps/preview';
 import { startPreviewProxy } from './handlers/apps/previewProxy';
 import { connectSnowflakeHandler } from './handlers/connectSnowflake';
+import { createProject } from './handlers/createProject';
+import { refreshHandler } from './handlers/dbt/refresh';
 import { diagnosticsHandler } from './handlers/diagnostics';
-import { downloadHandler, uploadHandler } from './handlers/download';
+import { uploadHandler } from './handlers/download';
 import { exportChartImageHandler } from './handlers/exportChartImage';
+import { listProjectsHandler } from './handlers/listProjects';
 import { isApiKeyEnvVarShadowing, login } from './handlers/login';
 import { generatePersonalAccessToken } from './handlers/login/pat';
 import { loginWithOauth } from './handlers/oauthLogin';
+import { preAggregateAuditHandler } from './handlers/preAggregateAudit';
 import {
     previewHandler,
     startPreviewHandler,
     stopPreviewHandler,
 } from './handlers/preview';
 import { renameHandler } from './handlers/renameHandler';
+import { renameProjectHandler } from './handlers/renameProject';
+import {
+    setFirstProject,
+    setProjectCommand,
+    setProjectHandler,
+    unsetProjectHandler,
+} from './handlers/setProject';
+import { setWarehouseHandler } from './handlers/setWarehouse';
 import { slugUpdateHandler } from './handlers/slugUpdate';
+import { setSourceHandler } from './handlers/sourceSelection';
+import { validateHandler } from './handlers/validate';
 
 vi.mock('./config', async (importOriginal) => ({
     ...(await importOriginal<typeof import('./config')>()),
@@ -38,6 +52,18 @@ afterEach(() => {
     vi.unstubAllEnvs();
 });
 it.each([
+    ['list projects', listProjectsHandler, false],
+    ['set project', setProjectHandler, false],
+    ['set project helper', setProjectCommand, false],
+    ['first project', setFirstProject, false],
+    ['unset project', unsetProjectHandler, false],
+    ['set source', setSourceHandler, false],
+    ['rename project', renameProjectHandler, false],
+    ['set warehouse', setWarehouseHandler, false],
+    ['refresh', refreshHandler, false],
+    ['validate', validateHandler, false],
+    ['pre-aggregate audit', preAggregateAuditHandler, false],
+    ['create project', createProject, false],
     ['login', login, true],
     ['login env warning', isApiKeyEnvVarShadowing, true],
     ['PAT', generatePersonalAccessToken, true],
@@ -51,7 +77,6 @@ it.each([
     ['preview preflight', preflightPreviewRequest, false],
     ['preview proxy', startPreviewProxy, false],
     ['apps create', createAppHandler, false],
-    ['download', downloadHandler, false],
     ['upload', uploadHandler, false],
     ['rename', renameHandler, false],
     ['slug-update', slugUpdateHandler, false],
