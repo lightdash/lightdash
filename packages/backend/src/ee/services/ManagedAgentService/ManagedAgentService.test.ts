@@ -2077,7 +2077,11 @@ describe('ManagedAgentService authority review regressions', () => {
         vi.restoreAllMocks();
     });
 
-    it.each(['listExplores', 'getVerifiedFieldUsage'] as const)(
+    it.each([
+        'listExplores',
+        'getProjectParameterDefinitions',
+        'getVerifiedFieldUsage',
+    ] as const)(
         'blocks the run when %s refuses during preparation',
         async (method) => {
             const fixture = buildAuthorityFixture();
@@ -2103,7 +2107,41 @@ describe('ManagedAgentService authority review regressions', () => {
         },
     );
 
-    it('keeps the field usage fallback for an ordinary error', async () => {
+    it('blocks Slack when a refusal arrives after another preparation error', async () => {
+        const fixture = buildAuthorityFixture();
+        const refusal = new AiAccessRefusedError(
+            AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+        );
+        let refuseParameters: (error: unknown) => void = () => undefined;
+        fixture.dataRuntime.listExplores.mockRejectedValue(
+            new Error('explores unavailable'),
+        );
+        fixture.dataRuntime.getProjectParameterDefinitions.mockReturnValue(
+            new Promise((_, reject) => {
+                refuseParameters = reject;
+            }),
+        );
+        fixture.managedAgentModel.getActions.mockImplementation(async () => {
+            refuseParameters(refusal);
+            await Promise.resolve();
+            return [];
+        });
+        await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+        expect(
+            fixture.managedAgentModel.finishRun,
+        ).toHaveBeenCalledExactlyOnceWith(
+            'run-uuid',
+            expect.objectContaining({
+                status: ManagedAgentRunStatus.ERROR,
+                error: 'explores unavailable',
+            }),
+        );
+        expect(fixture.doGenerate).not.toHaveBeenCalled();
+        expect(fixture.slackClient.postMessage).not.toHaveBeenCalled();
+        expect(captureAutopilotFailure).toHaveBeenCalledTimes(1);
+    });
+
+    it('continues the run when the field usage read fails with an ordinary error', async () => {
         const fixture = buildAuthorityFixture();
         fixture.dataRuntime.getVerifiedFieldUsage.mockRejectedValue(
             new Error('usage unavailable'),

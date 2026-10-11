@@ -1936,23 +1936,19 @@ export class ManagedAgentService extends BaseService {
             providerOptions,
             keyManagement,
         } = resolvedModel;
-        let dataTools: ToolSet;
-        try {
-            ({ tools: dataTools } = await this.buildAutopilotDataTools(
-                actor,
-                projectUuid,
-                organizationUuid,
-                () => ctx.authority,
-            ));
-        } catch (error) {
-            if (error instanceof AiAccessRefusedError) {
+        const { tools: dataTools } = await this.buildAutopilotDataTools(
+            actor,
+            projectUuid,
+            organizationUuid,
+            () => ctx.authority,
+            (error) => {
+                if (ctx.authority) return;
                 ctx.authority = this.createHeartbeatAuthority(ctx, actor, {
                     error,
                 });
-                await ctx.authority.assert().catch(() => undefined);
-            }
-            throw error;
-        }
+                void ctx.authority.assert().catch(() => undefined);
+            },
+        );
         const telemetry = getAiCallTelemetry({
             functionId: 'autopilotHeartbeat',
             extra: { runUuid },
@@ -2038,6 +2034,7 @@ export class ManagedAgentService extends BaseService {
         projectUuid: string,
         organizationUuid: string,
         getAuthority?: () => AutopilotAuthority | null,
+        onPreparationRefusal?: (error: AiAccessRefusedError) => void,
     ): Promise<{ tools: ToolSet; availableExplores: Explore[] }> {
         const [spaces, excludedSpaces] = await Promise.all([
             this.spaceModel.find({ projectUuid }),
@@ -2061,10 +2058,18 @@ export class ManagedAgentService extends BaseService {
             tags: null,
             spaceAccess: allowedSpaceUuids,
         });
+        const reportRefusal = (error: unknown) => {
+            if (error instanceof AiAccessRefusedError)
+                onPreparationRefusal?.(error);
+        };
+        const exploresRead = runtime.listExplores();
+        const parametersRead = runtime.getProjectParameterDefinitions();
+        exploresRead.catch(reportRefusal);
+        parametersRead.catch(reportRefusal);
         const [availableExplores, projectParameterDefinitions, fastDecisions] =
             await Promise.all([
-                runtime.listExplores(),
-                runtime.getProjectParameterDefinitions(),
+                exploresRead,
+                parametersRead,
                 resolveAiDecisionClient(this.lightdashConfig.ai.decisions, () =>
                     this.featureFlagModel.get({
                         user: { organizationUuid },
@@ -2075,6 +2080,7 @@ export class ManagedAgentService extends BaseService {
         const verifiedFieldUsage = await runtime
             .getVerifiedFieldUsage()
             .catch((error) => {
+                reportRefusal(error);
                 if (error instanceof AiAccessRefusedError) throw error;
                 return new Map<string, number>();
             });
