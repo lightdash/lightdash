@@ -840,7 +840,7 @@ type EmbedAiAgentRuntimeOptions = {
 type AiAgentServiceDependencies = {
     agentPermissionService: Pick<
         AgentPermissionService,
-        'assertOperation' | 'assertActorVerified' | 'isManaged'
+        'assertOperation' | 'assertActorVerified' | 'isEnforced'
     >;
     aiAgentModel: AiAgentModel;
     appModel: Pick<
@@ -15058,7 +15058,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         projectUuid: agentSettings.projectUuid,
                     };
                     if (
-                        await this.agentPermissionService.isManaged(
+                        await this.agentPermissionService.isEnforced(
                             organizationUuid,
                         )
                     ) {
@@ -21697,7 +21697,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
             const aiRequireOAuth = slackSettings?.aiRequireOAuth;
             if (
                 !aiRequireOAuth &&
-                !(await this.agentPermissionService.isManaged(organizationUuid))
+                !(await this.agentPermissionService.isEnforced(
+                    organizationUuid,
+                ))
             ) {
                 result = 'oauth_not_required';
                 return {

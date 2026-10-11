@@ -38,14 +38,18 @@ const setup = () => {
         version: 1,
         allowedProjectUuids: null,
         allowedUserUuids: null,
+        allowedGroupUuids: null,
         systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.Query]),
     };
     const settings = { mcpAgentsEnabled: true, mcpContentWritesEnabled: true };
     const featureFlagModel = {
         get: vi.fn().mockResolvedValue({ enabled: true }),
     };
+    const groupsModel = { findUserInGroups: vi.fn().mockResolvedValue([]) };
     const permission = new AgentPermissionService({
         resolveResourceProjectUuid: vi.fn(),
+        groupsModel,
+        areGroupsAvailable: vi.fn().mockResolvedValue(true),
         isCustomRolesLicensed: () => false,
         featureFlagModel,
         agentCapabilityPolicyModel: {
@@ -155,6 +159,7 @@ const setup = () => {
         explore: {},
     };
     return {
+        groupsModel,
         service,
         privateService,
         user,
@@ -253,3 +258,43 @@ test.each(['off', 'legacy', 'managed'] as const)(
         expect(h.effects.poll).toHaveBeenCalledOnce();
     },
 );
+
+test('legacy group admission stops the agent turn and every fast chart path', async () => {
+    const h = setup();
+    h.policy.mode = 'legacy';
+    h.policy.allowedGroupUuids = ['group'];
+    await Promise.all(
+        (
+            [
+                'tryApplyChartEdit',
+                'searchFilterValueCandidates',
+                'describeSingleValue',
+            ] as const
+        ).map((method) =>
+            expect(h.privateService[method](h.args)).rejects.toMatchObject({
+                refusal: {
+                    reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+                },
+            }),
+        ),
+    );
+    await expect(
+        h.service.generateOrStreamAgentResponse(
+            h.user,
+            { messageHistory: [], compactionSummary: null } as never,
+            {
+                prompt: h.prompt,
+                stream: true,
+                aiCreditCheck: null,
+                canManageAgent: true,
+            } as never,
+        ),
+    ).rejects.toMatchObject({
+        refusal: { reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED },
+    });
+    expect(h.decisions).not.toHaveBeenCalled();
+    expect(h.resolve).not.toHaveBeenCalled();
+    Object.values(h.effects).forEach((effect) =>
+        expect(effect).not.toHaveBeenCalled(),
+    );
+});

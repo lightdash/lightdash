@@ -17,6 +17,7 @@ import {
 
 export interface AgentPermissionEvaluationContext extends AgentPolicyEvaluation {
     userUuid?: string;
+    groupMember?: boolean;
     humanOnly?: boolean;
     warehouseStale?: boolean;
 }
@@ -76,30 +77,48 @@ export const agentPermissionChecks = (
             'not_checked',
             'Not needed for this action.',
         );
-    return [
-        {
-            kind: 'agent_admission',
-            evaluate: () => {
-                if (operation.userUuid === undefined)
-                    return notNeeded('agent_admission', 'Who can use agents');
-                if (
+    if (
+        policy.mode === 'off' ||
+        (policy.mode === 'legacy' && policy.allowedGroupUuids === null)
+    )
+        return [];
+    const admission: ReturnType<typeof agentPermissionChecks>[number] = {
+        kind: 'agent_admission',
+        evaluate: () => {
+            if (
+                operation.userUuid === undefined &&
+                policy.allowedGroupUuids === null
+            )
+                return notNeeded('agent_admission', 'Who can use agents');
+            if (
+                (policy.mode === 'managed' &&
                     policy.allowedUserUuids !== null &&
-                    !policy.allowedUserUuids.includes(operation.userUuid)
-                )
-                    return refused(
-                        'agent_admission',
-                        'Who can use agents',
-                        AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
-                        'organization_setting',
-                    );
-                return permissionCheck(
+                    (operation.userUuid === undefined ||
+                        !policy.allowedUserUuids.includes(
+                            operation.userUuid,
+                        ))) ||
+                (policy.allowedGroupUuids !== null &&
+                    (policy.allowedGroupUuids.length === 0 ||
+                        operation.userUuid === undefined ||
+                        operation.groupMember !== true))
+            )
+                return refused(
                     'agent_admission',
                     'Who can use agents',
-                    'allowed',
-                    'This person can use agents.',
+                    AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+                    'organization_setting',
                 );
-            },
+            return permissionCheck(
+                'agent_admission',
+                'Who can use agents',
+                'allowed',
+                'This person can use agents.',
+            );
         },
+    };
+    if (policy.mode === 'legacy') return [admission];
+    return [
+        admission,
         {
             kind: 'human_only',
             evaluate: () =>
@@ -327,9 +346,8 @@ export const permissionRefusal = (
 
 export const evaluate = (
     policy: ResolvedAgentPolicy,
-    operation: AgentPolicyEvaluation,
+    operation: AgentPermissionEvaluationContext,
 ): AgentPolicyDenial | null => {
-    if (policy.mode !== 'managed') return null;
     for (const step of agentPermissionChecks(policy, operation)) {
         const check = step.evaluate();
         if (check.reason !== null && check.policyLayer !== null)

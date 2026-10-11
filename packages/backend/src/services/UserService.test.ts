@@ -4984,6 +4984,7 @@ describe('UserService', () => {
                 const policy = vi
                     .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
                     .mockResolvedValue({
+                        allowedGroupUuids: null,
                         mode: mode === 'legacy' ? 'legacy' : 'managed',
                         version: 1,
                         allowedProjectUuids: null,
@@ -5047,6 +5048,7 @@ describe('UserService', () => {
                 const policy = vi
                     .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
                     .mockResolvedValue({
+                        allowedGroupUuids: null,
                         mode: 'managed',
                         version: 1,
                         allowedProjectUuids: null,

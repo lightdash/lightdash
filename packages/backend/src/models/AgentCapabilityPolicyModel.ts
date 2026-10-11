@@ -12,6 +12,7 @@ import {
     type DbAgentCapabilityPolicy,
     type DbAgentSystemRoleCapability,
 } from '../database/entities/agentCapabilityPolicies';
+import { GroupTableName } from '../database/entities/groups';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 
 const emptyMatrix = (): AgentSystemRoleMatrix => ({
@@ -52,8 +53,27 @@ export class AgentCapabilityPolicyModel {
             .select('users.user_uuid');
     }
 
-    async get(organizationUuid: string): Promise<AgentCapabilityPolicy> {
-        const rows = await this.database(AgentCapabilityPoliciesTableName)
+    private getAllowedGroups(
+        database: Knex,
+        organizationUuid: string,
+        groupUuids: string[],
+    ) {
+        return database(GroupTableName)
+            .join(
+                'organizations',
+                'organizations.organization_id',
+                'groups.organization_id',
+            )
+            .where('organizations.organization_uuid', organizationUuid)
+            .whereIn('groups.group_uuid', groupUuids)
+            .select('groups.group_uuid');
+    }
+
+    async get(
+        organizationUuid: string,
+        database: Knex = this.database,
+    ): Promise<AgentCapabilityPolicy> {
+        const rows = await database(AgentCapabilityPoliciesTableName)
             .leftJoin(
                 AgentSystemRoleCapabilitiesTableName,
                 `${AgentCapabilityPoliciesTableName}.organization_uuid`,
@@ -78,13 +98,24 @@ export class AgentCapabilityPolicyModel {
         const storedUsers = policy?.allowed_user_uuids ?? null;
         const members = storedUsers?.length
             ? await this.getAllowedMembers(
-                  this.database,
+                  database,
                   organizationUuid,
                   storedUsers,
               )
             : [];
         const memberUuids = new Set(members.map((member) => member.user_uuid));
+        const storedGroups = policy?.allowed_group_uuids ?? null;
+        const groups = storedGroups?.length
+            ? await this.getAllowedGroups(
+                  database,
+                  organizationUuid,
+                  storedGroups,
+              )
+            : [];
+        const groupUuids = new Set(groups.map((group) => group.group_uuid));
         return {
+            allowedGroupUuids:
+                storedGroups?.filter((uuid) => groupUuids.has(uuid)) ?? null,
             mode: policy?.mode ?? 'legacy',
             version: policy?.version ?? 0,
             allowedProjectUuids: policy?.allowed_project_uuids ?? null,
@@ -100,10 +131,29 @@ export class AgentCapabilityPolicyModel {
         version,
         allowedProjectUuids,
         allowedUserUuids,
+        allowedGroupUuids,
         systemRoleMatrix,
         updatedByUserUuid,
     }: AgentCapabilityPolicySave): Promise<AgentCapabilityPolicy> {
         return this.database.transaction(async (transaction) => {
+            if (allowedGroupUuids !== undefined && allowedGroupUuids !== null) {
+                if (allowedGroupUuids.length === 0)
+                    throw new ParameterError(
+                        'Choose at least one group, or allow everyone.',
+                    );
+                const groups = await this.getAllowedGroups(
+                    transaction,
+                    organizationUuid,
+                    allowedGroupUuids,
+                );
+                const groupUuids = new Set(
+                    groups.map((group) => group.group_uuid),
+                );
+                if (allowedGroupUuids.some((uuid) => !groupUuids.has(uuid)))
+                    throw new ParameterError(
+                        'All allowed groups must belong to this organization',
+                    );
+            }
             if (
                 mode === 'managed' &&
                 allowedUserUuids !== undefined &&
@@ -133,16 +183,24 @@ export class AgentCapabilityPolicyModel {
                     organization_uuid: organizationUuid,
                     mode,
                     version: 1,
-                    allowed_project_uuids: allowedProjectUuids,
-                    allowed_user_uuids: allowedUserUuids ?? null,
+                    allowed_project_uuids:
+                        mode === 'managed' ? allowedProjectUuids : null,
+                    allowed_user_uuids:
+                        mode === 'managed' ? (allowedUserUuids ?? null) : null,
+                    allowed_group_uuids: allowedGroupUuids ?? null,
                     updated_by_user_uuid: updatedByUserUuid,
                 })
                 .onConflict('organization_uuid')
                 .merge({
                     mode,
-                    allowed_project_uuids: allowedProjectUuids,
-                    ...(allowedUserUuids !== undefined && {
-                        allowed_user_uuids: allowedUserUuids,
+                    ...(mode === 'managed' && {
+                        allowed_project_uuids: allowedProjectUuids,
+                        ...(allowedUserUuids !== undefined && {
+                            allowed_user_uuids: allowedUserUuids,
+                        }),
+                    }),
+                    ...(allowedGroupUuids !== undefined && {
+                        allowed_group_uuids: allowedGroupUuids,
                     }),
                     updated_by_user_uuid: updatedByUserUuid,
                     updated_at: transaction.fn.now(),
@@ -167,6 +225,8 @@ export class AgentCapabilityPolicyModel {
                     'Agent permissions changed. Reload the latest permissions before saving.',
                 );
             }
+            if (mode === 'legacy')
+                return this.get(organizationUuid, transaction);
             await transaction(AgentSystemRoleCapabilitiesTableName)
                 .where('organization_uuid', organizationUuid)
                 .delete();
@@ -188,6 +248,7 @@ export class AgentCapabilityPolicyModel {
                 version: policy.version,
                 allowedProjectUuids: policy.allowed_project_uuids,
                 allowedUserUuids: policy.allowed_user_uuids,
+                allowedGroupUuids: policy.allowed_group_uuids,
                 systemRoleMatrix,
             };
         });

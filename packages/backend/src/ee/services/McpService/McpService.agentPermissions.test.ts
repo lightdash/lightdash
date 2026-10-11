@@ -68,10 +68,13 @@ const setup = (
         version: 1,
         allowedProjectUuids: [projectUuid],
         allowedUserUuids: null,
+        allowedGroupUuids: null,
         systemRoleMatrix: agentSystemRoleMatrix(restrictedCapabilities),
     };
     const deps = {
         resolveResourceProjectUuid: vi.fn().mockResolvedValue(null),
+        groupsModel: { findUserInGroups: vi.fn().mockResolvedValue([]) },
+        areGroupsAvailable: vi.fn().mockResolvedValue(true),
         isCustomRolesLicensed: () => false,
         featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
         agentCapabilityPolicyModel: {
@@ -794,3 +797,77 @@ describe('bound MCP grant in legacy mode', () => {
         expect(assertOperation).not.toHaveBeenCalled();
     });
 });
+
+test.each([true, false])(
+    'legacy group restriction checks MCP tools (member %s)',
+    async (member) => {
+        const { policy, deps, call, handler, getContext } = setup();
+        policy.mode = 'legacy';
+        policy.allowedGroupUuids = ['group'];
+        deps.groupsModel.findUserInGroups.mockResolvedValue(
+            member ? [{ groupUuid: 'group' }] : [],
+        );
+        const result = await call('run_sql');
+        if (member) expect(handler).toHaveBeenCalledOnce();
+        else {
+            expect(result).toMatchObject({
+                isError: true,
+                structuredContent: {
+                    refusal: {
+                        reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+                    },
+                },
+            });
+            expect(handler).not.toHaveBeenCalled();
+        }
+        expect(deps.groupsModel.findUserInGroups).toHaveBeenCalledOnce();
+        expect(getContext).not.toHaveBeenCalled();
+    },
+);
+
+test.each([true, false])(
+    'legacy group restriction checks MCP resources (member %s)',
+    async (member) => {
+        const { client, policy, deps } = await setupResourceProtocol();
+        policy.mode = 'legacy';
+        policy.allowedGroupUuids = ['group'];
+        deps.groupsModel.findUserInGroups.mockResolvedValue(
+            member ? [{ groupUuid: 'group' }] : [],
+        );
+        try {
+            const read = client.readResource({
+                uri: 'skill://built-in/SKILL.md',
+            });
+            if (member)
+                await expect(read).resolves.toMatchObject({
+                    contents: [
+                        expect.objectContaining({ text: 'built-in body' }),
+                    ],
+                });
+            else
+                await expect(read).rejects.toMatchObject({
+                    data: {
+                        refusal: {
+                            reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+                        },
+                    },
+                });
+            expect(deps.groupsModel.findUserInGroups).toHaveBeenCalledOnce();
+        } finally {
+            await client.close();
+        }
+    },
+);
+
+test.each(['pat', 'service-account'] as const)(
+    'legacy restriction keeps the %s MCP exemption',
+    async (authentication) => {
+        const { call, handler, policy, deps } = setup(authentication);
+        policy.mode = 'legacy';
+        policy.allowedGroupUuids = [];
+        await call('run_sql');
+        expect(handler).toHaveBeenCalledOnce();
+        expect(deps.featureFlagModel.get).not.toHaveBeenCalled();
+        expect(deps.groupsModel.findUserInGroups).not.toHaveBeenCalled();
+    },
+);

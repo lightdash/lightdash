@@ -61,6 +61,7 @@ const setup = (
         version: 1,
         allowedProjectUuids: [projectUuid],
         allowedUserUuids: null,
+        allowedGroupUuids: null,
         systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.Query]),
     };
     const featureFlagModel = {
@@ -79,6 +80,7 @@ const setup = (
         upsert: vi.fn(),
         delete: vi.fn(),
     };
+    const groupsModel = { findUserInGroups: vi.fn().mockResolvedValue([]) };
     const permissions = new AgentPermissionService({
         featureFlagModel,
         projectModel,
@@ -93,6 +95,8 @@ const setup = (
                 customRoles: [],
             }),
         },
+        groupsModel,
+        areGroupsAvailable: vi.fn().mockResolvedValue(true),
         isCustomRolesLicensed: () => false,
         getOrganizationSettings: vi.fn().mockResolvedValue({
             mcpAgentsEnabled: true,
@@ -193,6 +197,7 @@ const setup = (
         header: () => undefined,
     } as unknown as Request;
     return {
+        groupsModel,
         policy,
         confirmation,
         composer,
@@ -465,3 +470,50 @@ describe.each(['pat', 'service-account', 'oauth'] as const)(
         });
     },
 );
+
+test.each([AgentActorSurface.MCP, AgentActorSurface.IN_APP_AGENT])(
+    'legacy group admission protects %s composer before dispatch',
+    async (surface) => {
+        const h = setup('legacy');
+        h.policy.allowedGroupUuids = ['group'];
+        await expect(
+            h.composer(surface, [semanticQuery, sqlQuery]),
+        ).rejects.toMatchObject({
+            refusal: { reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED },
+        });
+        expect(h.asyncQueryService.executeAsyncSqlQuery).not.toHaveBeenCalled();
+        expect(
+            h.asyncQueryService.executeAsyncMetricQuery,
+        ).not.toHaveBeenCalled();
+        h.groupsModel.findUserInGroups.mockResolvedValue([
+            { groupUuid: 'group' },
+        ]);
+        await h.composer(surface, [semanticQuery, sqlQuery]);
+        expect(h.asyncQueryService.executeAsyncSqlQuery).toHaveBeenCalledOnce();
+    },
+);
+
+test('legacy group admission protects OAuth source dispatch and scans', async () => {
+    const h = setup('legacy');
+    h.policy.allowedGroupUuids = ['group'];
+    await expect(
+        h.controller.executeSourceQueries(
+            { queries: [sqlQuery] },
+            projectUuid,
+            h.request,
+        ),
+    ).rejects.toMatchObject({
+        refusal: { reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED },
+    });
+    await expect(
+        h.controller.scanQuerySourceSchema(
+            projectUuid,
+            QuerySourceType.SQL,
+            h.request,
+        ),
+    ).rejects.toMatchObject({
+        refusal: { reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED },
+    });
+    expect(h.asyncQueryService.executeAsyncSqlQuery).not.toHaveBeenCalled();
+    expect(h.projectService.getWarehouseTables).not.toHaveBeenCalled();
+});

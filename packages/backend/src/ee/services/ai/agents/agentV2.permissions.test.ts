@@ -22,6 +22,7 @@ const setup = () => {
         version: 1,
         allowedProjectUuids: null,
         allowedUserUuids: null,
+        allowedGroupUuids: null,
         systemRoleMatrix: agentSystemRoleMatrix([]),
     };
     const confirmations = {
@@ -33,8 +34,11 @@ const setup = () => {
     const featureFlagModel = {
         get: vi.fn().mockResolvedValue({ enabled: true }),
     };
+    const groupsModel = { findUserInGroups: vi.fn().mockResolvedValue([]) };
     const permissionService = new AgentPermissionService({
         resolveResourceProjectUuid: vi.fn().mockResolvedValue(null),
+        groupsModel,
+        areGroupsAvailable: vi.fn().mockResolvedValue(true),
         isCustomRolesLicensed: () => true,
         featureFlagModel,
         agentCapabilityPolicyModel: {
@@ -125,6 +129,7 @@ const setup = () => {
             new AgentContext([]),
         );
     return {
+        groupsModel,
         policy,
         confirmations,
         featureFlagModel,
@@ -319,4 +324,22 @@ test('agent tool execution refuses unlisted users before running SQL', async () 
         },
     });
     expect(h.runSqlJob).not.toHaveBeenCalled();
+});
+
+test('legacy group admission is rechecked by the tool wrapper', async () => {
+    const h = setup();
+    h.policy.mode = 'legacy';
+    h.policy.allowedGroupUuids = ['group'];
+    const tools = h.buildTools();
+    await expect(
+        executeTool(tools.runSql, { sql: 'SELECT 1', limit: 1 }),
+    ).resolves.toMatchObject({
+        structuredContent: {
+            refusal: { reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED },
+        },
+    });
+    expect(h.runSqlJob).not.toHaveBeenCalled();
+    h.groupsModel.findUserInGroups.mockResolvedValue([{ groupUuid: 'group' }]);
+    await executeTool(tools.runSql, { sql: 'SELECT 1', limit: 1 });
+    expect(h.runSqlJob).toHaveBeenCalledOnce();
 });

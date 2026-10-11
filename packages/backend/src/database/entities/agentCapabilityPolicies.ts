@@ -16,6 +16,7 @@ export interface DbAgentCapabilityPolicy {
     version: number;
     allowed_project_uuids: string[] | null;
     allowed_user_uuids: string[] | null;
+    allowed_group_uuids: string[] | null;
     updated_by_user_uuid: string | null;
     created_at: Date;
     updated_at: Date;

@@ -71,7 +71,8 @@ vi.mock('../../../ee/services/ai/models', async (original) => ({
 }));
 
 const legacyAgentPermissionService = {
-    isManaged: vi.fn().mockResolvedValue(false),
+    isEnforced: vi.fn().mockResolvedValue(false),
+    getEnforcementMode: vi.fn().mockResolvedValue('off'),
     assertOperation: vi.fn().mockResolvedValue(undefined),
 };
 

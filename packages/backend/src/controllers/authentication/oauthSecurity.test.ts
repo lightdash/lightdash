@@ -89,7 +89,7 @@ const start = async (
                 }),
             }),
             getAgentPermissionService: () => ({
-                isManaged: vi.fn().mockResolvedValue(false),
+                getEnforcementMode: vi.fn().mockResolvedValue('off'),
                 assertOperation: vi.fn(),
             }),
             getMcpService: () => ({

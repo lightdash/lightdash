@@ -72,6 +72,8 @@ const legacy = () => ({
     version: 0,
     allowedProjectUuids: null as string[] | null,
     allowedUserUuids: null as string[] | null,
+    allowedGroupUuids: null as string[] | null,
+    groupsAvailable: true,
     systemRoleMatrix: matrix([]),
     defaults: matrix(AGENT_CAPABILITY_DEFAULTS),
 });

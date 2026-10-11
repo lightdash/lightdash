@@ -17,6 +17,31 @@ Capability checks and the people-only list apply only when the
 `agent-identity` feature flag is on and "Limit what agents can do" is on.
 The legacy switches at the end of this page apply in every mode.
 
+## Group admission
+
+Organization admins can set `allowedGroupUuids` through the policy API. `null`
+allows everyone whose role allows AI. A non-empty list admits members of at
+least one chosen group. A list whose groups are all deleted reads as `[]` and
+admits nobody. An update that omits the field keeps the stored restriction.
+An explicit empty list is rejected; use `null` to allow everyone.
+
+Group admission applies with capability limits off (`legacy`) and on
+(`managed`) when `agent-identity` is on. It covers MCP tools and resource reads,
+in-app and Slack agents, OAuth REST, and query sources. Managed mode also
+requires the person to pass the existing people list when it is set. Slack
+uses the verified sender when a group restriction is active.
+
+Groups are available when the deployment has a valid licence and the groups
+flag is on for the organization. The API reports this as `groupsAvailable`.
+New restrictions need groups to be available. A saved restriction still applies
+if groups later become unavailable. An admin can always clear it with `null`.
+Personal-access-token and service-account calls keep their existing exemptions.
+There is no page control yet; set the field through the policy API. A PUT with
+`mode: 'legacy'` saves group admission and preserves the stored capability
+matrix, projects and people. The matrix and project fields are still required
+and validated. Omitting `mode` keeps the current managed-save behavior. Reset
+keeps the group restriction.
+
 ## The 11 capabilities
 
 Refusals and settings use the plain name. Never show the key to people.

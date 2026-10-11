@@ -15,6 +15,7 @@ const siteUrl = 'https://example.com';
 const setup = ({
     enabled = true,
     managed = true,
+    restricted = false,
     requireOAuth = false,
     linked = false,
     multiAgent = false,
@@ -24,6 +25,7 @@ const setup = ({
         version: 1,
         allowedProjectUuids: null,
         allowedUserUuids: null,
+        allowedGroupUuids: restricted ? ['group'] : null,
         systemRoleMatrix: agentSystemRoleMatrix([]),
     };
     const insert = vi.fn().mockResolvedValue(undefined);
@@ -585,4 +587,25 @@ test('multi-agent replay keeps the existing thread agent and project', async () 
     );
     expect(h.schedule).toHaveBeenCalledOnce();
     expect(h.postEphemeral).not.toHaveBeenCalled();
+});
+
+test('legacy restriction refuses an unverified Slack sender instead of using the installer', async () => {
+    const h = setup({ managed: false, restricted: true });
+    await expect(h.auth()).resolves.toBeNull();
+    expect(h.findIdentityByOpenId).toHaveBeenCalledOnce();
+    expect(h.insert).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+            reason_code: AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED,
+        }),
+    );
+    expect(h.postEphemeral).toHaveBeenCalledOnce();
+});
+
+test('legacy restriction uses the verified Slack sender', async () => {
+    const h = setup({ managed: false, restricted: true, linked: true });
+    await expect(h.auth()).resolves.toEqual({ userUuid: 'requester' });
+    expect(h.findSessionUserAndOrgByUuid).toHaveBeenCalledWith(
+        'requester',
+        'org',
+    );
 });

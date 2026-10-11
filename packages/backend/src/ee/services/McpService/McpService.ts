@@ -469,7 +469,7 @@ export type ExtraContext = {
     account: RegisteredAccount;
     getAgentPermissionService?: () => Pick<
         AgentPermissionService,
-        'isManaged' | 'assertOperation'
+        'getEnforcementMode' | 'assertOperation'
     >;
     /** User attribute overrides passed via X-Lightdash-User-Attributes header */
     headerUserAttributes?: UserAttributeValueMap;
@@ -5575,8 +5575,19 @@ export class McpService extends BaseService {
         const bound =
             account.authentication.type === 'oauth' &&
             account.authentication.agentConnectionGrant != null;
-        const managed = await permissions.isManaged(organizationUuid);
-        if (!bound && !managed) return;
+        const mode = await permissions.getEnforcementMode(organizationUuid);
+        if (!bound && mode === 'off') return;
+        if (!bound && mode === 'admission') {
+            await permissions.assertOperation({
+                account,
+                organizationUuid,
+                projectUuid: null,
+                kind: 'mcp_tool',
+                key: toolName,
+                surface: AgentActorSurface.MCP,
+            });
+            return;
+        }
         const explicitScope = mcpToolScopeArgsSchema.safeParse(toolArgs);
         const pinnedProjectUuid = context.authInfo?.extra.headerProjectUuid;
         if (
@@ -5596,7 +5607,7 @@ export class McpService extends BaseService {
             key: toolName,
             projectUuids: projectUuid === null ? [] : [projectUuid],
         });
-        if (!managed) return;
+        if (mode === 'off') return;
         await permissions.assertOperation({
             account,
             organizationUuid,

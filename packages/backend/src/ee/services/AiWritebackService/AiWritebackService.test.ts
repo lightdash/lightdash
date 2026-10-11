@@ -1998,6 +1998,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                             capabilities: new Set(capabilities),
                             allowedProjectUuids: null,
                             allowedUserUuids: null,
+                            allowedGroupUuids: null,
                             version: 1,
                             editableCustomRoleUuid: null,
                         },

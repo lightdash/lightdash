@@ -465,6 +465,7 @@ describe('upsertSettings model validation', () => {
         const policy = vi
             .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
             .mockResolvedValue({
+                allowedGroupUuids: null,
                 mode: 'managed',
                 version: 1,
                 allowedProjectUuids: null,

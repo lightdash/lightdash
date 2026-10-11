@@ -34,7 +34,7 @@ const setup = (
         agentPermissionService: {
             assertActorVerified,
             assertOperation,
-            isManaged: vi.fn().mockResolvedValue(managed),
+            isEnforced: vi.fn().mockResolvedValue(managed),
         },
         aiOrganizationSettingsService: {
             isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(false),

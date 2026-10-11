@@ -2131,6 +2131,7 @@ describe('managed space updates', () => {
                 AgentCapabilityPolicyModel.prototype,
                 'get',
             ).mockResolvedValue({
+                allowedGroupUuids: null,
                 mode: mode === 'legacy' ? 'legacy' : 'managed',
                 version: 1,
                 allowedProjectUuids: null,
@@ -2221,6 +2222,7 @@ describe('space metadata updates after a human revocation', () => {
                 AgentCapabilityPolicyModel.prototype,
                 'get',
             ).mockResolvedValue({
+                allowedGroupUuids: null,
                 mode: mode === 'legacy' ? 'legacy' : 'managed',
                 version: 1,
                 allowedProjectUuids: null,

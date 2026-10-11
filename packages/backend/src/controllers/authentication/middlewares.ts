@@ -130,8 +130,21 @@ const assertOAuthAgentOperation = async (req: Request): Promise<void> => {
         assertOAuthScopeOperation(account, scopeOperation);
     if (isMcpRequest(req)) return;
     const service = req.services.getAgentPermissionService();
-    if (!(await service.isManaged(account.organization.organizationUuid)))
+    const mode = await service.getEnforcementMode(
+        account.organization.organizationUuid,
+    );
+    if (mode === 'off') return;
+    if (mode === 'admission') {
+        await service.assertOperation({
+            account,
+            organizationUuid: account.organization.organizationUuid,
+            projectUuid: null,
+            kind: 'rest_operation',
+            key: operation ?? 'unknown',
+            surface: AgentActorSurface.API,
+        });
         return;
+    }
     if (grantProjectUuids === null && scopeOperation !== null)
         assertOAuthScopeOperation(account, scopeOperation);
     if (grantProjectUuids !== null) {

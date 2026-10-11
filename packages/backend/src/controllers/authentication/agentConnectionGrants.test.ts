@@ -67,7 +67,7 @@ const setup = () => {
     };
     const service = new AgentConnectionGrantService(deps);
     const permissions = {
-        isManaged: vi.fn().mockResolvedValue(false),
+        getEnforcementMode: vi.fn().mockResolvedValue('off'),
         assertOperation: vi.fn(),
         resolveResourceProjectUuid: vi.fn(),
     };
@@ -181,7 +181,9 @@ it('enforces the grant before the legacy return, even after the org allows more'
     const { req, run, permissions } = setup();
     req.params.projectUuid = 'outside';
     const check = async (managed: boolean) => {
-        permissions.isManaged.mockResolvedValue(managed);
+        permissions.getEnforcementMode.mockResolvedValue(
+            managed ? 'managed' : 'off',
+        );
         expect((await run(allowApiKeyAuthentication)).error).toMatchObject({
             message: expect.stringContaining('project'),
         });
@@ -189,6 +191,20 @@ it('enforces the grant before the legacy return, even after the org allows more'
     await check(false);
     await check(true);
     expect(permissions.assertOperation).not.toHaveBeenCalled();
+});
+it('checks the grant before group admission when limits are off', async () => {
+    const { req, run, grant, permissions } = setup();
+    permissions.getEnforcementMode.mockResolvedValue('admission');
+    req.params.projectUuid = 'outside';
+    expect((await run(allowApiKeyAuthentication)).error).toMatchObject({
+        message: expect.stringContaining('project'),
+    });
+    expect(permissions.assertOperation).not.toHaveBeenCalled();
+    [req.params.projectUuid] = grant.approvedProjectUuids;
+    expect((await run(allowApiKeyAuthentication)).error).toBeUndefined();
+    expect(permissions.assertOperation).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ kind: 'rest_operation', projectUuid: null }),
+    );
 });
 it.each([
     'ProjectController.createPreview',
@@ -260,7 +276,7 @@ it('passes the contracted path project to managed org policy', async () => {
     req.params = { projectUuid: grant.approvedProjectUuids[0] };
     req.body = { projectUuid: 'ignored' };
     req.method = 'POST';
-    permissions.isManaged.mockResolvedValue(true);
+    permissions.getEnforcementMode.mockResolvedValue('managed');
     expect((await run(allowApiKeyAuthentication)).error).toBeUndefined();
     expect(permissions.assertOperation).toHaveBeenCalledWith(
         expect.objectContaining({ projectUuid: grant.approvedProjectUuids[0] }),

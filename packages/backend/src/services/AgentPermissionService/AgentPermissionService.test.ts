@@ -30,10 +30,13 @@ const setup = () => {
         version: 1,
         allowedProjectUuids: null,
         allowedUserUuids: null,
+        allowedGroupUuids: null,
         systemRoleMatrix: { ...matrix, viewer: [AgentCapability.Query] },
     };
     const deps = {
         resolveResourceProjectUuid: vi.fn().mockResolvedValue(null),
+        groupsModel: { findUserInGroups: vi.fn().mockResolvedValue([]) },
+        areGroupsAvailable: vi.fn().mockResolvedValue(true),
         isCustomRolesLicensed: vi.fn().mockReturnValue(true),
         featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
         agentCapabilityPolicyModel: {
@@ -86,6 +89,11 @@ test.each(['off', 'legacy'] as const)(
         await expect(
             service.assertOperation({ ...operation, key: 'unknown' }),
         ).resolves.toBeUndefined();
+        expect(deps.groupsModel.findUserInGroups).not.toHaveBeenCalled();
+        expect(deps.agentCapabilityPolicyModel.get).toHaveBeenCalledTimes(
+            mode === 'off' ? 0 : 1,
+        );
+        expect(deps.projectModel.getSummary).not.toHaveBeenCalled();
         expect(deps.userModel.getAgentRoleAssignments).not.toHaveBeenCalled();
         expect(deps.getOrganizationSettings).not.toHaveBeenCalled();
         expect(deps.featureFlagModel.get).toHaveBeenCalledWith({
@@ -252,6 +260,7 @@ test('pure evaluation is suitable for tool filtering', () => {
                 capabilities: null,
                 allowedProjectUuids: null,
                 allowedUserUuids: null,
+                allowedGroupUuids: null,
                 version: 0,
                 editableCustomRoleUuid: null,
             },
@@ -1225,3 +1234,250 @@ test('missing organization settings keep the existing enabled defaults', async (
         }),
     ).resolves.toBeUndefined();
 });
+
+test.each([true, false])(
+    'legacy group admission checks membership once (member %s)',
+    async (member) => {
+        const { service, deps, operation, policy } = setup();
+        policy.mode = 'legacy';
+        policy.allowedGroupUuids = ['group'];
+        policy.allowedUserUuids = [];
+        policy.allowedProjectUuids = [];
+        deps.groupsModel.findUserInGroups.mockResolvedValue(
+            member
+                ? [{ groupUuid: 'group', userUuid: operation.account.user.id }]
+                : [],
+        );
+        if (member)
+            await expect(
+                service.assertOperation(operation),
+            ).resolves.toBeUndefined();
+        else {
+            await expect(
+                service.assertOperation(operation),
+            ).rejects.toMatchObject({
+                refusal: {
+                    reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+                    requiredCapabilities: [],
+                    blockers: [
+                        expect.objectContaining({ checkId: 'agent_admission' }),
+                    ],
+                    blockersComplete: true,
+                },
+            });
+            expect(deps.agentActionLogModel.insert).toHaveBeenCalledOnce();
+        }
+        expect(deps.agentCapabilityPolicyModel.get).toHaveBeenCalledOnce();
+        expect(
+            deps.groupsModel.findUserInGroups,
+        ).toHaveBeenCalledExactlyOnceWith({
+            userUuid: operation.account.user.id,
+            organizationUuid: operation.organizationUuid,
+            groupUuids: ['group'],
+        });
+        expect(deps.userModel.getAgentRoleAssignments).not.toHaveBeenCalled();
+        expect(deps.projectModel.getSummary).not.toHaveBeenCalled();
+        expect(deps.getOrganizationSettings).not.toHaveBeenCalled();
+        expect(deps.areGroupsAvailable).not.toHaveBeenCalled();
+        expect(
+            deps.agentWarehouseRestrictionConfirmationModel.get,
+        ).not.toHaveBeenCalled();
+    },
+);
+
+test('an all-deleted group restriction refuses without a membership query', async () => {
+    const { service, deps, operation, policy } = setup();
+    policy.mode = 'legacy';
+    policy.allowedGroupUuids = [];
+    await expect(service.assertOperation(operation)).rejects.toMatchObject({
+        refusal: { reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED },
+    });
+    expect(deps.groupsModel.findUserInGroups).not.toHaveBeenCalled();
+});
+
+test.each(['legacy', 'managed'] as const)(
+    'membership failures never admit a person in %s',
+    async (mode) => {
+        const { service, deps, operation, policy } = setup();
+        policy.mode = mode;
+        policy.allowedGroupUuids = ['group'];
+        deps.groupsModel.findUserInGroups.mockRejectedValue(
+            new Error('membership unavailable'),
+        );
+        await expect(service.assertOperation(operation)).rejects.toThrow(
+            'membership unavailable',
+        );
+        expect(deps.getOrganizationSettings).not.toHaveBeenCalled();
+    },
+);
+
+test.each([true, false])(
+    'managed group admission precedes capability refusals (member %s)',
+    async (member) => {
+        const { service, deps, operation, policy } = setup();
+        policy.allowedGroupUuids = ['group'];
+        deps.groupsModel.findUserInGroups.mockResolvedValue(
+            member ? [{ groupUuid: 'group' }] : [],
+        );
+        await expect(service.assertOperation(operation)).rejects.toMatchObject({
+            refusal: {
+                reason: member
+                    ? AiAccessRefusalReason.AGENT_CAPABILITY_DENIED
+                    : AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+            },
+        });
+        expect(deps.groupsModel.findUserInGroups).toHaveBeenCalledOnce();
+        expect(deps.userModel.getAgentRoleAssignments).toHaveBeenCalledOnce();
+        expect(deps.getOrganizationSettings).toHaveBeenCalledOnce();
+    },
+);
+
+test.each([true, false])(
+    'managed people and group restrictions both apply (person listed %s)',
+    async (listed) => {
+        const { service, deps, operation, policy } = setup();
+        policy.allowedGroupUuids = ['group'];
+        policy.allowedUserUuids = listed ? [operation.account.user.id] : [];
+        deps.groupsModel.findUserInGroups.mockResolvedValue([
+            { groupUuid: 'group' },
+        ]);
+        const action = {
+            ...operation,
+            key: 'QuerySourceController.executeSourceQueries',
+        };
+        if (listed)
+            await expect(
+                service.assertOperation(action),
+            ).resolves.toBeUndefined();
+        else
+            await expect(service.assertOperation(action)).rejects.toMatchObject(
+                {
+                    refusal: {
+                        reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+                    },
+                },
+            );
+    },
+);
+
+test('legacy restriction requires a verified actor and records the refusal', async () => {
+    const { service, deps, operation, policy } = setup();
+    policy.mode = 'legacy';
+    policy.allowedGroupUuids = ['group'];
+    await expect(
+        service.assertActorVerified({ ...operation, actorVerified: false }),
+    ).rejects.toMatchObject({
+        refusal: { reason: AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED },
+    });
+    expect(deps.agentActionLogModel.insert).toHaveBeenCalledOnce();
+    expect(deps.groupsModel.findUserInGroups).not.toHaveBeenCalled();
+});
+
+test('flag off ignores even a saved group restriction without policy or membership reads', async () => {
+    const { service, deps, operation, policy } = setup();
+    policy.allowedGroupUuids = [];
+    deps.featureFlagModel.get.mockResolvedValue({ enabled: false });
+    await service.assertOperation(operation);
+    await service.assertActorVerified({ ...operation, actorVerified: false });
+    expect(deps.agentCapabilityPolicyModel.get).not.toHaveBeenCalled();
+    expect(deps.groupsModel.findUserInGroups).not.toHaveBeenCalled();
+});
+
+test.each([
+    {
+        mode: 'off',
+        restricted: true,
+        member: false,
+        policies: 0,
+        memberships: 0,
+        managed: 0,
+    },
+    {
+        mode: 'legacy',
+        restricted: false,
+        member: false,
+        policies: 1,
+        memberships: 0,
+        managed: 0,
+    },
+    {
+        mode: 'legacy',
+        restricted: true,
+        member: true,
+        policies: 1,
+        memberships: 1,
+        managed: 0,
+    },
+    {
+        mode: 'legacy',
+        restricted: true,
+        member: false,
+        policies: 1,
+        memberships: 1,
+        managed: 0,
+    },
+    {
+        mode: 'managed',
+        restricted: false,
+        member: false,
+        policies: 1,
+        memberships: 0,
+        managed: 1,
+    },
+    {
+        mode: 'managed',
+        restricted: true,
+        member: true,
+        policies: 1,
+        memberships: 1,
+        managed: 1,
+    },
+    {
+        mode: 'managed',
+        restricted: true,
+        member: false,
+        policies: 1,
+        memberships: 1,
+        managed: 1,
+    },
+] as const)(
+    'pins operation read counts: %j',
+    async ({ mode, restricted, member, policies, memberships, managed }) => {
+        const h = setup();
+        h.policy.mode = mode === 'off' ? 'managed' : mode;
+        h.policy.allowedGroupUuids = restricted ? ['group'] : null;
+        h.deps.featureFlagModel.get.mockResolvedValue({
+            enabled: mode !== 'off',
+        });
+        h.deps.groupsModel.findUserInGroups.mockResolvedValue(
+            member ? [{ groupUuid: 'group' }] : [],
+        );
+        const operation = h.service.assertOperation({
+            ...h.operation,
+            key: 'QuerySourceController.executeSourceQueries',
+        });
+        if (mode !== 'off' && restricted && !member)
+            await expect(operation).rejects.toMatchObject({
+                refusal: {
+                    reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+                },
+            });
+        else await expect(operation).resolves.toBeUndefined();
+        expect(h.deps.featureFlagModel.get).toHaveBeenCalledOnce();
+        expect(h.deps.agentCapabilityPolicyModel.get).toHaveBeenCalledTimes(
+            policies,
+        );
+        expect(h.deps.groupsModel.findUserInGroups).toHaveBeenCalledTimes(
+            memberships,
+        );
+        expect(h.deps.userModel.getAgentRoleAssignments).toHaveBeenCalledTimes(
+            managed,
+        );
+        expect(h.deps.projectModel.getSummary).toHaveBeenCalledTimes(managed);
+        expect(h.deps.getOrganizationSettings).toHaveBeenCalledTimes(managed);
+        expect(
+            h.deps.agentWarehouseRestrictionConfirmationModel.get,
+        ).not.toHaveBeenCalled();
+        expect(h.deps.areGroupsAvailable).not.toHaveBeenCalled();
+    },
+);

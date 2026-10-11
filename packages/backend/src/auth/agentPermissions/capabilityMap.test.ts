@@ -607,6 +607,7 @@ it.each(compositeFixtures)(
             capabilities: new Set<AgentCapability>(expected),
             allowedProjectUuids: null,
             allowedUserUuids: null,
+            allowedGroupUuids: null,
             version: 1,
             editableCustomRoleUuid: null,
         };
