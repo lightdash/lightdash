@@ -1,3 +1,10 @@
+# [2.563.0](https://github.com/lightdash/lightdash/compare/2.562.0...2.563.0) (2026-10-11)
+
+
+### Features
+
+* **cli:** agent connection credential for the CLI ([#30902](https://github.com/lightdash/lightdash/issues/30902)) ([996ec70](https://github.com/lightdash/lightdash/commit/996ec703178ee52fcaa5c151de1a891ad9d99b83))
+
 # [2.562.0](https://github.com/lightdash/lightdash/compare/2.561.0...2.562.0) (2026-10-11)
 
 
