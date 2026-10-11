@@ -33,7 +33,7 @@ const lightdashConfig = {
     },
 };
 
-const fixture = async (legacy: boolean) => {
+const fixture = async (legacy: boolean, strict = true) => {
     const { database } = migrated;
     const [organization] = await database('organizations')
         .insert({ organization_name: 'OAuth rotation' })
@@ -66,7 +66,7 @@ const fixture = async (legacy: boolean) => {
                 featureFlagId,
             }: Parameters<FeatureFlagModel['get']>[0]) => ({
                 id: featureFlagId,
-                enabled: true,
+                enabled: strict,
             }),
         ),
     });
@@ -93,7 +93,17 @@ const fixture = async (legacy: boolean) => {
             }),
             new OAuth2Server.Response({}),
         );
-    return { model, refresh, refreshToken, familyUuid, clientId };
+    return {
+        model,
+        service,
+        database,
+        refresh,
+        refreshToken,
+        familyUuid,
+        clientId,
+        userId: user.user_id,
+        organizationUuid: organization.organization_uuid,
+    };
 };
 
 it.each([false, true])(
@@ -249,5 +259,266 @@ it('retains expired family evidence through cleanup and revokes descendants on r
     });
     await expect(refresh(grandchild.refreshToken!)).rejects.toMatchObject({
         name: 'invalid_grant',
+    });
+});
+
+describe('explicit refresh family revocation', () => {
+    const insertAccessToken = async (
+        context: Awaited<ReturnType<typeof fixture>>,
+        familyUuid: string | null,
+    ) => {
+        const accessToken = randomUUID();
+        await context.database('oauth2_access_tokens').insert({
+            access_token: accessToken,
+            family_uuid: familyUuid,
+            expires_at: new Date(Date.now() + 3600000),
+            scope: ['read'],
+            client_id: context.clientId,
+            user_id: context.userId,
+            organization_uuid: context.organizationUuid,
+        });
+        return accessToken;
+    };
+
+    const expectFamilyRevoked = async (
+        context: Awaited<ReturnType<typeof fixture>>,
+    ) => {
+        const rows = await context
+            .database('oauth2_refresh_tokens')
+            .where('family_uuid', context.familyUuid);
+        expect(rows).toHaveLength(0);
+        expect(
+            await context
+                .database('oauth2_access_tokens')
+                .where('family_uuid', context.familyUuid),
+        ).toHaveLength(0);
+    };
+
+    it('revokes all three generations and leaves another family for the same user and client live', async () => {
+        const context = await fixture(false);
+        const { database, model, service, refresh, familyUuid } = context;
+        const initialAccessToken = await insertAccessToken(context, familyUuid);
+        const child = await refresh();
+        const grandchild = await refresh(child.refreshToken!);
+        const unrelatedFamilyUuid = randomUUID();
+        const unrelatedRefreshToken = randomUUID();
+        await database('oauth2_refresh_tokens').insert({
+            refresh_token: unrelatedRefreshToken,
+            family_uuid: unrelatedFamilyUuid,
+            expires_at: new Date(Date.now() + 86400000),
+            scope: ['read'],
+            client_id: context.clientId,
+            user_id: context.userId,
+            organization_uuid: context.organizationUuid,
+        });
+        const unrelatedAccessToken = await insertAccessToken(
+            context,
+            unrelatedFamilyUuid,
+        );
+        const accessTokens = [
+            initialAccessToken,
+            child.accessToken,
+            grandchild.accessToken,
+        ];
+        expect(
+            await database('oauth2_refresh_tokens').where(
+                'family_uuid',
+                familyUuid,
+            ),
+        ).toHaveLength(3);
+        expect(
+            await database('oauth2_access_tokens').where(
+                'family_uuid',
+                familyUuid,
+            ),
+        ).toHaveLength(3);
+        await Promise.all(
+            accessTokens.map((accessToken) =>
+                expect(
+                    model.getAccessToken(accessToken),
+                ).resolves.toMatchObject({ accessToken }),
+            ),
+        );
+
+        await expect(
+            service.revokeToken(grandchild.refreshToken!),
+        ).resolves.toBe(true);
+
+        await expectFamilyRevoked(context);
+        await Promise.all(
+            accessTokens.map((accessToken) =>
+                expect(model.getAccessToken(accessToken)).resolves.toBe(false),
+            ),
+        );
+        await expect(refresh(grandchild.refreshToken!)).rejects.toMatchObject({
+            name: 'invalid_grant',
+        });
+        expect(
+            await database('oauth2_refresh_tokens')
+                .where('refresh_token', unrelatedRefreshToken)
+                .first(),
+        ).toMatchObject({
+            family_uuid: unrelatedFamilyUuid,
+            revoked_at: null,
+        });
+        expect(
+            await database('oauth2_access_tokens')
+                .where('access_token', unrelatedAccessToken)
+                .first(),
+        ).toMatchObject({
+            family_uuid: unrelatedFamilyUuid,
+        });
+    });
+
+    it.each([
+        { legacy: false, strict: false },
+        { legacy: true, strict: true },
+    ])(
+        'deletes only the refresh row with legacy=$legacy and strict=$strict',
+        async ({ legacy, strict }) => {
+            const context = await fixture(legacy, strict);
+            const { database, service, refreshToken, familyUuid } = context;
+            const accessToken = await insertAccessToken(context, familyUuid);
+
+            await expect(service.revokeToken(refreshToken)).resolves.toBe(true);
+
+            expect(
+                await database('oauth2_refresh_tokens').where(
+                    'refresh_token',
+                    refreshToken,
+                ),
+            ).toHaveLength(0);
+            expect(
+                await database('oauth2_access_tokens')
+                    .where('access_token', accessToken)
+                    .first(),
+            ).toMatchObject({ family_uuid: familyUuid });
+        },
+    );
+
+    it('refuses a refresh whose token read finishes before explicit revocation', async () => {
+        const context = await fixture(false);
+        const { model, service, refresh, refreshToken, familyUuid } = context;
+        await insertAccessToken(context, familyUuid);
+        const getRefreshToken = model.getRefreshToken.bind(model);
+        let read!: () => void;
+        let release!: () => void;
+        const tokenRead = new Promise<void>((resolve) => {
+            read = resolve;
+        });
+        const allowRefresh = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        const reads = vi
+            .spyOn(model, 'getRefreshToken')
+            .mockImplementationOnce(async (token) => {
+                const result = await getRefreshToken(token);
+                read();
+                await allowRefresh;
+                return result;
+            });
+        const outcome = refresh().then(
+            (token) => ({ status: 'fulfilled' as const, token }),
+            (reason: unknown) => ({ status: 'rejected' as const, reason }),
+        );
+        await tokenRead;
+        try {
+            await expect(service.revokeToken(refreshToken)).resolves.toBe(true);
+        } finally {
+            release();
+        }
+        expect(await outcome).toMatchObject({
+            status: 'rejected',
+            reason: { name: 'invalid_grant' },
+        });
+        reads.mockRestore();
+        await expectFamilyRevoked(context);
+    });
+
+    it('revokes the family through the new token after a refresh finishes', async () => {
+        const context = await fixture(false);
+        const { service, refresh, familyUuid } = context;
+        await insertAccessToken(context, familyUuid);
+        const child = await refresh();
+
+        await expect(service.revokeToken(child.refreshToken!)).resolves.toBe(
+            true,
+        );
+
+        await expectFamilyRevoked(context);
+    });
+
+    it('uses reuse detection for the original already rotated token and returns false', async () => {
+        const context = await fixture(false);
+        const { database, service, refresh, refreshToken, familyUuid } =
+            context;
+        await insertAccessToken(context, familyUuid);
+        await refresh();
+
+        await expect(service.revokeToken(refreshToken)).resolves.toBe(false);
+
+        const rows = await database('oauth2_refresh_tokens').where(
+            'family_uuid',
+            familyUuid,
+        );
+        expect(rows).toHaveLength(2);
+        expect(rows.every((row) => row.revoked_at !== null)).toBe(true);
+        expect(
+            await database('oauth2_access_tokens').where(
+                'family_uuid',
+                familyUuid,
+            ),
+        ).toHaveLength(0);
+    });
+
+    it('does nothing when explicit family revocation is retried', async () => {
+        const context = await fixture(false);
+        const { service, refreshToken, familyUuid } = context;
+        await insertAccessToken(context, familyUuid);
+
+        await expect(service.revokeToken(refreshToken)).resolves.toBe(true);
+        await expect(service.revokeToken(refreshToken)).resolves.toBe(false);
+
+        expect(Logger.warn).not.toHaveBeenCalledWith(
+            'oauth_refresh_token_reuse',
+            expect.anything(),
+        );
+        await expectFamilyRevoked(context);
+    });
+
+    it('cannot restore an explicitly revoked token when the flag is turned off', async () => {
+        const context = await fixture(false);
+        const { database, service, refreshToken, familyUuid } = context;
+        await insertAccessToken(context, familyUuid);
+
+        await expect(service.revokeToken(refreshToken)).resolves.toBe(true);
+
+        const legacyModel = new OAuth2Model(
+            database,
+            {
+                ...lightdashConfig,
+                auth: {
+                    ...lightdashConfig.auth,
+                    oauthServer: {
+                        ...lightdashConfig.auth.oauthServer,
+                        refreshTokenRotationGrace: 60,
+                    },
+                },
+            },
+            {
+                get: vi.fn(
+                    async ({
+                        featureFlagId,
+                    }: Parameters<FeatureFlagModel['get']>[0]) => ({
+                        id: featureFlagId,
+                        enabled: false,
+                    }),
+                ),
+            },
+        );
+        await expect(legacyModel.getRefreshToken(refreshToken)).resolves.toBe(
+            false,
+        );
+        await expectFamilyRevoked(context);
     });
 });

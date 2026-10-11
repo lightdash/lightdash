@@ -369,6 +369,27 @@ describe('OAuth2Model refresh token rotation', () => {
         });
     });
 
+    it.each([true, false])(
+        'sets securityStrict to %s on an unbound refresh token',
+        async (enabled) => {
+            featureFlagModel.get.mockResolvedValue({
+                id: FeatureFlags.AgentIdentity,
+                enabled,
+            });
+            tracker.on
+                .select('oauth2_refresh_tokens')
+                .responseOnce(
+                    refreshTokenRow({ agent_connection_grant_uuid: null }),
+                );
+
+            await expect(
+                model.getRefreshToken('refresh-token'),
+            ).resolves.toMatchObject({
+                securityStrict: enabled,
+            });
+        },
+    );
+
     it('accepts a refresh token revoked inside the grace window', async () => {
         tracker.on.select('oauth2_refresh_tokens').responseOnce(
             refreshTokenRow({
@@ -953,6 +974,59 @@ describe('OAuth2Model strict refresh rotation', () => {
             'pg_advisory_xact_lock',
         );
     });
+    it.each([
+        [3, 3, true],
+        [0, 3, true],
+        [2, 0, true],
+        [0, 0, false],
+    ] as const)(
+        'revokes an unbound family with %s refresh and %s access rows deleted, returning %s',
+        async (deletedRefreshRows, deletedAccessRows, revoked) => {
+            const tracker = getTracker();
+            tracker.on
+                .delete('oauth2_refresh_tokens')
+                .responseOnce(deletedRefreshRows);
+            tracker.on
+                .delete('oauth2_access_tokens')
+                .responseOnce(deletedAccessRows);
+
+            await expect(
+                model.revokeUnboundRefreshFamily(familyUuid, user.userId),
+            ).resolves.toBe(revoked);
+
+            expect(tracker.history.transactions).toHaveLength(1);
+            const transaction = tracker.history.transactions[0];
+            expect(transaction.state).toBe('committed');
+            expect(transaction.queries).toEqual(tracker.history.all);
+            expect(
+                transaction.queries.map(({ method, sql, bindings }) => ({
+                    method,
+                    sql,
+                    bindings,
+                })),
+            ).toEqual([
+                {
+                    method: 'select',
+                    sql: "SELECT pg_advisory_xact_lock(hashtext('oauth_refresh_rotation'), $1)",
+                    bindings: [user.userId],
+                },
+                {
+                    method: 'delete',
+                    sql: 'delete from "oauth2_refresh_tokens" where "family_uuid" = $1 and "agent_connection_grant_uuid" is null',
+                    bindings: [familyUuid],
+                },
+                {
+                    method: 'delete',
+                    sql: 'delete from "oauth2_access_tokens" where "family_uuid" = $1 and "agent_connection_grant_uuid" is null',
+                    bindings: [familyUuid],
+                },
+            ]);
+            expect(JSON.stringify(transaction.queries)).not.toContain(
+                parent.refreshToken,
+            );
+            expect(Logger.warn).not.toHaveBeenCalled();
+        },
+    );
     it('commits family revocation when atomic consumption loses the race', async () => {
         const tracker = getTracker();
         tracker.on.update('oauth2_refresh_tokens').responseOnce(0);

@@ -137,6 +137,177 @@ afterEach(() => {
     getTracker().reset();
 });
 
+it('preserves the flag-off SQL sequence when revoking a null-family refresh token', async () => {
+    flags.get.mockResolvedValue({
+        id: FeatureFlags.AgentIdentity,
+        enabled: false,
+    });
+    const tracker = getTracker();
+    tracker.on.select('oauth2_refresh_tokens').responseOnce({
+        refresh_token: 'refresh-token',
+        family_uuid: null,
+        agent_connection_grant_uuid: null,
+        revoked_at: null,
+        expires_at: new Date(Date.now() + 86400000),
+        client_id: client.id,
+        redirect_uris: client.redirectUris,
+        grants: ['refresh_token'],
+        scope: ['read'],
+        user_id: user.userId,
+        organization_uuid: user.organizationUuid,
+    });
+    tracker.on.select('oauth2_refresh_tokens').responseOnce(undefined);
+    tracker.on.delete('oauth2_refresh_tokens').responseOnce(1);
+
+    await expect(service.revokeToken('refresh-token')).resolves.toBe(true);
+
+    expect(
+        tracker.history.all.map(({ method, sql }) => [
+            method,
+            /(?:from|update) "([^"]+)"/.exec(sql)?.[1],
+        ]),
+    ).toEqual([
+        ['select', 'oauth2_refresh_tokens'],
+        ['select', 'users'],
+        ['select', 'oauth2_refresh_tokens'],
+        ['delete', 'oauth2_refresh_tokens'],
+    ]);
+    expect(flags.get).toHaveBeenCalledOnce();
+    expect(tracker.history.transactions).toHaveLength(0);
+});
+
+it('preserves the flag-off SQL sequence when revoking a refresh token with a family', async () => {
+    flags.get.mockResolvedValue({
+        id: FeatureFlags.AgentIdentity,
+        enabled: false,
+    });
+    const tracker = getTracker();
+    tracker.on.select('oauth2_refresh_tokens').responseOnce({
+        refresh_token: 'refresh-token',
+        family_uuid: '11111111-1111-4111-8111-111111111111',
+        agent_connection_grant_uuid: null,
+        revoked_at: null,
+        expires_at: new Date(Date.now() + 86400000),
+        client_id: client.id,
+        redirect_uris: client.redirectUris,
+        grants: ['refresh_token'],
+        scope: ['read'],
+        user_id: user.userId,
+        organization_uuid: user.organizationUuid,
+    });
+    tracker.on.select('oauth2_refresh_tokens').responseOnce(undefined);
+    tracker.on.delete('oauth2_refresh_tokens').responseOnce(1);
+
+    await expect(service.revokeToken('refresh-token')).resolves.toBe(true);
+
+    expect(
+        tracker.history.all.map(({ method, sql }) => [
+            method,
+            /(?:from|update) "([^"]+)"/.exec(sql)?.[1],
+        ]),
+    ).toEqual([
+        ['select', 'oauth2_refresh_tokens'],
+        ['select', 'users'],
+        ['select', 'oauth2_refresh_tokens'],
+        ['delete', 'oauth2_refresh_tokens'],
+    ]);
+    expect(flags.get).toHaveBeenCalledOnce();
+    expect(tracker.history.transactions).toHaveLength(0);
+});
+
+it('deletes an unbound refresh family in one transaction with one flag resolution', async () => {
+    flags.get.mockResolvedValue({
+        id: FeatureFlags.AgentIdentity,
+        enabled: true,
+    });
+    const tracker = getTracker();
+    tracker.on.select('oauth2_refresh_tokens').responseOnce({
+        refresh_token: 'refresh-token',
+        family_uuid: '11111111-1111-4111-8111-111111111111',
+        agent_connection_grant_uuid: null,
+        revoked_at: null,
+        expires_at: new Date(Date.now() + 86400000),
+        client_id: client.id,
+        redirect_uris: client.redirectUris,
+        grants: ['refresh_token'],
+        scope: ['read'],
+        user_id: user.userId,
+        organization_uuid: user.organizationUuid,
+    });
+    tracker.on.select('pg_advisory_xact_lock').responseOnce([]);
+    tracker.on.delete('oauth2_refresh_tokens').responseOnce(1);
+    tracker.on.delete('oauth2_access_tokens').responseOnce(1);
+
+    await expect(service.revokeToken('refresh-token')).resolves.toBe(true);
+
+    expect(
+        tracker.history.all.map(({ method, sql }) => [
+            method,
+            /(?:from|update) "([^"]+)"/.exec(sql)?.[1],
+        ]),
+    ).toEqual([
+        ['select', 'oauth2_refresh_tokens'],
+        ['select', 'users'],
+        ['select', undefined],
+        ['delete', 'oauth2_refresh_tokens'],
+        ['delete', 'oauth2_access_tokens'],
+    ]);
+    expect(flags.get).toHaveBeenCalledOnce();
+    expect(tracker.history.transactions).toHaveLength(1);
+    const transaction = tracker.history.transactions[0];
+    expect(transaction.state).toBe('committed');
+    expect(transaction.queries).toEqual(tracker.history.all.slice(2));
+    expect(
+        transaction.queries.map(({ method, sql, bindings }) => ({
+            method,
+            sql,
+            bindings,
+        })),
+    ).toEqual([
+        {
+            method: 'select',
+            sql: "SELECT pg_advisory_xact_lock(hashtext('oauth_refresh_rotation'), $1)",
+            bindings: [user.userId],
+        },
+        {
+            method: 'delete',
+            sql: 'delete from "oauth2_refresh_tokens" where "family_uuid" = $1 and "agent_connection_grant_uuid" is null',
+            bindings: ['11111111-1111-4111-8111-111111111111'],
+        },
+        {
+            method: 'delete',
+            sql: 'delete from "oauth2_access_tokens" where "family_uuid" = $1 and "agent_connection_grant_uuid" is null',
+            bindings: ['11111111-1111-4111-8111-111111111111'],
+        },
+    ]);
+});
+
+it('preserves the flag-off SQL sequence when revoking an access token', async () => {
+    flags.get.mockResolvedValue({
+        id: FeatureFlags.AgentIdentity,
+        enabled: false,
+    });
+    const tracker = getTracker();
+    tracker.on.select('oauth2_refresh_tokens').responseOnce(undefined);
+    tracker.on.update('oauth2_access_tokens').responseOnce(0);
+    tracker.on.delete('oauth2_access_tokens').responseOnce(1);
+
+    await expect(service.revokeToken('access-token')).resolves.toBe(true);
+
+    expect(
+        tracker.history.all.map(({ method, sql }) => [
+            method,
+            /(?:from|update) "([^"]+)"/.exec(sql)?.[1],
+        ]),
+    ).toEqual([
+        ['select', 'oauth2_refresh_tokens'],
+        ['update', 'oauth2_access_tokens'],
+        ['delete', 'oauth2_access_tokens'],
+    ]);
+    expect(flags.get).not.toHaveBeenCalled();
+    expect(tracker.history.transactions).toHaveLength(0);
+});
+
 it.each(modes)('rejects plain PKCE in %s mode', async (mode) => {
     await setScopeMode(mode);
     await expect(

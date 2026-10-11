@@ -717,6 +717,24 @@ export class OAuth2Model implements AuthorizationCodeModel {
         return result > 0;
     }
 
+    async revokeUnboundRefreshFamily(
+        familyUuid: string,
+        userId: number,
+    ): Promise<boolean> {
+        return this.database.transaction(async (database) => {
+            await this.lockRefreshRotation(database, userId);
+            const deletedRefreshRows = await database('oauth2_refresh_tokens')
+                .where('family_uuid', familyUuid)
+                .whereNull('agent_connection_grant_uuid')
+                .del();
+            const deletedAccessRows = await database('oauth2_access_tokens')
+                .where('family_uuid', familyUuid)
+                .whereNull('agent_connection_grant_uuid')
+                .del();
+            return deletedRefreshRows > 0 || deletedAccessRows > 0;
+        });
+    }
+
     async deleteRefreshToken(refreshToken: string): Promise<boolean> {
         const boundToken = await this.database('oauth2_refresh_tokens')
             .where('refresh_token', refreshToken)
@@ -807,6 +825,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
             (await this.isSecurityStrictForOAuthUser(
                 token.user as UserWithOrganizationUuid,
             ));
+        token.securityStrict = strict;
         if (
             strict &&
             result.revoked_at !== null &&
