@@ -71,9 +71,9 @@ vi.mock('../../../ee/services/ai/models', async (original) => ({
 }));
 
 const legacyAgentPermissionService = {
-    isEnforced: vi.fn().mockResolvedValue(false),
-    getEnforcementMode: vi.fn().mockResolvedValue('off'),
+    loadRequest: vi.fn().mockResolvedValue({ enforcementMode: 'off' }),
     assertOperation: vi.fn().mockResolvedValue(undefined),
+    assertOperationWithRequest: vi.fn().mockResolvedValue(undefined),
 };
 
 describe('trusted surface to persisted chart identity', () => {

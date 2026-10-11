@@ -88,29 +88,36 @@ it('enforces the grant before the legacy return, even after the org allows more'
     const { req, run, permissions } = setup();
     req.params.projectUuid = 'outside';
     const check = async (managed: boolean) => {
-        permissions.getEnforcementMode.mockResolvedValue(
-            managed ? 'managed' : 'off',
-        );
+        permissions.loadRequest.mockResolvedValue({
+            enforcementMode: managed ? 'managed' : 'off',
+        });
         expect((await run(allowApiKeyAuthentication)).error).toMatchObject({
             message: expect.stringContaining('project'),
         });
     };
     await check(false);
     await check(true);
-    expect(permissions.assertOperation).not.toHaveBeenCalled();
+    expect(permissions.assertOperationWithRequest).not.toHaveBeenCalled();
 });
 it('checks the grant before group admission when limits are off', async () => {
     const { req, run, grant, permissions } = setup();
-    permissions.getEnforcementMode.mockResolvedValue('admission');
+    permissions.loadRequest.mockResolvedValue({ enforcementMode: 'admission' });
     req.params.projectUuid = 'outside';
     expect((await run(allowApiKeyAuthentication)).error).toMatchObject({
         message: expect.stringContaining('project'),
     });
-    expect(permissions.assertOperation).not.toHaveBeenCalled();
+    expect(permissions.assertOperationWithRequest).not.toHaveBeenCalled();
     [req.params.projectUuid] = grant.approvedProjectUuids;
     expect((await run(allowApiKeyAuthentication)).error).toBeUndefined();
-    expect(permissions.assertOperation).toHaveBeenCalledExactlyOnceWith(
-        expect.objectContaining({ kind: 'rest_operation', projectUuid: null }),
+    expect(
+        permissions.assertOperationWithRequest,
+    ).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+            operation: expect.objectContaining({
+                kind: 'rest_operation',
+                projectUuid: null,
+            }),
+        }),
     );
 });
 it.each([
@@ -183,10 +190,14 @@ it('passes the contracted path project to managed org policy', async () => {
     req.params = { projectUuid: grant.approvedProjectUuids[0] };
     req.body = { projectUuid: 'ignored' };
     req.method = 'POST';
-    permissions.getEnforcementMode.mockResolvedValue('managed');
+    permissions.loadRequest.mockResolvedValue({ enforcementMode: 'managed' });
     expect((await run(allowApiKeyAuthentication)).error).toBeUndefined();
-    expect(permissions.assertOperation).toHaveBeenCalledWith(
-        expect.objectContaining({ projectUuid: grant.approvedProjectUuids[0] }),
+    expect(permissions.assertOperationWithRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+            operation: expect.objectContaining({
+                projectUuid: grant.approvedProjectUuids[0],
+            }),
+        }),
     );
 });
 
@@ -670,7 +681,9 @@ describe.each([
                 f.req.isAuthenticated = (() =>
                     true) as Request['isAuthenticated'];
             }
-            f.permissions.getEnforcementMode.mockResolvedValue('managed');
+            f.permissions.loadRequest.mockResolvedValue({
+                enforcementMode: 'managed',
+            });
             f.downstream.mockImplementation(async () => {
                 const scope = agentExecutionContext.getStore();
                 expect(scope).toMatchObject({
@@ -724,8 +737,14 @@ describe.each([
                 error: undefined,
             });
             expect(f.downstream).toHaveBeenCalledOnce();
-            expect(f.permissions.assertOperation).toHaveBeenCalledWith(
-                expect.objectContaining({ surface: AgentActorSurface.CLI }),
+            expect(
+                f.permissions.assertOperationWithRequest,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    operation: expect.objectContaining({
+                        surface: AgentActorSurface.CLI,
+                    }),
+                }),
             );
             expect(agentExecutionContext.getStore()).toBeUndefined();
         },
@@ -810,15 +829,19 @@ describe.each([
     });
     it('keeps the connection on a refused permission check without running downstream', async () => {
         const f = setup();
-        f.permissions.getEnforcementMode.mockResolvedValue('managed');
-        const refusal = new Error('Permission refused');
-        f.permissions.assertOperation.mockImplementation(async () => {
-            expect(
-                agentExecutionContext.getStore()?.claim?.act
-                    .agent_connection_grant,
-            ).toEqual({ grantUuid: 'grant', revision: 1 });
-            throw refusal;
+        f.permissions.loadRequest.mockResolvedValue({
+            enforcementMode: 'managed',
         });
+        const refusal = new Error('Permission refused');
+        f.permissions.assertOperationWithRequest.mockImplementation(
+            async () => {
+                expect(
+                    agentExecutionContext.getStore()?.claim?.act
+                        .agent_connection_grant,
+                ).toEqual({ grantUuid: 'grant', revision: 1 });
+                throw refusal;
+            },
+        );
         expect((await f.run(middleware)).error).toBe(refusal);
         expect(f.downstream).not.toHaveBeenCalled();
         expect(agentExecutionContext.getStore()).toBeUndefined();

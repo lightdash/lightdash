@@ -499,3 +499,101 @@ test('legacy saves preserve the stored matrix, project list and people list', as
     expect(update).not.toContain('allowed_user_uuids');
     expect(tracker.history.delete).toHaveLength(0);
 });
+
+describe('getForEnforcement', () => {
+    test('defaults a missing policy without another SELECT', async () => {
+        tracker.on
+            .select('organization_agent_capability_policies')
+            .response([]);
+        expect(await model.getForEnforcement('org')).toEqual({
+            mode: 'legacy',
+            version: 0,
+            allowedProjectUuids: null,
+            allowedUserUuids: null,
+            storedAllowedGroupUuids: null,
+            hasExistingAllowedGroup: null,
+            systemRoleMatrix: emptyMatrix,
+        });
+        expect(tracker.history.select).toHaveLength(1);
+    });
+
+    test.each([
+        { stored: null, exists: null },
+        { stored: [], exists: false },
+        { stored: ['deleted'], exists: false },
+        { stored: ['foreign'], exists: false },
+        { stored: ['live', 'deleted'], exists: true },
+    ])(
+        'reads $stored with existence $exists in one statement',
+        async ({ stored, exists }) => {
+            tracker.on
+                .select('organization_agent_capability_policies')
+                .response([
+                    {
+                        mode: 'managed',
+                        version: 4,
+                        allowed_project_uuids: ['project'],
+                        allowed_user_uuids: null,
+                        allowed_group_uuids: stored,
+                        has_existing_allowed_group: exists,
+                        system_role: 'viewer',
+                        capability: AgentCapability.Query,
+                    },
+                ]);
+            expect(await model.getForEnforcement('org')).toEqual({
+                mode: 'managed',
+                version: 4,
+                allowedProjectUuids: ['project'],
+                allowedUserUuids: null,
+                storedAllowedGroupUuids: stored,
+                hasExistingAllowedGroup: exists,
+                systemRoleMatrix: {
+                    ...emptyMatrix,
+                    viewer: [AgentCapability.Query],
+                },
+            });
+            expect(tracker.history.select).toHaveLength(1);
+            const [query] = tracker.history.select;
+            expect(query.sql).toMatch(
+                /case when .*allowed_group_uuids.* is null then null else exists/i,
+            );
+            expect(query.sql).toContain('has_existing_allowed_group');
+            expect(query.sql).toContain('"groups"');
+            expect(query.sql).toContain('"organizations"');
+            expect(query.sql).toMatch(
+                /organization_uuid.*=.*organization_uuid/,
+            );
+            expect(query.sql).toMatch(/group_uuid.*= ANY/i);
+            expect(query.bindings).toEqual(['org']);
+        },
+    );
+
+    test.each([
+        { storedUsers: null },
+        { storedUsers: [] },
+        { storedUsers: ['departed', 'member', 'member'] },
+    ])('only hydrates non-empty people lists: %j', async ({ storedUsers }) => {
+        tracker.on.select('organization_agent_capability_policies').response([
+            {
+                mode: 'legacy',
+                version: 1,
+                allowed_user_uuids: storedUsers,
+                allowed_group_uuids: ['live'],
+                has_existing_allowed_group: true,
+            },
+        ]);
+        if (storedUsers?.length)
+            tracker.on
+                .select('organization_memberships')
+                .response([{ user_uuid: 'member' }]);
+        const policy = await model.getForEnforcement('org');
+        expect(policy.allowedUserUuids).toEqual(
+            storedUsers === null
+                ? null
+                : storedUsers.filter((uuid) => uuid === 'member'),
+        );
+        expect(tracker.history.select).toHaveLength(
+            storedUsers?.length ? 2 : 1,
+        );
+    });
+});

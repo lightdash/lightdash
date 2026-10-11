@@ -527,8 +527,10 @@ const getMockedAsyncQueryService = (
             querySourceService ??= new QuerySourceService({
                 getAsyncQueryService: () => service,
                 getAgentPermissionService: () => ({
-                    isEnforced: vi.fn().mockResolvedValue(false),
-                    assertOperation: vi.fn(),
+                    loadRequest: vi.fn().mockResolvedValue({
+                        enforcementMode: 'off',
+                    }),
+                    assertOperationWithRequest: vi.fn(),
                 }),
                 projectModel: (service as AnyType).projectModel,
                 queryHistoryModel: service.queryHistoryModel,

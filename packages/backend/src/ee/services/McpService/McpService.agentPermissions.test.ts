@@ -9,6 +9,8 @@ import {
 } from '@lightdash/common';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import knex from 'knex';
+import { getTracker, MockClient } from 'knex-mock-client';
 import {
     fromApiKey,
     fromOauth,
@@ -21,7 +23,11 @@ import {
     AgentPermissionService,
     agentSystemRoleMatrix,
 } from '../../../services/AgentPermissionService/AgentPermissionService';
-import { McpService } from './McpService';
+import {
+    expectAdmissionSql,
+    setupPermissionSql,
+} from '../../../services/AgentPermissionService/agentPermissionSqlFixture';
+import { McpService, McpToolName } from './McpService';
 import { makeMcpServerOptions } from './McpService.mock';
 
 vi.mock('@sentry/node', () => ({
@@ -79,6 +85,14 @@ const setup = (
         featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
         agentCapabilityPolicyModel: {
             get: vi.fn().mockResolvedValue(policy),
+            getForEnforcement: vi.fn().mockImplementation(async () => ({
+                ...policy,
+                storedAllowedGroupUuids: policy.allowedGroupUuids,
+                hasExistingAllowedGroup:
+                    policy.allowedGroupUuids === null
+                        ? null
+                        : policy.allowedGroupUuids.length > 0,
+            })),
             save: vi.fn(),
         },
         userModel: {
@@ -99,7 +113,10 @@ const setup = (
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
     };
     const permissions = new AgentPermissionService(deps);
-    const assertOperation = vi.spyOn(permissions, 'assertOperation');
+    const assertOperationWithRequest = vi.spyOn(
+        permissions,
+        'assertOperationWithRequest',
+    );
     const getContext = vi.fn().mockResolvedValue({ context: { projectUuid } });
     const service = Object.assign(Object.create(McpService.prototype), {
         lightdashConfig: { siteUrl: 'https://lightdash.example' },
@@ -136,7 +153,7 @@ const setup = (
         deps,
         policy,
         extra,
-        assertOperation,
+        assertOperationWithRequest,
         getContext,
         handler,
         call,
@@ -149,8 +166,13 @@ describe.each(['oauth', 'session'] as const)(
         test.each(['run_sql', 'create_content'])(
             'pilot refuses %s before dispatch',
             async (name) => {
-                const { call, handler, deps, assertOperation, service } =
-                    setup(authentication);
+                const {
+                    call,
+                    handler,
+                    deps,
+                    assertOperationWithRequest,
+                    service,
+                } = setup(authentication);
                 const result = await call(name, {
                     sql: 'private SQL',
                     prompt: 'private prompt',
@@ -173,12 +195,16 @@ describe.each(['oauth', 'session'] as const)(
                     `${result.structuredContent.refusal.message}\n\n${result.structuredContent.refusal.settingsUrl}\n\nSee why: https://lightdash.example/generalSettings/myAgentConnections`,
                 );
                 expect(handler).not.toHaveBeenCalled();
-                expect(assertOperation).toHaveBeenCalledExactlyOnceWith(
+                expect(
+                    assertOperationWithRequest,
+                ).toHaveBeenCalledExactlyOnceWith(
                     expect.objectContaining({
-                        kind: 'mcp_tool',
-                        key: name,
-                        projectUuid,
-                        surface: AgentActorSurface.MCP,
+                        operation: expect.objectContaining({
+                            kind: 'mcp_tool',
+                            key: name,
+                            projectUuid,
+                            surface: AgentActorSurface.MCP,
+                        }),
                     }),
                 );
                 expect(deps.agentActionLogModel.insert).toHaveBeenCalledOnce();
@@ -246,7 +272,7 @@ describe.each(['oauth', 'session'] as const)(
                     call,
                     handler,
                     getContext,
-                    assertOperation,
+                    assertOperationWithRequest,
                 } = setup(authentication);
                 if (mode === 'off')
                     deps.featureFlagModel.get.mockResolvedValue({
@@ -257,7 +283,7 @@ describe.each(['oauth', 'session'] as const)(
                 await call('create_content');
                 expect(handler).toHaveBeenCalledTimes(2);
                 expect(getContext).not.toHaveBeenCalled();
-                expect(assertOperation).not.toHaveBeenCalled();
+                expect(assertOperationWithRequest).not.toHaveBeenCalled();
                 expect(
                     deps.userModel.getAgentRoleAssignments,
                 ).not.toHaveBeenCalled();
@@ -308,11 +334,14 @@ describe.each(['oauth', 'session'] as const)(
         });
 
         test('passes null without a selected project', async () => {
-            const { call, getContext, assertOperation } = setup(authentication);
+            const { call, getContext, assertOperationWithRequest } =
+                setup(authentication);
             getContext.mockResolvedValue(undefined);
             await call('get_lightdash_version');
-            expect(assertOperation).toHaveBeenCalledWith(
-                expect.objectContaining({ projectUuid: null }),
+            expect(assertOperationWithRequest).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    operation: expect.objectContaining({ projectUuid: null }),
+                }),
             );
         });
     },
@@ -321,11 +350,12 @@ describe.each(['oauth', 'session'] as const)(
 test.each(['pat', 'service-account'] as const)(
     '%s remains exempt',
     async (authentication) => {
-        const { call, handler, deps, assertOperation } = setup(authentication);
+        const { call, handler, deps, assertOperationWithRequest } =
+            setup(authentication);
         await call('run_sql', { projectUuid: 'forbidden-project' });
         await call('create_content');
         expect(handler).toHaveBeenCalledTimes(2);
-        expect(assertOperation).not.toHaveBeenCalled();
+        expect(assertOperationWithRequest).not.toHaveBeenCalled();
         expect(deps.featureFlagModel.get).not.toHaveBeenCalled();
     },
 );
@@ -566,7 +596,7 @@ describe('MCP resource protocol permissions', () => {
     });
 
     test('retains the original project denial before status permissions', async () => {
-        const { client, service, assertOperation, getMyAccess } =
+        const { client, service, assertOperationWithRequest, getMyAccess } =
             await setupResourceProtocol();
         vi.mocked(service['projectService'].getProject).mockRejectedValue(
             new ForbiddenError('You do not have access to this project'),
@@ -577,7 +607,7 @@ describe('MCP resource protocol permissions', () => {
                     uri: `lightdash://projects/${projectUuid}/agent-status`,
                 }),
             ).rejects.toThrow('You do not have access to this project');
-            expect(assertOperation).not.toHaveBeenCalled();
+            expect(assertOperationWithRequest).not.toHaveBeenCalled();
             expect(getMyAccess).not.toHaveBeenCalled();
         } finally {
             await client.close();
@@ -587,7 +617,7 @@ describe('MCP resource protocol permissions', () => {
     test.each(['off', 'legacy'] as const)(
         '%s preserves resource responses',
         async (mode) => {
-            const { client, deps, policy, assertOperation } =
+            const { client, deps, policy, assertOperationWithRequest } =
                 await setupResourceProtocol();
             if (mode === 'off')
                 deps.featureFlagModel.get.mockResolvedValue({ enabled: false });
@@ -606,7 +636,7 @@ describe('MCP resource protocol permissions', () => {
                         ]);
                     }),
                 );
-                expect(assertOperation).not.toHaveBeenCalled();
+                expect(assertOperationWithRequest).not.toHaveBeenCalled();
                 expect(deps.agentActionLogModel.insert).not.toHaveBeenCalled();
             } finally {
                 await client.close();
@@ -784,11 +814,11 @@ describe('bound MCP grant in legacy mode', () => {
         ).rejects.toThrow('operation');
     });
     test('refuses all tools until MCP consent contracts exist', async () => {
-        const { service, extra, assertOperation } = bound();
+        const { service, extra, assertOperationWithRequest } = bound();
         await expect(
             service['assertAgentToolAllowed'](extra, 'run_metric_query', {}),
         ).rejects.toThrow('operation');
-        expect(assertOperation).not.toHaveBeenCalled();
+        expect(assertOperationWithRequest).not.toHaveBeenCalled();
     });
 });
 
@@ -865,3 +895,130 @@ test.each(['pat', 'service-account'] as const)(
         expect(deps.groupsModel.findUserInGroups).not.toHaveBeenCalled();
     },
 );
+
+const admissionDatabase = knex({ client: MockClient, dialect: 'pg' });
+const admissionTracker = getTracker();
+beforeEach(() => admissionTracker.reset());
+afterAll(async () => admissionDatabase.destroy());
+
+test.each(['tool', 'resource'] as const)(
+    'SQL admission shares the MCP %s gate',
+    async (surface) => {
+        const h = setup();
+        const sql = setupPermissionSql(
+            admissionDatabase,
+            admissionTracker,
+            fromSession(defaultSessionUser),
+        );
+        h.extra.authInfo.extra.getAgentPermissionService = () => sql.service;
+        if (surface === 'tool') {
+            expect(await h.call('get_context')).not.toHaveProperty(
+                'isError',
+                true,
+            );
+            expect(h.handler).toHaveBeenCalledOnce();
+        } else
+            await h.service['assertAgentResourceAllowed'](
+                h.extra,
+                McpToolName.GET_CONTEXT,
+            );
+        expectAdmissionSql(admissionTracker, {
+            policy: 1,
+            groups: 0,
+            people: 0,
+            membership: 1,
+        });
+    },
+);
+
+test.each([
+    {
+        name: 'flag off',
+        enabled: false,
+        mode: 'managed',
+        groups: ['live'],
+        live: true,
+        member: true,
+        reads: 0,
+        membership: 0,
+        refused: false,
+    },
+    {
+        name: 'managed null',
+        enabled: true,
+        mode: 'managed',
+        groups: null,
+        live: false,
+        member: true,
+        reads: 1,
+        membership: 0,
+        refused: false,
+    },
+    {
+        name: 'legacy deleted',
+        enabled: true,
+        mode: 'legacy',
+        groups: ['deleted'],
+        live: false,
+        member: false,
+        reads: 1,
+        membership: 0,
+        refused: true,
+    },
+    {
+        name: 'legacy empty',
+        enabled: true,
+        mode: 'legacy',
+        groups: [],
+        live: false,
+        member: false,
+        reads: 1,
+        membership: 0,
+        refused: true,
+    },
+    {
+        name: 'legacy non-member',
+        enabled: true,
+        mode: 'legacy',
+        groups: ['live'],
+        live: true,
+        member: false,
+        reads: 1,
+        membership: 1,
+        refused: true,
+    },
+] as const)('MCP SQL state: $name', async (profile) => {
+    const h = setup();
+    const sql = setupPermissionSql(
+        admissionDatabase,
+        admissionTracker,
+        fromSession(defaultSessionUser),
+    );
+    sql.state.policy.mode = profile.mode;
+    sql.state.policy.allowedGroupUuids =
+        profile.groups === null ? null : [...profile.groups];
+    sql.state.existingGroups = profile.live ? ['live'] : [];
+    sql.state.members = profile.member ? [defaultSessionUser.userUuid] : [];
+    sql.deps.featureFlagModel.get.mockResolvedValue({
+        enabled: profile.enabled,
+    });
+    h.extra.authInfo.extra.getAgentPermissionService = () => sql.service;
+    const result = await h.call('get_context');
+    if (profile.refused)
+        expect(result).toMatchObject({
+            isError: true,
+            structuredContent: {
+                refusal: {
+                    reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+                },
+            },
+        });
+    else expect(result).not.toHaveProperty('isError', true);
+    expect(h.handler).toHaveBeenCalledTimes(profile.refused ? 0 : 1);
+    expectAdmissionSql(admissionTracker, {
+        policy: profile.reads,
+        groups: 0,
+        people: 0,
+        membership: profile.membership,
+    });
+});

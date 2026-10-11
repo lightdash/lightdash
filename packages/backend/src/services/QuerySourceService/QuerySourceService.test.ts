@@ -76,7 +76,7 @@ const createFakeSource = (
 });
 
 type Mocks = {
-    permissions: { isEnforced: Mock; assertOperation: Mock };
+    permissions: { loadRequest: Mock; assertOperationWithRequest: Mock };
     featureFlagModel: { get: Mock };
     projectModel: { getSummary: Mock };
     queryHistoryModel: { get: Mock };
@@ -88,8 +88,10 @@ const createService = (registry: QuerySourceRegistry) => {
             get: vi.fn().mockResolvedValue({ enabled: true }),
         },
         permissions: {
-            isEnforced: vi.fn().mockResolvedValue(false),
-            assertOperation: vi.fn().mockResolvedValue(undefined),
+            loadRequest: vi.fn().mockResolvedValue({
+                enforcementMode: 'off',
+            }),
+            assertOperationWithRequest: vi.fn().mockResolvedValue(undefined),
         },
         projectModel: {
             getSummary: vi.fn().mockResolvedValue({ organizationUuid }),
@@ -1265,7 +1267,9 @@ describe('bound grant SQL source effects', () => {
         async ({ managed, sourceType }) => {
             const { registry, sqlSource } = createRegistryWithFakes();
             const { service, mocks } = createService(registry);
-            mocks.permissions.isEnforced.mockResolvedValue(managed);
+            mocks.permissions.loadRequest.mockResolvedValue({
+                enforcementMode: managed ? 'managed' : 'off',
+            });
             if (sourceType === QuerySourceType.EXTERNAL)
                 registry.register(createFakeSource(QuerySourceType.EXTERNAL));
             const grant = grantFixture();
@@ -1304,7 +1308,7 @@ describe('bound grant SQL source effects', () => {
             };
             await expect(service.submitQueries(args)).rejects.toThrow('SQL');
             expect(registry.get(sourceType).submitQuery).not.toHaveBeenCalled();
-            expect(mocks.permissions.isEnforced).not.toHaveBeenCalled();
+            expect(mocks.permissions.loadRequest).not.toHaveBeenCalled();
             await expect(
                 service.scanSchema(bound, projectUuid, QuerySourceType.SQL),
             ).rejects.toThrow('SQL');
@@ -1326,8 +1330,10 @@ it.each(['duckdb', 'external', 'pipeline'] as const)(
         const { registry } = createRegistryWithFakes();
         registry.register(createFakeSource(QuerySourceType.EXTERNAL));
         const { service, mocks } = createService(registry);
-        mocks.permissions.isEnforced.mockResolvedValue(true);
-        mocks.permissions.assertOperation.mockRejectedValue(
+        mocks.permissions.loadRequest.mockResolvedValue({
+            enforcementMode: 'managed',
+        });
+        mocks.permissions.assertOperationWithRequest.mockRejectedValue(
             new ForbiddenError('Raw SQL disabled'),
         );
         const unbound = fromOauth(defaultSessionUser, {
@@ -1375,8 +1381,10 @@ it.each(['duckdb', 'external', 'pipeline'] as const)(
                 plans: {},
             }),
         ).resolves.toBeDefined();
-        expect(mocks.permissions.isEnforced).not.toHaveBeenCalled();
-        expect(mocks.permissions.assertOperation).not.toHaveBeenCalled();
+        expect(mocks.permissions.loadRequest).not.toHaveBeenCalled();
+        expect(
+            mocks.permissions.assertOperationWithRequest,
+        ).not.toHaveBeenCalled();
         for (const query of queries)
             expect(
                 registry.get(query.sourceType).submitQuery,

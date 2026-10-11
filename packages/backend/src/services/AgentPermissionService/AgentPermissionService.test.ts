@@ -41,6 +41,14 @@ const setup = () => {
         featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
         agentCapabilityPolicyModel: {
             get: vi.fn().mockResolvedValue(policy),
+            getForEnforcement: vi.fn().mockImplementation(async () => ({
+                ...policy,
+                storedAllowedGroupUuids: policy.allowedGroupUuids,
+                hasExistingAllowedGroup:
+                    policy.allowedGroupUuids === null
+                        ? null
+                        : policy.allowedGroupUuids.length > 0,
+            })),
             save: vi.fn(),
         },
         userModel: {
@@ -84,9 +92,9 @@ test.each(['off', 'legacy'] as const)(
             service.assertOperation({ ...operation, key: 'unknown' }),
         ).resolves.toBeUndefined();
         expect(deps.groupsModel.findUserInGroups).not.toHaveBeenCalled();
-        expect(deps.agentCapabilityPolicyModel.get).toHaveBeenCalledTimes(
-            mode === 'off' ? 0 : 1,
-        );
+        expect(
+            deps.agentCapabilityPolicyModel.getForEnforcement,
+        ).toHaveBeenCalledTimes(mode === 'off' ? 0 : 1);
         expect(deps.projectModel.getSummary).not.toHaveBeenCalled();
         expect(deps.userModel.getAgentRoleAssignments).not.toHaveBeenCalled();
         expect(deps.getOrganizationSettings).not.toHaveBeenCalled();
@@ -410,7 +418,9 @@ test.each(['off', 'legacy', 'managed'] as const)(
         expect(deps.userModel.getAgentRoleAssignments).not.toHaveBeenCalled();
         expect(deps.projectModel.getSummary).not.toHaveBeenCalled();
         if (mode === 'off')
-            expect(deps.agentCapabilityPolicyModel.get).not.toHaveBeenCalled();
+            expect(
+                deps.agentCapabilityPolicyModel.getForEnforcement,
+            ).not.toHaveBeenCalled();
     },
 );
 
@@ -977,7 +987,12 @@ test.each([false, true])(
                 : [{ action: 'view', subject: 'Project' }],
         );
         const resolved = await service.resolvePolicy(operation);
-        vi.spyOn(service, 'resolvePolicy').mockResolvedValue({
+        vi.spyOn(
+            service as unknown as {
+                resolveManagedPolicy: AgentPermissionService['resolvePolicy'];
+            },
+            'resolveManagedPolicy',
+        ).mockResolvedValue({
             ...resolved,
             editableCustomRoleUuid: 'custom-role',
         });
@@ -1015,7 +1030,12 @@ test('runtime sanitization preserves primary custom-role links', async () => {
     const { service, operation, account } = setup();
     account.user.ability = new Ability<PossibleAbilities>([]);
     const resolved = await service.resolvePolicy(operation);
-    vi.spyOn(service, 'resolvePolicy').mockResolvedValue({
+    vi.spyOn(
+        service as unknown as {
+            resolveManagedPolicy: AgentPermissionService['resolvePolicy'];
+        },
+        'resolveManagedPolicy',
+    ).mockResolvedValue({
         ...resolved,
         editableCustomRoleUuid: 'custom-role',
     });
@@ -1048,9 +1068,9 @@ test.each(['allowed', 'off', 'legacy'] as const)(
         await refusalFrom(service.assertOperation(operation));
         const managed = scenario !== 'off' && scenario !== 'legacy';
         expect(deps.featureFlagModel.get).toHaveBeenCalledTimes(1);
-        expect(deps.agentCapabilityPolicyModel.get).toHaveBeenCalledTimes(
-            scenario === 'off' ? 0 : 1,
-        );
+        expect(
+            deps.agentCapabilityPolicyModel.getForEnforcement,
+        ).toHaveBeenCalledTimes(scenario === 'off' ? 0 : 1);
         expect(deps.userModel.getAgentRoleAssignments).toHaveBeenCalledTimes(
             managed ? 1 : 0,
         );
@@ -1088,7 +1108,9 @@ test('raw SQL with its role grant only reads the remaining policy inputs', async
     policy.systemRoleMatrix.viewer = [AgentCapability.RawSql];
     await expect(service.assertOperation(operation)).resolves.toBeUndefined();
     expect(deps.featureFlagModel.get).toHaveBeenCalledTimes(1);
-    expect(deps.agentCapabilityPolicyModel.get).toHaveBeenCalledTimes(1);
+    expect(
+        deps.agentCapabilityPolicyModel.getForEnforcement,
+    ).toHaveBeenCalledTimes(1);
     expect(
         deps.userModel.getAgentRoleAssignments,
     ).toHaveBeenCalledExactlyOnceWith(
@@ -1179,7 +1201,9 @@ test.each([true, false])(
             });
             expect(deps.agentActionLogModel.insert).toHaveBeenCalledOnce();
         }
-        expect(deps.agentCapabilityPolicyModel.get).toHaveBeenCalledOnce();
+        expect(
+            deps.agentCapabilityPolicyModel.getForEnforcement,
+        ).toHaveBeenCalledOnce();
         expect(
             deps.groupsModel.findUserInGroups,
         ).toHaveBeenCalledExactlyOnceWith({
@@ -1288,7 +1312,9 @@ test('flag off ignores even a saved group restriction without policy or membersh
     deps.featureFlagModel.get.mockResolvedValue({ enabled: false });
     await service.assertOperation(operation);
     await service.assertActorVerified({ ...operation, actorVerified: false });
-    expect(deps.agentCapabilityPolicyModel.get).not.toHaveBeenCalled();
+    expect(
+        deps.agentCapabilityPolicyModel.getForEnforcement,
+    ).not.toHaveBeenCalled();
     expect(deps.groupsModel.findUserInGroups).not.toHaveBeenCalled();
 });
 
@@ -1373,9 +1399,9 @@ test.each([
             });
         else await expect(operation).resolves.toBeUndefined();
         expect(h.deps.featureFlagModel.get).toHaveBeenCalledOnce();
-        expect(h.deps.agentCapabilityPolicyModel.get).toHaveBeenCalledTimes(
-            policies,
-        );
+        expect(
+            h.deps.agentCapabilityPolicyModel.getForEnforcement,
+        ).toHaveBeenCalledTimes(policies);
         expect(h.deps.groupsModel.findUserInGroups).toHaveBeenCalledTimes(
             memberships,
         );

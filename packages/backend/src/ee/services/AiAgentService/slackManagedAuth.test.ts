@@ -4,11 +4,18 @@ import {
     type AgentCapabilityPolicy,
 } from '@lightdash/common';
 import type { WebClient } from '@slack/web-api';
+import knex from 'knex';
+import { getTracker, MockClient } from 'knex-mock-client';
+import { fromSession } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import {
     AgentPermissionService,
     agentSystemRoleMatrix,
 } from '../../../services/AgentPermissionService/AgentPermissionService';
+import {
+    expectAdmissionSql,
+    setupPermissionSql,
+} from '../../../services/AgentPermissionService/agentPermissionSqlFixture';
 import { AiAgentService } from './AiAgentService';
 
 const siteUrl = 'https://example.com';
@@ -31,7 +38,17 @@ const setup = ({
     const insert = vi.fn().mockResolvedValue(undefined);
     const permissions = new AgentPermissionService({
         featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled }) },
-        agentCapabilityPolicyModel: { get: vi.fn().mockResolvedValue(policy) },
+        agentCapabilityPolicyModel: {
+            get: vi.fn().mockResolvedValue(policy),
+            getForEnforcement: vi.fn().mockImplementation(async () => ({
+                ...policy,
+                storedAllowedGroupUuids: policy.allowedGroupUuids,
+                hasExistingAllowedGroup:
+                    policy.allowedGroupUuids === null
+                        ? null
+                        : policy.allowedGroupUuids.length > 0,
+            })),
+        },
         agentActionLogModel: { insert },
     } as unknown as ConstructorParameters<typeof AgentPermissionService>[0]);
     const findIdentityByOpenId = vi
@@ -609,3 +626,31 @@ test('legacy restriction uses the verified Slack sender', async () => {
         'org',
     );
 });
+
+const admissionDatabase = knex({ client: MockClient, dialect: 'pg' });
+const admissionTracker = getTracker();
+beforeEach(() => admissionTracker.reset());
+afterAll(async () => admissionDatabase.destroy());
+
+test.each([true, false])(
+    'Slack initial auth preserves the OAuth policy short circuit: required %s',
+    async (requireOAuth) => {
+        const h = setup({ requireOAuth, linked: false });
+        const sql = setupPermissionSql(
+            admissionDatabase,
+            admissionTracker,
+            fromSession(defaultSessionUser),
+        );
+        Object.assign(h.service, { agentPermissionService: sql.service });
+        await expect(h.auth(undefined)).resolves.toBeNull();
+        expectAdmissionSql(admissionTracker, {
+            policy: requireOAuth ? 0 : 1,
+            groups: 0,
+            people: 0,
+            membership: 0,
+        });
+        expect(sql.deps.agentActionLogModel.insert).toHaveBeenCalledTimes(
+            requireOAuth ? 0 : 1,
+        );
+    },
+);

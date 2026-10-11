@@ -137,18 +137,21 @@ const assertOAuthAgentOperation = async (req: Request): Promise<void> => {
         assertOAuthScopeOperation(account, scopeOperation);
     if (isMcpRequest(req)) return;
     const service = req.services.getAgentPermissionService();
-    const mode = await service.getEnforcementMode(
+    const request = await service.loadRequest(
         account.organization.organizationUuid,
     );
-    if (mode === 'off') return;
-    if (mode === 'admission') {
-        await service.assertOperation({
-            account,
-            organizationUuid: account.organization.organizationUuid,
-            projectUuid: null,
-            kind: 'rest_operation',
-            key: operation ?? 'unknown',
-            surface: AgentActorSurface.API,
+    if (request.enforcementMode === 'off') return;
+    if (request.enforcementMode === 'admission') {
+        await service.assertOperationWithRequest({
+            request,
+            operation: {
+                account,
+                organizationUuid: account.organization.organizationUuid,
+                projectUuid: null,
+                kind: 'rest_operation',
+                key: operation ?? 'unknown',
+                surface: AgentActorSurface.API,
+            },
         });
         return;
     }
@@ -158,14 +161,17 @@ const assertOAuthAgentOperation = async (req: Request): Promise<void> => {
         await Promise.all(
             (grantProjectUuids.length === 0 ? [null] : grantProjectUuids).map(
                 (projectUuid) =>
-                    service.assertOperation({
-                        account,
-                        organizationUuid:
-                            account.organization.organizationUuid!,
-                        projectUuid,
-                        kind: 'rest_operation',
-                        key: operation ?? 'unknown',
-                        surface: AgentActorSurface.CLI,
+                    service.assertOperationWithRequest({
+                        request,
+                        operation: {
+                            account,
+                            organizationUuid:
+                                account.organization.organizationUuid!,
+                            projectUuid,
+                            kind: 'rest_operation',
+                            key: operation ?? 'unknown',
+                            surface: AgentActorSurface.CLI,
+                        },
                     }),
             ),
         );
@@ -180,13 +186,16 @@ const assertOAuthAgentOperation = async (req: Request): Promise<void> => {
         if (resource)
             projectUuid = await service.resolveResourceProjectUuid(resource);
     }
-    await service.assertOperation({
-        account,
-        organizationUuid: account.organization.organizationUuid,
-        projectUuid,
-        kind: 'rest_operation',
-        key: operation ?? 'unknown',
-        surface: AgentActorSurface.API,
+    await service.assertOperationWithRequest({
+        request,
+        operation: {
+            account,
+            organizationUuid: account.organization.organizationUuid,
+            projectUuid,
+            kind: 'rest_operation',
+            key: operation ?? 'unknown',
+            surface: AgentActorSurface.API,
+        },
     });
 };
 

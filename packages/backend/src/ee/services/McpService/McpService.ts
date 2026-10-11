@@ -469,7 +469,7 @@ export type ExtraContext = {
     account: RegisteredAccount;
     getAgentPermissionService?: () => Pick<
         AgentPermissionService,
-        'getEnforcementMode' | 'assertOperation'
+        'loadRequest' | 'assertOperationWithRequest'
     >;
     /** User attribute overrides passed via X-Lightdash-User-Attributes header */
     headerUserAttributes?: UserAttributeValueMap;
@@ -5575,16 +5575,19 @@ export class McpService extends BaseService {
         const bound =
             account.authentication.type === 'oauth' &&
             account.authentication.agentConnectionGrant != null;
-        const mode = await permissions.getEnforcementMode(organizationUuid);
-        if (!bound && mode === 'off') return;
-        if (!bound && mode === 'admission') {
-            await permissions.assertOperation({
-                account,
-                organizationUuid,
-                projectUuid: null,
-                kind: 'mcp_tool',
-                key: toolName,
-                surface: AgentActorSurface.MCP,
+        const request = await permissions.loadRequest(organizationUuid);
+        if (!bound && request.enforcementMode === 'off') return;
+        if (!bound && request.enforcementMode === 'admission') {
+            await permissions.assertOperationWithRequest({
+                request,
+                operation: {
+                    account,
+                    organizationUuid,
+                    projectUuid: null,
+                    kind: 'mcp_tool',
+                    key: toolName,
+                    surface: AgentActorSurface.MCP,
+                },
             });
             return;
         }
@@ -5607,14 +5610,17 @@ export class McpService extends BaseService {
             key: toolName,
             projectUuids: projectUuid === null ? [] : [projectUuid],
         });
-        if (mode === 'off') return;
-        await permissions.assertOperation({
-            account,
-            organizationUuid,
-            projectUuid,
-            kind: 'mcp_tool',
-            key: toolName,
-            surface: AgentActorSurface.MCP,
+        if (request.enforcementMode === 'off') return;
+        await permissions.assertOperationWithRequest({
+            request,
+            operation: {
+                account,
+                organizationUuid,
+                projectUuid,
+                kind: 'mcp_tool',
+                key: toolName,
+                surface: AgentActorSurface.MCP,
+            },
         });
     }
 

@@ -255,10 +255,10 @@ describe('McpService AI writeback MCP tasks', () => {
                                     authentication: { type },
                                 },
                                 getAgentPermissionService: () => ({
-                                    getEnforcementMode: vi
-                                        .fn()
-                                        .mockResolvedValue('managed'),
-                                    assertOperation: vi
+                                    loadRequest: vi.fn().mockResolvedValue({
+                                        enforcementMode: 'managed',
+                                    }),
+                                    assertOperationWithRequest: vi
                                         .fn()
                                         .mockResolvedValue(undefined),
                                 }),

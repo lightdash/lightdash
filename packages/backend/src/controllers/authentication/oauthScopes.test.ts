@@ -181,8 +181,10 @@ const start = async (
             getUserService: () => ({ findSessionUser: async () => user }),
             getFeatureFlagService: () => ({ get: getFlag }),
             getAgentPermissionService: () => ({
-                getEnforcementMode: vi.fn().mockResolvedValue('off'),
-                assertOperation: vi.fn(),
+                loadRequest: vi
+                    .fn()
+                    .mockResolvedValue({ enforcementMode: 'off' }),
+                assertOperationWithRequest: vi.fn(),
             }),
         } as unknown as Request['services'];
         next();

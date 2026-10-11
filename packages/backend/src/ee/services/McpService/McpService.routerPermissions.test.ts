@@ -55,8 +55,10 @@ test.each(['oauth', 'pat', 'service-account'] as const)(
             AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
         );
         const permissions = {
-            getEnforcementMode: vi.fn().mockResolvedValue('managed'),
-            assertOperation: vi.fn().mockRejectedValue(refusal),
+            loadRequest: vi
+                .fn()
+                .mockResolvedValue({ enforcementMode: 'managed' }),
+            assertOperationWithRequest: vi.fn().mockRejectedValue(refusal),
         };
         const getAgentPermissionService = vi.fn(() => permissions);
         const service = Object.assign(Object.create(McpService.prototype), {
@@ -134,14 +136,18 @@ test.each(['oauth', 'pat', 'service-account'] as const)(
                 expect.objectContaining({ toolArgs: {}, status: 'error' }),
             );
             expect(getAgentPermissionService).toHaveBeenCalledOnce();
-            expect(permissions.assertOperation).toHaveBeenCalledWith({
-                account,
-                organizationUuid: user.organizationUuid,
-                projectUuid,
-                kind: 'mcp_tool',
-                key: 'run_sql',
-                surface: AgentActorSurface.MCP,
-            });
+            expect(permissions.assertOperationWithRequest).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    operation: {
+                        account,
+                        organizationUuid: user.organizationUuid,
+                        projectUuid,
+                        kind: 'mcp_tool',
+                        key: 'run_sql',
+                        surface: AgentActorSurface.MCP,
+                    },
+                }),
+            );
         } else {
             expect(result).toEqual({ content: [] });
             expect(handler).toHaveBeenCalledOnce();
@@ -161,8 +167,8 @@ test('records handler identity refusals against the explicit project instead of 
         AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
     );
     const permissions = {
-        getEnforcementMode: vi.fn().mockResolvedValue('managed'),
-        assertOperation: vi.fn().mockResolvedValue(undefined),
+        loadRequest: vi.fn().mockResolvedValue({ enforcementMode: 'managed' }),
+        assertOperationWithRequest: vi.fn().mockResolvedValue(undefined),
     };
     const mcpToolCallModel = {
         createToolCall: vi.fn().mockResolvedValue(undefined),

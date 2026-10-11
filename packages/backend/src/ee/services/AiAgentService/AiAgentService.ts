@@ -300,7 +300,10 @@ import { SpaceModel } from '../../../models/SpaceModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { UserModel } from '../../../models/UserModel';
 import PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
-import { type AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
+import {
+    type AgentPermissionRequest,
+    type AgentPermissionService,
+} from '../../../services/AgentPermissionService/AgentPermissionService';
 import {
     agentExecutionContext,
     buildResultReader,
@@ -840,7 +843,10 @@ type EmbedAiAgentRuntimeOptions = {
 type AiAgentServiceDependencies = {
     agentPermissionService: Pick<
         AgentPermissionService,
-        'assertOperation' | 'assertActorVerified' | 'isEnforced'
+        | 'assertOperation'
+        | 'loadRequest'
+        | 'assertOperationWithRequest'
+        | 'assertActorVerifiedWithRequest'
     >;
     aiAgentModel: AiAgentModel;
     appModel: Pick<
@@ -15051,96 +15057,112 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 agentIdentityEnabled,
             }),
             async (): Promise<string | AgentResponseStream> => {
-                if (isSlackPrompt(prompt)) {
-                    const actorContext = {
-                        account: fromSession(user),
-                        organizationUuid,
-                        projectUuid: agentSettings.projectUuid,
-                    };
-                    if (
-                        await this.agentPermissionService.isEnforced(
+                {
+                    let slackRequest: AgentPermissionRequest | null = null;
+                    if (isSlackPrompt(prompt)) {
+                        const actorContext = {
+                            account: fromSession(user),
                             organizationUuid,
-                        )
-                    ) {
-                        const senderIdentity =
-                            await this.openIdIdentityModel.findIdentityByOpenId(
-                                OpenIdIdentityIssuerType.SLACK,
-                                prompt.slackUserId,
+                            projectUuid: agentSettings.projectUuid,
+                        };
+                        slackRequest =
+                            await this.agentPermissionService.loadRequest(
+                                organizationUuid,
                             );
-                        try {
-                            await this.agentPermissionService.assertActorVerified(
-                                {
-                                    ...actorContext,
-                                    kind: 'agent_tool',
-                                    key: 'slack_prompt',
-                                    surface: AgentActorSurface.SLACK_AGENT,
-                                    actorVerified:
-                                        senderIdentity?.userUuid ===
-                                        user.userUuid,
-                                },
-                            );
-                        } catch (error) {
-                            if (error instanceof AiAccessRefusedError) {
-                                let refusalError = error;
-                                if (
-                                    error.refusal.reason ===
-                                    AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED
-                                ) {
-                                    const installation =
-                                        await this.slackAuthenticationModel.getRawInstallationFromOrganizationUuid(
-                                            organizationUuid,
-                                        );
-                                    const teamId =
-                                        installation?.isEnterpriseInstall
-                                            ? installation.enterprise?.id
-                                            : installation?.team?.id;
-                                    if (teamId) {
-                                        refusalError = new AiAccessRefusedError(
-                                            error.refusal.reason,
-                                            {
-                                                ...error.refusal,
-                                                connectUrl:
-                                                    this.getSlackAccountConnectUrl(
-                                                        {
-                                                            teamId,
-                                                            channelId:
-                                                                prompt.slackChannelId,
-                                                            messageId:
-                                                                prompt.promptSlackTs,
-                                                            threadTs:
-                                                                prompt.slackThreadTs ??
-                                                                null,
-                                                        },
-                                                    ),
-                                            },
-                                        );
-                                    }
-                                }
-                                options.onSlackAccessRefusal?.(
-                                    refusalError.refusal,
+                        if (slackRequest.enforcementMode !== 'off') {
+                            const senderIdentity =
+                                await this.openIdIdentityModel.findIdentityByOpenId(
+                                    OpenIdIdentityIssuerType.SLACK,
+                                    prompt.slackUserId,
                                 );
-                                throw refusalError;
+                            try {
+                                await this.agentPermissionService.assertActorVerifiedWithRequest(
+                                    {
+                                        request: slackRequest,
+                                        operation: {
+                                            ...actorContext,
+                                            kind: 'agent_tool',
+                                            key: 'slack_prompt',
+                                            surface:
+                                                AgentActorSurface.SLACK_AGENT,
+                                            actorVerified:
+                                                senderIdentity?.userUuid ===
+                                                user.userUuid,
+                                        },
+                                    },
+                                );
+                            } catch (error) {
+                                if (error instanceof AiAccessRefusedError) {
+                                    let refusalError = error;
+                                    if (
+                                        error.refusal.reason ===
+                                        AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED
+                                    ) {
+                                        const installation =
+                                            await this.slackAuthenticationModel.getRawInstallationFromOrganizationUuid(
+                                                organizationUuid,
+                                            );
+                                        const teamId =
+                                            installation?.isEnterpriseInstall
+                                                ? installation.enterprise?.id
+                                                : installation?.team?.id;
+                                        if (teamId) {
+                                            refusalError =
+                                                new AiAccessRefusedError(
+                                                    error.refusal.reason,
+                                                    {
+                                                        ...error.refusal,
+                                                        connectUrl:
+                                                            this.getSlackAccountConnectUrl(
+                                                                {
+                                                                    teamId,
+                                                                    channelId:
+                                                                        prompt.slackChannelId,
+                                                                    messageId:
+                                                                        prompt.promptSlackTs,
+                                                                    threadTs:
+                                                                        prompt.slackThreadTs ??
+                                                                        null,
+                                                                },
+                                                            ),
+                                                    },
+                                                );
+                                        }
+                                    }
+                                    options.onSlackAccessRefusal?.(
+                                        refusalError.refusal,
+                                    );
+                                    throw refusalError;
+                                }
+                                throw error;
                             }
-                            throw error;
                         }
                     }
-                }
-                try {
-                    await this.agentPermissionService.assertOperation({
-                        account: fromSession(user),
-                        organizationUuid,
-                        projectUuid: agentSettings.projectUuid,
-                        kind: 'agent_turn',
-                        key: 'agent_turn',
-                        surface: isSlackPrompt(prompt)
-                            ? AgentActorSurface.SLACK_AGENT
-                            : AgentActorSurface.IN_APP_AGENT,
-                    });
-                } catch (error) {
-                    if (error instanceof AiAccessRefusedError) {
-                        options.onSlackAccessRefusal?.(error.refusal);
+                    try {
+                        const operation = {
+                            account: fromSession(user),
+                            organizationUuid,
+                            projectUuid: agentSettings.projectUuid,
+                            kind: 'agent_turn',
+                            key: 'agent_turn',
+                            surface: isSlackPrompt(prompt)
+                                ? AgentActorSurface.SLACK_AGENT
+                                : AgentActorSurface.IN_APP_AGENT,
+                        } as const;
+                        if (slackRequest === null)
+                            await this.agentPermissionService.assertOperation(
+                                operation,
+                            );
+                        else
+                            await this.agentPermissionService.assertOperationWithRequest(
+                                { request: slackRequest, operation },
+                            );
+                    } catch (error) {
+                        if (error instanceof AiAccessRefusedError) {
+                            options.onSlackAccessRefusal?.(error.refusal);
+                        }
+                        throw error;
                     }
-                    throw error;
                 }
                 const battleProfile = isSlackPrompt(prompt)
                     ? null
@@ -21695,12 +21717,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
         let observedIdentity: OpenIdIdentity | null = null;
         try {
             const aiRequireOAuth = slackSettings?.aiRequireOAuth;
-            if (
-                !aiRequireOAuth &&
-                !(await this.agentPermissionService.isEnforced(
-                    organizationUuid,
-                ))
-            ) {
+            const request = aiRequireOAuth
+                ? null
+                : await this.agentPermissionService.loadRequest(
+                      organizationUuid,
+                  );
+            if (request?.enforcementMode === 'off') {
                 result = 'oauth_not_required';
                 return {
                     userUuid:
@@ -21716,7 +21738,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             observedIdentity = openIdIdentity;
 
             if (!openIdIdentity) {
-                if (!aiRequireOAuth) {
+                if (request !== null) {
                     const installerUuid =
                         await this.slackAuthenticationModel.getUserUuid(teamId);
                     const installer =
@@ -21725,15 +21747,20 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             organizationUuid,
                         );
                     try {
-                        await this.agentPermissionService.assertActorVerified({
-                            account: fromSession(installer),
-                            organizationUuid,
-                            projectUuid: null,
-                            kind: 'agent_tool',
-                            key: 'slack_prompt',
-                            surface: AgentActorSurface.SLACK_AGENT,
-                            actorVerified: false,
-                        });
+                        await this.agentPermissionService.assertActorVerifiedWithRequest(
+                            {
+                                request,
+                                operation: {
+                                    account: fromSession(installer),
+                                    organizationUuid,
+                                    projectUuid: null,
+                                    kind: 'agent_tool',
+                                    key: 'slack_prompt',
+                                    surface: AgentActorSurface.SLACK_AGENT,
+                                    actorVerified: false,
+                                },
+                            },
+                        );
                     } catch (error) {
                         if (!(error instanceof AiAccessRefusedError))
                             throw error;
