@@ -1,3 +1,10 @@
+## [2.557.1](https://github.com/lightdash/lightdash/compare/2.557.0...2.557.1) (2026-10-11)
+
+
+### Performance Improvements
+
+* **agent-identity:** read the agent policy once per admission check ([#30900](https://github.com/lightdash/lightdash/issues/30900)) ([5cc181e](https://github.com/lightdash/lightdash/commit/5cc181ed483a12af158375fb2b807fb6c7cb475b))
+
 # [2.557.0](https://github.com/lightdash/lightdash/compare/2.556.0...2.557.0) (2026-10-11)
 
 
