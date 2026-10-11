@@ -1,3 +1,10 @@
+# [2.564.0](https://github.com/lightdash/lightdash/compare/2.563.0...2.564.0) (2026-10-11)
+
+
+### Features
+
+* **agent-identity:** dbt writeback jobs recheck the person before they publish ([#30909](https://github.com/lightdash/lightdash/issues/30909)) ([79d857f](https://github.com/lightdash/lightdash/commit/79d857f381e6916cc16d792782eca1e7e0be671b))
+
 # [2.563.0](https://github.com/lightdash/lightdash/compare/2.562.0...2.563.0) (2026-10-11)
 
 
