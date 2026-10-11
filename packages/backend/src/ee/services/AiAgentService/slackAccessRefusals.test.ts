@@ -278,15 +278,13 @@ describe.each([false, true])(
                     const update = vi.fn().mockImplementation((data) => {
                         Object.assign(row, data);
                         return {
-                            where: vi
-                                .fn()
-                                .mockReturnValue({
-                                    returning: vi
-                                        .fn()
-                                        .mockResolvedValue([
-                                            { ai_prompt_uuid: 'prompt-1' },
-                                        ]),
-                                }),
+                            where: vi.fn().mockReturnValue({
+                                returning: vi
+                                    .fn()
+                                    .mockResolvedValue([
+                                        { ai_prompt_uuid: 'prompt-1' },
+                                    ]),
+                            }),
                         };
                     });
                     const database = Object.assign(

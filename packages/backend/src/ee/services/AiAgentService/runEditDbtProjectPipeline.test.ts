@@ -648,12 +648,10 @@ it.each(['error', 'refusal'] as const)(
     async (kind) => {
         const h = buildService({
             isSlack: true,
-            run: vi
-                .fn()
-                .mockResolvedValue({
-                    ...WRITEBACK_RESULT,
-                    needsDbtSourceSelection: true,
-                }),
+            run: vi.fn().mockResolvedValue({
+                ...WRITEBACK_RESULT,
+                needsDbtSourceSelection: true,
+            }),
         });
         const error =
             kind === 'refusal'

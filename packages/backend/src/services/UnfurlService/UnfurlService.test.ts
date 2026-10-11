@@ -327,7 +327,9 @@ describe('UnfurlService', () => {
                     }),
                 ).rejects.toBe(refusal);
                 expect(assert).toHaveBeenCalledTimes(1);
-                expect(mockFileStorageClient.uploadImage).not.toHaveBeenCalled();
+                expect(
+                    mockFileStorageClient.uploadImage,
+                ).not.toHaveBeenCalled();
                 expect(mockSlackUnfurlImageModel.create).not.toHaveBeenCalled();
                 expect(
                     mockDownloadFileModel.createDownloadFile,
