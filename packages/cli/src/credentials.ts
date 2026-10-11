@@ -21,6 +21,11 @@ export const requireInvocationContext = (): void => {
             'An agent connection is selected for this run, so this request cannot use your personal CLI login.',
         );
 };
+const isThenable = (value: unknown): value is PromiseLike<unknown> =>
+    typeof value === 'object' &&
+    value !== null &&
+    'then' in value &&
+    typeof value.then === 'function';
 export const validateAgentConnectionSelection = (
     selection: string | null,
 ): string | null => {
@@ -35,16 +40,30 @@ export const validateAgentConnectionSelection = (
 };
 export const runWithParsedAgentConnectionSelection = <T>(
     readSelection: () => string | null,
+    mayBeSelected: boolean,
     action: () => T,
 ): T => {
     let captured: { value: string | null } | null = null;
     let counted = false;
-    const release = () => {
+    let settled = false;
+    const count = () => {
+        if (!counted && !settled) {
+            selectedInvocations += 1;
+            counted = true;
+        }
+    };
+    const uncount = () => {
         if (counted) {
             selectedInvocations -= 1;
             counted = false;
         }
     };
+    const release = () => {
+        settled = true;
+        uncount();
+    };
+    // Counted before the selection is parsed, so the guard has no gap.
+    if (mayBeSelected) count();
     return invocations.run(
         {
             get selection() {
@@ -54,10 +73,8 @@ export const runWithParsedAgentConnectionSelection = <T>(
                             readSelection(),
                         ),
                     };
-                    if (captured.value !== null) {
-                        selectedInvocations += 1;
-                        counted = true;
-                    }
+                    if (captured.value === null) uncount();
+                    else count();
                 }
                 return captured.value;
             },
@@ -70,6 +87,10 @@ export const runWithParsedAgentConnectionSelection = <T>(
                 if (result instanceof Promise) {
                     asynchronous = true;
                     return result.finally(release) as T;
+                }
+                if (isThenable(result)) {
+                    asynchronous = true;
+                    Promise.resolve(result).then(release, release);
                 }
                 return result;
             } finally {
@@ -93,6 +114,7 @@ export const runWithAgentConnectionSelection = <T>(
 ): T =>
     runWithParsedAgentConnectionSelection(
         () => selection,
+        selection !== null,
         () => {
             getAgentConnectionSelection();
             return action();

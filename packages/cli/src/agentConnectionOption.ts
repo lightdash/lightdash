@@ -42,6 +42,10 @@ export const registerAgentConnectionOption = (
                     throw new Error('Invalid agent connection selection.');
                 return selection ?? environmentSelection;
             },
+            environmentSelection !== null ||
+                (args[0] ?? process.argv).some((argument) =>
+                    argument.startsWith('--agent-connection'),
+                ),
             () => parseAsync.apply(this, args),
         );
     };

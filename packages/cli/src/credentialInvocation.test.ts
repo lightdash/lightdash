@@ -1,3 +1,4 @@
+import { AsyncResource } from 'async_hooks';
 import { Command } from 'commander';
 import { registerAgentConnectionOption } from './agentConnectionOption';
 import { slotFixture } from './agentConnections/fixtures';
@@ -7,6 +8,7 @@ import {
     getAgentConnectionSelection,
     resolveCredential,
     runWithAgentConnectionSelection,
+    runWithParsedAgentConnectionSelection,
 } from './credentials';
 import { lightdashRawApi } from './handlers/dbt/apiClient';
 import {
@@ -294,4 +296,84 @@ it.each([
         held.resume();
         await held.running;
     }
+});
+
+const guard =
+    'An agent connection is selected for this run, so this request cannot use your personal CLI login.';
+it('keeps the guard while a non-native thenable action is still pending', async () => {
+    const outside = new AsyncResource('outside');
+    let finish: () => void = () => {};
+    const pending = new Promise<void>((resolve) => {
+        finish = resolve;
+    });
+    const result = runWithAgentConnectionSelection(slot.name, () => ({
+        // oxlint-disable-next-line unicorn/no-thenable
+        then: pending.then.bind(pending),
+    }));
+    await expect(outside.runInAsyncScope(request)).rejects.toThrow(guard);
+    expect(mocks.fetch).not.toHaveBeenCalled();
+    finish();
+    await result;
+    await Promise.resolve();
+    await outside.runInAsyncScope(request);
+    expect(
+        mocks.fetch.mock.calls.map(([, init]) => init.headers.Authorization),
+    ).toEqual(['ApiKey ordinary-key']);
+});
+it('guards storeless calls before the selection is first read', async () => {
+    const outside = new AsyncResource('outside');
+    await expect(
+        runWithParsedAgentConnectionSelection(
+            () => slot.name,
+            true,
+            () => outside.runInAsyncScope(request),
+        ),
+    ).rejects.toThrow(guard);
+    expect(mocks.fetch).not.toHaveBeenCalled();
+});
+it('guards a pre-action host hook on a flag-selected parse', async () => {
+    const outside = new AsyncResource('outside');
+    const command = program();
+    command.hook('preSubcommand', () =>
+        outside.runInAsyncScope(async () => {
+            await request();
+        }),
+    );
+    await expect(
+        command.parseAsync(['--agent-connection', slot.name, 'read'], {
+            from: 'user',
+        }),
+    ).rejects.toThrow(guard);
+    expect(mocks.fetch).not.toHaveBeenCalled();
+});
+it('stops guarding once a possibly selected parse turns out ordinary', async () => {
+    const outside = new AsyncResource('outside');
+    await runWithParsedAgentConnectionSelection(
+        () => null,
+        true,
+        async () => {
+            getAgentConnectionSelection();
+            await outside.runInAsyncScope(request);
+        },
+    );
+    expect(
+        mocks.fetch.mock.calls.map(([, init]) => init.headers.Authorization),
+    ).toEqual(['ApiKey ordinary-key']);
+});
+it('does not block later ordinary calls when the selection is first read after return', async () => {
+    let late: () => void = () => {};
+    runWithParsedAgentConnectionSelection(
+        () => slot.name,
+        false,
+        () => {
+            late = AsyncResource.bind(() => {
+                getAgentConnectionSelection();
+            });
+        },
+    );
+    late();
+    await request();
+    expect(
+        mocks.fetch.mock.calls.map(([, init]) => init.headers.Authorization),
+    ).toEqual(['ApiKey ordinary-key']);
 });
