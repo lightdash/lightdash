@@ -44,6 +44,7 @@ import path from 'path';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { preAggregatePostProcessor } from '../ee/preAggregates/postProcessor';
 import Logger from '../logging/logger';
+import { agentExecutionContext } from '../services/AiAccessService/agentExecutionContext';
 import { traceSpan } from '../tracing/tracing';
 import {
     CachedWarehouse,
@@ -500,7 +501,10 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         // refetch again on domain-less warehouses.
         ensureCatalogTimestampDomainsKey(warehouseCatalog);
         setCatalogMissingEntries(warehouseCatalog, missingEntries);
-        await this.cachedWarehouse?.onWarehouseCatalogChange(warehouseCatalog);
+        if (!agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.cachedWarehouse?.onWarehouseCatalogChange(
+                warehouseCatalog,
+            );
 
         return attachTypesToModels(
             models,

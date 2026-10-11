@@ -9,6 +9,7 @@ import {
     NotFoundError,
     ProjectType,
     SessionUser,
+    type AgentConnectionTaskEffect,
     type ApiDeployExploresResults,
     type ProjectDefaults,
     type WeekDay,
@@ -16,6 +17,8 @@ import {
 import { DeploySessionModel } from '../models/DeploySessionModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { SchedulerClient } from '../scheduler/SchedulerClient';
+import { captureAgentConnectionTask } from '../utils/agentConnectionExecution';
+import { agentExecutionContext } from './AiAccessService/agentExecutionContext';
 import { BaseService } from './BaseService';
 import { NO_CLI_DEPLOY_SELECTION, type CliDeploySelection } from './cliDeploy';
 
@@ -25,6 +28,14 @@ export type DeployExploreEnhancer = (
 ) => (Explore | ExploreError)[];
 
 type ProjectServiceInterface = {
+    assertAgentConnectionEffect: (
+        projectUuid: string,
+        effect: AgentConnectionTaskEffect,
+    ) => Promise<unknown>;
+    assertConnectionPreAggregateRefresh: (
+        projectUuid: string,
+        explores?: (Explore | ExploreError)[],
+    ) => Promise<void>;
     saveDeployExplores: (args: {
         userUuid: string;
         projectUuid: string;
@@ -123,6 +134,11 @@ export class DeployService extends BaseService {
             );
         }
 
+        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.projectService.assertConnectionPreAggregateRefresh(
+                projectUuid,
+            );
+
         // Create a new deploy session
         const sessionUuid = await this.deploySessionModel.createSession(
             projectUuid,
@@ -146,6 +162,11 @@ export class DeployService extends BaseService {
         batchNumber: number,
         complete?: boolean,
     ): Promise<{ batchNumber: number; exploreCount: number }> {
+        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.projectService.assertConnectionPreAggregateRefresh(
+                projectUuid,
+                explores,
+            );
         try {
             const session =
                 await this.deploySessionModel.getSession(sessionUuid);
@@ -241,6 +262,17 @@ export class DeployService extends BaseService {
             );
         }
 
+        if (agentExecutionContext.getStore()?.agentConnectionExecution) {
+            await this.projectService.assertConnectionPreAggregateRefresh(
+                projectUuid,
+            );
+            const data =
+                await this.deploySessionModel.getDeployData(sessionUuid);
+            await this.projectService.assertConnectionPreAggregateRefresh(
+                projectUuid,
+                data.explores,
+            );
+        }
         try {
             // Update status to finalizing
             await this.deploySessionModel.updateStatus(
@@ -280,7 +312,16 @@ export class DeployService extends BaseService {
             });
 
             // Schedule validation (same as in original finalizeDeploy)
+            if (agentExecutionContext.getStore()?.agentConnectionExecution)
+                await this.projectService.assertAgentConnectionEffect(
+                    projectUuid,
+                    'validateProject',
+                );
             await this.schedulerClient.generateValidation({
+                ...captureAgentConnectionTask('validateProject', {
+                    userUuid: user.userUuid,
+                    organizationUuid: project.organizationUuid,
+                }),
                 userUuid: user.userUuid,
                 projectUuid,
                 context: 'cli',

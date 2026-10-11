@@ -17,6 +17,7 @@ import {
     getSqlResultEntitlementFingerprint,
     type ResultEntitlementScope,
 } from '../../utils/queryResultProducer';
+import { agentExecutionContext } from './agentExecutionContext';
 
 export type QueryResultNodeKind = 'semantic' | 'sql' | 'derived';
 
@@ -65,6 +66,8 @@ export const getQueryResultRequestParameters = (
     cacheSourceQueryUuid: undefined,
     externalSourceReferences: undefined,
     ...trusted,
+    agentConnectionExecution:
+        agentExecutionContext.getStore()?.agentConnectionExecution ?? undefined,
 });
 
 export const getQueryResultEntitlementFingerprint = ({

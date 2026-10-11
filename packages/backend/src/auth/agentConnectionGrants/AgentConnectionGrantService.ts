@@ -1,8 +1,12 @@
+import { subject } from '@casl/ability';
 import {
+    AGENT_CLIENT_IDS,
+    AgentActorSurface,
     AgentCapability,
     assertUnreachable,
     ForbiddenError,
     QuerySourceType,
+    type AgentConnectionExecution,
     type OAuthAgentConnectionGrant,
     type SessionUser,
 } from '@lightdash/common';
@@ -13,6 +17,13 @@ import { z } from 'zod';
 import Logger from '../../logging/logger';
 import { type AgentConnectionGrantModel } from '../../models/AgentConnectionGrantModel';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import { type UserModel } from '../../models/UserModel';
+import { type AgentPermissionService } from '../../services/AgentPermissionService/AgentPermissionService';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+} from '../../services/AiAccessService/agentExecutionContext';
+import { fromOauth } from '../account/account';
 import { type OAuthTokenBinding } from '../oauthScopes/oauthTokenBinding';
 import { OAuthBearerRefusalError } from '../oauthScopes/security';
 import type { GrantResourceResolver } from './AgentConnectionGrantResourceResolver';
@@ -41,8 +52,150 @@ export class AgentConnectionGrantService {
             >;
             featureFlags: Pick<FeatureFlagModel, 'get'>;
             resourceResolver: GrantResourceResolver;
+            userModel?: Pick<UserModel, 'findSessionUserAndOrgByUuid'>;
+            getAgentPermissionService?: () => Pick<
+                AgentPermissionService,
+                'assertOperation'
+            >;
         },
     ) {}
+
+    async assertActiveExecution(
+        execution: AgentConnectionExecution,
+        {
+            projectUuid,
+            capabilities,
+            recheckOperation,
+        }: {
+            projectUuid: string;
+            capabilities: AgentCapability[];
+            recheckOperation: boolean;
+        },
+    ) {
+        const refuse = () =>
+            new ForbiddenError(
+                'This agent connection is no longer available for this operation.',
+            );
+        const grant = await this.deps.model.findActive(
+            execution.grantUuid,
+            new Date(),
+        );
+        if (
+            !grant ||
+            grant.grantUuid !== execution.grantUuid ||
+            grant.revokedAt !== null ||
+            grant.expiresAt.getTime() <= Date.now() ||
+            grant.grantRevision !== execution.revision ||
+            execution.clientId !== AGENT_CLIENT_IDS[AgentActorSurface.CLI] ||
+            !matchesOAuthGrantBinding(grant, {
+                ...execution,
+                familyUuid: execution.refreshFamilyUuid,
+            }) ||
+            !(await agentConnectionGrantEnabled(this.deps.featureFlags, {
+                userUuid: execution.subjectUserUuid,
+                organizationUuid: execution.organizationUuid,
+            })) ||
+            !this.deps.userModel ||
+            !this.deps.getAgentPermissionService
+        )
+            throw refuse();
+        const user = await this.deps.userModel.findSessionUserAndOrgByUuid(
+            execution.subjectUserUuid,
+            execution.organizationUuid,
+        );
+        if (
+            !user.isActive ||
+            user.userUuid !== execution.subjectUserUuid ||
+            user.organizationUuid !== execution.organizationUuid
+        )
+            throw refuse();
+        const validatedGrant: OAuthAgentConnectionGrant = {
+            grantUuid: grant.grantUuid,
+            revision: grant.grantRevision,
+            approvedProjectUuids: grant.approvedProjectUuids,
+            approvedCapabilities: grant.approvedCapabilities,
+            expiresAt: grant.expiresAt,
+            clientId: grant.clientId,
+            resource: grant.resource,
+            resourceConstraints: grant.resourceConstraints,
+            grantContractVersion: grant.grantContractVersion,
+        };
+        const account = fromOauth(
+            user,
+            {
+                accessToken: '',
+                client: { id: execution.clientId },
+                scope: execution.scopes,
+            },
+            {
+                mode: 'enforce',
+                getRequest: () => ({ method: null, routeTemplate: null }),
+            },
+            validatedGrant,
+        );
+        if (
+            !grant.approvedProjectUuids.includes(projectUuid) ||
+            capabilities.some(
+                (capability) =>
+                    !Object.values(AgentCapability).includes(capability) ||
+                    !grant.approvedCapabilities.includes(capability),
+            ) ||
+            !account.user.ability.can(
+                'view',
+                subject('Project', {
+                    projectUuid,
+                    organizationUuid: execution.organizationUuid,
+                }),
+            )
+        )
+            throw refuse();
+        if (recheckOperation)
+            assertAgentConnectionGrantOperation(account, {
+                ...execution.operation,
+                projectUuids: [projectUuid],
+                additionalCapabilities: capabilities,
+            });
+        const scope = createAgentExecutionContext({
+            account,
+            surface: AgentActorSurface.CLI,
+            clientId: execution.clientId,
+            agentUuid: null,
+            agentIdentityEnabled: true,
+            agentConnectionGrant: {
+                grantUuid: execution.grantUuid,
+                revision: execution.revision,
+            },
+            agentConnectionExecution: execution,
+        });
+        const permissions = this.deps.getAgentPermissionService();
+        await agentExecutionContext.run(scope, async () => {
+            if (recheckOperation)
+                await permissions.assertOperation({
+                    account,
+                    organizationUuid: execution.organizationUuid,
+                    projectUuid,
+                    kind: 'rest_operation',
+                    key: execution.operation.key,
+                    surface: AgentActorSurface.CLI,
+                });
+            await [...new Set(capabilities)].reduce(
+                async (previous, capability) => {
+                    await previous;
+                    await permissions.assertOperation({
+                        account,
+                        organizationUuid: execution.organizationUuid,
+                        projectUuid,
+                        kind: 'capability',
+                        key: capability,
+                        surface: AgentActorSurface.CLI,
+                    });
+                },
+                Promise.resolve(),
+            );
+        });
+
+        return { grant: validatedGrant, account, scope };
+    }
 
     async authenticate(
         token: Token & Partial<OAuthTokenBinding>,

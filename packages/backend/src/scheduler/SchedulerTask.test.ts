@@ -1,4 +1,6 @@
 import {
+    AgentActorSurface,
+    AgentCapability,
     ChartType,
     DashboardTileTypes,
     DimensionType,
@@ -15,6 +17,7 @@ import {
     NotEnoughResults,
     PartialFailureType,
     PersistentDownloadFileAccessMode,
+    QueryHistoryStatus,
     RequestMethod,
     SchedulerFormat,
     SchedulerJobStatus,
@@ -45,8 +48,18 @@ import {
 } from '@lightdash/common';
 import ExecutionContext from 'node-execution-context';
 import type { Mock } from 'vitest';
+import { analyticsMock } from '../analytics/LightdashAnalytics.mock';
+import { fromSession } from '../auth/account';
+import { managedExecutionFixture } from '../auth/agentConnectionGrants/managedExecution.mock';
+import { lightdashConfigMock } from '../config/lightdashConfig.mock';
+import { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
 import type { ExecutionContextInfo } from '../logging/winston';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+} from '../services/AiAccessService/agentExecutionContext';
 import { WorkbookExportHelper } from '../services/ExcelService/WorkbookExportHelper';
+import { user as projectUser } from '../services/ProjectService/ProjectService.mock';
 import { SchedulerDeliveryError } from './SchedulerDeliveryError';
 import SchedulerTask, {
     buildItemMapFromColumns,
@@ -4425,5 +4438,536 @@ describe('dashboard export download filenames', () => {
         expect(storageKey).not.toContain('/');
         expect(storageKey).toMatch(/\.xlsx$/);
         expect(storageKey).not.toBe(attachmentDownloadName);
+    });
+});
+
+describe('connection compile jobs', () => {
+    beforeEach(() => vi.stubEnv('IS_PULL_REQUEST', 'false'));
+    afterEach(() => vi.unstubAllEnvs());
+    const methods = [
+        'compileProject',
+        'validateProject',
+        'replaceCustomFields',
+        'materializePreAggregate',
+    ] as const;
+    const setup = (method: (typeof methods)[number]) => {
+        const user = {
+            ...projectUser,
+            userUuid: 'user-1',
+            organizationUuid: 'org-1',
+        };
+        const account = fromSession(user);
+        const execution = {
+            grantUuid: 'grant-1',
+            revision: 1,
+            subjectUserUuid: user.userUuid,
+            organizationUuid: user.organizationUuid,
+            clientId: 'lightdash-cli',
+            resource: 'https://example.com/api',
+            refreshFamilyUuid: 'family-1',
+            scopes: ['read', 'write'],
+            operation: {
+                kind: 'rest' as const,
+                key: 'ProjectController.refresh',
+            },
+        };
+        const scope = createAgentExecutionContext({
+            account,
+            surface: AgentActorSurface.CLI,
+            clientId: execution.clientId,
+            agentUuid: null,
+            agentIdentityEnabled: true,
+            agentConnectionGrant: {
+                grantUuid: execution.grantUuid,
+                revision: execution.revision,
+            },
+            agentConnectionExecution: execution,
+        });
+        const assertActiveExecution = vi
+            .fn()
+            .mockResolvedValue({ account, scope });
+        const scopes: unknown[] = [];
+        const effect = vi.fn(async () => {
+            scopes.push(agentExecutionContext.getStore());
+            if (method === 'materializePreAggregate')
+                return {
+                    materializationUuid: 'materialization',
+                    status: 'active',
+                };
+            if (method === 'validateProject') return [];
+            return undefined;
+        });
+        const getSession = vi.fn().mockResolvedValue(user);
+        const getAccount = vi.fn().mockResolvedValue(account);
+        const children = {
+            generateValidation: vi.fn(),
+            replaceCustomFields: vi.fn(),
+        };
+        const storeValidation = vi.fn();
+        const findFields = vi.fn().mockResolvedValue({});
+        const task = new TestSchedulerTask({
+            ...({} as TaskDeps),
+            getAgentConnectionGrantService: () => ({ assertActiveExecution }),
+            analytics: { track: vi.fn() },
+            userService: {
+                getSessionByUserUuid: getSession,
+                getAccountByUserUuid: getAccount,
+            },
+            projectService: {
+                assertAgentConnectionEffect: vi.fn(),
+                assertConnectionPreAggregateRefresh: vi.fn(),
+                compileProject: effect,
+                replaceCustomFields: effect,
+                findReplaceableCustomFields: findFields,
+                _markJobAsFailed: vi.fn(),
+            },
+            schedulerService: { logSchedulerJob: vi.fn() },
+            schedulerClient: children,
+            validationService: { generateValidation: effect, storeValidation },
+            catalogService: {
+                indexCatalog: effect,
+                migrateCatalogItemTags: vi.fn(),
+                migrateCatalogItemIcons: vi.fn(),
+                migrateMetricsTreeEdges: vi.fn(),
+                migrateMetricsTreeNodes: vi.fn(),
+                setChartUsages: vi.fn(),
+            },
+            preAggregateMaterializationService: {
+                materializePreAggregate: effect,
+            },
+        } as unknown as TaskDeps);
+        const payload = {
+            userUuid: user.userUuid,
+            createdByUserUuid: user.userUuid,
+            organizationUuid: user.organizationUuid,
+            projectUuid: 'project-1',
+            jobUuid: 'compile-1',
+            requestMethod: RequestMethod.CLI,
+            isPreview: false,
+            syncContentAfterCompile: true,
+            validationTargets: [],
+            context: 'dbt_refresh',
+            preAggregateDefinitionUuid: 'definition',
+            trigger: 'compile',
+            agentConnectionExecution: execution,
+            agentConnectionEffect: method,
+        };
+        const run = (data: unknown = payload) =>
+            (
+                task as unknown as Record<
+                    (typeof methods)[number],
+                    (job: string, time: Date, data: unknown) => Promise<void>
+                >
+            )[method]('job-1', new Date(), data);
+        return {
+            run,
+            task,
+            payload,
+            account,
+            execution,
+            scope,
+            scopes,
+            effect,
+            getSession,
+            getAccount,
+            children,
+            assertActiveExecution,
+            storeValidation,
+            findFields,
+        };
+    };
+    const setupRealMaterialization = () => {
+        const f = setup('materializePreAggregate');
+        const model = {
+            getPreAggregateDefinitionByUuid: vi.fn().mockResolvedValue({
+                preAggregateDefinitionUuid: 'definition',
+                preAggregateDefinition: {
+                    name: 'orders_summary',
+                    dimensions: ['orders_status'],
+                    metrics: [],
+                },
+                materializationMetricQuery: {
+                    metricQuery: {
+                        exploreName: 'orders',
+                        dimensions: ['orders_status'],
+                        metrics: [],
+                        filters: {},
+                        sorts: [],
+                        limit: 100,
+                        tableCalculations: [],
+                    },
+                    metricComponents: {},
+                    timeDimensionFieldId: null,
+                    resolvedMaxRows: null,
+                },
+            }),
+            insertInProgress: vi
+                .fn()
+                .mockResolvedValue({ materializationUuid: 'mat-1' }),
+            markFailed: vi.fn(),
+            attachQueryUuid: vi.fn(),
+            promoteToActive: vi.fn().mockResolvedValue({ status: 'active' }),
+        };
+        const query = vi.fn().mockResolvedValue({ queryUuid: 'query-1' });
+        const poll = vi.fn().mockResolvedValue({
+            status: QueryHistoryStatus.READY,
+            resultsFileName: 'query-1-results',
+            resultsUpdatedAt: new Date(),
+            totalRowCount: 2,
+            columns: null,
+        });
+        const materialization = new PreAggregateMaterializationService({
+            lightdashConfig: lightdashConfigMock,
+            analytics: analyticsMock,
+            preAggregateModel: model,
+            projectModel: {},
+            asyncQueryService: { executeAsyncMetricQuery: query },
+            queryHistoryModel: { pollForQueryCompletion: poll },
+            preAggregateResultsStorageClient: {
+                getFileSize: vi.fn().mockResolvedValue(10),
+                uploadResults: vi.fn(),
+            },
+        } as never);
+        Object.assign(f.task, {
+            preAggregateMaterializationService: materialization,
+        });
+        return { ...f, model, query, poll };
+    };
+    test.each(
+        [4, 5, 6, 7].flatMap((failureAt) =>
+            ['refusal', 'plain'].map((kind) => ({ failureAt, kind })),
+        ),
+    )(
+        'real materialization propagates late check $failureAt: $kind',
+        async ({ failureAt, kind }) => {
+            const f = setupRealMaterialization();
+            const error =
+                kind === 'refusal'
+                    ? new ForbiddenError('late refusal')
+                    : new Error('late database failure');
+            let calls = 0;
+            f.assertActiveExecution.mockImplementation(async () => {
+                calls += 1;
+                if (calls === failureAt) throw error;
+                return { account: f.account, scope: f.scope };
+            });
+            const payload = structuredClone(f.payload);
+            if (kind === 'refusal')
+                await expect(f.run(payload)).resolves.toBeUndefined();
+            else await expect(f.run(payload)).rejects.toBe(error);
+            expect(f.model.markFailed).toHaveBeenCalledWith({
+                materializationUuid: 'mat-1',
+                errorMessage: error.message,
+            });
+            expect(f.model.promoteToActive).not.toHaveBeenCalled();
+            expect(
+                f.task['schedulerService'].logSchedulerJob,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({ status: SchedulerJobStatus.ERROR }),
+            );
+            expect(
+                f.task['schedulerService'].logSchedulerJob,
+            ).not.toHaveBeenCalledWith(
+                expect.objectContaining({
+                    status: SchedulerJobStatus.COMPLETED,
+                }),
+            );
+            if (kind === 'plain') {
+                const beforeRetry = calls;
+                await expect(f.run(payload)).resolves.toBeUndefined();
+                expect(calls).toBeGreaterThan(beforeRetry);
+                expect(f.model.insertInProgress).toHaveBeenCalledTimes(2);
+                expect(f.model.promoteToActive).toHaveBeenCalledOnce();
+                for (const [execution] of f.assertActiveExecution.mock.calls)
+                    expect(execution).toEqual(f.execution);
+            }
+            expect(f.getAccount).not.toHaveBeenCalled();
+            expect(f.getSession).not.toHaveBeenCalled();
+        },
+    );
+    test.each(
+        [true, false].flatMap((bound) =>
+            ['reported', 'thrown'].map((failure) => ({ bound, failure })),
+        ),
+    )(
+        'real materialization keeps query failures as failed outcomes: bound=$bound failure=$failure',
+        async ({ bound, failure }) => {
+            const f = setupRealMaterialization();
+            if (failure === 'reported')
+                f.poll.mockResolvedValue({
+                    status: QueryHistoryStatus.ERROR,
+                    error: 'warehouse failure',
+                });
+            else f.query.mockRejectedValue(new Error('warehouse failure'));
+            const {
+                agentConnectionExecution,
+                agentConnectionEffect,
+                ...unbound
+            } = f.payload;
+            await expect(
+                f.run(bound ? f.payload : unbound),
+            ).resolves.toBeUndefined();
+            expect(f.model.markFailed).toHaveBeenCalledWith({
+                materializationUuid: 'mat-1',
+                errorMessage: 'warehouse failure',
+            });
+            expect(
+                f.task['schedulerService'].logSchedulerJob,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    status: SchedulerJobStatus.COMPLETED,
+                    details: expect.objectContaining({
+                        materializationStatus: 'failed',
+                    }),
+                }),
+            );
+            expect(
+                f.task['schedulerService'].logSchedulerJob,
+            ).not.toHaveBeenCalledWith(
+                expect.objectContaining({ status: SchedulerJobStatus.ERROR }),
+            );
+            if (!bound) expect(f.assertActiveExecution).not.toHaveBeenCalled();
+        },
+    );
+
+    test.each([
+        ['replaceCustomFields', AgentCapability.ContentWrite],
+        ['materializePreAggregate', AgentCapability.Query],
+        ['validateProject', AgentCapability.DeployUpload],
+    ] as const)(
+        '%s uses the real current policy before the child effect',
+        async (method, capability) => {
+            const f = setup(method);
+            const authority = managedExecutionFixture();
+            Object.assign(f.task, {
+                getAgentConnectionGrantService: () => authority.service,
+            });
+            const payload = {
+                ...f.payload,
+                userUuid: authority.user.userUuid,
+                createdByUserUuid: authority.user.userUuid,
+                organizationUuid: authority.grant.organizationUuid,
+                projectUuid: authority.projectUuid,
+                agentConnectionExecution: authority.execution,
+            };
+            await f.run(structuredClone(payload));
+            expect(f.effect).toHaveBeenCalledOnce();
+            f.effect.mockClear();
+            authority.policy.systemRoleMatrix.viewer = Object.values(
+                AgentCapability,
+            ).filter((value) => value !== capability);
+            await f.run(structuredClone(payload));
+            expect(f.effect).not.toHaveBeenCalled();
+            expect(f.getSession).not.toHaveBeenCalled();
+            expect(f.getAccount).not.toHaveBeenCalled();
+        },
+    );
+
+    test('ordinary compile launches both child jobs before their promises settle', async () => {
+        const f = setup('compileProject');
+        const order: string[] = [];
+        f.children.generateValidation.mockImplementation(() => {
+            order.push('validation');
+            return Promise.resolve().then(() => {
+                order.push('validation settled');
+            });
+        });
+        f.children.replaceCustomFields.mockImplementation(() => {
+            order.push('replacement');
+        });
+        const {
+            agentConnectionExecution: ignoredExecution,
+            agentConnectionEffect: ignoredEffect,
+            ...payload
+        } = f.payload;
+        await f.run(payload);
+        expect(order).toEqual([
+            'validation',
+            'replacement',
+            'validation settled',
+        ]);
+    });
+
+    test.each(methods)(
+        '%s terminalises non-refusal setup errors',
+        async (method) => {
+            const f = setup(method);
+            f.assertActiveExecution.mockRejectedValueOnce(
+                new Error('subject deleted'),
+            );
+            await expect(f.run()).resolves.toBeUndefined();
+            expect(f.effect).not.toHaveBeenCalled();
+            expect(f.getSession).not.toHaveBeenCalled();
+            expect(f.getAccount).not.toHaveBeenCalled();
+            expect(
+                f.task['schedulerService'].logSchedulerJob,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({ status: SchedulerJobStatus.ERROR }),
+            );
+            if (method === 'compileProject')
+                expect(
+                    f.task['projectService']._markJobAsFailed,
+                ).toHaveBeenCalledWith('compile-1');
+        },
+    );
+
+    test.each(methods)(
+        '%s retries every later plain revalidation failure with the same binding',
+        async (method) => {
+            const successful = setup(method);
+            await successful.run();
+            const validationCount =
+                successful.assertActiveExecution.mock.calls.length;
+            expect(validationCount).toBeGreaterThan(1);
+            await Promise.all(
+                Array.from(
+                    { length: validationCount - 1 },
+                    async (_, index) => {
+                        const failureAt = index + 2;
+                        const f = setup(method);
+                        const error = new Error(
+                            `revalidation ${failureAt} unavailable`,
+                        );
+                        let calls = 0;
+                        f.assertActiveExecution.mockImplementation(async () => {
+                            calls += 1;
+                            if (calls === failureAt) throw error;
+                            return { account: f.account, scope: f.scope };
+                        });
+                        const payload = structuredClone(f.payload);
+                        await expect(f.run(payload)).rejects.toBe(error);
+                        const callsBeforeRetry = calls;
+                        await expect(f.run(payload)).resolves.toBeUndefined();
+                        expect(calls).toBeGreaterThan(callsBeforeRetry);
+                        expect(payload.agentConnectionExecution).toEqual(
+                            f.execution,
+                        );
+                        expect(f.getSession).not.toHaveBeenCalled();
+                        expect(f.getAccount).not.toHaveBeenCalled();
+                        for (const [execution] of f.assertActiveExecution.mock
+                            .calls as unknown[][])
+                            expect(execution).toEqual(f.execution);
+                    },
+                ),
+            );
+        },
+    );
+
+    test.each(methods)(
+        '%s restores a serialized connection and never reconstructs a session',
+        async (method) => {
+            const f = setup(method);
+            await f.run(structuredClone(f.payload));
+            expect(f.effect).toHaveBeenCalledOnce();
+            expect(f.scopes[0]).toEqual(f.scope);
+            expect(f.getSession).not.toHaveBeenCalled();
+            expect(f.getAccount).not.toHaveBeenCalled();
+            expect(f.assertActiveExecution).toHaveBeenCalledWith(
+                f.execution,
+                expect.objectContaining({
+                    projectUuid: 'project-1',
+                    recheckOperation: true,
+                }),
+            );
+            if (method === 'compileProject') {
+                expect(f.effect.mock.calls[0]).toEqual([
+                    expect.objectContaining({
+                        ability: f.account.user.ability,
+                    }),
+                    'project-1',
+                    RequestMethod.CLI,
+                    'compile-1',
+                    undefined,
+                ]);
+                expect(f.children.generateValidation).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        agentConnectionExecution: f.execution,
+                        agentConnectionEffect: 'validateProject',
+                    }),
+                );
+                expect(f.children.replaceCustomFields).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        agentConnectionExecution: f.execution,
+                        agentConnectionEffect: 'replaceCustomFields',
+                    }),
+                );
+            }
+            expect(agentExecutionContext.getStore()).toBeUndefined();
+        },
+    );
+    test.each(
+        methods.flatMap((method) =>
+            ['revoked', 'expired', 'revised', 'disabled'].map((reason) => ({
+                method,
+                reason,
+            })),
+        ),
+    )(
+        '$method stops $reason work without retrying as a session',
+        async ({ method, reason }) => {
+            const f = setup(method);
+            f.assertActiveExecution.mockRejectedValue(
+                new ForbiddenError(reason),
+            );
+            await expect(
+                f.run(structuredClone(f.payload)),
+            ).resolves.toBeUndefined();
+            expect(f.effect).not.toHaveBeenCalled();
+            expect(f.getSession).not.toHaveBeenCalled();
+            expect(f.getAccount).not.toHaveBeenCalled();
+            expect(f.children.generateValidation).not.toHaveBeenCalled();
+            expect(f.children.replaceCustomFields).not.toHaveBeenCalled();
+        },
+    );
+    test('rechecks after compile before enqueuing either child', async () => {
+        const f = setup('compileProject');
+        f.effect.mockImplementation(async () => {
+            f.assertActiveExecution.mockRejectedValue(
+                new ForbiddenError('revoked'),
+            );
+        });
+        await f.run();
+        expect(f.effect).toHaveBeenCalledOnce();
+        expect(f.children.generateValidation).not.toHaveBeenCalled();
+        expect(f.children.replaceCustomFields).not.toHaveBeenCalled();
+    });
+    test('rechecks after validation before storing its result', async () => {
+        const f = setup('validateProject');
+        f.effect.mockImplementation(async () => {
+            f.assertActiveExecution.mockRejectedValue(
+                new ForbiddenError('expired'),
+            );
+            return [];
+        });
+        await f.run();
+        expect(f.storeValidation).not.toHaveBeenCalled();
+    });
+    test('refuses a compile job whose envelope came from a read operation', async () => {
+        const f = setup('compileProject');
+        await f.run({
+            ...f.payload,
+            agentConnectionExecution: {
+                ...f.execution,
+                operation: {
+                    kind: 'rest',
+                    key: 'SqlRunnerController.getTables',
+                },
+            },
+        });
+        expect(f.effect).not.toHaveBeenCalled();
+        expect(f.getSession).not.toHaveBeenCalled();
+    });
+    test('refuses a typed connection effect with a missing envelope', async () => {
+        const f = setup('compileProject');
+        await f.run({ ...f.payload, agentConnectionExecution: null });
+        expect(f.effect).not.toHaveBeenCalled();
+        expect(f.getSession).not.toHaveBeenCalled();
+    });
+
+    test('refuses an effect substituted on a bound payload', async () => {
+        const f = setup('compileProject');
+        await f.run({ ...f.payload, agentConnectionEffect: 'validateProject' });
+        expect(f.effect).not.toHaveBeenCalled();
+        expect(f.getSession).not.toHaveBeenCalled();
     });
 });

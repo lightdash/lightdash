@@ -1,11 +1,14 @@
 import {
     AgentActorSurface,
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
     assertUnreachable,
     BigqueryAuthenticationType,
     DatabricksAuthenticationType,
     DuckdbConnectionType,
     DucklakeCatalogType,
     DucklakeDataPathType,
+    getAgentConnectionGrantRef,
     getIntrinsicUserAttributeRegex,
     getParsedReference,
     getReferencedDimension,
@@ -14,6 +17,7 @@ import {
     lightdashVariablePattern,
     parameterRegex,
     WarehouseTypes,
+    type AgentConnectionExecution,
     type AgentIdentityClaim,
     type AuthType,
     type CreateWarehouseCredentials,
@@ -28,6 +32,7 @@ import {
     type UserAccessControls,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
+import { normalizeAgentConnectionExecution } from './agentConnectionExecution';
 import { getWarehouseCredentialVersions } from './warehouseCredentialVersion';
 
 const getDataPathRoute = (value: string): string[] | null => {
@@ -643,6 +648,18 @@ const getResultAgentId = (
     }
 };
 
+const isSameAgentConnection = (
+    stored: AgentIdentityClaim,
+    current: AgentIdentityClaim,
+): boolean => {
+    const storedConnection = getAgentConnectionGrantRef(stored);
+    const currentConnection = getAgentConnectionGrantRef(current);
+    return storedConnection === null || currentConnection === null
+        ? storedConnection === currentConnection
+        : storedConnection.grantUuid === currentConnection.grantUuid &&
+              storedConnection.revision === currentConnection.revision;
+};
+
 export const isSameResultAgent = (
     stored: AgentIdentityClaim | null,
     current: AgentIdentityClaim,
@@ -660,7 +677,8 @@ export const isSameResultAgent = (
     stored.act.sub === current.act.sub &&
     stored.act.surface === current.act.surface &&
     stored.act.client_id === current.act.client_id &&
-    (stored.act.agent_uuid ?? null) === (current.act.agent_uuid ?? null);
+    (stored.act.agent_uuid ?? null) === (current.act.agent_uuid ?? null) &&
+    isSameAgentConnection(stored, current);
 
 export const isSameResultReader = (
     stored: QueryResultProducer,
@@ -687,6 +705,15 @@ export const isSameResultProducerOwner = (
     stored: QueryResultProducer,
     current: QueryResultProducer,
 ): boolean =>
+    ((getAgentConnectionGrantRef(stored.agentIdentity) == null &&
+        getAgentConnectionGrantRef(current.agentIdentity) == null) ||
+        (current.agentIdentity !== null &&
+            isSameResultAgent(
+                stored.agentIdentity,
+                current.agentIdentity,
+                stored.authMethod,
+                current.authMethod,
+            ))) &&
     stored.version === current.version &&
     stored.authMethod === current.authMethod &&
     stored.warehouseConnectionUuid === current.warehouseConnectionUuid &&
@@ -702,3 +729,61 @@ export const isSameResultProducer = (
     stored.entitlementFingerprint != null &&
     stored.entitlementFingerprint === current.entitlementFingerprint &&
     isSameResultProducerOwner(stored, current);
+
+export const isConnectionProducedQuery = (
+    query: Pick<QueryHistory, 'agentIdentity' | 'requestParameters'>,
+): boolean =>
+    getAgentConnectionGrantRef(query.agentIdentity) != null ||
+    getAgentConnectionGrantRef(
+        query.requestParameters?.resultProducer?.agentIdentity,
+    ) != null ||
+    query.requestParameters?.agentConnectionExecution != null;
+
+export const assertQueryConnectionBinding = (
+    query: Pick<
+        QueryHistory,
+        | 'agentIdentity'
+        | 'requestParameters'
+        | 'organizationUuid'
+        | 'createdByUserUuid'
+        | 'createdByActorType'
+    >,
+): AgentConnectionExecution | null => {
+    const claim = query.agentIdentity;
+    const producer = query.requestParameters?.resultProducer;
+    const execution = query.requestParameters?.agentConnectionExecution;
+    const binding = getAgentConnectionGrantRef(claim);
+    if (
+        !binding &&
+        !getAgentConnectionGrantRef(producer?.agentIdentity) &&
+        execution == null
+    )
+        return null;
+    const normalized = normalizeAgentConnectionExecution(execution);
+    if (
+        !normalized ||
+        !claim ||
+        !binding ||
+        binding.grantUuid !== normalized.grantUuid ||
+        binding.revision !== normalized.revision ||
+        claim.subject.type !== 'user' ||
+        claim.subject.uuid !== normalized.subjectUserUuid ||
+        claim.act.client_id !== normalized.clientId ||
+        claim.act.surface !== AgentActorSurface.CLI ||
+        query.createdByUserUuid !== normalized.subjectUserUuid ||
+        query.organizationUuid !== normalized.organizationUuid ||
+        query.createdByActorType !== 'oauth' ||
+        (producer &&
+            !isSameResultAgent(
+                producer.agentIdentity,
+                claim,
+                producer.authMethod,
+                'oauth',
+            ))
+    ) {
+        throw new AiAccessRefusedError(
+            AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+        );
+    }
+    return normalized;
+};

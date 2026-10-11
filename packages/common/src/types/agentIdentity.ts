@@ -31,11 +31,37 @@ export type AgentSubjectRef = {
     type: 'user' | 'service_account';
     uuid: string;
 };
+export type AgentConnectionGrantRef = {
+    grantUuid: string;
+    revision: number;
+};
+
+// Hand-written: a zod schema here would generate code when the module loads
+const parseAgentConnectionGrantRef = (
+    value: unknown,
+): AgentConnectionGrantRef => {
+    const ref = value as Partial<AgentConnectionGrantRef> | null;
+    if (
+        typeof ref !== 'object' ||
+        ref === null ||
+        typeof ref.grantUuid !== 'string' ||
+        ref.grantUuid.length === 0 ||
+        typeof ref.revision !== 'number' ||
+        !Number.isInteger(ref.revision) ||
+        ref.revision <= 0
+    ) {
+        throw new Error('Invalid agent connection reference');
+    }
+    return { grantUuid: ref.grantUuid, revision: ref.revision };
+};
+
 export type AgentActorClaim = {
     sub: string;
     surface: AgentActorSurface;
     client_id: string | null;
     agent_uuid: string | null;
+    // Omission means no connection and preserves stored claims from before connections.
+    agent_connection_grant?: AgentConnectionGrantRef | null;
 };
 export type AgentIdentityClaim = {
     sub: string;
@@ -48,11 +74,13 @@ export const buildAgentIdentityClaim = ({
     surface,
     clientId,
     agentUuid = null,
+    agentConnectionGrant = null,
 }: {
     subject: AgentSubjectRef;
     surface: AgentActorSurface;
     clientId: string | null;
     agentUuid?: string | null;
+    agentConnectionGrant?: AgentConnectionGrantRef | null;
 }): AgentIdentityClaim => ({
     sub: `${subject.type}:${subject.uuid}`,
     subject,
@@ -61,11 +89,27 @@ export const buildAgentIdentityClaim = ({
         surface,
         client_id: clientId,
         agent_uuid: agentUuid,
+        ...(agentConnectionGrant === null
+            ? {}
+            : {
+                  agent_connection_grant:
+                      parseAgentConnectionGrantRef(agentConnectionGrant),
+              }),
     },
 });
 
 export type StoredAgentIdentityClaim = Omit<AgentIdentityClaim, 'act'> & {
-    act: Omit<AgentActorClaim, 'agent_uuid'> & { agent_uuid?: string | null };
+    act: Omit<AgentActorClaim, 'agent_uuid' | 'agent_connection_grant'> & {
+        agent_uuid?: string | null;
+        agent_connection_grant?: AgentConnectionGrantRef | null;
+    };
+};
+
+export const getAgentConnectionGrantRef = (
+    claim: StoredAgentIdentityClaim | null | undefined,
+): AgentConnectionGrantRef | null => {
+    const reference = claim?.act?.agent_connection_grant;
+    return reference == null ? null : parseAgentConnectionGrantRef(reference);
 };
 
 export const normalizeAgentIdentityClaim = (
@@ -76,7 +120,16 @@ export const normalizeAgentIdentityClaim = (
         : {
               ...claim,
               subject: { ...claim.subject },
-              act: { ...claim.act, agent_uuid: claim.act.agent_uuid ?? null },
+              act: {
+                  ...claim.act,
+                  agent_uuid: claim.act.agent_uuid ?? null,
+                  ...(getAgentConnectionGrantRef(claim) === null
+                      ? {}
+                      : {
+                            agent_connection_grant:
+                                getAgentConnectionGrantRef(claim),
+                        }),
+              },
           };
 
 export const getAgentClientLabel = (clientId: string | null): string => {

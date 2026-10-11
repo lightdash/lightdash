@@ -1,8 +1,13 @@
-import { AgentCapability, FeatureFlags } from '@lightdash/common';
+import {
+    AgentCapability,
+    FeatureFlags,
+    type AgentConnectionExecution,
+} from '@lightdash/common';
 import { fromOauth } from '../account/account';
 import { defaultSessionUser } from '../account/account.mock';
 import { AgentConnectionGrantService } from './AgentConnectionGrantService';
 import { grantFixture } from './grant.mock';
+import { managedExecutionFixture } from './managedExecution.mock';
 
 const setup = () => {
     const grant = grantFixture();
@@ -23,6 +28,12 @@ const setup = () => {
         user,
     };
     const deps = {
+        userModel: {
+            findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(user),
+        },
+        getAgentPermissionService: () => ({
+            assertOperation: vi.fn().mockResolvedValue(undefined),
+        }),
         model: {
             findActive: vi.fn().mockResolvedValue(grant),
             touchLastUsed: vi.fn().mockResolvedValue(undefined),
@@ -508,43 +519,30 @@ it.each([
         ),
     ).resolves.toEqual(grant.approvedProjectUuids);
 });
-it('checks the export chart resource and capability', async () => {
+it('refuses saved PNG export even with export approval', async () => {
     const { service, token, user, grant, deps } = setup();
+    grant.approvedCapabilities = Object.values(AgentCapability);
     const account = fromOauth(
         user,
         token,
         null,
         await service.authenticate(token, user),
     );
-    const req = {
-        account,
-        method: 'POST',
-        params: { chartUuid: '22222222-2222-4222-8222-222222222222' },
-        query: {},
-        body: {},
-    };
     await expect(
         service.assertRestOperation(
-            req,
+            {
+                account,
+                method: 'POST',
+                params: { chartUuid: '22222222-2222-4222-8222-222222222222' },
+                query: {},
+                body: {},
+            },
             'SavedChartController.exportSavedChartImage',
         ),
-    ).rejects.toThrow('Export');
-    account.authentication.agentConnectionGrant!.approvedCapabilities.push(
-        AgentCapability.Export,
-    );
-    await expect(
-        service.assertRestOperation(
-            req,
-            'SavedChartController.exportSavedChartImage',
-        ),
-    ).resolves.toEqual(grant.approvedProjectUuids);
-    deps.resourceResolver.resolveResourceProjectUuid.mockResolvedValue('other');
-    await expect(
-        service.assertRestOperation(
-            req,
-            'SavedChartController.exportSavedChartImage',
-        ),
-    ).rejects.toThrow('project');
+    ).rejects.toThrow('operation');
+    expect(
+        deps.resourceResolver.resolveResourceProjectUuid,
+    ).not.toHaveBeenCalled();
 });
 
 it.each(
@@ -665,5 +663,176 @@ it('refuses refresh content sync but allows compile-only refresh', async () => {
                 ),
             ).resolves.toEqual(grant.approvedProjectUuids);
         }),
+    );
+});
+
+const executionFixture = (
+    grant: ReturnType<typeof grantFixture>,
+): AgentConnectionExecution => ({
+    grantUuid: grant.grantUuid,
+    revision: grant.grantRevision,
+    subjectUserUuid: grant.subjectUserUuid,
+    organizationUuid: grant.organizationUuid,
+    clientId: grant.clientId,
+    resource: grant.resource,
+    refreshFamilyUuid: grant.refreshFamilyUuid!,
+    scopes: ['read'],
+    operation: { kind: 'rest', key: 'QueryController.executeAsyncSqlQuery' },
+});
+
+describe('fresh connection execution', () => {
+    it.each([
+        'missing',
+        'revoked',
+        'expired',
+        'revision',
+        'subject',
+        'organization',
+        'client',
+        'audience',
+        'family',
+        'subject_flag',
+        'org_flag',
+        'inactive_person',
+        'removed_person',
+    ])('refuses %s before the effect', async (reason) => {
+        const { service, deps, grant, user } = setup();
+        grant.clientId = 'lightdash-cli';
+        grant.approvedCapabilities = Object.values(AgentCapability);
+        const execution = executionFixture(grant);
+        if (reason === 'missing') deps.model.findActive.mockResolvedValue(null);
+        if (reason === 'revoked') grant.revokedAt = new Date();
+        if (reason === 'expired') grant.expiresAt = new Date(0);
+        if (reason === 'revision') grant.grantRevision += 1;
+        if (reason === 'subject') grant.subjectUserUuid = 'other';
+        if (reason === 'organization') grant.organizationUuid = 'other';
+        if (reason === 'client') grant.clientId = 'other';
+        if (reason === 'audience') grant.resource = 'other';
+        if (reason === 'family') grant.refreshFamilyUuid = 'other';
+        if (reason === 'inactive_person') user.isActive = false;
+        if (reason === 'removed_person') user.organizationUuid = 'other';
+        if (reason.endsWith('flag'))
+            deps.featureFlags.get.mockImplementation(async (args) => ({
+                enabled:
+                    reason === 'subject_flag'
+                        ? !args.user.userUuid
+                        : !!args.user.userUuid,
+            }));
+        const effect = vi.fn();
+        await expect(
+            service
+                .assertActiveExecution(execution, {
+                    projectUuid: grant.approvedProjectUuids[0],
+                    capabilities: [AgentCapability.Query],
+                    recheckOperation: true,
+                })
+                .then(effect),
+        ).rejects.toThrow();
+        expect(effect).not.toHaveBeenCalled();
+    });
+    it('restores enforced OAuth access without a bearer and preserves the grant across token refresh', async () => {
+        const { service, grant } = setup();
+        grant.clientId = 'lightdash-cli';
+        grant.approvedCapabilities = Object.values(AgentCapability);
+        const execution = executionFixture(grant);
+        const first = await service.assertActiveExecution(execution, {
+            projectUuid: grant.approvedProjectUuids[0],
+            capabilities: [AgentCapability.ReadDiscover],
+            recheckOperation: false,
+        });
+        const refreshed = await service.assertActiveExecution(
+            JSON.parse(JSON.stringify(execution)),
+            {
+                projectUuid: grant.approvedProjectUuids[0],
+                capabilities: [AgentCapability.ReadDiscover],
+                recheckOperation: false,
+            },
+        );
+        expect(refreshed.scope.claim).toEqual(first.scope.claim);
+        expect(first.account.authentication).toMatchObject({
+            type: 'oauth',
+            token: '',
+            scopes: ['read'],
+            agentConnectionGrant: { grantUuid: grant.grantUuid },
+        });
+        expect(first.account.user.ability.can('update', 'Project')).toBe(false);
+        expect(first.account.user.ability.can('view', 'Project')).toBe(true);
+        grant.grantRevision += 1;
+        await expect(
+            service.assertActiveExecution(execution, {
+                projectUuid: grant.approvedProjectUuids[0],
+                capabilities: [],
+                recheckOperation: false,
+            }),
+        ).rejects.toThrow();
+    });
+    it.each(['project', 'capability'])(
+        'rechecks the current approved %s',
+        async (reason) => {
+            const { service, grant } = setup();
+            grant.clientId = 'lightdash-cli';
+            const execution = executionFixture(grant);
+            const projectUuid = grant.approvedProjectUuids[0];
+            if (reason === 'project') grant.approvedProjectUuids = [];
+            else grant.approvedCapabilities = [];
+            await expect(
+                service.assertActiveExecution(execution, {
+                    projectUuid,
+                    capabilities: [AgentCapability.ReadDiscover],
+                    recheckOperation: false,
+                }),
+            ).rejects.toThrow();
+        },
+    );
+});
+
+describe('current managed policy intersection', () => {
+    it.each(Object.values(AgentCapability))(
+        'rechecks the current %s capability',
+        async (capability) => {
+            const f = managedExecutionFixture();
+            const run = () =>
+                f.service.assertActiveExecution(f.execution, {
+                    projectUuid: f.projectUuid,
+                    capabilities: [capability],
+                    recheckOperation: false,
+                });
+            await expect(run()).resolves.toBeDefined();
+            f.policy.systemRoleMatrix.viewer = Object.values(
+                AgentCapability,
+            ).filter((value) => value !== capability);
+            await expect(run()).rejects.toMatchObject({
+                refusal: { capability },
+            });
+        },
+    );
+    it('refuses an unknown capability even if stored grant data includes it', async () => {
+        const f = managedExecutionFixture();
+        const unknown = 'unknown' as AgentCapability;
+        f.grant.approvedCapabilities.push(unknown);
+        await expect(
+            f.service.assertActiveExecution(f.execution, {
+                projectUuid: f.projectUuid,
+                capabilities: [unknown],
+                recheckOperation: false,
+            }),
+        ).rejects.toThrow();
+    });
+    it.each(['project', 'user', 'project role'] as const)(
+        'rechecks the current %s limit',
+        async (limit) => {
+            const f = managedExecutionFixture();
+            const run = () =>
+                f.service.assertActiveExecution(f.execution, {
+                    projectUuid: f.projectUuid,
+                    capabilities: [AgentCapability.ContentWrite],
+                    recheckOperation: false,
+                });
+            await expect(run()).resolves.toBeDefined();
+            if (limit === 'project') f.policy.allowedProjectUuids = [];
+            if (limit === 'user') f.policy.allowedUserUuids = [];
+            if (limit === 'project role') f.assignments.systemRoles = [];
+            await expect(run()).rejects.toThrow();
+        },
     );
 });

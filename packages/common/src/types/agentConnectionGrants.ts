@@ -56,3 +56,21 @@ export type AgentConnectionGrantCreate = Pick<
 export type AgentConnectionGrantWithStatus = AgentConnectionGrant & {
     status: 'active' | 'expired' | 'revoked';
 };
+
+export type AgentConnectionExecution = {
+    grantUuid: string;
+    revision: number;
+    subjectUserUuid: string;
+    organizationUuid: string;
+    clientId: string;
+    resource: string;
+    refreshFamilyUuid: string;
+    scopes: string[];
+    operation: { kind: 'rest'; key: string };
+};
+
+export type AgentConnectionTaskEffect =
+    | 'compileProject'
+    | 'validateProject'
+    | 'replaceCustomFields'
+    | 'materializePreAggregate';

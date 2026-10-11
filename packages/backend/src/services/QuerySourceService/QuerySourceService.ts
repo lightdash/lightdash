@@ -22,9 +22,11 @@ import { sourceRequiresRawSql } from '../../auth/agentConnectionGrants/operation
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
+import { isConnectionProducedQuery } from '../../utils/queryResultProducer';
 import { personaliseStoredSharedSignInError } from '../../utils/sharedSignInExpiry';
 import type { AgentPermissionService } from '../AgentPermissionService/AgentPermissionService';
 import { agentExecutionContext } from '../AiAccessService/agentExecutionContext';
+import { type AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
 import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
 import { BaseService } from '../BaseService';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
@@ -40,6 +42,10 @@ export type InternalSourceQuerySubmission = SourceQuerySubmission &
     Pick<SourceQuerySubmissionResult, 'cacheHit'>;
 
 type QuerySourceServiceArguments = {
+    getAsyncQueryService?: () => Pick<
+        AsyncQueryService,
+        'assertCanReadStoredResults'
+    >;
     getAgentPermissionService: () => Pick<
         AgentPermissionService,
         'isEnforced' | 'assertOperation'
@@ -89,8 +95,11 @@ export class QuerySourceService extends BaseService {
 
     private readonly getAgentPermissionService: QuerySourceServiceArguments['getAgentPermissionService'];
 
+    private readonly getAsyncQueryService: QuerySourceServiceArguments['getAsyncQueryService'];
+
     constructor(args: QuerySourceServiceArguments) {
         super({ serviceName: 'QuerySourceService' });
+        this.getAsyncQueryService = args.getAsyncQueryService;
         this.projectModel = args.projectModel;
         this.queryHistoryModel = args.queryHistoryModel;
         this.featureFlagModel = args.featureFlagModel;
@@ -493,6 +502,10 @@ export class QuerySourceService extends BaseService {
             );
         }
 
+        const connectionReader =
+            account.authentication.type === 'oauth' &&
+            account.authentication.agentConnectionGrant != null;
+        const connectionChecks: (() => Promise<void>)[] = [];
         const statuses = await Promise.all(
             queryUuids.map(async (queryUuid) => {
                 const queryHistory = await this.queryHistoryModel.get(
@@ -500,7 +513,25 @@ export class QuerySourceService extends BaseService {
                     projectUuid,
                     account,
                 );
-                return {
+                const connection =
+                    connectionReader || isConnectionProducedQuery(queryHistory);
+                const check = connection ? this.getAsyncQueryService?.() : null;
+                if (connection && !check) throw new ForbiddenError();
+                if (check) {
+                    await check.assertCanReadStoredResults(
+                        account,
+                        projectUuid,
+                        queryHistory,
+                    );
+                    connectionChecks.push(() =>
+                        check.assertCanReadStoredResults(
+                            account,
+                            projectUuid,
+                            queryHistory,
+                        ),
+                    );
+                }
+                const status = {
                     queryUuid: queryHistory.queryUuid,
                     status: queryHistory.status,
                     error: await personaliseStoredSharedSignInError({
@@ -511,8 +542,11 @@ export class QuerySourceService extends BaseService {
                         featureFlagModel: this.featureFlagModel,
                     }),
                 };
+                return status;
             }),
         );
+        if (connectionChecks.length > 0)
+            await Promise.all(connectionChecks.map((check) => check()));
 
         return { statuses };
     }

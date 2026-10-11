@@ -90,6 +90,7 @@ import * as warehouses from '@lightdash/warehouses';
 import type express from 'express';
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
+import { StringCodec, type JsMsg } from 'nats';
 import ExecutionContext from 'node-execution-context';
 import { PassThrough, Readable, Writable } from 'stream';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -115,6 +116,8 @@ import {
 import type { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
+import { setupGrantAuthentication } from '../../controllers/authentication/agentConnectionGrants.mock';
+import { allowApiKeyAuthentication } from '../../controllers/authentication/middlewares';
 import { AiAccessController } from '../../controllers/v2/AiAccessController';
 import { QueryController } from '../../controllers/v2/QueryController';
 import { AiDeepResearchController } from '../../ee/controllers/AiDeepResearchController';
@@ -185,6 +188,11 @@ import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConn
 import { type WarehouseConnectionIdentityModel } from '../../models/WarehouseConnectionIdentityModel/WarehouseConnectionIdentityModel';
 import { WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { WarehouseConnectionTablesModel } from '../../models/WarehouseConnectionTablesModel/WarehouseConnectionTablesModel';
+import {
+    registerPreAggregateStream,
+    STREAM_CONFIGS,
+} from '../../nats/natsConfig';
+import { NatsWorker } from '../../nats/NatsWorker';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { buildCacheHash as buildIdentityCacheHash } from '../../utils/cacheUtils';
 import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
@@ -452,6 +460,7 @@ const inMemoryDuckdbHistory = ({
         updateStatusToExecuting: vi.fn(async () => 1),
         updateStatusToQueued: vi.fn(async () => 1),
         updateStatusToError: vi.fn(async () => 1),
+        updateClaimedQueryToError: vi.fn(async () => 1),
         updateStatusToExpired: vi.fn(async () => 1),
         setDuckdbExecution: vi.fn(
             async (uuid: string, spec: DuckdbExecutionSpec) => {
@@ -516,6 +525,7 @@ const getMockedAsyncQueryService = (
             }) as DocumentService,
         getQuerySourceService: () => {
             querySourceService ??= new QuerySourceService({
+                getAsyncQueryService: () => service,
                 getAgentPermissionService: () => ({
                     isEnforced: vi.fn().mockResolvedValue(false),
                     assertOperation: vi.fn(),
@@ -602,6 +612,7 @@ const getMockedAsyncQueryService = (
             recordResultProducer: vi.fn(),
             update: vi.fn(),
             updateStatusToError: vi.fn(async () => 1),
+            updateClaimedQueryToError: vi.fn(async () => 1),
             updateStatusToQueued: vi.fn(async () => 1),
             updateStatusToExecuting: vi.fn(async () => 1),
             updateStatusToExpired: vi.fn(async () => 1),
@@ -8061,6 +8072,94 @@ describe('AsyncQueryService', () => {
             displayTimezone: null,
         });
 
+        test('keeps an ordinary query executing throughout a delayed warehouse fallback', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const strategy = makeMockStrategy({
+                resolved: true,
+                query: 'SELECT * FROM duckdb_preagg',
+                execution: 'duckdb',
+            });
+            const row = {
+                queryUuid: 'test-query-uuid',
+                projectUuid,
+                createdByUserUuid: sessionAccount.user.id,
+                createdByActorType: 'session',
+                agentIdentity: null,
+                requestParameters: {},
+                status: QueryHistoryStatus.EXECUTING,
+            } as QueryHistory;
+            const statuses: QueryHistoryStatus[] = [row.status];
+            vi.mocked(
+                service.queryHistoryModel.getByQueryUuid,
+            ).mockResolvedValue(row);
+            vi.mocked(
+                service.queryHistoryModel.updateStatusToError,
+            ).mockImplementation(async () => {
+                row.status = QueryHistoryStatus.ERROR;
+                statuses.push(row.status);
+                return 1;
+            });
+            vi.mocked(service.queryHistoryModel.update).mockImplementation(
+                async (_uuid, _project, update) => {
+                    if (update.status) {
+                        row.status = update.status;
+                        statuses.push(row.status);
+                    }
+                    return 1;
+                },
+            );
+            vi.mocked(
+                strategy.createPreAggregateWarehouseClient,
+            ).mockReturnValue({
+                ...warehouseClientMock,
+                executeAsyncQuery: vi
+                    .fn()
+                    .mockRejectedValue(new Error('HTTP 404: missing parquet')),
+            });
+            Object.assign(service, { preAggregateStrategy: strategy });
+            let release!: () => void;
+            const delayed = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const execute = vi.fn<WarehouseClient['executeAsyncQuery']>(
+                async (...args) => {
+                    await delayed;
+                    return warehouseClientMock.executeAsyncQuery(...args);
+                },
+            );
+            vi.spyOn(
+                service.warehouseClientFactory,
+                'acquireUnscoped',
+            ).mockResolvedValue({
+                warehouseClient: {
+                    ...warehouseClientMock,
+                    executeAsyncQuery: execute,
+                },
+                sshTunnel: {
+                    overrideCredentials: warehouseClientMock.credentials,
+                    disconnect: vi.fn(),
+                } as unknown as SshTunnel<CreateWarehouseCredentials>,
+                tunnelConnectMs: null,
+            });
+            const run = service.runAsyncPreAggregateQuery(buildArgs());
+            try {
+                await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+                expect(row.status).toBe(QueryHistoryStatus.EXECUTING);
+                expect(statuses).not.toContain(QueryHistoryStatus.ERROR);
+            } finally {
+                release();
+                await run;
+            }
+            expect(row.status).toBe(QueryHistoryStatus.READY);
+            expect(statuses).toEqual([
+                QueryHistoryStatus.EXECUTING,
+                QueryHistoryStatus.READY,
+            ]);
+            expect(
+                service.queryHistoryModel.getByQueryUuid,
+            ).not.toHaveBeenCalled();
+        });
+
         test('records fallback on query history and stats when execution fails', async () => {
             const mockStrategy = makeMockStrategy({
                 resolved: true,
@@ -9070,7 +9169,106 @@ describe('AsyncQueryService', () => {
         agentIdentity: null,
     });
 
+    describe('queued argument rebuild failures', () => {
+        test.each([
+            { kind: 'warehouse', bound: false },
+            { kind: 'warehouse', bound: true },
+            { kind: 'pre-aggregate', bound: false },
+            { kind: 'pre-aggregate', bound: true },
+        ])(
+            '$kind preserves the rebuild error, bound=$bound',
+            async ({ kind, bound }) => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                const error = new Error('argument rebuild failed');
+                vi.spyOn(
+                    service,
+                    'prepareQueuedQueryForExecution',
+                ).mockImplementation(
+                    async (
+                        _queryUuid,
+                        _worker,
+                        _timeout,
+                        onConnectionClaimed,
+                    ) => {
+                        if (bound) onConnectionClaimed?.();
+                        return true;
+                    },
+                );
+                const builder =
+                    kind === 'warehouse'
+                        ? 'buildWarehouseQueryArgs'
+                        : 'buildPreAggregateQueryArgs';
+                vi.spyOn(
+                    service as unknown as Record<
+                        typeof builder,
+                        () => Promise<unknown>
+                    >,
+                    builder,
+                ).mockRejectedValue(error);
+                const execute = vi.spyOn(service, 'runAsyncWarehouseQuery');
+                const run =
+                    kind === 'warehouse'
+                        ? service.runAsyncWarehouseQueryFromHistory.bind(
+                              service,
+                          )
+                        : service.runAsyncPreAggregateQueryFromHistory.bind(
+                              service,
+                          );
+                await expect(run('query', 'worker')).rejects.toBe(error);
+                expect(execute).not.toHaveBeenCalled();
+                if (bound) {
+                    expect(
+                        service.queryHistoryModel.updateClaimedQueryToError,
+                    ).toHaveBeenCalledExactlyOnceWith('query', error.message);
+                } else {
+                    expect(
+                        service.queryHistoryModel.updateClaimedQueryToError,
+                    ).not.toHaveBeenCalled();
+                    expect(
+                        service.queryHistoryModel.updateStatusToError,
+                    ).not.toHaveBeenCalled();
+                }
+            },
+        );
+    });
+
     describe('prepareQueuedQueryForExecution', () => {
+        test.each(['warehouse', 'pre-aggregate', 'duckdb'] as const)(
+            'a %s claim with no trusted envelope terminates before execution',
+            async (kind) => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                const row = createMockQueryHistory(QueryHistoryStatus.QUEUED);
+                row.agentIdentity = buildAgentIdentityClaim({
+                    subject: { type: 'user', uuid: row.createdByUserUuid! },
+                    surface: AgentActorSurface.CLI,
+                    clientId: 'lightdash-cli',
+                    agentConnectionGrant: { grantUuid: 'grant', revision: 1 },
+                });
+                vi.mocked(
+                    service.queryHistoryModel.getByQueryUuid,
+                ).mockResolvedValue(row);
+                const execute = vi
+                    .spyOn(service, 'runAsyncWarehouseQuery')
+                    .mockResolvedValue(undefined);
+                const entry = {
+                    warehouse:
+                        service.runAsyncWarehouseQueryFromHistory.bind(service),
+                    'pre-aggregate':
+                        service.runAsyncPreAggregateQueryFromHistory.bind(
+                            service,
+                        ),
+                    duckdb: service.runAsyncDuckdbQueryFromHistory.bind(
+                        service,
+                    ),
+                }[kind];
+                await expect(entry(row.queryUuid, 'worker')).rejects.toThrow();
+                expect(
+                    service.queryHistoryModel.updateClaimedQueryToError,
+                ).toHaveBeenCalled();
+                expect(execute).not.toHaveBeenCalled();
+            },
+        );
+
         test('transitions queued queries to executing', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             (
@@ -12869,6 +13067,8 @@ describe('AsyncQueryService', () => {
                     },
                 );
 
+                service['isResultIdentityEnabled'] = vi.fn(async () => false);
+
                 service.getExploreWithUserAccessControls = vi
                     .fn()
                     .mockResolvedValue({
@@ -15079,6 +15279,7 @@ describe('runDuckdbQuery', () => {
                 configuration: { bucket: 'results-bucket' },
             } as unknown as S3ResultsFileStorageClient,
             queryHistoryModel: {
+                getByQueryUuid: vi.fn(async () => undefined),
                 recordAiSignInCredential: vi.fn(),
                 recordResultProducer: vi.fn(),
                 update: vi.fn(),
@@ -15386,6 +15587,7 @@ describe('runDuckdbQuery', () => {
                 configuration: { bucket: 'results-bucket' },
             } as unknown as S3ResultsFileStorageClient,
             queryHistoryModel: {
+                getByQueryUuid: vi.fn(async () => undefined),
                 recordAiSignInCredential: vi.fn(),
                 recordResultProducer: vi.fn(),
                 update: vi.fn(),
@@ -19968,7 +20170,7 @@ describe('fresh stored result read boundary', () => {
         ).not.toHaveBeenCalled();
     });
 
-    test('flag-off pagination resolves once and adds no actor, explore, credential or lineage reads', async () => {
+    test('flag-off pagination skips lineage, actor, explore and credential reads', async () => {
         const f = setupRead();
         vi.mocked(f.service.featureFlagModel.get).mockResolvedValue({
             id: FeatureFlags.AgentIdentity,
@@ -20515,7 +20717,7 @@ describe('fresh stored result read boundary', () => {
                 context: QueryExecutionContext.EXPLORE,
             };
             const run = f.service['runDuckdbQuery'](args);
-            expect(poll).toHaveBeenCalledOnce();
+            await vi.waitFor(() => expect(poll).toHaveBeenCalledOnce());
             expect(bind).not.toHaveBeenCalled();
             if (change === 'access') {
                 f.currentUser.ability = new Ability<PossibleAbilities>([]);
@@ -21183,6 +21385,15 @@ describe('fresh execution producer to result reader', () => {
                         defaultPageSize: 10,
                     } as QueryHistory);
                     return { queryUuid };
+                },
+            ),
+            updateClaimedQueryToError: vi.fn(
+                async (uuid: string, error: string) => {
+                    Object.assign(rows.get(uuid)!, {
+                        status: QueryHistoryStatus.ERROR,
+                        error,
+                    });
+                    return 1;
                 },
             ),
             updateStatusToExecuting: vi.fn(async (uuid: string) => {
@@ -25554,6 +25765,1037 @@ describe('fresh execution producer to result reader', () => {
             ).not.toHaveBeenCalled();
         },
     );
+    const boundFixture = async (
+        run: (
+            f: ReturnType<typeof setup>,
+            auth: ReturnType<typeof setupGrantAuthentication>,
+            queryUuid: string,
+        ) => Promise<void>,
+    ) => {
+        const auth = setupGrantAuthentication({
+            ...defaultSessionUser,
+            organizationUuid: projectSummary.organizationUuid,
+            ability: authenticated('session').user.ability,
+        });
+        auth.grant.approvedProjectUuids = [projectUuid];
+        auth.grant.approvedCapabilities = Object.values(AgentCapability);
+        auth.req.params = { projectUuid };
+        auth.req.body = { sql: sqlChart.sql };
+        auth.req.route.stack[0].handle = Object.defineProperty(
+            () => {},
+            'name',
+            { value: 'QueryController_executeAsyncSqlQuery' },
+        );
+        auth.downstream.mockImplementation(async () => {
+            const f = setup(false, false, false, false, auth.req.account!);
+            Object.assign(f.service.aiAccessService, {
+                getAgentConnectionGrantService: () => auth.service,
+            });
+            useRealCredentialSelection(f);
+            const result = await writeSql(
+                f,
+                QueryExecutionContext.CLI,
+                QuerySurface.CLI,
+            );
+            expect(
+                (await readSql(f, auth.req.account!, result.queryUuid)).status,
+            ).toBe(QueryHistoryStatus.READY);
+            vi.mocked(
+                f.service.resultsStorageClient.getDownloadStream,
+            ).mockClear();
+            await run(f, auth, result.queryUuid);
+        });
+        const response = await auth.run(allowApiKeyAuthentication);
+        expect(response).toEqual({ status: 200, error: undefined });
+    };
+
+    test.each(
+        (['warehouse', 'pre-aggregate', 'duckdb'] as const).flatMap((kind) =>
+            [
+                'claim validation',
+                'rebuild history',
+                'onboarding',
+                'usage',
+                'wrapper history',
+                'wrapper validation',
+                'result access',
+                ...(kind === 'duckdb'
+                    ? ['duckdb spec']
+                    : ['overrides', 'override lookup', 'executor flag']),
+            ].map((failure) => ({ kind, failure })),
+        ),
+    )(
+        'bound $kind terminalises $failure and NATS terminates the delivery',
+        async ({ kind, failure }) => {
+            await boundFixture(async (f, _auth, queryUuid) => {
+                const preparation = f.service as unknown as {
+                    getOnboardingFlow: () => Promise<unknown>;
+                    isExcludedFromUsage: () => Promise<unknown>;
+                    deriveWarehouseCredentialsOverrides: () => Promise<unknown>;
+                };
+                const row = f.rows.get(queryUuid)!;
+                row.status = QueryHistoryStatus.QUEUED;
+                row.preAggregateCompiledSql = 'SELECT 999';
+                const error = new Error(`failed ${failure}`);
+                f.execute.mockClear();
+                const duckdb = vi.spyOn(
+                    f.service,
+                    'runDuckdbQueryInScope' as never,
+                );
+                vi.mocked(
+                    f.service.queryHistoryModel.getDuckdbExecution,
+                ).mockResolvedValue({
+                    invalidateCache: true,
+                    references: {},
+                    guard: null,
+                    columns: { mode: 'supplied' },
+                    storedCompiledSql: 'SELECT 1',
+                    engine: 'scopedToReferencedResults',
+                    cacheHit: false,
+                    refusal: null,
+                    referenceLabels: {},
+                });
+                const validation = vi.spyOn(
+                    f.service.aiAccessService,
+                    'assertQueryConnectionExecution',
+                );
+                const getHistory = vi.mocked(
+                    f.service.queryHistoryModel.getByQueryUuid,
+                );
+                if (failure === 'claim validation')
+                    validation.mockRejectedValueOnce(error);
+                if (failure === 'rebuild history')
+                    getHistory
+                        .mockResolvedValueOnce(row)
+                        .mockResolvedValueOnce(row)
+                        .mockRejectedValueOnce(error);
+                if (failure === 'wrapper history')
+                    getHistory
+                        .mockResolvedValueOnce(row)
+                        .mockResolvedValueOnce(row)
+                        .mockResolvedValueOnce(row)
+                        .mockRejectedValueOnce(error);
+                if (failure === 'wrapper validation') {
+                    const validate = validation.getMockImplementation()!;
+                    validation
+                        .mockImplementationOnce(validate)
+                        .mockRejectedValueOnce(error);
+                }
+                if (failure === 'onboarding')
+                    vi.spyOn(
+                        preparation,
+                        'getOnboardingFlow',
+                    ).mockRejectedValueOnce(error);
+                if (failure === 'usage')
+                    vi.spyOn(
+                        preparation,
+                        'isExcludedFromUsage',
+                    ).mockRejectedValueOnce(error);
+                if (failure === 'overrides')
+                    vi.spyOn(
+                        preparation,
+                        'deriveWarehouseCredentialsOverrides',
+                    ).mockRejectedValueOnce(error);
+                if (failure === 'override lookup') {
+                    delete (row.requestParameters as { sql?: string }).sql;
+                    delete row.requestParameters.resultSource;
+                    row.metricQuery.exploreName = 'orders';
+                    vi.mocked(
+                        f.service.projectModel.getExploreFromCache,
+                    ).mockRejectedValueOnce(error);
+                }
+                if (failure === 'duckdb spec')
+                    vi.mocked(
+                        f.service.queryHistoryModel.getDuckdbExecution,
+                    ).mockRejectedValueOnce(error);
+                if (failure === 'result access')
+                    vi.spyOn(
+                        f.service,
+                        'assertCanReadStoredResults',
+                    ).mockRejectedValueOnce(error);
+                if (failure === 'executor flag') {
+                    const read = f.service.assertCanReadStoredResults.bind(
+                        f.service,
+                    );
+                    vi.spyOn(
+                        f.service,
+                        'assertCanReadStoredResults',
+                    ).mockImplementationOnce(async (...args) => {
+                        await read(...args);
+                        vi.mocked(
+                            f.service.featureFlagModel.get,
+                        ).mockRejectedValueOnce(error);
+                    });
+                }
+                registerPreAggregateStream();
+                const message = {
+                    subject: STREAM_CONFIGS[kind].subjects.query,
+                    data: StringCodec().encode(
+                        JSON.stringify({
+                            jobId: 'job',
+                            payload: { queryUuid },
+                        }),
+                    ),
+                    ack: vi.fn(),
+                    nak: vi.fn(),
+                    term: vi.fn(),
+                    working: vi.fn(),
+                } as unknown as JsMsg;
+                const worker = new NatsWorker({
+                    natsClient: {} as never,
+                    asyncQueryService: f.service,
+                    queryHistoryModel: f.service.queryHistoryModel,
+                    streams: [],
+                    workerConcurrency: 1,
+                });
+                await agentExecutionContext.exit(() =>
+                    worker.handleMessage(message, 'worker'),
+                );
+                expect(row.status).toBe(QueryHistoryStatus.ERROR);
+                expect(row.error).toBe(error.message);
+                expect(f.execute).not.toHaveBeenCalled();
+                expect(duckdb).not.toHaveBeenCalled();
+                expect(message.term).toHaveBeenCalledOnce();
+                expect(message.nak).not.toHaveBeenCalled();
+                expect(message.ack).not.toHaveBeenCalled();
+            });
+        },
+    );
+
+    test('an unbound override lookup failure retains the best-effort fallback', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.mocked(
+            service.projectModel.getExploreFromCache,
+        ).mockRejectedValueOnce(new Error('cache unavailable'));
+        await expect(
+            service['deriveWarehouseCredentialsOverrides']({
+                projectUuid,
+                metricQuery: { ...metricQueryMock, exploreName: 'orders' },
+                requestParameters: {},
+                agentIdentity: null,
+            } as QueryHistory),
+        ).resolves.toBeUndefined();
+        expect(
+            service.queryHistoryModel.updateClaimedQueryToError,
+        ).not.toHaveBeenCalled();
+    });
+
+    test('an unbound warehouse flag failure keeps the executing row and the same error', async () => {
+        const f = setup(false, false, false, false, authenticated('session'));
+        const result = await writeSql(
+            f,
+            QueryExecutionContext.CLI,
+            QuerySurface.CLI,
+        );
+        const row = f.rows.get(result.queryUuid)!;
+        row.status = QueryHistoryStatus.QUEUED;
+        f.execute.mockClear();
+        const error = new Error('flag unavailable');
+        vi.mocked(f.service.featureFlagModel.get).mockRejectedValueOnce(error);
+        await expect(
+            f.service.runAsyncWarehouseQueryFromHistory(
+                result.queryUuid,
+                'worker',
+            ),
+        ).rejects.toBe(error);
+        expect(row.status).toBe(QueryHistoryStatus.EXECUTING);
+        expect(f.execute).not.toHaveBeenCalled();
+        expect(
+            f.service.queryHistoryModel.updateClaimedQueryToError,
+        ).not.toHaveBeenCalled();
+    });
+
+    test.each(['history reload', 'subject lookup'] as const)(
+        'terminalises a claimed connection failure during %s',
+        async (failure) => {
+            await boundFixture(async (f, auth, queryUuid) => {
+                const row = f.rows.get(queryUuid)!;
+                row.status = QueryHistoryStatus.QUEUED;
+                f.execute.mockClear();
+                if (failure === 'history reload') {
+                    vi.mocked(f.service.queryHistoryModel.getByQueryUuid)
+                        .mockResolvedValueOnce(row)
+                        .mockRejectedValueOnce(
+                            new Error('history unavailable'),
+                        );
+                } else {
+                    auth.deps.userModel.findSessionUserAndOrgByUuid
+                        .mockResolvedValueOnce(auth.user)
+                        .mockImplementationOnce(async () => {
+                            row.createdByUserUuid = null;
+                            throw new Error('subject deleted');
+                        });
+                }
+                await expect(
+                    agentExecutionContext.exit(() =>
+                        f.service.runAsyncWarehouseQueryFromHistory(
+                            queryUuid,
+                            'worker',
+                        ),
+                    ),
+                ).rejects.toThrow();
+                expect(row.status).toBe(QueryHistoryStatus.ERROR);
+                expect(f.execute).not.toHaveBeenCalled();
+            });
+        },
+    );
+
+    test('refuses a queued binding removed between claiming and rebuilding arguments', async () => {
+        await boundFixture(async (f, _auth, queryUuid) => {
+            const row = f.rows.get(queryUuid)!;
+            row.status = QueryHistoryStatus.QUEUED;
+            const claimed = structuredClone(row);
+            row.agentIdentity = null;
+            vi.mocked(
+                f.service.queryHistoryModel.getByQueryUuid,
+            ).mockResolvedValueOnce(claimed);
+            f.execute.mockClear();
+            await expect(
+                agentExecutionContext.exit(() =>
+                    f.service.runAsyncWarehouseQueryFromHistory(
+                        queryUuid,
+                        'worker',
+                    ),
+                ),
+            ).rejects.toThrow();
+            expect(row.status).toBe(QueryHistoryStatus.ERROR);
+            expect(f.execute).not.toHaveBeenCalled();
+        });
+    });
+
+    test.each([
+        { revoked: false, preAggregate: false },
+        { revoked: true, preAggregate: false },
+        { revoked: false, preAggregate: true },
+        { revoked: true, preAggregate: true },
+    ])(
+        'a queued connection restores its scope outside the request, revoked=$revoked preAggregate=$preAggregate',
+        async ({ revoked, preAggregate }) => {
+            await boundFixture(async (f, auth, queryUuid) => {
+                const row = f.rows.get(queryUuid)!;
+                row.status = QueryHistoryStatus.QUEUED;
+                if (preAggregate) {
+                    row.preAggregateCompiledSql = 'SELECT 999 AS cached';
+                    row.preAggregateExecution = 'duckdb';
+                }
+                delete row.requestParameters.resultProducer;
+                f.execute.mockClear();
+                const execute = f.execute.getMockImplementation()!;
+                f.execute.mockImplementation(async (...args) => {
+                    expect(
+                        agentExecutionContext.getStore()?.claim?.act
+                            .agent_connection_grant,
+                    ).toEqual({ grantUuid: 'grant', revision: 1 });
+                    expect(
+                        agentExecutionContext.getStore()
+                            ?.agentConnectionExecution?.scopes,
+                    ).toEqual(['read']);
+                    return execute(...args);
+                });
+                if (revoked)
+                    Object.assign(auth.grant, { revokedAt: new Date() });
+                const run = agentExecutionContext.exit(() =>
+                    preAggregate
+                        ? f.service.runAsyncPreAggregateQueryFromHistory(
+                              queryUuid,
+                              'worker',
+                          )
+                        : f.service.runAsyncWarehouseQueryFromHistory(
+                              queryUuid,
+                              'worker',
+                          ),
+                );
+
+                if (revoked) {
+                    await expect(run).rejects.toThrow();
+                    expect(row.status).toBe(QueryHistoryStatus.ERROR);
+                    expect(f.execute).not.toHaveBeenCalled();
+                } else {
+                    await expect(run).resolves.toBe(true);
+                    expect(row.status).toBe(QueryHistoryStatus.READY);
+                    expect(f.execute).toHaveBeenCalledOnce();
+                    expect(f.execute.mock.calls[0][0].sql).toBe(
+                        row.compiledSql,
+                    );
+                    expect(f.execute.mock.calls[0][0].sql).not.toContain(
+                        'SELECT 999 AS cached',
+                    );
+                    expect(
+                        (await readSql(f, auth.req.account!, queryUuid)).status,
+                    ).toBe(QueryHistoryStatus.READY);
+                }
+            });
+        },
+    );
+    test.each([
+        QueryHistoryStatus.PENDING,
+        QueryHistoryStatus.ERROR,
+        QueryHistoryStatus.READY,
+    ])(
+        'person and foreign-connection readers refuse %s with both identity switches off',
+        async (status) => {
+            await boundFixture(async (f, auth, queryUuid) => {
+                const row = f.rows.get(queryUuid)!;
+                row.status = status;
+                if (status !== QueryHistoryStatus.READY)
+                    delete row.requestParameters.resultProducer;
+                vi.mocked(f.service.featureFlagModel.get).mockResolvedValue({
+                    id: FeatureFlags.AgentIdentity,
+                    enabled: false,
+                });
+                Object.assign(f.service, {
+                    lightdashConfig: {
+                        ...lightdashConfigMock,
+                        ai: {
+                            ...lightdashConfigMock.ai,
+                            agentResultIdentityCheckEnabled: false,
+                        },
+                    },
+                });
+                const person = fromOauth(auth.user, {
+                    accessToken: 'ordinary',
+                    client: { id: 'lightdash-cli' },
+                });
+                await expect(
+                    agentExecutionContext.exit(() =>
+                        readSql(f, person, queryUuid),
+                    ),
+                ).rejects.toThrow();
+                const scope = agentExecutionContext.getStore()!;
+                const foreignScope = createAgentExecutionContext({
+                    account: auth.req.account!,
+                    surface: AgentActorSurface.CLI,
+                    clientId: 'lightdash-cli',
+                    agentUuid: null,
+                    agentIdentityEnabled: true,
+                    agentConnectionGrant: { grantUuid: 'foreign', revision: 1 },
+                    agentConnectionExecution: {
+                        ...scope.agentConnectionExecution!,
+                        grantUuid: 'foreign',
+                    },
+                });
+                await expect(
+                    agentExecutionContext.run(foreignScope, () =>
+                        readSql(f, auth.req.account!, queryUuid),
+                    ),
+                ).rejects.toThrow();
+                expect(
+                    f.service.resultsStorageClient.getDownloadStream,
+                ).not.toHaveBeenCalled();
+            });
+        },
+    );
+    test.each(['person', 'connection'] as const)(
+        'flag-off reads and source statuses refuse a connection root for a %s',
+        async (readerKind) => {
+            await boundFixture(async (f, auth, queryUuid) => {
+                auth.deps.featureFlags.get.mockResolvedValue({
+                    enabled: false,
+                });
+                vi.mocked(f.service.featureFlagModel.get).mockImplementation(
+                    async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: featureFlagId !== FeatureFlags.AgentIdentity,
+                    }),
+                );
+                const source = new QuerySourceService({
+                    getAsyncQueryService: () => f.service,
+                    getAgentPermissionService: () =>
+                        ({ assertOperation: vi.fn() }) as never,
+                    projectModel: f.service.projectModel,
+                    featureFlagModel: f.service.featureFlagModel,
+                    queryHistoryModel: f.service.queryHistoryModel,
+                    registry: new QuerySourceRegistry(),
+                });
+                const account =
+                    readerKind === 'connection'
+                        ? auth.req.account!
+                        : fromOauth(auth.user, {
+                              accessToken: 'ordinary',
+                              client: { id: 'lightdash-cli' },
+                          });
+                const check = async () => {
+                    await expect(
+                        readSql(f, account, queryUuid),
+                    ).rejects.toThrow();
+                    await expect(
+                        source.getSourceQueryStatuses(account, projectUuid, [
+                            queryUuid,
+                        ]),
+                    ).rejects.toThrow();
+                };
+                if (readerKind === 'connection') await check();
+                else await agentExecutionContext.exit(check);
+                expect(
+                    f.service.resultsStorageClient.getDownloadStream,
+                ).not.toHaveBeenCalled();
+            });
+        },
+    );
+
+    test.each([false, true])(
+        'an unbound reader cannot reuse a connection source, flag=%s',
+        async (enabled) => {
+            await boundFixture(async (f, auth, queryUuid) => {
+                vi.mocked(f.service.featureFlagModel.get).mockResolvedValue({
+                    id: FeatureFlags.AgentIdentity,
+                    enabled,
+                });
+                const person = fromOauth(auth.user, {
+                    accessToken: 'ordinary',
+                    client: { id: 'lightdash-cli' },
+                });
+                const count = f.rows.size;
+                await expect(
+                    agentExecutionContext.exit(() =>
+                        f.service.executeAsyncUnboundedRerunFromQueryHistory({
+                            account: person,
+                            projectUuid,
+                            queryUuid,
+                            context: QueryExecutionContext.CLI,
+                        }),
+                    ),
+                ).rejects.toThrow();
+                expect(f.rows.size).toBe(count);
+                expect(
+                    f.service.resultsStorageClient.getDownloadStream,
+                ).not.toHaveBeenCalled();
+            });
+        },
+    );
+
+    test.each(['deep', 'cycle', 'missing'] as const)(
+        'flag-off source statuses skip an ordinary %s lineage',
+        async (kind) => {
+            const account = authenticated('session');
+            const f = setup(false, false, false, false, account);
+            const result = await writeSql(
+                f,
+                QueryExecutionContext.EXPLORE,
+                QuerySurface.APP,
+            );
+            const row = f.rows.get(result.queryUuid)!;
+            const batch = vi.mocked(
+                f.service.queryHistoryModel.getManyWithDuckdbExecutions,
+            );
+            batch.mockClear();
+            batch.mockRejectedValue(new NotFoundError('must not traverse'));
+            for (let i = 0; i < 60; i += 1) {
+                f.rows.set(`ancestor-${i}`, {
+                    ...row,
+                    queryUuid: `ancestor-${i}`,
+                    requestParameters: {
+                        ...row.requestParameters,
+                        references:
+                            i === 59 ? {} : { source: `ancestor-${i + 1}` },
+                    },
+                });
+            }
+            row.requestParameters = {
+                ...row.requestParameters,
+                references: {
+                    source: {
+                        cycle: row.queryUuid,
+                        missing: 'missing',
+                        deep: 'ancestor-0',
+                    }[kind],
+                },
+            };
+            vi.mocked(f.service.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled: featureFlagId !== FeatureFlags.AgentIdentity,
+                }),
+            );
+            const source = new QuerySourceService({
+                getAsyncQueryService: () => f.service,
+                getAgentPermissionService: () =>
+                    ({ assertOperation: vi.fn() }) as never,
+                projectModel: f.service.projectModel,
+                featureFlagModel: f.service.featureFlagModel,
+                queryHistoryModel: f.service.queryHistoryModel,
+                registry: new QuerySourceRegistry(),
+            });
+            await expect(
+                source.getSourceQueryStatuses(account, projectUuid, [
+                    row.queryUuid,
+                ]),
+            ).resolves.toMatchObject({
+                statuses: [{ status: QueryHistoryStatus.READY }],
+            });
+            expect(batch).not.toHaveBeenCalled();
+        },
+    );
+
+    test.each(['revoked', 'foreign_source', 'person_source'])(
+        'delayed DuckDB dependencies refuse %s before consuming files',
+        async (reason) => {
+            await boundFixture(async (f, auth, queryUuid) => {
+                f.execute.mockClear();
+                vi.mocked(
+                    f.service.queryHistoryModel.pollForQueryCompletion,
+                ).mockImplementation(async () => {
+                    const row = f.rows.get(queryUuid)!;
+                    if (reason === 'revoked')
+                        Object.assign(auth.grant, { revokedAt: new Date() });
+                    if (reason === 'foreign_source')
+                        row.requestParameters.agentConnectionExecution = {
+                            ...row.requestParameters.agentConnectionExecution!,
+                            grantUuid: 'foreign',
+                        };
+                    if (reason === 'person_source') {
+                        row.agentIdentity = null;
+                        delete row.requestParameters.agentConnectionExecution;
+                        row.requestParameters.resultProducer!.agentIdentity =
+                            null;
+                    }
+                    return row;
+                });
+                const submitted = await f.service.executeAsyncComposeSqlQuery({
+                    account: auth.req.account!,
+                    projectUuid,
+                    sql: 'SELECT * FROM source',
+                    references: { source: queryUuid },
+                    context: QueryExecutionContext.COMPOSE_SQL_RUNNER,
+                    invalidateCache: true,
+                });
+                await vi.waitFor(() =>
+                    expect(f.rows.get(submitted.queryUuid)!.status).toBe(
+                        QueryHistoryStatus.ERROR,
+                    ),
+                );
+                expect(f.execute).not.toHaveBeenCalled();
+                expect(
+                    f.service.resultsStorageClient.getDownloadStream,
+                ).not.toHaveBeenCalled();
+            });
+        },
+    );
+    test.each(['credential', 'entitlement', 'access'])(
+        'same-connection delivery keeps %s checks with the producer switch off',
+        async (reason) => {
+            await boundFixture(async (f, auth, queryUuid) => {
+                Object.assign(f.service.aiAccessService, {
+                    lightdashConfig: {
+                        ...lightdashConfigMock,
+                        ai: {
+                            ...lightdashConfigMock.ai,
+                            agentResultIdentityCheckEnabled: false,
+                        },
+                    },
+                });
+                if (reason === 'credential')
+                    Object.assign(
+                        f.rows.get(queryUuid)!.requestParameters
+                            .resultProducer!,
+                        {
+                            credentialOwner: {
+                                kind: 'ai_service_account',
+                                credentialUuid: 'old',
+                                generation: 'old',
+                                sourceProjectUuid: projectUuid,
+                            },
+                        },
+                    );
+                if (reason === 'entitlement')
+                    Object.assign(
+                        f.rows.get(queryUuid)!.requestParameters
+                            .resultProducer!,
+                        { entitlementFingerprint: 'old' },
+                    );
+                if (reason === 'access')
+                    Object.assign(auth.user, {
+                        ability: new Ability<PossibleAbilities>([]),
+                    });
+                await expect(
+                    readSql(f, auth.req.account!, queryUuid),
+                ).rejects.toThrow();
+                expect(
+                    f.service.resultsStorageClient.getDownloadStream,
+                ).not.toHaveBeenCalled();
+            });
+        },
+    );
+    test('source status uses the real connection guard before returning pending or error state', async () => {
+        await boundFixture(async (f, auth, queryUuid) => {
+            const source = new QuerySourceService({
+                getAsyncQueryService: () => f.service,
+                getAgentPermissionService: () => auth.permissions,
+                projectModel: f.service.projectModel,
+                featureFlagModel: f.service.featureFlagModel,
+                queryHistoryModel: f.service.queryHistoryModel,
+                registry: new QuerySourceRegistry(),
+            });
+            vi.mocked(f.service.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled: true,
+                }),
+            );
+            const row = f.rows.get(queryUuid)!;
+            row.status = QueryHistoryStatus.PENDING;
+            delete row.requestParameters.resultProducer;
+            expect(
+                await source.getSourceQueryStatuses(
+                    auth.req.account!,
+                    projectUuid,
+                    [queryUuid],
+                ),
+            ).toMatchObject({
+                statuses: [{ status: QueryHistoryStatus.PENDING }],
+            });
+            Object.assign(auth.grant, { revokedAt: new Date() });
+            row.status = QueryHistoryStatus.ERROR;
+            row.error = 'private error';
+            await expect(
+                source.getSourceQueryStatuses(auth.req.account!, projectUuid, [
+                    queryUuid,
+                ]),
+            ).rejects.toThrow();
+        });
+    });
+
+    test.each([
+        'revoked',
+        'expired',
+        'revision',
+        'subject_flag',
+        'org_flag',
+        'permissions',
+        'scopes',
+    ])('fresh delivery refuses %s before opening storage', async (reason) => {
+        await boundFixture(async (f, auth, queryUuid) => {
+            if (reason === 'revoked')
+                Object.assign(auth.grant, { revokedAt: new Date() });
+            if (reason === 'expired')
+                Object.assign(auth.grant, { expiresAt: new Date(0) });
+            if (reason === 'revision')
+                Object.assign(auth.grant, {
+                    grantRevision: auth.grant.grantRevision + 1,
+                });
+            if (reason.endsWith('flag'))
+                auth.deps.featureFlags.get.mockImplementation(async (args) => ({
+                    enabled:
+                        reason === 'subject_flag'
+                            ? !args.user?.userUuid
+                            : !!args.user?.userUuid,
+                }));
+            if (reason === 'permissions')
+                Object.assign(auth.grant, { approvedCapabilities: [] });
+            if (reason === 'scopes')
+                Object.assign(f.rows.get(queryUuid)!.requestParameters, {
+                    agentConnectionExecution: {
+                        ...f.rows.get(queryUuid)!.requestParameters
+                            .agentConnectionExecution!,
+                        scopes: [],
+                    },
+                });
+            await expect(
+                readSql(f, auth.req.account!, queryUuid),
+            ).rejects.toThrow();
+            expect(
+                f.service.resultsStorageClient.getDownloadStream,
+            ).not.toHaveBeenCalled();
+        });
+    });
+    test('a long-lived connection can consume a slow result stream', async () => {
+        await boundFixture(async (f, auth, queryUuid) => {
+            const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+            Object.assign(auth.grant, { expiresAt });
+            const account = auth.req.account!;
+            if (account.authentication.type !== 'oauth')
+                throw new Error('Expected OAuth');
+            Object.assign(account.authentication.agentConnectionGrant!, {
+                expiresAt,
+            });
+            vi.mocked(
+                f.service.resultsStorageClient.getDownloadStream,
+            ).mockResolvedValue(
+                Readable.from(
+                    (async function* slowRows() {
+                        await new Promise((resolve) => {
+                            setTimeout(resolve, 20);
+                        });
+                        yield 'protected-row';
+                    })(),
+                ),
+            );
+            const stream = await f.service.getResultsStream({
+                account,
+                projectUuid,
+                queryUuid,
+            });
+            const rows = [];
+            for await (const row of stream) rows.push(row);
+            expect(rows).toEqual(['protected-row']);
+        });
+    });
+
+    test.each(['paged', 'raw', 'ready', 'stream'])(
+        'rechecks connection after asynchronous storage preparation for %s delivery',
+        async (path) => {
+            await boundFixture(async (f, auth, queryUuid) => {
+                const download =
+                    f.service.resultsStorageClient.getDownloadStream;
+                const original = vi.mocked(download).getMockImplementation()!;
+                vi.mocked(download).mockImplementation(async (...args) => {
+                    const stream = await original(...args);
+                    Object.assign(auth.grant, { revokedAt: new Date() });
+                    return stream;
+                });
+                const args = {
+                    account: auth.req.account!,
+                    projectUuid,
+                    queryUuid,
+                };
+                const effect = vi.fn();
+                const read = async () => {
+                    if (path === 'paged')
+                        return readSql(f, args.account, queryUuid);
+                    if (path === 'raw')
+                        return f.service.getRawAsyncQueryResults(args);
+                    if (path === 'ready')
+                        return f.service['getReadyQueryResults']({
+                            ...args,
+                            cacheMetadata: { cacheHit: false },
+                            fields: {},
+                        });
+                    const stream = await f.service.getResultsStream(args);
+                    for await (const chunk of stream) effect(chunk);
+                    return undefined;
+                };
+                await expect(read()).rejects.toThrow();
+                expect(effect).not.toHaveBeenCalled();
+            });
+        },
+    );
+
+    test('connection history passes its exact binding to the page and both count groups', async () => {
+        await boundFixture(async (f, auth) => {
+            const findUserHistory = vi.fn().mockResolvedValue({
+                data: [],
+                pagination: {
+                    page: 1,
+                    pageSize: 10,
+                    totalPageCount: 0,
+                    totalResults: 0,
+                },
+            });
+            const getUserHistoryCounts = vi.fn().mockResolvedValue({
+                triggers: { interactive: 0, apps: 0, scheduled: 0 },
+                windows: {},
+                warehouseTimeMsLast7Days: 0,
+            });
+            Object.assign(f.service.queryHistoryModel, {
+                findUserHistory,
+                getUserHistoryCounts,
+            });
+            vi.mocked(f.service.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled: true,
+                }),
+            );
+            const args = {
+                account: auth.req.account!,
+                projectUuid,
+                filters: {},
+                paginateArgs: { page: 1, pageSize: 10 },
+            };
+            await f.service.getQueryHistoryList(args);
+            expect(findUserHistory).toHaveBeenLastCalledWith(
+                projectUuid,
+                auth.user.userUuid,
+                {},
+                args.paginateArgs,
+                { grantUuid: 'grant', revision: 1 },
+            );
+            expect(getUserHistoryCounts).toHaveBeenLastCalledWith(
+                projectUuid,
+                auth.user.userUuid,
+                {},
+                { grantUuid: 'grant', revision: 1 },
+            );
+            const person = fromOauth(auth.user, {
+                accessToken: 'ordinary',
+                client: { id: 'lightdash-cli' },
+            });
+            await agentExecutionContext.exit(() =>
+                f.service.getQueryHistoryList({ ...args, account: person }),
+            );
+            expect(findUserHistory).toHaveBeenLastCalledWith(
+                projectUuid,
+                auth.user.userUuid,
+                {},
+                args.paginateArgs,
+                null,
+            );
+            expect(getUserHistoryCounts).toHaveBeenLastCalledWith(
+                projectUuid,
+                auth.user.userUuid,
+                {},
+                null,
+            );
+            findUserHistory.mockImplementationOnce(async () => {
+                Object.assign(auth.grant, { revokedAt: new Date() });
+                return { data: [], pagination: undefined };
+            });
+            const emit = vi.fn();
+            await expect(
+                f.service.getQueryHistoryList(args).then(emit),
+            ).rejects.toThrow();
+            expect(emit).not.toHaveBeenCalled();
+        });
+    });
+
+    test('pivot preflight rechecks a ready source before probing its file', async () => {
+        await boundFixture(async (f, auth, queryUuid) => {
+            const probe = vi.fn(async () => []);
+            Object.assign(f.service, { probeDuckdbQueryColumns: probe });
+            Object.assign(auth.grant, { revokedAt: new Date() });
+            await expect(
+                f.service['preflightDiscoveredPivot']({
+                    account: auth.req.account!,
+                    projectUuid,
+                    sql: 'SELECT * FROM source',
+                    limit: 10,
+                    references: { source: queryUuid },
+                    parameters: {},
+                    pivotConfiguration: {
+                        indexColumn: {
+                            reference: 'value',
+                            type: VizIndexType.CATEGORY,
+                        },
+                        groupByColumns: [],
+                        sortBy: [],
+                        valuesColumns: [],
+                    },
+                    warehouseClient: f.client,
+                    queryTags: {
+                        query_context: QueryExecutionContext.COMPOSE_SQL_RUNNER,
+                    },
+                }),
+            ).rejects.toThrow();
+            expect(probe).not.toHaveBeenCalled();
+        });
+    });
+
+    test('an authenticated connection produces and reads its result across refresh and refuses person reads in both directions', async () => {
+        const auth = setupGrantAuthentication({
+            ...defaultSessionUser,
+            organizationUuid: projectSummary.organizationUuid,
+            ability: authenticated('session').user.ability,
+        });
+        auth.grant.approvedProjectUuids = [projectUuid];
+        auth.grant.approvedCapabilities = Object.values(AgentCapability);
+        auth.req.params = { projectUuid };
+        auth.req.body = { sql: sqlChart.sql };
+        auth.req.route.stack[0].handle = Object.defineProperty(
+            () => {},
+            'name',
+            { value: 'QueryController_executeAsyncSqlQuery' },
+        );
+        let fixture: ReturnType<typeof setup>;
+        let connectionQueryUuid: string;
+        auth.downstream.mockImplementation(async () => {
+            fixture = setup(false, false, false, false, auth.req.account!);
+            Object.assign(fixture.service.aiAccessService, {
+                getAgentConnectionGrantService: () => auth.service,
+            });
+            useRealCredentialSelection(fixture);
+            const result = await writeSql(
+                fixture,
+                QueryExecutionContext.CLI,
+                QuerySurface.CLI,
+            );
+            connectionQueryUuid = result.queryUuid;
+            expect(
+                fixture.rows.get(result.queryUuid)!.requestParameters
+                    .resultProducer,
+            ).toMatchObject({
+                authMethod: 'oauth',
+                agentIdentity: {
+                    subject: { type: 'user', uuid: auth.user.userUuid },
+                    act: {
+                        agent_connection_grant: {
+                            grantUuid: 'grant',
+                            revision: 1,
+                        },
+                    },
+                },
+            });
+            expect(
+                (await readSql(fixture, auth.req.account!, result.queryUuid))
+                    .status,
+            ).toBe(QueryHistoryStatus.READY);
+        });
+        expect(await auth.run(allowApiKeyAuthentication)).toEqual({
+            status: 200,
+            error: undefined,
+        });
+        const person = fromOauth(auth.user, {
+            accessToken: 'ordinary',
+            client: { id: 'lightdash-cli' },
+        });
+        vi.mocked(
+            fixture!.service.resultsStorageClient.getDownloadStream,
+        ).mockClear();
+        await expect(
+            readSql(fixture!, person, connectionQueryUuid!),
+        ).rejects.toBeInstanceOf(AiAccessRefusedError);
+        expect(
+            fixture!.service.resultsStorageClient.getDownloadStream,
+        ).not.toHaveBeenCalled();
+        const personFixture = setup(false, false, false, false, person);
+        useRealCredentialSelection(personFixture);
+        const personResult = await writeSql(
+            personFixture,
+            QueryExecutionContext.CLI,
+            QuerySurface.CLI,
+        );
+        expect(
+            personFixture.rows.get(personResult.queryUuid)!.requestParameters
+                .resultProducer?.agentIdentity,
+        ).toBeNull();
+        auth.token.accessToken = 'refreshed';
+        auth.req.params.queryUuid = connectionQueryUuid!;
+        auth.deps.resourceResolver.resolveResourceProjectUuid.mockResolvedValue(
+            projectUuid,
+        );
+        auth.req.route.stack[0].handle = Object.defineProperty(
+            () => {},
+            'name',
+            { value: 'QueryController_getAsyncQueryResults' },
+        );
+        auth.downstream.mockImplementation(async () => {
+            expect(
+                (
+                    await readSql(
+                        fixture!,
+                        auth.req.account!,
+                        connectionQueryUuid!,
+                    )
+                ).status,
+            ).toBe(QueryHistoryStatus.READY);
+            vi.mocked(
+                personFixture.service.resultsStorageClient.getDownloadStream,
+            ).mockClear();
+            await expect(
+                readSql(
+                    personFixture,
+                    auth.req.account!,
+                    personResult.queryUuid,
+                ),
+            ).rejects.toBeInstanceOf(AiAccessRefusedError);
+            expect(
+                personFixture.service.resultsStorageClient.getDownloadStream,
+            ).not.toHaveBeenCalled();
+        });
+        expect(await auth.run(allowApiKeyAuthentication)).toEqual({
+            status: 200,
+            error: undefined,
+        });
+    });
     test.each(['pat', 'oauth'] as const)(
         'round 17 unscoped CLI %s uses a person plan and reads its person result',
         async (method) => {

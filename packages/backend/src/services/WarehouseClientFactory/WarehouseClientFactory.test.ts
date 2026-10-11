@@ -6246,3 +6246,45 @@ test('round 18 cached client sessions separate person and agent leases across fl
     expect(secondAgent.warehouseClient).toBeDefined();
     expect(agent.warehouseClient).toBeDefined();
 });
+
+test('connection discovery resolves agent identity for SQL runner without changing null compile contexts', async () => {
+    const { factory, aiAccessService } = buildFixture();
+    const claim = buildAgentIdentityClaim({
+        subject: { type: 'user', uuid: 'user-uuid' },
+        surface: AgentActorSurface.CLI,
+        clientId: 'lightdash-cli',
+        agentConnectionGrant: { grantUuid: 'grant', revision: 2 },
+    });
+    await factory.resolveWarehouseCredentials(
+        bindingRef,
+        connectionContextFromUser(
+            { userUuid: 'user-uuid' },
+            {
+                organizationUuid: 'org-uuid',
+                queryContext: QueryExecutionContext.SQL_RUNNER,
+                agentIdentity: claim,
+            },
+        ),
+    );
+    expect(aiAccessService.resolvePlan).toHaveBeenCalledWith(
+        expect.objectContaining({
+            agentIdentity: claim,
+            context: QueryExecutionContext.SQL_RUNNER,
+            evaluation: { kind: 'query', surface: QuerySurface.CLI },
+        }),
+    );
+    aiAccessService.resolvePlan.mockClear();
+    await factory.resolveWarehouseCredentials(
+        bindingRef,
+        connectionContextFromUser(
+            { userUuid: 'user-uuid' },
+            {
+                organizationUuid: 'org-uuid',
+                queryContext: null,
+                purpose: 'compile',
+                agentIdentity: claim,
+            },
+        ),
+    );
+    expect(aiAccessService.resolvePlan).not.toHaveBeenCalled();
+});

@@ -281,6 +281,7 @@ import {
     WarehouseTableSchema,
     WarehouseTypes,
     withAgentMarkerTag,
+    type AgentConnectionTaskEffect,
     type AgentSqlScope,
     type ApiCreateProjectResults,
     type ChartUsageIn,
@@ -335,6 +336,7 @@ import {
     fromSession,
     toSessionUser,
 } from '../../auth/account/account';
+import { type AgentConnectionGrantService } from '../../auth/agentConnectionGrants/AgentConnectionGrantService';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
@@ -422,6 +424,11 @@ import {
     TrackingParams,
 } from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
+import {
+    captureAgentConnectionTask,
+    getAgentConnectionEffectCapabilities,
+    normalizeAgentConnectionExecution,
+} from '../../utils/agentConnectionExecution';
 import { AWS_WEB_IDENTITY_MESSAGES } from '../../utils/awsWebIdentity/messages';
 import { assertValidPersistedBigquerySsoKeyfile } from '../../utils/bigquerySsoCredentials';
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
@@ -451,6 +458,7 @@ import { copyWarehouseCredentialVersions } from '../../utils/warehouseCredential
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { assertHumanManagedMutation } from '../AgentPermissionService/assertHumanManagedMutation';
 import {
+    agentExecutionContext,
     buildQueryAgentIdentity,
     buildResultReader,
     getContentWriteAgentIdentity,
@@ -631,6 +639,7 @@ export type InternalProvisioningSource =
 export type InternalProvisioning = { source: InternalProvisioningSource };
 
 export type ProjectServiceArguments = {
+    getAgentConnectionGrantService?: () => AgentConnectionGrantService;
     refreshTokenRotation: Pick<RefreshTokenRotation, 'run'>;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -915,7 +924,10 @@ export class ProjectService
 
     private readonly snowflakeOAuthCredentialResolver: SnowflakeOAuthCredentialResolver;
 
+    private readonly getAgentConnectionGrantService: ProjectServiceArguments['getAgentConnectionGrantService'];
+
     constructor({
+        getAgentConnectionGrantService,
         refreshTokenRotation,
         lightdashConfig,
         analytics,
@@ -974,6 +986,7 @@ export class ProjectService
         seedTrainingCopyEnterpriseContent,
     }: ProjectServiceArguments) {
         super();
+        this.getAgentConnectionGrantService = getAgentConnectionGrantService;
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.projectModel = projectModel;
@@ -3684,6 +3697,102 @@ export class ProjectService
         }
     }
 
+    async assertAgentConnectionEffect(
+        projectUuid: string,
+        effect: AgentConnectionTaskEffect,
+    ): Promise<RegisteredAccount | null> {
+        const scope = agentExecutionContext.getStore();
+        if (
+            !scope?.claim?.act.agent_connection_grant &&
+            !scope?.agentConnectionExecution
+        )
+            return null;
+        const execution = normalizeAgentConnectionExecution(
+            scope.agentConnectionExecution,
+        );
+        if (!execution || !this.getAgentConnectionGrantService)
+            throw new ForbiddenError(
+                'This agent connection is no longer available for this operation.',
+            );
+        const { account } =
+            await this.getAgentConnectionGrantService().assertActiveExecution(
+                execution,
+                {
+                    projectUuid,
+                    capabilities: getAgentConnectionEffectCapabilities(
+                        effect,
+                        execution,
+                    ),
+                    recheckOperation: true,
+                },
+            );
+        const project = await this.projectModel.getSummary(projectUuid);
+        const resource =
+            execution.operation.key === 'ProjectController.refresh'
+                ? 'CompileProject'
+                : 'DeployProject';
+        if (
+            project.organizationUuid !== execution.organizationUuid ||
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject(resource, { ...project, projectUuid }),
+            )
+        )
+            throw new ForbiddenError();
+        return account;
+    }
+
+    async assertConnectionPreAggregateRefresh(
+        projectUuid: string,
+        explores: (Explore | ExploreError)[] = [],
+    ): Promise<void> {
+        if (!agentExecutionContext.getStore()?.agentConnectionExecution) return;
+        const definitions =
+            await this.preAggregateModel.getPreAggregateDefinitionsForProject(
+                projectUuid,
+            );
+        const cachedExplores =
+            await this.projectModel.getAllExploresFromCache(projectUuid);
+        if (
+            definitions.some((definition) => definition.refreshCron !== null) ||
+            Object.values(cachedExplores).some(
+                (explore) =>
+                    'preAggregates' in explore &&
+                    explore.preAggregates?.some(
+                        (definition) => definition.refresh?.cron != null,
+                    ),
+            )
+        )
+            throw new ForbiddenError(
+                'This agent connection cannot deploy to, refresh or change parameters of this project, because the project has pre-aggregates with a scheduled refresh. A person can do this, or use a project without scheduled pre-aggregate refreshes.',
+            );
+        if (
+            explores.some(
+                (explore) =>
+                    'preAggregates' in explore &&
+                    explore.preAggregates?.some(
+                        (definition) => definition.refresh?.cron != null,
+                    ),
+            )
+        )
+            throw new ForbiddenError(
+                'This agent connection cannot add a pre-aggregate with a scheduled refresh. A person can add it.',
+            );
+    }
+
+    private async prepareConnectionExploreStream(
+        projectUuid: string,
+        stream: AsyncIterable<Explore | ExploreError>,
+    ): Promise<AsyncIterable<Explore | ExploreError>> {
+        await this.assertConnectionPreAggregateRefresh(projectUuid);
+        const explores: (Explore | ExploreError)[] = [];
+        for await (const explore of stream) explores.push(explore);
+        await this.assertConnectionPreAggregateRefresh(projectUuid, explores);
+        return (async function* checkedExplores() {
+            yield* explores;
+        })();
+    }
+
     private async syncPreAggregateDefinitionsRegistry(
         projectUuid: string,
     ): Promise<void> {
@@ -3784,6 +3893,11 @@ export class ProjectService
             },
         );
 
+        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.assertAgentConnectionEffect(
+                projectUuid,
+                'compileProject',
+            );
         await this.preAggregateModel.upsertPreAggregateDefinitions(
             definitionRows,
         );
@@ -3806,6 +3920,11 @@ export class ProjectService
         skipMaterialization: boolean;
     }): Promise<void> {
         try {
+            if (agentExecutionContext.getStore()?.agentConnectionExecution)
+                await this.assertAgentConnectionEffect(
+                    args.projectUuid,
+                    'compileProject',
+                );
             await this.syncPreAggregateDefinitionsRegistry(args.projectUuid);
 
             if (args.skipMaterialization) {
@@ -3825,39 +3944,60 @@ export class ProjectService
 
             if (materializableDefinitions.length > 0) {
                 await Promise.all(
-                    materializableDefinitions.map((definition) =>
-                        this.schedulerClient.materializePreAggregate({
-                            organizationUuid: args.organizationUuid,
-                            projectUuid: args.projectUuid,
-                            userUuid: args.userUuid,
-                            preAggregateDefinitionUuid:
-                                definition.preAggregateDefinitionUuid,
-                            trigger: 'compile',
-                        }),
-                    ),
+                    materializableDefinitions.map((definition) => {
+                        const enqueue = () =>
+                            this.schedulerClient.materializePreAggregate({
+                                ...captureAgentConnectionTask(
+                                    'materializePreAggregate',
+                                    args,
+                                ),
+                                organizationUuid: args.organizationUuid,
+                                projectUuid: args.projectUuid,
+                                userUuid: args.userUuid,
+                                preAggregateDefinitionUuid:
+                                    definition.preAggregateDefinitionUuid,
+                                trigger: 'compile',
+                            });
+                        return agentExecutionContext.getStore()
+                            ?.agentConnectionExecution
+                            ? this.assertAgentConnectionEffect(
+                                  args.projectUuid,
+                                  'materializePreAggregate',
+                              ).then(enqueue)
+                            : enqueue();
+                    }),
                 );
 
-                const { schedulerTimezone } = await this.projectModel.get(
-                    args.projectUuid,
-                );
+                if (
+                    !agentExecutionContext.getStore()?.claim?.act
+                        .agent_connection_grant
+                ) {
+                    const { schedulerTimezone } = await this.projectModel.get(
+                        args.projectUuid,
+                    );
 
-                await this.schedulerClient.schedulePreAggregateCronJobs(
-                    materializableDefinitions
-                        .filter((definition) => definition.refreshCron !== null)
-                        .map((definition) => ({
-                            organizationUuid: args.organizationUuid,
-                            projectUuid: args.projectUuid,
-                            createdByUserUuid: args.userUuid,
-                            preAggregateDefinitionUuid:
-                                definition.preAggregateDefinitionUuid,
-                            refreshCron: definition.refreshCron!,
-                            schedulerTimezone,
-                            preAggExploreName: undefined,
-                        })),
-                    new Date(),
-                );
+                    await this.schedulerClient.schedulePreAggregateCronJobs(
+                        materializableDefinitions
+                            .filter(
+                                (definition) => definition.refreshCron !== null,
+                            )
+                            .map((definition) => ({
+                                organizationUuid: args.organizationUuid,
+                                projectUuid: args.projectUuid,
+                                createdByUserUuid: args.userUuid,
+                                preAggregateDefinitionUuid:
+                                    definition.preAggregateDefinitionUuid,
+                                refreshCron: definition.refreshCron!,
+                                schedulerTimezone,
+                                preAggExploreName: undefined,
+                            })),
+                        new Date(),
+                    );
+                }
             }
         } catch (error) {
+            if (agentExecutionContext.getStore()?.agentConnectionExecution)
+                throw error;
             this.logger.error(
                 `Failed to sync/enqueue pre-aggregate materializations for project ${args.projectUuid}: ${getErrorMessage(
                     error,
@@ -3876,6 +4016,11 @@ export class ProjectService
             args.dbtModelNames !== undefined &&
             (await this.projectDbtSourcesModel.hasSources(args.projectUuid));
         const dbtModelNames = hasDbtSources ? undefined : args.dbtModelNames;
+        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.assertConnectionPreAggregateRefresh(
+                args.projectUuid,
+                explores,
+            );
         const result = await this.saveExploresAndIndexCatalog({
             ...metadata,
             connectionWarnings: [],
@@ -3984,6 +4129,11 @@ export class ProjectService
             cliDeploy: CliDeploySelection;
         },
     ): Promise<string> {
+        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.assertConnectionPreAggregateRefresh(
+                args.projectUuid,
+                args.explores,
+            );
         const { cliDeploy, ...deploy } = args;
         if (
             (await this.projectModel.getConnectionRoute(args.projectUuid, {
@@ -4038,6 +4188,11 @@ export class ProjectService
             await this.warehouseConnectionIdentityModel.getExtraConnectionUuids(
                 args.projectUuid,
             );
+        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.assertConnectionPreAggregateRefresh(
+                args.projectUuid,
+                explores,
+            );
         await this.saveExploresAndIndexCatalog({
             ...metadata,
             connectionWarnings: [],
@@ -4069,9 +4224,20 @@ export class ProjectService
             multiConnection: PreparedMultiConnectionSave | null;
         },
     ) {
-        const { exploreStream, onCompiled, multiConnection, ...metadata } =
-            args;
-        return this.saveExploresAndIndexCatalog({
+        const {
+            exploreStream: incomingStream,
+            onCompiled,
+            multiConnection,
+            ...metadata
+        } = args;
+        const exploreStream = agentExecutionContext.getStore()
+            ?.agentConnectionExecution
+            ? await this.prepareConnectionExploreStream(
+                  args.projectUuid,
+                  incomingStream,
+              )
+            : incomingStream;
+        const saving = this.saveExploresAndIndexCatalog({
             ...metadata,
             complete: true,
             connectionWarnings: multiConnection?.warnings ?? [],
@@ -4087,6 +4253,10 @@ export class ProjectService
                     return this.multiConnectionCompiler.save(args.projectUuid, {
                         ...multiConnection,
                         exploreStream: observedExplores(),
+                        ...(agentExecutionContext.getStore()
+                            ?.agentConnectionExecution
+                            ? { persistArtifacts: async () => {} }
+                            : {}),
                     });
                 }
                 return this.projectModel.saveExploreStreamToCache(
@@ -4095,6 +4265,19 @@ export class ProjectService
                 );
             },
         });
+        if (
+            multiConnection &&
+            agentExecutionContext.getStore()?.agentConnectionExecution
+        ) {
+            const result = await saving;
+            await this.assertAgentConnectionEffect(
+                args.projectUuid,
+                'compileProject',
+            );
+            await multiConnection.persistArtifacts();
+            return result;
+        }
+        return saving;
     }
 
     private async saveExploresAndIndexCatalog(
@@ -4148,9 +4331,30 @@ export class ProjectService
             });
         }
 
+        const connectionProject = agentExecutionContext.getStore()
+            ?.agentConnectionExecution
+            ? await this.projectModel.getSummary(projectUuid)
+            : null;
+        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.assertAgentConnectionEffect(
+                projectUuid,
+                'compileProject',
+            );
         const { cachedExploreUuids } = await saveExplores(summary);
+        const connectionIndexCatalogJob = connectionProject
+            ? await this.schedulerClient.indexCatalog({
+                  projectUuid,
+                  userUuid,
+                  organizationUuid: connectionProject.organizationUuid,
+                  prevCatalogItemsWithTags,
+                  prevCatalogItemsWithIcons,
+                  prevMetricTreeEdges,
+                  prevMetricsTreeNodes,
+              })
+            : null;
         const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+            connectionProject ??
+            (await this.projectModel.getSummary(projectUuid));
 
         this.logger.info(
             `Saved ${cachedExploreUuids.length} explores to cache for project ${projectUuid}`,
@@ -4225,6 +4429,11 @@ export class ProjectService
             dimensionsWithFlag: summary.caseSensitiveDimensions,
         });
 
+        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.assertAgentConnectionEffect(
+                projectUuid,
+                'compileProject',
+            );
         await this.projectCompileLogModel.insert({
             projectUuid,
             jobUuid: jobUuid ?? null,
@@ -4241,15 +4450,17 @@ export class ProjectService
             `Inserted compilation log for project ${projectUuid}: ${compilationReport.totalExploresCount} explores, ${compilationReport.errorExploresCount} errors`,
         );
 
-        const indexCatalogJob = await this.schedulerClient.indexCatalog({
-            projectUuid,
-            userUuid,
-            organizationUuid,
-            prevCatalogItemsWithTags,
-            prevCatalogItemsWithIcons,
-            prevMetricTreeEdges,
-            prevMetricsTreeNodes,
-        });
+        const indexCatalogJob =
+            connectionIndexCatalogJob ??
+            (await this.schedulerClient.indexCatalog({
+                projectUuid,
+                userUuid,
+                organizationUuid,
+                prevCatalogItemsWithTags,
+                prevCatalogItemsWithIcons,
+                prevMetricTreeEdges,
+                prevMetricsTreeNodes,
+            }));
 
         if (this.lightdashConfig.preAggregates.enabled) {
             await this.syncAndEnqueuePreAggregateMaterializations({
@@ -5490,7 +5701,16 @@ export class ProjectService
             cliDeploy,
         });
 
+        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.assertAgentConnectionEffect(
+                projectUuid,
+                'validateProject',
+            );
         await this.schedulerClient.generateValidation({
+            ...captureAgentConnectionTask('validateProject', {
+                userUuid: user.userUuid,
+                organizationUuid: project.organizationUuid,
+            }),
             userUuid: user.userUuid,
             projectUuid,
             context: 'cli',
@@ -7677,7 +7897,13 @@ export class ProjectService
 
     private async deleteMergedManifestBestEffort(
         projectUuid: string,
+        afterCompile = false,
     ): Promise<void> {
+        if (
+            agentExecutionContext.getStore()?.agentConnectionExecution &&
+            !afterCompile
+        )
+            return;
         try {
             await this.projectModel.deleteMergedManifest(projectUuid);
         } catch (error) {
@@ -12246,8 +12472,26 @@ export class ProjectService
         projectUuid: string,
         requestMethod: RequestMethod,
         jobUuid: string | undefined,
-        consume: (prepared: PreparedExploreStream) => Promise<T>,
+        consumePrepared: (prepared: PreparedExploreStream) => Promise<T>,
     ): Promise<T> {
+        const consume = agentExecutionContext.getStore()
+            ?.agentConnectionExecution
+            ? async (prepared: PreparedExploreStream) => {
+                  const exploreStream =
+                      await this.prepareConnectionExploreStream(
+                          projectUuid,
+                          prepared.exploreStream,
+                      );
+                  if (
+                      agentExecutionContext.getStore()?.agentConnectionExecution
+                  )
+                      await this.assertAgentConnectionEffect(
+                          projectUuid,
+                          'compileProject',
+                      );
+                  return consumePrepared({ ...prepared, exploreStream });
+              }
+            : consumePrepared;
         // Checks that project exists
         const project = await this.projectModel.get(projectUuid);
 
@@ -12681,6 +12925,21 @@ export class ProjectService
             throw new ForbiddenError();
         }
 
+        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.assertConnectionPreAggregateRefresh(projectUuid);
+        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.assertAgentConnectionEffect(
+                projectUuid,
+                'compileProject',
+            );
+        const connectionTask = captureAgentConnectionTask('compileProject', {
+            userUuid: user.userUuid,
+            organizationUuid,
+        });
+        const syncContent = connectionTask.agentConnectionExecution
+            ? false
+            : syncContentAfterCompile;
+
         // This job is the job model we use to compile projects
         // This is not the graphile Job id we use on scheduler
         // TODO: remove this old job method and replace with scheduler log details
@@ -12692,7 +12951,7 @@ export class ProjectService
             projectUuid,
             steps: [
                 { stepType: JobStepType.COMPILING },
-                ...(syncContentAfterCompile
+                ...(syncContent
                     ? [{ stepType: JobStepType.SYNCING_CONTENT }]
                     : []),
             ],
@@ -12711,7 +12970,8 @@ export class ProjectService
             jobUuid: job.jobUuid,
             isPreview: type === ProjectType.PREVIEW,
             validateAfterCompile,
-            syncContentAfterCompile,
+            syncContentAfterCompile: syncContent,
+            ...connectionTask,
             userUuid: user.userUuid,
         });
 
@@ -12727,6 +12987,14 @@ export class ProjectService
         jobUuid: string,
         afterCompile?: { stepType: JobStepType; run: () => Promise<void> },
     ) {
+        if (agentExecutionContext.getStore()?.agentConnectionExecution) {
+            try {
+                await this.assertConnectionPreAggregateRefresh(projectUuid);
+            } catch (error) {
+                await this._markJobAsFailed(jobUuid);
+                throw error;
+            }
+        }
         const totalStartTime = performance.now();
 
         const { organizationUuid } =
@@ -12764,7 +13032,11 @@ export class ProjectService
             steps: [{ stepType: JobStepType.COMPILING }],
         };
 
+        let connectionFailure: unknown = null;
         const onLockFailed = async () => {
+            connectionFailure = new ForbiddenError(
+                'The project compilation did not run',
+            );
             const holder = await this.projectModel
                 .getProjectLockHolder(projectUuid)
                 .catch(() => null);
@@ -12806,6 +13078,7 @@ export class ProjectService
         // common case: a bad dbt connection, a dbt error, a warehouse error, a merge failure.
         const recordCompileFailure = (e: unknown) => {
             compileFailed = true;
+            connectionFailure = e;
             if (!(e instanceof LightdashError)) {
                 Sentry.captureException(e);
             }
@@ -12860,6 +13133,14 @@ export class ProjectService
                                 multiConnection,
                             }) => {
                                 timings.yaml.start = performance.now();
+                                if (
+                                    agentExecutionContext.getStore()
+                                        ?.agentConnectionExecution
+                                )
+                                    await this.assertAgentConnectionEffect(
+                                        projectUuid,
+                                        'compileProject',
+                                    );
                                 await this.replaceYamlTagsWithoutPermissionCheck(
                                     user,
                                     organizationUuid,
@@ -12876,12 +13157,28 @@ export class ProjectService
                                 );
                                 timings.yaml.end = performance.now();
                                 timings.parameters.start = performance.now();
+                                if (
+                                    agentExecutionContext.getStore()
+                                        ?.agentConnectionExecution
+                                )
+                                    await this.assertAgentConnectionEffect(
+                                        projectUuid,
+                                        'compileProject',
+                                    );
                                 await this.replaceProjectParameters({
                                     user,
                                     projectUuid,
                                     parameters:
                                         lightdashProjectConfig.parameters,
                                 });
+                                if (
+                                    agentExecutionContext.getStore()
+                                        ?.agentConnectionExecution
+                                )
+                                    await this.assertAgentConnectionEffect(
+                                        projectUuid,
+                                        'compileProject',
+                                    );
                                 await this.projectModel.setTableGroups(
                                     projectUuid,
                                     lightdashProjectConfig.table_groups,
@@ -12889,11 +13186,27 @@ export class ProjectService
                                 // Mirrors CLI deploy semantics: only overwrite stored
                                 // defaults when the config file defines them
                                 if (lightdashProjectConfig.defaults) {
+                                    if (
+                                        agentExecutionContext.getStore()
+                                            ?.agentConnectionExecution
+                                    )
+                                        await this.assertAgentConnectionEffect(
+                                            projectUuid,
+                                            'compileProject',
+                                        );
                                     await this.projectModel.updateProjectDefaults(
                                         projectUuid,
                                         lightdashProjectConfig.defaults,
                                     );
                                 }
+                                if (
+                                    agentExecutionContext.getStore()
+                                        ?.agentConnectionExecution
+                                )
+                                    await this.assertAgentConnectionEffect(
+                                        projectUuid,
+                                        'compileProject',
+                                    );
                                 await this.replaceProjectContext(
                                     projectUuid,
                                     projectContext,
@@ -12915,6 +13228,25 @@ export class ProjectService
                                                 lightdashProjectConfig.defaults,
                                         },
                                     );
+                                if (
+                                    agentExecutionContext.getStore()
+                                        ?.agentConnectionExecution
+                                )
+                                    await this.assertAgentConnectionEffect(
+                                        projectUuid,
+                                        'compileProject',
+                                    );
+                                if (
+                                    !multiConnection &&
+                                    stagedMergedManifest === undefined &&
+                                    agentExecutionContext.getStore()
+                                        ?.agentConnectionExecution
+                                ) {
+                                    await this.deleteMergedManifestBestEffort(
+                                        projectUuid,
+                                        true,
+                                    );
+                                }
                                 await this.persistMergedManifest(
                                     projectUuid,
                                     stagedMergedManifest,
@@ -12934,6 +13266,11 @@ export class ProjectService
                     );
                 }
 
+                if (agentExecutionContext.getStore()?.agentConnectionExecution)
+                    await this.assertAgentConnectionEffect(
+                        projectUuid,
+                        'compileProject',
+                    );
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.DONE,
                     jobResults: compileResult,
@@ -12975,6 +13312,11 @@ export class ProjectService
                 },
             },
         );
+        if (
+            connectionFailure !== null &&
+            agentExecutionContext.getStore()?.agentConnectionExecution
+        )
+            throw connectionFailure;
     }
 
     private async getExploreSummaries(
@@ -13455,6 +13797,56 @@ export class ProjectService
         }
     }
 
+    private async assertConnectionDiscovery(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        const scope = agentExecutionContext.getStore();
+        if (
+            !scope?.claim?.act.agent_connection_grant &&
+            !scope?.agentConnectionExecution
+        )
+            return;
+        const execution = normalizeAgentConnectionExecution(
+            scope.agentConnectionExecution,
+        );
+        if (
+            !execution ||
+            !this.getAgentConnectionGrantService ||
+            execution.subjectUserUuid !== user.userUuid ||
+            execution.organizationUuid !== user.organizationUuid ||
+            execution.grantUuid !==
+                scope.claim?.act.agent_connection_grant?.grantUuid ||
+            execution.revision !==
+                scope.claim?.act.agent_connection_grant?.revision
+        )
+            throw new ForbiddenError(
+                'This agent connection is no longer available for this operation.',
+            );
+        const { account } =
+            await this.getAgentConnectionGrantService().assertActiveExecution(
+                execution,
+                {
+                    projectUuid,
+                    capabilities: [
+                        AgentCapability.ReadDiscover,
+                        AgentCapability.RawSql,
+                    ],
+                    recheckOperation: true,
+                },
+            );
+        if (
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('SqlRunner', {
+                    projectUuid,
+                    organizationUuid: execution.organizationUuid,
+                }),
+            )
+        )
+            throw new ForbiddenError();
+    }
+
     async populateWarehouseTablesCache(
         user: SessionUser,
         projectUuid: string,
@@ -13471,6 +13863,17 @@ export class ProjectService
             throw new ForbiddenError();
         }
 
+        if (
+            agentExecutionContext.getStore()?.claim?.act
+                .agent_connection_grant ||
+            agentExecutionContext.getStore()?.agentConnectionExecution
+        ) {
+            return this.getWarehouseTables(
+                user,
+                projectUuid,
+                QueryExecutionContext.SQL_RUNNER,
+            );
+        }
         return this.warehouseClientFactory.withWarehouseClient(
             {
                 kind: 'binding',
@@ -13528,7 +13931,15 @@ export class ProjectService
             throw new ForbiddenError();
         }
 
+        const bound = Boolean(
+            agentExecutionContext.getStore()?.claim?.act
+                .agent_connection_grant ||
+            agentExecutionContext.getStore()?.agentConnectionExecution,
+        );
+        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.assertConnectionDiscovery(user, projectUuid);
         if (
+            bound ||
             isAiAccessQueryContext(context ?? QueryExecutionContext.SQL_RUNNER)
         ) {
             return this.warehouseClientFactory.withWarehouseClient(
@@ -13544,7 +13955,8 @@ export class ProjectService
                     { userUuid: user.userUuid, isRegisteredUser: true },
                     {
                         organizationUuid,
-                        queryContext: context ?? null,
+                        queryContext:
+                            context ?? QueryExecutionContext.SQL_RUNNER,
                         surface:
                             querySurface === undefined
                                 ? undefined
@@ -13561,6 +13973,11 @@ export class ProjectService
                         undefined,
                         withAgentMarkerTag({ query_context: queryContext }),
                     );
+                    if (
+                        agentExecutionContext.getStore()
+                            ?.agentConnectionExecution
+                    )
+                        await this.assertConnectionDiscovery(user, projectUuid);
                     return WarehouseAvailableTablesModel.toWarehouseCatalog(
                         tables.map((table) => ({
                             ...table,
@@ -13637,6 +14054,8 @@ export class ProjectService
         ) {
             throw new ForbiddenError();
         }
+        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.assertConnectionDiscovery(user, projectUuid);
         return this.warehouseClientFactory.withWarehouseClient(
             {
                 kind: 'binding',
@@ -13692,12 +14111,22 @@ export class ProjectService
                         queryTags,
                     );
 
+                    if (
+                        agentExecutionContext.getStore()
+                            ?.agentConnectionExecution
+                    )
+                        await this.assertConnectionDiscovery(user, projectUuid);
                     return warehouseCatalog[database][schemaName][tableName];
                 } catch (error) {
                     this.logger.error('Error fetching warehouse fields', {
                         error,
                     });
-                    if (error instanceof AiAccessRefusedError) {
+                    if (
+                        error instanceof AiAccessRefusedError ||
+                        (error instanceof ForbiddenError &&
+                            agentExecutionContext.getStore()
+                                ?.agentConnectionExecution)
+                    ) {
                         throw error;
                     }
                     if (error instanceof WarehouseConnectionError) {
@@ -16391,6 +16820,8 @@ export class ProjectService
         payload: CreateVirtualViewPayload,
         resolveParameterValues = true,
     ) {
+        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.assertConnectionPreAggregateRefresh(projectUuid);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
@@ -16473,6 +16904,8 @@ export class ProjectService
         resolveParameterValues = true,
         expectedExplore?: Explore,
     ) {
+        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.assertConnectionPreAggregateRefresh(projectUuid);
         const explores = await this.findExplores({
             account,
             projectUuid,
@@ -16982,6 +17415,8 @@ export class ProjectService
             );
         }
 
+        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.assertConnectionPreAggregateRefresh(projectUuid);
         await this.projectParametersModel.replace(
             projectUuid,
             parameters ?? {},
@@ -17128,12 +17563,14 @@ export class ProjectService
     }
 
     async replaceCustomFields({
+        beforeEffect,
         userUuid,
         projectUuid,
         organizationUuid,
         replaceFields,
         skipChartsUpdatedAfter,
     }: {
+        beforeEffect?: () => Promise<void>;
         userUuid: string;
         organizationUuid: string;
         projectUuid: string;
@@ -17166,11 +17603,45 @@ export class ProjectService
                 }
                 // create new version if any fields were replaced
                 if (hasChanges) {
-                    await this.savedChartModel.createVersion(
-                        chartUuid,
-                        chartVersion,
-                        undefined,
-                    );
+                    if (beforeEffect) await beforeEffect();
+                    const connectionAccount = agentExecutionContext.getStore()
+                        ?.agentConnectionExecution
+                        ? await this.assertAgentConnectionEffect(
+                              projectUuid,
+                              'replaceCustomFields',
+                          )
+                        : null;
+                    if (
+                        connectionAccount &&
+                        this.createAuditedAbility(connectionAccount).cannot(
+                            'update',
+                            subject('SavedChart', {
+                                ...chart,
+                                projectUuid,
+                                organizationUuid,
+                            }),
+                        )
+                    )
+                        throw new ForbiddenError();
+                    if (connectionAccount) {
+                        await this.savedChartModel.createVersion(
+                            chartUuid,
+                            chartVersion,
+                            toSessionUser(connectionAccount),
+                            undefined,
+                            undefined,
+                            getContentWriteAgentIdentity({
+                                userUuid,
+                                organizationUuid,
+                            }),
+                        );
+                    } else {
+                        await this.savedChartModel.createVersion(
+                            chartUuid,
+                            chartVersion,
+                            undefined,
+                        );
+                    }
                     return { uuid: chart.uuid, name: chart.name };
                 }
                 return null;

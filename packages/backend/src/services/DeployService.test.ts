@@ -76,7 +76,10 @@ describe('DeployService', () => {
                     createdByUserUuid: 'service-account-user-uuid',
                 }),
             },
-            projectService: {},
+            projectService: {
+                assertConnectionPreAggregateRefresh: vi.fn(),
+                assertAgentConnectionEffect: vi.fn(),
+            },
             schedulerClient: {},
         } as never);
 
@@ -97,6 +100,8 @@ describe('DeployService', () => {
         'passes batched completeness $complete and model inventory $dbtModelNames to the cache write',
         async ({ complete, dbtModelNames }) => {
             const projectService = {
+                assertConnectionPreAggregateRefresh: vi.fn(),
+                assertAgentConnectionEffect: vi.fn(),
                 saveDeployExplores: vi.fn().mockResolvedValue('index-job-uuid'),
                 trackCliSourceDeploy: vi.fn().mockResolvedValue(undefined),
             };
@@ -184,7 +189,12 @@ describe('DeployService', () => {
                     warehouseConnection: null,
                 }),
             },
-            projectService: { saveDeployExplores, trackCliSourceDeploy },
+            projectService: {
+                assertConnectionPreAggregateRefresh: vi.fn(),
+                assertAgentConnectionEffect: vi.fn(),
+                saveDeployExplores,
+                trackCliSourceDeploy,
+            },
             schedulerClient: {
                 generateValidation,
             },
@@ -266,6 +276,8 @@ describe('DeployService', () => {
                 }),
             },
             projectService: {
+                assertConnectionPreAggregateRefresh: vi.fn(),
+                assertAgentConnectionEffect: vi.fn(),
                 saveDeployExplores: vi.fn().mockResolvedValue('index-job-uuid'),
                 trackCliSourceDeploy,
             },

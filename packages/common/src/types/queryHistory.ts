@@ -1,5 +1,6 @@
 import type { PivotConfiguration, ResultColumns } from '..';
 import type { PivotValuesColumn } from '../visualizations/types';
+import { type AgentConnectionExecution } from './agentConnectionGrants';
 import { type AgentIdentityClaim } from './agentIdentity';
 import type { QueryExecutionContext, QuerySurface } from './analytics';
 import type { ExecuteAsyncQueryRequestParams } from './api/paginatedQuery';
@@ -127,6 +128,7 @@ export type QueryHistory = {
     metricQuery: MetricQuery;
     fields: ItemsMap;
     requestParameters: ExecuteAsyncQueryRequestParams & {
+        agentConnectionExecution?: AgentConnectionExecution | null;
         /** Internal metadata, never trusted from request bodies or used in cache keys. */
         queryUsage?: QueryUsageMetadata;
         aiSignInCredentialUuid?: string;

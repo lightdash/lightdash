@@ -100,12 +100,6 @@ const operationContracts = {
     'AppGenerateController.listProjectChartTypes': pathProject,
     'AppGenerateController.getAppCode': pathProject,
     'ValidationController.get': pathProject,
-    'SavedChartController.exportSavedChartImage': {
-        kind: 'resource',
-        resourceType: 'saved_chart',
-        param: 'chartUuid',
-        scope: { kind: 'query', param: 'projectUuid' },
-    },
     'ProjectController.getProject': pathProject,
     'ProjectController.GetDbtExposures': pathProject,
     'ProjectController.refresh': {

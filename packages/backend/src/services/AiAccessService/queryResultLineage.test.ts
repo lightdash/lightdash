@@ -29,6 +29,7 @@ it('strips every server-owned result binding from client parameters', () => {
         resultEffectiveParameters: { p: 'forged' },
         cacheSourceQueryUuid: 'forged',
         externalSourceReferences: ['forged'],
+        agentConnectionExecution: { grantUuid: 'forged' },
     } as unknown as ExecuteAsyncQueryRequestParams;
     const parameters = getQueryResultRequestParameters(client, {
         resultEntitlementFingerprint: 'trusted',
@@ -47,7 +48,11 @@ it('strips every server-owned result binding from client parameters', () => {
         resultEffectiveParameters: { p: 'trusted' },
         cacheSourceQueryUuid: 'trusted',
         externalSourceReferences: undefined,
+        agentConnectionExecution: undefined,
     });
+    expect(JSON.parse(JSON.stringify(parameters))).not.toHaveProperty(
+        'agentConnectionExecution',
+    );
     expect(client).toHaveProperty('resultResearchRunUuid', 'forged');
     expect(
         getQueryResultRequestParameters(client, {}).resultEffectiveParameters,

@@ -4,6 +4,8 @@ import {
     QueryExecutionContext,
     QuerySurface,
     type Account,
+    type AgentConnectionExecution,
+    type AgentConnectionGrantRef,
     type AgentIdentityClaim,
     type QueryResultReader,
 } from '@lightdash/common';
@@ -22,6 +24,7 @@ export type AgentExecutionContext = Readonly<{
     writerUuid: string;
     operationId: string;
     agentIdentityEnabled: boolean;
+    agentConnectionExecution: AgentConnectionExecution | null;
 }>;
 
 export const agentExecutionContext =
@@ -33,12 +36,16 @@ export const createAgentExecutionContext = ({
     clientId,
     agentUuid,
     agentIdentityEnabled,
+    agentConnectionGrant = null,
+    agentConnectionExecution = null,
 }: {
     account: Account;
     surface: AgentActorSurface;
     clientId: string | null;
     agentUuid: string | null;
     agentIdentityEnabled: boolean;
+    agentConnectionGrant?: AgentConnectionGrantRef | null;
+    agentConnectionExecution?: AgentConnectionExecution | null;
 }): AgentExecutionContext => {
     const facts = {
         oauthClientId:
@@ -70,9 +77,12 @@ export const createAgentExecutionContext = ({
                   surface,
                   clientId: resolvedClientId,
                   agentUuid: resolvedAgentUuid,
+                  agentConnectionGrant,
               })
             : null;
     if (claim) {
+        if (claim.act.agent_connection_grant)
+            Object.freeze(claim.act.agent_connection_grant);
         Object.freeze(claim.subject);
         Object.freeze(claim.act);
         Object.freeze(claim);
@@ -92,6 +102,16 @@ export const createAgentExecutionContext = ({
         writerUuid: account.user.id,
         operationId: randomUUID(),
         agentIdentityEnabled,
+        agentConnectionExecution:
+            agentConnectionExecution === null
+                ? null
+                : Object.freeze({
+                      ...agentConnectionExecution,
+                      scopes: [...agentConnectionExecution.scopes],
+                      operation: Object.freeze({
+                          ...agentConnectionExecution.operation,
+                      }),
+                  }),
     });
 };
 

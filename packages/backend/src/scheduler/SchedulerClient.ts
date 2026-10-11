@@ -74,6 +74,7 @@ import {
     resolveSandboxRuntime,
 } from '../services/LearnSandboxService/runtime';
 import { continueTrace, getTraceHeaders, traceSpan } from '../tracing/tracing';
+import { normalizeAgentConnectionTaskPayload } from '../utils/agentConnectionExecution';
 
 type SchedulerClientArguments = {
     lightdashConfig: LightdashConfig;
@@ -244,6 +245,7 @@ export class SchedulerClient {
         explicitJobKey?: string,
         queueName?: string,
     ) {
+        const normalizedPayload = normalizeAgentConnectionTaskPayload(payload);
         const messageId = nanoid();
         const jobId = await traceSpan(
             {
@@ -253,7 +255,7 @@ export class SchedulerClient {
                     'messaging.message.id': messageId,
                     'messaging.destination.name': identifier,
                     'messaging.message.body.size': Buffer.byteLength(
-                        JSON.stringify(payload),
+                        JSON.stringify(normalizedPayload),
                     ),
                 },
             },
@@ -261,7 +263,7 @@ export class SchedulerClient {
                 const traceHeaders = getTraceHeaders();
                 const payloadWithSentryHeaders: TaskPayloadMap[T] &
                     QueueTraceProperties = {
-                    ...payload,
+                    ...normalizedPayload,
                     traceHeader: traceHeaders.sentryTrace,
                     baggageHeader: traceHeaders.baggage,
                     otelTraceparent: traceHeaders.traceparent,
@@ -279,7 +281,8 @@ export class SchedulerClient {
                     (schedulerUuid
                         ? (() => {
                               // Hash the payload (excluding Sentry tracing headers) to create a stable key
-                              const payloadForHash = JSON.stringify(payload);
+                              const payloadForHash =
+                                  JSON.stringify(normalizedPayload);
                               const payloadHash = createHash('sha256')
                                   .update(payloadForHash)
                                   .digest('hex'); // Use full hash to prevent any collision risk

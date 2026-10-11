@@ -1,4 +1,6 @@
+import { Ability } from '@casl/ability';
 import {
+    AgentCapability,
     DELIVERY_CAPTURE_GLOBAL,
     DownloadFileType,
     LightdashPage,
@@ -10,12 +12,15 @@ import {
     UnexpectedServerError,
     type DeliveryCaptureManifest,
     type Document,
+    type PossibleAbilities,
 } from '@lightdash/common';
 import type { Route, WebSocketRoute } from 'playwright';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { type SlackClient } from '../../clients/Slack/SlackClient';
 import { type LightdashConfig } from '../../config/parseConfig';
+import { setupGrantAuthentication } from '../../controllers/authentication/agentConnectionGrants.mock';
+import { allowApiKeyAuthentication } from '../../controllers/authentication/middlewares';
 import { type AppModel } from '../../models/AppModel';
 import { type DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { type DocumentModel } from '../../models/DocumentModel';
@@ -2006,3 +2011,71 @@ describe('expandViewportToDashboardGrid', () => {
         expect(page.setViewportSize).not.toHaveBeenCalled();
     });
 });
+
+it.each([true, false])(
+    'PNG export is refused before rendering only for a connection (bound=%s)',
+    async (bound) => {
+        const auth = setupGrantAuthentication();
+        auth.user.ability = new Ability<PossibleAbilities>([
+            { action: 'manage', subject: 'all' },
+        ]);
+        auth.grant.approvedCapabilities = Object.values(AgentCapability);
+        if (!bound)
+            auth.token.agentConnectionGrantUuid = null as unknown as string;
+        auth.req.params = { chartUuid: 'chart' };
+        auth.req.query = { projectUuid: auth.grant.approvedProjectUuids[0] };
+        auth.req.route.stack[0].handle = Object.defineProperty(
+            () => {},
+            'name',
+            { value: 'SavedChartController_exportSavedChartImage' },
+        );
+        auth.deps.resourceResolver.resolveResourceProjectUuid.mockResolvedValue(
+            auth.grant.approvedProjectUuids[0],
+        );
+        const service = createService({
+            savedChartModel: {
+                get: vi.fn().mockResolvedValue({
+                    uuid: 'chart',
+                    name: 'Chart',
+                    projectUuid: auth.grant.approvedProjectUuids[0],
+                    organizationUuid: auth.user.organizationUuid,
+                    spaceUuid: 'space',
+                }),
+            },
+        });
+        Object.assign(service, {
+            spacePermissionService: {
+                resolveAccess: vi.fn().mockResolvedValue({
+                    inheritsFromOrgOrProject: true,
+                    access: [],
+                }),
+            },
+        });
+        const cookie = vi.spyOn(
+            service as unknown as {
+                getUserCookie: (userUuid: string) => Promise<string>;
+            },
+            'getUserCookie',
+        );
+        const render = vi.spyOn(service, 'unfurlImage').mockResolvedValue({
+            imageUrl: 'https://server.example/preview/image',
+        } as never);
+        auth.downstream.mockImplementation(async () => {
+            expect(await service.exportChart('chart', auth.req.user!)).toBe(
+                'https://server.example/preview/image',
+            );
+        });
+        const result = await auth.run(allowApiKeyAuthentication);
+        if (bound) {
+            expect(result.error).toBeDefined();
+            expect(auth.downstream).not.toHaveBeenCalled();
+            expect(render).not.toHaveBeenCalled();
+            expect(cookie).not.toHaveBeenCalled();
+            expect(playwrightMocks.connectOverCDP).not.toHaveBeenCalled();
+            expect(mockFileStorageClient.uploadImage).not.toHaveBeenCalled();
+        } else {
+            expect(result.error).toBeUndefined();
+            expect(render).toHaveBeenCalledOnce();
+        }
+    },
+);

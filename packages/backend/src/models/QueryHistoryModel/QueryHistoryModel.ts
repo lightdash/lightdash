@@ -28,6 +28,7 @@ import {
     QueryTrigger,
     sleep,
     SQL_LANGUAGE_REQUEST_PARAMETER_KEYS,
+    type AgentConnectionGrantRef,
 } from '@lightdash/common';
 import crypto from 'crypto';
 import { Knex } from 'knex';
@@ -438,6 +439,20 @@ export class QueryHistoryModel {
             });
     }
 
+    async updateClaimedQueryToError(
+        queryUuid: string,
+        error: string,
+    ): Promise<number> {
+        return this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .andWhere('status', QueryHistoryStatus.EXECUTING)
+            .update({
+                status: QueryHistoryStatus.ERROR,
+                error,
+                errored_at: new Date(),
+            });
+    }
+
     async updateStatusToError(
         queryUuid: string,
         projectUuid: string,
@@ -830,7 +845,11 @@ export class QueryHistoryModel {
         projectUuid: string,
         userUuid: string,
         filters: QueryHistoryListFilters,
-        options: { skipTrigger?: boolean; skipWindow?: boolean } = {},
+        options: {
+            skipTrigger?: boolean;
+            skipWindow?: boolean;
+            connection?: AgentConnectionGrantRef | null;
+        } = {},
     ) {
         const oldestWindowMinutes =
             QUERY_HISTORY_WINDOW_MINUTES[QueryHistoryWindow.LAST_30_DAYS];
@@ -864,6 +883,18 @@ export class QueryHistoryModel {
                 `${QueryHistoryTableName}.created_at > now() - (? * interval '1 minute')`,
                 [oldestWindowMinutes],
             );
+
+        if (options.connection) {
+            void query
+                .whereRaw(
+                    "query_history.agent_identity->'act'->'agent_connection_grant'->>'grantUuid' = ?",
+                    [options.connection.grantUuid],
+                )
+                .whereRaw(
+                    "query_history.agent_identity->'act'->'agent_connection_grant'->>'revision' = ?",
+                    [String(options.connection.revision)],
+                );
+        }
 
         if (filters.trigger && !options.skipTrigger) {
             void query.whereIn(
@@ -946,11 +977,13 @@ export class QueryHistoryModel {
         userUuid: string,
         filters: QueryHistoryListFilters,
         paginateArgs: KnexPaginateArgs,
+        connection: AgentConnectionGrantRef | null = null,
     ): Promise<KnexPaginatedData<DbQueryHistoryListRow[]>> {
         const query = this.buildUserHistoryQuery(
             projectUuid,
             userUuid,
             filters,
+            { connection },
         ).select<DbQueryHistoryListRow[]>(
             `${QueryHistoryTableName}.*`,
             `${SavedChartsTableName}.name as chart_name`,
@@ -973,6 +1006,7 @@ export class QueryHistoryModel {
         projectUuid: string,
         userUuid: string,
         filters: QueryHistoryListFilters,
+        connection: AgentConnectionGrantRef | null = null,
     ): Promise<{
         triggers: Record<QueryTrigger, number>;
         windows: Record<QueryHistoryWindow, number>;
@@ -984,7 +1018,7 @@ export class QueryHistoryModel {
             projectUuid,
             userUuid,
             filters,
-            { skipTrigger: true, skipWindow: true },
+            { skipTrigger: true, skipWindow: true, connection },
         )
             .select(`${QueryHistoryTableName}.context`)
             .count(`${QueryHistoryTableName}.query_uuid as count`)
@@ -1013,7 +1047,7 @@ export class QueryHistoryModel {
             projectUuid,
             userUuid,
             filters,
-            { skipWindow: true },
+            { skipWindow: true, connection },
         ).select(
             this.database.raw(
                 `${windowSelects}, coalesce(sum(${QueryHistoryTableName}.warehouse_execution_time_ms) filter (where ${QueryHistoryTableName}.created_at > now() - (${sevenDayMinutes} * interval '1 minute')), 0) as "warehouseTimeMsLast7Days"`,

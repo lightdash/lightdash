@@ -46,6 +46,8 @@ import { buildAccount } from '../../auth/account/account.mock';
 import { snowflakeOAuthRefreshClient as refresh } from '../../auth/snowflakeOAuthRefresh';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
+import { setupGrantAuthentication } from '../../controllers/authentication/agentConnectionGrants.mock';
+import { allowApiKeyAuthentication } from '../../controllers/authentication/middlewares';
 import Logger from '../../logging/logger';
 import * as auditLogger from '../../logging/winston';
 import { withCause } from '../../logging/withCause';
@@ -82,6 +84,7 @@ import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionM
 import { getWarehouseIdentityFingerprint } from '../../utils/queryResultProducer';
 import { withNewWarehouseCredentialVersion } from '../../utils/warehouseCredentialVersion';
 import { sessionUser } from '../UserService.mock';
+import { connectionContextFromAccount } from '../WarehouseClientFactory/ConnectionContext';
 import {
     credentialResolution,
     type MaterializedCredentials,
@@ -3718,6 +3721,48 @@ describe('bounded stored result lineage', () => {
         return { ...built, rows, batch, logger };
     };
 
+    test.each(['deep', 'cycle', 'missing'] as const)(
+        'flag-off ordinary reads and batches do not traverse a %s lineage',
+        async (kind) => {
+            const edges: Record<string, string[]> = { root: ['node-0'] };
+            for (let i = 0; i < 60; i += 1)
+                edges[`node-${i}`] = i === 59 ? [] : [`node-${i + 1}`];
+            if (kind === 'cycle') edges.root = ['root'];
+            const f = buildGraph(edges);
+            f.flags.get.mockResolvedValue({ enabled: false });
+            if (kind === 'missing')
+                f.batch.mockRejectedValue(
+                    new NotFoundError('missing ancestor'),
+                );
+            const reader = {
+                kind: 'person' as const,
+                authMethod: 'session' as const,
+            };
+            await expect(
+                f.service.assertCanReadResults(
+                    account,
+                    'project',
+                    f.rows.root,
+                    { reader },
+                ),
+            ).resolves.toBeNull();
+            await expect(
+                f.service.assertCanReadResultsForQueries(
+                    account,
+                    'project',
+                    [{ queryHistory: f.rows.root, agentProducedOnly: false }],
+                    { kind: 'result_read' },
+                    undefined,
+                    null,
+                    { reader },
+                ),
+            ).resolves.toEqual(new Map());
+            expect(f.batch).not.toHaveBeenCalled();
+            expect(f.historyModel.getDuckdbExecution).not.toHaveBeenCalled();
+            expect(f.historyModel.get).not.toHaveBeenCalled();
+        },
+    );
+
     test.each(
         [
             {
@@ -4070,7 +4115,39 @@ describe('bounded stored result lineage', () => {
         },
     );
 
-    test('flag off performs zero lineage reads for a compose with references', async () => {
+    test.each([true, false])(
+        'connection results refuse a person with identity enabled=%s even with producer checks off',
+        async (enabled) => {
+            const f = buildGraph({ root: [] });
+            f.flags.get.mockResolvedValue({ enabled });
+            const claim = buildAgentIdentityClaim({
+                subject: { type: 'user', uuid: account.user.id },
+                surface: AgentActorSurface.CLI,
+                clientId: 'lightdash-cli',
+                agentConnectionGrant: { grantUuid: 'connection', revision: 1 },
+            });
+            f.rows.root.agentIdentity = claim;
+            f.rows.root.requestParameters.resultProducer!.agentIdentity = claim;
+            Object.assign(f.service, {
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    ai: {
+                        ...lightdashConfigMock.ai,
+                        agentResultIdentityCheckEnabled: false,
+                    },
+                },
+            });
+            const deliver = vi.fn();
+            await expect(
+                f.service
+                    .assertCanReadResults(account, 'project', f.rows.root)
+                    .then(deliver),
+            ).rejects.toThrow();
+            expect(deliver).not.toHaveBeenCalled();
+        },
+    );
+
+    test('flag off skips lineage for an ordinary root', async () => {
         const { service, flags, historyModel, rows, batch, logger } =
             buildGraph({
                 root: ['source'],
@@ -7286,3 +7363,54 @@ describe('result producer compatibility', () => {
         ).rejects.toBeInstanceOf(AiAccessRefusedError);
     });
 });
+
+test.each(['marked_person', 'ai_service_account', 'agent_sign_in'] as const)(
+    'an authenticated connection retains the %s warehouse rule',
+    async (source) => {
+        const f = setup();
+        f.organizationRules.get.mockResolvedValue({ source });
+        f.slots.getSecrets.mockResolvedValue({
+            slot: {
+                uuid: 'slot',
+                identityUuid: 'generation',
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+            } as AiServiceAccountSlot,
+            secrets: snowflakeSecrets,
+        });
+        const auth = setupGrantAuthentication({
+            ...sessionUser,
+            userUuid: 'user',
+            organizationUuid: 'org',
+        });
+        auth.downstream.mockImplementation(async () => {
+            const context = connectionContextFromAccount(auth.req.account!, {
+                organizationUuid: 'org',
+                queryContext: QueryExecutionContext.CLI,
+            });
+            const plan = await f.service.resolvePlan({
+                ...args,
+                connection: snowflake,
+                agentIdentity: context.agentIdentity ?? null,
+                context: QueryExecutionContext.CLI,
+                evaluation: { kind: 'query', surface: QuerySurface.CLI },
+            });
+            expect(plan).toMatchObject({
+                identity:
+                    source === 'agent_sign_in' ? 'connected_person' : source,
+                agentIdentity: {
+                    subject: { type: 'user', uuid: 'user' },
+                    act: {
+                        agent_connection_grant: {
+                            grantUuid: 'grant',
+                            revision: 1,
+                        },
+                    },
+                },
+            });
+        });
+        expect(await auth.run(allowApiKeyAuthentication)).toEqual({
+            status: 200,
+            error: undefined,
+        });
+    },
+);
