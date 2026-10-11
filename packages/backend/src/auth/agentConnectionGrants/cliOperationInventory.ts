@@ -815,3 +815,8 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'Project lifecycle and warehouse configuration changes are refused in v1.',
         ),
     ];
+
+export const CLI_CONNECTION_LIFECYCLE_OPERATIONS = [
+    'AgentConnectionController.getConnectionStatus',
+    'AgentConnectionController.revoke',
+] as const;

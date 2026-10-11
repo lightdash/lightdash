@@ -24,6 +24,7 @@ import { URL } from 'url';
 import { fromApiKey, fromOauth } from '../../auth/account/account';
 import { requestContextFromExpress } from '../../auth/account/requestContext';
 import { buildAccountExistsWarning } from '../../auth/account/warnAccountExists';
+import { getGrantOperationContract } from '../../auth/agentConnectionGrants/operationContracts';
 import { resolveOAuthScopeMode } from '../../auth/oauthScopes/mode';
 import {
     oauthApiResource,
@@ -128,6 +129,12 @@ const assertOAuthAgentOperation = async (req: Request): Promise<void> => {
                   .getAgentConnectionGrantService()
                   .assertRestOperation(req, operation)
             : null;
+    if (
+        grantProjectUuids !== null &&
+        operation !== null &&
+        getGrantOperationContract(operation)?.kind === 'connection_lifecycle'
+    )
+        return;
     const scopeOperation =
         operation !== null &&
         Object.hasOwn(OAUTH_UNCHECKED_OPERATIONS, operation)
@@ -336,12 +343,18 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
                 refuseOAuthToken(req, res);
                 return;
             }
-            req.services
-                .getUserService()
-                .findSessionUser({
-                    id: token.user.userUuid,
-                    organization: token.user.organizationUuid,
-                })
+            (token.agentConnectionGrantUuid == null
+                ? req.services.getUserService().findSessionUser({
+                      id: token.user.userUuid,
+                      organization: token.user.organizationUuid,
+                  })
+                : req.services
+                      .getAgentConnectionGrantService()
+                      .loadSessionUser(
+                          token.user.userUuid,
+                          token.user.organizationUuid,
+                      )
+            )
                 .then(async (user) => {
                     if (req.account?.isAuthenticated()) {
                         Logger.warn(
@@ -488,12 +501,18 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
                 refuseOAuthToken(req, res);
                 return;
             }
-            req.services
-                .getUserService()
-                .findSessionUser({
-                    id: token.user.userUuid,
-                    organization: token.user.organizationUuid,
-                })
+            (token.agentConnectionGrantUuid == null
+                ? req.services.getUserService().findSessionUser({
+                      id: token.user.userUuid,
+                      organization: token.user.organizationUuid,
+                  })
+                : req.services
+                      .getAgentConnectionGrantService()
+                      .loadSessionUser(
+                          token.user.userUuid,
+                          token.user.organizationUuid,
+                      )
+            )
                 .then(async (user) => {
                     if (req.account?.isAuthenticated()) {
                         Logger.warn(

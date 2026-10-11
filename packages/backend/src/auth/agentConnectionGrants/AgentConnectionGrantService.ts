@@ -5,6 +5,7 @@ import {
     AgentCapability,
     assertUnreachable,
     ForbiddenError,
+    NotFoundError,
     QuerySourceType,
     type AgentConnectionExecution,
     type OAuthAgentConnectionGrant,
@@ -37,6 +38,7 @@ import {
     sourceEffectCapabilities,
     uploadEffectCapabilities,
 } from './operationContracts';
+import { grantAllowsCapabilities } from './resourceConstraints';
 
 export type GrantRestRequest = Pick<
     Request,
@@ -135,11 +137,7 @@ export class AgentConnectionGrantService {
         );
         if (
             !grant.approvedProjectUuids.includes(projectUuid) ||
-            capabilities.some(
-                (capability) =>
-                    !Object.values(AgentCapability).includes(capability) ||
-                    !grant.approvedCapabilities.includes(capability),
-            ) ||
+            !grantAllowsCapabilities(grant, [projectUuid], capabilities) ||
             !account.user.ability.can(
                 'view',
                 subject('Project', {
@@ -197,6 +195,28 @@ export class AgentConnectionGrantService {
         return { grant: validatedGrant, account, scope };
     }
 
+    async loadSessionUser(
+        userUuid: string,
+        organizationUuid: string,
+    ): Promise<SessionUser> {
+        try {
+            if (!this.deps.userModel) throw new OAuthBearerRefusalError();
+            const user = await this.deps.userModel.findSessionUserAndOrgByUuid(
+                userUuid,
+                organizationUuid,
+            );
+            if (
+                !user.isActive ||
+                user.userUuid !== userUuid ||
+                user.organizationUuid !== organizationUuid
+            )
+                throw new OAuthBearerRefusalError();
+            return user;
+        } catch {
+            throw new OAuthBearerRefusalError();
+        }
+    }
+
     async authenticate(
         token: Token & Partial<OAuthTokenBinding>,
         user: SessionUser,
@@ -215,6 +235,7 @@ export class AgentConnectionGrantService {
         );
         if (
             !grant ||
+            !user.isActive ||
             !matchesOAuthGrantBinding(grant, {
                 subjectUserUuid: user.userUuid,
                 organizationUuid: user.organizationUuid!,
@@ -293,6 +314,17 @@ export class AgentConnectionGrantService {
             return body.data;
         };
         switch (contract.kind) {
+            case 'connection_lifecycle':
+                if (req.method !== contract.method)
+                    throw new ForbiddenError(
+                        'This agent connection cannot use this operation.',
+                    );
+                if (
+                    req.params.grantUuid !==
+                    req.account.authentication.agentConnectionGrant.grantUuid
+                )
+                    throw new NotFoundError('Agent connection not found');
+                return [];
             case 'org_discovery':
                 if (req.method !== 'GET')
                     throw new ForbiddenError(

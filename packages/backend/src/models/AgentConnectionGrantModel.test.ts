@@ -5,12 +5,15 @@ import {
 } from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
+import { malformedProjectConstraints } from '../auth/agentConnectionGrants/grant.mock';
 import { type DbAgentConnectionGrant } from '../database/entities/agentConnectionGrants';
 import { AgentConnectionGrantModel } from './AgentConnectionGrantModel';
 
 let database: ReturnType<typeof knex>;
 let tracker: ReturnType<typeof getTracker>;
 let model: AgentConnectionGrantModel;
+const projectUuid = '11111111-1111-4111-8111-111111111111';
+const secondProjectUuid = '22222222-2222-4222-8222-222222222222';
 const now = new Date('2026-10-10T12:00:00Z');
 const input: AgentConnectionGrantCreate = {
     organizationUuid: 'org',
@@ -19,7 +22,7 @@ const input: AgentConnectionGrantCreate = {
     name: 'cli-dev',
     resource: 'https://server.example',
     approvedCapabilities: [AgentCapability.ReadDiscover, AgentCapability.Query],
-    approvedProjectUuids: ['project'],
+    approvedProjectUuids: [projectUuid],
     resourceConstraints: { version: 1 },
     approvalPolicyVersion: null,
     approvedByUserUuid: 'subject',
@@ -68,7 +71,7 @@ afterEach(async () => {
 });
 
 const mockCreate = () => {
-    tracker.on.select('projects').response([{ project_uuid: 'project' }]);
+    tracker.on.select('projects').response([{ project_uuid: projectUuid }]);
     tracker.on.insert('agent_connection_grants').response([row]);
 };
 
@@ -102,11 +105,11 @@ test('rejects an empty project list', async () => {
 });
 
 test('rejects projects missing from the bound organization', async () => {
-    tracker.on.select('projects').response([{ project_uuid: 'project' }]);
+    tracker.on.select('projects').response([{ project_uuid: projectUuid }]);
     await expect(
         model.create({
             ...input,
-            approvedProjectUuids: ['project', 'foreign-project'],
+            approvedProjectUuids: [projectUuid, secondProjectUuid],
         }),
     ).rejects.toBeInstanceOf(ParameterError);
     expect(tracker.history.select).toHaveLength(1);
@@ -134,14 +137,14 @@ test('deduplicates capabilities and projects and accepts the maximum expiry', as
     await model.create({
         ...input,
         approvedCapabilities: [AgentCapability.Query, AgentCapability.Query],
-        approvedProjectUuids: ['project', 'project'],
+        approvedProjectUuids: [projectUuid, projectUuid],
         expiresAt: new Date(now.getTime() + 7 * 86400000),
     });
     expect(tracker.history.select).toHaveLength(1);
     expect(tracker.history.insert[0].bindings).toContainEqual([
         AgentCapability.Query,
     ]);
-    expect(tracker.history.insert[0].bindings).toContainEqual(['project']);
+    expect(tracker.history.insert[0].bindings).toContainEqual([projectUuid]);
 });
 
 test('returns the stored grant with explicit nulls and server-owned metadata', async () => {
@@ -327,7 +330,7 @@ test.each([
 
 test('replaces the grant, revokes its tokens and links to the replacement', async () => {
     tracker.on.select('agent_connection_grants').response([row]);
-    tracker.on.select('projects').response([{ project_uuid: 'project' }]);
+    tracker.on.select('projects').response([{ project_uuid: projectUuid }]);
     tracker.on
         .insert('agent_connection_grants')
         .response([{ ...row, agent_connection_grant_uuid: 'new-grant' }]);
@@ -456,3 +459,232 @@ test('rolls back the replacement when revoking the old tokens fails', async () =
         tracker.history.all.length,
     );
 });
+
+test.each(malformedProjectConstraints)(
+    'rejects malformed v2 creation and replacement %j',
+    async (resourceConstraints) => {
+        mockCreate();
+        tracker.on.select('agent_connection_grants').response([row]);
+        const invalid = {
+            ...input,
+            approvedCapabilities: [AgentCapability.Query],
+            resourceConstraints,
+        } as AgentConnectionGrantCreate;
+        await expect(model.create(invalid)).rejects.toBeInstanceOf(
+            ParameterError,
+        );
+        await expect(
+            model.replace({
+                organizationUuid: 'org',
+                oldGrantUuid: 'grant',
+                newGrantInput: invalid,
+                actorUserUuid: 'subject',
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(tracker.history.insert).toHaveLength(0);
+        expect(tracker.history.update).toHaveLength(0);
+    },
+);
+test('stores v2 constraints without broadening or repairing them', async () => {
+    const resourceConstraints = {
+        version: 2,
+        projectCapabilities: {
+            '11111111-1111-4111-8111-111111111111': [AgentCapability.Query],
+            '22222222-2222-4222-8222-222222222222': [
+                AgentCapability.DeployUpload,
+            ],
+        },
+    } as unknown as AgentConnectionGrantCreate['resourceConstraints'];
+    tracker.on
+        .select('projects')
+        .response([
+            { project_uuid: '11111111-1111-4111-8111-111111111111' },
+            { project_uuid: '22222222-2222-4222-8222-222222222222' },
+        ]);
+    tracker.on
+        .insert('agent_connection_grants')
+        .response([{ ...row, resource_constraints: resourceConstraints }]);
+    await expect(
+        model.create({
+            ...input,
+            approvedProjectUuids: [
+                '11111111-1111-4111-8111-111111111111',
+                '22222222-2222-4222-8222-222222222222',
+            ],
+            approvedCapabilities: [
+                AgentCapability.Query,
+                AgentCapability.DeployUpload,
+            ],
+            resourceConstraints,
+        }),
+    ).resolves.toMatchObject({ resourceConstraints });
+    expect(tracker.history.insert[0].bindings).toContainEqual(
+        JSON.stringify(resourceConstraints),
+    );
+});
+
+test.each(malformedProjectConstraints)(
+    'refuses malformed v2 active rows %j',
+    async (resourceConstraints) => {
+        tracker.on.select('agent_connection_grants').response([
+            {
+                ...row,
+                approved_capabilities: [AgentCapability.Query],
+                resource_constraints: resourceConstraints,
+            },
+        ]);
+        await expect(model.findActive('grant', now)).resolves.toBeNull();
+    },
+);
+
+class ProjectCapabilities {
+    [projectUuid] = [AgentCapability.Query];
+}
+const tooManyProjects = Array.from(
+    { length: 501 },
+    (_, i) => `11111111-1111-4111-8111-${i.toString().padStart(12, '0')}`,
+);
+const unsafeMaps = [
+    [
+        '__proto__',
+        {
+            [projectUuid]: [AgentCapability.Query],
+            ['__proto__']: [AgentCapability.Query],
+        },
+        [projectUuid],
+    ],
+    [
+        'constructor',
+        {
+            [projectUuid]: [AgentCapability.Query],
+            constructor: [AgentCapability.Query],
+        },
+        [projectUuid, 'constructor'],
+    ],
+    [
+        'prototype',
+        {
+            [projectUuid]: [AgentCapability.Query],
+            prototype: [AgentCapability.Query],
+        },
+        [projectUuid, 'prototype'],
+    ],
+    ['non-uuid', { bad: [AgentCapability.Query] }, ['bad']],
+    ['array', [[AgentCapability.Query]], ['0']],
+    ['class instance', new ProjectCapabilities(), [projectUuid]],
+    [
+        'custom prototype',
+        Object.assign(Object.create({ inherited: true }), {
+            [projectUuid]: [AgentCapability.Query],
+        }),
+        [projectUuid],
+    ],
+    [
+        'extra key',
+        { [projectUuid]: [AgentCapability.Query], [secondProjectUuid]: [] },
+        [projectUuid],
+    ],
+    [
+        'missing key',
+        { [projectUuid]: [AgentCapability.Query] },
+        [projectUuid, secondProjectUuid],
+    ],
+    [
+        'too many projects',
+        Object.fromEntries(
+            tooManyProjects.map((uuid) => [uuid, [AgentCapability.Query]]),
+        ),
+        tooManyProjects,
+    ],
+] as const;
+test.each(unsafeMaps)(
+    'rejects %s at creation and replacement before writes',
+    async (name, map, projects) => {
+        let projectCapabilities = map;
+        if (name === '__proto__') {
+            try {
+                projectCapabilities = JSON.parse(JSON.stringify(map));
+            } catch {
+                throw new Error('Invalid test fixture JSON');
+            }
+            expect(Object.hasOwn(projectCapabilities, '__proto__')).toBe(true);
+        }
+        tracker.on.select('agent_connection_grants').response([row]);
+        tracker.on
+            .select('projects')
+            .response(projects.map((uuid) => ({ project_uuid: uuid })));
+        tracker.on.insert('agent_connection_grants').response([row]);
+        mockRevoke();
+        const invalid = {
+            ...input,
+            approvedCapabilities: [AgentCapability.Query],
+            approvedProjectUuids: [...projects],
+            resourceConstraints: { version: 2, projectCapabilities },
+        } as AgentConnectionGrantCreate;
+        await expect(model.create(invalid)).rejects.toBeInstanceOf(
+            ParameterError,
+        );
+        await expect(
+            model.replace({
+                organizationUuid: 'org',
+                oldGrantUuid: 'grant',
+                newGrantInput: invalid,
+                actorUserUuid: 'subject',
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(tracker.history.insert).toHaveLength(0);
+        expect(tracker.history.update).toHaveLength(0);
+    },
+);
+test.each(['create', 'replace'])(
+    'stores the validated snapshot in stable key order for %s',
+    async (operation) => {
+        const resourceConstraints = {
+            version: 2 as const,
+            projectCapabilities: {
+                [secondProjectUuid]: [
+                    AgentCapability.Query,
+                    AgentCapability.ReadDiscover,
+                ],
+                [projectUuid]: [] as AgentCapability[],
+            },
+        };
+        tracker.on.select('agent_connection_grants').response([row]);
+        tracker.on.select('projects').response(() => {
+            resourceConstraints.projectCapabilities[projectUuid].push(
+                AgentCapability.RawSql,
+            );
+            return [
+                { project_uuid: projectUuid },
+                { project_uuid: secondProjectUuid },
+            ];
+        });
+        tracker.on.insert('agent_connection_grants').response([row]);
+        mockRevoke();
+        const valid = {
+            ...input,
+            approvedProjectUuids: [secondProjectUuid, projectUuid],
+            resourceConstraints,
+        };
+        if (operation === 'create') await model.create(valid);
+        else
+            await model.replace({
+                organizationUuid: 'org',
+                oldGrantUuid: 'grant',
+                newGrantInput: valid,
+                actorUserUuid: 'subject',
+            });
+        expect(tracker.history.insert[0].bindings).toContainEqual(
+            JSON.stringify({
+                version: 2,
+                projectCapabilities: {
+                    [projectUuid]: [],
+                    [secondProjectUuid]: [
+                        AgentCapability.Query,
+                        AgentCapability.ReadDiscover,
+                    ],
+                },
+            }),
+        );
+    },
+);

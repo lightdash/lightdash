@@ -6,8 +6,10 @@ import {
 import { fromOauth } from '../account/account';
 import { defaultSessionUser } from '../account/account.mock';
 import { AgentConnectionGrantService } from './AgentConnectionGrantService';
-import { grantFixture } from './grant.mock';
+import { grantFixture, projectGrantFixture } from './grant.mock';
 import { managedExecutionFixture } from './managedExecution.mock';
+
+const otherProjectUuid = '22222222-2222-4222-8222-222222222222';
 
 const setup = () => {
     const grant = grantFixture();
@@ -139,7 +141,7 @@ it('resolves only the project consumed by the handler', async () => {
                 method: 'GET',
                 query: {},
                 params: { projectUuid: 'slug' },
-                body: { targetProjectUuid: 'other' },
+                body: { targetProjectUuid: otherProjectUuid },
             },
             'ProjectController.getProject',
         ),
@@ -241,7 +243,7 @@ it('cannot hide a resource slug behind an injected body project', async () => {
 it('refuses promotions even when both projects are approved', async () => {
     const { service, token, user, grant } = setup();
     grant.approvedCapabilities = Object.values(AgentCapability);
-    grant.approvedProjectUuids.push('upstream');
+    grant.approvedProjectUuids.push(otherProjectUuid);
     const account = fromOauth(
         user,
         token,
@@ -298,7 +300,9 @@ it('does not accept fake project fields on an organization-wide content listing'
 it('refuses content moves without reviewed source and destination contracts', async () => {
     const { service, token, user, grant, deps } = setup();
     grant.approvedCapabilities = [AgentCapability.Publish];
-    deps.resourceResolver.resolveResourceProjectUuid.mockResolvedValue('other');
+    deps.resourceResolver.resolveResourceProjectUuid.mockResolvedValue(
+        otherProjectUuid,
+    );
     const account = fromOauth(
         user,
         token,
@@ -351,7 +355,9 @@ it.each([
 ])('checks the actual resource for %s', async (operation, params) => {
     const { service, token, user, grant, deps } = setup();
     grant.approvedCapabilities = Object.values(AgentCapability);
-    deps.resourceResolver.resolveResourceProjectUuid.mockResolvedValue('other');
+    deps.resourceResolver.resolveResourceProjectUuid.mockResolvedValue(
+        otherProjectUuid,
+    );
     const account = fromOauth(
         user,
         token,
@@ -568,7 +574,9 @@ it.each(
         );
         deps.resourceResolver.resolveDeploySession.mockResolvedValue({
             projectUuid:
-                binding === 'project' ? 'other' : grant.approvedProjectUuids[0],
+                binding === 'project'
+                    ? otherProjectUuid
+                    : grant.approvedProjectUuids[0],
             userUuid: binding === 'owner' ? 'other' : user.userUuid,
         });
         const result = service.assertRestOperation(
@@ -835,4 +843,91 @@ describe('current managed policy intersection', () => {
             await expect(run()).rejects.toThrow();
         },
     );
+});
+
+describe.each([false, true])(
+    'v2 queued effects with recheckOperation=%s',
+    (recheckOperation) => {
+        it.each([
+            [AgentCapability.Query, 0, true],
+            [AgentCapability.DeployUpload, 0, false],
+            [AgentCapability.DeployUpload, 1, true],
+            [AgentCapability.Query, 1, false],
+        ] as const)(
+            'checks %s on project %s',
+            async (capability, project, allowed) => {
+                const f = managedExecutionFixture();
+                Object.assign(f.grant, projectGrantFixture(), {
+                    clientId: 'lightdash-cli',
+                });
+                f.execution.operation.key =
+                    capability === AgentCapability.Query
+                        ? 'QueryController.executeAsyncMetricQuery'
+                        : 'ProjectController.refresh';
+                const run = () =>
+                    f.service.assertActiveExecution(f.execution, {
+                        projectUuid: f.grant.approvedProjectUuids[project],
+                        capabilities: [capability],
+                        recheckOperation,
+                    });
+                if (allowed) await expect(run()).resolves.toBeDefined();
+                else await expect(run()).rejects.toThrow();
+            },
+        );
+        it('cannot widen approval when current policy is raised after approval', async () => {
+            const f = managedExecutionFixture();
+            Object.assign(f.grant, projectGrantFixture(), {
+                clientId: 'lightdash-cli',
+            });
+            f.policy.systemRoleMatrix.viewer = [AgentCapability.Query];
+            const run = () =>
+                f.service.assertActiveExecution(f.execution, {
+                    projectUuid: f.projectUuid,
+                    capabilities: [AgentCapability.DeployUpload],
+                    recheckOperation,
+                });
+            await expect(run()).rejects.toThrow();
+            f.policy.systemRoleMatrix.viewer = Object.values(AgentCapability);
+            await expect(run()).rejects.toThrow();
+            await expect(
+                f.service.assertActiveExecution(f.execution, {
+                    projectUuid: f.grant.approvedProjectUuids[1],
+                    capabilities: [AgentCapability.DeployUpload],
+                    recheckOperation,
+                }),
+            ).resolves.toBeDefined();
+        });
+    },
+);
+
+it('checks every project resolved by a multi-project REST contract', async () => {
+    const f = setup();
+    const a = '11111111-1111-4111-8111-111111111111';
+    const b = '22222222-2222-4222-8222-222222222222';
+    Object.assign(
+        f.grant,
+        projectGrantFixture({
+            [a]: [AgentCapability.ReadDiscover],
+            [b]: [AgentCapability.DeployUpload],
+        }),
+    );
+    const account = fromOauth(
+        f.user,
+        f.token,
+        null,
+        await f.service.authenticate(f.token, f.user),
+    );
+    const run = (projects: string[]) =>
+        f.service.assertRestOperation(
+            {
+                account,
+                method: 'GET',
+                params: {},
+                query: { projectUuids: projects },
+                body: {},
+            },
+            'ContentController.listContent',
+        );
+    await expect(run([a])).resolves.toEqual([a]);
+    await expect(run([a, b])).rejects.toThrow();
 });

@@ -21,7 +21,10 @@ import {
     buildAccount,
     defaultSessionUser,
 } from '../../auth/account/account.mock';
-import { grantFixture } from '../../auth/agentConnectionGrants/grant.mock';
+import {
+    grantFixture,
+    projectGrantFixture,
+} from '../../auth/agentConnectionGrants/grant.mock';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
@@ -45,7 +48,8 @@ import type {
 } from './types';
 
 const account = buildAccount();
-const projectUuid = 'test-project-uuid';
+const projectUuid = '11111111-1111-4111-8111-111111111111';
+const otherProjectUuid = '22222222-2222-4222-8222-222222222222';
 const organizationUuid = 'test-org-uuid';
 const executionContext: SourceQueryExecutionContext = {
     parameters: {},
@@ -1259,12 +1263,18 @@ describe('bound grant SQL source effects', () => {
         QuerySourceType.DUCKDB,
         QuerySourceType.EXTERNAL,
     ] as const;
-    const cases = [false, true].flatMap((managed) =>
-        sqlSourceTypes.map((sourceType) => ({ managed, sourceType })),
+    const cases = [1, 2].flatMap((version) =>
+        [false, true].flatMap((managed) =>
+            sqlSourceTypes.map((sourceType) => ({
+                managed,
+                sourceType,
+                version,
+            })),
+        ),
     );
     it.each(cases)(
-        'checks $sourceType before the managed=$managed return',
-        async ({ managed, sourceType }) => {
+        'checks v$version $sourceType before the managed=$managed return',
+        async ({ managed, sourceType, version }) => {
             const { registry, sqlSource } = createRegistryWithFakes();
             const { service, mocks } = createService(registry);
             mocks.permissions.loadRequest.mockResolvedValue({
@@ -1272,7 +1282,13 @@ describe('bound grant SQL source effects', () => {
             });
             if (sourceType === QuerySourceType.EXTERNAL)
                 registry.register(createFakeSource(QuerySourceType.EXTERNAL));
-            const grant = grantFixture();
+            const grant =
+                version === 1
+                    ? grantFixture()
+                    : projectGrantFixture({
+                          [projectUuid]: [AgentCapability.Query],
+                          [otherProjectUuid]: [AgentCapability.RawSql],
+                      });
             const bound = fromOauth(
                 defaultSessionUser,
                 { accessToken: 'token', client: { id: grant.clientId } },
@@ -1313,9 +1329,21 @@ describe('bound grant SQL source effects', () => {
                 service.scanSchema(bound, projectUuid, QuerySourceType.SQL),
             ).rejects.toThrow('SQL');
             expect(sqlSource.scanSchema).not.toHaveBeenCalled();
-            bound.authentication.agentConnectionGrant!.approvedCapabilities.push(
-                AgentCapability.RawSql,
-            );
+            if (version === 1)
+                bound.authentication.agentConnectionGrant!.approvedCapabilities.push(
+                    AgentCapability.RawSql,
+                );
+            else
+                Object.assign(
+                    bound.authentication.agentConnectionGrant!,
+                    projectGrantFixture({
+                        [projectUuid]: [
+                            AgentCapability.Query,
+                            AgentCapability.RawSql,
+                        ],
+                        [otherProjectUuid]: [],
+                    }),
+                );
             await expect(service.submitQueries(args)).resolves.toBeDefined();
             await expect(
                 service.scanSchema(bound, projectUuid, QuerySourceType.SQL),

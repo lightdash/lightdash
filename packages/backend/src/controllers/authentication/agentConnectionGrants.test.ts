@@ -1,3 +1,4 @@
+import { Ability } from '@casl/ability';
 import {
     AgentActorSurface,
     AgentCapability,
@@ -12,6 +13,7 @@ import { fromSession } from '../../auth/account';
 import { fromApiKey } from '../../auth/account/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
 import { AgentConnectionGrantService } from '../../auth/agentConnectionGrants/AgentConnectionGrantService';
+import { projectGrantFixture } from '../../auth/agentConnectionGrants/grant.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { authenticateServiceAccount } from '../../ee/authentication';
 import { AgentConnectionGrantModel } from '../../models/AgentConnectionGrantModel';
@@ -34,6 +36,8 @@ vi.mock('passport', () => ({ default: { authenticate: vi.fn() } }));
 vi.mock('../../ee/authentication', () => ({
     authenticateServiceAccount: vi.fn(),
 }));
+const outsideProjectUuid = '22222222-2222-4222-8222-222222222222';
+
 const setup = () =>
     setupGrantAuthentication({
         ...defaultSessionUser,
@@ -86,7 +90,7 @@ it('puts validated metadata on the account in OAuth log and legacy org mode', as
 });
 it('enforces the grant before the legacy return, even after the org allows more', async () => {
     const { req, run, permissions } = setup();
-    req.params.projectUuid = 'outside';
+    req.params.projectUuid = outsideProjectUuid;
     const check = async (managed: boolean) => {
         permissions.loadRequest.mockResolvedValue({
             enforcementMode: managed ? 'managed' : 'off',
@@ -102,7 +106,7 @@ it('enforces the grant before the legacy return, even after the org allows more'
 it('checks the grant before group admission when limits are off', async () => {
     const { req, run, grant, permissions } = setup();
     permissions.loadRequest.mockResolvedValue({ enforcementMode: 'admission' });
-    req.params.projectUuid = 'outside';
+    req.params.projectUuid = outsideProjectUuid;
     expect((await run(allowApiKeyAuthentication)).error).toMatchObject({
         message: expect.stringContaining('project'),
     });
@@ -497,7 +501,11 @@ describe('revoked bound bearer lifecycle with a live session', () => {
             tracker.on
                 .select('oauth2_access_tokens')
                 .response(() => (accessStored ? tokenRow : undefined));
-            tracker.on.select('users').response({ user_uuid: user.userUuid });
+            tracker.on.select('users').response({
+                user_uuid: user.userUuid,
+                is_active: true,
+                organization_uuid: user.organizationUuid,
+            });
             const transaction = database.transaction.bind(database);
             const transactionSpy = vi
                 .spyOn(database, 'transaction')
@@ -875,4 +883,183 @@ describe.each([
         await Promise.all([a.run(middleware), b.run(middleware)]);
         expect(agentExecutionContext.getStore()).toBeUndefined();
     });
+});
+
+it.each([
+    ['QueryController_executeAsyncMetricQuery', 0, true],
+    ['ProjectController_refresh', 0, false],
+    ['ProjectController_refresh', 1, true],
+    ['QueryController_executeAsyncMetricQuery', 1, false],
+] as const)(
+    'enforces v2 through real middleware and grant service: %s on %s',
+    async (operation, project, allowed) => {
+        const f = setup();
+        Object.assign(f.grant, projectGrantFixture(), {
+            clientId: f.token.client.id,
+        });
+        f.req.route.stack[0].handle = Object.defineProperty(() => {}, 'name', {
+            value: operation,
+        });
+        f.req.params.projectUuid = f.grant.approvedProjectUuids[project];
+        const result = await f.run(allowApiKeyAuthentication);
+        if (allowed) expect(result).toEqual({ status: 200, error: undefined });
+        else
+            expect(result.status === 401 || result.error !== undefined).toBe(
+                true,
+            );
+    },
+);
+
+describe.each([
+    allowApiKeyAuthentication,
+    allowOauthAuthentication,
+    allowApiKeyAuthenticationIfPresent,
+])('fresh bound request person through %s', (middleware) => {
+    it.each(['reduced', 'inactive', 'removed', 'other_org'] as const)(
+        'ignores the cached person when %s',
+        async (change) => {
+            const f = setup();
+            const fresh = {
+                ...f.user,
+                ability: new Ability([]),
+                abilityRules: [],
+            };
+            if (change === 'inactive') fresh.isActive = false;
+            if (change === 'other_org') fresh.organizationUuid = 'other';
+            if (change === 'removed')
+                f.deps.userModel.findSessionUserAndOrgByUuid.mockRejectedValue(
+                    new Error('No membership'),
+                );
+            else
+                f.deps.userModel.findSessionUserAndOrgByUuid.mockResolvedValue(
+                    fresh,
+                );
+            f.req.isAuthenticated = (() => true) as Request['isAuthenticated'];
+            const response = await f.run(middleware);
+            if (change === 'reduced') {
+                expect(response).toEqual({ status: 200, error: undefined });
+                expect(f.req.account!.user.ability.can('view', 'Project')).toBe(
+                    false,
+                );
+            } else
+                expect(response).toMatchObject({
+                    status: 401,
+                    body: { error: 'invalid_token' },
+                });
+            expect(
+                f.deps.userModel.findSessionUserAndOrgByUuid,
+            ).toHaveBeenCalledExactlyOnceWith(
+                f.user.userUuid,
+                f.grant.organizationUuid,
+            );
+            expect(f.users.findSessionUser).not.toHaveBeenCalled();
+            expect(authenticateServiceAccount).not.toHaveBeenCalled();
+            expect(passport.authenticate).not.toHaveBeenCalled();
+        },
+    );
+    it('keeps the one cached lookup for unbound OAuth', async () => {
+        const f = setup();
+        Object.assign(f.token, { agentConnectionGrantUuid: null });
+        expect(await f.run(middleware)).toEqual({
+            status: 200,
+            error: undefined,
+        });
+        expect(f.users.findSessionUser).toHaveBeenCalledExactlyOnceWith({
+            id: f.user.userUuid,
+            organization: f.user.organizationUuid,
+        });
+        expect(
+            f.deps.userModel.findSessionUserAndOrgByUuid,
+        ).not.toHaveBeenCalled();
+    });
+    it('does no extra person lookup for an existing session', async () => {
+        const f = setup();
+        f.req.headers.authorization = undefined;
+        f.req.isAuthenticated = (() => true) as Request['isAuthenticated'];
+        f.req.account = fromSession(f.user);
+        expect(await f.run(middleware)).toEqual({
+            status: 200,
+            error: undefined,
+        });
+        expect(f.users.findSessionUser).not.toHaveBeenCalled();
+        expect(
+            f.deps.userModel.findSessionUserAndOrgByUuid,
+        ).not.toHaveBeenCalled();
+    });
+});
+
+describe('connection lifecycle operations', () => {
+    const route = (req: Request, operation: string) => {
+        req.route.stack = [
+            {
+                handle: Object.defineProperty(() => {}, 'name', {
+                    value: `AgentConnectionController_${operation}`,
+                }),
+            },
+        ];
+        req.params = { grantUuid: 'grant' };
+    };
+    it.each([
+        ['getConnectionStatus', 'GET'],
+        ['revoke', 'DELETE'],
+    ])(
+        'allows own %s without current agent admission or capabilities',
+        async (operation, method) => {
+            const f = setup();
+            route(f.req, operation);
+            f.req.method = method;
+            f.grant.approvedCapabilities = [];
+            f.permissions.loadRequest.mockResolvedValue({
+                enforcementMode: 'managed',
+            });
+            f.permissions.assertOperationWithRequest.mockRejectedValue(
+                new Error('admission removed'),
+            );
+            expect(await f.run(allowApiKeyAuthentication)).toEqual({
+                status: 200,
+                error: undefined,
+            });
+            expect(f.permissions.loadRequest).not.toHaveBeenCalled();
+            expect(
+                f.deps.resourceResolver.resolveProjectUuid,
+            ).not.toHaveBeenCalled();
+        },
+    );
+    it.each([
+        ['getConnectionStatus', 'GET'],
+        ['revoke', 'DELETE'],
+    ])(
+        'hides another grant for %s even for the same person',
+        async (operation, method) => {
+            const f = setup();
+            route(f.req, operation);
+            f.req.method = method;
+            f.req.params.grantUuid = 'other';
+            const result = await f.run(allowApiKeyAuthentication);
+            expect(result.error).toMatchObject({ statusCode: 404 });
+        },
+    );
+    it('refuses listing with a connection token', async () => {
+        const f = setup();
+        route(f.req, 'list');
+        expect((await f.run(allowApiKeyAuthentication)).error).toBeDefined();
+    });
+    it.each(['revoked', 'flag_off'])(
+        'refuses %s connection even with a live session',
+        async (reason) => {
+            const f = setup();
+            route(f.req, 'revoke');
+            f.req.method = 'DELETE';
+            f.req.isAuthenticated = (() => true) as Request['isAuthenticated'];
+            f.req.user = f.user;
+            f.oauth.isAccessTokenBoundToGrant.mockResolvedValue(true);
+            if (reason === 'revoked')
+                f.deps.model.findActive.mockResolvedValue(null);
+            else f.deps.featureFlags.get.mockResolvedValue({ enabled: false });
+            expect(await f.run(allowApiKeyAuthentication)).toMatchObject({
+                status: 401,
+            });
+            expect(f.downstream).not.toHaveBeenCalled();
+        },
+    );
 });

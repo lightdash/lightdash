@@ -149,7 +149,7 @@ describe('connection jobs at the Graphile dispatch boundary', () => {
                 userUuid: 'user',
                 createdByUserUuid: 'user',
                 organizationUuid: 'org',
-                projectUuid: 'project',
+                projectUuid: '11111111-1111-4111-8111-111111111111',
                 jobUuid: 'compile-job',
                 agentConnectionEffect: taskName,
                 agentConnectionExecution: {

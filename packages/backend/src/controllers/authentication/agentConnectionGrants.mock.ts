@@ -62,6 +62,7 @@ export const setupGrantAuthentication = (sessionUser = defaultSessionUser) => {
         getSiteUrl: () => grant.resource,
         isAccessTokenBoundToGrant: vi.fn().mockResolvedValue(false),
     };
+    const users = { findSessionUser: vi.fn().mockResolvedValue(user) };
     const req = {
         headers: { authorization: 'Bearer token' },
         method: 'GET',
@@ -76,7 +77,7 @@ export const setupGrantAuthentication = (sessionUser = defaultSessionUser) => {
         isAuthenticated: () => false,
         services: {
             getOauthService: () => oauth,
-            getUserService: () => ({ findSessionUser: async () => user }),
+            getUserService: () => users,
             getFeatureFlagService: () => deps.featureFlags,
             getAgentPermissionService: () => permissions,
             getAgentConnectionGrantService: () => service,
@@ -125,5 +126,6 @@ export const setupGrantAuthentication = (sessionUser = defaultSessionUser) => {
         run,
         oauth,
         downstream,
+        users,
     };
 };

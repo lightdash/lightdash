@@ -118,6 +118,7 @@ import {
     grantUploadBodySchema,
     uploadEffectCapabilities,
 } from '../../auth/agentConnectionGrants/operationContracts';
+import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resourceConstraints';
 import { LightdashConfig } from '../../config/parseConfig';
 import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 import { AppModel } from '../../models/AppModel';
@@ -3900,7 +3901,11 @@ export class CoderService extends BaseService {
         if (
             uploadEffectCapabilities(parsed.data).some(
                 (capability) =>
-                    !grant.approvedCapabilities.includes(capability),
+                    !grantAllowsCapabilities(
+                        grant,
+                        [projectUuid],
+                        [capability],
+                    ),
             )
         )
             throw new ForbiddenError(
@@ -4736,7 +4741,11 @@ export class CoderService extends BaseService {
                 : null;
         if (
             grant &&
-            !grant.approvedCapabilities.includes(AgentCapability.RawSql) &&
+            !grantAllowsCapabilities(
+                grant,
+                [projectUuid],
+                [AgentCapability.RawSql],
+            ) &&
             (existingSqlChart === undefined ||
                 existingSqlChart.sql !== sqlChartAsCode.sql)
         ) {

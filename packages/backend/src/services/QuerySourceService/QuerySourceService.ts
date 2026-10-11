@@ -19,6 +19,7 @@ import {
     type SourceQuerySubmission,
 } from '@lightdash/common';
 import { sourceRequiresRawSql } from '../../auth/agentConnectionGrants/operationContracts';
+import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resourceConstraints';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
@@ -107,14 +108,21 @@ export class QuerySourceService extends BaseService {
         this.getAgentPermissionService = args.getAgentPermissionService;
     }
 
-    private static assertGrantSqlAccess(account: Account): void {
+    private static assertGrantSqlAccess(
+        account: Account,
+        projectUuid: string,
+    ): void {
         const grant =
             account.authentication.type === 'oauth'
                 ? account.authentication.agentConnectionGrant
                 : null;
         if (
             grant &&
-            !grant.approvedCapabilities.includes(AgentCapability.RawSql)
+            !grantAllowsCapabilities(
+                grant,
+                [projectUuid],
+                [AgentCapability.RawSql],
+            )
         )
             throw new ForbiddenError(
                 'This agent connection is not approved for Raw SQL.',
@@ -125,7 +133,7 @@ export class QuerySourceService extends BaseService {
         account: Account,
         projectUuid: string,
     ): Promise<void> {
-        QuerySourceService.assertGrantSqlAccess(account);
+        QuerySourceService.assertGrantSqlAccess(account, projectUuid);
         const execution = agentExecutionContext.getStore();
         if (
             account.authentication.type !== 'oauth' &&
@@ -427,7 +435,7 @@ export class QuerySourceService extends BaseService {
                 sourceRequiresRawSql(source.definition.sourceType),
             )
         ) {
-            QuerySourceService.assertGrantSqlAccess(account);
+            QuerySourceService.assertGrantSqlAccess(account, projectUuid);
         }
         if (
             ordered.some(

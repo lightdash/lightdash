@@ -35,7 +35,8 @@ vi.mock('@sentry/node', () => ({
     wrapMcpServerWithSentry: (server: unknown) => server,
 }));
 
-const projectUuid = 'allowed-project';
+const projectUuid = '11111111-1111-4111-8111-111111111111';
+const otherProjectUuid = '22222222-2222-4222-8222-222222222222';
 
 const restrictedCapabilities = [
     AgentCapability.ReadDiscover,
@@ -809,7 +810,7 @@ describe('bound MCP grant in legacy mode', () => {
         const { service, extra } = bound();
         await expect(
             service['assertAgentToolAllowed'](extra, 'run_metric_query', {
-                projectUuid: 'other',
+                projectUuid: otherProjectUuid,
             }),
         ).rejects.toThrow('operation');
     });

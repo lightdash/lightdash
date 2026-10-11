@@ -51,7 +51,7 @@ const scheduler = {
 
 const traceProperties: TraceTaskBase = {
     organizationUuid: ORG_UUID,
-    projectUuid: 'proj-1',
+    projectUuid: '11111111-1111-4111-8111-111111111111',
     userUuid: 'user-1',
 };
 

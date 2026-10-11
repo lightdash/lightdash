@@ -337,6 +337,7 @@ import {
     toSessionUser,
 } from '../../auth/account/account';
 import { type AgentConnectionGrantService } from '../../auth/agentConnectionGrants/AgentConnectionGrantService';
+import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resourceConstraints';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
@@ -8616,7 +8617,11 @@ export class ProjectService
                 : null;
         const needsGrantSqlCheck =
             grant != null &&
-            !grant.approvedCapabilities.includes(AgentCapability.RawSql);
+            !grantAllowsCapabilities(
+                grant,
+                [projectUuid],
+                [AgentCapability.RawSql],
+            );
         let unmodelledAdditionalMetrics: typeof additionalMetrics | null = null;
         if (needsGrantSqlCheck) {
             if (additionalMetrics.length > 0) {

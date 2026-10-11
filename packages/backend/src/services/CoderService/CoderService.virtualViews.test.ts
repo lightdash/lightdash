@@ -17,7 +17,7 @@ import { grantFixture } from '../../auth/agentConnectionGrants/grant.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { CoderService } from './CoderService';
 
-const projectUuid = 'project-uuid';
+const projectUuid = '11111111-1111-4111-8111-111111111111';
 const organizationUuid = 'organization-uuid';
 
 const user: SessionUser = {

@@ -15,6 +15,10 @@ import {
     getGrantOperationContract,
     GRANT_MCP_TOOL_CONTRACTS,
 } from './operationContracts';
+import {
+    grantAllowsCapabilities,
+    hasValidGrantResourceConstraints,
+} from './resourceConstraints';
 
 export const evaluateGrant = ({
     grant,
@@ -43,7 +47,7 @@ export const evaluateGrant = ({
     if (
         grant.grantContractVersion !==
             AGENT_CONNECTION_GRANT_CONTRACT_VERSION ||
-        grant.resourceConstraints.version !== 1
+        !hasValidGrantResourceConstraints(grant)
     )
         return 'This agent connection has an unsupported grant contract.';
     if (grant.expiresAt.getTime() <= now.getTime())
@@ -89,6 +93,8 @@ export const evaluateGrant = ({
         return "This agent connection can't use an unresolved project.";
     if (projectUuids.some((uuid) => !grant.approvedProjectUuids.includes(uuid)))
         return "This agent connection can't use this project.";
+    if (!grantAllowsCapabilities(grant, projectUuids, capabilities))
+        return 'This agent connection is not approved for this capability on this project.';
     if (
         deploymentOverrides &&
         (deploymentOverrides.target != null ||
