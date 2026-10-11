@@ -1,3 +1,10 @@
+# [2.565.0](https://github.com/lightdash/lightdash/compare/2.564.0...2.565.0) (2026-10-11)
+
+
+### Features
+
+* **agent-identity:** review remediation jobs recheck the person before they publish ([#30910](https://github.com/lightdash/lightdash/issues/30910)) ([6776e1e](https://github.com/lightdash/lightdash/commit/6776e1e53eb4d4e3e6af5e87baf584c01e38feab))
+
 # [2.564.0](https://github.com/lightdash/lightdash/compare/2.563.0...2.564.0) (2026-10-11)
 
 
