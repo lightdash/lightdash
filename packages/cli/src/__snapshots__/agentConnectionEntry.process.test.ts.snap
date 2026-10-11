@@ -96,3 +96,25 @@ Examples:
 
 "
 `;
+
+exports[`keeps the ordinary help bytes for "agent" 3`] = `
+"Usage: ⚡️lightdash agent connect [options]
+
+Connects your agent to the warehouse using browser sign-in
+
+Options:
+  --project <project uuid or slug>  Specify the project
+  --oauth-port <port>               Port for the local callback server
+                                    (default: LIGHTDASH_OAUTH_PORT or a random
+                                    available port)
+  --timeout <seconds>               Seconds the connect link stays valid while
+                                    the CLI waits for approval (default: 180)
+  --verbose                          (default: false)
+  -h, --help                        display help for command
+
+Examples:
+  lightdash agent connect
+  lightdash agent connect --project my-project --oauth-port 4321 --timeout 180
+
+"
+`;

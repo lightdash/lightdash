@@ -134,7 +134,12 @@ it('reports a missing revoke slot without sending a request', async () => {
     expect(requests).toEqual([]);
     expect(await fs.readdir(path.dirname(configPath))).toEqual(['config.yaml']);
 }, 30_000);
-it.each([['--help'], ['agent', '--help'], ['agent', 'status', '--help']])(
+it.each([
+    ['--help'],
+    ['agent', '--help'],
+    ['agent', 'status', '--help'],
+    ['agent', 'connect', '--help'],
+])(
     'keeps the ordinary help bytes for %j',
     async (...args) => {
         const current = await runCli(args, null, false);
@@ -202,4 +207,220 @@ it('resets the entry JSON footer state before a later ordinary invocation', asyn
     } finally {
         await fs.rm(entry, { force: true });
     }
+}, 30_000);
+
+it.each([
+    [],
+    ['--project', '33333333-3333-4333-8333-333333333333'],
+    ['--oauth-port', '4321'],
+    ['--timeout', '60'],
+    ['--verbose'],
+])(
+    'keeps ordinary connect requests and files for %j',
+    async (...flags) => {
+        server.removeAllListeners('request');
+        server.on('request', (req, res) => {
+            requests.push({
+                method: req.method,
+                url: req.url,
+                authorization: req.headers.authorization,
+            });
+            res.setHeader('Content-Type', 'application/json');
+            res.end(
+                JSON.stringify({
+                    status: 'ok',
+                    results: { refusal: null, identity: 'connected_person' },
+                }),
+            );
+        });
+        contents = yaml.dump({
+            user: { anonymousUuid: 'test' },
+            context: {
+                serverUrl: instance,
+                apiKey: 'stored-human-key',
+                project: '33333333-3333-4333-8333-333333333333',
+            },
+        });
+        await fs.writeFile(configPath, contents);
+        const entry = path.join(
+            __dirname,
+            `.entry-connect-pin-${process.pid}.ts`,
+        );
+        const source = await fs.readFile(
+            path.join(__dirname, 'index.ts'),
+            'utf8',
+        );
+        await fs.writeFile(
+            entry,
+            `import { promises as fixtureFs } from 'fs';
+const originalReadFile = fixtureFs.readFile;
+fixtureFs.readFile = function (...args) {
+    if (String(args[0]).includes('agent-connections')) throw new Error('Unexpected agent store read');
+    return Reflect.apply(originalReadFile, this, args);
+};
+${source.replace(/^#![^\n]*\n/, '')}`,
+        );
+        try {
+            const result = await runCli(
+                ['agent', 'connect', ...flags],
+                null,
+                false,
+                entry,
+            );
+            expect(result.code).toBe(0);
+            expect(result.output).toContain('Agent already connected');
+            expect(requests).toEqual([
+                {
+                    method: 'GET',
+                    url: '/api/v2/projects/33333333-3333-4333-8333-333333333333/ai-access/me',
+                    authorization: 'ApiKey stored-human-key',
+                },
+            ]);
+            expect(await fs.readFile(configPath, 'utf8')).toBe(contents);
+            expect(await fs.readdir(path.dirname(configPath))).toEqual([
+                'config.yaml',
+            ]);
+        } finally {
+            await fs.rm(entry, { force: true });
+        }
+    },
+    30_000,
+);
+
+const serveUnavailableConnection = () => {
+    server.removeAllListeners('request');
+    server.on('request', (req, res) => {
+        requests.push({ method: req.method, url: req.url });
+        res.setHeader('Content-Type', 'application/json');
+        if (req.url === '/api/v1/user')
+            res.end(
+                JSON.stringify({
+                    status: 'ok',
+                    results: {
+                        userUuid: '11111111-1111-4111-8111-111111111111',
+                        organizationUuid:
+                            '22222222-2222-4222-8222-222222222222',
+                    },
+                }),
+            );
+        else if (req.url?.endsWith('/ai-access/me'))
+            res.end(
+                JSON.stringify({
+                    status: 'ok',
+                    results: { refusal: null, identity: 'connected_person' },
+                }),
+            );
+        else {
+            res.writeHead(404);
+            res.end('<html>missing</html>');
+        }
+    });
+};
+it('exits 1 on the unavailable request route and leaves only personal config', async () => {
+    serveUnavailableConnection();
+    const result = await runCli(
+        ['agent', 'connect', '--name', 'x'],
+        null,
+        false,
+    );
+    expect(result.code).toBe(1);
+    expect(result.output).not.toContain('Done 🕶');
+    expect(result.output).toContain(
+        'Agent connections are not available on this server yet.',
+    );
+    expect(result.output).toContain(
+        'No agent connection credential was saved. Your personal CLI login is unchanged.',
+    );
+    expect(requests).toEqual([
+        { method: 'GET', url: '/api/v1/user' },
+        { method: 'POST', url: '/api/v2/user/agent-connections/requests' },
+    ]);
+    expect(await fs.readFile(configPath, 'utf8')).toBe(contents);
+    expect(await fs.readdir(path.dirname(configPath))).toEqual(['config.yaml']);
+}, 30_000);
+it('clears all hidden connect options and repeated projects on program reuse', async () => {
+    serveUnavailableConnection();
+    const source = await fs.readFile(path.join(__dirname, 'index.ts'), 'utf8');
+    const entry = path.join(
+        __dirname,
+        `.entry-connect-reuse-${process.pid}.ts`,
+    );
+    try {
+        await fs.writeFile(
+            entry,
+            source.replace(
+                'program.parseAsync().then(successHandler).catch(errorHandler);',
+                `
+            void (async () => {
+                await program.parseAsync(['agent', 'connect', '--name', 'work', '--capabilities', 'query', '--expires-in', '1h', '--connection', '--project', '33333333-3333-4333-8333-333333333333', '--project', '44444444-4444-4444-8444-444444444444'], { from: 'user' });
+                process.exitCode = 0;
+                await program.parseAsync(['agent', 'connect'], { from: 'user' });
+                successHandler();
+            })().catch(errorHandler);
+        `,
+            ),
+        );
+        const result = await runCli([], null, false, entry);
+        expect(result.code).toBe(0);
+        expect(result.output).toContain('Agent already connected');
+        expect(result.output).toContain('Done 🕶');
+        expect(requests).toEqual([
+            { method: 'GET', url: '/api/v1/user' },
+            { method: 'POST', url: '/api/v2/user/agent-connections/requests' },
+            {
+                method: 'GET',
+                url: '/api/v2/projects/44444444-4444-4444-8444-444444444444/ai-access/me',
+            },
+        ]);
+        expect(await fs.readdir(path.dirname(configPath))).toEqual([
+            'config.yaml',
+        ]);
+    } finally {
+        await fs.rm(entry, { force: true });
+    }
+}, 30_000);
+it('rejects a port suffix in the new flow before a request', async () => {
+    const result = await runCli(
+        ['agent', 'connect', '--connection', '--oauth-port', '4321suffix'],
+        null,
+        false,
+    );
+    expect(result.code).toBe(1);
+    expect(result.output).toContain(
+        'Port must be a number between 1 and 65535',
+    );
+    expect(requests).toEqual([]);
+}, 30_000);
+
+it('does not add an anonymous identity to personal config during approval', async () => {
+    serveUnavailableConnection();
+    contents = yaml.dump({
+        context: { serverUrl: instance, apiKey: 'stored-human-key' },
+    });
+    await fs.writeFile(configPath, contents);
+    const result = await runCli(
+        ['agent', 'connect', '--connection'],
+        null,
+        false,
+    );
+    expect(result.code).toBe(1);
+    expect(result.output).toContain(
+        'Agent connections are not available on this server yet.',
+    );
+    expect(await fs.readFile(configPath, 'utf8')).toBe(contents);
+    expect(await fs.readdir(path.dirname(configPath))).toEqual(['config.yaml']);
+}, 30_000);
+it('does not create missing personal config when starting with environment credentials', async () => {
+    serveUnavailableConnection();
+    await fs.rm(configPath);
+    const result = await runCli(
+        ['agent', 'connect', '--connection'],
+        null,
+        true,
+    );
+    expect(result.code).toBe(1);
+    expect(result.output).toContain(
+        'Agent connections are not available on this server yet.',
+    );
+    expect(await fs.readdir(path.dirname(configPath))).toEqual([]);
 }, 30_000);

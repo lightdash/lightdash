@@ -45,6 +45,7 @@ it('keeps the child launcher inventory explicit', async () => {
         'handlers/dbt/getWarehouseClient.ts',
         'handlers/dbt/run.ts',
         'handlers/diagnostics.ts',
+        'handlers/login/connectionBrowser.ts',
         'handlers/login/oauth.ts',
     ]);
 });

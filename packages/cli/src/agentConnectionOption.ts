@@ -26,7 +26,16 @@ export const registerAgentConnectionOption = (
         );
         for (const command of agent?.commands ?? []) {
             let options: string[] = [];
-            if (command.name() === 'status') options = ['name', 'json'];
+            if (command.name() === 'connect')
+                options = [
+                    'name',
+                    'capabilities',
+                    'expiresIn',
+                    'connection',
+                    'connectionProjects',
+                    'connectionOauthPort',
+                ];
+            else if (command.name() === 'status') options = ['name', 'json'];
             else if (command.name() === 'revoke')
                 options = ['name', 'json', 'human'];
             for (const option of options)

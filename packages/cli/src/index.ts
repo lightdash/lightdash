@@ -7,6 +7,7 @@ import {
     ValidationTarget,
 } from '@lightdash/common';
 import { InvalidArgumentError, Option, program, type Command } from 'commander';
+import { registerAgentConnectionConnect } from './agentConnectionConnectOption';
 import { registerAgentConnectionOption } from './agentConnectionOption';
 import { getAgentConnectionSelection } from './credentials';
 import {
@@ -125,8 +126,10 @@ function parseProjectArgument(value: string | undefined): string | undefined {
 }
 
 let agentConnectionJson = false;
+let agentConnectionConnectInvocation = false;
 registerAgentConnectionOption(program, () => {
     agentConnectionJson = false;
+    agentConnectionConnectInvocation = false;
 });
 
 program
@@ -291,6 +294,12 @@ const agentProgram = program
     .description('Connect your agent to the warehouse and check its status');
 
 agentProgram.hook('preAction', (_root, command) => {
+    agentConnectionConnectInvocation =
+        command.name() === 'connect' &&
+        (command.opts().name !== undefined ||
+            command.opts().capabilities !== undefined ||
+            command.opts().expiresIn !== undefined ||
+            command.opts().connection === true);
     agentConnectionJson =
         command.opts().json === true &&
         (command.name() === 'revoke' ||
@@ -299,7 +308,7 @@ agentProgram.hook('preAction', (_root, command) => {
                     getAgentConnectionSelection() !== null)));
 });
 
-agentProgram
+const agentConnectProgram = agentProgram
     .command('connect')
     .description('Connects your agent to the warehouse using browser sign-in')
     .option(
@@ -328,6 +337,7 @@ ${styles.bold('Examples:')}
 `,
     )
     .action(agentConnectHandler);
+registerAgentConnectionConnect(agentConnectProgram, agentConnectHandler);
 
 agentProgram
     .command('status')
@@ -2347,7 +2357,8 @@ const successHandler = () => {
     ) {
         process.exit(0);
     }
-    if (!agentConnectionJson) console.error(`Done 🕶`);
+    if (!agentConnectionJson && !agentConnectionConnectInvocation)
+        console.error(`Done 🕶`);
     // Handlers report partial failures (e.g. some uploads failed) via
     // process.exitCode; an unconditional exit(0) would wipe it.
     process.exit(process.exitCode ?? 0);

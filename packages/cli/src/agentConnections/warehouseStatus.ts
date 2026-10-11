@@ -2,7 +2,7 @@ import { AgentCapability, AiAccessRefusalReason } from '@lightdash/common';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import pLimit from 'p-limit';
-import { lightdashRawApi } from '../handlers/dbt/apiClient';
+import { lightdashRawApi as defaultWarehouseRequest } from '../handlers/dbt/apiClient';
 import { settingsUrl } from './lifecycle';
 import { type AgentConnectionSlot } from './schema';
 import { responseRecord } from './statusResponse';
@@ -117,6 +117,7 @@ const safeLink = (
 };
 export const readWarehouseStatus = async (
     slot: AgentConnectionSlot,
+    lightdashRawApi: typeof defaultWarehouseRequest = defaultWarehouseRequest,
 ): Promise<WarehouseStatus> => {
     const limit = pLimit(4);
     const projects = await Promise.all(
