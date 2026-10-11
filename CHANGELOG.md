@@ -1,3 +1,10 @@
+# [2.556.0](https://github.com/lightdash/lightdash/compare/2.555.0...2.556.0) (2026-10-11)
+
+
+### Features
+
+* **agent-identity:** previews always use the shared agent account of their parent project ([#30896](https://github.com/lightdash/lightdash/issues/30896)) ([604cbf3](https://github.com/lightdash/lightdash/commit/604cbf30000d6e122e23d3be3e3f877a1cc9708a))
+
 # [2.555.0](https://github.com/lightdash/lightdash/compare/2.554.0...2.555.0) (2026-10-11)
 
 
