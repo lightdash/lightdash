@@ -1609,6 +1609,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     spacePermissionService:
                         repository.getSpacePermissionService(),
                     userModel: models.getUserModel(),
+                    agentPermissionService:
+                        repository.getAgentPermissionService(),
+                    agentActionLogModel: models.getAgentActionLogModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     schedulerClient: clients.getSchedulerClient(),
                     slackClient: clients.getSlackClient(),
