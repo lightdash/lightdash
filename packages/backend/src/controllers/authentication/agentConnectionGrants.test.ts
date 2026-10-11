@@ -1007,15 +1007,17 @@ describe('connection lifecycle operations', () => {
             route(f.req, operation);
             f.req.method = method;
             f.grant.approvedCapabilities = [];
-            f.permissions.getEnforcementMode.mockResolvedValue('managed');
-            f.permissions.assertOperation.mockRejectedValue(
+            f.permissions.loadRequest.mockResolvedValue({
+                enforcementMode: 'managed',
+            });
+            f.permissions.assertOperationWithRequest.mockRejectedValue(
                 new Error('admission removed'),
             );
             expect(await f.run(allowApiKeyAuthentication)).toEqual({
                 status: 200,
                 error: undefined,
             });
-            expect(f.permissions.getEnforcementMode).not.toHaveBeenCalled();
+            expect(f.permissions.loadRequest).not.toHaveBeenCalled();
             expect(
                 f.deps.resourceResolver.resolveProjectUuid,
             ).not.toHaveBeenCalled();

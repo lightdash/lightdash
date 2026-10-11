@@ -152,8 +152,10 @@ it('runs own status and revoke through real authentication despite lost admissio
     auth.deps.model.findActive.mockImplementation(async () =>
         f.grant.revokedAt ? null : auth.grant,
     );
-    auth.permissions.getEnforcementMode.mockResolvedValue('managed');
-    auth.permissions.assertOperation.mockRejectedValue(
+    auth.permissions.loadRequest.mockResolvedValue({
+        enforcementMode: 'managed',
+    });
+    auth.permissions.assertOperationWithRequest.mockRejectedValue(
         new Error('Agent admission removed'),
     );
     f.policy.systemRoleMatrix.viewer = [];
@@ -194,7 +196,7 @@ it('runs own status and revoke through real authentication despite lost admissio
         error: undefined,
     });
     expect(f.grant.revokedAt).not.toBeNull();
-    expect(auth.permissions.assertOperation).not.toHaveBeenCalled();
+    expect(auth.permissions.assertOperationWithRequest).not.toHaveBeenCalled();
     auth.req.isAuthenticated = (() => true) as Request['isAuthenticated'];
     auth.req.user = auth.user;
     auth.oauth.isAccessTokenBoundToGrant.mockResolvedValue(true);
