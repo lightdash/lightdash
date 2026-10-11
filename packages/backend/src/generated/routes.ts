@@ -123,6 +123,8 @@ import { UsersAvatarController } from './../controllers/userAvatarController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { UserController } from './../controllers/userController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { AgentConnectionController } from './../controllers/v2/agentConnectionController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { AgentPermissionController } from './../controllers/v2/AgentPermissionController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { AiAccessController } from './../controllers/v2/AiAccessController';
@@ -72367,6 +72369,197 @@ const models: TsoaRoute.Models = {
         type: { ref: 'ApiSuccess_DocumentLinkingChart-Array_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentCapability: {
+        dataType: 'refEnum',
+        enums: [
+            'read_discover',
+            'query',
+            'raw_sql',
+            'content_write',
+            'delete',
+            'publish',
+            'deploy_upload',
+            'dbt_writeback',
+            'export',
+            'administration',
+            'external_tools',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentConnectionRecord: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                revokedAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'datetime' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                status: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['active'] },
+                        { dataType: 'enum', enums: ['expired'] },
+                        { dataType: 'enum', enums: ['revoked'] },
+                    ],
+                    required: true,
+                },
+                lastUsedAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'datetime' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                expiresAt: { dataType: 'datetime', required: true },
+                approvedAt: { dataType: 'datetime', required: true },
+                approvedProjects: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            approvedCapabilities: {
+                                dataType: 'array',
+                                array: {
+                                    dataType: 'refEnum',
+                                    ref: 'AgentCapability',
+                                },
+                                required: true,
+                            },
+                            name: {
+                                dataType: 'union',
+                                subSchemas: [
+                                    { dataType: 'string' },
+                                    { dataType: 'enum', enums: [null] },
+                                ],
+                                required: true,
+                            },
+                            projectUuid: { ref: 'UUID', required: true },
+                        },
+                    },
+                    required: true,
+                },
+                limitsStatus: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['ok'] },
+                        { dataType: 'enum', enums: ['invalid'] },
+                    ],
+                    required: true,
+                },
+                clientId: { dataType: 'string', required: true },
+                name: { dataType: 'string', required: true },
+                grantUuid: { ref: 'UUID', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentConnectionStatus: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'AgentConnectionRecord' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        effectiveProjects: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'nestedObjectLiteral',
+                                nestedProperties: {
+                                    capabilities: {
+                                        dataType: 'array',
+                                        array: {
+                                            dataType: 'nestedObjectLiteral',
+                                            nestedProperties: {
+                                                reason: {
+                                                    dataType: 'union',
+                                                    subSchemas: [
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [
+                                                                'invalid_grant',
+                                                            ],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [
+                                                                'not_supported',
+                                                            ],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: ['revoked'],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: ['expired'],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [
+                                                                'agent_identity_disabled',
+                                                            ],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [
+                                                                'project_access',
+                                                            ],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [
+                                                                'person_permission',
+                                                            ],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [
+                                                                'agent_policy',
+                                                            ],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [null],
+                                                        },
+                                                    ],
+                                                    required: true,
+                                                },
+                                                allowed: {
+                                                    dataType: 'boolean',
+                                                    required: true,
+                                                },
+                                                capability: {
+                                                    ref: 'AgentCapability',
+                                                    required: true,
+                                                },
+                                            },
+                                        },
+                                        required: true,
+                                    },
+                                    projectUuid: {
+                                        ref: 'UUID',
+                                        required: true,
+                                    },
+                                },
+                            },
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'KnexPaginatedData_ValidationResponse-Array_': {
         dataType: 'refAlias',
         type: {
@@ -76377,23 +76570,6 @@ const models: TsoaRoute.Models = {
             },
             validators: {},
         },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AgentCapability: {
-        dataType: 'refEnum',
-        enums: [
-            'read_discover',
-            'query',
-            'raw_sql',
-            'content_write',
-            'delete',
-            'publish',
-            'deploy_upload',
-            'dbt_writeback',
-            'export',
-            'administration',
-            'external_tools',
-        ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAccessRefusalReason: {
@@ -139362,6 +139538,183 @@ export function RegisterRoutes(app: Router) {
                     next,
                     validatedArgs,
                     successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAgentConnectionController_list: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.get(
+        '/api/v2/user/agent-connections',
+        ...fetchMiddlewares<RequestHandler>(AgentConnectionController),
+        ...fetchMiddlewares<RequestHandler>(
+            AgentConnectionController.prototype.list,
+        ),
+
+        async function AgentConnectionController_list(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAgentConnectionController_list,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AgentConnectionController>(
+                        AgentConnectionController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'list',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAgentConnectionController_getConnectionStatus: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        grantUuid: {
+            in: 'path',
+            name: 'grantUuid',
+            required: true,
+            ref: 'UUID',
+        },
+    };
+    app.get(
+        '/api/v2/user/agent-connections/:grantUuid/status',
+        ...fetchMiddlewares<RequestHandler>(AgentConnectionController),
+        ...fetchMiddlewares<RequestHandler>(
+            AgentConnectionController.prototype.getConnectionStatus,
+        ),
+
+        async function AgentConnectionController_getConnectionStatus(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAgentConnectionController_getConnectionStatus,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AgentConnectionController>(
+                        AgentConnectionController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getConnectionStatus',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAgentConnectionController_revoke: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        grantUuid: {
+            in: 'path',
+            name: 'grantUuid',
+            required: true,
+            ref: 'UUID',
+        },
+    };
+    app.delete(
+        '/api/v2/user/agent-connections/:grantUuid',
+        ...fetchMiddlewares<RequestHandler>(AgentConnectionController),
+        ...fetchMiddlewares<RequestHandler>(
+            AgentConnectionController.prototype.revoke,
+        ),
+
+        async function AgentConnectionController_revoke(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAgentConnectionController_revoke,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AgentConnectionController>(
+                        AgentConnectionController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'revoke',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
                 });
             } catch (err) {
                 return next(err);

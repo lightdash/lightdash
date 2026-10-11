@@ -67159,6 +67159,160 @@
             "ApiDocumentsLinkingChartResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_DocumentLinkingChart-Array_"
             },
+            "AgentCapability": {
+                "enum": [
+                    "read_discover",
+                    "query",
+                    "raw_sql",
+                    "content_write",
+                    "delete",
+                    "publish",
+                    "deploy_upload",
+                    "dbt_writeback",
+                    "export",
+                    "administration",
+                    "external_tools"
+                ],
+                "type": "string"
+            },
+            "AgentConnectionRecord": {
+                "properties": {
+                    "revokedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["active", "expired", "revoked"]
+                    },
+                    "lastUsedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "approvedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "approvedProjects": {
+                        "items": {
+                            "properties": {
+                                "approvedCapabilities": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/AgentCapability"
+                                    },
+                                    "type": "array"
+                                },
+                                "name": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "projectUuid": {
+                                    "$ref": "#/components/schemas/UUID"
+                                }
+                            },
+                            "required": [
+                                "approvedCapabilities",
+                                "name",
+                                "projectUuid"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "limitsStatus": {
+                        "type": "string",
+                        "enum": ["ok", "invalid"]
+                    },
+                    "clientId": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "grantUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    }
+                },
+                "required": [
+                    "revokedAt",
+                    "status",
+                    "lastUsedAt",
+                    "expiresAt",
+                    "approvedAt",
+                    "approvedProjects",
+                    "limitsStatus",
+                    "clientId",
+                    "name",
+                    "grantUuid"
+                ],
+                "type": "object"
+            },
+            "AgentConnectionStatus": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AgentConnectionRecord"
+                    },
+                    {
+                        "properties": {
+                            "effectiveProjects": {
+                                "items": {
+                                    "properties": {
+                                        "capabilities": {
+                                            "items": {
+                                                "properties": {
+                                                    "reason": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "invalid_grant",
+                                                            "not_supported",
+                                                            "revoked",
+                                                            "expired",
+                                                            "agent_identity_disabled",
+                                                            "project_access",
+                                                            "person_permission",
+                                                            "agent_policy",
+                                                            null
+                                                        ],
+                                                        "nullable": true
+                                                    },
+                                                    "allowed": {
+                                                        "type": "boolean",
+                                                        "description": "Current person permissions and organisation agent policy permit this\naction in this project, and an agent connection supports it.\nA request can still be refused by private-space access, a protected\nbranch, a second required action (uploads also need Deploy and upload),\nor scheduled pre-aggregate refreshes in the project."
+                                                    },
+                                                    "capability": {
+                                                        "$ref": "#/components/schemas/AgentCapability"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "reason",
+                                                    "allowed",
+                                                    "capability"
+                                                ],
+                                                "type": "object"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "projectUuid": {
+                                            "$ref": "#/components/schemas/UUID"
+                                        }
+                                    },
+                                    "required": ["capabilities", "projectUuid"],
+                                    "type": "object"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["effectiveProjects"],
+                        "type": "object"
+                    }
+                ]
+            },
             "KnexPaginatedData_ValidationResponse-Array_": {
                 "properties": {
                     "pagination": {
@@ -71512,22 +71666,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "AgentCapability": {
-                "enum": [
-                    "read_discover",
-                    "query",
-                    "raw_sql",
-                    "content_write",
-                    "delete",
-                    "publish",
-                    "deploy_upload",
-                    "dbt_writeback",
-                    "export",
-                    "administration",
-                    "external_tools"
-                ],
-                "type": "string"
-            },
             "AiAccessRefusalReason": {
                 "enum": [
                     "agent_access_disabled",
@@ -72109,7 +72247,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.557.1",
+        "version": "2.558.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -112102,6 +112240,156 @@
                         "in": "query",
                         "name": "savedSqlUuid",
                         "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/user/agent-connections": {
+            "get": {
+                "operationId": "List",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/AgentConnectionRecord"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Lists the signed-in person's agent connections and stored approvals.",
+                "summary": "List agent connections",
+                "tags": ["v2", "Agent connections"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v2/user/agent-connections/{grantUuid}/status": {
+            "get": {
+                "operationId": "GetConnectionStatus",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/AgentConnectionStatus"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Reads stored approval and current project and action restrictions.\nAn allowed action has current person permission, organisation agent policy\napproval, and support from an agent connection in that project.\nA request can still be refused by a narrower rule: private-space access,\na protected branch, a second required action (uploads need Deploy and upload),\nor scheduled pre-aggregate refreshes in the project.",
+                "summary": "Get connection status",
+                "tags": ["v2", "Agent connections"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "grantUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/user/agent-connections/{grantUuid}": {
+            "delete": {
+                "operationId": "Revoke",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/AgentConnectionRecord"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Revokes the whole connection and returns its stored state.",
+                "summary": "Revoke agent connection",
+                "tags": ["v2", "Agent connections"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "grantUuid",
+                        "required": true,
                         "schema": {
                             "$ref": "#/components/schemas/UUID"
                         }

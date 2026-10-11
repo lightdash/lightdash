@@ -1,3 +1,10 @@
+# [2.558.0](https://github.com/lightdash/lightdash/compare/2.557.1...2.558.0) (2026-10-11)
+
+
+### Features
+
+* **agent-identity:** store agent connection approvals per project and add list, status and revoke ([#30901](https://github.com/lightdash/lightdash/issues/30901)) ([e6ac624](https://github.com/lightdash/lightdash/commit/e6ac624af7b8af2b727101c29466ff1a4255f870))
+
 ## [2.557.1](https://github.com/lightdash/lightdash/compare/2.557.0...2.557.1) (2026-10-11)
 
 
