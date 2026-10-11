@@ -887,6 +887,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     slackClient: clients.getSlackClient(),
                     userModel: models.getUserModel(),
+                    agentActionLogModel: models.getAgentActionLogModel(),
                     lightdashConfig: context.lightdashConfig,
                     writebackPreviewService:
                         repository.getWritebackPreviewService<WritebackPreviewService>(),

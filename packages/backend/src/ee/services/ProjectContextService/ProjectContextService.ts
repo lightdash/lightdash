@@ -316,6 +316,7 @@ export class ProjectContextService extends BaseService {
     }
 
     async writebackEntry(args: {
+        assertPublishAllowed?: (() => Promise<void>) | null;
         user: SessionUser;
         projectUuid: string;
         dbtSourceUuid?: string;
@@ -391,6 +392,7 @@ export class ProjectContextService extends BaseService {
                 ? createHash('sha256').update(entryId).digest('hex')
                 : entryId;
         const headBranch = `lightdash-project-context/${branchEntryId}-${args.branchTimestamp}`;
+        if (args.assertPublishAllowed) await args.assertPublishAllowed();
         await createBranch({
             owner,
             repo,
@@ -407,6 +409,7 @@ export class ProjectContextService extends BaseService {
         // createCommitOnBranch) so the commit is server-side "Verified", like
         // the semantic_layer writeback — a single addition overwrites the file
         // whether it already exists or not.
+        if (args.assertPublishAllowed) await args.assertPublishAllowed();
         await createSignedCommitOnBranch({
             owner,
             repo,
@@ -459,6 +462,7 @@ export class ProjectContextService extends BaseService {
             );
         }
 
+        if (args.assertPublishAllowed) await args.assertPublishAllowed();
         const pr = await createPullRequest({
             owner,
             repo,
