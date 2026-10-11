@@ -25175,6 +25175,12 @@ describe('fresh execution producer to result reader', () => {
                 f.service,
             );
             const scheduler = new SchedulerAiAugmentationService({
+                agentPermissionService: {
+                    loadRequest: vi.fn().mockResolvedValue({}),
+                    assertOperationWithRequest: vi
+                        .fn()
+                        .mockResolvedValue(undefined),
+                },
                 featureFlagModel: f.service.featureFlagModel,
                 agentActionLogModel: { insert: vi.fn() },
                 schedulerAiAugmentationModel: {},

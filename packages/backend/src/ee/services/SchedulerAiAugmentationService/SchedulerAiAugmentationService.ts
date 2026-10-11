@@ -18,6 +18,7 @@ import {
     SendNowScheduler,
     SessionUser,
     type Account,
+    type AgentWorkMarker,
     type DashboardDAO,
 } from '@lightdash/common';
 import { fromSession } from '../../../auth/account/account';
@@ -27,7 +28,16 @@ import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureF
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../../models/UserModel';
 import { type WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
-import type { SchedulerDeliveryQuery } from '../../../scheduler/SchedulerTask';
+import type {
+    SchedulerAiAugmentationResult,
+    SchedulerAiAugmentationRunner,
+    SchedulerDeliveryQuery,
+} from '../../../scheduler/SchedulerTask';
+import { type AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
+import {
+    AGENT_SUMMARY_REFUSED_MESSAGE,
+    assertAgentWorkAllowed,
+} from '../../../services/AgentPermissionService/agentWorkAuthority';
 import {
     agentExecutionContext,
     createAgentExecutionContext,
@@ -63,6 +73,10 @@ import {
 } from './deliveryContext';
 
 type Dependencies = {
+    agentPermissionService: Pick<
+        AgentPermissionService,
+        'loadRequest' | 'assertOperationWithRequest'
+    >;
     featureFlagModel: FeatureFlagModel;
     agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     schedulerAiAugmentationModel: SchedulerAiAugmentationModel;
@@ -77,7 +91,11 @@ type Dependencies = {
     aiService: AiService;
 };
 
-export class SchedulerAiAugmentationService extends BaseService {
+export class SchedulerAiAugmentationService
+    extends BaseService
+    implements SchedulerAiAugmentationRunner
+{
+    private readonly agentPermissionService: Dependencies['agentPermissionService'];
     private readonly featureFlagModel: FeatureFlagModel;
     private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
 
@@ -103,6 +121,7 @@ export class SchedulerAiAugmentationService extends BaseService {
 
     constructor(dependencies: Dependencies) {
         super();
+        this.agentPermissionService = dependencies.agentPermissionService;
         const { agentActionLogModel } = dependencies;
         this.agentActionLogModel = agentActionLogModel;
         this.aiAccessService = dependencies.aiAccessService;
@@ -273,7 +292,7 @@ export class SchedulerAiAugmentationService extends BaseService {
         scheduler: SchedulerAndTargets | SendNowScheduler;
         createdBy: string;
         deliveryQueries?: SchedulerDeliveryQuery[];
-    }): Promise<string | null> {
+    }): Promise<SchedulerAiAugmentationResult | null> {
         const augmentation = hasSchedulerUuid(scheduler)
             ? await this.schedulerAiAugmentationModel.find(
                   scheduler.schedulerUuid,
@@ -321,7 +340,28 @@ export class SchedulerAiAugmentationService extends BaseService {
                 user: { userUuid: account.user.id, organizationUuid },
                 featureFlagId: FeatureFlags.AgentIdentity,
             });
-        return agentExecutionContext.run(
+        const agentWork: AgentWorkMarker | null = agentIdentityEnabled
+            ? { userUuid: createdBy, organizationUuid, projectUuid }
+            : null;
+        if (agentWork) {
+            try {
+                await assertAgentWorkAllowed(
+                    {
+                        userModel: this.userModel,
+                        agentPermissionService: this.agentPermissionService,
+                        agentActionLogModel: this.agentActionLogModel,
+                    },
+                    { ...agentWork, surface: AgentActorSurface.AI_SUMMARY },
+                    { freshlyLoadedUser: creator },
+                );
+            } catch (error) {
+                if (error instanceof AiAccessRefusedError) {
+                    throw new ForbiddenError(AGENT_SUMMARY_REFUSED_MESSAGE);
+                }
+                throw error;
+            }
+        }
+        const message = await agentExecutionContext.run(
             createAgentExecutionContext({
                 account,
                 surface: AgentActorSurface.AI_SUMMARY,
@@ -340,6 +380,7 @@ export class SchedulerAiAugmentationService extends BaseService {
                             createdBy,
                             augmentation,
                             deliveryQueries,
+                            agentIdentityEnabled ? creator : null,
                         );
                     case 'fast_model':
                         return this.runFastModelForDelivery(
@@ -347,6 +388,7 @@ export class SchedulerAiAugmentationService extends BaseService {
                             createdBy,
                             augmentation.prompt,
                             deliveryQueries,
+                            agentIdentityEnabled ? creator : null,
                         );
                     default:
                         return assertUnreachable(
@@ -355,6 +397,18 @@ export class SchedulerAiAugmentationService extends BaseService {
                         );
                 }
             },
+        );
+        return { message, agentWork };
+    }
+
+    async assertDeliveryAllowed(marker: AgentWorkMarker): Promise<void> {
+        await assertAgentWorkAllowed(
+            {
+                userModel: this.userModel,
+                agentPermissionService: this.agentPermissionService,
+                agentActionLogModel: this.agentActionLogModel,
+            },
+            { ...marker, surface: AgentActorSurface.AI_SUMMARY },
         );
     }
 
@@ -366,16 +420,19 @@ export class SchedulerAiAugmentationService extends BaseService {
         createdBy: string,
         augmentation: Extract<SchedulerAiAugmentation, { type: 'agent' }>,
         deliveryQueries: SchedulerDeliveryQuery[] | undefined,
+        checkedCreator: SessionUser | null,
     ): Promise<string> {
         const dashboard = scheduler.dashboardUuid
             ? await this.dashboardModel.getByIdOrSlug(scheduler.dashboardUuid)
             : null;
         const { organizationUuid, projectUuid, spaceUuid } =
             await this.schedulerService.getSchedulerProjectContext(scheduler);
-        const creator = await this.userModel.findSessionUserAndOrgByUuid(
-            createdBy,
-            organizationUuid,
-        );
+        const creator =
+            checkedCreator ??
+            (await this.userModel.findSessionUserAndOrgByUuid(
+                createdBy,
+                organizationUuid,
+            ));
         // Re-checked per fire (not just at write time) because the agent's
         // space access can change after the schedule is saved, and an unsaved
         // "send now" never goes through upsert. Failing here degrades to a
@@ -432,6 +489,7 @@ export class SchedulerAiAugmentationService extends BaseService {
         createdBy: string,
         prompt: string,
         deliveryQueries: SchedulerDeliveryQuery[] | undefined,
+        checkedCreator: SessionUser | null,
     ): Promise<string> {
         const dashboard = scheduler.dashboardUuid
             ? await this.dashboardModel.getByIdOrSlug(scheduler.dashboardUuid)
@@ -439,10 +497,12 @@ export class SchedulerAiAugmentationService extends BaseService {
         const { projectUuid, organizationUuid } =
             dashboard ??
             (await this.schedulerService.getSchedulerProjectContext(scheduler));
-        const creator = await this.userModel.findSessionUserAndOrgByUuid(
-            createdBy,
-            organizationUuid,
-        );
+        const creator =
+            checkedCreator ??
+            (await this.userModel.findSessionUserAndOrgByUuid(
+                createdBy,
+                organizationUuid,
+            ));
         if (!(await this.aiAgentService.getIsCopilotEnabled(creator))) {
             throw new ForbiddenError('AI is not enabled for this organization');
         }

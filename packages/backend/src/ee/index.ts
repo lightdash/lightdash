@@ -1017,6 +1017,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             schedulerAiAugmentationService: ({ models, repository }) =>
                 new SchedulerAiAugmentationService({
+                    agentPermissionService:
+                        repository.getAgentPermissionService(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     agentActionLogModel: models.getAgentActionLogModel(),
                     projectModel: models.getProjectModel(),

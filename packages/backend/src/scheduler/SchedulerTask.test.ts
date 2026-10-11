@@ -1,6 +1,8 @@
 import {
     AgentActorSurface,
     AgentCapability,
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
     ChartType,
     DashboardTileTypes,
     DimensionType,
@@ -11,6 +13,7 @@ import {
     ForbiddenError,
     GoogleSheetsQuotaError,
     GoogleSheetsTransientError,
+    InvalidUser,
     LightdashPage,
     MAX_DELIVERY_QUERIES,
     MetricType,
@@ -54,6 +57,7 @@ import { managedExecutionFixture } from '../auth/agentConnectionGrants/managedEx
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
 import type { ExecutionContextInfo } from '../logging/winston';
+import { AGENT_SUMMARY_REFUSED_MESSAGE } from '../services/AgentPermissionService/agentWorkAuthority';
 import {
     agentExecutionContext,
     createAgentExecutionContext,
@@ -3547,6 +3551,156 @@ describe('handleScheduledDelivery — app delivery capture', () => {
             true,
         );
 
+    test.each([
+        new ForbiddenError(AGENT_SUMMARY_REFUSED_MESSAGE),
+        new AiAccessRefusedError(AiAccessRefusalReason.NEEDS_SIGN_IN),
+        new InvalidUser('Person is no longer in the organisation'),
+    ])(
+        'keeps the stored message and existing parent partial failure on %s',
+        async (error) => {
+            const { task, generateJobsForSchedulerTargets } = setup();
+            Object.assign(task, {
+                schedulerAiAugmentation: {
+                    runForDelivery: vi.fn().mockRejectedValue(error),
+                    assertDeliveryAllowed: vi.fn(),
+                },
+            });
+            await run(
+                task,
+                appScheduler({
+                    message: 'Stored message',
+                    targets: [{ recipient: 'recipient@example.com' }],
+                }),
+            );
+            const [, delivery, page, , , pages] =
+                generateJobsForSchedulerTargets.mock.calls[0];
+            expect(delivery.message).toBe('Stored message');
+            expect(page.failures).toContainEqual({
+                type: PartialFailureType.AI_AUGMENTATION,
+                error: error.message,
+            });
+            expect(pages.email.failures).toEqual(page.failures);
+        },
+    );
+
+    test.each(['Stored message', undefined])(
+        'passes summary authority and original message %s to fanout',
+        async (message) => {
+            const { task, generateJobsForSchedulerTargets } = setup();
+            const marker = {
+                userUuid: 'execution-user',
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+            };
+            const runForDelivery = vi.fn().mockResolvedValue({
+                message: 'AI summary',
+                agentWork: marker,
+            });
+            Object.assign(task, {
+                schedulerAiAugmentation: {
+                    runForDelivery,
+                    assertDeliveryAllowed: vi.fn(),
+                },
+            });
+            await run(
+                task,
+                appScheduler({
+                    createdBy: 'execution-user',
+                    message,
+                    targets: [{ recipient: 'recipient@example.com' }],
+                }),
+            );
+            expect(runForDelivery).toHaveBeenCalledWith(
+                expect.objectContaining({ createdBy: 'execution-user' }),
+            );
+            expect(
+                generateJobsForSchedulerTargets.mock.calls[0][1].message,
+            ).toBe('AI summary');
+            expect(generateJobsForSchedulerTargets.mock.calls[0][6]).toEqual({
+                agentWork: marker,
+                aiSummaryOriginalMessage: message ?? null,
+            });
+        },
+    );
+
+    test.each([null, { message: 'Summary without checks', agentWork: null }])(
+        'does not pass child authority for %j',
+        async (summary) => {
+            const { task, generateJobsForSchedulerTargets } = setup();
+            Object.assign(task, {
+                schedulerAiAugmentation: {
+                    runForDelivery: vi.fn().mockResolvedValue(summary),
+                    assertDeliveryAllowed: vi.fn(),
+                },
+            });
+            await run(
+                task,
+                appScheduler({
+                    message: 'Stored message',
+                    targets: [{ recipient: 'recipient@example.com' }],
+                }),
+            );
+            expect(
+                generateJobsForSchedulerTargets.mock.calls[0][1].message,
+            ).toBe(summary?.message ?? 'Stored message');
+            expect(
+                generateJobsForSchedulerTargets.mock.calls[0][6],
+            ).toBeUndefined();
+        },
+    );
+
+    test('marks a saved delivery with its execution user rather than its owner or trace user', async () => {
+        const { task, generateJobsForSchedulerTargets } = setup();
+        const marker = {
+            userUuid: 'execution-user',
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+        };
+        const runForDelivery = vi
+            .fn()
+            .mockResolvedValue({ message: 'AI summary', agentWork: marker });
+        Object.assign(task, {
+            schedulerAiAugmentation: {
+                runForDelivery,
+                assertDeliveryAllowed: vi.fn(),
+            },
+        });
+        Object.assign(task['schedulerService'], {
+            schedulerModel: {
+                getSchedulerAndTargets: vi.fn().mockResolvedValue({
+                    ...appScheduler({
+                        createdBy: 'owner',
+                        message: 'Stored message',
+                        targets: [{ recipient: 'recipient@example.com' }],
+                    }),
+                    schedulerUuid: 'scheduler-1',
+                }),
+            },
+        });
+        await task['handleScheduledDelivery'](
+            'job-1',
+            new Date('2026-07-30T09:00:00Z'),
+            {
+                schedulerUuid: 'scheduler-1',
+                userUuid: 'trace-user',
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+                executionUserUuid: 'execution-user',
+            },
+            true,
+        );
+        expect(runForDelivery).toHaveBeenCalledWith(
+            expect.objectContaining({ createdBy: 'execution-user' }),
+        );
+        expect(generateJobsForSchedulerTargets.mock.calls[0][4].userUuid).toBe(
+            'trace-user',
+        );
+        expect(generateJobsForSchedulerTargets.mock.calls[0][6]).toEqual({
+            agentWork: marker,
+            aiSummaryOriginalMessage: 'Stored message',
+        });
+    });
+
     // Bookkeeping runs after the notification jobs are queued, so a throw
     // there must not fail the job — with maxAttempts > 1 the retry would queue
     // a second set of them and recipients would get the delivery twice.
@@ -3811,6 +3965,226 @@ describe('app delivery target senders', () => {
             page,
             ...target,
         }) as unknown as never;
+
+    const sendMethods = [
+        'sendSlackNotification',
+        'sendEmailNotification',
+        'sendMsTeamsNotification',
+        'sendGoogleChatNotification',
+        'sendSlackBatchNotification',
+        'sendEmailBatchNotification',
+        'sendMsTeamsBatchNotification',
+        'sendGoogleChatBatchNotification',
+    ] as const;
+
+    const setupSummarySender = () => {
+        const calls: string[] = [];
+        const send = vi.fn(async (..._args: unknown[]) => {
+            calls.push('send');
+            return { ts: '111' };
+        });
+        const check = vi.fn(async () => {
+            calls.push('check');
+        });
+        const person = vi.fn();
+        const task = makeTaskWithDeps({
+            ...senderBaseDeps(),
+            schedulerAiAugmentation: asDep<'schedulerAiAugmentation'>({
+                runForDelivery: vi.fn(),
+                assertDeliveryAllowed: check,
+            }),
+            userService: asDep<'userService'>({
+                getSessionByUserUuid: person,
+                getAccountByUserUuid: person,
+            }),
+            analytics: asDep<'analytics'>({
+                track: ({ event }: { event: string }) => calls.push(event),
+            }),
+            schedulerService: asDep<'schedulerService'>({
+                logSchedulerJob: async ({ status }: { status: string }) => {
+                    calls.push(`log:${status}`);
+                },
+                getSchedulerDefaultTimezone: async () => {
+                    calls.push('timezone');
+                    return 'UTC';
+                },
+            }),
+            organizationSettingsModel: asDep<'organizationSettingsModel'>({
+                get: async () => {
+                    calls.push('settings');
+                    return {};
+                },
+            }),
+            lightdashConfig: asDep<'lightdashConfig'>({
+                siteUrl: 'https://example.com',
+                persistentDownloadUrls: { expirationSeconds: 604800 },
+                microsoftTeams: { enabled: true },
+            }),
+            slackClient: asDep<'slackClient'>({
+                isEnabled: true,
+                postMessage: send,
+            }),
+            emailClient: asDep<'emailClient'>({
+                sendDashboardCsvNotificationEmail: send,
+            }),
+            emailWhitelabelService: asDep<'emailWhitelabelService'>({
+                resolveSenderIdentity: async () => {
+                    calls.push('sender');
+                    return null;
+                },
+            }),
+            msTeamsClient: asDep<'msTeamsClient'>({
+                postCsvsWithWebhook: send,
+            }),
+            googleChatClient: asDep<'googleChatClient'>({
+                postCsvsWithWebhook: send,
+            }),
+        });
+        const target = {
+            channel: 'C123',
+            recipient: 'recipient@example.com',
+            webhook: 'https://example.com/teams',
+            googleChatWebhook: 'https://example.com/chat',
+        };
+        const payload = {
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            userUuid: 'trace-user',
+            schedulerUuid: 'scheduler-1',
+            scheduledTime: new Date('2026-07-30T09:00:00Z'),
+            jobGroup: 'job-1',
+            scheduler: {
+                ...appScheduler({ message: 'Generated report text' }),
+                schedulerUuid: 'scheduler-1',
+            },
+            page: senderPage({ failures: [] }),
+            targets: [target],
+            ...target,
+        };
+        return { task, calls, send, check, person, payload };
+    };
+
+    describe.each(sendMethods)('%s summary authority', (method) => {
+        test.each([
+            'allowed',
+            'refused',
+            'error',
+            'malformed',
+            'null message',
+            'missing runner',
+            'wrong organisation',
+            'wrong project',
+        ])(
+            '%s still delivers and selects the safe message',
+            async (scenario) => {
+                const { task, send, check, payload } = setupSummarySender();
+                const refusal = new AiAccessRefusedError(
+                    AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+                );
+                const marker = {
+                    userUuid: 'execution-user',
+                    organizationUuid: 'org-1',
+                    projectUuid: 'project-1',
+                };
+                if (scenario === 'refused' || scenario === 'null message')
+                    check.mockRejectedValue(refusal);
+                if (scenario === 'error')
+                    check.mockRejectedValue(
+                        new Error('private connection detail'),
+                    );
+                if (scenario === 'missing runner')
+                    Object.assign(task, { schedulerAiAugmentation: undefined });
+                const notification = {
+                    ...payload,
+                    agentWork:
+                        scenario === 'malformed'
+                            ? null
+                            : {
+                                  ...marker,
+                                  ...(scenario === 'wrong organisation'
+                                      ? { organizationUuid: 'other' }
+                                      : {}),
+                                  ...(scenario === 'wrong project'
+                                      ? { projectUuid: 'other' }
+                                      : {}),
+                              },
+                    aiSummaryOriginalMessage:
+                        scenario === 'null message' ? null : 'Stored message',
+                };
+                const result = await task[method](
+                    'job-1',
+                    notification as never,
+                );
+                if (method.includes('Batch'))
+                    expect(result).toMatchObject({ failed: 0, succeeded: 1 });
+                expect(send).toHaveBeenCalledOnce();
+                const output = JSON.stringify(send.mock.calls);
+                expect(output).not.toContain('private connection detail');
+                if (scenario === 'allowed') {
+                    expect(check).toHaveBeenCalledWith(marker);
+                    expect(output).toContain('Generated report text');
+                    expect(output).not.toContain('Stored message');
+                } else {
+                    expect(output).not.toContain('Generated report text');
+                    if (scenario === 'null message')
+                        expect(output).not.toContain('Stored message');
+                    else expect(output).toContain('Stored message');
+                    const failureText =
+                        scenario === 'refused' || scenario === 'null message'
+                            ? AGENT_SUMMARY_REFUSED_MESSAGE
+                            : 'The summary could not be verified.';
+                    expect(output).not.toContain(refusal.message);
+                    expect(output).toContain(
+                        method.includes('Slack')
+                            ? 'AI summary could not be generated'
+                            : failureText,
+                    );
+                }
+                expect(notification.scheduler.message).toBe(
+                    'Generated report text',
+                );
+                expect(notification.page.failures).toEqual([]);
+            },
+        );
+    });
+
+    test.each(sendMethods)(
+        '%s preserves no-marker calls and synchronous start',
+        async (method) => {
+            const { task, calls, send, check, person, payload } =
+                setupSummarySender();
+            const pending = task[method]('job-1', payload as never);
+            expect(calls).toEqual([
+                'scheduler_notification_job.started',
+                'log:started',
+            ]);
+            await pending;
+            const single = [
+                'scheduler_notification_job.started',
+                'log:started',
+                'settings',
+                'timezone',
+                ...(method.includes('Email') ? ['sender'] : []),
+                'send',
+                'scheduler_notification_job.completed',
+                'log:completed',
+            ];
+            expect(calls).toEqual(
+                method.includes('Batch')
+                    ? [
+                          'scheduler_notification_job.started',
+                          'log:started',
+                          ...single,
+                          'scheduler_notification_job.completed',
+                          'log:completed',
+                      ]
+                    : single,
+            );
+            expect(send).toHaveBeenCalledOnce();
+            expect(check).not.toHaveBeenCalled();
+            expect(person).not.toHaveBeenCalled();
+        },
+    );
 
     it('posts an app csv delivery to Slack with the files and the limit notice', async () => {
         const postMessage = vi.fn().mockResolvedValue({ ts: '111' });

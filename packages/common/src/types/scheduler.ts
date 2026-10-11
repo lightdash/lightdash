@@ -773,6 +773,7 @@ export type DeliveryNotice = {
 };
 
 export type NotificationPayloadBase = {
+    aiSummaryOriginalMessage?: string | null;
     schedulerUuid?: string;
     scheduledTime: Date;
     jobGroup: string;
