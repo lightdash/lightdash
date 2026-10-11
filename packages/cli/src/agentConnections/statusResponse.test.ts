@@ -48,3 +48,99 @@ it('keeps a harmless deeply encoded project name in the report', () => {
     ];
     expect(publicConnectionReport(slot).approvedProjects[0].name).toBe(name);
 });
+
+const encodeDeeply = (value: string, depth: number): string => {
+    let result = [...value]
+        .map((letter) => `%${letter.charCodeAt(0).toString(16)}`)
+        .join('');
+    for (let round = 1; round < depth; round += 1)
+        result = encodeURIComponent(result);
+    return result;
+};
+it.each([9, 40])('preserves harmless names at depth %s', (depth) => {
+    const slot = slotFixture();
+    const name = encodeDeeply('Harmless', depth);
+    slot.lastReported.approvedProjects = [
+        { projectUuid: 'project', name, approvedCapabilities: [] },
+    ];
+    expect(publicConnectionReport(slot).approvedProjects[0].name).toBe(name);
+});
+it.each(
+    [1, 9, 40].flatMap((depth) =>
+        ['private-access', 'private-refresh', 'personal-key', 'proxy-key'].map(
+            (secret) => ({ depth, secret }),
+        ),
+    ),
+)('hides $secret at depth $depth', ({ depth, secret }) => {
+    const slot = slotFixture();
+    slot.lastReported.approvedProjects = [
+        {
+            projectUuid: 'project',
+            name: encodeDeeply(secret, depth),
+            approvedCapabilities: [],
+        },
+    ];
+    expect(
+        publicConnectionReport(slot, ['personal-key', 'proxy-key'])
+            .approvedProjects[0].name,
+    ).toBeNull();
+    expect(
+        publicTextIsSafe(
+            `https://example.com/?name=${encodeDeeply(secret, depth)}`,
+            [secret],
+        ),
+    ).toBe(false);
+});
+it('refuses oversized input before decoding and bounds rounds by input length', () => {
+    expect(publicTextIsSafe('x'.repeat(2049), [])).toBe(false);
+    const slot = slotFixture();
+    slot.lastReported.approvedProjects = [
+        {
+            projectUuid: 'project',
+            name: 'x'.repeat(2049),
+            approvedCapabilities: [],
+        },
+    ];
+    expect(publicConnectionReport(slot).approvedProjects[0].name).toBeNull();
+    const input = encodeDeeply('x', 1000);
+    const decode = vi.spyOn(Buffer, 'from');
+    expect(publicTextIsSafe(input, [])).toBe(true);
+    expect(decode.mock.calls.length).toBeGreaterThan(8);
+    expect(decode.mock.calls.length).toBeLessThanOrEqual(input.length);
+    decode.mockRestore();
+});
+it('caps approval URLs before launch and screens secrets at any depth', async () => {
+    const { capturePersonalBootstrap } = await import('./personalRecovery');
+    const bootstrap = capturePersonalBootstrap({
+        context: {
+            apiKey: 'personal-key',
+            proxyAuthorization: 'proxy-key',
+            serverUrl: 'https://example.com',
+        },
+    });
+    expect(
+        bootstrap.publicTextIsSafe(
+            `https://example.com/?request=${'x'.repeat(8192)}`,
+        ),
+    ).toBe(false);
+    expect(
+        bootstrap.publicTextIsSafe(
+            `https://example.com/?request=${'x'.repeat(3000)}`,
+        ),
+    ).toBe(true);
+    for (const depth of [1, 9, 40]) {
+        for (const secret of [
+            'personal-key',
+            'proxy-key',
+            'private-access',
+            'private-refresh',
+        ]) {
+            expect(
+                bootstrap.publicTextIsSafe(
+                    `https://example.com/?request=${encodeDeeply(secret, depth)}`,
+                    ['private-access', 'private-refresh'],
+                ),
+            ).toBe(false);
+        }
+    }
+});

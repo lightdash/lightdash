@@ -92,3 +92,121 @@ it('requires an exact route, with only query text ignored', () => {
         false,
     );
 });
+
+it('pins exact normalized routes for all admitted inventory entries and lifecycle operations', async () => {
+    const {
+        CLI_GRANT_OPERATION_INVENTORY,
+        CLI_CONNECTION_LIFECYCLE_OPERATIONS,
+    } = await import(inventoryPath);
+    const dynamicRoutes: Record<string, string> = {
+        'ProjectController.getMergedManifest':
+            '/api/v1/projects/:param/dbt/manifest',
+        'UserController.getAuthenticatedUser': '/api/v1/user',
+        'ExploreController.SetExplores': '/api/v1/projects/:param/explores',
+        'DeployController.deployExplores': '/api/v2/projects/:param/deploy',
+        'ProjectCoderController.getChartsAsCode':
+            '/api/v1/projects/:param/code/charts',
+        'ProjectCoderController.getDashboardsAsCode':
+            '/api/v1/projects/:param/code/dashboards',
+        'ProjectCoderController.getSqlChartsAsCode':
+            '/api/v1/projects/:param/code/sqlCharts',
+        'ProjectCoderController.getAlertsAsCode':
+            '/api/v1/projects/:param/code/alerts',
+        'ProjectCoderController.getGoogleSheetsSyncsAsCode':
+            '/api/v1/projects/:param/code/googleSheets',
+        'ProjectCoderController.getScheduledDeliveriesAsCode':
+            '/api/v1/projects/:param/code/scheduledDeliveries',
+        'ProjectCoderController.upsertChartAsCode':
+            '/api/v1/projects/:param/code/charts/:param',
+        'ProjectCoderController.upsertDashboardAsCode':
+            '/api/v1/projects/:param/code/dashboards/:param',
+        'ProjectCoderController.upsertSqlChartAsCode':
+            '/api/v1/projects/:param/code/sqlCharts/:param',
+        'AppGenerateController.listProjectApps':
+            '/api/v1/ee/projects/:param/apps',
+        'AppGenerateController.listProjectChartTypes':
+            '/api/v1/ee/projects/:param/apps/chart-types',
+    };
+    type Entry = {
+        method: string;
+        endpoint: string;
+        operations: string[];
+        disposition: string;
+    };
+    const expected = (CLI_GRANT_OPERATION_INVENTORY as Entry[])
+        .filter((entry) => entry.disposition === 'allowed')
+        .flatMap((entry) =>
+            entry.operations.map((operation) => {
+                let route: string;
+                if (
+                    entry.operations.length > 1 ||
+                    !/^[`']/.test(entry.endpoint)
+                ) {
+                    expect(dynamicRoutes[operation]).toBeDefined();
+                    route = dynamicRoutes[operation];
+                } else {
+                    route = entry.endpoint
+                        .slice(1, -1)
+                        .replace(/\$\{slot\.instanceUrl\}/, '')
+                        .replace(/\$\{pageSizeParam\}/, '')
+                        .replace(/\$\{\s*query \?[\s\S]*$/, '')
+                        .split('?')[0]
+                        .replace(/\$\{[^}]+\}/g, ':param');
+                }
+                return [entry.method, route, operation].join(' ');
+            }),
+        );
+    const lifecycle = [
+        [
+            'GET',
+            '/api/v2/user/agent-connections/:param/status',
+            'AgentConnectionController.getConnectionStatus',
+        ],
+        [
+            'DELETE',
+            '/api/v2/user/agent-connections/:param',
+            'AgentConnectionController.revoke',
+        ],
+    ];
+    expect(new Set(lifecycle.map((entry) => entry[2]))).toEqual(
+        new Set(CLI_CONNECTION_LIFECYCLE_OPERATIONS),
+    );
+    expected.push(...lifecycle.map((entry) => entry.join(' ')));
+    expect(
+        [
+            ...new Set(
+                REQUEST_POLICY.map((entry) =>
+                    [
+                        entry.method,
+                        entry.path.replace(/:[a-zA-Z]+/g, ':param'),
+                        entry.operation,
+                    ].join(' '),
+                ),
+            ),
+        ].sort(),
+    ).toEqual([...new Set(expected)].sort());
+});
+it('rejects a near miss below every wildcard segment', () => {
+    for (const entry of REQUEST_POLICY) {
+        const segments = entry.path.split('/');
+        for (let index = 0; index < segments.length; index += 1) {
+            if (segments[index].startsWith(':')) {
+                const prefix = segments
+                    .slice(0, index + 1)
+                    .map((segment) =>
+                        segment.startsWith(':') ? 'fixture' : segment,
+                    )
+                    .join('/');
+                expect(
+                    isAgentRequestAllowed(entry.method, `${prefix}/future`),
+                ).toBe(false);
+            }
+        }
+    }
+    expect(
+        isAgentRequestAllowed('GET', '/api/v1/projects/fixture/code/documents'),
+    ).toBe(true);
+    expect(
+        isAgentRequestAllowed('GET', '/api/v1/projects/fixture/code/future'),
+    ).toBe(false);
+});

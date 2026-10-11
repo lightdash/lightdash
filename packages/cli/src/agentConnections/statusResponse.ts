@@ -18,12 +18,13 @@ export const responseRecord = (value: unknown): Record<string, unknown> => {
 export const publicTextIsSafe = (
     value: string,
     secrets: readonly (string | null | undefined)[],
-    safeWhenTooDeep = false,
+    maxLength = 2048,
 ): boolean => {
+    if (value.length > maxLength) return false;
     const containsSecret = (text: string) =>
         secrets.some((secret) => secret && text.includes(secret));
     let decoded = value;
-    for (let round = 0; round < 8; round += 1) {
+    while (true) {
         if (containsSecret(decoded)) return false;
         if (URL.canParse(decoded)) {
             const url = new URL(decoded);
@@ -42,7 +43,6 @@ export const publicTextIsSafe = (
         if (next === decoded) return true;
         decoded = next;
     }
-    return safeWhenTooDeep;
 };
 export const publicConnectionReport = (
     slot: AgentConnectionSlot,
@@ -57,15 +57,11 @@ export const publicConnectionReport = (
         projectUuid: project.projectUuid,
         name:
             project.name !== null &&
-            !publicTextIsSafe(
-                project.name,
-                [
-                    slot.tokens.accessToken,
-                    slot.tokens.refreshToken,
-                    ...extraSecrets,
-                ],
-                true,
-            )
+            !publicTextIsSafe(project.name, [
+                slot.tokens.accessToken,
+                slot.tokens.refreshToken,
+                ...extraSecrets,
+            ])
                 ? null
                 : project.name,
         approvedCapabilities: project.approvedCapabilities,

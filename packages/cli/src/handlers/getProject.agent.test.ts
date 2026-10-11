@@ -56,7 +56,7 @@ it('redacts human and proxy credentials only for the selected output without mut
     );
     expect(mocks.token).toHaveBeenCalledOnce();
     expect(GlobalState.debug).toHaveBeenCalledExactlyOnceWith(
-        `> Config: ${JSON.stringify({ ...config, context: { ...config.context, apiKey: '[REDACTED]', proxyAuthorization: '[REDACTED]' } })}`,
+        `> Agent connection: ${JSON.stringify({ name: slot.name, approvedProjects: slot.lastReported.approvedProjects })}`,
     );
     const output = JSON.stringify(vi.mocked(console.error).mock.calls);
     for (const value of [

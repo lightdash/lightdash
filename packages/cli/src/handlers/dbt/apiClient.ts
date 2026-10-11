@@ -135,6 +135,26 @@ export const lightdashRawApi = async ({
                 .length,
         );
         assertAgentRequestAllowed(method, requestPath);
+        if (requestPath === '/api/v2/content') {
+            const allowedQueryKeys = new Set([
+                'projectUuids',
+                'contentTypes',
+                'page',
+                'pageSize',
+            ]);
+            const query = new URL(destination).search.slice(1);
+            if (
+                query
+                    .split('&')
+                    .some(
+                        (parameter) =>
+                            !allowedQueryKeys.has(parameter.split('=', 1)[0]),
+                    )
+            )
+                throw new Error(
+                    'This query is not available with an agent connection. No request was sent.',
+                );
+        }
         if (
             requestPath.startsWith('/api/v2/user/agent-connections/') &&
             !lifecycle

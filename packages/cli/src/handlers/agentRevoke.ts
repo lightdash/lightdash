@@ -39,9 +39,7 @@ export const agentRevokeHandler = async (
     return runWithAgentConnectionSelection(
         options.human ? null : selection,
         async () => {
-            const config = await (getAgentConnectionSelection() === null
-                ? getConfig()
-                : getConfig({ readOnly: true }));
+            const config = await getConfig({ readOnly: true });
             const recover = options.human
                 ? capturePersonalRecovery(config)
                 : null;

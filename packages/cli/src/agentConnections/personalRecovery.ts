@@ -40,11 +40,11 @@ const capturePersonalTransport = (config: Config) => {
                 value: string,
                 extraSecrets: readonly string[] = [],
             ) =>
-                publicTextIsSafe(value, [
-                    token,
-                    headers['Proxy-Authorization'],
-                    ...extraSecrets,
-                ]),
+                publicTextIsSafe(
+                    value,
+                    [token, headers['Proxy-Authorization'], ...extraSecrets],
+                    8192,
+                ),
             publicSecrets: [token, headers['Proxy-Authorization']],
             fetch: async ({
                 method,

@@ -111,7 +111,7 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'Explicit personal recovery forwards the method and captured headers through the shared instance API join. Its inventoried callers verify the person and organisation before revoking the bound connection.',
         ),
         external(
-            'handlers/agentRevoke.ts:106',
+            'handlers/agentRevoke.ts:104',
             'DELETE',
             '`/api/v2/user/agent-connections/${slot.grantUuid}`',
             'Own-connection lifecycle transport: AgentConnectionController.revoke is recorded in CLI_CONNECTION_LIFECYCLE_OPERATIONS. Personal recovery uses the same captured personal credential and instance as its identity check.',
@@ -129,16 +129,16 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'Own-connection lifecycle transport: AgentConnectionController.getConnectionStatus is recorded in CLI_CONNECTION_LIFECYCLE_OPERATIONS, outside the project capability inventory.',
         ),
         external(
-            'handlers/agentRevoke.ts:112',
+            'handlers/agentRevoke.ts:110',
             'DELETE',
             '`/api/v2/user/agent-connections/${slot.grantUuid}`',
             'Own-connection lifecycle transport: AgentConnectionController.revoke is recorded in CLI_CONNECTION_LIFECYCLE_OPERATIONS. Personal recovery requires an explicit matching human login.',
         ),
-        allowed('handlers/agentRevoke.ts:68', 'GET', "'/api/v1/user'", [
+        allowed('handlers/agentRevoke.ts:66', 'GET', "'/api/v1/user'", [
             'UserController.getAuthenticatedUser',
         ]),
         external(
-            'handlers/dbt/apiClient.ts:290',
+            'handlers/dbt/apiClient.ts:310',
             'GET',
             '{ ...props }',
             'API transport delegates authorization to the selected agent credential for an explicitly safe read.',
@@ -262,22 +262,22 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'External fetch or API transport delegates authorization to the inventoried Lightdash caller.',
         ),
         external(
-            'handlers/dbt/apiClient.ts:344',
+            'handlers/dbt/apiClient.ts:364',
             'GET',
             '{\n        method,\n        url,\n        body: requestBody,\n        headers,\n        signal,\n    }',
             'External fetch or API transport delegates authorization to the inventoried Lightdash caller.',
         ),
-        allowed('handlers/dbt/apiClient.ts:372', 'GET', '`/api/v1/user`', [
+        allowed('handlers/dbt/apiClient.ts:392', 'GET', '`/api/v1/user`', [
             'UserController.getAuthenticatedUser',
         ]),
         allowed(
-            'handlers/dbt/apiClient.ts:395',
+            'handlers/dbt/apiClient.ts:415',
             'GET',
             '`/api/v1/projects/${projectUuid}`',
             ['ProjectController.getProject'],
         ),
         allowed(
-            'handlers/dbt/apiClient.ts:609',
+            'handlers/dbt/apiClient.ts:629',
             'GET',
             '`/api/v1/health?skipMigrationCheck=true`',
             ['apiV1Router GET /health'],
