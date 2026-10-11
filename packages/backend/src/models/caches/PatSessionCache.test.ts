@@ -156,8 +156,8 @@ describe('PatSessionCache', () => {
             const [key] = set.mock.calls[0];
             expect(cache.has(key)).toBe(true);
             vi.advanceTimersByTime(120_000);
-            expect(PatSessionCache.get('token-a')).toBeUndefined();
             expect(cache.keys()).not.toContain(key);
+            expect(PatSessionCache.get('token-a')).toBeUndefined();
             expect(cache.has(key)).toBe(false);
             expect(set).toHaveBeenCalledExactlyOnceWith(key, {
                 value: fixture,
@@ -169,8 +169,10 @@ describe('PatSessionCache', () => {
         it.each([30_000, 45_000])(
             'never caches a lookup aged %s ms',
             async (age) => {
+                const set = vi.spyOn(NodeCache.prototype, 'set');
                 const { PatSessionCache } = await loadCache();
                 PatSessionCache.set('token-a', fixture, Date.now() - age);
+                expect(set).not.toHaveBeenCalled();
                 expect(PatSessionCache.get('token-a')).toBeUndefined();
                 vi.advanceTimersByTime(24 * 60 * 60 * 1000);
                 expect(PatSessionCache.get('token-a')).toBeUndefined();

@@ -1649,12 +1649,15 @@ describe('UserModel', () => {
             );
 
             it('returns a 31 second lookup without caching it', async () => {
+                const { default: RealNodeCache } = await import('node-cache');
+                const set = vi.spyOn(RealNodeCache.prototype, 'set');
                 const lookup = await setupLookup(31_000);
                 const initial = await lookup();
                 expect(initial.sessionUser?.userUuid).toBe(
                     userDetails.user_uuid,
                 );
                 expect(initial.cacheHit).toBe(false);
+                expect(set).not.toHaveBeenCalled();
                 expect(tracker.history.select).toHaveLength(1);
                 expect(await lookup()).toEqual(initial);
                 expect(tracker.history.select).toHaveLength(2);
