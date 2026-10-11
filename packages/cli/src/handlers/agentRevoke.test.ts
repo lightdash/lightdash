@@ -1,7 +1,10 @@
+import { AuthTokenPrefix } from '@lightdash/common';
+import { Command } from 'commander';
 import { promises as fs } from 'fs';
 import { createServer, type Server } from 'http';
 import { tmpdir } from 'os';
 import path from 'path';
+import { registerAgentConnectionOption } from '../agentConnectionOption';
 import { slotFixture } from '../agentConnections/fixtures';
 import { type AgentConnectionSlot } from '../agentConnections/schema';
 import { AgentConnectionStore } from '../agentConnections/store';
@@ -27,6 +30,8 @@ let replaceSlot: boolean;
 let replaceGeneration: boolean;
 let emptyResponse: boolean;
 let stallResponse: boolean;
+let afterUserRequest: (() => void) | null;
+let receivedHeaders: import('http').IncomingHttpHeaders[];
 let freshPerson: { userUuid: string; organizationUuid: string };
 let requests: {
     method: string;
@@ -46,6 +51,8 @@ beforeEach(async () => {
     directory = await fs.mkdtemp(path.join(tmpdir(), 'connection-revoke-'));
     location.configFilePath = path.join(directory, 'config.yaml');
     requests = [];
+    afterUserRequest = null;
+    receivedHeaders = [];
     statusCode = 200;
     loseResponse = false;
     replaceSlot = false;
@@ -54,6 +61,7 @@ beforeEach(async () => {
     stallResponse = false;
     server = createServer((req, res) => {
         void (async () => {
+            receivedHeaders.push(req.headers);
             requests.push({
                 method: req.method!,
                 url: req.url!,
@@ -84,13 +92,15 @@ beforeEach(async () => {
                 req.socket.destroy();
                 return;
             }
-            res.writeHead(req.url === '/api/v1/user' ? 200 : statusCode, {
+            const isUser = req.url?.endsWith('/api/v1/user');
+            if (isUser) afterUserRequest?.();
+            res.writeHead(isUser ? 200 : statusCode, {
                 'content-type': 'application/json',
             });
             res.end(
                 JSON.stringify({
                     status: 'ok',
-                    results: req.url === '/api/v1/user' ? freshPerson : payload,
+                    results: isUser ? freshPerson : payload,
                 }),
             );
         })();
@@ -397,3 +407,131 @@ it('rejects an environment selection with explicit human recovery', async () => 
     ).rejects.toThrow('conflict');
     expect(requests).toEqual([]);
 });
+
+it('does not retain human, name or JSON permission on a reused revoke command', async () => {
+    const command = new Command().exitOverride();
+    registerAgentConnectionOption(command);
+    const revoke = command
+        .command('agent')
+        .command('revoke')
+        .requiredOption('--name <slot>')
+        .option('--json')
+        .option('--human')
+        .action(agentRevokeHandler);
+    statusCode = 500;
+    await command.parseAsync(
+        ['agent', 'revoke', '--name', slot.name, '--human', '--json'],
+        { from: 'user' },
+    );
+    expect(requests.map((r) => r.auth)).toEqual([
+        'ApiKey stored-human-secret',
+        'ApiKey stored-human-secret',
+    ]);
+    requests = [];
+    vi.mocked(console.log).mockClear();
+    await command.parseAsync(['agent', 'revoke', '--name', slot.name], {
+        from: 'user',
+    });
+    expect(requests.map((r) => r.auth)).toEqual(['Bearer private-access']);
+    expect(console.log).not.toHaveBeenCalled();
+    expect(revoke.opts().human).toBeUndefined();
+    await expect(
+        command.parseAsync(['agent', 'revoke'], { from: 'user' }),
+    ).rejects.toThrow('required option');
+});
+it.each(['config-person', 'config-instance', 'env-key'] as const)(
+    'pins recovery credentials and destination when %s changes after user verification',
+    async (change) => {
+        const initial = await getConfig();
+        initial.context!.proxyAuthorization = 'first-proxy';
+        if (change === 'env-key')
+            vi.mocked(getConfig).mockImplementation(async () => ({
+                ...initial,
+                context: {
+                    ...initial.context,
+                    apiKey: process.env.LIGHTDASH_API_KEY,
+                },
+            }));
+        const firstToken =
+            change === 'env-key' ? 'env-human-secret' : 'stored-human-secret';
+        afterUserRequest = () => {
+            vi.stubEnv('LIGHTDASH_PROXY_AUTHORIZATION', 'second-proxy');
+            if (change === 'env-key')
+                vi.stubEnv('LIGHTDASH_API_KEY', 'second-human-secret');
+            else {
+                initial.context!.apiKey = 'second-human-secret';
+                if (change === 'config-instance')
+                    initial.context!.serverUrl = `${slot.instanceUrl}/other`;
+                else
+                    initial.user!.userUuid =
+                        '44444444-4444-4444-8444-444444444444';
+            }
+        };
+        await agentRevokeHandler({ name: slot.name, human: true, json: true });
+        expect(
+            requests.map(({ method, url, auth }) => ({ method, url, auth })),
+        ).toEqual([
+            {
+                method: 'GET',
+                url: '/api/v1/user',
+                auth: `ApiKey ${firstToken}`,
+            },
+            {
+                method: 'DELETE',
+                url: `/api/v2/user/agent-connections/${slot.grantUuid}`,
+                auth: `ApiKey ${firstToken}`,
+            },
+        ]);
+        expect(receivedHeaders.map((h) => h['proxy-authorization'])).toEqual([
+            'first-proxy',
+            'first-proxy',
+        ]);
+        expect(receivedHeaders.every((h) => h.cookie === undefined)).toBe(true);
+        expect(output().confirmed).toBe(true);
+    },
+);
+it('sends both recovery requests under the instance sub-path', async () => {
+    slot = {
+        ...slot,
+        instanceUrl: `${slot.instanceUrl}/lightdash`,
+        resource: `${slot.instanceUrl}/lightdash`,
+    };
+    await store.saveSlot(slot);
+    const config = await getConfig();
+    config.context!.serverUrl = slot.instanceUrl;
+    await agentRevokeHandler({ name: slot.name, human: true, json: true });
+    expect(requests.map((r) => r.url)).toEqual([
+        '/lightdash/api/v1/user',
+        `/lightdash/api/v2/user/agent-connections/${slot.grantUuid}`,
+    ]);
+    expect(output().confirmed).toBe(true);
+});
+it('refuses a recovery capture whose instance differs from the returned slot', async () => {
+    vi.spyOn(AgentConnectionStore.prototype, 'readSlot').mockResolvedValue({
+        ...slot,
+        instanceUrl: `${slot.instanceUrl}/other`,
+        resource: `${slot.instanceUrl}/other`,
+    });
+    await agentRevokeHandler({ name: slot.name, human: true, json: true });
+    expect(requests).toEqual([]);
+    expect(output().confirmed).toBe(false);
+});
+it('refuses a service account for recovery before any request', async () => {
+    const config = await getConfig();
+    config.context!.apiKey = `${AuthTokenPrefix.SERVICE_ACCOUNT}test`;
+    await agentRevokeHandler({ name: slot.name, human: true, json: true });
+    expect(requests).toEqual([]);
+    expect(output().confirmed).toBe(false);
+});
+it.each([401, 403, 500])(
+    'does not retry an explicit human DELETE rejected with %s',
+    async (code) => {
+        statusCode = code;
+        await agentRevokeHandler({ name: slot.name, human: true, json: true });
+        expect(requests.map((r) => r.method)).toEqual(['GET', 'DELETE']);
+        expect(output().confirmed).toBe(false);
+        expect((await store.readSlot(slot))?.revokeState.kind).toBe(
+            'unconfirmed',
+        );
+    },
+);

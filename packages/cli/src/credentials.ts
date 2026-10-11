@@ -14,6 +14,13 @@ type Invocation = {
     provider: Promise<AgentTokenProvider> | null;
 };
 const invocations = new AsyncLocalStorage<Invocation>();
+let selectedInvocations = 0;
+export const requireInvocationContext = (): void => {
+    if (selectedInvocations > 0 && invocations.getStore() === undefined)
+        throw new Error(
+            'An agent connection is selected for this run, so this request cannot use your personal CLI login.',
+        );
+};
 export const validateAgentConnectionSelection = (
     selection: string | null,
 ): string | null => {
@@ -31,24 +38,48 @@ export const runWithParsedAgentConnectionSelection = <T>(
     action: () => T,
 ): T => {
     let captured: { value: string | null } | null = null;
+    let counted = false;
+    const release = () => {
+        if (counted) {
+            selectedInvocations -= 1;
+            counted = false;
+        }
+    };
     return invocations.run(
         {
             get selection() {
-                captured ??= {
-                    value: validateAgentConnectionSelection(readSelection()),
-                };
+                if (captured === null) {
+                    captured = {
+                        value: validateAgentConnectionSelection(
+                            readSelection(),
+                        ),
+                    };
+                    if (captured.value !== null) {
+                        selectedInvocations += 1;
+                        counted = true;
+                    }
+                }
                 return captured.value;
             },
             provider: null,
         },
-        action,
+        () => {
+            let asynchronous = false;
+            try {
+                const result = action();
+                if (result instanceof Promise) {
+                    asynchronous = true;
+                    return result.finally(release) as T;
+                }
+                return result;
+            } finally {
+                if (!asynchronous) release();
+            }
+        },
     );
 };
-export const runWithAgentConnectionSelection = <T>(
-    selection: string | null,
-    action: () => T,
-): T => runWithParsedAgentConnectionSelection(() => selection, action);
 export const getAgentConnectionSelection = (): string | null => {
+    requireInvocationContext();
     const invocation = invocations.getStore();
     return invocation === undefined
         ? validateAgentConnectionSelection(
@@ -56,6 +87,17 @@ export const getAgentConnectionSelection = (): string | null => {
           )
         : invocation.selection;
 };
+export const runWithAgentConnectionSelection = <T>(
+    selection: string | null,
+    action: () => T,
+): T =>
+    runWithParsedAgentConnectionSelection(
+        () => selection,
+        () => {
+            getAgentConnectionSelection();
+            return action();
+        },
+    );
 export const humanCredential = (token: string): Credential => ({
     kind: token?.startsWith(AuthTokenPrefix.SERVICE_ACCOUNT)
         ? 'service_account'

@@ -167,3 +167,39 @@ it.each([false, true])(
     },
     30_000,
 );
+
+it('resets the entry JSON footer state before a later ordinary invocation', async () => {
+    const source = await fs.readFile(path.join(__dirname, 'index.ts'), 'utf8');
+    const tail =
+        'program.parseAsync().then(successHandler).catch(errorHandler);';
+    expect(source).toContain(tail);
+    const entry = path.join(__dirname, `.entry-reuse-${process.pid}.ts`);
+    try {
+        await fs.writeFile(
+            entry,
+            source.replace(
+                tail,
+                `
+            void (async () => {
+                await program.parseAsync(['agent', 'status', '--name', 'missing', '--json'], { from: 'user' });
+                if (!agentConnectionJson) throw new Error('Expected connection JSON mode');
+                const ordinaryOptions: boolean[] = [];
+                configProgram.commands.find((command) => command.name() === 'get-project')!
+                    .action((options) => { ordinaryOptions.push(options.verbose); });
+                await program.parseAsync(['config', 'get-project', '--verbose'], { from: 'user' });
+                await program.parseAsync(['config', 'get-project'], { from: 'user' });
+                if (JSON.stringify(ordinaryOptions) !== '[true,true]') throw new Error('Existing option retention changed');
+                process.exitCode = 0;
+                successHandler();
+            })().catch(errorHandler);
+        `,
+            ),
+        );
+        const result = await runCli([], null, false, entry);
+        expect(result.code).toBe(0);
+        expect(result.output).toContain('Done 🕶');
+        expect(requests).toEqual([]);
+    } finally {
+        await fs.rm(entry, { force: true });
+    }
+}, 30_000);

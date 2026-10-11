@@ -124,7 +124,10 @@ function parseProjectArgument(value: string | undefined): string | undefined {
     return value;
 }
 
-registerAgentConnectionOption(program);
+let agentConnectionJson = false;
+registerAgentConnectionOption(program, () => {
+    agentConnectionJson = false;
+});
 
 program
     .version(getVersionWithSkills())
@@ -287,7 +290,6 @@ const agentProgram = program
     .command('agent')
     .description('Connect your agent to the warehouse and check its status');
 
-let agentConnectionJson = false;
 agentProgram.hook('preAction', (_root, command) => {
     agentConnectionJson =
         command.opts().json === true &&

@@ -56,6 +56,18 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'agentConnectionApiUrl(instanceUrl, url)',
             'Selected provider transport forwards the method and applies the shared instance API join rule. Authorization is recorded at its inventoried identity, own-status and refresh callers.',
         ),
+        external(
+            'agentConnections/personalRecovery.ts:42',
+            'GET',
+            'agentConnectionApiUrl(instanceUrl, url)',
+            'Explicit personal recovery forwards the method and captured headers through the shared instance API join. Its inventoried callers verify the person and organisation before revoking the bound connection.',
+        ),
+        external(
+            'handlers/agentRevoke.ts:104',
+            'DELETE',
+            '`/api/v2/user/agent-connections/${slot.grantUuid}`',
+            'Own-connection lifecycle transport: AgentConnectionController.revoke is recorded in CLI_CONNECTION_LIFECYCLE_OPERATIONS. Personal recovery uses the same captured personal credential and instance as its identity check.',
+        ),
         allowed(
             'agentConnections/warehouseStatus.ts:144',
             'GET',
@@ -69,12 +81,12 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'Own-connection lifecycle transport: AgentConnectionController.getConnectionStatus is recorded in CLI_CONNECTION_LIFECYCLE_OPERATIONS, outside the project capability inventory.',
         ),
         external(
-            'handlers/agentRevoke.ts:107',
+            'handlers/agentRevoke.ts:110',
             'DELETE',
             '`/api/v2/user/agent-connections/${slot.grantUuid}`',
             'Own-connection lifecycle transport: AgentConnectionController.revoke is recorded in CLI_CONNECTION_LIFECYCLE_OPERATIONS. Personal recovery requires an explicit matching human login.',
         ),
-        allowed('handlers/agentRevoke.ts:70', 'GET', "'/api/v1/user'", [
+        allowed('handlers/agentRevoke.ts:66', 'GET', "'/api/v1/user'", [
             'UserController.getAuthenticatedUser',
         ]),
         external(
@@ -101,17 +113,17 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             '`${slot.instanceUrl}/api/v1/oauth/token`',
             'OAuth protocol refresh only: this token endpoint call sends grant_type=refresh_token for an existing connection, never an initial grant. It is outside the REST capability inventory.',
         ),
-        allowed('analytics/analytics.ts:34', 'GET', "'/api/v1/user'", [
+        allowed('analytics/analytics.ts:37', 'GET', "'/api/v1/user'", [
             'UserController.getAuthenticatedUser',
         ]),
         external(
-            'analytics/analytics.ts:624',
+            'analytics/analytics.ts:628',
             'POST',
             "'https://analytics.lightdash.com/v1/track'",
             'External fetch or API transport delegates authorization to the inventoried Lightdash caller.',
         ),
         external(
-            'analytics/analytics.ts:649',
+            'analytics/analytics.ts:654',
             'POST',
             "'https://analytics.lightdash.com/v1/identify'",
             'External fetch or API transport delegates authorization to the inventoried Lightdash caller.',
@@ -683,28 +695,28 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             ['ProjectController.getDashboards'],
         ),
         refused(
-            'handlers/preview.ts:107',
+            'handlers/preview.ts:108',
             'DELETE',
             '`/api/v1/org/projects/${projectUuid}`',
             ['organizationRouter DELETE /projects/:projectUuid'],
             'Project lifecycle and warehouse configuration changes are refused in v1.',
         ),
         refused(
-            'handlers/preview.ts:159',
+            'handlers/preview.ts:160',
             'PATCH',
             '`/api/v1/projects/${projectUuid}/preview-expiration`',
             ['ProjectController.updatePreviewExpiresAt'],
             'Project lifecycle and warehouse configuration changes are refused in v1.',
         ),
         refused(
-            'handlers/preview.ts:185',
+            'handlers/preview.ts:186',
             'GET',
             '`/api/v1/org/projects/`',
             ['OrganizationController.getProjects'],
             'Project lifecycle and warehouse configuration changes are refused in v1.',
         ),
         allowed(
-            'handlers/preview.ts:250',
+            'handlers/preview.ts:252',
             'GET',
             '`/api/v1/projects/${config.context.project}`',
             ['ProjectController.getProject'],

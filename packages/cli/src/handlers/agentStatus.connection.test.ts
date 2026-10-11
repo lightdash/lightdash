@@ -1,8 +1,10 @@
 import { AgentCapability } from '@lightdash/common';
+import { Command } from 'commander';
 import { promises as fs } from 'fs';
 import { createServer, type Server } from 'http';
 import { tmpdir } from 'os';
 import path from 'path';
+import { registerAgentConnectionOption } from '../agentConnectionOption';
 import { slotFixture } from '../agentConnections/fixtures';
 import { type AgentConnectionSlot } from '../agentConnections/schema';
 import { AgentConnectionStore } from '../agentConnections/store';
@@ -493,6 +495,20 @@ it('leaves the bare status path and credentials directory untouched', async () =
     ]);
 });
 
+it('refuses --json without a connection before any request or store read', async () => {
+    await fs.unlink(store.filePath);
+    const read = vi.spyOn(AgentConnectionStore.prototype, 'readSlot');
+    requests = [];
+    await expect(
+        agentStatusHandler({ json: true, verbose: false }),
+    ).rejects.toThrow(
+        '--json is only available for an agent connection. Use it with --name <slot>.',
+    );
+    expect(read).not.toHaveBeenCalled();
+    expect(await fs.readdir(directory)).toEqual([]);
+    expect(requests).toEqual([]);
+});
+
 it('labels a different grant as mismatched without replacing the cache', async () => {
     payload.grantUuid = '44444444-4444-4444-8444-444444444444';
     await agentStatusHandler({ name: slot.name, json: true, verbose: false });
@@ -705,4 +721,44 @@ it('projects cached metadata to public fields when the server cannot be reached'
     expect(JSON.stringify(output())).not.toMatch(
         /private-access|private-refresh/,
     );
+});
+
+it('uses legacy text without reading the store after named JSON status on the same program', async () => {
+    const command = new Command();
+    registerAgentConnectionOption(command);
+    command
+        .command('agent')
+        .command('status')
+        .option('--name <slot>')
+        .option('--json')
+        .option('--verbose', undefined, false)
+        .action(agentStatusHandler);
+    await command.parseAsync(
+        ['agent', 'status', '--name', slot.name, '--json'],
+        { from: 'user' },
+    );
+    expect(output().slot).toBe(slot.name);
+    vi.mocked(console.log).mockClear();
+    vi.mocked(console.error).mockClear();
+    requests = [];
+    const read = vi.spyOn(AgentConnectionStore.prototype, 'readSlot');
+    const readFile = vi.spyOn(fs, 'readFile');
+    vi.mocked(getConfig).mockResolvedValue({
+        context: {
+            serverUrl: slot.instanceUrl,
+            apiKey: 'stored-human-secret',
+            project: agentProjectUuid,
+        },
+    });
+    await command.parseAsync(['agent', 'status'], { from: 'user' });
+    expect(textOutput()).toBe('Agent connected');
+    expect(console.log).not.toHaveBeenCalled();
+    expect(read).not.toHaveBeenCalled();
+    expect(readFile).not.toHaveBeenCalled();
+    expect(requests).toEqual([
+        {
+            url: `/api/v2/projects/${agentProjectUuid}/ai-access/me`,
+            auth: 'ApiKey stored-human-secret',
+        },
+    ]);
 });

@@ -14,6 +14,7 @@ import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig, setPreviewProject, unsetPreviewProject } from '../config';
+import { refuseAgentConnection } from '../credentials';
 import { getDbtContext } from '../dbt/context';
 import GlobalState from '../globalState';
 import { CliProjectType, detectProjectType } from '../lightdash/projectType';
@@ -195,6 +196,7 @@ const getPreviewProject = async (name: string) => {
 export const previewHandler = async (
     originalOptions: PreviewHandlerOptions,
 ): Promise<void> => {
+    refuseAgentConnection();
     const options = { ...originalOptions };
     GlobalState.setVerbose(options.verbose);
     const executionId = uuidv4();
@@ -559,6 +561,7 @@ const refreshPreviewWarehouseCredentials = async (
 export const startPreviewHandler = async (
     originalOptions: PreviewHandlerOptions,
 ): Promise<void> => {
+    refuseAgentConnection();
     const options = { ...originalOptions };
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
@@ -766,6 +769,7 @@ export const startPreviewHandler = async (
 export const stopPreviewHandler = async (
     options: StopPreviewHandlerOptions,
 ): Promise<void> => {
+    refuseAgentConnection();
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
     const executionId = uuidv4();

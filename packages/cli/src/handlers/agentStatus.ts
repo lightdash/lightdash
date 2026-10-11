@@ -16,6 +16,10 @@ export const agentStatusHandler = async (
             await import('./agentConnectionStatus');
         return agentConnectionStatusHandler(options);
     }
+    if (options.json === true)
+        throw new Error(
+            '--json is only available for an agent connection. Use it with --name <slot>.',
+        );
     GlobalState.setVerbose(options.verbose);
     const access = await getAgentAccess(
         await resolveAgentProject(options.project),

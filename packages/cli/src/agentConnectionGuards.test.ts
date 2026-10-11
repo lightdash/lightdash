@@ -17,6 +17,11 @@ import { exportChartImageHandler } from './handlers/exportChartImage';
 import { isApiKeyEnvVarShadowing, login } from './handlers/login';
 import { generatePersonalAccessToken } from './handlers/login/pat';
 import { loginWithOauth } from './handlers/oauthLogin';
+import {
+    previewHandler,
+    startPreviewHandler,
+    stopPreviewHandler,
+} from './handlers/preview';
 import { renameHandler } from './handlers/renameHandler';
 import { slugUpdateHandler } from './handlers/slugUpdate';
 
@@ -50,6 +55,9 @@ it.each([
     ['upload', uploadHandler, false],
     ['rename', renameHandler, false],
     ['slug-update', slugUpdateHandler, false],
+    ['preview', previewHandler, false],
+    ['start-preview', startPreviewHandler, false],
+    ['stop-preview', stopPreviewHandler, false],
     ['diagnostics', diagnosticsHandler, false],
 ])(
     'refuses direct %s before reading config or arguments',

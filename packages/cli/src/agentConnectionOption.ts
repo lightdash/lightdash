@@ -5,7 +5,10 @@ import {
     runWithParsedAgentConnectionSelection,
 } from './credentials';
 
-export const registerAgentConnectionOption = (program: Command): void => {
+export const registerAgentConnectionOption = (
+    program: Command,
+    resetInvocation: () => void = () => {},
+): void => {
     program.addOption(
         new Option(
             '--agent-connection <slot>',
@@ -18,6 +21,18 @@ export const registerAgentConnectionOption = (program: Command): void => {
         ...args
     ) {
         this.setOptionValueWithSource('agentConnection', undefined, 'default');
+        const agent = this.commands.find(
+            (command) => command.name() === 'agent',
+        );
+        for (const command of agent?.commands ?? []) {
+            let options: string[] = [];
+            if (command.name() === 'status') options = ['name', 'json'];
+            else if (command.name() === 'revoke')
+                options = ['name', 'json', 'human'];
+            for (const option of options)
+                command.setOptionValueWithSource(option, undefined, 'default');
+        }
+        resetInvocation();
         const environmentSelection =
             process.env.LIGHTDASH_AGENT_CONNECTION ?? null;
         return runWithParsedAgentConnectionSelection(
@@ -47,6 +62,9 @@ export const registerAgentConnectionOption = (program: Command): void => {
                 'rename',
                 'slug-update',
                 'diagnostics',
+                'preview',
+                'start-preview',
+                'stop-preview',
             ].includes(command.name()) ||
             (command.parent?.name() === 'apps' &&
                 ['preview', 'create'].includes(command.name()))

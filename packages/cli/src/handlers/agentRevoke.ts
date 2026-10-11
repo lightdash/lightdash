@@ -6,6 +6,10 @@ import {
     selectLifecycleSlot,
     settingsUrl,
 } from '../agentConnections/lifecycle';
+import {
+    capturePersonalRecovery,
+    PersonalRecoveryError,
+} from '../agentConnections/personalRecovery';
 import { type AgentConnectionSlot } from '../agentConnections/schema';
 import {
     connectionResponse,
@@ -15,18 +19,10 @@ import { AgentConnectionStore } from '../agentConnections/store';
 import { getConfig } from '../config';
 import {
     getAgentConnectionSelection,
-    humanCredential,
     runWithAgentConnectionSelection,
 } from '../credentials';
 import { lightdashRawApi } from './dbt/apiClient';
 
-class PersonalRecoveryError extends Error {
-    constructor() {
-        super(
-            'The personal CLI login does not match this connection person and organisation.',
-        );
-    }
-}
 export type AgentRevokeOptions = {
     name: string;
     json?: boolean;
@@ -44,12 +40,16 @@ export const agentRevokeHandler = async (
         options.human ? null : selection,
         async () => {
             const config = await getConfig();
+            const recover = options.human
+                ? capturePersonalRecovery(config)
+                : null;
             const key = connectionKey(config, options.name);
             const store = new AgentConnectionStore();
             let slot: AgentConnectionSlot | null = null;
             let confirmed = false;
             let localRemoved = false;
             let error: string | null = null;
+            let recovery: ReturnType<NonNullable<typeof recover>> | null = null;
             try {
                 if (key === null)
                     throw new Error(
@@ -61,13 +61,9 @@ export const agentRevokeHandler = async (
                         'No agent connection credential. Run lightdash agent connect.',
                     );
                 if (options.human) {
-                    if (
-                        !config.context?.apiKey ||
-                        humanCredential(config.context.apiKey).kind !==
-                            'human_api_key'
-                    )
-                        throw new PersonalRecoveryError();
-                    const response = await lightdashRawApi({
+                    if (!recover) throw new PersonalRecoveryError();
+                    recovery = recover(slot);
+                    const response = await recovery.fetch({
                         method: 'GET',
                         url: '/api/v1/user',
                         body: undefined,
@@ -104,21 +100,24 @@ export const agentRevokeHandler = async (
                         },
                     });
                 });
-                const response = await lightdashRawApi({
-                    method: 'DELETE',
-                    url: `/api/v2/user/agent-connections/${slot.grantUuid}`,
-                    body: undefined,
-                    signal: AbortSignal.timeout(15_000),
-                    ...(options.human
-                        ? {}
-                        : {
-                              lifecycle: {
-                                  kind: 'revoke' as const,
-                                  grantUuid: slot.grantUuid,
-                                  generation: slot.tokens.generation,
-                              },
-                          }),
-                });
+                const response = recovery
+                    ? await recovery.fetch({
+                          method: 'DELETE',
+                          url: `/api/v2/user/agent-connections/${slot.grantUuid}`,
+                          body: undefined,
+                          signal: AbortSignal.timeout(15_000),
+                      })
+                    : await lightdashRawApi({
+                          method: 'DELETE',
+                          url: `/api/v2/user/agent-connections/${slot.grantUuid}`,
+                          body: undefined,
+                          signal: AbortSignal.timeout(15_000),
+                          lifecycle: {
+                              kind: 'revoke',
+                              grantUuid: slot.grantUuid,
+                              generation: slot.tokens.generation,
+                          },
+                      });
                 const value: unknown = await response.json();
                 const checked = connectionResponse(value, slot, false);
                 if (

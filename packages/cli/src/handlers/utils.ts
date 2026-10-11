@@ -5,7 +5,11 @@ import {
     LightdashRequestMethodHeader,
     RequestMethod,
 } from '@lightdash/common';
-import { refuseAgentConnection, type Credential } from '../credentials';
+import {
+    refuseAgentConnection,
+    requireInvocationContext,
+    type Credential,
+} from '../credentials';
 import { CLI_VERSION } from '../env';
 
 enum TokenType {
@@ -23,6 +27,7 @@ type RequestHeader = {
 };
 
 export function getCredentialAuthHeader(credential: Credential): string {
+    requireInvocationContext();
     switch (credential.kind) {
         case 'human_api_key':
             return `${TokenType.ApiKey} ${credential.token}`;

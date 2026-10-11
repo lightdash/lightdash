@@ -57,6 +57,9 @@ it.each([
     ['rename'],
     ['slug-update'],
     ['diagnostics'],
+    ['preview'],
+    ['start-preview'],
+    ['stop-preview'],
 ])('refuses unreviewed command %j before its action', async (...route) => {
     const command = new Command();
     registerAgentConnectionOption(command);
@@ -85,6 +88,9 @@ it.each([
     ['rename'],
     ['slug-update'],
     ['diagnostics'],
+    ['preview'],
+    ['start-preview'],
+    ['stop-preview'],
 ])('keeps ordinary %j registration unchanged', async (...route) => {
     vi.stubEnv('LIGHTDASH_AGENT_CONNECTION', undefined);
     const command = new Command();
@@ -95,4 +101,23 @@ it.each([
     await command.parseAsync(route, { from: 'user' });
     expect(handler).toHaveBeenCalledOnce();
     expect(getAgentConnectionSelection()).toBeNull();
+});
+
+it('preserves pre-existing option retention on ordinary command reuse', async () => {
+    const observe = async (registered: boolean) => {
+        const command = new Command();
+        if (registered) registerAgentConnectionOption(command);
+        const seen: unknown[] = [];
+        command
+            .command('read')
+            .option('--verbose', undefined, false)
+            .action((options) => {
+                seen.push({ ...options });
+            });
+        await command.parseAsync(['read', '--verbose'], { from: 'user' });
+        await command.parseAsync(['read'], { from: 'user' });
+        return seen;
+    };
+    expect(await observe(true)).toEqual(await observe(false));
+    expect(await observe(true)).toEqual([{ verbose: true }, { verbose: true }]);
 });
