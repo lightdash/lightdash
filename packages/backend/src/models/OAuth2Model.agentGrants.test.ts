@@ -648,15 +648,19 @@ it.each(['access', 'refresh'] as const)(
                     ? row({ agent_connection_grant_uuid: null })
                     : undefined,
             );
+        getTracker().on.select('pg_advisory_xact_lock').response([]);
         getTracker().on.update('oauth2_access_tokens').response(0);
-        getTracker().on.delete(`oauth2_${kind}_tokens`).response(1);
+        getTracker().on.delete('oauth2_refresh_tokens').response(1);
+        getTracker().on.delete('oauth2_access_tokens').response(1);
         const service = new OAuthService({
             oauthModel: model,
             userModel: {} as UserModel,
             lightdashConfig: lightdashConfigMock,
         });
         expect(await service.revokeToken(kind)).toBe(true);
-        expect(getTracker().history.delete).toHaveLength(1);
+        expect(getTracker().history.delete).toHaveLength(
+            kind === 'refresh' ? 2 : 1,
+        );
         expect(
             AgentConnectionGrantModel.prototype.revoke,
         ).not.toHaveBeenCalled();
