@@ -41,6 +41,7 @@ import {
     ServiceAccountScope,
     SessionUser,
     UpdateUserArgs,
+    UserWarehouseCredentialPurpose,
     validatePassword,
 } from '@lightdash/common';
 import bcrypt from 'bcrypt';
@@ -79,6 +80,7 @@ import {
     DbUserUpdate,
     UserTableName,
 } from '../database/entities/users';
+import { UserWarehouseCredentialsTableName } from '../database/entities/userWarehouseCredentials';
 import Logger from '../logging/logger';
 import { deprecatedHash, hashWithSecret } from '../utils/hash';
 import {
@@ -657,6 +659,15 @@ export class UserModel {
                     updated_at: new Date(),
                 })
                 .returning('*');
+
+            if (isActive === false) {
+                await trx(UserWarehouseCredentialsTableName)
+                    .where({
+                        user_uuid: userUuid,
+                        purpose: UserWarehouseCredentialPurpose.AI,
+                    })
+                    .delete();
+            }
 
             if (email && currentEmail !== email) {
                 if (currentEmail) {

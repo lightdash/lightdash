@@ -2,6 +2,7 @@ import {
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     BigqueryTokenError,
+    DeactivatedAccountError,
     ParameterError,
     SnowflakeAuthenticationType,
     UserWarehouseCredentialPurpose,
@@ -158,6 +159,91 @@ describe('UserWarehouseCredentialsModel', () => {
             );
         },
     );
+
+    describe('upsertAiSnowflakeCredential', () => {
+        const save = () =>
+            credentialModel.upsertAiSnowflakeCredential(
+                'user-1',
+                'refresh',
+                null,
+                { organizationUuid: 'org', clientVersion: 'version' },
+                { strictPersonalOverlay: false },
+            );
+
+        beforeEach(() => {
+            tracker.on
+                .insert('user_warehouse_credentials')
+                .response([{ user_warehouse_credentials_uuid: 'credential' }]);
+        });
+
+        test('locks the active user before the unchanged insert-or-merge in one transaction', async () => {
+            tracker.on.select('users').response([{ is_active: true }]);
+
+            await expect(save()).resolves.toBe('credential');
+
+            expect(tracker.history.all).toHaveLength(2);
+            expect(tracker.history.all[0]).toMatchObject({
+                sql: 'select "is_active" from "users" where "user_uuid" = $1 limit $2 for share',
+                bindings: ['user-1', 1],
+            });
+            expect(tracker.history.all[1].sql).toBe(
+                'insert into "user_warehouse_credentials" ("encrypted_credentials", "expires_at", "name", "project_uuid", "purpose", "user_uuid", "warehouse_type") values ($1, $2, $3, $4, $5, $6, $7) on conflict (user_uuid, warehouse_type) WHERE purpose = \'ai\' do update set "user_warehouse_credentials_uuid" = $8,"expires_at" = $9,"encrypted_credentials" = $10,"updated_at" = $11 returning "user_warehouse_credentials_uuid"',
+            );
+            const encrypted = Buffer.from(
+                JSON.stringify({
+                    type: WarehouseTypes.SNOWFLAKE,
+                    user: 'user-1',
+                    authenticationType: SnowflakeAuthenticationType.SSO,
+                    refreshToken: 'refresh',
+                    aiClientBinding: {
+                        organizationUuid: 'org',
+                        clientVersion: 'version',
+                    },
+                }),
+            );
+            expect(tracker.history.all[1].bindings).toEqual([
+                encrypted,
+                null,
+                'Snowflake agent sign-in',
+                null,
+                UserWarehouseCredentialPurpose.AI,
+                'user-1',
+                WarehouseTypes.SNOWFLAKE,
+                expect.stringMatching(/^[a-f0-9-]{36}$/),
+                null,
+                encrypted,
+                expect.any(Date),
+            ]);
+            expect(tracker.history.transactions).toHaveLength(1);
+            expect(tracker.history.transactions[0]).toMatchObject({
+                state: 'committed',
+                queries: tracker.history.all,
+            });
+        });
+
+        test.each([
+            { state: 'inactive', rows: [{ is_active: false }] },
+            { state: 'missing', rows: [] },
+        ])(
+            'refuses a $state user without inserting credentials',
+            async ({ rows }) => {
+                tracker.on.select('users').response(rows);
+
+                await expect(save()).rejects.toThrow(DeactivatedAccountError);
+
+                expect(tracker.history.insert).toHaveLength(0);
+                expect(tracker.history.all).toHaveLength(1);
+                expect(tracker.history.all[0].sql).toBe(
+                    'select "is_active" from "users" where "user_uuid" = $1 limit $2 for share',
+                );
+                expect(tracker.history.transactions).toHaveLength(1);
+                expect(tracker.history.transactions[0]).toMatchObject({
+                    state: 'rolled back',
+                    queries: tracker.history.all,
+                });
+            },
+        );
+    });
 
     describe('hasOrganizationAiSnowflakeCredential', () => {
         test.each([true, false])(
@@ -602,13 +688,26 @@ describe('UserWarehouseCredentialsModel', () => {
                 onConflict: vi.fn(),
                 merge,
                 returning,
+                select: vi.fn(),
+                where: vi.fn(),
+                forShare: vi.fn(),
+                first: vi.fn(async () => ({ is_active: true })),
             };
             builder.insert.mockReturnValue(builder);
             builder.onConflict.mockReturnValue(builder);
+            builder.select.mockReturnValue(builder);
+            builder.where.mockReturnValue(builder);
+            builder.forShare.mockReturnValue(builder);
             merge.mockReturnValue(builder);
             const database = Object.assign(
                 vi.fn(() => builder),
-                { raw: vi.fn() },
+                {
+                    raw: vi.fn(),
+                    transaction: vi.fn(
+                        async (callback: (trx: Knex) => Promise<unknown>) =>
+                            callback(database),
+                    ),
+                },
             ) as unknown as Knex;
             const model = new UserWarehouseCredentialsModel({
                 database,
@@ -943,6 +1042,7 @@ describe('UserWarehouseCredentialsModel', () => {
         test.each([true, false])(
             'agent sign-in saves identity separately from the client binding (%s)',
             async (enabled) => {
+                tracker.on.select('users').response([{ is_active: true }]);
                 tracker.on
                     .insert('user_warehouse_credentials')
                     .response([

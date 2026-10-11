@@ -17,6 +17,7 @@ import {
     ProjectMemberRole,
     ProjectType,
     ServiceAccountScope,
+    UserWarehouseCredentialPurpose,
     type SessionUser,
 } from '@lightdash/common';
 import bcrypt from 'bcrypt';
@@ -33,6 +34,7 @@ import {
     ScopedRolesTableName,
 } from '../database/entities/roles';
 import { UserTableName } from '../database/entities/users';
+import { UserWarehouseCredentialsTableName } from '../database/entities/userWarehouseCredentials';
 import { hashWithSecret } from '../utils/hash';
 import { type FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 import {
@@ -1364,6 +1366,96 @@ describe('UserModel', () => {
                 blocked_until: new Date('2026-08-05T12:30:00.000Z'),
             });
             vi.useRealTimers();
+        });
+    });
+
+    describe('updateUser', () => {
+        let tracker: Tracker;
+        let model: UserModel;
+
+        beforeEach(() => {
+            const database = knex({ client: MockClient, dialect: 'pg' });
+            tracker = getTracker();
+            model = new UserModel({
+                database,
+                lightdashConfig,
+                featureFlagModel,
+            });
+            tracker.on.update(UserTableName).response([userDetails]);
+            vi.spyOn(model, 'getUserDetailsByUuid').mockResolvedValue(
+                mapDbUserDetailsToLightdashUser(userDetails, true),
+            );
+        });
+
+        afterEach(() => {
+            tracker.reset();
+            vi.restoreAllMocks();
+        });
+
+        it.each([true, undefined])(
+            'does not query warehouse credentials when isActive is %s',
+            async (isActive) => {
+                await model.updateUser(userDetails.user_uuid, undefined, {
+                    firstName: 'Updated',
+                    isActive,
+                });
+
+                expect(tracker.history.all).toHaveLength(1);
+                expect(tracker.history.all[0].sql).toMatch(/^update "users"/);
+                expect(tracker.history.all[0].bindings).toContain('Updated');
+                expect(tracker.history.transactions).toHaveLength(1);
+                expect(tracker.history.transactions[0]).toMatchObject({
+                    state: 'committed',
+                    queries: tracker.history.all,
+                });
+            },
+        );
+
+        it('deletes only the user agent credentials after the user update in one transaction', async () => {
+            tracker.on.delete(UserWarehouseCredentialsTableName).response(1);
+
+            await model.updateUser(userDetails.user_uuid, undefined, {
+                isActive: false,
+            });
+
+            expect(tracker.history.all).toHaveLength(2);
+            expect(tracker.history.all[0].sql).toMatch(/^update "users"/);
+            expect(tracker.history.all[0].bindings).toContain(false);
+            expect(tracker.history.delete).toHaveLength(1);
+            expect(tracker.history.all[1]).toMatchObject({
+                sql: 'delete from "user_warehouse_credentials" where "user_uuid" = $1 and "purpose" = $2',
+                bindings: [
+                    userDetails.user_uuid,
+                    UserWarehouseCredentialPurpose.AI,
+                ],
+            });
+            expect(tracker.history.transactions).toHaveLength(1);
+            expect(tracker.history.transactions[0]).toMatchObject({
+                state: 'committed',
+                queries: tracker.history.all,
+            });
+        });
+
+        it('rolls back the user update and propagates a credential deletion failure', async () => {
+            const error = new Error('Credential deletion failed');
+            tracker.on
+                .delete(UserWarehouseCredentialsTableName)
+                .simulateError(error);
+
+            await expect(
+                model.updateUser(userDetails.user_uuid, undefined, {
+                    isActive: false,
+                }),
+            ).rejects.toBe(error);
+
+            expect(tracker.history.transactions).toHaveLength(1);
+            expect(tracker.history.transactions[0].state).toBe('rolled back');
+            expect(
+                tracker.history.transactions[0].queries.map(
+                    ({ method }) => method,
+                ),
+            ).toEqual(['update', 'delete']);
+            expect(model.getUserDetailsByUuid).not.toHaveBeenCalled();
         });
     });
 
