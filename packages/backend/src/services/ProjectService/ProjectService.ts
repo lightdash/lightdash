@@ -4237,7 +4237,7 @@ export class ProjectService
                   incomingStream,
               )
             : incomingStream;
-        return this.saveExploresAndIndexCatalog({
+        const saving = this.saveExploresAndIndexCatalog({
             ...metadata,
             complete: true,
             connectionWarnings: multiConnection?.warnings ?? [],
@@ -4250,28 +4250,14 @@ export class ProjectService
                     onCompiled?.(summary);
                 }
                 if (multiConnection) {
-                    return this.multiConnectionCompiler.save(
-                        args.projectUuid,
-                        {
-                            ...multiConnection,
-                            exploreStream: observedExplores(),
-                        },
+                    return this.multiConnectionCompiler.save(args.projectUuid, {
+                        ...multiConnection,
+                        exploreStream: observedExplores(),
                         ...(agentExecutionContext.getStore()
                             ?.agentConnectionExecution
-                            ? [
-                                  async () => {
-                                      if (
-                                          agentExecutionContext.getStore()
-                                              ?.agentConnectionExecution
-                                      )
-                                          await this.assertAgentConnectionEffect(
-                                              args.projectUuid,
-                                              'compileProject',
-                                          );
-                                  },
-                              ]
-                            : []),
-                    );
+                            ? { persistArtifacts: async () => {} }
+                            : {}),
+                    });
                 }
                 return this.projectModel.saveExploreStreamToCache(
                     args.projectUuid,
@@ -4279,6 +4265,19 @@ export class ProjectService
                 );
             },
         });
+        if (
+            multiConnection &&
+            agentExecutionContext.getStore()?.agentConnectionExecution
+        ) {
+            const result = await saving;
+            await this.assertAgentConnectionEffect(
+                args.projectUuid,
+                'compileProject',
+            );
+            await multiConnection.persistArtifacts();
+            return result;
+        }
+        return saving;
     }
 
     private async saveExploresAndIndexCatalog(
@@ -4332,14 +4331,30 @@ export class ProjectService
             });
         }
 
+        const connectionProject = agentExecutionContext.getStore()
+            ?.agentConnectionExecution
+            ? await this.projectModel.getSummary(projectUuid)
+            : null;
         if (agentExecutionContext.getStore()?.agentConnectionExecution)
             await this.assertAgentConnectionEffect(
                 projectUuid,
                 'compileProject',
             );
         const { cachedExploreUuids } = await saveExplores(summary);
+        const connectionIndexCatalogJob = connectionProject
+            ? await this.schedulerClient.indexCatalog({
+                  projectUuid,
+                  userUuid,
+                  organizationUuid: connectionProject.organizationUuid,
+                  prevCatalogItemsWithTags,
+                  prevCatalogItemsWithIcons,
+                  prevMetricTreeEdges,
+                  prevMetricsTreeNodes,
+              })
+            : null;
         const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+            connectionProject ??
+            (await this.projectModel.getSummary(projectUuid));
 
         this.logger.info(
             `Saved ${cachedExploreUuids.length} explores to cache for project ${projectUuid}`,
@@ -4435,21 +4450,17 @@ export class ProjectService
             `Inserted compilation log for project ${projectUuid}: ${compilationReport.totalExploresCount} explores, ${compilationReport.errorExploresCount} errors`,
         );
 
-        if (agentExecutionContext.getStore()?.agentConnectionExecution)
-            await this.assertAgentConnectionEffect(projectUuid, 'indexCatalog');
-        const indexCatalogJob = await this.schedulerClient.indexCatalog({
-            ...captureAgentConnectionTask('indexCatalog', {
+        const indexCatalogJob =
+            connectionIndexCatalogJob ??
+            (await this.schedulerClient.indexCatalog({
+                projectUuid,
                 userUuid,
                 organizationUuid,
-            }),
-            projectUuid,
-            userUuid,
-            organizationUuid,
-            prevCatalogItemsWithTags,
-            prevCatalogItemsWithIcons,
-            prevMetricTreeEdges,
-            prevMetricsTreeNodes,
-        });
+                prevCatalogItemsWithTags,
+                prevCatalogItemsWithIcons,
+                prevMetricTreeEdges,
+                prevMetricsTreeNodes,
+            }));
 
         if (this.lightdashConfig.preAggregates.enabled) {
             await this.syncAndEnqueuePreAggregateMaterializations({

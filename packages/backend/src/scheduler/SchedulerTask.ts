@@ -5986,74 +5986,55 @@ export default class SchedulerTask {
         }
     }
 
-    protected indexCatalog(
+    protected async indexCatalog(
         jobId: string,
         scheduledTime: Date,
         payload: SchedulerIndexCatalogJobPayload,
     ) {
-        return this.runConnectionTask(
-            payload,
-            jobId,
-            scheduledTime,
-            'indexCatalog',
-            async (account, revalidate) => {
-                await this.logWrapper(
-                    {
-                        task: SCHEDULER_TASKS.INDEX_CATALOG,
-                        jobId,
-                        scheduledTime,
-                        details: {
-                            createdByUserUuid: payload.userUuid,
-                            projectUuid: payload.projectUuid,
-                            organizationUuid: payload.organizationUuid,
-                        },
-                    },
-                    async () => {
-                        const { catalogFieldMap } =
-                            await this.catalogService.indexCatalog(
-                                payload.projectUuid,
-                                payload.userUuid,
-                                ...(revalidate ? [revalidate] : []),
-                            );
+        await this.logWrapper(
+            {
+                task: SCHEDULER_TASKS.INDEX_CATALOG,
+                jobId,
+                scheduledTime,
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                },
+            },
+            async () => {
+                const { catalogFieldMap } =
+                    await this.catalogService.indexCatalog(
+                        payload.projectUuid,
+                        payload.userUuid,
+                    );
 
-                        if (revalidate) await revalidate();
-                        await this.catalogService.migrateCatalogItemTags(
-                            payload.projectUuid,
-                            payload.prevCatalogItemsWithTags,
-                            ...(revalidate ? [revalidate] : []),
-                        );
-
-                        if (revalidate) await revalidate();
-                        await this.catalogService.migrateCatalogItemIcons(
-                            payload.projectUuid,
-                            payload.prevCatalogItemsWithIcons,
-                            ...(revalidate ? [revalidate] : []),
-                        );
-
-                        if (revalidate) await revalidate();
-                        await this.catalogService.migrateMetricsTreeEdges(
-                            payload.projectUuid,
-                            payload.prevMetricTreeEdges,
-                            ...(revalidate ? [revalidate] : []),
-                        );
-
-                        if (revalidate) await revalidate();
-                        await this.catalogService.migrateMetricsTreeNodes(
-                            payload.projectUuid,
-                            payload.prevMetricsTreeNodes,
-                            ...(revalidate ? [revalidate] : []),
-                        );
-
-                        if (revalidate) await revalidate();
-                        await this.catalogService.setChartUsages(
-                            payload.projectUuid,
-                            catalogFieldMap,
-                            ...(revalidate ? [revalidate] : []),
-                        );
-
-                        return {}; // Don't pollute with more details
-                    },
+                await this.catalogService.migrateCatalogItemTags(
+                    payload.projectUuid,
+                    payload.prevCatalogItemsWithTags,
                 );
+
+                await this.catalogService.migrateCatalogItemIcons(
+                    payload.projectUuid,
+                    payload.prevCatalogItemsWithIcons,
+                );
+
+                await this.catalogService.migrateMetricsTreeEdges(
+                    payload.projectUuid,
+                    payload.prevMetricTreeEdges,
+                );
+
+                await this.catalogService.migrateMetricsTreeNodes(
+                    payload.projectUuid,
+                    payload.prevMetricsTreeNodes,
+                );
+
+                await this.catalogService.setChartUsages(
+                    payload.projectUuid,
+                    catalogFieldMap,
+                );
+
+                return {}; // Don't pollute with more details
             },
         );
     }

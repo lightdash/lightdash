@@ -105,7 +105,6 @@ describe('Cron converter', () => {
 describe('connection jobs at the Graphile dispatch boundary', () => {
     test.each([
         'compileProject',
-        'indexCatalog',
         'validateProject',
         'replaceCustomFields',
         'materializePreAggregate',

@@ -71,7 +71,6 @@ export type AgentConnectionExecution = {
 
 export type AgentConnectionTaskEffect =
     | 'compileProject'
-    | 'indexCatalog'
     | 'validateProject'
     | 'replaceCustomFields'
     | 'materializePreAggregate';

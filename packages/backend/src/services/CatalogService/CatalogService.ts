@@ -459,11 +459,7 @@ export class CatalogService<
         return filteredExplores;
     }
 
-    async indexCatalog(
-        projectUuid: string,
-        userUuid: string | undefined,
-        beforeEffect?: () => Promise<void>,
-    ) {
+    async indexCatalog(projectUuid: string, userUuid: string | undefined) {
         const indexReadContext: ExploreCacheReadContext & {
             trigger: CatalogBrowseTrigger;
         } = {
@@ -499,7 +495,6 @@ export class CatalogService<
 
         const projectYamlTags = await this.tagsModel.getYamlTags(projectUuid);
 
-        if (beforeEffect) await beforeEffect();
         const result = await this.catalogModel.indexCatalog(
             projectUuid,
             cachedExploresMap,
@@ -545,7 +540,6 @@ export class CatalogService<
     async migrateCatalogItemTags(
         projectUuid: string,
         prevCatalogItemsWithTags: CatalogItemWithTagUuids[],
-        beforeEffect?: () => Promise<void>,
     ) {
         // Get all catalog items so we can match them with the previous catalog items
         const currentCatalogItems =
@@ -603,14 +597,12 @@ export class CatalogService<
                 },
             );
 
-        if (beforeEffect) await beforeEffect();
         return this.catalogModel.migrateCatalogItemTags(catalogTagsMigrateIn);
     }
 
     async migrateCatalogItemIcons(
         projectUuid: string,
         prevCatalogItemsWithIcons: CatalogItemsWithIcons[],
-        beforeEffect?: () => Promise<void>,
     ) {
         // Get all catalog items so we can match them with the previous catalog items
         const currentCatalogItems =
@@ -658,14 +650,12 @@ export class CatalogService<
             },
         );
 
-        if (beforeEffect) await beforeEffect();
         await this.catalogModel.updateCatalogItemIcon(iconMigrationUpdates);
     }
 
     async migrateMetricsTreeEdges(
         projectUuid: string,
         prevMetricTreeEdges: CatalogMetricsTreeEdge[],
-        beforeEffect?: () => Promise<void>,
     ) {
         // reusing catalog items with tags although we don't need the tags, but trying to avoid creating another function here
         const currentCatalogItems =
@@ -707,14 +697,12 @@ export class CatalogService<
                 return acc;
             }, []);
 
-        if (beforeEffect) await beforeEffect();
         return this.catalogModel.migrateMetricsTreeEdges(metricEdgesMigrateIn);
     }
 
     async migrateMetricsTreeNodes(
         projectUuid: string,
         prevMetricsTreeNodes: PrevMetricsTreeNode[],
-        beforeEffect?: () => Promise<void>,
     ) {
         if (prevMetricsTreeNodes.length === 0) {
             this.logger.debug(
@@ -767,7 +755,6 @@ export class CatalogService<
             `Migrating ${nodesMigrateIn.length} metrics tree nodes for project ${projectUuid} (${droppedCount} dropped)`,
         );
 
-        if (beforeEffect) await beforeEffect();
         await this.catalogModel.migrateMetricsTreeNodes(nodesMigrateIn);
     }
 
@@ -1085,7 +1072,6 @@ export class CatalogService<
     async setChartUsages(
         projectUuid: string,
         catalogFieldMap: CatalogFieldMap,
-        beforeEffect?: () => Promise<void>,
     ) {
         const chartUsagesForFields =
             await this.savedChartModel.getChartCountPerField(
@@ -1113,7 +1099,6 @@ export class CatalogService<
             })
             .filter((c): c is ChartUsageIn => Boolean(c));
 
-        if (beforeEffect) await beforeEffect();
         await this.catalogModel.setChartUsages(projectUuid, chartUsageUpdates);
 
         return {

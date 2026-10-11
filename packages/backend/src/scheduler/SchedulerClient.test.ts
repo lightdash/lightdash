@@ -304,7 +304,6 @@ describe('SchedulerClient connection envelope storage', () => {
 
     it.each([
         'compileProject',
-        'indexCatalog',
         'generateValidation',
         'replaceCustomFields',
         'materializePreAggregate',

@@ -105,7 +105,6 @@ export const getAgentConnectionEffectCapabilities = (
         throw new ForbiddenError('Invalid agent connection effect origin');
     switch (effect) {
         case 'compileProject':
-        case 'indexCatalog':
         case 'validateProject':
             return [AgentCapability.DeployUpload];
         case 'replaceCustomFields':

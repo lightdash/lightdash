@@ -10,6 +10,7 @@ import {
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     BigqueryTokenError,
+    CatalogType,
     ConflictError,
     convertExplores,
     createVirtualView,
@@ -23,6 +24,7 @@ import {
     DEFAULT_SPOTLIGHT_CONFIG,
     DefaultSupportedDbtVersion,
     defineUserAbility,
+    DeploySessionStatus,
     DimensionType,
     DownloadFileType,
     DuckdbConnectionType,
@@ -31,6 +33,7 @@ import {
     EMPTY_WAREHOUSE_LOCATION,
     ExploreType,
     FeatureFlags,
+    FieldType,
     FilterOperator,
     ForbiddenError,
     getCompiledModels,
@@ -107,6 +110,7 @@ import {
     type Project,
     type ProjectDbtSource,
     type RegisteredAccount,
+    type SchedulerIndexCatalogJobPayload,
     type UpdateProject,
     type UserWarehouseCredentialsWithSecrets,
     type WarehouseConnection,
@@ -191,6 +195,7 @@ import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapt
 import { GITHUB_APP_NOT_INSTALLED_MESSAGE } from '../../projectAdapters/githubAuthorization';
 import * as projectAdapterModule from '../../projectAdapters/projectAdapter';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import SchedulerTask from '../../scheduler/SchedulerTask';
 import type { DbtManifestFetchTimings, ProjectAdapter } from '../../types';
 import { buildCacheHash } from '../../utils/cacheUtils';
 import { metricQueryWithLimit } from '../../utils/csvLimitUtils';
@@ -217,6 +222,7 @@ import {
     aiServiceAccountPlanMock,
     markedPersonPlanMock,
 } from '../AiAccessService/AiAccessService.mock';
+import { CatalogService } from '../CatalogService/CatalogService';
 import { DeployService } from '../DeployService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -14793,6 +14799,358 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         },
     );
 
+    it.each(
+        ['deploy', 'finalize', 'compile', 'multi-stream'].flatMap((path) =>
+            [
+                'revoked',
+                'transient',
+                'unbound',
+                ...(path === 'finalize' || path === 'compile' ? ['child'] : []),
+            ].map((outcome) => ({ path, outcome })),
+        ),
+    )(
+        '$path preserves catalog annotations after a save: $outcome',
+        async ({ path, outcome }) => {
+            vi.clearAllMocks();
+            const configured = buildCompilationBoundaryService();
+            const connectionAccount = fromSession({
+                ...compileUser,
+                ability: new Ability([{ action: 'manage', subject: 'all' }]),
+            });
+            const execution = {
+                grantUuid: 'grant',
+                revision: 1,
+                subjectUserUuid: compileUser.userUuid,
+                organizationUuid: 'organizationUuid',
+                clientId: 'lightdash-cli',
+                resource: 'https://example.com/api',
+                refreshFamilyUuid: 'family',
+                scopes: ['read', 'write'],
+                operation: {
+                    kind: 'rest' as const,
+                    key: 'ProjectController.refresh',
+                },
+            };
+            const scope = createAgentExecutionContext({
+                account: connectionAccount,
+                surface: AgentActorSurface.CLI,
+                clientId: execution.clientId,
+                agentUuid: null,
+                agentIdentityEnabled: true,
+                agentConnectionGrant: { grantUuid: 'grant', revision: 1 },
+                agentConnectionExecution: execution,
+            });
+            const assertActiveExecution = vi
+                .fn()
+                .mockResolvedValue({ account: connectionAccount, scope });
+            Object.assign(configured, {
+                getAgentConnectionGrantService: () => ({
+                    assertActiveExecution,
+                }),
+            });
+            const error =
+                outcome === 'revoked'
+                    ? new ForbiddenError('revoked after save')
+                    : new Error('transient child failure');
+            let saved = false;
+            const afterSave = () => {
+                saved = true;
+                if (outcome !== 'child')
+                    assertActiveExecution.mockRejectedValue(error);
+                return { cachedExploreUuids: ['new-explore'] };
+            };
+            projectModel.saveExploresToCache.mockImplementationOnce(
+                async () => {
+                    afterSave();
+                    return { cachedExploreUuids: [] };
+                },
+            );
+            projectModel.saveExploreStreamToCache.mockImplementationOnce(
+                async (_uuid, stream) => {
+                    for await (const explore of stream)
+                        expect(explore.name).toBeDefined();
+                    return afterSave();
+                },
+            );
+            const item = {
+                projectUuid: 'projectUuid',
+                name: 'order_count',
+                tableName: 'orders',
+                type: CatalogType.Field,
+                fieldType: FieldType.METRIC,
+                catalogSearchUuid: 'old-catalog',
+            };
+            const tag = {
+                tagUuid: 'tag-1',
+                createdByUserUuid: compileUser.userUuid,
+                createdAt: new Date('2026-01-01'),
+                taggedViaYaml: false,
+            };
+            const snapshots = {
+                prevCatalogItemsWithTags: [{ ...item, catalogTags: [tag] }],
+                prevCatalogItemsWithIcons: [{ ...item, icon: 'chart' }],
+                prevMetricTreeEdges: [
+                    {
+                        source: item,
+                        target: item,
+                        createdByUserUuid: compileUser.userUuid,
+                    },
+                ],
+                prevMetricsTreeNodes: [
+                    {
+                        ...item,
+                        metricsTreeUuid: 'tree-1',
+                        xPosition: 12,
+                        yPosition: 34,
+                        source: 'ui',
+                        createdAt: tag.createdAt,
+                    },
+                ],
+            };
+            catalogModel.getCatalogItemsWithTags.mockResolvedValueOnce(
+                snapshots.prevCatalogItemsWithTags as never,
+            );
+            catalogModel.getCatalogItemsWithIcons.mockResolvedValueOnce(
+                snapshots.prevCatalogItemsWithIcons as never,
+            );
+            catalogModel.getAllMetricsTreeEdges.mockResolvedValueOnce(
+                snapshots.prevMetricTreeEdges as never,
+            );
+            catalogModel.getAllMetricsTreeNodes.mockResolvedValueOnce(
+                snapshots.prevMetricsTreeNodes as never,
+            );
+            const queued: SchedulerIndexCatalogJobPayload[] = [];
+            const enqueue = vi.fn(
+                async (payload: SchedulerIndexCatalogJobPayload) => {
+                    expect(saved).toBe(true);
+                    queued.push(payload);
+                    return 'index-job';
+                },
+            );
+            Object.assign(configured, {
+                schedulerClient: { ...schedulerClient, indexCatalog: enqueue },
+            });
+            const childQueue = {
+                ...schedulerClient,
+                generateValidation: vi.fn().mockRejectedValue(error),
+                replaceCustomFields: vi.fn(),
+            };
+            const publish = vi.fn();
+            const saveMultiConnectionExplores = vi.fn(async (_uuid, stream) => {
+                for await (const entry of stream)
+                    expect(entry.explore.name).toBeDefined();
+                return afterSave();
+            });
+            if (path === 'multi-stream') {
+                Object.assign(configured.multiConnectionCompiler, {
+                    projectModel: { saveMultiConnectionExplores },
+                });
+            }
+            const deploy = new DeployService({
+                projectModel,
+                projectService: configured,
+                schedulerClient:
+                    outcome === 'child' ? childQueue : schedulerClient,
+                deploySessionModel: {
+                    getSession: vi.fn().mockResolvedValue({
+                        projectUuid: 'projectUuid',
+                        userUuid: compileUser.userUuid,
+                        status: DeploySessionStatus.UPLOADING,
+                    }),
+                    getDeployData: vi.fn().mockResolvedValue({
+                        explores: [validExplore],
+                        complete: true,
+                    }),
+                    updateStatus: vi.fn(),
+                    deleteSession: vi.fn(),
+                },
+            } as never);
+            const run = async () => {
+                if (path === 'compile' && outcome === 'child') {
+                    const compileTask = new SchedulerTask({
+                        projectService: configured,
+                        schedulerClient: childQueue,
+                        schedulerService: { logSchedulerJob: vi.fn() },
+                        getAgentConnectionGrantService: () => ({
+                            assertActiveExecution,
+                        }),
+                    } as never);
+                    return compileTask['compileProject'](
+                        'compile-job',
+                        new Date(),
+                        {
+                            projectUuid: 'projectUuid',
+                            userUuid: compileUser.userUuid,
+                            createdByUserUuid: compileUser.userUuid,
+                            organizationUuid: 'organizationUuid',
+                            jobUuid: 'bound-job',
+                            requestMethod: RequestMethod.CLI,
+                            isPreview: false,
+                            agentConnectionExecution: execution,
+                            agentConnectionEffect: 'compileProject',
+                        },
+                    );
+                }
+                if (path === 'compile')
+                    return configured.compileProject(
+                        compileUser,
+                        'projectUuid',
+                        RequestMethod.CLI,
+                        'bound-job',
+                    );
+                if (path === 'finalize')
+                    return deploy.finalizeDeploy(
+                        compileUser,
+                        'projectUuid',
+                        'session',
+                    );
+                if (path === 'multi-stream')
+                    return configured[
+                        'saveExploreStreamToCacheAndIndexCatalog'
+                    ]({
+                        userUuid: compileUser.userUuid,
+                        projectUuid: 'projectUuid',
+                        compilationSource: 'refresh_dbt',
+                        exploreStream: (async function* explores() {
+                            yield validExplore;
+                        })(),
+                        multiConnection: {
+                            bindingOf: () => null,
+                            carry: {
+                                kind: 'connections',
+                                warehouseConnectionUuids: [],
+                            },
+                            persistArtifacts: publish,
+                            warnings: [],
+                        } as never,
+                    });
+                return configured.saveDeployExplores({
+                    userUuid: compileUser.userUuid,
+                    projectUuid: 'projectUuid',
+                    explores: [validExplore],
+                    compilationSource: 'cli_deploy',
+                    complete: true,
+                    cliDeploy: { sourceUuid: null, target: null },
+                });
+            };
+            if (outcome === 'unbound') await run();
+            else
+                await expect(
+                    agentExecutionContext.run(scope, run),
+                ).rejects.toThrow();
+            if (outcome === 'child') {
+                expect(childQueue.generateValidation).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        agentConnectionExecution: execution,
+                        agentConnectionEffect: 'validateProject',
+                    }),
+                );
+                expect(enqueue).toHaveBeenCalledBefore(
+                    childQueue.generateValidation,
+                );
+            }
+            expect(enqueue).toHaveBeenCalledOnce();
+            expect(queued[0]).toEqual({
+                projectUuid: 'projectUuid',
+                userUuid: compileUser.userUuid,
+                organizationUuid: 'organizationUuid',
+                ...snapshots,
+            });
+            if (path === 'multi-stream' && outcome !== 'unbound')
+                expect(publish).not.toHaveBeenCalled();
+            if (outcome === 'unbound') {
+                expect(assertActiveExecution).not.toHaveBeenCalled();
+                expect(projectCompileLogModel.insert).toHaveBeenCalledBefore(
+                    enqueue,
+                );
+            } else {
+                expect(enqueue.mock.invocationCallOrder[0]).toBeLessThan(
+                    assertActiveExecution.mock.invocationCallOrder.at(-1)!,
+                );
+            }
+            const restore = {
+                indexCatalog: vi
+                    .fn()
+                    .mockResolvedValue({ catalogFieldMap: {} }),
+                getCatalogItemsSummary: vi
+                    .fn()
+                    .mockResolvedValue([
+                        { ...item, catalogSearchUuid: 'new-catalog' },
+                    ]),
+                migrateCatalogItemTags: vi.fn(),
+                updateCatalogItemIcon: vi.fn(),
+                migrateMetricsTreeEdges: vi.fn(),
+                migrateMetricsTreeNodes: vi.fn(),
+                setChartUsages: vi.fn(),
+            };
+            const catalogService = new CatalogService({
+                lightdashConfig: lightdashConfigWithGoogleOAuthMock,
+                analytics: analyticsMock,
+                projectModel: {
+                    getSummary: vi.fn().mockResolvedValue(projectSummary),
+                    findExploresFromCache: vi.fn().mockResolvedValue({}),
+                    getCachedExploreStorageBytes: vi.fn().mockResolvedValue(1),
+                },
+                catalogModel: restore,
+                tagsModel: { getYamlTags: vi.fn().mockResolvedValue([]) },
+                savedChartModel: {
+                    getChartCountPerField: vi.fn().mockResolvedValue([]),
+                },
+            } as never);
+            const task = new SchedulerTask({
+                catalogService,
+                schedulerService: { logSchedulerJob: vi.fn() },
+                getAgentConnectionGrantService: () => ({
+                    assertActiveExecution,
+                }),
+            } as never);
+            assertActiveExecution.mockClear();
+            await task['indexCatalog'](
+                'index-job',
+                new Date(),
+                structuredClone(queued[0]),
+            );
+            expect(assertActiveExecution).not.toHaveBeenCalled();
+            expect(restore.migrateCatalogItemTags).toHaveBeenCalledWith([
+                {
+                    catalog_search_uuid: 'new-catalog',
+                    tag_uuid: 'tag-1',
+                    created_by_user_uuid: compileUser.userUuid,
+                    created_at: tag.createdAt,
+                    is_from_yaml: false,
+                },
+            ]);
+            expect(restore.updateCatalogItemIcon).toHaveBeenCalledWith([
+                { catalogSearchUuid: 'new-catalog', icon: 'chart' },
+            ]);
+            expect(restore.migrateMetricsTreeEdges).toHaveBeenCalledWith([
+                {
+                    source_metric_catalog_search_uuid: 'new-catalog',
+                    target_metric_catalog_search_uuid: 'new-catalog',
+                    created_by_user_uuid: compileUser.userUuid,
+                    project_uuid: 'projectUuid',
+                    source: 'ui',
+                },
+            ]);
+            expect(restore.migrateMetricsTreeNodes).toHaveBeenCalledWith([
+                {
+                    metrics_tree_uuid: 'tree-1',
+                    catalog_search_uuid: 'new-catalog',
+                    x_position: 12,
+                    y_position: 34,
+                    source: 'ui',
+                    created_at: tag.createdAt,
+                },
+            ]);
+            projectModel.saveExploresToCache
+                .mockReset()
+                .mockResolvedValue({ cachedExploreUuids: [] });
+            projectModel.saveExploreStreamToCache
+                .mockReset()
+                .mockResolvedValue({ cachedExploreUuids: [] });
+        },
+    );
+
     it.each([
         'success',
         'recurring',
@@ -14887,9 +15245,8 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                     projectModel.saveExploreStreamToCache,
                 ).toHaveBeenCalled();
                 expect(schedulerClient.indexCatalog).toHaveBeenCalledWith(
-                    expect.objectContaining({
-                        agentConnectionExecution: execution,
-                        agentConnectionEffect: 'indexCatalog',
+                    expect.not.objectContaining({
+                        agentConnectionExecution: expect.anything(),
                     }),
                 );
             } else {

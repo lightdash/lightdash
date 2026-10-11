@@ -200,7 +200,7 @@ describe('PreAggregateMaterializationService', () => {
                         return 456789;
                     },
                 );
-            const result = await service.materializePreAggregate({
+            const resultPromise = service.materializePreAggregate({
                 account: {} as Account,
                 projectUuid: 'project-1',
                 preAggregateDefinitionUuid: 'def-1',
@@ -208,7 +208,9 @@ describe('PreAggregateMaterializationService', () => {
                 beforeEffect,
             });
             if (revoked) {
-                expect(result.status).toBe('failed');
+                await expect(resultPromise).rejects.toThrow(
+                    'revoked before publication',
+                );
                 expect(
                     preAggregateResultsStorageClient.uploadResults,
                 ).not.toHaveBeenCalled();
@@ -217,6 +219,7 @@ describe('PreAggregateMaterializationService', () => {
                 ).not.toHaveBeenCalled();
                 return;
             }
+            const result = await resultPromise;
             expect(beforeEffect).toHaveBeenCalledTimes(5);
 
             expect(result).toEqual({
