@@ -15,8 +15,37 @@ export const responseRecord = (value: unknown): Record<string, unknown> => {
         throw new Error('The server returned invalid connection data.');
     return Object.fromEntries(Object.entries(value));
 };
+export const publicTextIsSafe = (
+    value: string,
+    secrets: readonly (string | null | undefined)[],
+): boolean => {
+    const containsSecret = (text: string) =>
+        secrets.some((secret) => secret && text.includes(secret));
+    let decoded = value;
+    for (let round = 0; round < 8; round += 1) {
+        if (containsSecret(decoded)) return false;
+        if (URL.canParse(decoded)) {
+            const url = new URL(decoded);
+            if (
+                containsSecret(url.href) ||
+                [...url.searchParams].some(
+                    ([key, item]) =>
+                        containsSecret(key) || containsSecret(item),
+                )
+            )
+                return false;
+        }
+        const next = decoded.replace(/(?:%[0-9a-f]{2})+/gi, (encoded) =>
+            Buffer.from(encoded.replaceAll('%', ''), 'hex').toString('utf8'),
+        );
+        if (next === decoded) return true;
+        decoded = next;
+    }
+    return false;
+};
 export const publicConnectionReport = (
     slot: AgentConnectionSlot,
+    extraSecrets: readonly (string | null | undefined)[] = [],
 ): AgentConnectionSlot['lastReported'] => ({
     checkedAt: slot.lastReported.checkedAt,
     status: slot.lastReported.status,
@@ -25,11 +54,15 @@ export const publicConnectionReport = (
     revokedAt: slot.lastReported.revokedAt,
     approvedProjects: slot.lastReported.approvedProjects.map((project) => ({
         projectUuid: project.projectUuid,
-        name: [slot.tokens.accessToken, slot.tokens.refreshToken].some(
-            (secret) => project.name?.includes(secret),
-        )
-            ? null
-            : project.name,
+        name:
+            project.name !== null &&
+            !publicTextIsSafe(project.name, [
+                slot.tokens.accessToken,
+                slot.tokens.refreshToken,
+                ...extraSecrets,
+            ])
+                ? null
+                : project.name,
         approvedCapabilities: project.approvedCapabilities,
     })),
     effectiveProjects: slot.lastReported.effectiveProjects.map((project) => ({
@@ -45,6 +78,7 @@ export const connectionResponse = (
     value: unknown,
     slot: AgentConnectionSlot,
     requireEffective: boolean,
+    extraSecrets?: readonly (string | null | undefined)[],
 ): AgentConnectionSlot => {
     const envelope = responseRecord(value);
     if (envelope.status !== 'ok')
@@ -105,6 +139,7 @@ export const connectionResponse = (
     )
         throw new Error('The server returned invalid revocation data.');
     if (
+        extraSecrets === undefined &&
         checked.lastReported.approvedProjects.some(
             (project) =>
                 project.name !== null &&
@@ -114,7 +149,10 @@ export const connectionResponse = (
         )
     )
         throw new Error('The server returned unsafe connection data.');
-    return { ...checked, lastReported: publicConnectionReport(checked) };
+    return {
+        ...checked,
+        lastReported: publicConnectionReport(checked, extraSecrets),
+    };
 };
 export const statusReasonMessage = (
     reason: AgentConnectionStatusReason | null,

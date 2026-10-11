@@ -2,12 +2,15 @@ import { Option, type Command } from 'commander';
 
 export const registerAgentConnectionConnect = (
     command: Command,
-    legacyHandler: (options: {
-        verbose: boolean;
-        project?: string;
-        oauthPort?: number;
-        timeout?: number;
-    }) => Promise<void>,
+    legacyHandler: (
+        options: {
+            verbose: boolean;
+            project?: string;
+            oauthPort?: number;
+            timeout?: number;
+        },
+        command: Command,
+    ) => Promise<void>,
 ): void => {
     command
         .addOption(
@@ -46,39 +49,44 @@ export const registerAgentConnectionConnect = (
     command.on('option:oauth-port', (value: string) =>
         command.setOptionValue('connectionOauthPort', value),
     );
-    command.action(
-        async (options: {
-            verbose: boolean;
-            project?: string;
-            oauthPort?: number;
-            timeout?: number;
-            name?: string;
-            capabilities?: string;
-            expiresIn?: string;
-            connection?: boolean;
-            connectionProjects?: string[];
-            connectionOauthPort?: string;
-        }) => {
-            if (
-                options.name !== undefined ||
-                options.capabilities !== undefined ||
-                options.expiresIn !== undefined ||
-                options.connection
-            ) {
-                const { agentConnectionConnectHandler } =
-                    await import('./handlers/agentConnectionConnect');
-                await agentConnectionConnectHandler({
-                    verbose: options.verbose,
-                    name: options.name,
-                    capabilities: options.capabilities,
-                    expiresIn: options.expiresIn,
-                    projects: options.connectionProjects,
-                    oauthPort: options.connectionOauthPort,
-                    timeout: options.timeout,
-                });
-            } else {
-                await legacyHandler(options);
-            }
-        },
-    );
+    command.action(function dispatch(
+        this: Command,
+        ...args: [
+            options: {
+                verbose: boolean;
+                project?: string;
+                oauthPort?: number;
+                timeout?: number;
+                name?: string;
+                capabilities?: string;
+                expiresIn?: string;
+                connection?: boolean;
+                connectionProjects?: string[];
+                connectionOauthPort?: string;
+            },
+            command: Command,
+        ]
+    ) {
+        const [options] = args;
+        if (
+            options.name !== undefined ||
+            options.capabilities !== undefined ||
+            options.expiresIn !== undefined ||
+            options.connection
+        ) {
+            return import('./handlers/agentConnectionConnect').then(
+                ({ agentConnectionConnectHandler }) =>
+                    agentConnectionConnectHandler({
+                        verbose: options.verbose,
+                        name: options.name,
+                        capabilities: options.capabilities,
+                        expiresIn: options.expiresIn,
+                        projects: options.connectionProjects,
+                        oauthPort: options.connectionOauthPort,
+                        timeout: options.timeout,
+                    }),
+            );
+        }
+        return legacyHandler.apply(this, args);
+    });
 };

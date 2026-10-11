@@ -280,3 +280,83 @@ it('uses the instance sub-path for refresh and both proofs', async () => {
         `https://example.com/lightdash/api/v2/user/agent-connections/${slot.grantUuid}/status`,
     ]);
 });
+
+it.each(['selected', 'status', 'revoke'] as const)(
+    'removes a different-grant journal under lock for %s',
+    async (kind) => {
+        await store.saveSlot(slot);
+        await store.withLock((locked) =>
+            locked.writeJournal(slot, {
+                grantUuid: '55555555-5555-4555-8555-555555555555',
+                attemptUuid: 'attempt',
+                generation: 1,
+            }),
+        );
+        const provider = new AgentTokenProvider(store);
+        const result =
+            kind === 'selected'
+                ? await provider.getToken(slot)
+                : await provider.getLifecycleToken(
+                      slot,
+                      {
+                          kind,
+                          grantUuid: slot.grantUuid,
+                          generation: slot.tokens.generation,
+                      },
+                      null,
+                      null,
+                  );
+        expect(result.grantUuid).toBe(slot.grantUuid);
+        expect(
+            (await fs.readdir(directory)).some((file) =>
+                file.endsWith('.journal'),
+            ),
+        ).toBe(false);
+        expect((await store.readSlot(slot))?.refreshState.kind).toBe('idle');
+    },
+);
+it('keeps a journal without a grant UUID conservative', async () => {
+    await store.saveSlot(slot);
+    await store.withLock((locked) =>
+        locked.writeJournal(slot, {
+            grantUuid: slot.grantUuid,
+            attemptUuid: 'attempt',
+            generation: 1,
+        }),
+    );
+    const journal = (await fs.readdir(directory)).find((file) =>
+        file.endsWith('.journal'),
+    )!;
+    await fs.writeFile(
+        path.join(directory, journal),
+        JSON.stringify({ attemptUuid: 'attempt', generation: 1 }),
+    );
+    await expect(new AgentTokenProvider(store).getToken(slot)).rejects.toThrow(
+        'Reconnect',
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+});
+
+it('retains reconnect behaviour when a same-grant journal cannot be read', async () => {
+    await store.saveSlot(slot);
+    await store.withLock((locked) =>
+        locked.writeJournal(slot, {
+            grantUuid: slot.grantUuid,
+            attemptUuid: 'attempt',
+            generation: 1,
+        }),
+    );
+    const { chmod } = fs;
+    vi.spyOn(fs, 'chmod').mockImplementation(async (...args) => {
+        if (String(args[0]).endsWith('.journal'))
+            throw new Error('unreadable journal');
+        return chmod(...args);
+    });
+    await expect(new AgentTokenProvider(store).getToken(slot)).rejects.toThrow(
+        'Reconnect',
+    );
+    expect((await store.readSlot(slot))?.refreshState.kind).toBe(
+        'reconnect_required',
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+});

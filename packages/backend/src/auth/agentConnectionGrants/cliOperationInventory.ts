@@ -51,49 +51,49 @@ const external = (
 export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryEntry[] =
     [
         external(
-            'agentConnections/personalRecovery.ts:87',
+            'agentConnections/personalRecovery.ts:91',
             'GET',
             'request',
             'Personal recovery wrapper forwards the captured credential and request unchanged; its callers verify matching person and organisation before revocation. No retry or redirect is allowed.',
         ),
         external(
-            'agentConnections/initialToken.ts:30',
+            'agentConnections/initialToken.ts:31',
             'POST',
             "'/api/v1/oauth/token'",
             'OAuth protocol initial code exchange for explicit connection approval only. The returned Bearer must prove its own grant and person before storage; no ordinary OAuth or PAT fallback exists.',
         ),
         allowed(
-            'handlers/agentConnectionConnect.ts:138',
+            'handlers/agentConnectionConnect.ts:145',
             'GET',
             "'/api/v1/user'",
             ['UserController.getAuthenticatedUser'],
         ),
         external(
-            'handlers/agentConnectionConnect.ts:165',
+            'handlers/agentConnectionConnect.ts:172',
             'POST',
             "'/api/v2/user/agent-connections/requests'",
             'Personal bootstrap only; global agent selection is refused before this POST. The future request route is absent from the server and has no live operation id. This call cannot approve or issue a connection.',
         ),
         external(
-            'handlers/agentConnectionConnect.ts:260',
+            'handlers/agentConnectionConnect.ts:274',
             'GET',
             '`/api/v2/user/agent-connections/${exchanged.grantUuid}/status`',
             'Own-connection lifecycle binding proof with only the returned Bearer: AgentConnectionController.getConnectionStatus is recorded in CLI_CONNECTION_LIFECYCLE_OPERATIONS.',
         ),
         allowed(
-            'handlers/agentConnectionConnect.ts:314',
+            'handlers/agentConnectionConnect.ts:347',
             'GET',
             '`/api/v1/projects/${project.projectUuid}`',
             ['ProjectController.getProject'],
         ),
         allowed(
-            'handlers/agentConnectionConnect.ts:334',
+            'handlers/agentConnectionConnect.ts:367',
             'GET',
             "'/api/v1/user'",
             ['UserController.getAuthenticatedUser'],
         ),
         external(
-            'handlers/agentConnectionConnect.ts:368',
+            'handlers/agentConnectionConnect.ts:420',
             'GET',
             'url',
             'Warehouse readiness transport forwards only approved-project reads from the existing inventoried reader, with the just-verified Bearer and captured instance. It never resolves or sends a personal login.',
@@ -105,7 +105,7 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'Selected provider transport forwards the method and applies the shared instance API join rule. Authorization is recorded at its inventoried identity, own-status and refresh callers.',
         ),
         external(
-            'agentConnections/personalRecovery.ts:56',
+            'agentConnections/personalRecovery.ts:60',
             'GET',
             'agentConnectionApiUrl(instanceUrl, url)',
             'Explicit personal recovery forwards the method and captured headers through the shared instance API join. Its inventoried callers verify the person and organisation before revoking the bound connection.',
@@ -156,7 +156,7 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'Own-connection lifecycle transport: AgentConnectionController.getConnectionStatus is recorded in CLI_CONNECTION_LIFECYCLE_OPERATIONS, outside the project capability inventory.',
         ),
         external(
-            'agentConnections/agentTokenProvider.ts:267',
+            'agentConnections/agentTokenProvider.ts:268',
             'POST',
             '`${slot.instanceUrl}/api/v1/oauth/token`',
             'OAuth protocol refresh only: this token endpoint call sends grant_type=refresh_token for an existing connection, never an initial grant. It is outside the REST capability inventory.',

@@ -23,6 +23,7 @@ import {
 import { validateSlot } from '../agentConnections/schema';
 import {
     connectionResponse,
+    publicTextIsSafe,
     responseRecord,
 } from '../agentConnections/statusResponse';
 import { AgentConnectionStore } from '../agentConnections/store';
@@ -35,6 +36,8 @@ import { createConnectionLoopback } from './login/loopback';
 
 const couldNotStart =
     'Could not start agent connection approval. No credential was saved. Try again when the server is available.';
+const existingConnection =
+    'The server returned the existing agent connection instead of a new one. No credential was saved.';
 const unchanged =
     'No agent connection credential was saved. Your personal CLI login is unchanged.';
 class ApprovalStartError extends Error {}
@@ -128,10 +131,14 @@ export const agentConnectionConnectHandler = async (
     let phase: 'start' | 'callback' | 'proof' | 'save' = 'start';
     let instance: string | null = null;
     let saved = false;
+    const secrets: (string | null | undefined)[] = [];
+    const safeText = (value: string) =>
+        publicTextIsSafe(value, secrets) ? value : 'Name unavailable';
     try {
         const config = await getConfig({ readOnly: true });
         const bootstrap = capturePersonalBootstrap(config);
         instance = bootstrap.instanceUrl;
+        secrets.push(...bootstrap.publicSecrets);
         const { signal } = controller;
         const person = personIdentity(
             await requestResults(
@@ -148,7 +155,7 @@ export const agentConnectionConnectHandler = async (
         const previous = await store.readSlot(key);
         if (previous)
             console.error(
-                `Replacing agent connection slot ${input.name}. The old credential stays until the new approval is verified. The old connection will not be revoked.`,
+                `Replacing agent connection slot ${safeText(input.name)}. The old credential stays until the new approval is verified. The old connection will not be revoked.`,
             );
         const state = randomBytes(32).toString('base64url');
         const verifier = randomBytes(32).toString('base64url');
@@ -201,13 +208,14 @@ export const agentConnectionConnectHandler = async (
         );
         const destination = new URL(authorizationUrl);
         if (
+            !bootstrap.publicTextIsSafe(authorizationUrl) ||
             destination.pathname !==
                 new URL(`${instance}/api/v1/oauth/authorize`).pathname ||
             destination.hash
         )
             throw new ApprovalStartError(couldNotStart);
         console.error(
-            `Open this page to approve ${input.name}:\n${authorizationUrl}`,
+            `Open this page to approve the agent connection:\n${authorizationUrl}`,
         );
         console.error('Waiting for browser approval and warehouse setup...');
         phase = 'callback';
@@ -250,6 +258,12 @@ export const agentConnectionConnectHandler = async (
             signal,
             proxyAuthorization: bootstrap.proxyAuthorization,
         });
+        secrets.push(
+            exchanged.tokens.accessToken,
+            exchanged.tokens.refreshToken,
+        );
+        if (previous?.grantUuid === exchanged.grantUuid)
+            throw new ConnectionProofError(existingConnection);
         const fetch = createAgentConnectionFetch(instance);
         const headers = {
             Authorization: `Bearer ${exchanged.tokens.accessToken}`,
@@ -265,10 +279,29 @@ export const agentConnectionConnectHandler = async (
         const statusValue: unknown = await statusResponse.json();
         const statusEnvelope = responseRecord(statusValue);
         const status = responseRecord(statusEnvelope.results);
+        const grantDeadline =
+            typeof status.expiresAt === 'string'
+                ? Date.parse(status.expiresAt)
+                : NaN;
+        if (!Number.isFinite(grantDeadline)) throw new ConnectionProofError();
+        const clipDeadline = (value: string) =>
+            new Date(Math.min(Date.parse(value), grantDeadline)).toISOString();
         const slot = validateSlot(
             {
                 ...key,
                 ...exchanged,
+                tokens: {
+                    ...exchanged.tokens,
+                    accessTokenExpiresAt: clipDeadline(
+                        exchanged.tokens.accessTokenExpiresAt,
+                    ),
+                    refreshTokenExpiresAt:
+                        exchanged.tokens.refreshTokenExpiresAt === null
+                            ? null
+                            : clipDeadline(
+                                  exchanged.tokens.refreshTokenExpiresAt,
+                              ),
+                },
                 clientId: 'lightdash-cli',
                 resource: instance,
                 approvedAt: status.approvedAt,
@@ -287,7 +320,7 @@ export const agentConnectionConnectHandler = async (
             },
             key,
         );
-        const verified = connectionResponse(statusValue, slot, true);
+        const verified = connectionResponse(statusValue, slot, true, secrets);
         if (
             verified.lastReported.status !== 'active' ||
             verified.lastReported.limitsStatus !== 'ok' ||
@@ -345,11 +378,30 @@ export const agentConnectionConnectHandler = async (
         )
             throw new ConnectionProofError();
         phase = 'save';
-        await store.saveSlot(verified);
+        const outcome = await store.saveSlot(verified, (current) => {
+            if (signal.aborted || deadline <= Date.now())
+                throw new ConnectionProofError(
+                    'Agent connection approval timed out or was cancelled. No credential was saved.',
+                );
+            if (Date.parse(verified.grantExpiresAt) <= Date.now())
+                throw new ConnectionProofError(
+                    'The agent connection expired. No credential was saved.',
+                );
+            if (approvalDeadline <= Date.now())
+                throw new ConnectionProofError(
+                    'The approval transaction expired. No credential was saved.',
+                );
+            if (current?.grantUuid === verified.grantUuid)
+                throw new ConnectionProofError(existingConnection);
+        });
         saved = true;
-        console.error(`Agent connection saved: ${input.name}`);
+        console.error(`Agent connection saved: ${safeText(verified.name)}`);
+        if (outcome.cleanupIncomplete)
+            console.error(
+                `The credential was saved, but local clean-up did not finish. Run lightdash agent status --name ${safeText(verified.name)} to check it.`,
+            );
         console.error(
-            `Projects: ${verified.lastReported.approvedProjects.map((project) => project.name ?? project.projectUuid).join(', ') || 'None'}`,
+            `Projects: ${verified.lastReported.approvedProjects.map((project) => safeText(project.name ?? 'Name unavailable')).join(', ') || 'None'}`,
         );
         const actions = [
             ...new Set(
@@ -361,7 +413,7 @@ export const agentConnectionConnectHandler = async (
         console.error(
             `Approved actions: ${actions.map((capability) => AGENT_CAPABILITY_DEFINITIONS[capability].name).join(', ') || 'None'}`,
         );
-        console.error(`Expires: ${verified.grantExpiresAt}`);
+        console.error(`Expires: ${safeText(verified.grantExpiresAt)}`);
         const warehouse = await readWarehouseStatus(
             verified,
             async ({ url, method, signal: warehouseSignal }) =>
@@ -385,9 +437,9 @@ export const agentConnectionConnectHandler = async (
                 'Default warehouse connection checked; review additional connections in the app.',
             );
         console.error(
-            `Use: lightdash --agent-connection ${input.name} <command>`,
+            `Use: lightdash --agent-connection ${safeText(verified.name)} <command>`,
         );
-        console.error(`Settings: ${settingsUrl(instance)}`);
+        console.error(`Settings: ${safeText(settingsUrl(instance))}`);
         process.exitCode = 0;
     } catch (error) {
         stopWaiting();
@@ -410,11 +462,11 @@ export const agentConnectionConnectHandler = async (
         else if (phase === 'save')
             message =
                 'Could not save the agent connection credential. Your personal CLI login is unchanged.';
-        console.error(message);
+        console.error(safeText(message));
         console.error(unchanged);
         if (instance !== null)
             console.error(
-                `Manage warehouse agent sign-ins in the app:\n${settingsUrl(instance)}`,
+                `Manage warehouse agent sign-ins in the app:\n${safeText(settingsUrl(instance))}`,
             );
         process.exitCode = 1;
     } finally {

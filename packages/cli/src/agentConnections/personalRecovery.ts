@@ -4,6 +4,7 @@ import { humanCredential } from '../credentials';
 import { buildRequestHeaders } from '../handlers/utils';
 import { agentConnectionApiUrl } from './apiUrl';
 import { canonicalInstanceUrl, type AgentConnectionSlot } from './schema';
+import { publicTextIsSafe } from './statusResponse';
 
 export class PersonalRecoveryError extends Error {
     constructor(mode: 'recovery' | 'bootstrap' = 'recovery') {
@@ -35,13 +36,16 @@ const capturePersonalTransport = (config: Config) => {
         return {
             instanceUrl: canonical,
             proxyAuthorization: headers['Proxy-Authorization'] ?? null,
-            publicTextIsSafe: (value: string) =>
-                [token, headers['Proxy-Authorization']].every(
-                    (secret) =>
-                        !secret ||
-                        (!value.includes(secret) &&
-                            !value.includes(encodeURIComponent(secret))),
-                ),
+            publicTextIsSafe: (
+                value: string,
+                extraSecrets: readonly string[] = [],
+            ) =>
+                publicTextIsSafe(value, [
+                    token,
+                    headers['Proxy-Authorization'],
+                    ...extraSecrets,
+                ]),
+            publicSecrets: [token, headers['Proxy-Authorization']],
             fetch: async ({
                 method,
                 url,

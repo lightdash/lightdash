@@ -4,6 +4,8 @@ import { createServer, Server } from 'http';
 import fetch from 'node-fetch';
 import { tmpdir } from 'os';
 import path from 'path';
+import { AgentTokenProvider } from '../agentConnections/agentTokenProvider';
+import { acquireLock } from '../agentConnections/configLock';
 import { slotFixture } from '../agentConnections/fixtures';
 import { AgentConnectionStore } from '../agentConnections/store';
 import { getConfig } from '../config';
@@ -265,6 +267,7 @@ afterEach(async () => {
     await fs.rm(directory, { recursive: true, force: true });
     process.exitCode = oldExitCode;
     GlobalState.setNonInteractive(false);
+    vi.useRealTimers();
     vi.restoreAllMocks();
     vi.clearAllMocks();
     vi.unstubAllEnvs();
@@ -1011,4 +1014,269 @@ it('updates and stops the interactive countdown while waiting for approval', asy
         else Reflect.deleteProperty(process.stderr, 'isTTY');
         GlobalState.getActiveSpinner()?.stop();
     }
+});
+
+const existingGrant = '66666666-6666-4666-8666-666666666666';
+const existingConnection = () => ({
+    ...key(),
+    resource: instance,
+    grantUuid: existingGrant,
+});
+const existingRefused =
+    'The server returned the existing agent connection instead of a new one. No credential was saved.';
+it.each([60, 100000])(
+    'clips token lifetimes of %s seconds to the grant after a delayed exchange',
+    async (lifetime) => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        const started = Date.now();
+        status.approvedAt = new Date(started).toISOString();
+        status.expiresAt = new Date(started + 60000).toISOString();
+        token.expires_in = lifetime;
+        token.refresh_expires_in = lifetime;
+        server.prependListener('request', (req) => {
+            if (req.url?.endsWith('/oauth/token'))
+                vi.setSystemTime(started + 150);
+        });
+        await run({ expiresIn: '60s' });
+        expect(process.exitCode).toBe(0);
+        const saved = await new AgentConnectionStore().readSlot(key());
+        expect(saved?.tokens.accessTokenExpiresAt).toBe(status.expiresAt);
+        expect(saved?.tokens.refreshTokenExpiresAt).toBe(status.expiresAt);
+    },
+);
+it('bases shorter token deadlines on exchange start, never response receipt', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const started = Date.now();
+    token.refresh_expires_in = 600;
+    server.prependListener('request', (req) => {
+        if (req.url?.endsWith('/oauth/token')) vi.setSystemTime(started + 150);
+    });
+    await run();
+    const saved = await new AgentConnectionStore().readSlot(key());
+    expect(saved?.tokens.accessTokenExpiresAt).toBe(
+        new Date(started + 300000).toISOString(),
+    );
+    expect(saved?.tokens.refreshTokenExpiresAt).toBe(
+        new Date(started + 600000).toISOString(),
+    );
+});
+it('refuses an existing grant hint before proof requests', async () => {
+    const store = new AgentConnectionStore();
+    await store.saveSlot({ ...key(), resource: instance });
+    const before = await fs.readFile(store.filePath, 'utf8');
+    await run();
+    expect(process.exitCode).toBe(1);
+    expect(output()).toContain(existingRefused);
+    expect(calls.some((call) => call.url.endsWith('/status'))).toBe(false);
+    expect(await fs.readFile(store.filePath, 'utf8')).toBe(before);
+});
+it.each(['signal', 'timer', 'approval', 'grant', 'same-grant'])(
+    'checks %s inside the save lock after another writer releases it',
+    async (variant) => {
+        const store = new AgentConnectionStore();
+        await store.saveSlot(existingConnection());
+        let before = await fs.readFile(store.filePath, 'utf8');
+        const release = await acquireLock(`${store.filePath}.lock`);
+        const save = AgentConnectionStore.prototype.saveSlot;
+        let reached!: () => void;
+        const waiting = new Promise<void>((resolve) => {
+            reached = resolve;
+        });
+        vi.spyOn(AgentConnectionStore.prototype, 'saveSlot').mockImplementation(
+            function saveWithWait(this: AgentConnectionStore, ...args) {
+                const result = save.apply(this, args);
+                reached();
+                return result;
+            },
+        );
+        vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
+        const completion = run({ timeout: variant === 'timer' ? 180 : 7200 });
+        await waiting;
+        if (variant === 'same-grant') {
+            await fs.writeFile(
+                store.filePath,
+                before.replace(existingGrant, key().grantUuid),
+            );
+            before = await fs.readFile(store.filePath, 'utf8');
+        } else if (variant === 'signal') process.emit('SIGINT');
+        else if (variant === 'timer') await vi.advanceTimersByTimeAsync(180001);
+        else
+            vi.setSystemTime(
+                Date.now() + (variant === 'approval' ? 60001 : 3600001),
+            );
+        await release();
+        let completed = false;
+        void completion.then(() => {
+            completed = true;
+        });
+        await vi.waitFor(() => expect(completed).toBe(true));
+        await completion;
+        expect(process.exitCode).toBe(1);
+        const messages = {
+            'same-grant': existingRefused,
+            grant: 'The agent connection expired. No credential was saved.',
+            approval:
+                'The approval transaction expired. No credential was saved.',
+            signal: 'Agent connection approval timed out or was cancelled. No credential was saved.',
+            timer: 'Agent connection approval timed out or was cancelled. No credential was saved.',
+        };
+        expect(output()).toContain(messages[variant as keyof typeof messages]);
+        expect(output()).not.toContain('Agent connection saved:');
+        expect(await fs.readFile(store.filePath, 'utf8')).toBe(before);
+    },
+);
+it.each(['journal', 'directory', 'release', 'cancel-after-commit'])(
+    'reports the committed slot after %s and permits the next selected use',
+    async (fault) => {
+        const store = new AgentConnectionStore();
+        const old = existingConnection();
+        await store.saveSlot(old);
+        await store.withLock(async (locked) =>
+            locked.writeJournal(old, {
+                grantUuid: old.grantUuid,
+                attemptUuid: projectUuid,
+                generation: 1,
+            }),
+        );
+        const { unlink, open, rename } = fs;
+        let committed = false;
+        vi.spyOn(fs, 'rename').mockImplementation(async (...args) => {
+            await rename(...args);
+            if (args[1] === store.filePath) {
+                committed = true;
+                if (fault === 'cancel-after-commit') process.emit('SIGINT');
+            }
+        });
+        vi.spyOn(fs, 'unlink').mockImplementation(async (file) => {
+            if (
+                committed &&
+                ((fault === 'journal' && String(file).endsWith('.journal')) ||
+                    (fault === 'release' && String(file).endsWith('.lock')))
+            )
+                throw new Error('cleanup failed');
+            return unlink(file);
+        });
+        vi.spyOn(fs, 'open').mockImplementation(async (...args) => {
+            const handle = await open(...args);
+            if (committed && fault === 'directory' && args[0] === directory)
+                vi.spyOn(handle, 'sync').mockRejectedValue(
+                    new Error('directory sync failed'),
+                );
+            return handle;
+        });
+        await run();
+        expect(process.exitCode).toBe(0);
+        expect(output()).toContain('Agent connection saved: default');
+        expect(output()).not.toContain(unchanged);
+        if (fault !== 'cancel-after-commit')
+            expect(output()).toContain(
+                'The credential was saved, but local clean-up did not finish. Run lightdash agent status --name default to check it.',
+            );
+        expect((await store.readSlot(key()))?.grantUuid).toBe(key().grantUuid);
+        vi.mocked(fs.open).mockRestore();
+        vi.mocked(fs.unlink).mockRestore();
+        vi.mocked(fs.rename).mockRestore();
+        if (fault === 'release') await fs.unlink(`${store.filePath}.lock`);
+        expect(
+            (await new AgentTokenProvider(store).getToken(key())).grantUuid,
+        ).toBe(key().grantUuid);
+        expect(
+            (await fs.readdir(directory)).some((file) =>
+                file.endsWith('.journal'),
+            ),
+        ).toBe(false);
+    },
+);
+it.each([
+    '%70ersonal-key',
+    '%2570ersonal-key',
+    'personal%2dkey',
+    'personal%2Dkey',
+    '%70ersonal-proxy',
+    '%2570ersonal-proxy',
+])(
+    'refuses reflected approval URL secret %s before output or launch',
+    async (echo) => {
+        requestReply = {
+            status: 'ok',
+            results: {
+                authorizationUrl: `${instance}/api/v1/oauth/authorize?approval_request=${echo}`,
+                issuer: instance,
+                resource: instance,
+                expiresAt: new Date(Date.now() + 60000).toISOString(),
+            },
+        };
+        await run();
+        expect(process.exitCode).toBe(1);
+        expect(output()).toContain(failed);
+        expect(output()).not.toContain(echo);
+        expect(launcher).not.toHaveBeenCalled();
+        await noSave();
+    },
+);
+it.each([
+    'personal-key',
+    '%70ersonal-key',
+    '%2570ersonal-key',
+    'personal%2dkey',
+    'personal%2Dkey',
+    'personal-proxy',
+    '%2570ersonal-proxy',
+    'private-access',
+    '%2570rivate-refresh',
+])(
+    'replaces a reflected project secret %s with a neutral name after saving',
+    async (echo) => {
+        status.approvedProjects = [
+            {
+                projectUuid,
+                name: echo,
+                approvedCapabilities: [
+                    AgentCapability.ReadDiscover,
+                    AgentCapability.Query,
+                ],
+            },
+        ];
+        await run();
+        expect(process.exitCode).toBe(0);
+        expect(output()).toContain('Agent connection saved: default');
+        expect(output()).toContain('Projects: Name unavailable');
+        expect(output()).not.toContain(echo);
+        expect(await new AgentConnectionStore().readSlot(key())).not.toBeNull();
+    },
+);
+it.each([
+    'personal-key',
+    'personal-proxy',
+    'private-access',
+    'private-refresh',
+])(
+    'screens the echoed slot name and selection command for %s',
+    async (echo) => {
+        status.name = echo;
+        await run({ name: echo });
+        expect(process.exitCode).toBe(0);
+        expect(output()).not.toContain(echo);
+        expect(output()).toContain('Agent connection saved: Name unavailable');
+    },
+);
+
+it('screens the settings link on failure with the captured bootstrap secret', async () => {
+    vi.mocked(getConfig).mockResolvedValue({
+        context: { serverUrl: instance, apiKey: 'lightdash' },
+    });
+    requestCode = 404;
+    await run();
+    expect(process.exitCode).toBe(1);
+    expect(output()).toContain(unavailable);
+    expect(output()).toContain(
+        'Manage warehouse agent sign-ins in the app:\nName unavailable',
+    );
+    expect(output()).not.toContain(instance);
+});
+it('screens the settings link after save with the newly returned token', async () => {
+    token.access_token = 'lightdash';
+    await run();
+    expect(process.exitCode).toBe(0);
+    expect(output()).toContain('Settings: Name unavailable');
 });

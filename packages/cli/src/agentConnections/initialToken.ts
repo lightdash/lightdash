@@ -27,6 +27,7 @@ export const exchangeInitialConnectionToken = async ({
     proxyAuthorization: string | null;
 }) => {
     const fetch = createAgentConnectionFetch(instanceUrl);
+    const startedAt = Date.now();
     const response = await fetch('/api/v1/oauth/token', {
         method: 'POST',
         headers: {
@@ -93,18 +94,21 @@ export const exchangeInitialConnectionToken = async ({
         (token.issuer !== undefined && token.issuer !== instanceUrl)
     )
         throw new ConnectionProofError();
-    const now = Date.now();
     return {
         grantUuid: hint,
         grantRevision: revision,
         tokens: {
             accessToken: token.access_token,
             refreshToken: token.refresh_token,
-            accessTokenExpiresAt: new Date(now + lifetime * 1000).toISOString(),
+            accessTokenExpiresAt: new Date(
+                startedAt + lifetime * 1000,
+            ).toISOString(),
             refreshTokenExpiresAt:
                 refreshLifetime === null
                     ? null
-                    : new Date(now + refreshLifetime * 1000).toISOString(),
+                    : new Date(
+                          startedAt + refreshLifetime * 1000,
+                      ).toISOString(),
             scopes: [...new Set(token.scope.split(' '))],
             generation: 1,
             lastRefreshAttemptUuid: null,

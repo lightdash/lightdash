@@ -204,6 +204,7 @@ export class AgentTokenProvider {
                 );
             let journal;
             try {
+                await locked.discardStaleJournal(slot);
                 journal = await locked.readJournal(key);
             } catch {
                 return this.reconnect(locked, slot);
@@ -362,7 +363,7 @@ export class AgentTokenProvider {
         proxyAuthorization: string | null,
     ): Promise<AgentConnectionSlot> {
         const { revocationRecovery } = await import('./lifecycle');
-        const slot = await this.store.readSlot(key);
+        const slot = await this.store.readLifecycleSlot(key);
         if (
             !slot ||
             slot.grantUuid !== operation.grantUuid ||

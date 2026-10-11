@@ -161,6 +161,7 @@ export const acquireLock = async (
 export const atomicWrite = async (
     file: string,
     contents: string,
+    commit: { beforeCommit?: () => void; onCommitted?: () => void } = {},
 ): Promise<void> => {
     await privateDirectory(path.dirname(file));
     const temporary = `${file}.${randomUUID()}.tmp`;
@@ -172,7 +173,9 @@ export const atomicWrite = async (
         } finally {
             await handle.close();
         }
+        commit.beforeCommit?.();
         await fs.rename(temporary, file);
+        commit.onCommitted?.();
         if (process.platform !== 'win32') {
             const directory = await fs.open(path.dirname(file), 'r');
             try {

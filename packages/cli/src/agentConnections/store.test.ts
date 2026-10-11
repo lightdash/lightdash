@@ -186,3 +186,63 @@ it('preserves future fields inside refresh and revoke states through transitions
         futureRevoke: 'keep',
     });
 });
+
+it('checks a save precondition after preparing the file and before rename', async () => {
+    const slot = slotFixture();
+    await store.saveSlot(slot);
+    const before = await fs.readFile(store.filePath, 'utf8');
+    let cancelled = false;
+    const { open } = fs;
+    vi.spyOn(fs, 'open').mockImplementation(async (...args) => {
+        const handle = await open(...args);
+        if (String(args[0]).endsWith('.tmp')) {
+            const sync = handle.sync.bind(handle);
+            vi.spyOn(handle, 'sync').mockImplementation(async () => {
+                await sync();
+                cancelled = true;
+            });
+        }
+        return handle;
+    });
+    try {
+        await expect(
+            store.saveSlot(
+                { ...slot, grantUuid: '44444444-4444-4444-8444-444444444444' },
+                (current) => {
+                    expect(current).toEqual(slot);
+                    if (cancelled) throw new Error('cancelled before commit');
+                },
+            ),
+        ).rejects.toThrow('cancelled before commit');
+        expect(await fs.readFile(store.filePath, 'utf8')).toBe(before);
+    } finally {
+        vi.restoreAllMocks();
+    }
+});
+it('keeps the old refresh journal if the replacement rename fails', async () => {
+    const slot = slotFixture();
+    await store.saveSlot(slot);
+    await store.withLock(async (locked) =>
+        locked.writeJournal(slot, {
+            grantUuid: slot.grantUuid,
+            generation: 1,
+            attemptUuid: 'attempt',
+        }),
+    );
+    const before = await fs.readFile(store.filePath, 'utf8');
+    vi.spyOn(fs, 'rename').mockRejectedValue(new Error('rename failed'));
+    try {
+        await expect(
+            store.saveSlot({
+                ...slot,
+                grantUuid: '44444444-4444-4444-8444-444444444444',
+            }),
+        ).rejects.toThrow();
+        expect(await fs.readFile(store.filePath, 'utf8')).toBe(before);
+        expect(
+            await store.withLock((locked) => locked.readJournal(slot)),
+        ).toMatchObject({ grantUuid: slot.grantUuid });
+    } finally {
+        vi.restoreAllMocks();
+    }
+});

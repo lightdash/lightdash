@@ -72,6 +72,7 @@ export type LockedStore = {
     readJournal: (key: SlotKey) => Promise<RefreshJournal | null>;
     writeJournal: (key: SlotKey, journal: RefreshJournal) => Promise<void>;
     clearJournal: (key: SlotKey) => Promise<void>;
+    discardStaleJournal: (slot: AgentConnectionSlot) => Promise<void>;
 };
 
 export class AgentConnectionStore {
@@ -99,7 +100,10 @@ export class AgentConnectionStore {
         return slot === undefined ? null : validateSlot(slot, key);
     }
 
-    private async saveUnlocked(slot: AgentConnectionSlot): Promise<void> {
+    private async saveUnlocked(
+        slot: AgentConnectionSlot,
+        commit: { beforeCommit?: () => void; onCommitted?: () => void } = {},
+    ): Promise<void> {
         validateSlot(slot, slot);
         const root = await this.readRoot();
         const slots = slotsFor(root, slot, true);
@@ -140,7 +144,7 @@ export class AgentConnectionStore {
             configurable: true,
             writable: true,
         });
-        await atomicWrite(this.filePath, yaml.dump(root));
+        await atomicWrite(this.filePath, yaml.dump(root), commit);
     }
 
     private journalPath(key: SlotKey): string {
@@ -157,6 +161,32 @@ export class AgentConnectionStore {
         return `${this.filePath}.${hash}.journal`;
     }
 
+    private async journalIsStale(slot: AgentConnectionSlot): Promise<boolean> {
+        try {
+            const contents = await readPrivateFile(this.journalPath(slot));
+            if (contents === null) return false;
+            const value: unknown = JSON.parse(contents);
+            const { grantUuid } = record(value);
+            return (
+                typeof grantUuid === 'string' &&
+                grantUuid.length > 0 &&
+                grantUuid !== slot.grantUuid
+            );
+        } catch {
+            return false;
+        }
+    }
+
+    async readLifecycleSlot(key: SlotKey): Promise<AgentConnectionSlot | null> {
+        const slot = await this.readSlot(key);
+        if (slot === null || !(await this.journalIsStale(slot))) return slot;
+        return this.withLock(async (locked) => {
+            const current = await locked.readSlot(key);
+            if (current !== null) await locked.discardStaleJournal(current);
+            return current;
+        });
+    }
+
     async withLock<T>(
         callback: (locked: LockedStore) => Promise<T>,
     ): Promise<T> {
@@ -165,6 +195,10 @@ export class AgentConnectionStore {
             return await callback({
                 readSlot: (key) => this.readSlot(key),
                 saveSlot: (slot) => this.saveUnlocked(slot),
+                discardStaleJournal: async (slot) => {
+                    if (await this.journalIsStale(slot))
+                        await fs.unlink(this.journalPath(slot));
+                },
                 readJournal: async (key) => {
                     const contents = await readPrivateFile(
                         this.journalPath(key),
@@ -210,13 +244,28 @@ export class AgentConnectionStore {
         }
     }
 
-    async saveSlot(slot: AgentConnectionSlot): Promise<void> {
-        await this.withLock(async (locked) => {
-            const previous = await locked.readSlot(slot);
-            await locked.saveSlot(slot);
-            if (previous && previous.grantUuid !== slot.grantUuid)
-                await locked.clearJournal(slot);
-        });
+    async saveSlot(
+        slot: AgentConnectionSlot,
+        precondition?: (previous: AgentConnectionSlot | null) => void,
+    ): Promise<{ cleanupIncomplete: boolean }> {
+        let committed = false;
+        try {
+            await this.withLock(async (locked) => {
+                const previous = await locked.readSlot(slot);
+                await this.saveUnlocked(slot, {
+                    beforeCommit: () => precondition?.(previous),
+                    onCommitted: () => {
+                        committed = true;
+                    },
+                });
+                if (previous && previous.grantUuid !== slot.grantUuid)
+                    await locked.clearJournal(slot);
+            });
+            return { cleanupIncomplete: false };
+        } catch (error) {
+            if (committed) return { cleanupIncomplete: true };
+            throw error;
+        }
     }
 
     private async update(

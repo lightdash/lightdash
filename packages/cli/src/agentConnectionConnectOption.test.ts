@@ -37,13 +37,14 @@ it.each([
     expect(legacy).not.toHaveBeenCalled();
 });
 it('keeps last-value parsing on the old path and repeated values on the new path', async () => {
-    const { root, legacy } = program();
+    const { root, legacy, connect } = program();
     await root.parseAsync(
         ['agent', 'connect', '--project', 'one', '--project', 'two'],
         { from: 'user' },
     );
     expect(legacy).toHaveBeenLastCalledWith(
         expect.objectContaining({ project: 'two' }),
+        connect,
     );
     await root.parseAsync(
         [
@@ -99,6 +100,7 @@ it('resets every new option before the next parse and retains old option values'
             oauthPort: 4321,
             verbose: true,
         }),
+        connect,
     );
     for (const key of [
         'name',
@@ -109,4 +111,23 @@ it('resets every new option before the next parse and retains old option values'
         'connectionOauthPort',
     ])
         expect(connect.getOptionValue(key)).toBeUndefined();
+});
+
+it('forwards Commander arguments, receiver and the exact legacy promise', async () => {
+    const completion = Promise.resolve();
+    const legacy = vi.fn<(...args: unknown[]) => Promise<void>>(
+        () => completion,
+    );
+    const direct = new Command().option('--verbose', '', false).action(legacy);
+    await direct.parseAsync([], { from: 'user' });
+    expect(legacy.mock.calls[0]).toEqual([direct.opts(), direct]);
+    expect(legacy.mock.contexts[0]).toBe(direct);
+    const wrapped = new Command().option('--verbose', '', false);
+    const action = vi.spyOn(wrapped, 'action');
+    registerAgentConnectionConnect(wrapped, legacy);
+    await wrapped.parseAsync([], { from: 'user' });
+    expect(legacy.mock.calls[1]).toEqual([wrapped.opts(), wrapped]);
+    expect(legacy.mock.contexts[1]).toBe(wrapped);
+    const dispatch = action.mock.calls[0][0];
+    expect(dispatch.call(wrapped, wrapped.opts(), wrapped)).toBe(completion);
 });
