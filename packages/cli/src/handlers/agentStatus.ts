@@ -1,4 +1,5 @@
 import { getConfig } from '../config';
+import { getAgentConnectionSelection } from '../credentials';
 import GlobalState from '../globalState';
 import {
     getAgentAccess,
@@ -8,8 +9,13 @@ import {
 } from './agentAccess';
 
 export const agentStatusHandler = async (
-    options: AgentOptions,
+    options: AgentOptions & { name?: string; json?: boolean },
 ): Promise<void> => {
+    if (options.name !== undefined || getAgentConnectionSelection() !== null) {
+        const { agentConnectionStatusHandler } =
+            await import('./agentConnectionStatus');
+        return agentConnectionStatusHandler(options);
+    }
     GlobalState.setVerbose(options.verbose);
     const access = await getAgentAccess(
         await resolveAgentProject(options.project),

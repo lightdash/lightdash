@@ -35,6 +35,7 @@ type LightdashApiProps = {
 };
 
 type LightdashRawApiProps = LightdashApiProps & {
+    lifecycle?: import('../../agentConnections/lifecycle').LifecycleOperation;
     headers?: Record<string, string>;
 };
 
@@ -101,8 +102,11 @@ export const lightdashRawApi = async ({
     headers: requestHeaders = {},
     signal,
     safeToRetry = false,
+    lifecycle,
 }: LightdashRawApiProps): Promise<Response> => {
     const config = await getConfig();
+    if (lifecycle && getAgentConnectionSelection() === null)
+        throw new Error('An agent connection selection is required.');
     if (getAgentConnectionSelection() !== null) {
         if (
             Object.keys(requestHeaders).some((header) =>
@@ -132,7 +136,21 @@ export const lightdashRawApi = async ({
             throw new Error(
                 'Agent connection requests must stay within the selected instance API.',
             );
-        let credential = await resolveCredential(config);
+        if (lifecycle) {
+            const statusPath = `/api/v2/user/agent-connections/${lifecycle.grantUuid}/status`;
+            const revokePath = `/api/v2/user/agent-connections/${lifecycle.grantUuid}`;
+            const validRoute =
+                lifecycle.kind === 'revoke'
+                    ? method === 'DELETE' && url === revokePath
+                    : method === 'GET' &&
+                      (url === statusPath ||
+                          /^\/api\/v2\/projects\/[a-f0-9-]+\/ai-access\/me$/.test(
+                              url,
+                          ));
+            if (!validRoute || body !== undefined)
+                throw new Error('Invalid connection lifecycle request.');
+        }
+        let credential = await resolveCredential(config, null, null, lifecycle);
         const send = async () => {
             try {
                 return await fetchWithTimeout(destination.href, {
@@ -149,6 +167,11 @@ export const lightdashRawApi = async ({
                     redirect: 'error',
                 });
             } catch {
+                if (lifecycle) {
+                    const { AgentConnectionRequestError } =
+                        await import('../../agentConnections/lifecycle');
+                    throw new AgentConnectionRequestError('unreachable');
+                }
                 throw new Error(
                     'The agent connection request failed. No request was retried.',
                 );
@@ -167,8 +190,16 @@ export const lightdashRawApi = async ({
                 config,
                 null,
                 credential.slot.tokens.generation,
+                lifecycle,
             );
             response = await send();
+        }
+        if (!response.ok && lifecycle) {
+            const { AgentConnectionRequestError } =
+                await import('../../agentConnections/lifecycle');
+            throw new AgentConnectionRequestError(
+                response.status >= 500 ? 'unreachable' : 'rejected',
+            );
         }
         if (!response.ok)
             throw new Error(

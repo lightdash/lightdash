@@ -247,10 +247,17 @@ export const validateSlot = (
             !capabilities ||
             new Set(project.capabilities.map((c) => c.capability)).size !==
                 project.capabilities.length ||
-            project.capabilities.length !== capabilities.length ||
+            (value.lastReported.limitsStatus === 'ok' &&
+                project.capabilities.length !== capabilities.length) ||
+            (value.lastReported.limitsStatus === 'invalid' &&
+                (capabilities.length !== 0 ||
+                    project.capabilities.some(
+                        (c) => c.allowed || c.reason !== 'invalid_grant',
+                    ))) ||
             project.capabilities.some(
                 (c) =>
-                    !capabilities.includes(c.capability) ||
+                    (value.lastReported.limitsStatus === 'ok' &&
+                        !capabilities.includes(c.capability)) ||
                     c.allowed !== (c.reason === null),
             )
         )

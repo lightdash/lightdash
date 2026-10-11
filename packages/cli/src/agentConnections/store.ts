@@ -252,4 +252,22 @@ export class AgentConnectionStore {
             }
         });
     }
+    async removeSlotIfUnchanged(slot: AgentConnectionSlot): Promise<boolean> {
+        return this.withLock(async (locked) => {
+            const current = await locked.readSlot(slot);
+            if (
+                !current ||
+                current.grantUuid !== slot.grantUuid ||
+                current.tokens.generation !== slot.tokens.generation
+            )
+                return false;
+            const root = await this.readRoot();
+            const slots = slotsFor(root, slot, false);
+            if (slots === null) return false;
+            await locked.clearJournal(slot);
+            delete slots[slot.name];
+            await atomicWrite(this.filePath, yaml.dump(root));
+            return true;
+        });
+    }
 }

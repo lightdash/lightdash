@@ -1,4 +1,5 @@
-import { spawn } from 'child_process';
+import { execFileSync, spawn } from 'child_process';
+import { randomUUID } from 'crypto';
 import { promises as fs } from 'fs';
 import { createServer, type Server } from 'http';
 import * as yaml from 'js-yaml';
@@ -46,7 +47,12 @@ afterEach(async () => {
     });
     await fs.rm(directory, { recursive: true, force: true });
 });
-const runCli = (args: string[], selection: string | null, humanEnv: boolean) =>
+const runCli = (
+    args: string[],
+    selection: string | null,
+    humanEnv: boolean,
+    entry = path.join(__dirname, 'index.ts'),
+) =>
     new Promise<{ code: number | null; output: string }>((resolve, reject) => {
         const env: NodeJS.ProcessEnv = {
             ...process.env,
@@ -60,7 +66,7 @@ const runCli = (args: string[], selection: string | null, humanEnv: boolean) =>
         if (humanEnv) env.LIGHTDASH_API_KEY = 'env-human-key';
         const child = spawn(
             process.execPath,
-            ['--import', 'tsx', path.join(__dirname, 'index.ts'), ...args],
+            ['--import', 'tsx', entry, ...args],
             { env, stdio: ['ignore', 'pipe', 'pipe'] },
         );
         let output = '';
@@ -109,6 +115,71 @@ it.each([true, false])(
         expect(result.output).not.toContain('stored-human-key');
         expect(requests).toEqual([]);
         expect(await fs.readFile(configPath, 'utf8')).toBe(contents);
+    },
+    30_000,
+);
+
+it('reports a missing revoke slot without sending a request', async () => {
+    const result = await runCli(
+        ['agent', 'revoke', '--name', 'x', '--json'],
+        null,
+        true,
+    );
+    expect(result.code).toBe(1);
+    expect(JSON.parse(result.output)).toMatchObject({
+        version: 1,
+        slot: 'x',
+        confirmed: false,
+        localRemoved: false,
+    });
+    expect(requests).toEqual([]);
+    expect(await fs.readdir(path.dirname(configPath))).toEqual(['config.yaml']);
+}, 30_000);
+it.each([['--help'], ['agent', '--help'], ['agent', 'status', '--help']])(
+    'keeps origin/main help bytes for %j',
+    async (...args) => {
+        const baselinePath = path.join(
+            __dirname,
+            `.ordinary-entry-${randomUUID()}.ts`,
+        );
+        const definitions = execFileSync(
+            'git',
+            ['show', 'origin/main:packages/cli/src/index.ts'],
+            { cwd: __dirname, encoding: 'utf8' },
+        );
+        await fs.writeFile(baselinePath, definitions);
+        try {
+            const baseline = await runCli(args, null, false, baselinePath);
+            const current = await runCli(args, null, false);
+            expect(baseline.code).toBe(0);
+            expect(current).toEqual(baseline);
+            expect(requests).toEqual([]);
+        } finally {
+            await fs.unlink(baselinePath);
+        }
+    },
+    30_000,
+);
+
+it.each([false, true])(
+    'reports missing connection status as a single JSON object (global=%s)',
+    async (global) => {
+        const args = global
+            ? ['agent', 'status', '--json']
+            : ['agent', 'status', '--name', 'missing', '--json'];
+        const result = await runCli(args, global ? 'missing' : null, true);
+        expect(result.code).toBe(1);
+        expect(JSON.parse(result.output)).toMatchObject({
+            version: 1,
+            slot: 'missing',
+            connectionState: 'missing',
+            checkedAt: null,
+            source: 'local',
+        });
+        expect(requests).toEqual([]);
+        expect(await fs.readdir(path.dirname(configPath))).toEqual([
+            'config.yaml',
+        ]);
     },
     30_000,
 );

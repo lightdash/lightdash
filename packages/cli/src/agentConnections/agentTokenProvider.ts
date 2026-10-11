@@ -350,4 +350,36 @@ export class AgentTokenProvider {
             return slot;
         });
     }
+    async getLifecycleToken(
+        key: SlotKey,
+        operation: import('./lifecycle').LifecycleOperation,
+        rejectedGeneration: number | null,
+        proxyAuthorization: string | null,
+    ): Promise<AgentConnectionSlot> {
+        const { revocationRecovery } = await import('./lifecycle');
+        const slot = await this.store.readSlot(key);
+        if (
+            !slot ||
+            slot.grantUuid !== operation.grantUuid ||
+            slot.tokens.generation !== operation.generation
+        )
+            throw new Error(
+                'The local connection changed. Run the command again.',
+            );
+        if (operation.kind === 'revoke') {
+            if (
+                Date.parse(slot.tokens.accessTokenExpiresAt) <= Date.now() ||
+                Date.parse(slot.grantExpiresAt) <= Date.now()
+            )
+                throw new Error(revocationRecovery);
+            return slot;
+        }
+        assertUsableSlot(slot, Date.now());
+        if (
+            Date.parse(slot.tokens.accessTokenExpiresAt) > Date.now() &&
+            rejectedGeneration === null
+        )
+            return slot;
+        return this.getToken(key, rejectedGeneration, proxyAuthorization);
+    }
 }

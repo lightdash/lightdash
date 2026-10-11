@@ -1,5 +1,6 @@
 import { AuthorizationError, AuthTokenPrefix } from '@lightdash/common';
 import { type AgentTokenProvider } from './agentConnections/agentTokenProvider';
+import { type LifecycleOperation } from './agentConnections/lifecycle';
 import { type AgentConnectionSlot } from './agentConnections/schema';
 import { type Config } from './config';
 
@@ -38,9 +39,12 @@ export const resolveCredential = async (
     config: Config,
     provider: AgentTokenProvider | null = null,
     rejectedGeneration: number | null = null,
+    lifecycle: LifecycleOperation | null = null,
 ): Promise<Credential> => {
     const name = getAgentConnectionSelection();
     if (name === null) {
+        if (lifecycle !== null)
+            throw new Error('An agent connection selection is required.');
         if (!(config.context?.apiKey && config.context.serverUrl))
             throw new AuthorizationError(
                 `Not logged in. Run 'lightdash login --help'`,
@@ -64,7 +68,21 @@ export const resolveCredential = async (
     const selectedProvider = provider ?? tokenProvider;
     if (selectedProvider === null)
         throw new Error('Agent connection provider is unavailable.');
-    const slot = await selectedProvider.getToken(
+    const getToken =
+        lifecycle === null
+            ? selectedProvider.getToken.bind(selectedProvider)
+            : (
+                  key: import('./agentConnections/schema').SlotKey,
+                  rejected: number | null,
+                  proxy: string | null,
+              ) =>
+                  selectedProvider.getLifecycleToken(
+                      key,
+                      lifecycle,
+                      rejected,
+                      proxy,
+                  );
+    const slot = await getToken(
         {
             instanceUrl: canonicalInstanceUrl(config.context.serverUrl),
             personUuid: config.user.userUuid,

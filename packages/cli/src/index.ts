@@ -287,6 +287,16 @@ const agentProgram = program
     .command('agent')
     .description('Connect your agent to the warehouse and check its status');
 
+let agentConnectionJson = false;
+agentProgram.hook('preAction', (_root, command) => {
+    agentConnectionJson =
+        command.opts().json === true &&
+        (command.name() === 'revoke' ||
+            (command.name() === 'status' &&
+                (command.opts().name !== undefined ||
+                    getAgentConnectionSelection() !== null)));
+});
+
 agentProgram
     .command('connect')
     .description('Connects your agent to the warehouse using browser sign-in')
@@ -319,6 +329,15 @@ ${styles.bold('Examples:')}
 
 agentProgram
     .command('status')
+    .addOption(
+        new Option(
+            '--name <slot>',
+            'Select an agent connection slot',
+        ).hideHelp(),
+    )
+    .addOption(
+        new Option('--json', 'Output connection status as JSON').hideHelp(),
+    )
     .description('Shows your agent sign-in status for a project')
     .option(
         '--project <project uuid or slug>',
@@ -335,6 +354,32 @@ ${styles.bold('Examples:')}
 `,
     )
     .action(agentStatusHandler);
+
+agentProgram
+    .command('revoke', { hidden: true })
+    .addOption(
+        new Option('--name <slot>', 'Select an agent connection slot')
+            .makeOptionMandatory()
+            .hideHelp(),
+    )
+    .addOption(
+        new Option('--json', 'Output revocation status as JSON').hideHelp(),
+    )
+    .addOption(
+        new Option(
+            '--human',
+            'Revoke with a matching personal CLI login',
+        ).hideHelp(),
+    )
+    .action(
+        async (
+            options: import('./handlers/agentRevoke').AgentRevokeOptions,
+        ) => {
+            const { agentRevokeHandler } =
+                await import('./handlers/agentRevoke');
+            await agentRevokeHandler(options);
+        },
+    );
 
 // CONFIG
 const configProgram = program
@@ -2299,7 +2344,7 @@ const successHandler = () => {
     ) {
         process.exit(0);
     }
-    console.error(`Done 🕶`);
+    if (!agentConnectionJson) console.error(`Done 🕶`);
     // Handlers report partial failures (e.g. some uploads failed) via
     // process.exitCode; an unconditional exit(0) would wipe it.
     process.exit(process.exitCode ?? 0);

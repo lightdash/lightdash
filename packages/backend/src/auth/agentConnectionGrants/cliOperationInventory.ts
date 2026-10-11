@@ -50,8 +50,29 @@ const external = (
 
 export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryEntry[] =
     [
+        allowed(
+            'agentConnections/warehouseStatus.ts:144',
+            'GET',
+            '`/api/v2/projects/${projectUuid}/ai-access/me`',
+            ['AiAccessController.getMyAccess'],
+        ),
         external(
-            'handlers/dbt/apiClient.ts:217',
+            'handlers/agentConnectionStatus.ts:89',
+            'GET',
+            '`/api/v2/user/agent-connections/${slot.grantUuid}/status`',
+            'Own-connection lifecycle transport: AgentConnectionController.getConnectionStatus is recorded in CLI_CONNECTION_LIFECYCLE_OPERATIONS, outside the project capability inventory.',
+        ),
+        external(
+            'handlers/agentRevoke.ts:101',
+            'DELETE',
+            '`/api/v2/user/agent-connections/${slot.grantUuid}`',
+            'Own-connection lifecycle transport: AgentConnectionController.revoke is recorded in CLI_CONNECTION_LIFECYCLE_OPERATIONS. Personal recovery requires an explicit matching human login.',
+        ),
+        allowed('handlers/agentRevoke.ts:65', 'GET', "'/api/v1/user'", [
+            'UserController.getAuthenticatedUser',
+        ]),
+        external(
+            'handlers/dbt/apiClient.ts:248',
             'GET',
             '{ ...props }',
             'API transport delegates authorization to the selected agent credential for an explicitly safe read.',
@@ -163,34 +184,34 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'Organization-wide listing or administration is outside the selected project grant.',
         ),
         external(
-            'handlers/dbt/apiClient.ts:72',
+            'handlers/dbt/apiClient.ts:73',
             'GET',
             'fullUrl',
             'External fetch or API transport delegates authorization to the inventoried Lightdash caller.',
         ),
         external(
-            'handlers/dbt/apiClient.ts:76',
+            'handlers/dbt/apiClient.ts:77',
             'GET',
             'fullUrl',
             'External fetch or API transport delegates authorization to the inventoried Lightdash caller.',
         ),
         external(
-            'handlers/dbt/apiClient.ts:271',
+            'handlers/dbt/apiClient.ts:302',
             'GET',
             '{\n        method,\n        url,\n        body: requestBody,\n        headers,\n        signal,\n    }',
             'External fetch or API transport delegates authorization to the inventoried Lightdash caller.',
         ),
-        allowed('handlers/dbt/apiClient.ts:299', 'GET', '`/api/v1/user`', [
+        allowed('handlers/dbt/apiClient.ts:330', 'GET', '`/api/v1/user`', [
             'UserController.getAuthenticatedUser',
         ]),
         allowed(
-            'handlers/dbt/apiClient.ts:322',
+            'handlers/dbt/apiClient.ts:353',
             'GET',
             '`/api/v1/projects/${projectUuid}`',
             ['ProjectController.getProject'],
         ),
         allowed(
-            'handlers/dbt/apiClient.ts:536',
+            'handlers/dbt/apiClient.ts:567',
             'GET',
             '`/api/v1/health?skipMigrationCheck=true`',
             ['apiV1Router GET /health'],
