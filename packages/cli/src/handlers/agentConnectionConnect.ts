@@ -387,6 +387,16 @@ export const agentConnectionConnectHandler = async (
                 throw new ConnectionProofError(
                     'The agent connection expired. No credential was saved.',
                 );
+            if (
+                Date.parse(verified.tokens.accessTokenExpiresAt) <=
+                    Date.now() ||
+                (verified.tokens.refreshTokenExpiresAt !== null &&
+                    Date.parse(verified.tokens.refreshTokenExpiresAt) <=
+                        Date.now())
+            )
+                throw new ConnectionProofError(
+                    'The agent connection token expired before it could be saved. No credential was saved.',
+                );
             if (approvalDeadline <= Date.now())
                 throw new ConnectionProofError(
                     'The approval transaction expired. No credential was saved.',

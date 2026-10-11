@@ -169,8 +169,10 @@ export class AgentConnectionStore {
             const { grantUuid } = record(value);
             return (
                 typeof grantUuid === 'string' &&
-                grantUuid.length > 0 &&
-                grantUuid !== slot.grantUuid
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+                    grantUuid,
+                ) &&
+                grantUuid.toLowerCase() !== slot.grantUuid.toLowerCase()
             );
         } catch {
             return false;

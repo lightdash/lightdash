@@ -337,6 +337,23 @@ it('keeps a journal without a grant UUID conservative', async () => {
     expect(fetchMock).not.toHaveBeenCalled();
 });
 
+it('keeps a journal with a malformed grant id conservative', async () => {
+    await store.saveSlot(slot);
+    await store.withLock((locked) =>
+        locked.writeJournal(slot, {
+            grantUuid: 'not-a-uuid',
+            attemptUuid: 'attempt',
+            generation: 1,
+        }),
+    );
+    await expect(new AgentTokenProvider(store).getToken(slot)).rejects.toThrow(
+        'Reconnect',
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(
+        (await fs.readdir(directory)).some((file) => file.endsWith('.journal')),
+    ).toBe(true);
+});
 it('retains reconnect behaviour when a same-grant journal cannot be read', async () => {
     await store.saveSlot(slot);
     await store.withLock((locked) =>

@@ -12,12 +12,17 @@ it('binds only loopback, accepts the first callback and rejects replay', async (
         signal: abort.signal,
     });
     try {
-        expect(listen).toHaveBeenCalledWith(
-            0,
+        expect(listen.mock.calls.map(([, host]) => host)).toEqual([
             '127.0.0.1',
-            expect.any(Function),
-        );
+            '::1',
+        ]);
         const url = new URL(listener.redirectUri);
+        const families = await Promise.all(
+            ['127.0.0.1', '[::1]'].map((host) =>
+                fetch(`http://${host}:${url.port}/callback`),
+            ),
+        );
+        expect(families.map((response) => response.status)).toEqual([400, 400]);
         expect(url.hostname).toBe('localhost');
         url.search = new URLSearchParams({
             state: 'state',

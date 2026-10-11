@@ -1,4 +1,5 @@
-import { publicTextIsSafe } from './statusResponse';
+import { slotFixture } from './fixtures';
+import { publicConnectionReport, publicTextIsSafe } from './statusResponse';
 
 it.each([
     'https://example.com/?request=%70ersonal-key',
@@ -33,4 +34,17 @@ it('preserves safe text and ignores absent secrets', () => {
             'personal-key',
         ]),
     ).toBe(true);
+});
+it('keeps a harmless deeply encoded project name in the report', () => {
+    const slot = slotFixture();
+    let name = '%';
+    for (let round = 0; round < 9; round += 1) name = name.replace('%', '%25');
+    slot.lastReported.approvedProjects = [
+        {
+            projectUuid: '66666666-6666-4666-8666-666666666666',
+            name,
+            approvedCapabilities: [],
+        },
+    ];
+    expect(publicConnectionReport(slot).approvedProjects[0].name).toBe(name);
 });

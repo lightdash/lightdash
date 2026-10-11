@@ -1,4 +1,4 @@
-import { createServer } from 'http';
+import { createServer, type RequestListener, type Server } from 'http';
 
 export type ConnectionCallback = { code: string; grantUuid: string | null };
 export const createConnectionLoopback = async ({
@@ -30,7 +30,7 @@ export const createConnectionLoopback = async ({
             );
         }
     };
-    const server = createServer((req, res) => {
+    const handle: RequestListener = (req, res) => {
         const invalid = () => {
             res.writeHead(400);
             res.end('Invalid approval callback.');
@@ -82,14 +82,55 @@ export const createConnectionLoopback = async ({
             );
         else
             resolveResult({ code: code!, grantUuid: params.get('grant_uuid') });
-    });
+    };
+    let servers: Server[] = [];
+    const closeServers = async () => {
+        const closing = servers;
+        servers = [];
+        await Promise.all(
+            closing.map((server) => {
+                server.closeAllConnections();
+                return new Promise<void>((resolve) => {
+                    server.close(() => resolve());
+                });
+            }),
+        );
+    };
+    const listen = (host: string, onPort: number) =>
+        new Promise<number>((resolve, reject) => {
+            const server = createServer(handle);
+            servers.push(server);
+            server.once('error', reject);
+            server.listen(onPort, host, () => {
+                const address = server.address();
+                if (!address || typeof address === 'string')
+                    reject(new Error('No listener address'));
+                else resolve(address.port);
+            });
+        });
+    // localhost can resolve to either loopback family, so listen on both.
+    const listenOnLoopback = async (attempt = 0): Promise<number> => {
+        const bound = await listen('127.0.0.1', port);
+        try {
+            await listen('::1', bound);
+            return bound;
+        } catch (error) {
+            const code =
+                error instanceof Error && 'code' in error ? error.code : null;
+            if (code === 'EADDRNOTAVAIL' || code === 'EAFNOSUPPORT') {
+                servers = servers.slice(0, 1);
+                return bound;
+            }
+            await closeServers();
+            if (code !== 'EADDRINUSE' || port !== 0 || attempt >= 4)
+                throw error;
+            return listenOnLoopback(attempt + 1);
+        }
+    };
     const close = async () => {
         signal.removeEventListener('abort', abort);
         abort();
-        server.closeAllConnections();
-        await new Promise<void>((resolve) => {
-            server.close(() => resolve());
-        });
+        await closeServers();
     };
     signal.addEventListener('abort', abort, { once: true });
     if (signal.aborted) {
@@ -97,15 +138,11 @@ export const createConnectionLoopback = async ({
         throw new Error('Agent connection approval was cancelled.');
     }
     try {
-        await new Promise<void>((resolve, reject) => {
-            server.once('error', reject);
-            server.listen(port, '127.0.0.1', resolve);
-        });
-        const address = server.address();
-        if (!address || typeof address === 'string' || signal.aborted)
+        const bound = await listenOnLoopback();
+        if (signal.aborted)
             throw new Error('Could not start the approval callback listener.');
         return {
-            redirectUri: `http://localhost:${address.port}/callback`,
+            redirectUri: `http://localhost:${bound}/callback`,
             result,
             close,
         };

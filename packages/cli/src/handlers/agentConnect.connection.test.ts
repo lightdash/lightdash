@@ -1070,7 +1070,7 @@ it('refuses an existing grant hint before proof requests', async () => {
     expect(calls.some((call) => call.url.endsWith('/status'))).toBe(false);
     expect(await fs.readFile(store.filePath, 'utf8')).toBe(before);
 });
-it.each(['signal', 'timer', 'approval', 'grant', 'same-grant'])(
+it.each(['signal', 'timer', 'approval', 'grant', 'token', 'same-grant'])(
     'checks %s inside the save lock after another writer releases it',
     async (variant) => {
         const store = new AgentConnectionStore();
@@ -1102,7 +1102,10 @@ it.each(['signal', 'timer', 'approval', 'grant', 'same-grant'])(
         else if (variant === 'timer') await vi.advanceTimersByTimeAsync(180001);
         else
             vi.setSystemTime(
-                Date.now() + (variant === 'approval' ? 60001 : 3600001),
+                Date.now() +
+                    { approval: 60001, token: 300001, grant: 3600001 }[
+                        variant as 'approval' | 'token' | 'grant'
+                    ],
             );
         await release();
         let completed = false;
@@ -1115,6 +1118,7 @@ it.each(['signal', 'timer', 'approval', 'grant', 'same-grant'])(
         const messages = {
             'same-grant': existingRefused,
             grant: 'The agent connection expired. No credential was saved.',
+            token: 'The agent connection token expired before it could be saved. No credential was saved.',
             approval:
                 'The approval transaction expired. No credential was saved.',
             signal: 'Agent connection approval timed out or was cancelled. No credential was saved.',

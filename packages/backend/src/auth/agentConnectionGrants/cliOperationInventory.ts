@@ -93,7 +93,7 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             ['UserController.getAuthenticatedUser'],
         ),
         external(
-            'handlers/agentConnectionConnect.ts:420',
+            'handlers/agentConnectionConnect.ts:430',
             'GET',
             'url',
             'Warehouse readiness transport forwards only approved-project reads from the existing inventoried reader, with the just-verified Bearer and captured instance. It never resolves or sends a personal login.',

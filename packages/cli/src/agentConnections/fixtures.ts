@@ -1,4 +1,6 @@
-export const slotFixture = () => ({
+import type { AgentConnectionSlot } from './schema';
+
+export const slotFixture = (): AgentConnectionSlot => ({
     instanceUrl: 'https://example.com',
     organizationUuid: '11111111-1111-4111-8111-111111111111',
     personUuid: '22222222-2222-4222-8222-222222222222',
