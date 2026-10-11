@@ -71904,11 +71904,21 @@
                         "type": "array",
                         "nullable": true
                     },
+                    "allowedGroupUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
                     "systemRoleMatrix": {
                         "$ref": "#/components/schemas/AgentSystemRoleMatrix"
                     },
                     "defaults": {
                         "$ref": "#/components/schemas/AgentSystemRoleMatrix"
+                    },
+                    "groupsAvailable": {
+                        "type": "boolean"
                     }
                 },
                 "required": [
@@ -71916,8 +71926,10 @@
                     "version",
                     "allowedProjectUuids",
                     "allowedUserUuids",
+                    "allowedGroupUuids",
                     "systemRoleMatrix",
-                    "defaults"
+                    "defaults",
+                    "groupsAvailable"
                 ],
                 "type": "object",
                 "additionalProperties": true
@@ -71973,6 +71985,13 @@
                         "type": "array",
                         "nullable": true
                     },
+                    "allowedGroupUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
                     "systemRoleMatrix": {
                         "$ref": "#/components/schemas/AgentSystemRoleMatrix"
                     }
@@ -71982,6 +72001,7 @@
                     "version",
                     "allowedProjectUuids",
                     "allowedUserUuids",
+                    "allowedGroupUuids",
                     "systemRoleMatrix"
                 ],
                 "type": "object",
@@ -72021,6 +72041,17 @@
                         },
                         "type": "array",
                         "nullable": true
+                    },
+                    "allowedGroupUuids": {
+                        "items": {
+                            "$ref": "#/components/schemas/UUID"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "mode": {
+                        "type": "string",
+                        "enum": ["legacy", "managed"]
                     },
                     "systemRoleMatrix": {
                         "$ref": "#/components/schemas/AgentSystemRoleMatrix"
@@ -72152,7 +72183,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.553.0",
+        "version": "2.554.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -1,3 +1,10 @@
+# [2.554.0](https://github.com/lightdash/lightdash/compare/2.553.0...2.554.0) (2026-10-11)
+
+
+### Features
+
+* **agent-identity:** limit who can use agents by group ([#30899](https://github.com/lightdash/lightdash/issues/30899)) ([972258f](https://github.com/lightdash/lightdash/commit/972258fc56dce4afca79d4055ddff1b97e9e42ef))
+
 # [2.553.0](https://github.com/lightdash/lightdash/compare/2.552.0...2.553.0) (2026-10-10)
 
 

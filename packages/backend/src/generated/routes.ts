@@ -76775,8 +76775,17 @@ const models: TsoaRoute.Models = {
                 ],
                 required: true,
             },
+            allowedGroupUuids: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'array', array: { dataType: 'string' } },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
             systemRoleMatrix: { ref: 'AgentSystemRoleMatrix', required: true },
             defaults: { ref: 'AgentSystemRoleMatrix', required: true },
+            groupsAvailable: { dataType: 'boolean', required: true },
         },
         additionalProperties: true,
     },
@@ -76829,6 +76838,14 @@ const models: TsoaRoute.Models = {
                 ],
                 required: true,
             },
+            allowedGroupUuids: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'array', array: { dataType: 'string' } },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
             systemRoleMatrix: { ref: 'AgentSystemRoleMatrix', required: true },
         },
         additionalProperties: true,
@@ -76866,6 +76883,23 @@ const models: TsoaRoute.Models = {
                         array: { dataType: 'refAlias', ref: 'UUID' },
                     },
                     { dataType: 'enum', enums: [null] },
+                ],
+            },
+            allowedGroupUuids: {
+                dataType: 'union',
+                subSchemas: [
+                    {
+                        dataType: 'array',
+                        array: { dataType: 'refAlias', ref: 'UUID' },
+                    },
+                    { dataType: 'enum', enums: [null] },
+                ],
+            },
+            mode: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'enum', enums: ['legacy'] },
+                    { dataType: 'enum', enums: ['managed'] },
                 ],
             },
             systemRoleMatrix: { ref: 'AgentSystemRoleMatrix', required: true },

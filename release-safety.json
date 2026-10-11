@@ -1,44 +1,24 @@
 {
   "schemaVersion": "2",
-  "version": "2.553.0",
-  "previousVersion": "2.552.0",
-  "releaseDate": "2026-10-10T23:15:35.089Z",
+  "version": "2.554.0",
+  "previousVersion": "2.553.0",
+  "releaseDate": "2026-10-11T00:14:30.129Z",
   "migrations": {
     "present": true,
-    "count": 2,
-    "coreCount": 2,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
     "files": [
       {
-        "name": "20261011000002_add_agent_connection_grants.ts",
+        "name": "20261011000004_add_agent_policy_allowed_groups.ts",
         "edition": "core",
         "tables": [
-          "agent_connection_grants",
-          "oauth2_clients",
-          "organizations",
-          "users"
+          "organization_agent_capability_policies"
         ],
         "heaviness": {
           "locksTable": true,
           "rewritesTable": false,
-          "scansTable": true
-        }
-      },
-      {
-        "name": "20261011000003_add_oauth_agent_connection_grants.ts",
-        "edition": "core",
-        "tables": [
-          "oauth2_access_tokens",
-          "oauth2_authorization_codes",
-          "oauth2_refresh_tokens",
-          "pg_class",
-          "pg_constraint",
-          "pg_index"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
+          "scansTable": false
         }
       }
     ]
