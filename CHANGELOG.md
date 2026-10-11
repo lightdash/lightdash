@@ -1,3 +1,10 @@
+# [2.562.0](https://github.com/lightdash/lightdash/compare/2.561.0...2.562.0) (2026-10-11)
+
+
+### Features
+
+* **agent-identity:** Autopilot rechecks the person who enabled it ([#30908](https://github.com/lightdash/lightdash/issues/30908)) ([454f2cc](https://github.com/lightdash/lightdash/commit/454f2cca55eaf66653901b123bec69967130f991))
+
 # [2.561.0](https://github.com/lightdash/lightdash/compare/2.560.0...2.561.0) (2026-10-11)
 
 
