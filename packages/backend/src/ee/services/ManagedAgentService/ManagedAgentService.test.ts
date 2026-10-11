@@ -1,9 +1,12 @@
 import { Ability } from '@casl/ability';
 import {
+    AgentActorSurface,
+    AiAccessRefusalReason,
     AnyType,
     ConflictError,
     DEFAULT_MANAGED_AGENT_POLICY,
     FeatureFlags,
+    InvalidUser,
     ManagedAgentActionType,
     ManagedAgentRunStatus,
     ManagedAgentTargetType,
@@ -14,6 +17,7 @@ import {
 } from '@lightdash/common';
 import { MockLanguageModelV3 } from 'ai/test';
 import { fromSession } from '../../../auth/account';
+import { AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
 import { agentExecutionContext } from '../../../services/AiAccessService/agentExecutionContext';
 import {
     metricQueryMock,
@@ -22,6 +26,10 @@ import {
 import { AiDecisionClient } from '../ai/decisions/AiDecisionClient';
 import { getAvailableModels, getModel } from '../ai/models';
 import { type getRunMetricQuery } from '../ai/tools/runMetricQuery';
+import {
+    AUTOPILOT_AUTHORITY_CHECK_FAILED_MESSAGE,
+    AUTOPILOT_AUTHORITY_REFUSED_MESSAGE,
+} from './autopilotAuthority';
 import { ManagedAgentService } from './ManagedAgentService';
 
 const captureAutopilotFailure = vi.fn();
@@ -66,6 +74,7 @@ const settings = {
 };
 
 const user = {
+    isActive: true,
     userUuid: USER_UUID,
     organizationUuid: ORGANIZATION_UUID,
     abilityRules: [],
@@ -129,6 +138,7 @@ const buildService = ({
         setRunModel: vi.fn().mockResolvedValue(undefined),
         getActionCountsByTypeForRun: vi.fn().mockResolvedValue({}),
         getActions: vi.fn().mockResolvedValue([]),
+        getRecentActions: vi.fn().mockResolvedValue([]),
         getAction: vi.fn(),
         reverseAction: vi.fn(),
         createAction: vi.fn().mockResolvedValue({
@@ -180,6 +190,18 @@ const buildService = ({
         }),
     };
     const spacePermissionService = { resolveAccess: vi.fn() };
+    const userModel = {
+        findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(user),
+        findServiceAccountByUserUuid: vi.fn().mockResolvedValue(undefined),
+    };
+    const featureFlagModel = { get: vi.fn(async () => ({ enabled: false })) };
+    const agentPermissionService = {
+        loadRequest: vi.fn().mockResolvedValue({}),
+        assertOperationWithRequest: vi.fn().mockResolvedValue(undefined),
+    };
+    const agentActionLogModel = {
+        insert: vi.fn().mockResolvedValue(undefined),
+    };
     const service = new ManagedAgentService({
         lightdashConfig: {
             siteUrl: 'http://localhost',
@@ -211,10 +233,10 @@ const buildService = ({
             find: vi.fn().mockResolvedValue(suggestionsSpaces),
         },
         spacePermissionService,
-        userModel: {
-            findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(user),
-        },
-        featureFlagModel: { get: vi.fn(async () => ({ enabled: false })) },
+        userModel,
+        featureFlagModel,
+        agentPermissionService,
+        agentActionLogModel,
         schedulerClient,
         slackClient,
         orgAiCopilotConfigResolver,
@@ -224,6 +246,10 @@ const buildService = ({
     } as AnyType);
 
     return {
+        userModel,
+        featureFlagModel,
+        agentPermissionService,
+        agentActionLogModel,
         slackClient,
         validationModel,
         savedChartModel,
@@ -1439,5 +1465,599 @@ describe('ManagedAgentService bulk stale flagging', () => {
         );
         expect(result).toMatchObject({ blocked: true });
         expect(flagContent).not.toHaveBeenCalled();
+    });
+});
+
+const authorityTextTurn = (text = 'Done.') => ({
+    content: [{ type: 'text' as const, text }],
+    finishReason: { unified: 'stop' as const, raw: undefined },
+    usage: {
+        inputTokens: { total: 10, noCache: 10, cacheRead: 0, cacheWrite: 0 },
+        outputTokens: { total: 2, text: 2, reasoning: 0 },
+    },
+    warnings: [],
+});
+
+const authorityToolTurn = (
+    toolName: string,
+    input: Record<string, unknown> = {},
+) => ({
+    ...authorityTextTurn(),
+    content: [
+        {
+            type: 'tool-call' as const,
+            toolCallId: toolName,
+            toolName,
+            input: JSON.stringify(input),
+        },
+    ],
+    finishReason: { unified: 'tool-calls' as const, raw: undefined },
+});
+
+describe('ManagedAgentService heartbeat authority', () => {
+    it('preserves flag-off person, flag, policy, finish and Slack calls', async () => {
+        const fixture = buildService({
+            suggestionsSpaces: [
+                { uuid: 'space', inheritParentPermissions: true },
+            ],
+        });
+        const {
+            service,
+            managedAgentModel,
+            userModel,
+            featureFlagModel,
+            agentPermissionService,
+            agentActionLogModel,
+            slackClient,
+        } = fixture;
+        managedAgentModel.getSettings.mockResolvedValue({
+            ...settings,
+            slackChannelId: 'channel',
+        });
+        let turn = 0;
+        const doGenerate = vi.fn(
+            async (
+                options: Parameters<MockLanguageModelV3['doGenerate']>[0],
+            ) => {
+                if (!options.tools) return authorityTextTurn('Report.');
+                turn += 1;
+                if (turn === 1) return authorityToolTurn('get_recent_actions');
+                if (turn === 2)
+                    return authorityToolTurn('findContent', {
+                        searchQueries: [{ label: 'sales', query: 'sales' }],
+                        spaceSlug: null,
+                    });
+                return authorityTextTurn();
+            },
+        );
+        vi.mocked(getModel).mockReturnValue({
+            ...resolvedModel,
+            model: new MockLanguageModelV3({ doGenerate }),
+        } as AnyType);
+
+        await service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+
+        expect(userModel.findSessionUserAndOrgByUuid).toHaveBeenCalledTimes(2);
+        expect(featureFlagModel.get).toHaveBeenCalledTimes(2);
+        expect(agentPermissionService.loadRequest).not.toHaveBeenCalled();
+        expect(
+            agentPermissionService.assertOperationWithRequest,
+        ).not.toHaveBeenCalled();
+        expect(userModel.findServiceAccountByUserUuid).not.toHaveBeenCalled();
+        expect(agentActionLogModel.insert).not.toHaveBeenCalled();
+        expect(managedAgentModel.finishRun).toHaveBeenCalledTimes(1);
+        expect(managedAgentModel.finishRun).toHaveBeenCalledWith(
+            'run-uuid',
+            expect.objectContaining({
+                status: 'completed',
+                actionCount: 0,
+                error: null,
+            }),
+        );
+        expect(slackClient.postMessage).toHaveBeenCalledTimes(2);
+        expect(doGenerate).toHaveBeenCalledTimes(4);
+        expect(fixture.dataRuntime.findContent).toHaveBeenCalledTimes(1);
+    });
+});
+
+const blockedPersonMessage =
+    'Run blocked: the person who enabled Autopilot can no longer run agents. Another admin can enable it again.';
+const blockedCheckMessage = 'Run blocked: the access check could not run.';
+
+const buildAuthorityFixture = () => {
+    const fixture = buildService({
+        suggestionsSpaces: [{ uuid: 'space', inheritParentPermissions: true }],
+    });
+    fixture.featureFlagModel.get.mockResolvedValue({ enabled: true });
+    fixture.managedAgentModel.getSettings.mockResolvedValue({
+        ...settings,
+        slackChannelId: 'channel',
+    });
+    const doGenerate = vi
+        .fn<MockLanguageModelV3['doGenerate']>()
+        .mockResolvedValue(authorityTextTurn());
+    vi.mocked(getModel).mockReturnValue({
+        ...resolvedModel,
+        callOptions: { maxRetries: 0 },
+        model: new MockLanguageModelV3({ doGenerate }),
+    } as AnyType);
+    return { ...fixture, doGenerate };
+};
+
+const savedAuthorityAction = {
+    actionType: ManagedAgentActionType.CREATED_CONTENT,
+    targetType: ManagedAgentTargetType.CHART,
+    targetName: 'Saved chart',
+    description: 'Built from popular fields.',
+    reversedAt: null,
+};
+
+const expectAuthorityBlocked = (
+    fixture: ReturnType<typeof buildAuthorityFixture>,
+    error: string,
+    actionCount = 0,
+) => {
+    expect(fixture.managedAgentModel.finishRun).toHaveBeenCalledExactlyOnceWith(
+        'run-uuid',
+        expect.objectContaining({
+            status: ManagedAgentRunStatus.ERROR,
+            error,
+            actionCount,
+        }),
+    );
+    expect(fixture.slackClient.postMessage).not.toHaveBeenCalled();
+    expect(fixture.analytics.track).toHaveBeenCalledWith(
+        expect.objectContaining({
+            event: 'managed_agent.run_completed',
+            properties: expect.objectContaining({
+                status: 'error',
+                slackPosted: false,
+                actionCount,
+                error,
+            }),
+        }),
+    );
+};
+
+describe('ManagedAgentService enabled heartbeat authority', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it.each(['inactive', 'removed', 'policy', 'database'] as const)(
+        'blocks %s at the start without a model call',
+        async (failure) => {
+            const fixture = buildAuthorityFixture();
+            captureAutopilotFailure.mockClear();
+            const { userModel, agentPermissionService, agentActionLogModel } =
+                fixture;
+            if (failure === 'inactive')
+                userModel.findSessionUserAndOrgByUuid.mockResolvedValue({
+                    ...user,
+                    isActive: false,
+                });
+            if (failure === 'removed')
+                userModel.findSessionUserAndOrgByUuid
+                    .mockResolvedValueOnce(user)
+                    .mockRejectedValue(new InvalidUser('Removed'));
+            if (failure === 'database')
+                agentPermissionService.loadRequest.mockRejectedValueOnce(
+                    new Error('database down'),
+                );
+            if (failure === 'policy') {
+                const permissions = new AgentPermissionService({
+                    agentActionLogModel,
+                } as AnyType);
+                vi.spyOn(
+                    permissions as AnyType,
+                    'resolvePolicyWithRequest',
+                ).mockResolvedValue({
+                    mode: 'legacy',
+                    allowedGroupUuids: [],
+                } as AnyType);
+                vi.spyOn(
+                    permissions as AnyType,
+                    'createEvaluation',
+                ).mockReturnValue({
+                    readChecks: vi.fn().mockResolvedValue({
+                        id: 'agent_admission',
+                        kind: 'agent_admission',
+                        status: 'refused',
+                        reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+                        policyLayer: 'organization_setting',
+                    }),
+                    checks: [],
+                });
+                agentPermissionService.assertOperationWithRequest.mockImplementation(
+                    (args) => permissions.assertOperationWithRequest(args),
+                );
+            }
+
+            await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+
+            expectAuthorityBlocked(
+                fixture,
+                failure === 'database'
+                    ? blockedCheckMessage
+                    : blockedPersonMessage,
+            );
+            expect(fixture.doGenerate).not.toHaveBeenCalled();
+            expect(userModel.findSessionUserAndOrgByUuid).toHaveBeenCalledTimes(
+                2,
+            );
+            expect(agentActionLogModel.insert).toHaveBeenCalledTimes(
+                failure === 'database' ? 0 : 1,
+            );
+            expect(captureAutopilotFailure).toHaveBeenCalledTimes(
+                failure === 'database' ? 1 : 0,
+            );
+            expect(fixture.featureFlagModel.get).toHaveBeenCalledTimes(1);
+        },
+    );
+
+    it('allows an inactive service account with two full checks', async () => {
+        const fixture = buildAuthorityFixture();
+        fixture.userModel.findSessionUserAndOrgByUuid.mockResolvedValue({
+            ...user,
+            isActive: false,
+        });
+        fixture.userModel.findServiceAccountByUserUuid.mockResolvedValue({
+            serviceAccountUuid: 'service-account',
+        });
+        await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+        expect(fixture.managedAgentModel.finishRun).toHaveBeenCalledWith(
+            'run-uuid',
+            expect.objectContaining({ status: 'completed' }),
+        );
+        expect(
+            fixture.userModel.findServiceAccountByUserUuid,
+        ).toHaveBeenCalledTimes(2);
+        expect(
+            fixture.agentPermissionService.loadRequest,
+        ).toHaveBeenCalledTimes(2);
+        expect(fixture.slackClient.postMessage).toHaveBeenCalledTimes(2);
+    });
+
+    it.each(['inactive', 'database'] as const)(
+        'stops queued custom tools on %s and keeps saved actions',
+        async (failure) => {
+            const fixture = buildAuthorityFixture();
+            captureAutopilotFailure.mockClear();
+            fixture.managedAgentModel.createAction.mockImplementation(
+                async () => {
+                    fixture.managedAgentModel.getActions.mockResolvedValue([
+                        savedAuthorityAction,
+                    ] as AnyType);
+                    return {
+                        ...savedAuthorityAction,
+                        actionUuid: 'saved-action',
+                    } as AnyType;
+                },
+            );
+            let turn = 0;
+            fixture.doGenerate.mockImplementation(async () => {
+                turn += 1;
+                if (turn === 1)
+                    return authorityToolTurn('log_project_insight', {
+                        description: 'Saved finding',
+                    });
+                if (failure === 'inactive')
+                    fixture.userModel.findSessionUserAndOrgByUuid.mockResolvedValue(
+                        { ...user, isActive: false },
+                    );
+                else
+                    fixture.userModel.findSessionUserAndOrgByUuid.mockRejectedValue(
+                        new Error('database down'),
+                    );
+                const first = authorityToolTurn('log_project_insight', {
+                    description: 'Blocked finding',
+                });
+                const second = authorityToolTurn('log_project_insight', {
+                    description: 'Queued finding',
+                });
+                second.content[0].toolCallId = 'queued';
+                return {
+                    ...first,
+                    content: [...first.content, ...second.content],
+                };
+            });
+            await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+            expectAuthorityBlocked(
+                fixture,
+                failure === 'inactive'
+                    ? blockedPersonMessage
+                    : blockedCheckMessage,
+                1,
+            );
+            expect(fixture.doGenerate).toHaveBeenCalledTimes(2);
+            expect(captureAutopilotFailure).toHaveBeenCalledTimes(
+                failure === 'inactive' ? 0 : 1,
+            );
+            expect(
+                fixture.managedAgentModel.createAction,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                fixture.managedAgentModel.finishRun.mock.calls[0][1].summary,
+            ).toContain('Saved chart');
+            expect(
+                fixture.userModel.findSessionUserAndOrgByUuid,
+            ).toHaveBeenCalledTimes(4);
+        },
+    );
+
+    it.each([20_000, 31_000])(
+        'checks data tools only when stale at %i ms',
+        async (elapsed) => {
+            const fixture = buildAuthorityFixture();
+            let now = 1_000;
+            vi.spyOn(Date, 'now').mockImplementation(() => now);
+            let turn = 0;
+            fixture.doGenerate.mockImplementation(async (options) => {
+                if (!options.tools) return authorityTextTurn();
+                turn += 1;
+                if (turn === 1) {
+                    now += elapsed;
+                    fixture.userModel.findSessionUserAndOrgByUuid.mockResolvedValue(
+                        { ...user, isActive: false },
+                    );
+                    fixture.managedAgentModel.getActions.mockResolvedValue([
+                        savedAuthorityAction,
+                    ] as AnyType);
+                    return authorityToolTurn('findContent', {
+                        searchQueries: [{ label: 'sales', query: 'sales' }],
+                        spaceSlug: null,
+                    });
+                }
+                expect(
+                    fixture.userModel.findSessionUserAndOrgByUuid,
+                ).toHaveBeenCalledTimes(2);
+                return authorityTextTurn();
+            });
+            await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+            expectAuthorityBlocked(fixture, blockedPersonMessage, 1);
+            expect(fixture.doGenerate).toHaveBeenCalledTimes(
+                elapsed < 30_000 ? 2 : 1,
+            );
+            expect(fixture.dataRuntime.findContent).toHaveBeenCalledTimes(
+                elapsed < 30_000 ? 1 : 0,
+            );
+            expect(
+                fixture.userModel.findSessionUserAndOrgByUuid,
+            ).toHaveBeenCalledTimes(3);
+        },
+    );
+
+    it.each([null, 'Provider disconnected'])(
+        'blocks delivery and preserves the existing error %s',
+        async (runError) => {
+            const fixture = buildAuthorityFixture();
+            fixture.managedAgentModel.getActions.mockResolvedValue([
+                savedAuthorityAction,
+            ] as AnyType);
+            fixture.doGenerate.mockImplementation(async () => {
+                fixture.userModel.findSessionUserAndOrgByUuid.mockResolvedValue(
+                    { ...user, isActive: false },
+                );
+                if (runError) throw new Error(runError);
+                return authorityTextTurn();
+            });
+            await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+            expectAuthorityBlocked(
+                fixture,
+                runError ?? blockedPersonMessage,
+                1,
+            );
+            expect(fixture.doGenerate).toHaveBeenCalledTimes(1);
+            expect(
+                fixture.managedAgentModel.finishRun.mock.calls[0][1].summary,
+            ).toContain('Saved chart');
+        },
+    );
+
+    it('keeps the original enabling person when settings change during the run', async () => {
+        const fixture = buildAuthorityFixture();
+        let turn = 0;
+        fixture.doGenerate.mockImplementation(async (options) => {
+            if (!options.tools) return authorityTextTurn();
+            turn += 1;
+            fixture.managedAgentModel.getSettings.mockResolvedValue({
+                ...settings,
+                enabledByUserUuid: 'other-admin',
+            });
+            return turn === 1
+                ? authorityToolTurn('get_recent_actions')
+                : authorityTextTurn();
+        });
+        await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+        expect(
+            fixture.userModel.findSessionUserAndOrgByUuid.mock.calls,
+        ).toEqual(Array(4).fill([USER_UUID, ORGANIZATION_UUID]));
+        expect(
+            fixture.agentPermissionService.assertOperationWithRequest,
+        ).toHaveBeenCalledTimes(2);
+        for (const [args] of fixture.agentPermissionService
+            .assertOperationWithRequest.mock.calls)
+            expect(args.operation).toMatchObject({
+                account: { user: { id: USER_UUID } },
+                organizationUuid: ORGANIZATION_UUID,
+                projectUuid: PROJECT_UUID,
+                surface: AgentActorSurface.IN_APP_AGENT,
+                kind: 'agent_turn',
+            });
+        expect(fixture.analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'managed_agent.run_completed',
+                userId: USER_UUID,
+            }),
+        );
+        expect(fixture.slackClient.postMessage).toHaveBeenCalledTimes(2);
+    });
+
+    it('posts parent and chunks with two full checks on a short allowed run', async () => {
+        const fixture = buildAuthorityFixture();
+        fixture.doGenerate.mockImplementation(async (options) =>
+            authorityTextTurn(
+                options.tools ? 'Done.' : 'Long report. '.repeat(600),
+            ),
+        );
+        await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+        expect(
+            fixture.agentPermissionService.loadRequest,
+        ).toHaveBeenCalledTimes(2);
+        expect(
+            fixture.userModel.findSessionUserAndOrgByUuid,
+        ).toHaveBeenCalledTimes(3);
+        expect(
+            fixture.userModel.findServiceAccountByUserUuid,
+        ).not.toHaveBeenCalled();
+        expect(fixture.agentActionLogModel.insert).not.toHaveBeenCalled();
+        const { summary } =
+            fixture.managedAgentModel.finishRun.mock.calls[0][1];
+        expect(fixture.slackClient.postMessage).toHaveBeenCalledTimes(
+            1 + Math.ceil(summary.length / 2800),
+        );
+        expect(
+            fixture.slackClient.postMessage.mock.calls[0][0],
+        ).not.toHaveProperty('thread_ts');
+        expect(
+            fixture.slackClient.postMessage.mock.calls
+                .slice(1)
+                .map(([args]) => args.text)
+                .join(''),
+        ).toBe(summary);
+    });
+
+    it('checks again before the parent when finishing the row takes 30 seconds', async () => {
+        const fixture = buildAuthorityFixture();
+        let now = 1_000;
+        vi.spyOn(Date, 'now').mockImplementation(() => now);
+        fixture.managedAgentModel.finishRun.mockImplementation(async () => {
+            now += 31_000;
+            fixture.agentPermissionService.loadRequest.mockRejectedValue(
+                new Error('database down'),
+            );
+        });
+        await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+        expect(fixture.slackClient.postMessage).not.toHaveBeenCalled();
+        expect(fixture.managedAgentModel.finishRun).toHaveBeenCalledTimes(1);
+        expect(fixture.analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'managed_agent.run_completed',
+                properties: expect.objectContaining({ slackPosted: false }),
+            }),
+        );
+    });
+
+    it('stops remaining chunks when authority fails after a slow Slack parent', async () => {
+        const fixture = buildAuthorityFixture();
+        let now = 1_000;
+        vi.spyOn(Date, 'now').mockImplementation(() => now);
+        fixture.slackClient.postMessage.mockImplementation(async () => {
+            now += 31_000;
+            fixture.userModel.findSessionUserAndOrgByUuid.mockResolvedValue({
+                ...user,
+                isActive: false,
+            });
+            return { ts: '1' };
+        });
+        await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+        expect(fixture.slackClient.postMessage).toHaveBeenCalledTimes(1);
+        expect(fixture.analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'managed_agent.run_completed',
+                properties: expect.objectContaining({ slackPosted: false }),
+            }),
+        );
+    });
+});
+
+describe('ManagedAgentService authority check cadence', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it('exports the exact blocked messages', () => {
+        expect(AUTOPILOT_AUTHORITY_REFUSED_MESSAGE).toBe(blockedPersonMessage);
+        expect(AUTOPILOT_AUTHORITY_CHECK_FAILED_MESSAGE).toBe(
+            blockedCheckMessage,
+        );
+    });
+
+    it.each([500, 15_000])(
+        'checks 40 data calls spaced %i ms apart',
+        async (interval) => {
+            const fixture = buildAuthorityFixture();
+            fixture.service['lightdashConfig'].managedAgent.maxSteps = 50;
+            let now = 1_000;
+            vi.spyOn(Date, 'now').mockImplementation(() => now);
+            let turn = 0;
+            fixture.doGenerate.mockImplementation(async (options) => {
+                if (!options.tools) return authorityTextTurn();
+                turn += 1;
+                if (turn > 40) return authorityTextTurn();
+                now += interval;
+                return authorityToolTurn('findContent', {
+                    searchQueries: [{ label: 'sales', query: 'sales' }],
+                    spaceSlug: null,
+                });
+            });
+            await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+            const checks = interval === 500 ? 2 : 22;
+            expect(
+                fixture.agentPermissionService.loadRequest,
+            ).toHaveBeenCalledTimes(checks);
+            expect(
+                fixture.userModel.findSessionUserAndOrgByUuid,
+            ).toHaveBeenCalledTimes(checks + 1);
+            expect(fixture.dataRuntime.findContent).toHaveBeenCalledTimes(40);
+            expect(fixture.slackClient.postMessage).toHaveBeenCalledTimes(2);
+        },
+    );
+
+    it('keeps the missing-person error and Slack behaviour when no enabling UUID exists', async () => {
+        const fixture = buildAuthorityFixture();
+        fixture.managedAgentModel.getSettings.mockResolvedValue({
+            ...settings,
+            enabledByUserUuid: null,
+            slackChannelId: 'channel',
+        } as AnyType);
+        await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+        expect(
+            fixture.managedAgentModel.finishRun,
+        ).toHaveBeenCalledExactlyOnceWith(
+            'run-uuid',
+            expect.objectContaining({
+                status: 'error',
+                actionCount: 0,
+                error: 'Autopilot actor is not configured for project project-uuid',
+            }),
+        );
+        expect(fixture.featureFlagModel.get).not.toHaveBeenCalled();
+        expect(
+            fixture.userModel.findSessionUserAndOrgByUuid,
+        ).not.toHaveBeenCalled();
+        expect(
+            fixture.agentPermissionService.loadRequest,
+        ).not.toHaveBeenCalled();
+        expect(fixture.slackClient.postMessage).toHaveBeenCalledTimes(2);
+    });
+
+    it('checks authority again when narrative generation takes over 30 seconds', async () => {
+        const fixture = buildAuthorityFixture();
+        let now = 1_000;
+        vi.spyOn(Date, 'now').mockImplementation(() => now);
+        fixture.doGenerate.mockImplementation(async (options) => {
+            if (!options.tools) {
+                now += 31_000;
+                fixture.agentPermissionService.loadRequest.mockRejectedValueOnce(
+                    new Error('database down'),
+                );
+            }
+            return authorityTextTurn('Saved report.');
+        });
+        await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+        expectAuthorityBlocked(fixture, blockedCheckMessage);
+        expect(
+            fixture.agentPermissionService.loadRequest,
+        ).toHaveBeenCalledTimes(3);
+        expect(
+            fixture.managedAgentModel.finishRun.mock.calls[0][1].summary,
+        ).toContain('Saved report.');
     });
 });

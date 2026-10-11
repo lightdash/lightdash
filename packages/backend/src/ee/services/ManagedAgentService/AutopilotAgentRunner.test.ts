@@ -350,3 +350,49 @@ describe('runAutopilotAgent', () => {
         });
     });
 });
+
+describe('runAutopilotAgent external cancellation', () => {
+    it('keeps the blocked reason and prevents queued tools without reporting a timeout', async () => {
+        const controller = new AbortController();
+        const blocked = new Error(
+            'Run blocked: the access check could not run.',
+        );
+        const first = toolCallTurn('get_recent_actions', {});
+        const second = toolCallTurn('get_stale_charts', {});
+        const doGenerate = vi.fn().mockResolvedValue({
+            ...first,
+            content: [...first.content, ...second.content],
+        });
+        const executeTool = vi.fn(async () => {
+            controller.abort(blocked);
+            throw blocked;
+        });
+        const result = await runAutopilotAgent({
+            ...baseArgs,
+            model: new MockLanguageModelV3({ doGenerate }),
+            executeTool,
+            abortSignal: controller.signal,
+        });
+        expect(result).toMatchObject({
+            stopReason: 'error',
+            error: blocked.message,
+            cause: blocked,
+        });
+        expect(executeTool).toHaveBeenCalledTimes(1);
+        expect(doGenerate).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not call the model when external cancellation already happened', async () => {
+        const controller = new AbortController();
+        controller.abort(new Error('Blocked'));
+        const doGenerate = vi.fn().mockResolvedValue(textTurn('Done'));
+        const result = await runAutopilotAgent({
+            ...baseArgs,
+            model: new MockLanguageModelV3({ doGenerate }),
+            executeTool: vi.fn(),
+            abortSignal: controller.signal,
+        });
+        expect(result).toMatchObject({ stopReason: 'error', error: 'Blocked' });
+        expect(doGenerate).not.toHaveBeenCalled();
+    });
+});
