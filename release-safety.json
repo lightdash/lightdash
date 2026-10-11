@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.554.0",
-  "previousVersion": "2.553.0",
-  "releaseDate": "2026-10-11T00:14:30.129Z",
+  "version": "2.555.0",
+  "previousVersion": "2.554.0",
+  "releaseDate": "2026-10-11T00:38:25.809Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261011000004_add_agent_policy_allowed_groups.ts",
-        "edition": "core",
-        "tables": [
-          "organization_agent_capability_policies"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -30,9 +17,13 @@
   "api": {
     "rest": {
       "checked": true,
-      "breaking": false,
-      "changes": [],
-      "breakingCount": 0,
+      "breaking": true,
+      "changes": [
+        "DELETE /api/v2/org/agent-permissions/projects/{projectUuid}/warehouse-confirmation — api path removed without deprecation",
+        "GET /api/v2/org/agent-permissions/projects/{projectUuid}/warehouse-confirmation — api path removed without deprecation",
+        "PUT /api/v2/org/agent-permissions/projects/{projectUuid}/warehouse-confirmation — api path removed without deprecation"
+      ],
+      "breakingCount": 3,
       "advisories": [],
       "advisoryCount": 0
     },
@@ -55,5 +46,23 @@
     "requiredStops": []
   },
   "declaredBreaks": [],
-  "declaredAdvisories": []
+  "declaredAdvisories": [
+    {
+      "id": "agent-warehouse-confirmation-endpoints-removed",
+      "reason": "The three warehouse-confirmation operations (GET, PUT and DELETE /api/v2/org/agent-permissions/projects/{projectUuid}/warehouse-confirmation) and the exported AgentWarehouseRestrictionConfirmation and AgentWarehouseConfirmationStatus types are removed. The agent-identity flag is off by default on Cloud and on self-hosted. The endpoints refuse callers when the flag is off. Only the project Agent identity settings page of the same release called them. API clients get a 404. Raw SQL for agents no longer needs a project confirmation.",
+      "requiredStop": false,
+      "impact": {
+        "kind": "no-external-callers",
+        "featureFlag": "agent-identity",
+        "covers": {
+          "rest": [
+            "GET /api/v2/org/agent-permissions/projects/{projectUuid}/warehouse-confirmation",
+            "PUT /api/v2/org/agent-permissions/projects/{projectUuid}/warehouse-confirmation",
+            "DELETE /api/v2/org/agent-permissions/projects/{projectUuid}/warehouse-confirmation"
+          ],
+          "mcp": []
+        }
+      }
+    }
+  ]
 }

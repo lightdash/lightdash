@@ -1,3 +1,10 @@
+# [2.555.0](https://github.com/lightdash/lightdash/compare/2.554.0...2.555.0) (2026-10-11)
+
+
+### Features
+
+* **agent-identity:** remove the raw SQL confirmation for agents ([#30890](https://github.com/lightdash/lightdash/issues/30890)) ([9f94d6a](https://github.com/lightdash/lightdash/commit/9f94d6ae7854316f04eba33fe8af714821414707))
+
 # [2.554.0](https://github.com/lightdash/lightdash/compare/2.553.0...2.554.0) (2026-10-11)
 
 
