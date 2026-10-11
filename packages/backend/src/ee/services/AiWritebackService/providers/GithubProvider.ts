@@ -262,6 +262,7 @@ export class GithubProvider implements GitProvider {
             ...auth,
         });
         if (args.assertStagedChangesAllowed === null) {
+            if (args.assertPublishAllowed) await args.assertPublishAllowed();
             await createBranch({
                 owner: connection.owner,
                 repo: connection.repo,
@@ -285,9 +286,11 @@ export class GithubProvider implements GitProvider {
             setStage,
             onRemoteCommitted: args.onRemoteCommitted,
             assertStagedChangesAllowed: args.assertStagedChangesAllowed,
+            assertPublishAllowed: args.assertPublishAllowed,
         });
 
         setStage('pull_request');
+        if (args.assertPublishAllowed) await args.assertPublishAllowed();
         const pr = await createPullRequest({
             owner: connection.owner,
             repo: connection.repo,
@@ -337,9 +340,11 @@ export class GithubProvider implements GitProvider {
             setStage,
             onRemoteCommitted: args.onRemoteCommitted,
             assertStagedChangesAllowed: args.assertStagedChangesAllowed,
+            assertPublishAllowed: args.assertPublishAllowed,
         });
 
         setStage('pull_request');
+        if (args.assertPublishAllowed) await args.assertPublishAllowed();
         await updatePullRequest({
             owner: connection.owner,
             repo: connection.repo,
@@ -466,6 +471,7 @@ export class GithubProvider implements GitProvider {
         setStage,
         onRemoteCommitted,
         assertStagedChangesAllowed,
+        assertPublishAllowed,
     }: {
         sandbox: SandboxHandle;
         connection: GithubConnection;
@@ -479,6 +485,7 @@ export class GithubProvider implements GitProvider {
         setStage: SetStage;
         onRemoteCommitted: () => Promise<void>;
         assertStagedChangesAllowed: (() => Promise<void>) | null;
+        assertPublishAllowed: (() => Promise<void>) | null;
     }): Promise<LandedCommit> {
         setStage('commit');
         const paths = await resolveConnectionPaths(
@@ -493,6 +500,7 @@ export class GithubProvider implements GitProvider {
         // below clears the index.
         const diffStat = await collectDiffStat(sandbox);
         if (createRemoteBranch) {
+            if (assertPublishAllowed) await assertPublishAllowed();
             await createBranch({
                 owner: connection.owner,
                 repo: connection.repo,
@@ -519,6 +527,7 @@ export class GithubProvider implements GitProvider {
                 ? `${description}\n\n${coAuthorTrailer}`
                 : coAuthorTrailer;
         }
+        if (assertPublishAllowed) await assertPublishAllowed();
         const commit = await createSignedCommitOnBranch({
             owner: connection.owner,
             repo: connection.repo,

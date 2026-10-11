@@ -180,6 +180,12 @@ describe('AiWritebackRunModel', () => {
 
             const updated = await model.markError('run-1', 'boom');
 
+            expect(qb.whereNotIn).toHaveBeenCalledExactlyOnceWith('status', [
+                'ready',
+                'error',
+                'cancelled',
+            ]);
+
             expect(updated).toBe(true);
             expect(qb.update).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -196,6 +202,12 @@ describe('AiWritebackRunModel', () => {
             const { model } = buildModel(qb);
 
             const updated = await model.markError('run-1', 'boom');
+
+            expect(qb.whereNotIn).toHaveBeenCalledExactlyOnceWith('status', [
+                'ready',
+                'error',
+                'cancelled',
+            ]);
 
             expect(updated).toBe(false);
         });

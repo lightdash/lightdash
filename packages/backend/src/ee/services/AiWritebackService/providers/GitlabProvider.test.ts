@@ -2,6 +2,7 @@ import { ParameterError, PullRequestProvider } from '@lightdash/common';
 import {
     createPullRequest,
     getMergeRequest,
+    updateMergeRequest,
 } from '../../../../clients/gitlab/Gitlab';
 import { DeniedPathError } from '../deniedPaths';
 import type { GitlabConnection, GitlabInstallation } from '../types';
@@ -105,6 +106,7 @@ describe('GitlabProvider.openPullRequest', () => {
             setStage: vi.fn(),
             onRemoteCommitted: vi.fn().mockResolvedValue(undefined),
             assertStagedChangesAllowed: null,
+            assertPublishAllowed: null,
         });
 
         expect(result.prUrl).toBe(
@@ -150,6 +152,7 @@ describe('GitlabProvider.openPullRequest', () => {
                 setStage: vi.fn(),
                 onRemoteCommitted: vi.fn().mockResolvedValue(undefined),
                 assertStagedChangesAllowed: null,
+                assertPublishAllowed: null,
             };
             if (action === 'open') await provider.openPullRequest(args);
             else
@@ -191,6 +194,7 @@ describe('GitlabProvider.openPullRequest', () => {
             setStage: vi.fn(),
             onRemoteCommitted: vi.fn().mockResolvedValue(undefined),
             assertStagedChangesAllowed: null,
+            assertPublishAllowed: null,
         });
 
         expect(sandbox.git.commit).toHaveBeenCalledWith(
@@ -221,6 +225,7 @@ describe('GitlabProvider.openPullRequest', () => {
                 setStage: vi.fn(),
                 onRemoteCommitted: vi.fn().mockResolvedValue(undefined),
                 assertStagedChangesAllowed: null,
+                assertPublishAllowed: null,
             }),
         ).rejects.toBeInstanceOf(DeniedPathError);
 
@@ -296,4 +301,61 @@ describe('GitlabProvider.adoptPullRequest', () => {
             adopt('https://gitlab.com/acme/analytics/-/merge_requests/42'),
         ).rejects.toThrow(/fork/);
     });
+});
+
+describe('GitlabProvider publication authority', () => {
+    beforeEach(() => vi.clearAllMocks());
+    it.each(
+        ['open', 'update'].flatMap((action) =>
+            [1, 2, null].map((failAt) => ({ action, failAt })),
+        ),
+    )(
+        '$action checks the push (which creates the remote branch) and PR separately, failing at $failAt',
+        async ({ action, failAt }) => {
+            vi.clearAllMocks();
+            mockCreatePullRequest.mockResolvedValue({
+                html_url: openMr.webUrl,
+                title: 'Change',
+                number: 42,
+            });
+            const sandbox = fakeSandbox();
+            const error = new Error('person deactivated');
+            let checks = 0;
+            const assertPublishAllowed = vi.fn(async () => {
+                checks += 1;
+                if (checks === failAt) throw error;
+            });
+            const args = {
+                sandbox: sandbox as never,
+                connection,
+                installation,
+                title: 'Change',
+                description: 'Change',
+                user: { userUuid: 'u1' } as never,
+                setStage: vi.fn(),
+                onRemoteCommitted: vi.fn(),
+                assertStagedChangesAllowed: null,
+                assertPublishAllowed,
+            };
+            const result =
+                action === 'open'
+                    ? provider.openPullRequest(args)
+                    : provider.updatePullRequest({
+                          ...args,
+                          prUrl: openMr.webUrl,
+                      });
+            if (failAt) await expect(result).rejects.toBe(error);
+            else await result;
+            expect(sandbox.git.push).toHaveBeenCalledTimes(
+                failAt !== 1 ? 1 : 0,
+            );
+            expect(createPullRequest).toHaveBeenCalledTimes(
+                action === 'open' && failAt === null ? 1 : 0,
+            );
+            expect(updateMergeRequest).toHaveBeenCalledTimes(
+                action === 'update' && failAt === null ? 1 : 0,
+            );
+            expect(assertPublishAllowed).toHaveBeenCalledTimes(failAt ?? 2);
+        },
+    );
 });

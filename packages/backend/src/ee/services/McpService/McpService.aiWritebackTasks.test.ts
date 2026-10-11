@@ -38,6 +38,7 @@ vi.mock('@sentry/node', () => ({
 }));
 
 vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
+    ResourceTemplate: class {},
     McpServer: vi.fn().mockImplementation(
         // eslint-disable-next-line prefer-arrow-callback
         function MockMcpServer() {
@@ -272,6 +273,30 @@ describe('McpService AI writeback MCP tasks', () => {
                         source: 'mcp',
                         agentPermissionsApply: type !== 'pat',
                     }),
+                );
+            },
+        );
+
+        it.each([false, true])(
+            'passes the existing identity flag (%s) to the enqueue',
+            async (agentIdentityEnabled) => {
+                const enqueueWriteback = vi.fn().mockResolvedValue({
+                    aiWritebackRunUuid: runUuid,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                });
+                const mcpService = makeMcpService({
+                    aiWritebackService: { enqueueWriteback },
+                });
+                await mcpService.createServer(
+                    makeMcpServerOptions({ agentIdentityEnabled }),
+                );
+                await mockRegisteredMcpTools.get(McpToolName.RUN_AI_WRITEBACK)!(
+                    { prompt: 'add a metric', projectUuid },
+                    makeExtra(),
+                );
+                expect(enqueueWriteback).toHaveBeenCalledWith(
+                    expect.objectContaining({ agentIdentityEnabled }),
                 );
             },
         );
