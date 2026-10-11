@@ -15,6 +15,7 @@ it('times out and kills a real CLI child when its HTTP response never arrives', 
     const home = await fs.mkdtemp(path.join(tmpdir(), 'ordinary-hung-child-'));
     const server = createServer();
     const spawn = vi.mocked(childProcess.spawn);
+    const waiting = new AbortController();
     try {
         for (const key of [
             'LIGHTDASH_AGENT_CONNECTION',
@@ -35,7 +36,7 @@ it('times out and kills a real CLI child when its HTTP response never arrives', 
             home,
             personalConfig(`http://127.0.0.1:${address.port}`),
         );
-        const received = once(server, 'request');
+        const received = once(server, 'request', { signal: waiting.signal });
         const result = runOrdinaryCli(home, [
             'warehouse-catalog',
             '--json',
@@ -43,7 +44,12 @@ it('times out and kills a real CLI child when its HTTP response never arrives', 
             () => null,
             (error: Error) => error,
         );
-        const [req] = await received;
+        const req = await Promise.race([
+            received.then(([request]) => request),
+            result.then(() => null),
+        ]);
+        if (req === null)
+            throw new Error('The CLI child ended before sending a request');
         expect(req.headers.authorization).toBe('ApiKey ldpat_pin');
         expect(spawn).toHaveBeenCalledOnce();
         const child = spawn.mock.results[0].value as childProcess.ChildProcess;
@@ -55,6 +61,7 @@ it('times out and kills a real CLI child when its HTTP response never arrives', 
         expect(child.signalCode).toBe('SIGKILL');
         expect(() => process.kill(child.pid!, 0)).toThrow();
     } finally {
+        waiting.abort();
         const child = spawn.mock.results[0]?.value as
             | childProcess.ChildProcess
             | undefined;
