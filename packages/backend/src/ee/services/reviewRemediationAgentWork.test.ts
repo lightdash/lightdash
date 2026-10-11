@@ -82,3 +82,24 @@ it.each(['start refusal', 'missing membership', 'load error'] as const)(
         ).toHaveBeenCalledTimes(failure === 'start refusal' ? 0 : 1);
     },
 );
+
+it('loads the person for a forced check that overlaps the start check', async () => {
+    const deps = dependencies();
+    let releaseServiceAccount: () => void = () => undefined;
+    deps.userModel.findServiceAccountByUserUuid.mockReturnValue(
+        new Promise((resolve) => {
+            releaseServiceAccount = () => resolve({ uuid: 'service-account' });
+        }),
+    );
+    const guard = createReviewRemediationAgentWorkGuard(deps, {
+        ...marker,
+        agentWork: marker,
+    })!;
+    const start = guard.assertUser({ ...user, isActive: false });
+    const forced = guard.assert();
+    releaseServiceAccount();
+    await Promise.all([start, forced]);
+    expect(deps.userModel.findSessionUserAndOrgByUuid.mock.calls).toEqual([
+        ['person', 'org'],
+    ]);
+});

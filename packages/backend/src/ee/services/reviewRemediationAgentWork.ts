@@ -21,12 +21,14 @@ export const createReviewRemediationAgentWorkGuard = (
         enabled: true,
         now: Date.now,
         check: async () => {
+            const startUser = freshlyLoadedUser;
+            freshlyLoadedUser = null;
             try {
                 if (agentWork.status === 'malformed') {
                     throw new InvalidUser('Invalid agent work marker');
                 }
                 const user =
-                    freshlyLoadedUser ??
+                    startUser ??
                     (await deps.userModel.findSessionUserAndOrgByUuid(
                         agentWork.marker.userUuid,
                         agentWork.marker.organizationUuid,

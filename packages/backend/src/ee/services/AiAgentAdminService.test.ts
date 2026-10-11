@@ -4131,6 +4131,12 @@ describe('review job authority', () => {
                 (effect, index) => [2, 3, 4, 9, 10][index] < load,
             ),
         );
+        expect(
+            h.service['pullRequestsModel'].findOrCreate,
+        ).toHaveBeenCalledTimes(load > 5 ? 1 : 0);
+        expect(h.model.setReviewItemWritebackStatus).not.toHaveBeenCalledWith(
+            expect.objectContaining({ status: 'completed' }),
+        );
         expect(h.model.setReviewItemPrLink).toHaveBeenCalledTimes(
             load > 6 ? 1 : 0,
         );
