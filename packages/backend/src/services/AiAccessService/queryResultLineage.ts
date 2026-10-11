@@ -67,7 +67,7 @@ export const getQueryResultRequestParameters = (
     externalSourceReferences: undefined,
     ...trusted,
     agentConnectionExecution:
-        agentExecutionContext.getStore()?.agentConnectionExecution ?? null,
+        agentExecutionContext.getStore()?.agentConnectionExecution ?? undefined,
 });
 
 export const getQueryResultEntitlementFingerprint = ({

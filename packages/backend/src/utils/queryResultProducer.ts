@@ -732,6 +732,14 @@ export const isSameResultProducer = (
     stored.entitlementFingerprint === current.entitlementFingerprint &&
     isSameResultProducerOwner(stored, current);
 
+export const isConnectionProducedQuery = (
+    query: Pick<QueryHistory, 'agentIdentity' | 'requestParameters'>,
+): boolean =>
+    query.agentIdentity?.act.agent_connection_grant != null ||
+    query.requestParameters?.resultProducer?.agentIdentity?.act
+        .agent_connection_grant != null ||
+    query.requestParameters?.agentConnectionExecution != null;
+
 export const assertQueryConnectionBinding = (
     query: Pick<
         QueryHistory,

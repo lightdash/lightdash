@@ -34,6 +34,7 @@ type ProjectServiceInterface = {
     assertConnectionPreAggregateRefresh: (
         projectUuid: string,
         explores: (Explore | ExploreError)[],
+        options?: { staging: boolean },
     ) => Promise<void>;
     saveDeployExplores: (args: {
         userUuid: string;
@@ -182,6 +183,7 @@ export class DeployService extends BaseService {
             await this.projectService.assertConnectionPreAggregateRefresh(
                 projectUuid,
                 explores,
+                { staging: true },
             );
 
             // Add explores to the staging table

@@ -7,6 +7,7 @@ import { fromOauth } from '../account/account';
 import { defaultSessionUser } from '../account/account.mock';
 import { AgentConnectionGrantService } from './AgentConnectionGrantService';
 import { grantFixture } from './grant.mock';
+import { managedExecutionFixture } from './managedExecution.mock';
 
 const setup = () => {
     const grant = grantFixture();
@@ -781,6 +782,57 @@ describe('fresh connection execution', () => {
                     recheckOperation: false,
                 }),
             ).rejects.toThrow();
+        },
+    );
+});
+
+describe('current managed policy intersection', () => {
+    it.each(Object.values(AgentCapability))(
+        'rechecks the current %s capability',
+        async (capability) => {
+            const f = managedExecutionFixture();
+            const run = () =>
+                f.service.assertActiveExecution(f.execution, {
+                    projectUuid: f.projectUuid,
+                    capabilities: [capability],
+                    recheckOperation: false,
+                });
+            await expect(run()).resolves.toBeDefined();
+            f.policy.systemRoleMatrix.viewer = Object.values(
+                AgentCapability,
+            ).filter((value) => value !== capability);
+            await expect(run()).rejects.toMatchObject({
+                refusal: { capability },
+            });
+        },
+    );
+    it('refuses an unknown capability even if stored grant data includes it', async () => {
+        const f = managedExecutionFixture();
+        const unknown = 'unknown' as AgentCapability;
+        f.grant.approvedCapabilities.push(unknown);
+        await expect(
+            f.service.assertActiveExecution(f.execution, {
+                projectUuid: f.projectUuid,
+                capabilities: [unknown],
+                recheckOperation: false,
+            }),
+        ).rejects.toThrow();
+    });
+    it.each(['project', 'user', 'project role'] as const)(
+        'rechecks the current %s limit',
+        async (limit) => {
+            const f = managedExecutionFixture();
+            const run = () =>
+                f.service.assertActiveExecution(f.execution, {
+                    projectUuid: f.projectUuid,
+                    capabilities: [AgentCapability.ContentWrite],
+                    recheckOperation: false,
+                });
+            await expect(run()).resolves.toBeDefined();
+            if (limit === 'project') f.policy.allowedProjectUuids = [];
+            if (limit === 'user') f.policy.allowedUserUuids = [];
+            if (limit === 'project role') f.assignments.systemRoles = [];
+            await expect(run()).rejects.toThrow();
         },
     );
 });

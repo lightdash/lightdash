@@ -1,5 +1,6 @@
 import {
     AgentActorSurface,
+    AgentCapability,
     ChartType,
     DashboardTileTypes,
     DimensionType,
@@ -47,6 +48,7 @@ import {
 import ExecutionContext from 'node-execution-context';
 import type { Mock } from 'vitest';
 import { fromSession } from '../auth/account';
+import { managedExecutionFixture } from '../auth/agentConnectionGrants/managedExecution.mock';
 import type { ExecutionContextInfo } from '../logging/winston';
 import {
     agentExecutionContext,
@@ -4571,6 +4573,40 @@ describe('connection compile jobs', () => {
             findFields,
         };
     };
+    test.each([
+        ['replaceCustomFields', AgentCapability.ContentWrite],
+        ['materializePreAggregate', AgentCapability.Query],
+        ['indexCatalog', AgentCapability.DeployUpload],
+        ['validateProject', AgentCapability.DeployUpload],
+    ] as const)(
+        '%s uses the real current policy before the child effect',
+        async (method, capability) => {
+            const f = setup(method);
+            const authority = managedExecutionFixture();
+            Object.assign(f.task, {
+                getAgentConnectionGrantService: () => authority.service,
+            });
+            const payload = {
+                ...f.payload,
+                userUuid: authority.user.userUuid,
+                createdByUserUuid: authority.user.userUuid,
+                organizationUuid: authority.grant.organizationUuid,
+                projectUuid: authority.projectUuid,
+                agentConnectionExecution: authority.execution,
+            };
+            await f.run(structuredClone(payload));
+            expect(f.effect).toHaveBeenCalledOnce();
+            f.effect.mockClear();
+            authority.policy.systemRoleMatrix.viewer = Object.values(
+                AgentCapability,
+            ).filter((value) => value !== capability);
+            await f.run(structuredClone(payload));
+            expect(f.effect).not.toHaveBeenCalled();
+            expect(f.getSession).not.toHaveBeenCalled();
+            expect(f.getAccount).not.toHaveBeenCalled();
+        },
+    );
+
     test.each(methods)(
         '%s restores a serialized connection and never reconstructs a session',
         async (method) => {

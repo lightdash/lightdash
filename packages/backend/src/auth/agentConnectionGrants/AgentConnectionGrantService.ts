@@ -137,6 +137,7 @@ export class AgentConnectionGrantService {
             !grant.approvedProjectUuids.includes(projectUuid) ||
             capabilities.some(
                 (capability) =>
+                    !Object.values(AgentCapability).includes(capability) ||
                     !grant.approvedCapabilities.includes(capability),
             ) ||
             !account.user.ability.can(
@@ -167,34 +168,31 @@ export class AgentConnectionGrantService {
             agentConnectionExecution: execution,
         });
         const permissions = this.deps.getAgentPermissionService();
-        const operations = new Set([
-            ...(recheckOperation ? [execution.operation.key] : []),
-            ...(capabilities.includes(AgentCapability.ReadDiscover)
-                ? ['QueryController.getAsyncQueryResults']
-                : []),
-            ...(capabilities.includes(AgentCapability.Query)
-                ? ['QueryController.executeAsyncMetricQuery']
-                : []),
-            ...(capabilities.includes(AgentCapability.RawSql)
-                ? ['QueryController.executeAsyncSqlQuery']
-                : []),
-            ...(capabilities.includes(AgentCapability.Export)
-                ? ['QueryController.downloadResults']
-                : []),
-        ]);
-        await agentExecutionContext.run(scope, () =>
-            [...operations].reduce(async (previous, key) => {
-                await previous;
+        await agentExecutionContext.run(scope, async () => {
+            if (recheckOperation)
                 await permissions.assertOperation({
                     account,
                     organizationUuid: execution.organizationUuid,
                     projectUuid,
                     kind: 'rest_operation',
-                    key,
+                    key: execution.operation.key,
                     surface: AgentActorSurface.CLI,
                 });
-            }, Promise.resolve()),
-        );
+            await [...new Set(capabilities)].reduce(
+                async (previous, capability) => {
+                    await previous;
+                    await permissions.assertOperation({
+                        account,
+                        organizationUuid: execution.organizationUuid,
+                        projectUuid,
+                        kind: 'capability',
+                        key: capability,
+                        surface: AgentActorSurface.CLI,
+                    });
+                },
+                Promise.resolve(),
+            );
+        });
 
         return { grant: validatedGrant, account, scope };
     }

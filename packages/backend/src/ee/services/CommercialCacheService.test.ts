@@ -82,6 +82,46 @@ describe('CommercialCacheService', () => {
         ).toHaveLength(0);
     });
 
+    test.each(['claim', 'producer', 'envelope'] as const)(
+        'refuses a connection cache candidate from its %s with identity off',
+        async (marker) => {
+            const f = makeService(new Date('2026-07-31T11:00:00.000Z'));
+            f.config.ai.agentResultIdentityCheckEnabled = false;
+            const claim = buildAgentIdentityClaim({
+                subject: { type: 'user', uuid: 'reader' },
+                surface: AgentActorSurface.CLI,
+                clientId: 'lightdash-cli',
+                agentConnectionGrant: { grantUuid: 'grant', revision: 1 },
+            });
+            Object.assign(f.candidate, {
+                queryHistory: {
+                    agentIdentity: marker === 'claim' ? claim : null,
+                    requestParameters: {
+                        ...(marker === 'producer'
+                            ? { resultProducer: { agentIdentity: claim } }
+                            : {}),
+                        ...(marker === 'envelope'
+                            ? {
+                                  agentConnectionExecution: {
+                                      grantUuid: 'grant',
+                                  },
+                              }
+                            : {}),
+                    },
+                },
+            });
+            await expect(
+                f.service.findCachedResultsFile(
+                    'project',
+                    'cache',
+                    { userUuid: 'reader' },
+                    null,
+                    false,
+                ),
+            ).resolves.toBeNull();
+        },
+    );
+
     const sharedProducer: QueryResultProducer = {
         entitlementFingerprint: 'entitlement',
         version: 1,

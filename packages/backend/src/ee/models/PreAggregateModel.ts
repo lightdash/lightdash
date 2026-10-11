@@ -192,9 +192,9 @@ export class PreAggregateModel {
         };
     }
 
-    async getProjectSchedulerDetailsForPreAggregates(): Promise<
-        PreAggregateSchedulerDetails[]
-    > {
+    async getProjectSchedulerDetailsForPreAggregates(
+        projectUuid?: string,
+    ): Promise<PreAggregateSchedulerDetails[]> {
         type PreAggregateSchedulerDetailRow = {
             project_uuid: string;
             organization_uuid: string;
@@ -222,6 +222,13 @@ export class PreAggregateModel {
                 `${PreAggregateDefinitionsTableName}.pre_agg_cached_explore_uuid`,
             )
             .whereNotNull(`${PreAggregateDefinitionsTableName}.refresh_cron`)
+            .modify((query) => {
+                if (projectUuid !== undefined)
+                    void query.where(
+                        `${PreAggregateDefinitionsTableName}.project_uuid`,
+                        projectUuid,
+                    );
+            })
             .select<PreAggregateSchedulerDetailRow[]>([
                 `${PreAggregateDefinitionsTableName}.project_uuid`,
                 'organizations.organization_uuid',

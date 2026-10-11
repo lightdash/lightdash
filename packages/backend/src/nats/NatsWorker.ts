@@ -1,4 +1,6 @@
 import {
+    AiAccessRefusedError,
+    ForbiddenError,
     getErrorMessage,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -16,6 +18,7 @@ import {
 } from '../sentry/organizationNameResolver';
 import { type AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { continueTrace, traceSpan } from '../tracing/tracing';
+import { isConnectionProducedQuery } from '../utils/queryResultProducer';
 import {
     STREAM_CONFIGS,
     type AsyncQueryJobPayload,
@@ -237,6 +240,7 @@ export class NatsWorker {
             jobMetadata,
         );
 
+        let isConnectionQuery = false;
         try {
             const didRun = await NatsWorker.runWithAckProgress(message, () =>
                 continueTrace(
@@ -263,9 +267,10 @@ export class NatsWorker {
                                     },
                                 },
                                 async () => {
-                                    await this.applyQuerySentryContext(
-                                        parsed.payload.queryUuid,
-                                    );
+                                    isConnectionQuery =
+                                        await this.applyQuerySentryContext(
+                                            parsed.payload.queryUuid,
+                                        );
                                     return runQuery(
                                         parsed.payload.queryUuid,
                                         workerLabel,
@@ -292,10 +297,19 @@ export class NatsWorker {
                 `Worker ${workerLabel} failed query job ${parsed.jobId ?? '<unknown>'} on ${message.subject}: ${getErrorMessage(error)}`,
                 { error, ...jobMetadata },
             );
-            const query = await this.queryHistoryModel
-                .getByQueryUuid(parsed.payload.queryUuid)
-                .catch(() => null);
-            if (query?.status === QueryHistoryStatus.ERROR) message.term();
+            const query =
+                isConnectionQuery &&
+                (error instanceof ForbiddenError ||
+                    error instanceof AiAccessRefusedError)
+                    ? await this.queryHistoryModel
+                          .getByQueryUuid(parsed.payload.queryUuid)
+                          .catch(() => null)
+                    : null;
+            if (
+                query?.status === QueryHistoryStatus.ERROR &&
+                isConnectionProducedQuery(query)
+            )
+                message.term();
             else message.nak();
         }
     }
@@ -365,11 +379,13 @@ export class NatsWorker {
         }
     }
 
-    private async applyQuerySentryContext(queryUuid: string): Promise<void> {
+    private async applyQuerySentryContext(queryUuid: string): Promise<boolean> {
+        let isConnectionQuery = false;
         try {
             const queryHistory =
                 await this.queryHistoryModel.getByQueryUuid(queryUuid);
-            if (!queryHistory) return;
+            if (!queryHistory) return false;
+            isConnectionQuery = isConnectionProducedQuery(queryHistory);
 
             const { organizationUuid, createdByUserUuid } = queryHistory;
 
@@ -411,6 +427,7 @@ export class NatsWorker {
                 `Failed to enrich Sentry context for query ${queryUuid}: ${getErrorMessage(error)}`,
             );
         }
+        return isConnectionQuery;
     }
 
     static async runWithAckProgress<T>(

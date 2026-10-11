@@ -38,6 +38,7 @@ import {
     getDbtManifestVersion,
     getItemId,
     getModelsFromManifest,
+    getPreAggregateExploreName,
     isAiAccessQueryContext,
     JobStatusType,
     JobStepStatusType,
@@ -99,9 +100,11 @@ import {
     type ExploreError,
     type Job,
     type LightdashProjectConfig,
+    type MaterializePreAggregatePayload,
     type MergeQuery,
     type MergeQueryMetricSource,
     type PossibleAbilities,
+    type PreAggregateDefinition,
     type Project,
     type ProjectDbtSource,
     type RegisteredAccount,
@@ -9813,54 +9816,418 @@ describe('ProjectService', () => {
                 expect(schedulerClient.indexCatalog).not.toHaveBeenCalled();
             },
         );
-        test('unchanged recurring definitions leave cron jobs untouched and bind immediate materializations', async () => {
-            const configured = getMockedProjectService({
-                ...lightdashConfigWithGoogleOAuthMock,
-                preAggregates: {
-                    ...lightdashConfigWithGoogleOAuthMock.preAggregates,
-                    enabled: true,
-                },
+        test.each([
+            'filter',
+            'metric',
+            'dimension',
+            'role',
+            'source SQL',
+            'field SQL',
+            'sort',
+            'limit',
+            'rename',
+            'remove cron',
+            'remove definition',
+            'remove explore',
+        ] as const)(
+            'refuses a scheduled workload change to %s before persistence',
+            async (change) => {
+                const previous = exploreWithCron('0 2 * * *');
+                const next = structuredClone(previous);
+                const definition = next.preAggregates![0];
+                if (change === 'filter')
+                    definition.filters = [
+                        {
+                            id: 'filter',
+                            target: { fieldRef: 'dim1' },
+                            operator: FilterOperator.EQUALS,
+                            values: ['restricted'],
+                        },
+                    ];
+                if (change === 'metric') definition.metrics = ['a_metric1'];
+                if (change === 'dimension') definition.dimensions = ['a_dim1'];
+                if (change === 'role')
+                    definition.materializationRole = {
+                        email: 'agent@example.com',
+                        attributes: { region: ['west'] },
+                    };
+                if (change === 'source SQL')
+                    next.tables.a.sqlTable = 'changed_source';
+                if (change === 'field SQL')
+                    next.tables.a.dimensions.dim1.sql = 'changed_expression';
+                if (change === 'sort')
+                    definition.sorts = [
+                        { fieldId: 'a_dim1', descending: true },
+                    ];
+                if (change === 'limit') definition.maxRows = 10;
+                if (change === 'rename') definition.name = 'renamed';
+                if (change === 'remove cron') delete definition.refresh;
+                if (change === 'remove definition') next.preAggregates = [];
+                projectModel.getAllExploresFromCache.mockResolvedValue({
+                    existing: previous,
+                });
+                await expect(
+                    agentExecutionContext.run(scope(true), () =>
+                        service.saveExploresToCacheAndIndexCatalog({
+                            userUuid: user.userUuid,
+                            projectUuid,
+                            explores: change === 'remove explore' ? [] : [next],
+                            complete: true,
+                            compilationSource: 'cli_deploy',
+                        }),
+                    ),
+                ).rejects.toThrow('recurring pre-aggregate refreshes');
+                expect(projectModel.saveExploresToCache).not.toHaveBeenCalled();
+                expect(
+                    preAggregateModel.upsertPreAggregateDefinitions,
+                ).not.toHaveBeenCalled();
+                expect(
+                    schedulerClient.schedulePreAggregateCronJobs,
+                ).not.toHaveBeenCalled();
+            },
+        );
+
+        test('staging permits unchanged workload before server source bindings are restored', async () => {
+            const previous = structuredClone(exploreWithCron('0 2 * * *'));
+            previous.tables.a.dbtSourceUuid = 'source';
+            const incoming = structuredClone(previous);
+            delete incoming.tables.a.dbtSourceUuid;
+            projectModel.getAllExploresFromCache.mockResolvedValue({
+                existing: previous,
             });
-            Object.assign(configured, {
-                getAgentConnectionGrantService: () => ({
-                    assertActiveExecution: vi
-                        .fn()
-                        .mockResolvedValue({ account: connectionAccount }),
-                }),
+            await expect(
+                agentExecutionContext.run(scope(true), () =>
+                    service.assertConnectionPreAggregateRefresh(
+                        projectUuid,
+                        [incoming],
+                        { staging: true },
+                    ),
+                ),
+            ).resolves.toBeUndefined();
+            await expect(
+                agentExecutionContext.run(scope(true), () =>
+                    service.assertConnectionPreAggregateRefresh(projectUuid, [
+                        incoming,
+                    ]),
+                ),
+            ).rejects.toThrow('recurring pre-aggregate refreshes');
+        });
+
+        test.each([
+            'partial',
+            'carried source',
+            'carried connection',
+            'unscheduled definition',
+        ] as const)(
+            'keeps an unchanged schedule when updating a %s',
+            async (kind) => {
+                const previous = structuredClone(exploreWithCron('0 2 * * *'));
+                previous.tables.a.dbtSourceUuid = 'retained-source';
+                const next = structuredClone(previous);
+                next.preAggregates!.push({
+                    name: 'unscheduled',
+                    dimensions: ['dim1'],
+                    metrics: [],
+                });
+                projectModel.getAllExploresFromCache.mockResolvedValue({
+                    existing: previous,
+                });
+                projectModel.getExploreWarehouseConnectionUuid.mockResolvedValue(
+                    'retained-connection',
+                );
+                const options = {
+                    'carried source': {
+                        complete: true,
+                        carry: {
+                            kind: 'otherDbtSources' as const,
+                            dbtSourceUuid: 'changed-source',
+                            warehouseConnectionUuid: null,
+                        },
+                    },
+                    'carried connection': {
+                        complete: true,
+                        carry: {
+                            kind: 'connections' as const,
+                            warehouseConnectionUuids: ['retained-connection'],
+                        },
+                    },
+                    partial: {},
+                    'unscheduled definition': {},
+                }[kind];
+                await expect(
+                    agentExecutionContext.run(scope(true), () =>
+                        service.assertConnectionPreAggregateRefresh(
+                            projectUuid,
+                            kind === 'unscheduled definition' ? [next] : [],
+                            options,
+                        ),
+                    ),
+                ).resolves.toBeUndefined();
+            },
+        );
+
+        test('refuses removal through the dbt model list of a partial deploy', async () => {
+            Object.assign(service.projectDbtSourcesModel, {
+                hasSources: vi.fn().mockResolvedValue(false),
             });
             projectModel.getAllExploresFromCache.mockResolvedValue({
                 existing: exploreWithCron('0 2 * * *'),
             });
-            vi.mocked(
-                preAggregateModel.getPreAggregateDefinitionsForProject,
-            ).mockResolvedValueOnce([
-                {
-                    preAggregateDefinitionUuid: 'definition',
-                    materializationMetricQuery: {},
-                    refreshCron: '0 2 * * *',
-                },
-            ] as never);
-            await agentExecutionContext.run(scope(true), () =>
-                configured.saveExploresToCacheAndIndexCatalog({
-                    userUuid: user.userUuid,
-                    projectUuid,
-                    explores: [exploreWithCron('0 2 * * *')],
-                    compilationSource: 'cli_deploy',
-                }),
-            );
-            expect(
-                schedulerClient.materializePreAggregate,
-            ).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    agentConnectionExecution:
-                        scope(true).agentConnectionExecution,
-                    agentConnectionEffect: 'materializePreAggregate',
-                }),
-            );
-            expect(
-                schedulerClient.schedulePreAggregateCronJobs,
-            ).not.toHaveBeenCalled();
+            await expect(
+                agentExecutionContext.run(scope(true), () =>
+                    service.saveExploresToCacheAndIndexCatalog({
+                        userUuid: user.userUuid,
+                        projectUuid,
+                        explores: [],
+                        complete: false,
+                        dbtModelNames: [],
+                        compilationSource: 'cli_deploy',
+                    }),
+                ),
+            ).rejects.toThrow('remove recurring');
+            expect(projectModel.saveExploresToCache).not.toHaveBeenCalled();
         });
+
+        test.each([
+            { bound: true, owner: 'project-owner' },
+            { bound: false, owner: 'project-owner' },
+            { bound: true, owner: null },
+        ])(
+            'full refresh preserves recurring jobs after definition UUIDs change, bound=$bound owner=$owner',
+            async ({ bound, owner }) => {
+                const source = exploreWithCron('0 * * * *');
+                source.preAggregates![0].dimensions = ['dim1'];
+                source.preAggregates!.push({
+                    ...source.preAggregates![0],
+                    name: 'second',
+                });
+                const explores = [
+                    source,
+                    ...source.preAggregates!.map((definition) => ({
+                        ...validExplore,
+                        name: getPreAggregateExploreName(
+                            source.name,
+                            definition.name,
+                        ),
+                        type: ExploreType.PRE_AGGREGATE,
+                    })),
+                ];
+                let cache = Object.fromEntries(
+                    explores.map((explore, index) => [
+                        `old-cache-${index}`,
+                        explore,
+                    ]),
+                );
+                const definitions = new Map<string, PreAggregateDefinition>();
+                const cronJobs = new Map<
+                    string,
+                    MaterializePreAggregatePayload
+                >();
+                for (const definition of source.preAggregates!) {
+                    const uuid = `old-${definition.name}`;
+                    definitions.set(uuid, {
+                        preAggregateDefinitionUuid: uuid,
+                        preAggregateDefinition: definition,
+                        refreshCron: definition.refresh!.cron!,
+                    } as PreAggregateDefinition);
+                    cronJobs.set(uuid, {
+                        preAggregateDefinitionUuid: uuid,
+                        trigger: 'cron',
+                        userUuid: 'project-owner',
+                        organizationUuid: 'organizationUuid',
+                        projectUuid,
+                    });
+                }
+                const oldUuids = [...definitions.keys()];
+                const model = {
+                    ...projectModel,
+                    getAllExploresFromCache: vi.fn(async () => cache),
+                    saveExploresToCache: vi.fn(async () => {
+                        definitions.clear();
+                        cache = Object.fromEntries(
+                            explores.map((explore, index) => [
+                                `new-cache-${index}`,
+                                explore,
+                            ]),
+                        );
+                        return { cachedExploreUuids: Object.keys(cache) };
+                    }),
+                };
+                const registry = {
+                    ...preAggregateModel,
+                    upsertPreAggregateDefinitions: vi.fn<
+                        PreAggregateModel['upsertPreAggregateDefinitions']
+                    >(async (rows) => {
+                        for (const row of rows) {
+                            const uuid = `new-${row.pre_aggregate_definition.name}`;
+                            definitions.set(uuid, {
+                                preAggregateDefinitionUuid: uuid,
+                                projectUuid,
+                                sourceCachedExploreUuid:
+                                    row.source_cached_explore_uuid,
+                                preAggCachedExploreUuid:
+                                    row.pre_agg_cached_explore_uuid,
+                                preAggregateDefinition:
+                                    row.pre_aggregate_definition,
+                                materializationMetricQuery:
+                                    row.materialization_metric_query,
+                                materializationQueryError:
+                                    row.materialization_query_error,
+                                refreshCron: row.refresh_cron,
+                                createdAt: new Date(),
+                                updatedAt: new Date(),
+                            });
+                        }
+                    }),
+                    getPreAggregateDefinitionsForProject: vi.fn(async () => [
+                        ...definitions.values(),
+                    ]),
+                    getProjectSchedulerDetailsForPreAggregates: vi.fn(
+                        async () =>
+                            [...definitions.values()].map((definition) => ({
+                                projectUuid,
+                                organizationUuid: 'organizationUuid',
+                                createdByUserUuid: owner,
+                                schedulerTimezone: 'UTC',
+                                preAggregateDefinitionUuid:
+                                    definition.preAggregateDefinitionUuid,
+                                refreshCron: definition.refreshCron!,
+                                preAggExploreName: getPreAggregateExploreName(
+                                    source.name,
+                                    definition.preAggregateDefinition.name,
+                                ),
+                            })),
+                    ),
+                };
+                const scheduler = {
+                    ...schedulerClient,
+                    materializePreAggregate: vi.fn<
+                        SchedulerClient['materializePreAggregate']
+                    >(async (payload) => {
+                        if (payload.trigger === 'cron')
+                            cronJobs.set(
+                                payload.preAggregateDefinitionUuid,
+                                payload,
+                            );
+                        return { jobId: payload.preAggregateDefinitionUuid };
+                    }),
+                    schedulePreAggregateCronJobs:
+                        vi.fn<
+                            SchedulerClient['schedulePreAggregateCronJobs']
+                        >(),
+                    deleteScheduledPreAggregateCronJobsForDefinition: vi.fn(
+                        async (uuid: string) => {
+                            cronJobs.delete(uuid);
+                        },
+                    ),
+                };
+                scheduler.schedulePreAggregateCronJobs.mockImplementation(
+                    (...args) =>
+                        SchedulerClient.prototype.schedulePreAggregateCronJobs.apply(
+                            scheduler as unknown as SchedulerClient,
+                            args,
+                        ),
+                );
+                const configured = getMockedProjectService({
+                    ...lightdashConfigWithGoogleOAuthMock,
+                    preAggregates: {
+                        ...lightdashConfigWithGoogleOAuthMock.preAggregates,
+                        enabled: true,
+                    },
+                });
+                Object.assign(configured, {
+                    projectModel: model,
+                    preAggregateModel: registry,
+                    schedulerClient: scheduler,
+                    getAgentConnectionGrantService: () => ({
+                        assertActiveExecution: vi
+                            .fn()
+                            .mockResolvedValue({ account: connectionAccount }),
+                    }),
+                });
+                vi.useFakeTimers();
+                vi.setSystemTime(new Date('2026-10-11T12:00:00Z'));
+                try {
+                    const save = () =>
+                        configured.saveExploresToCacheAndIndexCatalog({
+                            userUuid: user.userUuid,
+                            projectUuid,
+                            explores,
+                            complete: true,
+                            compilationSource: 'cli_deploy',
+                        });
+                    if (bound && owner === null) {
+                        await expect(
+                            agentExecutionContext.run(scope(true), save),
+                        ).rejects.toThrow('without a project owner');
+                        expect(
+                            model.saveExploresToCache,
+                        ).not.toHaveBeenCalled();
+                        expect([...definitions.keys()]).toEqual(oldUuids);
+                        expect([...cronJobs.keys()]).toEqual(oldUuids);
+                        expect(
+                            scheduler.schedulePreAggregateCronJobs,
+                        ).not.toHaveBeenCalled();
+                        return;
+                    }
+                    await (bound
+                        ? agentExecutionContext.run(scope(true), save)
+                        : save());
+                    expect(model.saveExploresToCache).toHaveBeenCalledOnce();
+                    expect([...definitions.keys()]).toEqual([
+                        'new-daily',
+                        'new-second',
+                    ]);
+                    expect(
+                        scheduler.schedulePreAggregateCronJobs,
+                    ).toHaveBeenCalledOnce();
+                    if (bound)
+                        expect([...cronJobs.keys()].sort()).toEqual(
+                            [...definitions.keys()].sort(),
+                        );
+                    for (const [uuid, definition] of definitions) {
+                        expect(oldUuids).not.toContain(uuid);
+                        expect(cache[definition.sourceCachedExploreUuid]).toBe(
+                            source,
+                        );
+                        expect(
+                            cache[definition.preAggCachedExploreUuid],
+                        ).toBeDefined();
+                        expect(
+                            definition.materializationMetricQuery,
+                        ).not.toBeNull();
+                        expect(cronJobs.get(uuid)).toMatchObject({
+                            userUuid: bound ? 'project-owner' : user.userUuid,
+                            trigger: 'cron',
+                            preAggregateDefinitionUuid: uuid,
+                        });
+                        expect(cronJobs.get(uuid)).not.toHaveProperty(
+                            'agentConnectionExecution',
+                        );
+                        expect(cronJobs.get(uuid)).not.toHaveProperty(
+                            'agentConnectionEffect',
+                        );
+                    }
+                    expect(
+                        scheduler.materializePreAggregate,
+                    ).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            trigger: 'compile',
+                            ...(bound
+                                ? {
+                                      agentConnectionExecution:
+                                          scope(true).agentConnectionExecution,
+                                      agentConnectionEffect:
+                                          'materializePreAggregate',
+                                  }
+                                : {}),
+                        }),
+                    );
+                } finally {
+                    vi.useRealTimers();
+                }
+            },
+        );
         test.each(['new', 'changed', 'enabled'] as const)(
             'refuses a %s recurring definition before deploy persistence',
             async (kind) => {
@@ -9899,7 +10266,6 @@ describe('ProjectService', () => {
         );
         test.each([
             'unchanged',
-            'removed',
             'no-cron',
             'ordinary-agent',
             'person',
@@ -9909,16 +10275,13 @@ describe('ProjectService', () => {
                 vi.mocked(
                     projectModel.getAllExploresFromCache,
                 ).mockResolvedValueOnce({
-                    existing: exploreWithCron('0 2 * * *'),
+                    existing: exploreWithCron(
+                        kind === 'no-cron' ? null : '0 2 * * *',
+                    ),
                 });
-                const explores =
-                    kind === 'removed'
-                        ? []
-                        : [
-                              exploreWithCron(
-                                  kind === 'no-cron' ? null : '0 2 * * *',
-                              ),
-                          ];
+                const explores = [
+                    exploreWithCron(kind === 'no-cron' ? null : '0 2 * * *'),
+                ];
                 const run = () =>
                     service.saveExploresToCacheAndIndexCatalog({
                         userUuid: user.userUuid,

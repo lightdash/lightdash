@@ -48,8 +48,11 @@ it('strips every server-owned result binding from client parameters', () => {
         resultEffectiveParameters: { p: 'trusted' },
         cacheSourceQueryUuid: 'trusted',
         externalSourceReferences: undefined,
-        agentConnectionExecution: null,
+        agentConnectionExecution: undefined,
     });
+    expect(JSON.parse(JSON.stringify(parameters))).not.toHaveProperty(
+        'agentConnectionExecution',
+    );
     expect(client).toHaveProperty('resultResearchRunUuid', 'forged');
     expect(
         getQueryResultRequestParameters(client, {}).resultEffectiveParameters,

@@ -1996,8 +1996,10 @@ export class AiAccessService extends BaseService {
                     userUuid: account.user.id,
                     organizationUuid,
                 })));
-        const currentAccount =
-            enabled && refreshAccount ? await refreshAccount() : account;
+        if (!enabled) return new Map();
+        const currentAccount = refreshAccount
+            ? await refreshAccount()
+            : account;
         let currentEntitlement: string | null = null;
         const agentActor =
             reader.kind === 'agent'
@@ -2182,8 +2184,6 @@ export class AiAccessService extends BaseService {
         for (const root of uniqueRoots) {
             visit(root.queryHistory.queryUuid, 0);
         }
-
-        if (!enabled) return new Map();
 
         const plans = new Map<string, AiExecutionPlan | null>();
         const warehouseTypesByConnection = new Map<

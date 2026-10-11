@@ -53,6 +53,7 @@ describe('NatsWorker subject dispatch', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        queryHistoryModel.getByQueryUuid.mockResolvedValue(undefined);
         registerPreAggregateStream();
     });
 
@@ -98,14 +99,41 @@ describe('NatsWorker subject dispatch', () => {
             }[kind];
             runner.mockRejectedValueOnce(new ForbiddenError());
             queryHistoryModel.getByQueryUuid
-                .mockResolvedValueOnce(undefined)
+                .mockResolvedValueOnce({
+                    status: QueryHistoryStatus.QUEUED,
+                    requestParameters: {
+                        agentConnectionExecution: { grantUuid: 'grant' },
+                    },
+                } as QueryHistory)
                 .mockResolvedValueOnce({
                     status: QueryHistoryStatus.ERROR,
+                    requestParameters: {
+                        agentConnectionExecution: { grantUuid: 'grant' },
+                    },
                 } as QueryHistory);
             await buildWorker().handleMessage(message, 'worker-1');
             expect(message.term).toHaveBeenCalledOnce();
             expect(message.nak).not.toHaveBeenCalled();
             expect(runner).toHaveBeenCalledOnce();
+        },
+    );
+
+    it.each([new Error('warehouse failed'), new ForbiddenError()])(
+        'keeps retry acknowledgement for an ordinary error: %s',
+        async (error) => {
+            const message = jobMessage(STREAM_CONFIGS.warehouse.subjects.query);
+            asyncQueryService.runAsyncWarehouseQueryFromHistory.mockRejectedValueOnce(
+                error,
+            );
+            queryHistoryModel.getByQueryUuid.mockResolvedValue({
+                status: QueryHistoryStatus.ERROR,
+                agentIdentity: null,
+                requestParameters: {},
+            } as QueryHistory);
+            await buildWorker().handleMessage(message, 'worker-1');
+            expect(message.nak).toHaveBeenCalledOnce();
+            expect(message.term).not.toHaveBeenCalled();
+            expect(queryHistoryModel.getByQueryUuid).toHaveBeenCalledOnce();
         },
     );
 

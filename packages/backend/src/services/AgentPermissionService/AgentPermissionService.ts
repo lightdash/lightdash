@@ -73,6 +73,7 @@ export { evaluate } from './agentPermissionEvaluation';
 
 export type AgentPermissionOperationKind =
     | 'agent_turn'
+    | 'capability'
     | 'mcp_tool'
     | 'agent_tool'
     | 'tool_effect'
@@ -92,6 +93,7 @@ const ORGANIZATION_DISCOVERY_OPERATIONS: Record<
     ],
     agent_tool: ['listProjects'],
     agent_turn: [],
+    capability: [],
     tool_effect: [],
     connected_mcp_tool: [],
     rest_operation: [
@@ -126,6 +128,12 @@ const requiredCapabilitiesForOperation = (
     connectedTool: ConnectedAgentTool | undefined,
 ): readonly AgentCapability[] | null => {
     switch (kind) {
+        case 'capability':
+            return Object.values(AgentCapability).filter(
+                (capability) => capability === key,
+            ).length === 1
+                ? [key as AgentCapability]
+                : null;
         case 'agent_turn':
             return key === 'agent_turn' ? [] : null;
         case 'mcp_tool':

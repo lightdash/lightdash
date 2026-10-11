@@ -284,6 +284,7 @@ import {
 } from '../../utils/QueryBuilder/utils';
 import {
     assertQueryConnectionBinding,
+    isConnectionProducedQuery,
     isSameResultAgent,
     type ResultEntitlementScope,
 } from '../../utils/queryResultProducer';
@@ -4416,16 +4417,15 @@ export class AsyncQueryService extends ProjectService {
         args: { queryUuid: string; agentIdentity?: AgentIdentityClaim | null },
         execute: (bound: boolean) => Promise<T>,
     ): Promise<T> {
+        const submittedBinding = args.agentIdentity?.act.agent_connection_grant;
+        const scopeBinding =
+            agentExecutionContext.getStore()?.claim?.act.agent_connection_grant;
+        if (!submittedBinding && !scopeBinding) return execute(false);
         try {
             const row = await this.queryHistoryModel.getByQueryUuid(
                 args.queryUuid,
             );
             const execution = row ? assertQueryConnectionBinding(row) : null;
-            const submittedBinding =
-                args.agentIdentity?.act.agent_connection_grant;
-            const scopeBinding =
-                agentExecutionContext.getStore()?.claim?.act
-                    .agent_connection_grant;
             if (execution === null) {
                 if (submittedBinding || scopeBinding)
                     throw new ForbiddenError(
@@ -4455,10 +4455,14 @@ export class AsyncQueryService extends ProjectService {
                 return execute(true);
             });
         } catch (error) {
-            await this.markClaimedQueryAsErrored(
-                args.queryUuid,
-                getErrorMessage(error),
-            );
+            if (
+                error instanceof ForbiddenError ||
+                error instanceof AiAccessRefusedError
+            )
+                await this.markClaimedQueryAsErrored(
+                    args.queryUuid,
+                    getErrorMessage(error),
+                );
             throw error;
         }
     }
@@ -4509,20 +4513,12 @@ export class AsyncQueryService extends ProjectService {
             return false;
         }
 
-        try {
-            const args = await this.buildWarehouseQueryArgs(
-                queryUuid,
-                queryTagsOverride,
-            );
-            await this.runAsyncWarehouseQuery(args);
-            return true;
-        } catch (error) {
-            await this.markClaimedQueryAsErrored(
-                queryUuid,
-                getErrorMessage(error),
-            );
-            throw error;
-        }
+        const args = await this.buildWarehouseQueryArgs(
+            queryUuid,
+            queryTagsOverride,
+        );
+        await this.runAsyncWarehouseQuery(args);
+        return true;
     }
 
     public async runAsyncPreAggregateQueryFromHistory(
@@ -4539,20 +4535,12 @@ export class AsyncQueryService extends ProjectService {
             return false;
         }
 
-        try {
-            const args = await this.buildPreAggregateQueryArgs(
-                queryUuid,
-                queryTagsOverride,
-            );
-            await this.runAsyncPreAggregateQuery(args);
-            return true;
-        } catch (error) {
-            await this.markClaimedQueryAsErrored(
-                queryUuid,
-                getErrorMessage(error),
-            );
-            throw error;
-        }
+        const args = await this.buildPreAggregateQueryArgs(
+            queryUuid,
+            queryTagsOverride,
+        );
+        await this.runAsyncPreAggregateQuery(args);
+        return true;
     }
 
     public async prepareQueuedQueryForExecution(
@@ -5584,6 +5572,15 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
+        try {
+            assertQueryConnectionBinding(query);
+        } catch (error) {
+            await this.markClaimedQueryAsErrored(
+                queryUuid,
+                getErrorMessage(error),
+            );
+            throw error;
+        }
         return query;
     }
 
@@ -10948,12 +10945,18 @@ export class AsyncQueryService extends ProjectService {
                     ],
                     true,
                 );
-            await this.assertCanReadStoredResultsForQueries(
-                account,
-                projectUuid,
-                referenced.map(([, history]) => history),
-                buildResultReader(account),
-            );
+            if (
+                execution ||
+                referenced.some(([, history]) =>
+                    isConnectionProducedQuery(history),
+                )
+            )
+                await this.assertCanReadStoredResultsForQueries(
+                    account,
+                    projectUuid,
+                    referenced.map(([, history]) => history),
+                    buildResultReader(account),
+                );
 
             const bound = this.buildQueryReferenceCtes(
                 Object.fromEntries(referenced),
@@ -11787,7 +11790,14 @@ export class AsyncQueryService extends ProjectService {
                           true,
                       )
                     : null;
-                if (Object.keys(completed).length > 0) {
+                if (
+                    Object.keys(completed).length > 0 &&
+                    (identityEnabled ||
+                        freshConnection ||
+                        Object.values(completed).some(
+                            isConnectionProducedQuery,
+                        ))
+                ) {
                     if (!actor.isRegisteredUser) throw new ForbiddenError();
                     const user =
                         await this.userModel.findSessionUserAndOrgByUuid(

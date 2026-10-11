@@ -9,7 +9,10 @@ import type {
     ICacheService,
 } from '../../services/CacheService/ICacheService';
 import { type CacheHitCacheResult } from '../../services/CacheService/types';
-import { isSameResultProducer } from '../../utils/queryResultProducer';
+import {
+    isConnectionProducedQuery,
+    isSameResultProducer,
+} from '../../utils/queryResultProducer';
 
 type CacheServiceDependencies = {
     lightdashConfig: LightdashConfig;
@@ -111,6 +114,12 @@ export class CommercialCacheService implements ICacheService {
                     latestMatchingQuery.resultProducer,
                     requesterProducer,
                 ))
+        )
+            return null;
+
+        if (
+            latestMatchingQuery?.queryHistory &&
+            isConnectionProducedQuery(latestMatchingQuery.queryHistory)
         )
             return null;
 

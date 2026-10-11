@@ -250,6 +250,7 @@ import {
     SupportedDbtAdapter,
     TablesConfiguration,
     TableSelectionType,
+    TimeZone,
     TooManyRequestsError,
     UnexpectedServerError,
     UpdateAgentSqlScope,
@@ -315,7 +316,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import * as fs from 'fs';
 import { GoogleAuth } from 'google-auth-library';
 import * as yaml from 'js-yaml';
-import { uniq } from 'lodash';
+import { isEqual, omit, uniq } from 'lodash';
 import fetch from 'node-fetch';
 import { Readable } from 'stream';
 import { URL } from 'url';
@@ -3745,41 +3746,148 @@ export class ProjectService
     async assertConnectionPreAggregateRefresh(
         projectUuid: string,
         explores: (Explore | ExploreError)[],
+        {
+            complete = false,
+            dbtModelNames,
+            carry,
+            staging = false,
+        }: {
+            staging?: boolean;
+            complete?: boolean;
+            dbtModelNames?: string[];
+            carry?: MultiConnectionSave['carry'];
+        } = {},
     ): Promise<void> {
         if (
             !agentExecutionContext.getStore()?.claim?.act.agent_connection_grant
         )
             return;
-        const previous =
-            await this.projectModel.getAllExploresFromCache(projectUuid);
-        const previousByName = new Map(
-            Object.values(previous)
-                .filter(
-                    (explore): explore is Explore => !isExploreError(explore),
-                )
-                .map((explore) => [explore.name, explore]),
+        const previous = Object.values(
+            await this.projectModel.getAllExploresFromCache(projectUuid),
         );
-        for (const explore of explores.filter(
-            (candidate): candidate is Explore => !isExploreError(candidate),
-        )) {
-            for (const definition of explore.preAggregates ?? []) {
-                const cron =
-                    definition.table === undefined
-                        ? (definition.refresh?.cron ?? null)
-                        : null;
-                const old = previousByName
-                    .get(explore.name)
-                    ?.preAggregates?.find(
-                        (candidate) => candidate.name === definition.name,
-                    );
-                const oldCron =
-                    old?.table === undefined
-                        ? (old?.refresh?.cron ?? null)
-                        : null;
-                if (cron !== null && cron !== oldCron)
-                    throw new ForbiddenError(
-                        'Agent connections cannot add or change recurring pre-aggregate refreshes',
-                    );
+        const previousByName = new Map(
+            previous.map((explore) => [explore.name, explore]),
+        );
+        const nextByName = new Map(
+            explores.map((explore) => [explore.name, explore]),
+        );
+        const hasCombinedSources = previous.some((explore) =>
+            Object.values(explore.tables ?? {}).some(
+                (table) => table.dbtSourceUuid !== undefined,
+            ),
+        );
+        await Promise.all(
+            previous.map(async (explore) => {
+                if (isUserManagedExplore(explore)) {
+                    nextByName.set(explore.name, explore);
+                    return;
+                }
+                if (nextByName.has(explore.name)) return;
+                let retained =
+                    !complete &&
+                    (dbtModelNames === undefined ||
+                        hasCombinedSources ||
+                        dbtModelNames.includes(
+                            explore.preAggregateSource?.sourceExploreName ??
+                                explore.tables?.[
+                                    explore.baseTable ?? explore.name
+                                ]?.nestedFrom?.parentTable ??
+                                explore.name,
+                        ));
+                if (carry) {
+                    const sourceUuid =
+                        explore.tables?.[explore.baseTable ?? explore.name]
+                            ?.dbtSourceUuid;
+                    if (
+                        carry.kind === 'otherDbtSources' &&
+                        sourceUuid !== undefined
+                    ) {
+                        retained = sourceUuid !== carry.dbtSourceUuid;
+                    } else {
+                        const connectionUuid =
+                            await this.projectModel.getExploreWarehouseConnectionUuid(
+                                projectUuid,
+                                explore.name,
+                            );
+                        retained =
+                            carry.kind === 'connections'
+                                ? connectionUuid !== null &&
+                                  carry.warehouseConnectionUuids.includes(
+                                      connectionUuid,
+                                  )
+                                : connectionUuid !==
+                                  carry.warehouseConnectionUuid;
+                    }
+                }
+                if (retained) nextByName.set(explore.name, explore);
+            }),
+        );
+        const sourceWorkload = (
+            explore: Explore | ExploreError | undefined,
+        ) => {
+            if (!explore) return null;
+            if (!staging) return omit(explore, 'preAggregates');
+            const source = withoutClientBindings(explore);
+            return {
+                ...omit(source, 'preAggregates', 'dbtSourceUuid'),
+                ...(source.tables
+                    ? {
+                          tables: Object.fromEntries(
+                              Object.entries(source.tables).map(
+                                  ([name, table]) => [
+                                      name,
+                                      omit(table, 'dbtSourceUuid'),
+                                  ],
+                              ),
+                          ),
+                      }
+                    : {}),
+            };
+        };
+        for (const name of new Set([
+            ...previousByName.keys(),
+            ...nextByName.keys(),
+        ])) {
+            const oldExplore = previousByName.get(name);
+            const nextExplore = nextByName.get(name);
+            const oldDefinitions = new Map(
+                (oldExplore && !isExploreError(oldExplore)
+                    ? (oldExplore.preAggregates ?? [])
+                    : []
+                ).map((definition) => [definition.name, definition]),
+            );
+            const nextDefinitions = new Map(
+                (nextExplore && !isExploreError(nextExplore)
+                    ? (nextExplore.preAggregates ?? [])
+                    : []
+                ).map((definition) => [definition.name, definition]),
+            );
+            for (const definitionName of new Set([
+                ...oldDefinitions.keys(),
+                ...nextDefinitions.keys(),
+            ])) {
+                const old = oldDefinitions.get(definitionName);
+                const next = nextDefinitions.get(definitionName);
+                const wasScheduled =
+                    old?.table === undefined && old?.refresh?.cron != null;
+                const isScheduled =
+                    next?.table === undefined && next?.refresh?.cron != null;
+                if (wasScheduled || isScheduled) {
+                    if (wasScheduled && !isScheduled)
+                        throw new ForbiddenError(
+                            'Agent connections cannot remove recurring pre-aggregate refreshes',
+                        );
+                    if (
+                        !isEqual(old, next) ||
+                        !isEqual(
+                            sourceWorkload(oldExplore),
+                            sourceWorkload(nextExplore),
+                        )
+                    )
+                        throw new ForbiddenError(
+                            'Agent connections cannot add or change recurring pre-aggregate refreshes',
+                        );
+                }
             }
         }
     }
@@ -3787,6 +3895,7 @@ export class ProjectService
     private async prepareConnectionExploreStream(
         projectUuid: string,
         stream: AsyncIterable<Explore | ExploreError>,
+        carry?: MultiConnectionSave['carry'],
     ): Promise<AsyncIterable<Explore | ExploreError>> {
         if (
             !agentExecutionContext.getStore()?.claim?.act.agent_connection_grant
@@ -3794,7 +3903,10 @@ export class ProjectService
             return stream;
         const explores: (Explore | ExploreError)[] = [];
         for await (const explore of stream) explores.push(explore);
-        await this.assertConnectionPreAggregateRefresh(projectUuid, explores);
+        await this.assertConnectionPreAggregateRefresh(projectUuid, explores, {
+            complete: true,
+            carry,
+        });
         return (async function* checkedExplores() {
             yield* explores;
         })();
@@ -3921,6 +4033,7 @@ export class ProjectService
         organizationUuid: string;
         userUuid: string;
         skipMaterialization: boolean;
+        previousConnectionDefinitionUuids: string[];
     }): Promise<void> {
         try {
             await this.assertAgentConnectionEffect(
@@ -3967,29 +4080,74 @@ export class ProjectService
                 );
 
                 if (
-                    agentExecutionContext.getStore()?.claim?.act
+                    !agentExecutionContext.getStore()?.claim?.act
                         .agent_connection_grant
-                )
-                    return;
+                ) {
+                    const { schedulerTimezone } = await this.projectModel.get(
+                        args.projectUuid,
+                    );
 
-                const { schedulerTimezone } = await this.projectModel.get(
+                    await this.schedulerClient.schedulePreAggregateCronJobs(
+                        materializableDefinitions
+                            .filter(
+                                (definition) => definition.refreshCron !== null,
+                            )
+                            .map((definition) => ({
+                                organizationUuid: args.organizationUuid,
+                                projectUuid: args.projectUuid,
+                                createdByUserUuid: args.userUuid,
+                                preAggregateDefinitionUuid:
+                                    definition.preAggregateDefinitionUuid,
+                                refreshCron: definition.refreshCron!,
+                                schedulerTimezone,
+                                preAggExploreName: undefined,
+                            })),
+                        new Date(),
+                    );
+                }
+            }
+            if (
+                agentExecutionContext.getStore()?.claim?.act
+                    .agent_connection_grant
+            ) {
+                await this.assertAgentConnectionEffect(
                     args.projectUuid,
+                    'compileProject',
                 );
-
+                const details =
+                    await this.preAggregateModel.getProjectSchedulerDetailsForPreAggregates(
+                        args.projectUuid,
+                    );
                 await this.schedulerClient.schedulePreAggregateCronJobs(
-                    materializableDefinitions
-                        .filter((definition) => definition.refreshCron !== null)
-                        .map((definition) => ({
-                            organizationUuid: args.organizationUuid,
-                            projectUuid: args.projectUuid,
-                            createdByUserUuid: args.userUuid,
-                            preAggregateDefinitionUuid:
-                                definition.preAggregateDefinitionUuid,
-                            refreshCron: definition.refreshCron!,
-                            schedulerTimezone,
-                            preAggExploreName: undefined,
-                        })),
+                    details.flatMap((definition) =>
+                        definition.createdByUserUuid === null
+                            ? []
+                            : [
+                                  {
+                                      ...definition,
+                                      createdByUserUuid:
+                                          definition.createdByUserUuid,
+                                      schedulerTimezone:
+                                          definition.schedulerTimezone ||
+                                          TimeZone.UTC,
+                                  },
+                              ],
+                    ),
                     new Date(),
+                );
+                const currentUuids = new Set(
+                    details.map(
+                        (definition) => definition.preAggregateDefinitionUuid,
+                    ),
+                );
+                await Promise.all(
+                    args.previousConnectionDefinitionUuids
+                        .filter((uuid) => !currentUuids.has(uuid))
+                        .map((uuid) =>
+                            this.schedulerClient.deleteScheduledPreAggregateCronJobsForDefinition(
+                                uuid,
+                            ),
+                        ),
                 );
             }
         } catch (error) {
@@ -4009,14 +4167,18 @@ export class ProjectService
         },
     ) {
         const { explores, ...metadata } = args;
-        await this.assertConnectionPreAggregateRefresh(
-            args.projectUuid,
-            explores,
-        );
         const hasDbtSources =
             args.dbtModelNames !== undefined &&
             (await this.projectDbtSourcesModel.hasSources(args.projectUuid));
         const dbtModelNames = hasDbtSources ? undefined : args.dbtModelNames;
+        await this.assertConnectionPreAggregateRefresh(
+            args.projectUuid,
+            explores,
+            {
+                complete: args.complete,
+                dbtModelNames,
+            },
+        );
         const result = await this.saveExploresAndIndexCatalog({
             ...metadata,
             connectionWarnings: [],
@@ -4148,23 +4310,24 @@ export class ProjectService
             cliDeploy,
         );
         const { explores, ...metadata } = deploy;
-        await this.assertConnectionPreAggregateRefresh(
-            args.projectUuid,
-            explores,
-        );
         const sourceDeploy =
             await this.multiConnectionCompiler.prepareSourceDeploy({
                 projectUuid: args.projectUuid,
                 projectDbtSourceUuid,
                 explores: explores.map(withoutClientBindings),
             });
+        const checkedStream = await this.prepareConnectionExploreStream(
+            args.projectUuid,
+            sourceDeploy.exploreStream,
+            sourceDeploy.carry,
+        );
         const result = await this.saveExploresAndIndexCatalog({
             ...metadata,
             connectionWarnings: [],
             saveExplores: async (summary) => {
                 const saved = await this.multiConnectionCompiler.save(
                     args.projectUuid,
-                    sourceDeploy,
+                    { ...sourceDeploy, exploreStream: checkedStream },
                 );
                 explores.forEach((explore) => summary.add(explore));
                 return saved;
@@ -4179,14 +4342,18 @@ export class ProjectService
         },
     ): Promise<void> {
         const { explores, ...metadata } = args;
-        await this.assertConnectionPreAggregateRefresh(
-            args.projectUuid,
-            explores,
-        );
         const warehouseConnectionUuids =
             await this.warehouseConnectionIdentityModel.getExtraConnectionUuids(
                 args.projectUuid,
             );
+        await this.assertConnectionPreAggregateRefresh(
+            args.projectUuid,
+            explores,
+            {
+                complete: true,
+                carry: { kind: 'connections', warehouseConnectionUuids },
+            },
+        );
         await this.saveExploresAndIndexCatalog({
             ...metadata,
             connectionWarnings: [],
@@ -4222,6 +4389,7 @@ export class ProjectService
         const exploreStream = await this.prepareConnectionExploreStream(
             args.projectUuid,
             args.exploreStream,
+            multiConnection?.carry,
         );
         return this.saveExploresAndIndexCatalog({
             ...metadata,
@@ -4315,6 +4483,25 @@ export class ProjectService
         }
 
         await this.assertAgentConnectionEffect(projectUuid, 'compileProject');
+        const previousConnectionSchedules =
+            this.lightdashConfig.preAggregates.enabled &&
+            agentExecutionContext.getStore()?.claim?.act.agent_connection_grant
+                ? await this.preAggregateModel.getProjectSchedulerDetailsForPreAggregates(
+                      projectUuid,
+                  )
+                : [];
+        if (
+            previousConnectionSchedules.some(
+                (definition) => definition.createdByUserUuid === null,
+            )
+        )
+            throw new ForbiddenError(
+                'Agent connections cannot preserve recurring pre-aggregate refreshes without a project owner',
+            );
+        const previousConnectionDefinitionUuids =
+            previousConnectionSchedules.map(
+                (definition) => definition.preAggregateDefinitionUuid,
+            );
         const { cachedExploreUuids } = await saveExplores(summary);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -4430,6 +4617,7 @@ export class ProjectService
                 organizationUuid,
                 userUuid,
                 skipMaterialization: project.type === ProjectType.PREVIEW,
+                previousConnectionDefinitionUuids,
             });
         }
 
@@ -12436,6 +12624,7 @@ export class ProjectService
             const exploreStream = await this.prepareConnectionExploreStream(
                 projectUuid,
                 prepared.exploreStream,
+                prepared.multiConnection?.carry,
             );
             await this.assertAgentConnectionEffect(
                 projectUuid,

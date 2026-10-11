@@ -3723,6 +3723,48 @@ describe('bounded stored result lineage', () => {
         return { ...built, rows, batch, logger };
     };
 
+    test.each(['deep', 'cycle', 'missing'] as const)(
+        'flag-off ordinary reads and batches do not traverse a %s lineage',
+        async (kind) => {
+            const edges: Record<string, string[]> = { root: ['node-0'] };
+            for (let i = 0; i < 60; i += 1)
+                edges[`node-${i}`] = i === 59 ? [] : [`node-${i + 1}`];
+            if (kind === 'cycle') edges.root = ['root'];
+            const f = buildGraph(edges);
+            f.flags.get.mockResolvedValue({ enabled: false });
+            if (kind === 'missing')
+                f.batch.mockRejectedValue(
+                    new NotFoundError('missing ancestor'),
+                );
+            const reader = {
+                kind: 'person' as const,
+                authMethod: 'session' as const,
+            };
+            await expect(
+                f.service.assertCanReadResults(
+                    account,
+                    'project',
+                    f.rows.root,
+                    { reader },
+                ),
+            ).resolves.toBeNull();
+            await expect(
+                f.service.assertCanReadResultsForQueries(
+                    account,
+                    'project',
+                    [{ queryHistory: f.rows.root, agentProducedOnly: false }],
+                    { kind: 'result_read' },
+                    undefined,
+                    null,
+                    { reader },
+                ),
+            ).resolves.toEqual(new Map());
+            expect(f.batch).not.toHaveBeenCalled();
+            expect(f.historyModel.getDuckdbExecution).not.toHaveBeenCalled();
+            expect(f.historyModel.get).not.toHaveBeenCalled();
+        },
+    );
+
     test.each(
         [
             {
@@ -4107,7 +4149,7 @@ describe('bounded stored result lineage', () => {
         },
     );
 
-    test('flag off traverses connection ownership without ordinary identity checks', async () => {
+    test('flag off skips lineage for an ordinary root', async () => {
         const { service, flags, historyModel, rows, batch, logger } =
             buildGraph({
                 root: ['source'],
@@ -4122,8 +4164,8 @@ describe('bounded stored result lineage', () => {
             readAgentResults(service, account, 'project', rows.root),
         ).resolves.toBeNull();
         expect(historyModel.get).not.toHaveBeenCalled();
-        expect(historyModel.getDuckdbExecution).toHaveBeenCalledOnce();
-        expect(batch).toHaveBeenCalledOnce();
+        expect(historyModel.getDuckdbExecution).not.toHaveBeenCalled();
+        expect(batch).not.toHaveBeenCalled();
         expect(flags.get).toHaveBeenCalledOnce();
         expect(logger.warn).not.toHaveBeenCalled();
     });
