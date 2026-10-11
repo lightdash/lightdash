@@ -158,14 +158,18 @@ it.each([allowApiKeyAuthentication, allowApiKeyAuthenticationIfPresent])(
         vi.spyOn(users, 'loginToOrganization').mockResolvedValue(
             user as Awaited<ReturnType<UserService['loginToOrganization']>>,
         );
-        PatSessionCache.set('pat', {
-            user,
-            personalAccessToken: {
-                uuid: 'pat-uuid',
-                expiresAt: null,
-                lastUsedAt: new Date(),
-            } as PersonalAccessToken,
-        });
+        PatSessionCache.set(
+            'pat',
+            {
+                user,
+                personalAccessToken: {
+                    uuid: 'pat-uuid',
+                    expiresAt: null,
+                    lastUsedAt: new Date(),
+                } as PersonalAccessToken,
+            },
+            Date.now(),
+        );
         f.req.headers.authorization = 'ApiKey pat';
         f.oauth.authenticate.mockRejectedValue(new Error('Not OAuth'));
         vi.mocked(authenticateServiceAccount).mockImplementation(

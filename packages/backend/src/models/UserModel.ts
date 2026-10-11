@@ -82,6 +82,12 @@ import {
 import Logger from '../logging/logger';
 import { deprecatedHash, hashWithSecret } from '../utils/hash';
 import {
+    CACHE_TTL_SECONDS,
+    createCacheEntry,
+    readCacheEntry,
+    type CacheEntry,
+} from './caches/cacheAge';
+import {
     CachedPatSessionUser,
     PatSessionCache,
 } from './caches/PatSessionCache';
@@ -195,7 +201,7 @@ type UserModelArguments = {
 const sessionUserCache =
     process.env.EXPERIMENTAL_CACHE === 'true'
         ? new NodeCache({
-              stdTTL: 30, // time to live in seconds
+              stdTTL: CACHE_TTL_SECONDS, // time to live in seconds
               checkperiod: 60, // cleanup interval in seconds
           })
         : undefined;
@@ -239,19 +245,29 @@ export class UserModel {
     ) {
         const cacheKey = `${userUuid}::${organizationUuid}`;
         // Try to get from cache first
-        const cachedUser = sessionUserCache?.get<SessionUser>(cacheKey);
+        const cachedUser = readCacheEntry(
+            sessionUserCache?.get<CacheEntry<SessionUser>>(cacheKey),
+        );
         if (cachedUser?.isSetupComplete && cachedUser.isEmailVerified) {
             // Return cached user
             return { sessionUser: cachedUser, cacheHit: true };
         }
         // If not in cache, get from database
+        const startedAt = Date.now();
         const sessionUser = await this.findSessionUserAndOrgByUuid(
             userUuid,
             organizationUuid,
         );
         // Store in cache
-        if (sessionUser.isSetupComplete && sessionUser.isEmailVerified) {
-            sessionUserCache?.set(cacheKey, sessionUser);
+        if (
+            sessionUser.isSetupComplete &&
+            sessionUser.isEmailVerified &&
+            sessionUserCache
+        ) {
+            const entry = createCacheEntry(sessionUser, startedAt);
+            if (entry !== null) {
+                sessionUserCache.set(cacheKey, entry);
+            }
         }
         return { sessionUser, cacheHit: false };
     }
@@ -1899,6 +1915,7 @@ export class UserModel {
         if (cached) {
             return { data: cached, cacheHit: true };
         }
+        const startedAt = Date.now();
         const findRowByTokenHashes = (tokenHashes: string[]) =>
             userDetailsQueryBuilder(this.database)
                 .innerJoin(
@@ -1962,7 +1979,7 @@ export class UserModel {
             personalAccessToken:
                 PersonalAccessTokenModel.mapDbObjectToPersonalAccessToken(row),
         };
-        PatSessionCache.set(token, data);
+        PatSessionCache.set(token, data, startedAt);
         return { data, cacheHit: false };
     }
 

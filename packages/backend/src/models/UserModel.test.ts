@@ -22,6 +22,7 @@ import {
 import bcrypt from 'bcrypt';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
+import type NodeCache from 'node-cache';
 import { type LightdashConfig } from '../config/parseConfig';
 import { EmailTableName } from '../database/entities/emails';
 import { PasswordLoginTableName } from '../database/entities/passwordLogins';
@@ -34,6 +35,7 @@ import {
 } from '../database/entities/roles';
 import { UserTableName } from '../database/entities/users';
 import { hashWithSecret } from '../utils/hash';
+import { type CacheEntry } from './caches/cacheAge';
 import { type FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 import {
     mapDbUserDetailsToLightdashUser,
@@ -207,10 +209,10 @@ const expectCollapsedDashboardProjectRule = (
 };
 
 const loadUserModelWithSessionUserCache = async () => {
-    const entries = new Map<string, SessionUser>();
+    const entries = new Map<string, CacheEntry<SessionUser>>();
     const sessionUserCache = {
         get: vi.fn((key: string) => entries.get(key)),
-        set: vi.fn((key: string, value: SessionUser) =>
+        set: vi.fn((key: string, value: CacheEntry<SessionUser>) =>
             entries.set(key, value),
         ),
         keys: vi.fn(() => Array.from(entries.keys())),
@@ -1433,7 +1435,10 @@ describe('UserModel', () => {
                 ...incompleteUser,
                 isSetupComplete: true,
             };
-            entries.set(`${userUuid}::${organizationUuid}`, incompleteUser);
+            entries.set(`${userUuid}::${organizationUuid}`, {
+                value: incompleteUser,
+                expiresAt: Date.now() + 30_000,
+            });
             const findSessionUser = vi
                 .spyOn(model, 'findSessionUserAndOrgByUuid')
                 .mockResolvedValue(sessionUser);
@@ -1500,6 +1505,179 @@ describe('UserModel', () => {
             expect(sessionUserCache.set).not.toHaveBeenCalled();
         });
     });
+
+    describe.each(['personal access token', 'session user'] as const)(
+        '%s lookup with real caches',
+        (lookupType) => {
+            const mockDatabase = knex({ client: MockClient, dialect: 'pg' });
+            let tracker: Tracker;
+            let savedExperimentalCache: string | undefined;
+
+            beforeEach(() => {
+                savedExperimentalCache = process.env.EXPERIMENTAL_CACHE;
+                process.env.EXPERIMENTAL_CACHE = 'true';
+                vi.useFakeTimers({ toFake: ['Date'] });
+                vi.doUnmock('node-cache');
+                vi.resetModules();
+                tracker = getTracker();
+            });
+
+            afterEach(() => {
+                tracker.reset();
+                vi.restoreAllMocks();
+                vi.clearAllMocks();
+                vi.useRealTimers();
+                if (savedExperimentalCache === undefined) {
+                    delete process.env.EXPERIMENTAL_CACHE;
+                } else {
+                    process.env.EXPERIMENTAL_CACHE = savedExperimentalCache;
+                }
+                vi.resetModules();
+            });
+
+            const setupLookup = async (durationMs: number) => {
+                const { UserModel: CachedUserModel } =
+                    await import('./UserModel');
+                const model = new CachedUserModel({
+                    database: mockDatabase,
+                    lightdashConfig: {
+                        ...lightdashConfig,
+                        lightdashSecrets: {
+                            active: 'test-secret',
+                            fallbacks: [],
+                            all: ['test-secret'],
+                        },
+                    },
+                    featureFlagModel,
+                });
+                (
+                    model as unknown as TestableUserModel
+                ).generateUserAbilityBuilder = vi.fn(async () => ({
+                    abilityBuilder: new AbilityBuilder<MemberAbility>(Ability),
+                    lightdashUser: {
+                        userUuid: userDetails.user_uuid,
+                        organizationUuid: userDetails.organization_uuid,
+                        isSetupComplete: true,
+                    },
+                }));
+                tracker.on.select('users').response(() => {
+                    vi.advanceTimersByTime(durationMs);
+                    return [
+                        {
+                            ...userDetails,
+                            is_verified: true,
+                            personal_access_token_uuid: 'pat-uuid',
+                            token_hash: 'bcrypt:test-secret:token',
+                            rotated_at: null,
+                            last_used_at: null,
+                            description: 'test token',
+                            expires_at: null,
+                            created_by_user_id: userDetails.user_id,
+                        },
+                    ];
+                });
+                return async () => {
+                    if (lookupType === 'personal access token') {
+                        const result =
+                            await model.findSessionUserByPersonalAccessToken(
+                                'token',
+                            );
+                        return {
+                            sessionUser: result?.data.user,
+                            cacheHit: result?.cacheHit,
+                        };
+                    }
+                    return model.getSessionUserFromCacheOrDB(
+                        userDetails.user_uuid,
+                        userDetails.organization_uuid!,
+                    );
+                };
+            };
+
+            it('subtracts a five second database lookup from the cache lifetime', async () => {
+                const lookup = await setupLookup(5_000);
+                const initial = await lookup();
+                expect(initial.sessionUser?.userUuid).toBe(
+                    userDetails.user_uuid,
+                );
+                expect(initial.cacheHit).toBe(false);
+                expect(tracker.history.select).toHaveLength(1);
+
+                vi.advanceTimersByTime(24_000);
+                expect(await lookup()).toEqual({ ...initial, cacheHit: true });
+                expect(tracker.history.select).toHaveLength(1);
+
+                vi.advanceTimersByTime(2_000);
+                expect(await lookup()).toEqual(initial);
+                expect(tracker.history.select).toHaveLength(2);
+            });
+
+            it.each([0, 2_000])(
+                'checks the deadline after a %s ms pause inside node-cache.set',
+                async (pauseMs) => {
+                    const { default: RealNodeCache } =
+                        await import('node-cache');
+                    const originalSet = RealNodeCache.prototype.set;
+                    const set = vi
+                        .spyOn(RealNodeCache.prototype, 'set')
+                        .mockImplementation(function setAfterPause(
+                            this: NodeCache,
+                            ...args: Parameters<NodeCache['set']>
+                        ) {
+                            vi.advanceTimersByTime(pauseMs);
+                            return originalSet.apply(this, args);
+                        });
+                    const lookup = await setupLookup(29_000);
+                    const initial = await lookup();
+                    expect(initial.sessionUser?.userUuid).toBe(
+                        userDetails.user_uuid,
+                    );
+                    expect(initial.cacheHit).toBe(false);
+                    expect(tracker.history.select).toHaveLength(1);
+                    expect(set).toHaveBeenCalledTimes(1);
+                    const cache = set.mock.contexts[0] as NodeCache;
+                    const [key] = set.mock.calls[0];
+                    expect(cache.has(key)).toBe(true);
+                    expect(await lookup()).toEqual({
+                        ...initial,
+                        cacheHit: pauseMs === 0,
+                    });
+                    expect(tracker.history.select).toHaveLength(
+                        pauseMs === 0 ? 1 : 2,
+                    );
+                },
+            );
+
+            it('returns a 31 second lookup without caching it', async () => {
+                const lookup = await setupLookup(31_000);
+                const initial = await lookup();
+                expect(initial.sessionUser?.userUuid).toBe(
+                    userDetails.user_uuid,
+                );
+                expect(initial.cacheHit).toBe(false);
+                expect(tracker.history.select).toHaveLength(1);
+                expect(await lookup()).toEqual(initial);
+                expect(tracker.history.select).toHaveLength(2);
+            });
+
+            it('performs no database queries on a cache hit', async () => {
+                const lookup = await setupLookup(0);
+                const initial = await lookup();
+                tracker.reset();
+                expect(await lookup()).toEqual({ ...initial, cacheHit: true });
+                expect(tracker.history.all).toHaveLength(0);
+            });
+
+            it('reads the database on every lookup when the cache is disabled', async () => {
+                delete process.env.EXPERIMENTAL_CACHE;
+                const lookup = await setupLookup(0);
+                const initial = await lookup();
+                expect(initial.cacheHit).toBe(false);
+                expect(await lookup()).toEqual(initial);
+                expect(tracker.history.select).toHaveLength(2);
+            });
+        },
+    );
 
     describe('findSessionUserByPersonalAccessToken', () => {
         const rotationConfig = {
