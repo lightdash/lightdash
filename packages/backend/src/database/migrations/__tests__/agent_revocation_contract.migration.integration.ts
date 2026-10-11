@@ -3,6 +3,7 @@ import {
     AgentActorSurface,
     AgentCapability,
     AiAccessRefusalReason,
+    AiAccessRefusedError,
     assertUnreachable,
     FeatureFlags,
     ForbiddenError,
@@ -17,6 +18,7 @@ import {
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import { randomUUID } from 'node:crypto';
+import { DatabaseError } from 'pg';
 import { fromSession } from '../../../auth/account/account';
 import { AgentConnectionGrantService } from '../../../auth/agentConnectionGrants/AgentConnectionGrantService';
 import { AgentConnectionService } from '../../../auth/agentConnectionGrants/AgentConnectionService';
@@ -72,6 +74,14 @@ const matrix = (capabilities: AgentCapability[]): AgentSystemRoleMatrix => ({
 });
 const unusedDependency = async (): Promise<never> => {
     throw new Error('This contract must use an explicit project');
+};
+const captureError = async (operation: Promise<unknown>): Promise<unknown> => {
+    try {
+        await operation;
+    } catch (error) {
+        return error;
+    }
+    throw new Error('Expected the operation to refuse');
 };
 let migrated: MigratedDatabase;
 beforeAll(async () => {
@@ -304,8 +314,8 @@ const fixture = async () => {
                 capabilities,
                 recheckOperation: true,
             });
-        const refresh = () =>
-            oauth.token(
+        const refresh = async (token: string = refreshToken) => {
+            const rotated = await oauth.token(
                 new OAuth2Server.Request({
                     method: 'POST',
                     headers: {
@@ -316,17 +326,24 @@ const fixture = async () => {
                     body: {
                         client_id: clientId,
                         grant_type: 'refresh_token',
-                        refresh_token: refreshToken,
+                        refresh_token: token,
                         resource: grant.resource,
                     },
                 }),
                 new OAuth2Server.Response({}),
             );
-        const authenticate = () =>
+            if (!rotated.refreshToken) {
+                throw new Error('Refresh exchange must return a refresh token');
+            }
+            expect(rotated.refreshToken).not.toBe(token);
+            expect(rotated.accessToken).not.toBe(accessToken);
+            return { ...rotated, refreshToken: rotated.refreshToken };
+        };
+        const authenticate = (token: string = accessToken) =>
             oauth.authenticate(
                 new OAuth2Server.Request({
                     method: 'GET',
-                    headers: { authorization: `Bearer ${accessToken}` },
+                    headers: { authorization: `Bearer ${token}` },
                     query: {},
                     body: {},
                 }),
@@ -417,19 +434,44 @@ describe('Committed connection revocation', () => {
                 });
             }),
         );
+        const live = await revoked.refresh();
+        await expect(
+            f.oauthModel.getAccessToken(live.accessToken),
+        ).resolves.toMatchObject({ accessToken: live.accessToken });
+        await expect(
+            f.oauthModel.getRefreshToken(live.refreshToken),
+        ).resolves.toMatchObject({ refreshToken: live.refreshToken });
         await f.connections.revoke({
             grantUuid: revoked.grant.grantUuid,
             organizationUuid: f.organizationUuid,
             actor: f.account,
             reason: 'owner_revoked',
         });
-        await expect(
-            f.oauthModel.getAccessToken(revoked.accessToken),
-        ).rejects.toThrow(OAuthBearerRefusalError);
-        await expect(revoked.refresh()).rejects.toMatchObject({
-            name: 'invalid_grant',
+        const accessError = await captureError(
+            f.oauthModel.getAccessToken(live.accessToken),
+        );
+        expect(accessError).toBeInstanceOf(OAuthBearerRefusalError);
+        expect(accessError).toMatchObject({
+            name: 'invalid_token',
+            message: 'Bearer tokens must use the Authorization header',
         });
-        await expect(revoked.execute()).rejects.toThrow(ForbiddenError);
+        const refreshError = await captureError(
+            revoked.refresh(live.refreshToken),
+        );
+        expect(refreshError).toBeInstanceOf(OAuth2Server.InvalidGrantError);
+        expect(refreshError).toMatchObject({
+            name: 'invalid_grant',
+            message: 'Invalid grant: refresh token is invalid',
+        });
+        await expect(
+            f.oauthModel.getRefreshToken(live.refreshToken),
+        ).resolves.toBe(false);
+        const executionError = await captureError(revoked.execute());
+        expect(executionError).toBeInstanceOf(ForbiddenError);
+        expect(executionError).toMatchObject({
+            message:
+                'This agent connection is no longer available for this operation.',
+        });
         await expect(
             f.oauthModel.getAccessToken(unrelated.accessToken),
         ).resolves.toMatchObject({ accessToken: unrelated.accessToken });
@@ -447,23 +489,52 @@ describe('OAuth token revocation limits', () => {
     it('revoking a bound refresh token ends its whole connection', async () => {
         const f = await fixture();
         const connection = await f.createConnection();
-        await expect(connection.authenticate()).resolves.toMatchObject({
-            accessToken: connection.accessToken,
+        const live = await connection.refresh();
+        await expect(
+            connection.authenticate(live.accessToken),
+        ).resolves.toMatchObject({
+            accessToken: live.accessToken,
         });
         await expect(connection.execute()).resolves.toBeDefined();
-        await expect(
-            f.oauth.revokeToken(connection.refreshToken),
-        ).resolves.toBe(true);
+        await expect(f.oauth.revokeToken(live.refreshToken)).resolves.toBe(
+            true,
+        );
         await expect(
             f.grants.find(connection.grant.grantUuid),
         ).resolves.toMatchObject({ revokedAt: expect.any(Date) });
-        await expect(
-            f.oauthModel.getAccessToken(connection.accessToken),
-        ).rejects.toThrow(OAuthBearerRefusalError);
-        await expect(connection.refresh()).rejects.toMatchObject({
-            name: 'invalid_grant',
+        const authenticationError = await captureError(
+            connection.authenticate(live.accessToken),
+        );
+        expect(authenticationError).toBeInstanceOf(OAuthBearerRefusalError);
+        expect(authenticationError).toBeInstanceOf(
+            OAuth2Server.InvalidTokenError,
+        );
+        expect(authenticationError).toMatchObject({
+            name: 'invalid_token',
+            message: 'Bearer tokens must use the Authorization header',
         });
-        await expect(connection.execute()).rejects.toThrow(ForbiddenError);
+        const accessError = await captureError(
+            f.oauthModel.getAccessToken(live.accessToken),
+        );
+        expect(accessError).toBeInstanceOf(OAuthBearerRefusalError);
+        expect(accessError).toMatchObject({
+            name: 'invalid_token',
+            message: 'Bearer tokens must use the Authorization header',
+        });
+        const refreshError = await captureError(
+            connection.refresh(live.refreshToken),
+        );
+        expect(refreshError).toBeInstanceOf(OAuth2Server.InvalidGrantError);
+        expect(refreshError).toMatchObject({
+            name: 'invalid_grant',
+            message: 'Invalid grant: refresh token is invalid',
+        });
+        const executionError = await captureError(connection.execute());
+        expect(executionError).toBeInstanceOf(ForbiddenError);
+        expect(executionError).toMatchObject({
+            message:
+                'This agent connection is no longer available for this operation.',
+        });
     });
     it('known limit: revoking only a bound access token leaves the grant and refresh usable', async () => {
         const f = await fixture();
@@ -484,8 +555,15 @@ describe('OAuth token revocation limits', () => {
             now: new Date(expiresAt).getTime() + 1,
         });
         try {
-            await expect(connection.authenticate()).rejects.toMatchObject({
+            const authenticationError = await captureError(
+                connection.authenticate(),
+            );
+            expect(authenticationError).toBeInstanceOf(
+                OAuth2Server.InvalidTokenError,
+            );
+            expect(authenticationError).toMatchObject({
                 name: 'invalid_token',
+                message: 'Invalid token: access token has expired',
             });
         } finally {
             vi.useRealTimers();
@@ -572,7 +650,9 @@ describe('Fresh permission checks after committed narrowing', () => {
                 default:
                     assertUnreachable(change, 'Unknown narrowing change');
             }
-            await expect(f.check()).rejects.toMatchObject({
+            const permissionError = await captureError(f.check());
+            expect(permissionError).toBeInstanceOf(AiAccessRefusedError);
+            expect(permissionError).toMatchObject({
                 refusal: { reason, operation: operationKey },
             });
         },
@@ -587,8 +667,13 @@ describe('Fresh permission checks after committed narrowing', () => {
             });
         await expect(retainedCheck()).resolves.toBeUndefined();
         await f.savePolicy({ systemRoleMatrix: matrix([]) });
-        await expect(f.check()).rejects.toMatchObject({
-            refusal: { reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED },
+        const permissionError = await captureError(f.check());
+        expect(permissionError).toBeInstanceOf(AiAccessRefusedError);
+        expect(permissionError).toMatchObject({
+            refusal: {
+                reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                operation: operationKey,
+            },
         });
         await expect(retainedCheck()).resolves.toBeUndefined();
     });
@@ -617,12 +702,22 @@ describe('Stored grant approval after policy widening', () => {
                 key: AgentCapability.Query,
             }),
         ).resolves.toBeUndefined();
-        await expect(connection.execute(secondProjectUuid)).rejects.toThrow(
-            ForbiddenError,
+        const projectError = await captureError(
+            connection.execute(secondProjectUuid),
         );
-        await expect(
+        expect(projectError).toBeInstanceOf(ForbiddenError);
+        expect(projectError).toMatchObject({
+            message:
+                'This agent connection is no longer available for this operation.',
+        });
+        const capabilityError = await captureError(
             connection.execute(f.projectUuid, [AgentCapability.Query]),
-        ).rejects.toThrow(ForbiddenError);
+        );
+        expect(capabilityError).toBeInstanceOf(ForbiddenError);
+        expect(capabilityError).toMatchObject({
+            message:
+                'This agent connection is no longer available for this operation.',
+        });
         await expect(connection.execute()).resolves.toBeDefined();
     });
 });
@@ -637,9 +732,14 @@ describe('Deactivation and transactional credential cleanup', () => {
             f.oauthModel.getAccessToken(connection.accessToken),
         ).resolves.toMatchObject({ accessToken: connection.accessToken });
         await f.users.updateUser(f.userUuid, undefined, { isActive: false });
-        await expect(
+        const accessError = await captureError(
             f.oauthModel.getAccessToken(connection.accessToken),
-        ).rejects.toThrow(OAuthBearerRefusalError);
+        );
+        expect(accessError).toBeInstanceOf(OAuthBearerRefusalError);
+        expect(accessError).toMatchObject({
+            name: 'invalid_token',
+            message: 'Bearer tokens must use the Authorization header',
+        });
         expect(
             await f
                 .database('user_warehouse_credentials')
@@ -668,9 +768,16 @@ describe('Deactivation and transactional credential cleanup', () => {
             await f.database.raw(
                 `CREATE TRIGGER fail_contract_sign_in_delete BEFORE DELETE ON user_warehouse_credentials FOR EACH ROW EXECUTE FUNCTION fail_contract_sign_in_delete()`,
             );
-            await expect(
+            const cleanupError = await captureError(
                 f.users.updateUser(f.userUuid, undefined, { isActive: false }),
-            ).rejects.toThrow('contract sign-in delete failed');
+            );
+            expect(cleanupError).toBeInstanceOf(DatabaseError);
+            expect(cleanupError).toMatchObject({
+                code: 'P0001',
+                message: expect.stringContaining(
+                    'contract sign-in delete failed',
+                ),
+            });
             expect(
                 await f
                     .database('users')
@@ -701,6 +808,7 @@ describe('Person removal and credential ownership', () => {
     it('deletes bound grants, tokens and personal credentials but preserves a shared MCP credential with null authors', async () => {
         const f = await fixture();
         const connection = await f.createConnection();
+        const live = await connection.refresh();
         await f.saveCredentials();
         const [server] = await f
             .database('ai_mcp_server')
@@ -732,8 +840,8 @@ describe('Person removal and credential ownership', () => {
             .returning('*');
         expect(rows).toHaveLength(2);
         await expect(
-            f.oauthModel.getAccessToken(connection.accessToken),
-        ).resolves.toMatchObject({ accessToken: connection.accessToken });
+            f.oauthModel.getAccessToken(live.accessToken),
+        ).resolves.toMatchObject({ accessToken: live.accessToken });
         await expect(connection.execute()).resolves.toBeDefined();
         await f.users.delete(f.userUuid);
         expect(
@@ -745,12 +853,12 @@ describe('Person removal and credential ownership', () => {
         expect(
             await f
                 .database('oauth2_access_tokens')
-                .where('access_token', connection.accessToken),
+                .where('access_token', live.accessToken),
         ).toEqual([]);
         expect(
             await f
                 .database('oauth2_refresh_tokens')
-                .where('refresh_token', connection.refreshToken),
+                .where('refresh_token', live.refreshToken),
         ).toEqual([]);
         expect(
             await f
@@ -769,11 +877,21 @@ describe('Person removal and credential ownership', () => {
             },
         ]);
         await expect(
-            f.oauthModel.getAccessToken(connection.accessToken),
+            f.oauthModel.getAccessToken(live.accessToken),
         ).resolves.toBe(false);
-        await expect(connection.refresh()).rejects.toMatchObject({
+        const refreshError = await captureError(
+            connection.refresh(live.refreshToken),
+        );
+        expect(refreshError).toBeInstanceOf(OAuth2Server.InvalidGrantError);
+        expect(refreshError).toMatchObject({
             name: 'invalid_grant',
+            message: 'Invalid grant: refresh token is invalid',
         });
-        await expect(connection.execute()).rejects.toThrow(ForbiddenError);
+        const executionError = await captureError(connection.execute());
+        expect(executionError).toBeInstanceOf(ForbiddenError);
+        expect(executionError).toMatchObject({
+            message:
+                'This agent connection is no longer available for this operation.',
+        });
     });
 });
