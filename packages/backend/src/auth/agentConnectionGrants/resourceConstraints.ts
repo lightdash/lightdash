@@ -38,14 +38,27 @@ export const parseGrantResourceConstraints = (
     grant: GrantApproval,
 ): AgentConnectionGrant['resourceConstraints'] | null => {
     if (
+        !Array.isArray(grant.approvedProjectUuids) ||
         grant.approvedProjectUuids.length > MAX_AGENT_CONNECTION_PROJECTS ||
-        grant.approvedCapabilities.some(
+        !Array.isArray(grant.approvedCapabilities) ||
+        [...grant.approvedCapabilities].some(
             (capability) =>
                 !Object.values(AgentCapability).includes(capability),
         )
     )
         return null;
     const raw = grant.resourceConstraints;
+    const projectUuids =
+        raw?.version === 1
+            ? [...new Set(grant.approvedProjectUuids)]
+            : [...grant.approvedProjectUuids];
+    if (
+        projectUuids.some(
+            (uuid) => typeof uuid !== 'string' || !isUuid(uuid),
+        ) ||
+        new Set(projectUuids).size !== projectUuids.length
+    )
+        return null;
     if (raw?.version === 2) {
         const map = raw.projectCapabilities;
         if (

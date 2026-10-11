@@ -36,6 +36,8 @@ vi.mock('passport', () => ({ default: { authenticate: vi.fn() } }));
 vi.mock('../../ee/authentication', () => ({
     authenticateServiceAccount: vi.fn(),
 }));
+const outsideProjectUuid = '22222222-2222-4222-8222-222222222222';
+
 const setup = () =>
     setupGrantAuthentication({
         ...defaultSessionUser,
@@ -88,7 +90,7 @@ it('puts validated metadata on the account in OAuth log and legacy org mode', as
 });
 it('enforces the grant before the legacy return, even after the org allows more', async () => {
     const { req, run, permissions } = setup();
-    req.params.projectUuid = 'outside';
+    req.params.projectUuid = outsideProjectUuid;
     const check = async (managed: boolean) => {
         permissions.loadRequest.mockResolvedValue({
             enforcementMode: managed ? 'managed' : 'off',
@@ -104,7 +106,7 @@ it('enforces the grant before the legacy return, even after the org allows more'
 it('checks the grant before group admission when limits are off', async () => {
     const { req, run, grant, permissions } = setup();
     permissions.loadRequest.mockResolvedValue({ enforcementMode: 'admission' });
-    req.params.projectUuid = 'outside';
+    req.params.projectUuid = outsideProjectUuid;
     expect((await run(allowApiKeyAuthentication)).error).toMatchObject({
         message: expect.stringContaining('project'),
     });

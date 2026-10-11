@@ -4444,6 +4444,7 @@ describe('dashboard export download filenames', () => {
 describe('connection compile jobs', () => {
     beforeEach(() => vi.stubEnv('IS_PULL_REQUEST', 'false'));
     afterEach(() => vi.unstubAllEnvs());
+    const projectUuid = '11111111-1111-4111-8111-111111111111';
     const methods = [
         'compileProject',
         'validateProject',
@@ -4540,7 +4541,7 @@ describe('connection compile jobs', () => {
             userUuid: user.userUuid,
             createdByUserUuid: user.userUuid,
             organizationUuid: user.organizationUuid,
-            projectUuid: 'project-1',
+            projectUuid,
             jobUuid: 'compile-1',
             requestMethod: RequestMethod.CLI,
             isPreview: false,
@@ -4865,7 +4866,7 @@ describe('connection compile jobs', () => {
             expect(f.assertActiveExecution).toHaveBeenCalledWith(
                 f.execution,
                 expect.objectContaining({
-                    projectUuid: 'project-1',
+                    projectUuid,
                     recheckOperation: true,
                 }),
             );
@@ -4874,7 +4875,7 @@ describe('connection compile jobs', () => {
                     expect.objectContaining({
                         ability: f.account.user.ability,
                     }),
-                    'project-1',
+                    projectUuid,
                     RequestMethod.CLI,
                     'compile-1',
                     undefined,

@@ -48,7 +48,8 @@ import type {
 } from './types';
 
 const account = buildAccount();
-const projectUuid = 'test-project-uuid';
+const projectUuid = '11111111-1111-4111-8111-111111111111';
+const otherProjectUuid = '22222222-2222-4222-8222-222222222222';
 const organizationUuid = 'test-org-uuid';
 const executionContext: SourceQueryExecutionContext = {
     parameters: {},
@@ -1286,7 +1287,7 @@ describe('bound grant SQL source effects', () => {
                     ? grantFixture()
                     : projectGrantFixture({
                           [projectUuid]: [AgentCapability.Query],
-                          other: [AgentCapability.RawSql],
+                          [otherProjectUuid]: [AgentCapability.RawSql],
                       });
             const bound = fromOauth(
                 defaultSessionUser,
@@ -1340,7 +1341,7 @@ describe('bound grant SQL source effects', () => {
                             AgentCapability.Query,
                             AgentCapability.RawSql,
                         ],
-                        other: [],
+                        [otherProjectUuid]: [],
                     }),
                 );
             await expect(service.submitQueries(args)).resolves.toBeDefined();

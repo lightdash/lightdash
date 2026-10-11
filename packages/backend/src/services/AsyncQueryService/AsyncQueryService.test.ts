@@ -170,10 +170,7 @@ import { OrganizationWarehouseCredentialsModel } from '../../models/Organization
 import type { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import type { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import {
-    projectUuid,
-    singleRouteProjectModelMethods,
-} from '../../models/ProjectModel/ProjectModel.mock';
+import { singleRouteProjectModelMethods } from '../../models/ProjectModel/ProjectModel.mock';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { RefreshTokenLockTimeoutError } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
@@ -289,6 +286,8 @@ import type {
     RunAsyncWarehouseQueryArgs,
     RunDuckdbQueryArgs,
 } from './types';
+
+const projectUuid = '11111111-1111-4111-8111-111111111111';
 
 const noOpStrategy = new NoOpPreAggregateStrategy();
 
@@ -10523,7 +10522,7 @@ describe('AsyncQueryService', () => {
                 ).toHaveBeenCalledWith(sshTunnelCredentials, {
                     agentSession: false,
                     enableInstanceCache: false,
-                    projectUuid: 'project uuid',
+                    projectUuid,
                     logger: expect.anything(),
                 });
 
@@ -21191,6 +21190,7 @@ describe('fresh stored result read boundary', () => {
 });
 
 describe('fresh execution producer to result reader', () => {
+    const otherProjectUuid = '22222222-2222-4222-8222-222222222222';
     const dashboardUuid = 'dashboard';
     const sqlChart = {
         savedSqlUuid: 'sql-chart',
@@ -26530,7 +26530,7 @@ describe('fresh execution producer to result reader', () => {
                     auth.grant,
                     projectGrantFixture({
                         [projectUuid]: required,
-                        other: [AgentCapability.DeployUpload],
+                        [otherProjectUuid]: [AgentCapability.DeployUpload],
                     }),
                     {
                         clientId: auth.grant.clientId,
@@ -26544,7 +26544,7 @@ describe('fresh execution producer to result reader', () => {
                         version: 2,
                         projectCapabilities: {
                             [projectUuid]: [AgentCapability.DeployUpload],
-                            other: required,
+                            [otherProjectUuid]: required,
                         },
                     },
                 });
@@ -26570,7 +26570,7 @@ describe('fresh execution producer to result reader', () => {
                 auth.grant,
                 projectGrantFixture({
                     [projectUuid]: required,
-                    other: [AgentCapability.Export],
+                    [otherProjectUuid]: [AgentCapability.Export],
                 }),
                 {
                     clientId: auth.grant.clientId,
@@ -26594,7 +26594,7 @@ describe('fresh execution producer to result reader', () => {
                     version: 2,
                     projectCapabilities: {
                         [projectUuid]: [...required, AgentCapability.Export],
-                        other: [],
+                        [otherProjectUuid]: [],
                     },
                 },
             });

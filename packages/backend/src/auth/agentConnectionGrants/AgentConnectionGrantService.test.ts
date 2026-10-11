@@ -9,6 +9,8 @@ import { AgentConnectionGrantService } from './AgentConnectionGrantService';
 import { grantFixture, projectGrantFixture } from './grant.mock';
 import { managedExecutionFixture } from './managedExecution.mock';
 
+const otherProjectUuid = '22222222-2222-4222-8222-222222222222';
+
 const setup = () => {
     const grant = grantFixture();
     const user = {
@@ -139,7 +141,7 @@ it('resolves only the project consumed by the handler', async () => {
                 method: 'GET',
                 query: {},
                 params: { projectUuid: 'slug' },
-                body: { targetProjectUuid: 'other' },
+                body: { targetProjectUuid: otherProjectUuid },
             },
             'ProjectController.getProject',
         ),
@@ -241,7 +243,7 @@ it('cannot hide a resource slug behind an injected body project', async () => {
 it('refuses promotions even when both projects are approved', async () => {
     const { service, token, user, grant } = setup();
     grant.approvedCapabilities = Object.values(AgentCapability);
-    grant.approvedProjectUuids.push('upstream');
+    grant.approvedProjectUuids.push(otherProjectUuid);
     const account = fromOauth(
         user,
         token,
@@ -298,7 +300,9 @@ it('does not accept fake project fields on an organization-wide content listing'
 it('refuses content moves without reviewed source and destination contracts', async () => {
     const { service, token, user, grant, deps } = setup();
     grant.approvedCapabilities = [AgentCapability.Publish];
-    deps.resourceResolver.resolveResourceProjectUuid.mockResolvedValue('other');
+    deps.resourceResolver.resolveResourceProjectUuid.mockResolvedValue(
+        otherProjectUuid,
+    );
     const account = fromOauth(
         user,
         token,
@@ -351,7 +355,9 @@ it.each([
 ])('checks the actual resource for %s', async (operation, params) => {
     const { service, token, user, grant, deps } = setup();
     grant.approvedCapabilities = Object.values(AgentCapability);
-    deps.resourceResolver.resolveResourceProjectUuid.mockResolvedValue('other');
+    deps.resourceResolver.resolveResourceProjectUuid.mockResolvedValue(
+        otherProjectUuid,
+    );
     const account = fromOauth(
         user,
         token,
@@ -568,7 +574,9 @@ it.each(
         );
         deps.resourceResolver.resolveDeploySession.mockResolvedValue({
             projectUuid:
-                binding === 'project' ? 'other' : grant.approvedProjectUuids[0],
+                binding === 'project'
+                    ? otherProjectUuid
+                    : grant.approvedProjectUuids[0],
             userUuid: binding === 'owner' ? 'other' : user.userUuid,
         });
         const result = service.assertRestOperation(

@@ -99,7 +99,7 @@ const withMissingEntries = (
 };
 
 const trackingParams = {
-    projectUuid: 'project-uuid',
+    projectUuid: '11111111-1111-4111-8111-111111111111',
     organizationUuid: 'organization-uuid',
     userUuid: 'user-uuid',
     jobUuid: 'job-uuid',

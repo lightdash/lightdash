@@ -15657,7 +15657,8 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
 });
 
 describe('assertCustomSqlAuthorizedForQuery', () => {
-    const { projectUuid } = defaultProject;
+    const projectUuid = '11111111-1111-4111-8111-111111111111';
+    const otherProjectUuid = '22222222-2222-4222-8222-222222222222';
     const organizationUuid = 'organizationUuid';
     const exploreName = 'valid_explore';
     const spaceUuid = 'space-1';
@@ -16305,7 +16306,7 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
         boundAccount.authentication.agentConnectionGrant = {
             ...projectGrantFixture({
                 [baseArgs.projectUuid]: [AgentCapability.Query],
-                other: [AgentCapability.RawSql],
+                [otherProjectUuid]: [AgentCapability.RawSql],
             }),
             revision: 1,
         };
@@ -16322,7 +16323,7 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
                     AgentCapability.Query,
                     AgentCapability.RawSql,
                 ],
-                other: [],
+                [otherProjectUuid]: [],
             }),
         );
         await expect(assertCustomSql(service, args)).resolves.toBeUndefined();

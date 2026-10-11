@@ -12,6 +12,7 @@ import {
 } from './grant.mock';
 
 const projectUuid = grantFixture().approvedProjectUuids[0];
+const otherProjectUuid = '22222222-2222-4222-8222-222222222222';
 const evaluate = (
     key: string,
     capabilities: AgentCapability[],
@@ -54,7 +55,7 @@ it.each([
 it.each(['allowed', 'other', 'empty'])('checks every project: %s', (choice) => {
     const projectCases: Record<string, string[]> = {
         allowed: [projectUuid],
-        other: [projectUuid, 'other'],
+        other: [projectUuid, otherProjectUuid],
         empty: [],
     };
     const projects = projectCases[choice];
@@ -187,7 +188,7 @@ it.each(malformedProjectConstraints)(
     'refuses malformed stored constraints %j',
     (resourceConstraints) => {
         const grant = {
-            ...projectGrantFixture({ project: [AgentCapability.Query] }),
+            ...projectGrantFixture({ [projectUuid]: [AgentCapability.Query] }),
             resourceConstraints,
         } as ReturnType<typeof grantFixture>;
         expect(
@@ -195,7 +196,7 @@ it.each(malformedProjectConstraints)(
                 grant,
                 kind: 'rest',
                 key: 'QueryController.executeAsyncMetricQuery',
-                projectUuids: ['project'],
+                projectUuids: [projectUuid],
                 now: new Date(),
             }),
         ).not.toBeNull();

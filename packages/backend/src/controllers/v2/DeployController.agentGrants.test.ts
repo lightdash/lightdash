@@ -9,6 +9,8 @@ import { DeployService } from '../../services/DeployService';
 import { type ServiceRepository } from '../../services/ServiceRepository';
 import { DeployController } from './DeployController';
 
+const otherProjectUuid = '22222222-2222-4222-8222-222222222222';
+
 const setup = () => {
     const grant = grantFixture();
     const account = fromOauth(
@@ -73,7 +75,9 @@ it.each([
         account.authentication.agentConnectionGrant!.approvedCapabilities = [
             AgentCapability.DeployUpload,
         ];
-        await expect(call(operation, 'other')).rejects.toThrow('project');
+        await expect(call(operation, otherProjectUuid)).rejects.toThrow(
+            'project',
+        );
         expect(dispatch).not.toHaveBeenCalled();
         await expect(call(operation)).resolves.toMatchObject({ status: 'ok' });
         expect(dispatch).toHaveBeenCalledOnce();
@@ -104,7 +108,7 @@ it('keeps unbound deploy behavior', async () => {
     const { call, account, dispatch } = setup();
     account.authentication.agentConnectionGrant = null;
     await expect(
-        call('deployExplores', 'other', {
+        call('deployExplores', otherProjectUuid, {
             sourceUuid: 'source',
             target: { database: 'database' },
         }),
@@ -133,7 +137,7 @@ it.each(
         const session = {
             projectUuid:
                 mismatch === 'project'
-                    ? 'other'
+                    ? otherProjectUuid
                     : grant.approvedProjectUuids[0],
             userUuid: mismatch === 'owner' ? 'other' : account.user.id,
             status: DeploySessionStatus.UPLOADING,

@@ -12,6 +12,8 @@ import { AgentConnectionGrantModel } from './AgentConnectionGrantModel';
 let database: ReturnType<typeof knex>;
 let tracker: ReturnType<typeof getTracker>;
 let model: AgentConnectionGrantModel;
+const projectUuid = '11111111-1111-4111-8111-111111111111';
+const secondProjectUuid = '22222222-2222-4222-8222-222222222222';
 const now = new Date('2026-10-10T12:00:00Z');
 const input: AgentConnectionGrantCreate = {
     organizationUuid: 'org',
@@ -20,7 +22,7 @@ const input: AgentConnectionGrantCreate = {
     name: 'cli-dev',
     resource: 'https://server.example',
     approvedCapabilities: [AgentCapability.ReadDiscover, AgentCapability.Query],
-    approvedProjectUuids: ['project'],
+    approvedProjectUuids: [projectUuid],
     resourceConstraints: { version: 1 },
     approvalPolicyVersion: null,
     approvedByUserUuid: 'subject',
@@ -69,7 +71,7 @@ afterEach(async () => {
 });
 
 const mockCreate = () => {
-    tracker.on.select('projects').response([{ project_uuid: 'project' }]);
+    tracker.on.select('projects').response([{ project_uuid: projectUuid }]);
     tracker.on.insert('agent_connection_grants').response([row]);
 };
 
@@ -103,11 +105,11 @@ test('rejects an empty project list', async () => {
 });
 
 test('rejects projects missing from the bound organization', async () => {
-    tracker.on.select('projects').response([{ project_uuid: 'project' }]);
+    tracker.on.select('projects').response([{ project_uuid: projectUuid }]);
     await expect(
         model.create({
             ...input,
-            approvedProjectUuids: ['project', 'foreign-project'],
+            approvedProjectUuids: [projectUuid, secondProjectUuid],
         }),
     ).rejects.toBeInstanceOf(ParameterError);
     expect(tracker.history.select).toHaveLength(1);
@@ -135,14 +137,14 @@ test('deduplicates capabilities and projects and accepts the maximum expiry', as
     await model.create({
         ...input,
         approvedCapabilities: [AgentCapability.Query, AgentCapability.Query],
-        approvedProjectUuids: ['project', 'project'],
+        approvedProjectUuids: [projectUuid, projectUuid],
         expiresAt: new Date(now.getTime() + 7 * 86400000),
     });
     expect(tracker.history.select).toHaveLength(1);
     expect(tracker.history.insert[0].bindings).toContainEqual([
         AgentCapability.Query,
     ]);
-    expect(tracker.history.insert[0].bindings).toContainEqual(['project']);
+    expect(tracker.history.insert[0].bindings).toContainEqual([projectUuid]);
 });
 
 test('returns the stored grant with explicit nulls and server-owned metadata', async () => {
@@ -328,7 +330,7 @@ test.each([
 
 test('replaces the grant, revokes its tokens and links to the replacement', async () => {
     tracker.on.select('agent_connection_grants').response([row]);
-    tracker.on.select('projects').response([{ project_uuid: 'project' }]);
+    tracker.on.select('projects').response([{ project_uuid: projectUuid }]);
     tracker.on
         .insert('agent_connection_grants')
         .response([{ ...row, agent_connection_grant_uuid: 'new-grant' }]);
@@ -535,8 +537,6 @@ test.each(malformedProjectConstraints)(
     },
 );
 
-const projectUuid = '11111111-1111-4111-8111-111111111111';
-const secondProjectUuid = '22222222-2222-4222-8222-222222222222';
 class ProjectCapabilities {
     [projectUuid] = [AgentCapability.Query];
 }

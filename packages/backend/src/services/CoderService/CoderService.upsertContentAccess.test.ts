@@ -40,7 +40,7 @@ import { PromoteService } from '../PromoteService/PromoteService';
 import { type ServiceRepository } from '../ServiceRepository';
 import { CoderService } from './CoderService';
 
-const PROJECT_UUID = 'project-uuid';
+const PROJECT_UUID = '11111111-1111-4111-8111-111111111111';
 const ORG_UUID = 'org-uuid';
 const SPACE_UUID = 'space-uuid';
 const OTHER_SPACE_UUID = 'other-space-uuid';

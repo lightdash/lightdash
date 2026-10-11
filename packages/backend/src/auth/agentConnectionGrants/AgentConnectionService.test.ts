@@ -1,5 +1,8 @@
 import { Ability } from '@casl/ability';
 import { AgentCapability, NotFoundError } from '@lightdash/common';
+import { type Request } from 'express';
+import { AgentConnectionController } from '../../controllers/v2/agentConnectionController';
+import { type ServiceRepository } from '../../services/ServiceRepository';
 import { fromSession } from '../account/account';
 import { defaultSessionUser } from '../account/account.mock';
 import { AgentConnectionService } from './AgentConnectionService';
@@ -274,7 +277,7 @@ it('propagates policy storage errors instead of reporting permission refusal', a
 
 it('reports the version 1 flat approval for each project', async () => {
     const f = setup();
-    f.grant.approvedProjectUuids.push('second-project');
+    f.grant.approvedProjectUuids.push('22222222-2222-4222-8222-222222222222');
     const [record] = await f.service.list(f.account);
     expect(
         record.approvedProjects.map((project) => project.approvedCapabilities),
@@ -338,3 +341,169 @@ it.each([
     ]);
     expect(policy).not.toHaveBeenCalled();
 });
+
+describe.each([1, 2])('version %i unreadable approvals', (version) => {
+    it.each([
+        [
+            'null project element',
+            {
+                approvedProjectUuids: [
+                    '11111111-1111-4111-8111-111111111111',
+                    null,
+                ],
+            },
+            true,
+        ],
+        [
+            'non-uuid project element',
+            {
+                approvedProjectUuids: [
+                    '11111111-1111-4111-8111-111111111111',
+                    'project',
+                ],
+            },
+            true,
+        ],
+        ['null project list', { approvedProjectUuids: null }, false],
+        [
+            'string project list',
+            { approvedProjectUuids: '11111111-1111-4111-8111-111111111111' },
+            false,
+        ],
+        ['object project list', { approvedProjectUuids: {} }, false],
+        ['missing project list', { approvedProjectUuids: undefined }, false],
+        ['null capability list', { approvedCapabilities: null }, true],
+        [
+            'string capability list',
+            { approvedCapabilities: AgentCapability.Query },
+            true,
+        ],
+        ['object capability list', { approvedCapabilities: {} }, true],
+        ['missing capability list', { approvedCapabilities: undefined }, true],
+        ['null capability element', { approvedCapabilities: [null] }, true],
+        ['unknown capability', { approvedCapabilities: ['unknown'] }, true],
+    ])(
+        'lists, denies status and revokes a row with %s',
+        async (_name, approval, keepsProject) => {
+            const f = setup();
+            if (version === 2) {
+                Object.assign(
+                    f.grant,
+                    projectGrantFixture({
+                        [f.projectUuid]: f.grant.approvedCapabilities,
+                    }),
+                );
+            }
+            Object.assign(f.grant, approval);
+            const controller = new AgentConnectionController({
+                getAgentConnectionService: () => f.service,
+            } as ServiceRepository);
+            const req = { account: f.account } as Request;
+            const policy = vi.spyOn(f.permissions, 'assertOperation');
+            const expectedProjects = keepsProject
+                ? [
+                      {
+                          projectUuid: f.projectUuid,
+                          name: 'Visible project',
+                          approvedCapabilities: [],
+                      },
+                  ]
+                : [];
+            const listed = await controller.list(req);
+            expect(listed.results).toHaveLength(1);
+            expect(listed.results[0]).toMatchObject({
+                limitsStatus: 'invalid',
+                approvedProjects: expectedProjects,
+            });
+            const status = await controller.getConnectionStatus(
+                req,
+                f.grant.grantUuid,
+            );
+            expect(status.results).toMatchObject({
+                limitsStatus: 'invalid',
+                approvedProjects: expectedProjects,
+            });
+            expect(status.results.effectiveProjects).toEqual(
+                keepsProject
+                    ? [
+                          {
+                              projectUuid: f.projectUuid,
+                              capabilities: Object.values(AgentCapability).map(
+                                  (capability) => ({
+                                      capability,
+                                      allowed: false,
+                                      reason: 'invalid_grant',
+                                  }),
+                              ),
+                          },
+                      ]
+                    : [],
+            );
+            expect(policy).not.toHaveBeenCalled();
+            const revoked = await controller.revoke(req, f.grant.grantUuid);
+            expect(revoked.results).toMatchObject({
+                limitsStatus: 'invalid',
+                status: 'revoked',
+                approvedProjects: expectedProjects,
+            });
+            expect(f.grant.revokedAt).toBeInstanceOf(Date);
+            expect(f.model.revoke).toHaveBeenCalledWith({
+                grantUuid: f.grant.grantUuid,
+                organizationUuid: f.grant.organizationUuid,
+                revokedByUserUuid: f.account.user.id,
+                reason: 'owner_revoked',
+            });
+        },
+    );
+});
+
+it.each(['active', 'expired', 'revoked', 'flag_off', 'person_denied'])(
+    'denies unsupported grant contracts before other checks when %s and permits owner recovery',
+    async (state) => {
+        const f = setup();
+        f.grant.grantContractVersion = 99;
+        f.user.ability = new Ability([{ action: 'manage', subject: 'all' }]);
+        if (state === 'expired') f.grant.expiresAt = new Date(0);
+        if (state === 'revoked') f.grant.revokedAt = new Date();
+        if (state === 'flag_off')
+            f.deps.featureFlags.get.mockResolvedValue({ enabled: false });
+        if (state === 'person_denied') f.user.ability = new Ability([]);
+        const controller = new AgentConnectionController({
+            getAgentConnectionService: () => f.service,
+        } as ServiceRepository);
+        const req = { account: f.account } as Request;
+        const policy = vi.spyOn(f.permissions, 'assertOperation');
+        const listed = await controller.list(req);
+        expect(listed.results[0]).toMatchObject({
+            limitsStatus: 'invalid',
+            approvedProjects: [
+                { projectUuid: f.projectUuid, approvedCapabilities: [] },
+            ],
+        });
+        const status = await controller.getConnectionStatus(
+            req,
+            f.grant.grantUuid,
+        );
+        expect(status.results.limitsStatus).toBe('invalid');
+        expect(status.results.effectiveProjects).toEqual([
+            {
+                projectUuid: f.projectUuid,
+                capabilities: Object.values(AgentCapability).map(
+                    (capability) => ({
+                        capability,
+                        allowed: false,
+                        reason: 'invalid_grant',
+                    }),
+                ),
+            },
+        ]);
+        expect(policy).not.toHaveBeenCalled();
+        const revoked = await controller.revoke(req, f.grant.grantUuid);
+        expect(revoked.results).toMatchObject({
+            limitsStatus: 'invalid',
+            status: 'revoked',
+        });
+        expect(f.grant.revokedAt).toBeInstanceOf(Date);
+        expect(f.model.revoke).toHaveBeenCalled();
+    },
+);

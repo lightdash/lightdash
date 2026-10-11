@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AGENT_CONNECTION_GRANT_CONTRACT_VERSION,
     AgentActorSurface,
     AgentCapability,
     assertUnreachable,
@@ -160,10 +161,16 @@ export class AgentConnectionService extends BaseService {
         );
         const ability = this.createAuditedAbility(account);
         return grants.map((grant) => {
-            const constraints = parseGrantResourceConstraints(grant);
-            const projectUuids = constraints
-                ? grant.approvedProjectUuids
-                : grant.approvedProjectUuids.filter(isUuid);
+            const constraints =
+                grant.grantContractVersion ===
+                AGENT_CONNECTION_GRANT_CONTRACT_VERSION
+                    ? parseGrantResourceConstraints(grant)
+                    : null;
+            const projectUuids = Array.isArray(grant.approvedProjectUuids)
+                ? grant.approvedProjectUuids.filter(
+                      (uuid) => typeof uuid === 'string' && isUuid(uuid),
+                  )
+                : [];
             return {
                 limitsStatus: constraints ? 'ok' : 'invalid',
                 grantUuid: grant.grantUuid,

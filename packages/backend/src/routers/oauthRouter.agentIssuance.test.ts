@@ -53,6 +53,7 @@ it('registered authorize and token handlers cannot issue an agent connection wit
         redirect_uris: ['http://localhost/callback'],
     };
     const verifier = 'a'.repeat(64);
+    const projectUuid = '11111111-1111-4111-8111-111111111111';
     const attemptedBinding = {
         agentConnectionGrantUuid: 'attacker-grant',
         agent_connection_grant_uuid: 'attacker-grant',
@@ -60,9 +61,9 @@ it('registered authorize and token handlers cannot issue an agent connection wit
         connection: { name: 'attempt' },
         resourceConstraints: {
             version: 2,
-            projectCapabilities: { project: ['query'] },
+            projectCapabilities: { [projectUuid]: ['query'] },
         },
-        approvedProjectUuids: ['project'],
+        approvedProjectUuids: [projectUuid],
         approvedCapabilities: ['query'],
     };
     const inserted: Record<string, unknown>[] = [];
