@@ -147,6 +147,22 @@ describe('PatSessionCache', () => {
             expect(PatSessionCache.get('token-a')).toBeUndefined();
         });
 
+        it('renews the entry when a second slow lookup finishes, and a hit does not renew it', async () => {
+            const { PatSessionCache } = await loadCache();
+            const startedAt = Date.now();
+            vi.advanceTimersByTime(45_000);
+            PatSessionCache.set('token-a', fixture, startedAt);
+            vi.advanceTimersByTime(4_000);
+            expect(PatSessionCache.get('token-a')).toEqual(fixture);
+            PatSessionCache.set('token-a', otherFixture, startedAt);
+            vi.advanceTimersByTime(1_100);
+            expect(PatSessionCache.get('token-a')).toEqual(otherFixture);
+            vi.advanceTimersByTime(3_800);
+            expect(PatSessionCache.get('token-a')).toEqual(otherFixture);
+            vi.advanceTimersByTime(200);
+            expect(PatSessionCache.get('token-a')).toBeUndefined();
+        });
+
         it('removes entries from node-cache after its default write lifetime', async () => {
             const set = vi.spyOn(NodeCache.prototype, 'set');
             const { PatSessionCache } = await loadCache();
