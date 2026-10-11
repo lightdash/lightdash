@@ -3,8 +3,6 @@ import {
     type AgentCapabilityPolicy,
     type AgentCapabilityPolicyOverview,
     type AgentCapabilityCeiling,
-    type AgentWarehouseConfirmationStatus,
-    type AgentWarehouseRestrictionConfirmation,
     type ApiOrganizationAgentIdentityProjectsWithoutAiServiceAccountResponse,
     type WarehouseTypes,
     type ApiAiServiceAccountStatusResponse,
@@ -399,8 +397,6 @@ export const useSnowflakeAgentVerify = (enabled: boolean) => {
 };
 
 const agentPolicyUrl = '/org/agent-permissions';
-const warehouseConfirmationUrl = (projectUuid: string) =>
-    `${agentPolicyUrl}/projects/${encodeURIComponent(projectUuid)}/warehouse-confirmation`;
 
 export const useAgentCapabilityPolicy = () => {
     const { user } = useApp();
@@ -478,25 +474,4 @@ export const useResetAgentCapabilityPolicy = (
         'Could not turn off limits.',
         onSaved,
         agentPolicyMutationKey,
-    );
-export const useAgentWarehouseConfirmation = (projectUuid: string) =>
-    useAccessQuery(projectUuid, null, 'warehouse-confirmation', () =>
-        lightdashApi<AgentWarehouseConfirmationStatus>({
-            version: 'v2',
-            url: warehouseConfirmationUrl(projectUuid),
-            method: 'GET',
-            body: undefined,
-        }),
-    );
-export const useConfirmAgentWarehouse = (projectUuid: string) =>
-    useAgentPermissionMutation<AgentWarehouseRestrictionConfirmation, void>(
-        warehouseConfirmationUrl(projectUuid),
-        'PUT',
-        'Could not confirm warehouse restrictions.',
-    );
-export const useDeleteAgentWarehouseConfirmation = (projectUuid: string) =>
-    useAgentPermissionMutation<undefined, void>(
-        warehouseConfirmationUrl(projectUuid),
-        'DELETE',
-        'Could not remove the warehouse confirmation.',
     );

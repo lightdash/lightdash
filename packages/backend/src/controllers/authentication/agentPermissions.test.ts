@@ -86,12 +86,6 @@ const setup = ({
             get: vi.fn().mockResolvedValue({ enabled: mode !== 'off' }),
         },
         agentCapabilityPolicyModel: { get: getPolicy, save: vi.fn() },
-        agentWarehouseRestrictionConfirmationModel: {
-            get: vi.fn(),
-            upsert: vi.fn(),
-            delete: vi.fn(),
-            getCurrentBindingFingerprint: vi.fn(),
-        },
         userModel: {
             getAgentRoleAssignments: vi.fn().mockResolvedValue({
                 systemRoles: [OrganizationMemberRole.ADMIN],

@@ -25,12 +25,6 @@ const setup = () => {
         allowedGroupUuids: null,
         systemRoleMatrix: agentSystemRoleMatrix([]),
     };
-    const confirmations = {
-        get: vi.fn().mockResolvedValue(null),
-        getCurrentBindingFingerprint: vi.fn().mockResolvedValue('current'),
-        upsert: vi.fn(),
-        delete: vi.fn(),
-    };
     const featureFlagModel = {
         get: vi.fn().mockResolvedValue({ enabled: true }),
     };
@@ -45,7 +39,6 @@ const setup = () => {
             get: vi.fn().mockResolvedValue(policy),
             save: vi.fn(),
         },
-        agentWarehouseRestrictionConfirmationModel: confirmations,
         userModel: {
             getAgentRoleAssignments: vi.fn().mockResolvedValue({
                 systemRoles: [OrganizationMemberRole.VIEWER],
@@ -131,7 +124,6 @@ const setup = () => {
     return {
         groupsModel,
         policy,
-        confirmations,
         featureFlagModel,
         assertToolOperation,
         runSqlJob,
@@ -150,7 +142,7 @@ const executeTool = (tool: ToolSet[string], input: unknown = {}) =>
     );
 
 test.each(['standard', 'worker'] as const)(
-    'runSql rechecks capability and warehouse confirmation in %s execution',
+    'runSql rechecks capability in %s execution',
     async (role) => {
         const h = setup();
         if (role === 'worker')
@@ -172,17 +164,6 @@ test.each(['standard', 'worker'] as const)(
         });
         expect(h.runSqlJob).not.toHaveBeenCalled();
         h.policy.systemRoleMatrix.viewer = [AgentCapability.RawSql];
-        await expect(run()).resolves.toMatchObject({
-            structuredContent: {
-                refusal: {
-                    reason: AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED,
-                },
-            },
-        });
-        expect(h.runSqlJob).not.toHaveBeenCalled();
-        h.confirmations.get.mockResolvedValue({
-            bindingFingerprint: 'current',
-        });
         await expect(run()).resolves.toMatchObject({
             metadata: { status: 'success' },
         });
@@ -314,7 +295,6 @@ test('agent tool execution refuses unlisted users before running SQL', async () 
     const h = setup();
     h.policy.allowedUserUuids = [];
     h.policy.systemRoleMatrix.viewer = [AgentCapability.RawSql];
-    h.confirmations.get.mockResolvedValue({ bindingFingerprint: 'current' });
     await expect(
         executeTool(h.buildTools().runSql, { sql: 'SELECT 1', limit: 1 }),
     ).resolves.toMatchObject({

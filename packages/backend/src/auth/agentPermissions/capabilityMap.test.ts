@@ -429,8 +429,6 @@ it.each([
 const humanOnlyReadExceptions: Record<string, string> = {
     'AgentPermissionController.getPolicy':
         'Reads or validates settings without changing grants or credentials.',
-    'AgentPermissionController.getWarehouseConfirmation':
-        'Reads or validates settings without changing grants or credentials.',
     'AiServiceAccountController.get':
         'Reads or validates settings without changing grants or credentials.',
     'FeatureFlagController.getFeatureFlag':
@@ -616,7 +614,6 @@ it.each(compositeFixtures)(
             projectUuid: 'project',
             mcpAgentsEnabled: true,
             mcpContentWritesEnabled: true,
-            warehouseConfirmed: true,
             isOrganizationDiscovery: false,
         };
         expect(evaluate(policy, operation)).toBeNull();
@@ -654,3 +651,16 @@ it.each([
         expect(routes.some((route) => route.id === key)).toBe(true);
     },
 );
+
+test.each([
+    'getWarehouseConfirmation',
+    'confirmWarehouse',
+    'deleteWarehouseConfirmation',
+])('does not map removed operation %s', (method) => {
+    expect(
+        getRequiredAgentCapabilities(
+            'rest',
+            `AgentPermissionController.${method}`,
+        ),
+    ).toBeNull();
+});

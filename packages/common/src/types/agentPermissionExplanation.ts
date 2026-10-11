@@ -18,8 +18,7 @@ export type AgentPermissionCheckKind =
     | 'operation_mapping'
     | 'project_scope'
     | 'capability'
-    | 'content_writes'
-    | 'warehouse_confirmation';
+    | 'content_writes';
 
 export type AgentPermissionCheck = {
     id: string;

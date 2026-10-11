@@ -43,8 +43,7 @@ export const agentCapabilityLabels: Record<
     },
     [AgentCapability.RawSql]: {
         label: 'Raw SQL',
-        description:
-            'Run SQL directly. Also needs the project warehouse confirmation.',
+        description: 'Run SQL directly.',
     },
     [AgentCapability.ContentWrite]: {
         label: 'Create and edit content',

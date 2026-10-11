@@ -4,7 +4,6 @@ import {
     AiAccessRefusedError,
     getAgentCapabilityName,
     getAgentCapabilityRefusalMessage,
-    getProjectAgentIdentitySettingsPath,
     type AgentPermissionBlocker,
     type AgentPermissionCheck,
     type AgentPermissionCheckKind,
@@ -19,7 +18,6 @@ export interface AgentPermissionEvaluationContext extends AgentPolicyEvaluation 
     userUuid?: string;
     groupMember?: boolean;
     humanOnly?: boolean;
-    warehouseStale?: boolean;
 }
 
 const permissionCheck = (
@@ -48,14 +46,7 @@ const refused = (
     settingsUrl: string | null = '/generalSettings/agentIdentity',
     message = getAgentCapabilityRefusalMessage(reason, policyLayer, capability),
 ): AgentPermissionCheck => ({
-    ...permissionCheck(
-        kind,
-        label,
-        reason === AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED
-            ? 'setup_needed'
-            : 'refused',
-        message,
-    ),
+    ...permissionCheck(kind, label, 'refused', message),
     reason,
     policyLayer,
     capability,
@@ -255,38 +246,6 @@ export const agentPermissionChecks = (
                     AiAccessRefusalReason.AGENT_SETTING_DENIED,
                     'organization_setting',
                     AgentCapability.ContentWrite,
-                );
-            },
-        },
-        {
-            kind: 'warehouse_confirmation',
-            evaluate: () => {
-                if (!required?.includes(AgentCapability.RawSql))
-                    return notNeeded(
-                        'warehouse_confirmation',
-                        'Raw SQL confirmation',
-                    );
-                if (operation.warehouseConfirmed)
-                    return permissionCheck(
-                        'warehouse_confirmation',
-                        'Raw SQL confirmation',
-                        'allowed',
-                        'Restrictions are confirmed for the current connection.',
-                    );
-                return refused(
-                    'warehouse_confirmation',
-                    'Raw SQL confirmation',
-                    AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED,
-                    'warehouse_identity',
-                    AgentCapability.RawSql,
-                    operation.projectUuid === null
-                        ? '/generalSettings/agentIdentity'
-                        : getProjectAgentIdentitySettingsPath(
-                              operation.projectUuid,
-                          ),
-                    operation.warehouseStale
-                        ? 'The connection changed since it was confirmed.'
-                        : undefined,
                 );
             },
         },

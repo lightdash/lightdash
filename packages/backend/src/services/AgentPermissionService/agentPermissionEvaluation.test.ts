@@ -24,7 +24,6 @@ const operation: AgentPolicyEvaluation = {
     projectUuid: 'project',
     mcpAgentsEnabled: true,
     mcpContentWritesEnabled: true,
-    warehouseConfirmed: false,
     isOrganizationDiscovery: false,
 };
 
@@ -32,14 +31,20 @@ test('shared sequence includes every blocker while evaluate keeps the first', ()
     const checks = agentPermissionChecks(policy, operation).map((check) =>
         check.evaluate(),
     );
+    expect(checks.map((check) => check.kind)).toEqual([
+        'agent_admission',
+        'human_only',
+        'agent_enabled',
+        'operation_mapping',
+        'project_scope',
+        'capability',
+        'content_writes',
+    ]);
     expect(
         checks
             .filter((check) => check.reason !== null)
             .map((check) => check.reason),
-    ).toEqual([
-        AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
-        AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED,
-    ]);
+    ).toEqual([AiAccessRefusalReason.AGENT_CAPABILITY_DENIED]);
     expect(evaluate(policy, operation)?.reason).toBe(
         AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
     );

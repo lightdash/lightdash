@@ -1,17 +1,13 @@
 import {
     assertRegisteredAccount,
     type AgentCapabilityPolicy,
-    type AgentWarehouseRestrictionConfirmation,
     type ApiErrorPayload,
-    type UUID,
 } from '@lightdash/common';
 import {
     Body,
-    Delete,
     Get,
     Middlewares,
     OperationId,
-    Path,
     Post,
     Put,
     Request,
@@ -40,25 +36,6 @@ interface AgentPolicyOverviewResponse extends Omit<
     'results'
 > {
     results: AgentCapabilityPolicyOverview;
-}
-interface WarehouseConfirmationResponse {
-    status: 'ok';
-    results: AgentWarehouseRestrictionConfirmation;
-}
-interface WarehouseConfirmationStatusResponse extends Omit<
-    WarehouseConfirmationResponse,
-    'results'
-> {
-    results: {
-        confirmation: AgentWarehouseRestrictionConfirmation | null;
-        confirmed: boolean;
-    };
-}
-interface DeleteConfirmationResponse extends Omit<
-    WarehouseConfirmationResponse,
-    'results'
-> {
-    results: undefined;
 }
 interface ResetPolicyRequest {
     version?: number;
@@ -111,48 +88,5 @@ export class AgentPermissionController extends BaseController {
                 .getAgentPermissionService()
                 .resetToLegacy(req.account, body?.version),
         };
-    }
-
-    @Get('/projects/{projectUuid}/warehouse-confirmation')
-    @OperationId('getAgentWarehouseRestrictionConfirmation')
-    async getWarehouseConfirmation(
-        @Request() req: express.Request,
-        @Path() projectUuid: UUID,
-    ): Promise<WarehouseConfirmationStatusResponse> {
-        assertRegisteredAccount(req.account);
-        return {
-            status: 'ok',
-            results: await this.services
-                .getAgentPermissionService()
-                .getWarehouseConfirmation(req.account, projectUuid),
-        };
-    }
-
-    @Put('/projects/{projectUuid}/warehouse-confirmation')
-    @OperationId('confirmAgentWarehouseRestrictions')
-    async confirmWarehouse(
-        @Request() req: express.Request,
-        @Path() projectUuid: UUID,
-    ): Promise<WarehouseConfirmationResponse> {
-        assertRegisteredAccount(req.account);
-        return {
-            status: 'ok',
-            results: await this.services
-                .getAgentPermissionService()
-                .confirmWarehouse(req.account, projectUuid),
-        };
-    }
-
-    @Delete('/projects/{projectUuid}/warehouse-confirmation')
-    @OperationId('deleteAgentWarehouseRestrictionConfirmation')
-    async deleteWarehouseConfirmation(
-        @Request() req: express.Request,
-        @Path() projectUuid: UUID,
-    ): Promise<DeleteConfirmationResponse> {
-        assertRegisteredAccount(req.account);
-        await this.services
-            .getAgentPermissionService()
-            .deleteWarehouseConfirmation(req.account, projectUuid);
-        return { status: 'ok', results: undefined };
     }
 }

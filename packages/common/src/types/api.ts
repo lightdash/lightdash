@@ -130,8 +130,6 @@ import type { PivotValuesColumn } from '../visualizations/types';
 import {
     type AgentCapabilityPolicy,
     type AgentCapabilityPolicyOverview,
-    type AgentWarehouseConfirmationStatus,
-    type AgentWarehouseRestrictionConfirmation,
 } from './agentCapabilityPolicy';
 import type {
     ApiAiServiceAccountSlotResponse,
@@ -1371,8 +1369,6 @@ export type ApiFlashResults = Record<string, string[]>;
 type ApiResults =
     | AgentCapabilityPolicy
     | AgentCapabilityPolicyOverview
-    | AgentWarehouseRestrictionConfirmation
-    | AgentWarehouseConfirmationStatus
     | OrganizationAgentIdentitySettings
     | ApiAiThreadFileResponse['results']
     | SharedSignInStatus

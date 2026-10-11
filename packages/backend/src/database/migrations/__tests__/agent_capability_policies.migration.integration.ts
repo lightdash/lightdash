@@ -250,12 +250,6 @@ test('departed allowed members do not block a matrix edit or reset to legacy', a
         isCustomRolesLicensed: () => true,
         areGroupsAvailable: vi.fn().mockResolvedValue(true),
         groupsModel: { findUserInGroups: vi.fn().mockResolvedValue([]) },
-        agentWarehouseRestrictionConfirmationModel: {
-            get: vi.fn(),
-            upsert: vi.fn(),
-            delete: vi.fn(),
-            getCurrentBindingFingerprint: vi.fn(),
-        },
         userModel: { getAgentRoleAssignments: vi.fn() },
         projectModel: { getSummary: vi.fn() },
         getOrganizationSettings: vi.fn(),
