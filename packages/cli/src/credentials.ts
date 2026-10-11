@@ -22,7 +22,7 @@ export const requireInvocationContext = (): void => {
         );
 };
 const isThenable = (value: unknown): value is PromiseLike<unknown> =>
-    typeof value === 'object' &&
+    (typeof value === 'object' || typeof value === 'function') &&
     value !== null &&
     'then' in value &&
     typeof value.then === 'function';
@@ -84,13 +84,9 @@ export const runWithParsedAgentConnectionSelection = <T>(
             let asynchronous = false;
             try {
                 const result = action();
-                if (result instanceof Promise) {
-                    asynchronous = true;
-                    return result.finally(release) as T;
-                }
                 if (isThenable(result)) {
                     asynchronous = true;
-                    Promise.resolve(result).then(release, release);
+                    return Promise.resolve(result).finally(release) as T;
                 }
                 return result;
             } finally {

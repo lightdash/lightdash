@@ -377,3 +377,39 @@ it('does not block later ordinary calls when the selection is first read after r
         mocks.fetch.mock.calls.map(([, init]) => init.headers.Authorization),
     ).toEqual(['ApiKey ordinary-key']);
 });
+it('keeps the guard while a callable thenable action is still pending', async () => {
+    const outside = new AsyncResource('outside');
+    let finish: () => void = () => {};
+    const pending = new Promise<void>((resolve) => {
+        finish = resolve;
+    });
+    const result = runWithAgentConnectionSelection(slot.name, () =>
+        // oxlint-disable-next-line unicorn/no-thenable
+        Object.assign(() => {}, { then: pending.then.bind(pending) }),
+    );
+    await expect(outside.runInAsyncScope(request)).rejects.toThrow(guard);
+    finish();
+    await result;
+    await request();
+    expect(
+        mocks.fetch.mock.calls.map(([, init]) => init.headers.Authorization),
+    ).toEqual(['ApiKey ordinary-key']);
+});
+it('releases the guard when a single-subscriber thenable settles for the caller', async () => {
+    let finish: () => void = () => {};
+    const result = runWithAgentConnectionSelection(slot.name, () => ({
+        // oxlint-disable-next-line unicorn/no-thenable
+        then(resolve: () => void) {
+            finish = resolve;
+        },
+    }));
+    await Promise.resolve();
+    const done = Promise.resolve(result);
+    await Promise.resolve();
+    finish();
+    await done;
+    await request();
+    expect(
+        mocks.fetch.mock.calls.map(([, init]) => init.headers.Authorization),
+    ).toEqual(['ApiKey ordinary-key']);
+});
