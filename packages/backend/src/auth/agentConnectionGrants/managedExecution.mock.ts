@@ -58,12 +58,6 @@ export const managedExecutionFixture = () => {
             get: vi.fn().mockResolvedValue(policy),
             save: vi.fn(),
         },
-        agentWarehouseRestrictionConfirmationModel: {
-            get: vi.fn().mockResolvedValue({ bindingFingerprint: 'current' }),
-            getCurrentBindingFingerprint: vi.fn().mockResolvedValue('current'),
-            upsert: vi.fn(),
-            delete: vi.fn(),
-        },
         userModel: {
             getAgentRoleAssignments: vi.fn().mockResolvedValue(assignments),
         },
