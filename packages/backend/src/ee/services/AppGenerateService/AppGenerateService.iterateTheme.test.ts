@@ -382,3 +382,69 @@ describe('data app agent attribution', () => {
         },
     );
 });
+
+describe('Agent build job markers', () => {
+    it.each([false, true])(
+        'carries the turn marker on generate and iterate only when enabled: %s',
+        async (enabled) => {
+            const { service, schedulerClient } = buildService();
+            const user = {
+                ...defaultSessionUser,
+                userUuid: 'user-1',
+                organizationUuid: 'org-1',
+            };
+            const scope = createAgentExecutionContext({
+                account: fromSession(user),
+                surface: AgentActorSurface.SLACK_AGENT,
+                clientId: null,
+                agentUuid: null,
+                agentIdentityEnabled: enabled,
+            });
+            const aiAgentToolCall = {
+                promptUuid: 'prompt',
+                toolCallId: 'tool',
+            };
+            await agentExecutionContext.run(scope, async () => {
+                await service.iterateApp(
+                    USER,
+                    'project-1',
+                    'app-1',
+                    'Change app',
+                    [],
+                    undefined,
+                    undefined,
+                    undefined,
+                    { aiAgentToolCall },
+                );
+                await service.generateApp(
+                    USER,
+                    'project-1',
+                    'Create app',
+                    [],
+                    'new-app',
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    { name: null, aiAgentToolCall },
+                );
+            });
+            expect(schedulerClient.appGeneratePipeline).toHaveBeenCalledTimes(
+                2,
+            );
+            for (const [payload] of schedulerClient.appGeneratePipeline.mock
+                .calls) {
+                expect(payload.aiAgentToolCall).toEqual(aiAgentToolCall);
+                if (enabled)
+                    expect(payload.agentWork).toEqual({
+                        userUuid: 'user-1',
+                        organizationUuid: 'org-1',
+                        projectUuid: 'project-1',
+                    });
+                else expect(payload).not.toHaveProperty('agentWork');
+            }
+        },
+    );
+});

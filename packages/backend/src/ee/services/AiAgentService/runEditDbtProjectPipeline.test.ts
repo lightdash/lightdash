@@ -1,4 +1,9 @@
-import { InsufficientGitPermissionsError } from '@lightdash/common';
+import {
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
+    InsufficientGitPermissionsError,
+} from '@lightdash/common';
+import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
 import { AiAgentService } from './AiAgentService';
 
@@ -126,6 +131,7 @@ const buildService = (overrides: {
     };
     const userModel = {
         findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue({
+            ...defaultSessionUser,
             userUuid: 'user-1',
             organizationUuid: 'org-1',
         }),
@@ -162,7 +168,10 @@ const buildService = (overrides: {
     };
     const writebackPreviewService = { createPreviewForPullRequest };
 
+    const loadRequest = vi.fn().mockResolvedValue({});
+    const assertOperationWithRequest = vi.fn().mockResolvedValue(undefined);
     const service = new AiAgentService({
+        agentPermissionService: { loadRequest, assertOperationWithRequest },
         userModel,
         aiAgentModel,
         aiWritebackService,
@@ -176,6 +185,8 @@ const buildService = (overrides: {
 
     return {
         service,
+        loadRequest,
+        assertOperationWithRequest,
         updateToolResult,
         updateModelResponse,
         setPromptNeedsUserInput,
@@ -592,3 +603,75 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
         expect(updateToolResult).not.toHaveBeenCalled();
     });
 });
+
+describe('runEditDbtProjectPipeline Slack work authority', () => {
+    it.each(['absent', 'allowed', 'refused', 'malformed'] as const)(
+        'handles %s markers only at delivery',
+        async (state) => {
+            const h = buildService({ isSlack: true });
+            if (state === 'refused')
+                h.assertOperationWithRequest.mockRejectedValue(
+                    new AiAccessRefusedError(
+                        AiAccessRefusalReason.AGENT_PROJECT_DENIED,
+                    ),
+                );
+            const marker = {
+                userUuid: 'user-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'proj-1',
+            };
+            await h.service.runEditDbtProjectPipeline({
+                ...PAYLOAD,
+                isSlackPrompt: true,
+                ...(state === 'absent'
+                    ? {}
+                    : {
+                          agentWork:
+                              state === 'malformed'
+                                  ? ({} as typeof marker)
+                                  : marker,
+                      }),
+            });
+            expect(h.postMessage).toHaveBeenCalledTimes(
+                state === 'absent' || state === 'allowed' ? 1 : 0,
+            );
+            expect(h.loadRequest).toHaveBeenCalledTimes(
+                state === 'absent' || state === 'malformed' ? 0 : 1,
+            );
+            expect(h.updateToolResult).toHaveBeenCalledTimes(1);
+        },
+    );
+});
+
+it.each(['error', 'refusal'] as const)(
+    'withholds a later outcome in the same run after a check %s',
+    async (kind) => {
+        const h = buildService({
+            isSlack: true,
+            run: vi.fn().mockResolvedValue({
+                ...WRITEBACK_RESULT,
+                needsDbtSourceSelection: true,
+            }),
+        });
+        const error =
+            kind === 'refusal'
+                ? new AiAccessRefusedError(
+                      AiAccessRefusalReason.AGENT_PROJECT_DENIED,
+                  )
+                : new Error('Database unavailable');
+        h.loadRequest.mockRejectedValueOnce(error);
+        await h.service.runEditDbtProjectPipeline({
+            ...PAYLOAD,
+            isSlackPrompt: true,
+            agentWork: {
+                userUuid: 'user-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'proj-1',
+            },
+        });
+        expect(h.updateModelResponse).toHaveBeenCalledTimes(1);
+        expect(h.setPromptNeedsUserInput).toHaveBeenCalledTimes(1);
+        expect(h.loadRequest).toHaveBeenCalledTimes(1);
+        expect(h.postMessage).not.toHaveBeenCalled();
+    },
+);

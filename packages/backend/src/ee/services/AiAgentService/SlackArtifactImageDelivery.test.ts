@@ -1,4 +1,12 @@
-import { toolRunQueryArgsSchemaTransformed } from '@lightdash/common';
+import {
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
+    toolRunQueryArgsSchemaTransformed,
+} from '@lightdash/common';
+import {
+    createAgentDeliveryGuard,
+    type ParsedAgentWorkMarker,
+} from '../../../services/AgentPermissionService/agentWorkAuthority';
 import {
     type DbAiSlackArtifactDelivery,
     type SlackArtifactRenderInput,
@@ -194,4 +202,163 @@ describe('Slack artifact image selection', () => {
             1,
         );
     });
+});
+
+describe('Slack image authority refusals', () => {
+    it.each(['prepare', 'prepare-throws', 'render', 'update'] as const)(
+        'cancels a refusal during %s without retrying',
+        async (stage) => {
+            const h = setup([
+                {
+                    type: 'card',
+                    block_id: getSlackArtifactCardBlockId('selected'),
+                },
+            ]);
+            const agentWork: ParsedAgentWorkMarker = {
+                status: 'valid',
+                marker: {
+                    userUuid: 'user',
+                    organizationUuid: 'org',
+                    projectUuid: 'project',
+                },
+            };
+            const refusal = new AiAccessRefusedError(
+                AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+            );
+            if (stage === 'prepare') h.prepare.mockResolvedValue(null);
+            if (stage === 'prepare-throws')
+                h.prepare.mockRejectedValue(refusal);
+            const guard = createAgentDeliveryGuard({
+                enabled: true,
+                check: vi.fn().mockRejectedValue(refusal),
+                now: () => 0,
+            });
+            if (stage === 'render')
+                h.runtime.render.mockImplementation(async () => {
+                    await guard.assert();
+                    return null;
+                });
+            if (stage === 'update')
+                h.runtime.updateMessage.mockRejectedValue(refusal);
+            await expect(
+                deliverSlackArtifactImages(h, agentWork, guard),
+            ).resolves.toBeUndefined();
+            expect(h.model.finish).toHaveBeenCalledExactlyOnceWith(
+                'prompt',
+                'cancelled',
+                1,
+            );
+            if (stage !== 'update')
+                expect(h.runtime.updateMessage).not.toHaveBeenCalled();
+        },
+    );
+});
+
+describe('Unmarked Slack image refusal parity', () => {
+    it.each(['render', 'update'] as const)(
+        'keeps the existing retry path for an unmarked %s refusal',
+        async (stage) => {
+            const h = setup([
+                {
+                    type: 'card',
+                    block_id: getSlackArtifactCardBlockId('selected'),
+                },
+            ]);
+            const refusal = new AiAccessRefusedError(
+                AiAccessRefusalReason.AGENT_PROJECT_DENIED,
+            );
+            if (stage === 'render') h.runtime.render.mockRejectedValue(refusal);
+            else h.runtime.updateMessage.mockRejectedValue(refusal);
+            if (stage === 'render')
+                await expect(deliverSlackArtifactImages(h)).rejects.toEqual(
+                    new Error(
+                        'Some Slack artifact images are still unavailable',
+                    ),
+                );
+            else
+                await expect(deliverSlackArtifactImages(h)).rejects.toBe(
+                    refusal,
+                );
+            expect(h.model.finish).not.toHaveBeenCalled();
+        },
+    );
+});
+
+describe('image job delivery failure latch', () => {
+    const marker: ParsedAgentWorkMarker = {
+        status: 'valid',
+        marker: {
+            userUuid: 'user',
+            organizationUuid: 'org',
+            projectUuid: 'project',
+        },
+    };
+    it.each(['error', 'refusal', 'render-marked', 'render-unmarked'] as const)(
+        'handles two selected images with one cached after %s',
+        async (kind) => {
+            const h = setup(
+                ['selected', 'diagnostic'].map((version) => ({
+                    type: 'card',
+                    block_id: getSlackArtifactCardBlockId(version),
+                })),
+            );
+            await h.model.saveImage(
+                'prompt',
+                'selected',
+                'https://lightdash.test/cached',
+            );
+            h.model.saveImage.mockClear();
+            const error =
+                kind === 'refusal'
+                    ? new AiAccessRefusedError(
+                          AiAccessRefusalReason.AGENT_PROJECT_DENIED,
+                      )
+                    : new Error('Unavailable');
+            const marked = kind !== 'render-unmarked';
+            const checkFailure = kind === 'error' || kind === 'refusal';
+            const check = vi.fn().mockResolvedValue(undefined);
+            const guard = createAgentDeliveryGuard({
+                enabled: marked,
+                check,
+                now: () => 0,
+            });
+            h.prepare.mockImplementation(async () => {
+                await guard.assert();
+                return h.runtime;
+            });
+            h.runtime.render.mockImplementation(async () => {
+                if (checkFailure) {
+                    check.mockRejectedValueOnce(error);
+                    await guard.assert();
+                }
+                throw error;
+            });
+            const job = deliverSlackArtifactImages(
+                h,
+                marked ? marker : { status: 'absent' },
+                guard,
+            );
+            if (kind === 'refusal') await expect(job).resolves.toBeUndefined();
+            else if (checkFailure) await expect(job).rejects.toBe(error);
+            else
+                await expect(job).rejects.toThrow(
+                    'Some Slack artifact images are still unavailable',
+                );
+            expect(h.runtime.render).toHaveBeenCalledExactlyOnceWith(
+                h.diagnostic,
+            );
+            expect(h.model.saveImage).not.toHaveBeenCalled();
+            expect(h.runtime.updateMessage).toHaveBeenCalledTimes(
+                checkFailure ? 0 : 1,
+            );
+            expect(h.prepare).toHaveBeenCalledTimes(checkFailure ? 1 : 2);
+            if (kind === 'refusal')
+                expect(h.model.finish).toHaveBeenCalledExactlyOnceWith(
+                    'prompt',
+                    'cancelled',
+                    1,
+                );
+            else expect(h.model.finish).not.toHaveBeenCalled();
+        },
+    );
 });

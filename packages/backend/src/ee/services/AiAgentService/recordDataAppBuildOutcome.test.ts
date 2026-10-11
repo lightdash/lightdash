@@ -1,3 +1,5 @@
+import { AiAccessRefusalReason, AiAccessRefusedError } from '@lightdash/common';
+import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { AiAgentService } from './AiAgentService';
 
 vi.mock('../ai/AiAgentMcpRuntimeClient', () => ({
@@ -65,7 +67,17 @@ const buildService = (
                   fileId: 'F123',
               }),
     );
+    const loadRequest = vi.fn().mockResolvedValue({});
+    const assertOperationWithRequest = vi.fn().mockResolvedValue(undefined);
     const service = new AiAgentService({
+        agentPermissionService: { loadRequest, assertOperationWithRequest },
+        userModel: {
+            findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue({
+                ...defaultSessionUser,
+                userUuid: 'user-1',
+                organizationUuid: 'org-1',
+            }),
+        },
         lightdashConfig: { siteUrl: 'https://ld.example.com' },
         aiAgentModel: {
             updateToolResultIfPending,
@@ -95,6 +107,8 @@ const buildService = (
     } as any);
     return {
         service,
+        loadRequest,
+        assertOperationWithRequest,
         updateToolResultIfPending,
         postMessage,
         exportDataApp,
@@ -362,5 +376,121 @@ describe('AiAgentService.recordDataAppBuildOutcome', () => {
 
         expect(postMessage).not.toHaveBeenCalled();
         expect(exportDataApp).not.toHaveBeenCalled();
+    });
+});
+
+describe('recordDataAppBuildOutcome Slack work authority', () => {
+    it.each(['absent', 'allowed', 'refused', 'malformed'] as const)(
+        'handles %s markers only at delivery',
+        async (state) => {
+            const h = buildService({ status: 'ready' }, { isSlack: true });
+            if (state === 'refused')
+                h.assertOperationWithRequest.mockRejectedValue(
+                    new AiAccessRefusedError(
+                        AiAccessRefusalReason.AGENT_PROJECT_DENIED,
+                    ),
+                );
+            const marker = {
+                userUuid: 'user-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'proj-1',
+            };
+            await h.service.recordDataAppBuildOutcome({
+                ...PAYLOAD,
+                ...(state === 'absent'
+                    ? {}
+                    : {
+                          agentWork:
+                              state === 'malformed'
+                                  ? ({} as typeof marker)
+                                  : marker,
+                      }),
+            });
+            expect(h.postMessage).toHaveBeenCalledTimes(
+                state === 'absent' || state === 'allowed' ? 1 : 0,
+            );
+            expect(h.loadRequest).toHaveBeenCalledTimes(
+                { absent: 0, malformed: 0, refused: 1, allowed: 2 }[state],
+            );
+            expect(h.tryUploadingImageToSlack).toHaveBeenCalledTimes(
+                state === 'absent' || state === 'allowed' ? 1 : 0,
+            );
+            expect(h.updateToolResultIfPending).toHaveBeenCalledTimes(1);
+        },
+    );
+});
+
+it('keeps an unmarked screenshot refusal on the existing text fallback path', async () => {
+    const h = buildService(
+        { status: 'ready' },
+        {
+            isSlack: true,
+            captureError: new AiAccessRefusedError(
+                AiAccessRefusalReason.AGENT_PROJECT_DENIED,
+            ),
+        },
+    );
+    await h.service.recordDataAppBuildOutcome(PAYLOAD);
+    expect(h.postMessage).toHaveBeenCalledTimes(1);
+    expect(h.tryUploadingImageToSlack).not.toHaveBeenCalled();
+    expect(h.loadRequest).not.toHaveBeenCalled();
+});
+
+describe('app outcome delivery failure latch', () => {
+    const marker = {
+        userUuid: 'user-1',
+        organizationUuid: 'org-1',
+        projectUuid: 'proj-1',
+    };
+    it.each(['error', 'refusal'] as const)(
+        'withholds both screenshot and text after one check %s',
+        async (kind) => {
+            const h = buildService({ status: 'ready' }, { isSlack: true });
+            const error =
+                kind === 'refusal'
+                    ? new AiAccessRefusedError(
+                          AiAccessRefusalReason.AGENT_PROJECT_DENIED,
+                      )
+                    : new Error('Database unavailable');
+            h.loadRequest.mockRejectedValueOnce(error);
+            await h.service.recordDataAppBuildOutcome({
+                ...PAYLOAD,
+                agentWork: marker,
+            });
+            expect(h.exportDataApp).toHaveBeenCalledTimes(1);
+            expect(h.tryUploadingImageToSlack).not.toHaveBeenCalled();
+            expect(h.postMessage).not.toHaveBeenCalled();
+            expect(h.loadRequest).toHaveBeenCalledTimes(1);
+        },
+    );
+    it.each([false, true])(
+        'keeps text fallback for a capture error, marked: %s',
+        async (marked) => {
+            const h = buildService(
+                { status: 'ready' },
+                { isSlack: true, captureError: new Error('Capture failed') },
+            );
+            await h.service.recordDataAppBuildOutcome({
+                ...PAYLOAD,
+                ...(marked ? { agentWork: marker } : {}),
+            });
+            expect(h.tryUploadingImageToSlack).not.toHaveBeenCalled();
+            expect(h.postMessage).toHaveBeenCalledTimes(1);
+            expect(h.postMessage.mock.calls[0][0].blocks).toHaveLength(1);
+            expect(h.loadRequest).toHaveBeenCalledTimes(marked ? 1 : 0);
+        },
+    );
+    it('loads the person and policy twice for a marked screenshot outcome', async () => {
+        const h = buildService({ status: 'ready' }, { isSlack: true });
+        await h.service.recordDataAppBuildOutcome({
+            ...PAYLOAD,
+            agentWork: marker,
+        });
+        expect(
+            h.service['userModel'].findSessionUserAndOrgByUuid,
+        ).toHaveBeenCalledTimes(2);
+        expect(h.loadRequest).toHaveBeenCalledTimes(2);
+        expect(h.tryUploadingImageToSlack).toHaveBeenCalledTimes(1);
+        expect(h.postMessage).toHaveBeenCalledTimes(1);
     });
 });

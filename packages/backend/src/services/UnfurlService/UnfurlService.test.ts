@@ -1,6 +1,8 @@
 import { Ability } from '@casl/ability';
 import {
     AgentCapability,
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
     DELIVERY_CAPTURE_GLOBAL,
     DownloadFileType,
     LightdashPage,
@@ -305,6 +307,35 @@ describe('UnfurlService', () => {
             agentUuid: ARTIFACT_REFS.agentUuid,
             artifact: customChartArtifact as never,
         };
+
+        it.each(['upload', 'download'] as const)(
+            'checks deferred image authority before %s persistence',
+            async (stage) => {
+                const { service } = setupScreenshot();
+                mockFileStorageClient.isEnabled.mockReturnValue(
+                    stage !== 'download',
+                );
+                const refusal = new AiAccessRefusedError(
+                    AiAccessRefusalReason.AGENT_PROJECT_DENIED,
+                );
+                const assert = vi.fn().mockRejectedValue(refusal);
+                await expect(
+                    service.exportAiAgentArtifact(ACTING_USER, EXPORT_ARGS, {
+                        assert,
+                        assertIfStale: assert,
+                        getFailure: () => ({ error: refusal }),
+                    }),
+                ).rejects.toBe(refusal);
+                expect(assert).toHaveBeenCalledTimes(1);
+                expect(
+                    mockFileStorageClient.uploadImage,
+                ).not.toHaveBeenCalled();
+                expect(mockSlackUnfurlImageModel.create).not.toHaveBeenCalled();
+                expect(
+                    mockDownloadFileModel.createDownloadFile,
+                ).not.toHaveBeenCalled();
+            },
+        );
 
         it('rejects artifacts that are not custom chart type answers', async () => {
             const { service } = setupScreenshot();

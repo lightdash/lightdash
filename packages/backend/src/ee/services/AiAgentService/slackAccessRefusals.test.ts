@@ -8,7 +8,10 @@ import type { ModelMessage } from 'ai';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import type { SlackClient } from '../../../clients/Slack/SlackClient';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import Logger from '../../../logging/logger';
+import { AiAgentModel } from '../../models/AiAgentModel';
 import { getAiAccessRefusalBlocks } from '../ai/utils/getSlackBlocks';
+import { getSlackArtifactCardBlockId } from '../ai/utils/slackArtifactImages';
 import { AiAgentService } from './AiAgentService';
 
 const siteUrl = 'https://lightdash.example.com';
@@ -59,16 +62,38 @@ describe.each([false, true])(
                 .fn<SlackClient['appendAgentStream']>()
                 .mockResolvedValue({ ok: true });
             const updateSlackResponseTs = vi.fn().mockResolvedValue(undefined);
-            const updateModelResponse = vi.fn().mockResolvedValue(undefined);
+            const postDeliveryStore = vi.fn().mockResolvedValue(undefined);
+            const refusalStore = vi.fn().mockResolvedValue(undefined);
+            const updateModelResponse = vi
+                .fn()
+                .mockImplementation((data) =>
+                    data.errorMessage &&
+                    'response' in data &&
+                    data.response === undefined
+                        ? refusalStore(data)
+                        : postDeliveryStore(data),
+                );
             const getPendingSqlApprovalForPrompt = vi
                 .fn()
                 .mockResolvedValue(null);
+            const findSessionUserAndOrgByUuid = vi.fn().mockResolvedValue({
+                ...defaultSessionUser,
+                userUuid: 'user-1',
+                organizationUuid: 'org-1',
+            });
+            const flagGet = vi
+                .fn()
+                .mockResolvedValue({ enabled: agentIdentityEnabled });
+            const loadRequest = vi.fn().mockResolvedValue({});
+            const assertOperationWithRequest = vi
+                .fn()
+                .mockResolvedValue(undefined);
+            const slackAiArtifactImages = vi.fn().mockResolvedValue(undefined);
+            const insertAgentAction = vi.fn().mockResolvedValue(undefined);
             const service = new AiAgentService({
                 lightdashConfig: { ...lightdashConfigMock, siteUrl },
                 featureFlagService: {
-                    get: vi
-                        .fn()
-                        .mockResolvedValue({ enabled: agentIdentityEnabled }),
+                    get: flagGet,
                 },
                 slackClient: {
                     postMessage,
@@ -80,12 +105,17 @@ describe.each([false, true])(
                     appendAgentStream,
                 },
                 userModel: {
-                    findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue({
-                        ...defaultSessionUser,
-                        userUuid: 'user-1',
-                        organizationUuid: 'org-1',
-                    }),
+                    findSessionUserAndOrgByUuid,
+                    findServiceAccountByUserUuid: vi
+                        .fn()
+                        .mockResolvedValue(undefined),
                 },
+                agentPermissionService: {
+                    loadRequest,
+                    assertOperationWithRequest,
+                },
+                agentActionLogModel: { insert: insertAgentAction },
+                schedulerClient: { slackAiArtifactImages },
                 aiAgentModel: {
                     findSlackPrompt: vi.fn().mockResolvedValue(slackPrompt),
                     getThreadMessages: vi.fn().mockResolvedValue([]),
@@ -137,12 +167,14 @@ describe.each([false, true])(
                     'getChatHistoryFromThreadMessages',
                 )
                 .mockResolvedValue([]);
-            vi.spyOn(
-                service as unknown as {
-                    getPromptErrorMessage: () => Promise<string>;
-                },
-                'getPromptErrorMessage',
-            ).mockResolvedValue('Generation failed');
+            const getPromptErrorMessage = vi
+                .spyOn(
+                    service as unknown as {
+                        getPromptErrorMessage: () => Promise<string>;
+                    },
+                    'getPromptErrorMessage',
+                )
+                .mockResolvedValue('Generation failed');
             const generate = vi
                 .spyOn(service, 'generateOrStreamAgentResponse')
                 .mockImplementation(async (_user, _conversation, options) => {
@@ -172,12 +204,21 @@ describe.each([false, true])(
             ];
             return {
                 service,
+                insertAgentAction,
+                assertOperationWithRequest,
+                slackAiArtifactImages,
+                findSessionUserAndOrgByUuid,
+                flagGet,
+                loadRequest,
                 postMessage,
                 stopAgentStream,
                 updateSlackResponseTs,
+                postDeliveryStore,
+                refusalStore,
                 updateModelResponse,
                 generate,
                 getChatHistory,
+                getPromptErrorMessage,
                 getDeliveredBlocks,
                 getPendingSqlApprovalForPrompt,
                 appendAgentStream,
@@ -191,6 +232,649 @@ describe.each([false, true])(
                 ),
             };
         };
+
+        const refusal = () =>
+            new AiAccessRefusedError(
+                AiAccessRefusalReason.AGENT_PROJECT_DENIED,
+            );
+        const expectRefusalOnce = (
+            h: ReturnType<typeof setup>,
+            error: AiAccessRefusedError,
+        ) => {
+            const posts = h.postMessage.mock.calls.filter(([payload]) =>
+                JSON.stringify(payload.blocks).includes('ai_access_'),
+            );
+            expect(posts).toHaveLength(1);
+            expect(posts[0][0].blocks).toEqual([
+                {
+                    type: 'header',
+                    text: { type: 'plain_text', text: 'Needs an admin' },
+                },
+                ...getAiAccessRefusalBlocks(error.refusal, siteUrl),
+            ]);
+        };
+
+        it.each([
+            'refusal',
+            'error',
+            'after-delivery',
+            'cleanup-error',
+        ] as const)(
+            'clears only a withheld answer after a guard refusal: %s',
+            async (stage) => {
+                const log = vi.spyOn(Logger, 'error');
+                vi.useFakeTimers();
+                try {
+                    const h = setup({ card: false, refusals: [] });
+                    const error =
+                        stage === 'error'
+                            ? new Error('Database unavailable')
+                            : refusal();
+                    const row: {
+                        response: string | null;
+                        error_message: string | null;
+                        responded_at?: Date;
+                    } = { response: 'Private answer', error_message: null };
+                    const update = vi.fn().mockImplementation((data) => {
+                        Object.assign(row, data);
+                        return {
+                            where: vi.fn().mockReturnValue({
+                                returning: vi
+                                    .fn()
+                                    .mockResolvedValue([
+                                        { ai_prompt_uuid: 'prompt-1' },
+                                    ]),
+                            }),
+                        };
+                    });
+                    const database = Object.assign(
+                        vi.fn().mockReturnValue({ update }),
+                        { fn: { now: () => new Date() } },
+                    );
+                    h.refusalStore.mockImplementation((data) =>
+                        AiAgentModel.prototype.updateModelResponse.call(
+                            { database } as unknown as AiAgentModel,
+                            data,
+                        ),
+                    );
+                    if (stage === 'cleanup-error')
+                        h.refusalStore.mockRejectedValue(
+                            new Error('Write failed'),
+                        );
+                    if (stage === 'after-delivery')
+                        h.postMessage.mockImplementationOnce(async () => {
+                            vi.setSystemTime(Date.now() + 30_001);
+                            h.loadRequest.mockRejectedValueOnce(error);
+                            return { ok: true, ts: 'answer-ts' };
+                        });
+                    else
+                        h.finalBlocks.mockImplementation(async () => {
+                            h.loadRequest.mockRejectedValueOnce(error);
+                            return [];
+                        });
+                    if (agentIdentityEnabled && stage === 'error')
+                        await expect(
+                            h.service.replyToSlackPrompt('prompt-1'),
+                        ).rejects.toThrow('Failed to generate response');
+                    else await h.service.replyToSlackPrompt('prompt-1');
+                    const cleans =
+                        agentIdentityEnabled &&
+                        (stage === 'refusal' || stage === 'cleanup-error');
+                    if (cleans) {
+                        const expected = {
+                            promptUuid: 'prompt-1',
+                            response: undefined,
+                            errorMessage: (error as AiAccessRefusedError)
+                                .refusal.message,
+                        };
+                        expect(h.refusalStore).toHaveBeenCalledExactlyOnceWith(
+                            expected,
+                        );
+                        expect(
+                            h.updateModelResponse,
+                        ).toHaveBeenCalledExactlyOnceWith(expected);
+                        expectRefusalOnce(h, error as AiAccessRefusedError);
+                    } else expect(h.refusalStore).not.toHaveBeenCalled();
+                    if (agentIdentityEnabled && stage === 'refusal') {
+                        expect(row.response).toBeNull();
+                        expect(row.error_message).toBe(
+                            (error as AiAccessRefusedError).refusal.message,
+                        );
+                        expect(JSON.stringify(row)).not.toContain(
+                            'Private answer',
+                        );
+                    } else expect(row.response).toBe('Private answer');
+                    if (agentIdentityEnabled && stage === 'cleanup-error')
+                        expect(log).toHaveBeenCalledWith(
+                            'Failed to persist withheld Slack answer refusal:',
+                            expect.objectContaining({
+                                message: 'Write failed',
+                            }),
+                        );
+                } finally {
+                    vi.useRealTimers();
+                    log.mockRestore();
+                }
+            },
+        );
+
+        it('fails closed on a queued check error, closes the stream and uses the generic error path', async () => {
+            if (!agentIdentityEnabled) return;
+            vi.useFakeTimers();
+            const unhandled = vi.fn();
+            process.on('unhandledRejection', unhandled);
+            try {
+                const h = setup({ card: true, refusals: [] });
+                const error = new Error('Policy database unavailable');
+                let appendCount = 0;
+                h.generate.mockImplementation(
+                    async (_user, _conversation, options) => {
+                        void options.onSlackStepProgress?.(
+                            'First',
+                            'runQuery',
+                            'first',
+                            'in_progress',
+                        );
+                        await vi.advanceTimersByTimeAsync(0);
+                        expect(
+                            h.service['slackClient'].startAgentStream,
+                        ).toHaveBeenCalledTimes(1);
+                        expect(h.appendAgentStream).toHaveBeenCalled();
+                        appendCount = h.appendAgentStream.mock.calls.length;
+                        await vi.advanceTimersByTimeAsync(30_000);
+                        h.loadRequest.mockRejectedValue(error);
+                        void options.onSlackStepProgress?.(
+                            'Denied',
+                            'runQuery',
+                            'second',
+                            'in_progress',
+                        );
+                        await vi.advanceTimersByTimeAsync(0);
+                        void options.onSlackStepProgress?.(
+                            'Later',
+                            'runQuery',
+                            'third',
+                            'complete',
+                        );
+                        await vi.advanceTimersByTimeAsync(0);
+                        return 'Answer';
+                    },
+                );
+                await expect(
+                    h.service.replyToSlackPrompt('prompt-1'),
+                ).rejects.toThrow('Failed to generate response');
+                expect(h.appendAgentStream).toHaveBeenCalledTimes(appendCount);
+                expect(h.stopAgentStream).toHaveBeenCalledExactlyOnceWith({
+                    organizationUuid: 'org-1',
+                    channelId: 'channel-1',
+                    threadTs: 'thread-ts',
+                    messageTs: 'card-ts',
+                    chunks: [],
+                });
+                expect(h.postMessage).toHaveBeenCalledTimes(1);
+                expect(h.getDeliveredBlocks()).toEqual([
+                    {
+                        type: 'section',
+                        text: { type: 'mrkdwn', text: '🔴 Generation failed' },
+                    },
+                    {
+                        type: 'context',
+                        elements: [
+                            { type: 'plain_text', text: 'Reference: prompt-1' },
+                        ],
+                    },
+                ]);
+                expect(h.getPromptErrorMessage).toHaveBeenCalledWith(
+                    expect.anything(),
+                    error,
+                    expect.anything(),
+                    null,
+                );
+                expect(h.postDeliveryStore).not.toHaveBeenCalled();
+                expect(unhandled).not.toHaveBeenCalled();
+            } finally {
+                process.off('unhandledRejection', unhandled);
+                vi.useRealTimers();
+            }
+        });
+
+        it.each(['refusal', 'error'] as const)(
+            'fails closed at stream start on a guard %s',
+            async (kind) => {
+                if (!agentIdentityEnabled) return;
+                vi.useFakeTimers();
+                try {
+                    const h = setup({ card: true, refusals: [] });
+                    const error =
+                        kind === 'refusal'
+                            ? refusal()
+                            : new Error('Check unavailable');
+                    h.generate.mockImplementation(
+                        async (_user, _conversation, options) => {
+                            vi.setSystemTime(Date.now() + 30_000);
+                            h.loadRequest.mockRejectedValue(error);
+                            void options.onSlackStepProgress?.(
+                                'First',
+                                'runQuery',
+                                'first',
+                                'in_progress',
+                            );
+                            return 'Answer';
+                        },
+                    );
+                    if (kind === 'refusal') {
+                        await h.service.replyToSlackPrompt('prompt-1');
+                        expectRefusalOnce(h, error as AiAccessRefusedError);
+                    } else {
+                        await expect(
+                            h.service.replyToSlackPrompt('prompt-1'),
+                        ).rejects.toThrow('Failed to generate response');
+                        expect(h.postMessage).toHaveBeenCalledExactlyOnceWith(
+                            expect.objectContaining({
+                                text: '🔴 Generation failed',
+                            }),
+                        );
+                    }
+                    expect(
+                        h.service['slackClient'].startAgentStream,
+                    ).not.toHaveBeenCalled();
+                    expect(h.appendAgentStream).not.toHaveBeenCalled();
+                    expect(h.stopAgentStream).not.toHaveBeenCalled();
+                    expect(h.postDeliveryStore).not.toHaveBeenCalled();
+                } finally {
+                    vi.useRealTimers();
+                }
+            },
+        );
+
+        it('refuses the second answer chunk after posting the first chunk', async () => {
+            if (!agentIdentityEnabled) return;
+            const h = setup({
+                card: false,
+                refusals: [],
+                response: 'Answer paragraph.\n\n'.repeat(4000),
+            });
+            const error = refusal();
+            h.postMessage.mockImplementationOnce(async () => {
+                h.loadRequest.mockRejectedValue(error);
+                return { ok: true, ts: 'first-ts' };
+            });
+            await h.service.replyToSlackPrompt('prompt-1');
+            expect(h.postMessage).toHaveBeenCalledTimes(2);
+            expect(JSON.stringify(h.postMessage.mock.calls[0])).toContain(
+                'Answer paragraph.',
+            );
+            expectRefusalOnce(h, error);
+            expect(h.postDeliveryStore).not.toHaveBeenCalled();
+        });
+
+        it('refuses the SQL approval card before posting it', async () => {
+            if (!agentIdentityEnabled) return;
+            const h = setup({ card: false, refusals: [] });
+            const error = refusal();
+            h.getPendingSqlApprovalForPrompt.mockImplementation(async () => {
+                h.loadRequest.mockRejectedValue(error);
+                return {
+                    toolCallId: 'sql-call',
+                    toolName: 'runSql',
+                    sql: 'select 1',
+                };
+            });
+            await h.service.replyToSlackPrompt('prompt-1');
+            expect(h.postMessage).toHaveBeenCalledTimes(1);
+            expectRefusalOnce(h, error);
+            expect(JSON.stringify(h.postMessage.mock.calls)).not.toContain(
+                'select 1',
+            );
+        });
+
+        it('skips the Slack post-delivery store when its stale check refuses', async () => {
+            if (!agentIdentityEnabled) return;
+            vi.useFakeTimers();
+            try {
+                const h = setup({ card: false, refusals: [] });
+                const error = refusal();
+                h.postMessage.mockImplementationOnce(async () => {
+                    vi.setSystemTime(Date.now() + 30_001);
+                    h.loadRequest.mockRejectedValue(error);
+                    return { ok: true, ts: 'answer-ts' };
+                });
+                await h.service.replyToSlackPrompt('prompt-1');
+                expect(h.loadRequest).toHaveBeenCalledTimes(2);
+                expect(h.postMessage).toHaveBeenCalledTimes(2);
+                expect(h.postMessage.mock.calls[0][0].blocks).toEqual([
+                    { type: 'markdown', text: 'Answer' },
+                ]);
+                expectRefusalOnce(h, error);
+                expect(h.postDeliveryStore).not.toHaveBeenCalled();
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it.each([
+            ['refusal', 'passes'],
+            ['refusal', 'fails'],
+            ['error', 'passes'],
+            ['error', 'fails'],
+        ] as const)(
+            'keeps the first %s when an overlapping slow check %s',
+            async (kind, outcome) => {
+                if (!agentIdentityEnabled) return;
+                const h = setup({ card: false, refusals: [] });
+                const first =
+                    kind === 'refusal'
+                        ? refusal()
+                        : new Error('First check failure');
+                const later =
+                    kind === 'refusal'
+                        ? new Error('Later check failure')
+                        : refusal();
+                const slowCheck = Promise.withResolvers<object>();
+                const started = Promise.withResolvers<void>();
+                const observed: unknown[] = [];
+                let postsBeforeRethrow = -1;
+                const deliver = h.service['deliverSlackAnswerMessages'].bind(
+                    h.service,
+                );
+                vi.spyOn(
+                    h.service as unknown as {
+                        deliverSlackAnswerMessages: typeof deliver;
+                    },
+                    'deliverSlackAnswerMessages',
+                ).mockImplementation(async (input) => {
+                    h.loadRequest
+                        .mockImplementationOnce(() => {
+                            started.resolve();
+                            return slowCheck.promise;
+                        })
+                        .mockRejectedValueOnce(first);
+                    const slowDelivery = deliver(input);
+                    const settled = slowDelivery.then(
+                        () => null,
+                        (error: unknown) => error,
+                    );
+                    await started.promise;
+                    observed.push(
+                        await input.deliveryGuard.assert().then(
+                            () => null,
+                            (error: unknown) => error,
+                        ),
+                    );
+                    if (outcome === 'passes') slowCheck.resolve({});
+                    else slowCheck.reject(later);
+                    observed.push(await settled);
+                    postsBeforeRethrow = h.postMessage.mock.calls.length;
+                    observed.push(
+                        await input.deliveryGuard.assert().then(
+                            () => null,
+                            (error: unknown) => error,
+                        ),
+                    );
+                    throw first;
+                });
+                if (kind === 'refusal') {
+                    await h.service.replyToSlackPrompt('prompt-1');
+                    expectRefusalOnce(h, first as AiAccessRefusedError);
+                } else {
+                    await expect(
+                        h.service.replyToSlackPrompt('prompt-1'),
+                    ).rejects.toThrow('Failed to generate response');
+                    expect(h.getPromptErrorMessage).toHaveBeenCalledWith(
+                        expect.anything(),
+                        first,
+                        expect.anything(),
+                        null,
+                    );
+                }
+                expect(observed).toEqual([first, first, first]);
+                expect(observed.every((error) => error === first)).toBe(true);
+                expect(postsBeforeRethrow).toBe(0);
+                expect(h.postMessage).toHaveBeenCalledTimes(1);
+                expect(h.postDeliveryStore).not.toHaveBeenCalled();
+            },
+        );
+
+        it.each([false, true])(
+            'uses the generic error path when the final delivery check fails (card: %s)',
+            async (card) => {
+                if (!agentIdentityEnabled) return;
+                const h = setup({ card, refusals: [] });
+                const error = new Error('Final check unavailable');
+                h.finalBlocks.mockImplementation(async () => {
+                    if (card)
+                        await vi.waitFor(() =>
+                            expect(
+                                h.service['slackClient'].startAgentStream,
+                            ).toHaveBeenCalledTimes(1),
+                        );
+                    h.loadRequest.mockRejectedValue(error);
+                    return [];
+                });
+                await expect(
+                    h.service.replyToSlackPrompt('prompt-1'),
+                ).rejects.toThrow('Failed to generate response');
+                expect(h.postMessage).toHaveBeenCalledExactlyOnceWith(
+                    expect.objectContaining({ text: '🔴 Generation failed' }),
+                );
+                expect(h.getPromptErrorMessage).toHaveBeenCalledWith(
+                    expect.anything(),
+                    error,
+                    expect.anything(),
+                    null,
+                );
+                expect(h.postDeliveryStore).not.toHaveBeenCalled();
+                expect(
+                    h.stopAgentStream.mock.calls.map(
+                        ([payload]) => payload.chunks,
+                    ),
+                ).toEqual(card ? [[]] : []);
+            },
+        );
+
+        it.each(['start', 'append'] as const)(
+            'preserves main handling for a Slack %s failure with the flag off',
+            async (stage) => {
+                if (agentIdentityEnabled) return;
+                const h = setup({ card: true, refusals: [] });
+                const error = new Error('Slack unavailable');
+                if (stage === 'start')
+                    vi.mocked(
+                        h.service['slackClient'].startAgentStream,
+                    ).mockRejectedValue(error);
+                else h.appendAgentStream.mockRejectedValue(error);
+                await expect(
+                    h.service.replyToSlackPrompt('prompt-1'),
+                ).resolves.toBeUndefined();
+                expect(h.getDeliveredBlocks()).toEqual([
+                    { type: 'markdown', text: 'Answer' },
+                ]);
+                expect(h.postDeliveryStore).toHaveBeenCalledExactlyOnceWith({
+                    promptUuid: 'prompt-1',
+                    response: 'Answer',
+                });
+                expect(h.loadRequest).not.toHaveBeenCalled();
+                expect(h.getPromptErrorMessage).not.toHaveBeenCalled();
+                expect(h.postMessage).toHaveBeenCalledTimes(
+                    stage === 'start' ? 1 : 0,
+                );
+                expect(h.stopAgentStream).toHaveBeenCalledTimes(
+                    stage === 'start' ? 0 : 1,
+                );
+            },
+        );
+
+        it('preserves main query counts when identity enforcement is off', async () => {
+            if (agentIdentityEnabled) return;
+            const h = setup({ card: false, refusals: [] });
+            await h.service.replyToSlackPrompt('prompt-1');
+            expect(h.findSessionUserAndOrgByUuid).toHaveBeenCalledTimes(1);
+            expect(h.loadRequest).toHaveBeenCalledTimes(0);
+            expect(h.flagGet).toHaveBeenCalledTimes(1);
+            expect(h.postMessage).toHaveBeenCalledTimes(1);
+            expect(h.postDeliveryStore).toHaveBeenCalledTimes(1);
+        });
+
+        it('refuses an inactive prompt author only with enforcement on', async () => {
+            const h = setup({ card: false, refusals: [] });
+            h.findSessionUserAndOrgByUuid.mockResolvedValue({
+                ...defaultSessionUser,
+                userUuid: 'user-1',
+                organizationUuid: 'org-1',
+                isActive: false,
+            });
+            await h.service.replyToSlackPrompt('prompt-1');
+            expect(h.generate).toHaveBeenCalledTimes(
+                agentIdentityEnabled ? 0 : 1,
+            );
+            expect(h.postDeliveryStore).toHaveBeenCalledTimes(
+                agentIdentityEnabled ? 0 : 1,
+            );
+            expect(h.postMessage).toHaveBeenCalledTimes(1);
+            if (agentIdentityEnabled)
+                expect(JSON.stringify(h.getDeliveredBlocks())).not.toContain(
+                    'Answer',
+                );
+            expect(h.findSessionUserAndOrgByUuid).toHaveBeenCalledTimes(1);
+            expect(h.insertAgentAction).toHaveBeenCalledTimes(
+                agentIdentityEnabled ? 1 : 0,
+            );
+        });
+
+        it.each(['inactive', 'policy'] as const)(
+            'refuses %s before the final answer and closes the stream',
+            async (reason) => {
+                if (!agentIdentityEnabled) return;
+                const h = setup({ card: true, refusals: [] });
+                h.finalBlocks.mockImplementation(async () => {
+                    await vi.waitFor(() =>
+                        expect(
+                            h.service['slackClient'].startAgentStream,
+                        ).toHaveBeenCalledTimes(1),
+                    );
+                    if (reason === 'inactive')
+                        h.findSessionUserAndOrgByUuid.mockResolvedValue({
+                            ...defaultSessionUser,
+                            userUuid: 'user-1',
+                            organizationUuid: 'org-1',
+                            isActive: false,
+                        });
+                    else
+                        h.assertOperationWithRequest.mockRejectedValue(
+                            new AiAccessRefusedError(
+                                AiAccessRefusalReason.AGENT_PROJECT_DENIED,
+                            ),
+                        );
+                    return [];
+                });
+                await h.service.replyToSlackPrompt('prompt-1');
+                expect(h.generate).toHaveBeenCalledTimes(1);
+                expect(h.postDeliveryStore).not.toHaveBeenCalled();
+                expect(h.stopAgentStream).toHaveBeenCalledWith(
+                    expect.objectContaining({ chunks: [] }),
+                );
+                expect(h.postMessage).toHaveBeenCalledTimes(1);
+                expect(JSON.stringify(h.getDeliveredBlocks())).not.toContain(
+                    'Answer',
+                );
+            },
+        );
+
+        it('rechecks a long stream after thirty seconds and stops further appends', async () => {
+            if (!agentIdentityEnabled) return;
+            vi.useFakeTimers();
+            try {
+                const h = setup({ card: true, refusals: [] });
+                const reads: number[] = [];
+                const appends: number[] = [];
+                h.generate.mockImplementation(
+                    async (_user, _conversation, options) => {
+                        void options.onSlackStepProgress?.(
+                            'First',
+                            'runQuery',
+                            'first',
+                            'in_progress',
+                        );
+                        await vi.advanceTimersByTimeAsync(0);
+                        reads.push(h.loadRequest.mock.calls.length);
+                        await vi.advanceTimersByTimeAsync(29_999);
+                        void options.onSlackStepProgress?.(
+                            'Second',
+                            'runQuery',
+                            'second',
+                            'in_progress',
+                        );
+                        await vi.advanceTimersByTimeAsync(0);
+                        reads.push(h.loadRequest.mock.calls.length);
+                        h.assertOperationWithRequest.mockRejectedValue(
+                            new AiAccessRefusedError(
+                                AiAccessRefusalReason.AGENT_PROJECT_DENIED,
+                            ),
+                        );
+                        await vi.advanceTimersByTimeAsync(1);
+                        appends.push(h.appendAgentStream.mock.calls.length);
+                        void options.onSlackStepProgress?.(
+                            'Denied',
+                            'runQuery',
+                            'third',
+                            'in_progress',
+                        );
+                        await vi.advanceTimersByTimeAsync(0);
+                        void options.onSlackStepProgress?.(
+                            'Later',
+                            'runQuery',
+                            'fourth',
+                            'complete',
+                        );
+                        await vi.advanceTimersByTimeAsync(0);
+                        reads.push(h.loadRequest.mock.calls.length);
+                        appends.push(h.appendAgentStream.mock.calls.length);
+                        return 'Answer';
+                    },
+                );
+                await h.service.replyToSlackPrompt('prompt-1');
+                expect(reads).toEqual([1, 1, 2]);
+                expect(appends[1]).toBe(appends[0]);
+                expect(h.postDeliveryStore).not.toHaveBeenCalled();
+                expect(h.postMessage).toHaveBeenCalledTimes(1);
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('posts the answer, runs the Slack post-delivery store, and propagates the image marker only when enabled', async () => {
+            const h = setup({ card: false, refusals: [] });
+            h.finalBlocks.mockResolvedValue([
+                {
+                    type: 'card',
+                    block_id: getSlackArtifactCardBlockId('version'),
+                },
+            ]);
+            vi.mocked(
+                h.service['aiAgentModel'].slackArtifactDeliveries.get,
+            ).mockResolvedValue({
+                finished_at: null,
+                render_inputs: { version: {} },
+            } as never);
+            await h.service.replyToSlackPrompt('prompt-1');
+            expect(h.postMessage).toHaveBeenCalledTimes(1);
+            expect(h.postDeliveryStore).toHaveBeenCalledTimes(1);
+            expect(h.slackAiArtifactImages).toHaveBeenCalledExactlyOnceWith({
+                slackPromptUuid: 'prompt-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+                userUuid: 'user-1',
+                ...(agentIdentityEnabled
+                    ? {
+                          agentWork: {
+                              userUuid: 'user-1',
+                              organizationUuid: 'org-1',
+                              projectUuid: 'project-1',
+                          },
+                      }
+                    : {}),
+            });
+        });
 
         const expectOneGroup = (
             blocks: (Block | KnownBlock)[],
@@ -429,7 +1113,7 @@ describe.each([false, true])(
                         ).toBe(1);
                         expect(harness.finalBlocks).not.toHaveBeenCalled();
                         expect(
-                            harness.updateModelResponse,
+                            harness.postDeliveryStore,
                         ).not.toHaveBeenCalled();
                         expect(
                             JSON.stringify(harness.postMessage.mock.calls),
@@ -475,7 +1159,7 @@ describe.each([false, true])(
                     expectOneGroup(payload ?? []);
                 });
 
-                it('does not send the group again after persistence fails', async () => {
+                it('does not send the group again after Slack response timestamp persistence fails', async () => {
                     const harness = setup({ card, refusals: [signIn] });
                     harness.updateSlackResponseTs.mockRejectedValueOnce(
                         new Error('Persistence failed'),

@@ -177,6 +177,7 @@ import {
     validateAiAgentSkill,
     type AgentSuggestionTool,
     type AgentToolName,
+    type AgentWorkMarker,
     type AiAgentEditDbtProjectPipelineJobPayload,
     type AiAgentModelConfig,
     type AiAgentSkill,
@@ -203,6 +204,7 @@ import {
     type QueryResultReader,
     type RegisteredAccount,
     type SessionUser,
+    type SlackPromptJobPayload,
     type SqlApprovalToolName,
     type SuggestionValidationCatalog,
     type ToolGenerateDataAppTerminalResult,
@@ -280,6 +282,7 @@ import { safeUrl } from '../../../clients/Slack/SlackMessageBlocks';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { isUniqueConstraintViolation } from '../../../database/errors';
 import Logger from '../../../logging/logger';
+import { type AgentActionLogModel } from '../../../models/AgentActionLogModel';
 import { AppModel } from '../../../models/AppModel';
 import {
     CatalogModel,
@@ -304,6 +307,14 @@ import {
     type AgentPermissionRequest,
     type AgentPermissionService,
 } from '../../../services/AgentPermissionService/AgentPermissionService';
+import {
+    assertAgentWorkAllowed,
+    assertAgentWorkUserActive,
+    createAgentDeliveryGuard,
+    parseAgentWorkMarker,
+    type AgentDeliveryGuard,
+    type ParsedAgentWorkMarker,
+} from '../../../services/AgentPermissionService/agentWorkAuthority';
 import {
     agentExecutionContext,
     buildResultReader,
@@ -841,6 +852,7 @@ type EmbedAiAgentRuntimeOptions = {
 };
 
 type AiAgentServiceDependencies = {
+    agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     agentPermissionService: Pick<
         AgentPermissionService,
         | 'assertOperation'
@@ -1157,6 +1169,7 @@ const catalogFieldKind = (basicType: string | undefined): FieldKind | null => {
 };
 
 export class AiAgentService extends BaseService {
+    private readonly agentActionLogModel: AiAgentServiceDependencies['agentActionLogModel'];
     private readonly agentPermissionService: AiAgentServiceDependencies['agentPermissionService'];
     private readonly aiAgentModel: AiAgentModel;
 
@@ -1807,6 +1820,7 @@ export class AiAgentService extends BaseService {
     constructor(dependencies: AiAgentServiceDependencies) {
         super();
         this.aiAgentModel = dependencies.aiAgentModel;
+        this.agentActionLogModel = dependencies.agentActionLogModel;
         this.agentPermissionService = dependencies.agentPermissionService;
         this.appModel = dependencies.appModel;
         this.organizationDesignModel = dependencies.organizationDesignModel;
@@ -1880,6 +1894,31 @@ export class AiAgentService extends BaseService {
         });
     }
 
+    private getAgentWorkDependencies() {
+        return {
+            userModel: this.userModel,
+            agentPermissionService: this.agentPermissionService,
+            agentActionLogModel: this.agentActionLogModel,
+        };
+    }
+
+    private createSlackDeliveryGuard(agentWork: ParsedAgentWorkMarker) {
+        return createAgentDeliveryGuard({
+            enabled: agentWork.status === 'valid',
+            check: () => {
+                if (agentWork.status !== 'valid')
+                    throw new UnexpectedServerError(
+                        'Missing agent work marker',
+                    );
+                return assertAgentWorkAllowed(this.getAgentWorkDependencies(), {
+                    ...agentWork.marker,
+                    surface: AgentActorSurface.SLACK_AGENT,
+                });
+            },
+            now: Date.now,
+        });
+    }
+
     async sweepSlackArtifactImages(): Promise<void> {
         const promptUuids =
             await this.aiAgentModel.slackArtifactDeliveries.findPending();
@@ -1887,31 +1926,59 @@ export class AiAgentService extends BaseService {
             promptUuids.map(async (slackPromptUuid) => {
                 const prompt =
                     await this.aiAgentModel.findSlackPrompt(slackPromptUuid);
-                if (prompt)
+                if (prompt) {
+                    const { enabled } = await this.featureFlagService.get({
+                        user: {
+                            userUuid: prompt.createdByUserUuid,
+                            organizationUuid: prompt.organizationUuid,
+                        },
+                        featureFlagId: FeatureFlags.AgentIdentity,
+                    });
                     await this.schedulerClient.slackAiArtifactImages({
+                        ...(enabled
+                            ? {
+                                  agentWork: {
+                                      userUuid: prompt.createdByUserUuid,
+                                      organizationUuid: prompt.organizationUuid,
+                                      projectUuid: prompt.projectUuid,
+                                  },
+                              }
+                            : {}),
                         slackPromptUuid,
                         organizationUuid: prompt.organizationUuid,
                         projectUuid: prompt.projectUuid,
                         userUuid: prompt.createdByUserUuid,
                     });
+                }
             }),
         );
     }
 
-    async deliverSlackArtifactImages(promptUuid: string): Promise<void> {
+    async deliverSlackArtifactImages(
+        payload: SlackPromptJobPayload,
+    ): Promise<void> {
+        const promptUuid = payload.slackPromptUuid;
+        const agentWork = parseAgentWorkMarker(payload);
+        const deliveryGuard = this.createSlackDeliveryGuard(agentWork);
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 55_000);
         try {
-            await deliverSlackArtifactImages({
-                promptUuid,
-                model: this.aiAgentModel.slackArtifactDeliveries,
-                prepare: () =>
-                    this.prepareSlackArtifactImageDelivery(
-                        promptUuid,
-                        controller.signal,
-                    ),
-                signal: controller.signal,
-            });
+            await deliverSlackArtifactImages(
+                {
+                    promptUuid,
+                    model: this.aiAgentModel.slackArtifactDeliveries,
+                    prepare: () =>
+                        this.prepareSlackArtifactImageDelivery(
+                            promptUuid,
+                            controller.signal,
+                            agentWork,
+                            deliveryGuard,
+                        ),
+                    signal: controller.signal,
+                },
+                agentWork,
+                deliveryGuard,
+            );
         } finally {
             clearTimeout(timer);
         }
@@ -1920,10 +1987,13 @@ export class AiAgentService extends BaseService {
     private async prepareSlackArtifactImageDelivery(
         promptUuid: string,
         signal?: AbortSignal,
+        agentWork: ParsedAgentWorkMarker = { status: 'absent' },
+        deliveryGuard = this.createSlackDeliveryGuard(agentWork),
     ): Promise<
         | (SlackArtifactDeliveryRuntime & { resultReader: QueryResultReader })
         | null
     > {
+        if (agentWork.status === 'malformed') return null;
         const prompt = await this.aiAgentModel.findSlackPrompt(promptUuid);
         if (
             !prompt ||
@@ -1931,6 +2001,16 @@ export class AiAgentService extends BaseService {
             !prompt.response ||
             prompt.errorMessage ||
             !this.fileStorageClient.isEnabled()
+        )
+            return null;
+        if (
+            agentWork.status === 'valid' &&
+            parseAgentWorkMarker({
+                userUuid: prompt.createdByUserUuid,
+                organizationUuid: prompt.organizationUuid,
+                projectUuid: prompt.projectUuid,
+                agentWork: agentWork.marker,
+            }).status !== 'valid'
         )
             return null;
         const settings =
@@ -1944,16 +2024,22 @@ export class AiAgentService extends BaseService {
         let user: SessionUser;
         let agent: AiAgent;
         try {
-            user = await this.userModel.findSessionUserAndOrgByUuid(
-                prompt.createdByUserUuid,
-                prompt.organizationUuid,
-            );
+            user =
+                agentWork.status === 'valid'
+                    ? (await deliveryGuard.assert())!
+                    : await this.userModel.findSessionUserAndOrgByUuid(
+                          prompt.createdByUserUuid,
+                          prompt.organizationUuid,
+                      );
             agent = await this.getAgent(
                 user,
                 prompt.agentUuid,
                 prompt.projectUuid,
             );
         } catch (error) {
+            const failure = deliveryGuard.getFailure();
+            if (failure && !(failure.error instanceof AiAccessRefusedError))
+                throw failure.error;
             if (
                 error instanceof ForbiddenError ||
                 error instanceof NotFoundError
@@ -2086,13 +2172,19 @@ export class AiAgentService extends BaseService {
                     );
                 if (artifact.chartConfig?.source === 'customChartType') {
                     const { imageUrl } =
-                        await this.unfurlService.exportAiAgentArtifact(user, {
-                            projectUuid: prompt.projectUuid,
-                            agentUuid: agent.uuid,
-                            artifact,
-                            cachedQueryUuid: input.queryUuid,
-                            signal,
-                        });
+                        await this.unfurlService.exportAiAgentArtifact(
+                            user,
+                            {
+                                projectUuid: prompt.projectUuid,
+                                agentUuid: agent.uuid,
+                                artifact,
+                                cachedQueryUuid: input.queryUuid,
+                                signal,
+                            },
+                            ...(agentWork.status === 'valid'
+                                ? ([deliveryGuard] as const)
+                                : []),
+                        );
                     signal?.throwIfAborted();
                     return imageUrl;
                 }
@@ -2116,13 +2208,19 @@ export class AiAgentService extends BaseService {
                 });
                 if (!options) return null;
                 const image = await renderEcharts(options);
-                return this.uploadSlackAgentCardImage({
-                    organizationUuid: prompt.organizationUuid,
-                    image,
-                });
+                return this.uploadSlackAgentCardImage(
+                    {
+                        organizationUuid: prompt.organizationUuid,
+                        image,
+                    },
+                    ...(agentWork.status === 'valid'
+                        ? ([deliveryGuard] as const)
+                        : []),
+                );
             },
             isImageReachable: AiAgentService.isCardImageUrlReachable,
             updateMessage: async (message) => {
+                await deliveryGuard.assert();
                 await this.slackClient.updateMessage({
                     organizationUuid: prompt.organizationUuid,
                     channelId: prompt.slackChannelId,
@@ -2134,15 +2232,19 @@ export class AiAgentService extends BaseService {
         };
     }
 
-    private async uploadSlackAgentCardImage({
-        organizationUuid,
-        image,
-    }: {
-        organizationUuid: string;
-        image: Buffer;
-    }): Promise<string> {
+    private async uploadSlackAgentCardImage(
+        {
+            organizationUuid,
+            image,
+        }: {
+            organizationUuid: string;
+            image: Buffer;
+        },
+        deliveryGuard: AgentDeliveryGuard | null = null,
+    ): Promise<string> {
         const imageId = `slack-ai-agent-chart-${nanoidGenerator()}`;
 
+        if (deliveryGuard !== null) await deliveryGuard.assert();
         if (this.fileStorageClient.isEnabled()) {
             await this.fileStorageClient.uploadImage(image, imageId);
             const previewId = nanoidGenerator();
@@ -12059,6 +12161,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
     async runEditDbtProjectPipeline(
         payload: AiAgentEditDbtProjectPipelineJobPayload,
     ): Promise<void> {
+        const agentWork = parseAgentWorkMarker(payload);
+        const deliveryGuard = this.createSlackDeliveryGuard(agentWork);
         const {
             aiWritebackRunUuid,
             organizationUuid,
@@ -12150,6 +12254,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     prompt,
                     getMarkdownBlocks(`:x: ${toolResult}`),
                     toolResult,
+                    agentWork,
+                    deliveryGuard,
                 );
             }
             return;
@@ -12297,6 +12403,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         prompt,
                         prCardBlocks,
                         'Your pull request is ready.',
+                        agentWork,
+                        deliveryGuard,
                     );
                 }
             } catch (error) {
@@ -12348,6 +12456,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     prompt,
                     getMarkdownBlocks(sourceSelectionMessage),
                     sourceSelectionMessage,
+                    agentWork,
+                    deliveryGuard,
                 );
             }
         }
@@ -12362,6 +12472,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
         if (!aiAgentToolCall) {
             return;
         }
+        const agentWork = parseAgentWorkMarker(payload);
+        const deliveryGuard = this.createSlackDeliveryGuard(agentWork);
         try {
             const [app, appVersion] = await Promise.all([
                 this.appModel.findAppByUuid(appUuid),
@@ -12406,6 +12518,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 await this.postDataAppBuildOutcomeToSlack(
                     aiAgentToolCall.promptUuid,
                     outcome,
+                    agentWork,
+                    deliveryGuard,
                 );
             }
         } catch (error) {
@@ -12439,7 +12553,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
         prompt: SlackPrompt,
         blocks: (Block | KnownBlock)[],
         text: string,
+        agentWork: ParsedAgentWorkMarker,
+        deliveryGuard: AgentDeliveryGuard,
     ): Promise<void> {
+        if (agentWork.status === 'malformed') return;
         try {
             let agentName: string | undefined;
             try {
@@ -12452,6 +12569,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             } catch {
                 // Fall back to the app's default name.
             }
+            await deliveryGuard.assert();
             await this.slackClient.postMessage({
                 organizationUuid: prompt.organizationUuid,
                 channel: prompt.slackChannelId,
@@ -12472,7 +12590,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
     private async postDataAppBuildOutcomeToSlack(
         promptUuid: string,
         outcome: ToolGenerateDataAppTerminalResult,
+        agentWork: ParsedAgentWorkMarker,
+        deliveryGuard: AgentDeliveryGuard,
     ): Promise<void> {
+        if (agentWork.status === 'malformed') return;
         const prompt = await this.aiAgentModel.findSlackPrompt(promptUuid);
         if (!prompt) {
             return;
@@ -12482,6 +12603,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             const screenshotBlock = await this.tryBuildDataAppScreenshotBlock(
                 prompt,
                 metadata,
+                deliveryGuard,
             );
             const isFirstVersion = metadata.version === 1;
             const readyPhrase = isFirstVersion
@@ -12499,6 +12621,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     ...(screenshotBlock ? [screenshotBlock] : []),
                 ],
                 readyText,
+                agentWork,
+                deliveryGuard,
             );
             return;
         }
@@ -12507,6 +12631,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
             prompt,
             getMarkdownBlocks(`:x: ${text}`),
             text,
+            agentWork,
+            deliveryGuard,
         );
     }
 
@@ -12517,6 +12643,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
     private async tryBuildDataAppScreenshotBlock(
         prompt: SlackPrompt,
         metadata: { appUuid: string; name: string },
+        deliveryGuard: AgentDeliveryGuard,
     ): Promise<KnownBlock | undefined> {
         const capture = async (): Promise<KnownBlock | undefined> => {
             const { imageBuffer, imageUrl } =
@@ -12529,6 +12656,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     context: ScreenshotContext.SLACK,
                     contextId: prompt.promptUuid,
                 });
+            await deliveryGuard.assert();
             const image = await this.slackClient.tryUploadingImageToSlack({
                 organizationUuid: prompt.organizationUuid,
                 imageUrl,
@@ -13093,6 +13221,15 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     toolCallId: args.progressId,
                 });
             await this.schedulerClient.aiAgentEditDbtProjectPipeline({
+                ...(agentExecutionContext.getStore()?.agentIdentityEnabled
+                    ? {
+                          agentWork: {
+                              userUuid: user.userUuid,
+                              organizationUuid,
+                              projectUuid,
+                          },
+                      }
+                    : {}),
                 aiWritebackRunUuid,
                 aiThreadUuid: prompt.threadUuid,
                 organizationUuid,
@@ -17426,6 +17563,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         slackifiedMarkdown,
         trailingBlocks,
         accessRefusalState,
+        deliveryGuard,
     }: {
         slackPrompt: SlackPrompt;
         threadTs: string;
@@ -17436,6 +17574,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         slackifiedMarkdown: string;
         trailingBlocks: (Block | KnownBlock)[];
         accessRefusalState: SlackAiAccessRefusalState;
+        deliveryGuard: AgentDeliveryGuard;
     }): Promise<void> {
         const { messages: answerMessages, truncated } =
             accessRefusalState.selected !== null
@@ -17482,6 +17621,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const isLast = (index: number) => index === messages.length - 1;
 
         try {
+            if (accessRefusalState.selected === null)
+                await deliveryGuard.assert();
             await this.slackClient.stopAgentStream({
                 organizationUuid: slackPrompt.organizationUuid,
                 channelId: slackPrompt.slackChannelId,
@@ -17502,6 +17643,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
             }
         } catch (error) {
             if (!isSlackMessageTooLongError(error)) throw error;
+            if (accessRefusalState.selected === null)
+                await deliveryGuard.assert();
             await this.slackClient
                 .stopAgentStream({
                     organizationUuid: slackPrompt.organizationUuid,
@@ -17523,46 +17666,54 @@ Use your existing tools to inspect them when relevant to the user's question (re
         for (let index = 1; index < messages.length; index += 1) {
             try {
                 // eslint-disable-next-line no-await-in-loop
-                await this.slackClient.postMessage({
-                    organizationUuid: slackPrompt.organizationUuid,
-                    channel: slackPrompt.slackChannelId,
-                    thread_ts: threadTs,
-                    text: notificationText,
-                    blocks: [
-                        ...messages[index],
-                        ...(isLast(index) ? lastExtraBlocks : []),
-                    ],
-                    unfurl_links: false,
-                    ...(agentName ? { username: agentName } : {}),
-                });
+                await (async () => {
+                    if (accessRefusalState.selected === null)
+                        await deliveryGuard.assert();
+                    return this.slackClient.postMessage({
+                        organizationUuid: slackPrompt.organizationUuid,
+                        channel: slackPrompt.slackChannelId,
+                        thread_ts: threadTs,
+                        text: notificationText,
+                        blocks: [
+                            ...messages[index],
+                            ...(isLast(index) ? lastExtraBlocks : []),
+                        ],
+                        unfurl_links: false,
+                        ...(agentName ? { username: agentName } : {}),
+                    });
+                })();
                 if (isLast(index)) {
                     accessRefusalState.markDelivered();
                 }
             } catch (error) {
                 if (!isSlackMessageTooLongError(error)) throw error;
                 // eslint-disable-next-line no-await-in-loop
-                await this.slackClient
-                    .postMessage({
-                        organizationUuid: slackPrompt.organizationUuid,
-                        channel: slackPrompt.slackChannelId,
-                        thread_ts: threadTs,
-                        text:
-                            accessRefusalState.selected === null
-                                ? 'The rest of your answer is in Lightdash.'
-                                : getSlackAiAccessRefusalMessage(
-                                      accessRefusalState.selected,
-                                  ),
-                        blocks: linkFallbackBlocks,
-                        unfurl_links: false,
-                        ...(agentName ? { username: agentName } : {}),
-                    })
-                    .then(accessRefusalState.markDelivered)
-                    .catch((e) =>
-                        Logger.error(
-                            'Failed to post Slack answer link fallback',
-                            e,
-                        ),
-                    );
+                await (async () => {
+                    if (accessRefusalState.selected === null)
+                        await deliveryGuard.assert();
+                    return this.slackClient
+                        .postMessage({
+                            organizationUuid: slackPrompt.organizationUuid,
+                            channel: slackPrompt.slackChannelId,
+                            thread_ts: threadTs,
+                            text:
+                                accessRefusalState.selected === null
+                                    ? 'The rest of your answer is in Lightdash.'
+                                    : getSlackAiAccessRefusalMessage(
+                                          accessRefusalState.selected,
+                                      ),
+                            blocks: linkFallbackBlocks,
+                            unfurl_links: false,
+                            ...(agentName ? { username: agentName } : {}),
+                        })
+                        .then(accessRefusalState.markDelivered)
+                        .catch((e) =>
+                            Logger.error(
+                                'Failed to post Slack answer link fallback',
+                                e,
+                            ),
+                        );
+                })();
                 break;
             }
         }
@@ -17577,6 +17728,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         slackifiedMarkdown,
         trailingBlocks,
         accessRefusalState,
+        deliveryGuard,
     }: {
         slackPrompt: SlackPrompt;
         threadTs: string;
@@ -17586,6 +17738,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         slackifiedMarkdown: string;
         trailingBlocks: (Block | KnownBlock)[];
         accessRefusalState: SlackAiAccessRefusalState;
+        deliveryGuard: AgentDeliveryGuard;
     }): Promise<void> {
         const { messages: answerMessages, truncated } =
             accessRefusalState.selected !== null
@@ -17635,18 +17788,22 @@ Use your existing tools to inspect them when relevant to the user's question (re
         for (let index = 0; index < messages.length; index += 1) {
             try {
                 // eslint-disable-next-line no-await-in-loop
-                const posted = await this.slackClient.postMessage({
-                    organizationUuid: slackPrompt.organizationUuid,
-                    channel: slackPrompt.slackChannelId,
-                    thread_ts: threadTs,
-                    text: notificationText,
-                    blocks: [
-                        ...messages[index],
-                        ...(isLast(index) ? lastExtraBlocks : []),
-                    ],
-                    unfurl_links: false,
-                    ...(agentName ? { username: agentName } : {}),
-                });
+                const posted = await (async () => {
+                    if (accessRefusalState.selected === null)
+                        await deliveryGuard.assert();
+                    return this.slackClient.postMessage({
+                        organizationUuid: slackPrompt.organizationUuid,
+                        channel: slackPrompt.slackChannelId,
+                        thread_ts: threadTs,
+                        text: notificationText,
+                        blocks: [
+                            ...messages[index],
+                            ...(isLast(index) ? lastExtraBlocks : []),
+                        ],
+                        unfurl_links: false,
+                        ...(agentName ? { username: agentName } : {}),
+                    });
+                })();
                 if (isLast(index)) {
                     accessRefusalState.markDelivered();
                 }
@@ -17654,28 +17811,32 @@ Use your existing tools to inspect them when relevant to the user's question (re
             } catch (error) {
                 if (!isSlackMessageTooLongError(error)) throw error;
                 // eslint-disable-next-line no-await-in-loop
-                await this.slackClient
-                    .postMessage({
-                        organizationUuid: slackPrompt.organizationUuid,
-                        channel: slackPrompt.slackChannelId,
-                        thread_ts: threadTs,
-                        text:
-                            accessRefusalState.selected === null
-                                ? 'The rest of your answer is in Lightdash.'
-                                : getSlackAiAccessRefusalMessage(
-                                      accessRefusalState.selected,
-                                  ),
-                        blocks: linkFallbackBlocks,
-                        unfurl_links: false,
-                        ...(agentName ? { username: agentName } : {}),
-                    })
-                    .then(accessRefusalState.markDelivered)
-                    .catch((e) =>
-                        Logger.error(
-                            'Failed to post Slack answer link fallback',
-                            e,
-                        ),
-                    );
+                await (async () => {
+                    if (accessRefusalState.selected === null)
+                        await deliveryGuard.assert();
+                    return this.slackClient
+                        .postMessage({
+                            organizationUuid: slackPrompt.organizationUuid,
+                            channel: slackPrompt.slackChannelId,
+                            thread_ts: threadTs,
+                            text:
+                                accessRefusalState.selected === null
+                                    ? 'The rest of your answer is in Lightdash.'
+                                    : getSlackAiAccessRefusalMessage(
+                                          accessRefusalState.selected,
+                                      ),
+                            blocks: linkFallbackBlocks,
+                            unfurl_links: false,
+                            ...(agentName ? { username: agentName } : {}),
+                        })
+                        .then(accessRefusalState.markDelivered)
+                        .catch((e) =>
+                            Logger.error(
+                                'Failed to post Slack answer link fallback',
+                                e,
+                            ),
+                        );
+                })();
                 break;
             }
         }
@@ -17718,6 +17879,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
     // Posts the SQL approval card as its own message after the task-list card
     // so the run can suspend and resume on the user's decision.
     private async postSqlApprovalCard(input: {
+        deliveryGuard: AgentDeliveryGuard;
         slackPrompt: SlackPrompt;
         threadTs: string;
         toolCallId: string;
@@ -17726,6 +17888,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         agentName?: string;
     }): Promise<void> {
         const heading = getSqlApprovalHeading(input.toolName);
+        await input.deliveryGuard.assert();
         await this.slackClient.postMessage({
             organizationUuid: input.slackPrompt.organizationUuid,
             channel: input.slackPrompt.slackChannelId,
@@ -17814,6 +17977,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
         chatHistoryMessages,
         canManageAgent,
         accessRefusalState,
+        deliveryGuard: jobDeliveryGuard,
+        agentWork,
     }: {
         user: SessionUser;
         slackPrompt: SlackPrompt;
@@ -17822,7 +17987,25 @@ Use your existing tools to inspect them when relevant to the user's question (re
         chatHistoryMessages: ModelMessage[];
         canManageAgent: boolean;
         accessRefusalState: SlackAiAccessRefusalState;
+        deliveryGuard: AgentDeliveryGuard;
+        agentWork: AgentWorkMarker | null;
     }): Promise<boolean> {
+        let deliveryFailure: { error: unknown } | null = null;
+        const getDeliveryFailure = () => deliveryFailure;
+        const checkDelivery = async (check: () => Promise<unknown>) => {
+            if (deliveryFailure) throw deliveryFailure.error;
+            try {
+                await check();
+            } catch (error) {
+                deliveryFailure ??= { error };
+            }
+            if (deliveryFailure) throw deliveryFailure.error;
+        };
+        const deliveryGuard: AgentDeliveryGuard = {
+            assert: () => checkDelivery(jobDeliveryGuard.assert),
+            assertIfStale: () => checkDelivery(jobDeliveryGuard.assertIfStale),
+            getFailure: jobDeliveryGuard.getFailure,
+        };
         const threadTs = slackPrompt.slackThreadTs || slackPrompt.promptSlackTs;
         const getAccessRefusalBlocks = () =>
             getAiAccessRefusalBlocks(
@@ -17887,6 +18070,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 streamStart ??
                 (async () => {
                     endStatusPhase();
+                    await deliveryGuard.assertIfStale();
                     try {
                         const stream = await this.slackClient.startAgentStream({
                             organizationUuid: slackPrompt.organizationUuid,
@@ -17960,14 +18144,23 @@ Use your existing tools to inspect them when relevant to the user's question (re
             run: (cardTs: string) => Promise<unknown>,
         ) => {
             taskUpdateChain = taskUpdateChain.then(async () => {
-                await ensureStreamStarted();
-                if (!streamTs) return;
-                await run(streamTs);
+                if (deliveryFailure) return;
+                try {
+                    await ensureStreamStarted();
+                    if (!streamTs) return;
+                    await deliveryGuard.assertIfStale();
+                    await run(streamTs);
+                } catch (error) {
+                    const failure = getDeliveryFailure();
+                    if (!failure || !Object.is(error, failure.error))
+                        throw error;
+                }
             });
         };
 
         const flushTaskUpdates = async () => {
             await taskUpdateChain;
+            if (deliveryFailure) throw deliveryFailure.error;
         };
 
         const queueReasoningTaskUpdate = ({
@@ -18056,6 +18249,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
         const updatePlanTitle = async (title: string) => {
             if (!streamTs) return;
+            await deliveryGuard.assertIfStale();
             await this.slackClient
                 .appendAgentStream({
                     organizationUuid: slackPrompt.organizationUuid,
@@ -18253,6 +18447,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         let runtimeTableResults: ReadonlyMap<string, SlackTableQueryResults> =
             new Map();
         let answerDelivered = false;
+        let answerPublished = false;
         try {
             const response = await this.generateOrStreamAgentResponse(
                 user,
@@ -18292,6 +18487,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     // Finalize the task card without extra copy — its header
                     // plus the approval card below already say we're waiting.
                     await updatePlanTitle('Waiting for SQL approval');
+                    await deliveryGuard.assert();
                     await this.slackClient.stopAgentStream({
                         organizationUuid: slackPrompt.organizationUuid,
                         channelId: slackPrompt.slackChannelId,
@@ -18303,6 +18499,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     await persistCardResponseTs();
                 }
                 await this.postSqlApprovalCard({
+                    deliveryGuard,
                     slackPrompt,
                     threadTs,
                     toolCallId: pendingApproval.toolCallId,
@@ -18327,6 +18524,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     slackifiedMarkdown: refusalMessage,
                     trailingBlocks: getAccessRefusalBlocks(),
                     accessRefusalState,
+                    deliveryGuard,
                 };
                 if (streamTs) {
                     finalizeToolTasksForSuccess();
@@ -18425,6 +18623,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     slackifiedMarkdown,
                     trailingBlocks: blocks,
                     accessRefusalState,
+                    deliveryGuard,
                 });
                 await persistCardResponseTs();
             } else {
@@ -18437,9 +18636,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     slackifiedMarkdown,
                     trailingBlocks: blocks,
                     accessRefusalState,
+                    deliveryGuard,
                 });
             }
 
+            answerPublished = true;
             Logger.info('AI agent Slack answer delivered', {
                 event: 'ai_agent.slack_answer_delivered',
                 promptId: slackPrompt.promptUuid,
@@ -18450,6 +18651,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 deliveryMs: Date.now() - blocksFinishedAt,
             });
 
+            await deliveryGuard.assertIfStale();
             await this.aiAgentModel.updateModelResponse({
                 promptUuid: slackPrompt.promptUuid,
                 response: visibleResponse,
@@ -18471,6 +18673,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     );
                     if (hasSelectedImages) {
                         await this.schedulerClient.slackAiArtifactImages({
+                            ...(agentWork ? { agentWork } : {}),
                             slackPromptUuid: slackPrompt.promptUuid,
                             organizationUuid: slackPrompt.organizationUuid,
                             projectUuid: slackPrompt.projectUuid,
@@ -18498,7 +18701,28 @@ Use your existing tools to inspect them when relevant to the user's question (re
             );
             return true;
         } catch (error) {
-            await flushTaskUpdates();
+            await taskUpdateChain;
+            const failure = getDeliveryFailure();
+            if (failure) {
+                if (
+                    failure.error instanceof AiAccessRefusedError &&
+                    !answerPublished
+                ) {
+                    try {
+                        await this.aiAgentModel.updateModelResponse({
+                            promptUuid: slackPrompt.promptUuid,
+                            response: undefined,
+                            errorMessage: failure.error.refusal.message,
+                        });
+                    } catch (persistError) {
+                        Logger.error(
+                            'Failed to persist withheld Slack answer refusal:',
+                            persistError,
+                        );
+                    }
+                }
+                throw failure.error;
+            }
             if (error instanceof AiAccessRefusedError && streamTs) {
                 const reply = this.getSlackAccessRefusalReply(error.refusal);
                 finalizeToolTasksForSuccess();
@@ -18524,6 +18748,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             // Delivery failure on an already-persisted answer: link, don't fail.
             if (isSlackMessageTooLongError(error)) {
                 await updatePlanTitle(completionTitle());
+                await deliveryGuard.assert();
                 await this.slackClient
                     .stopAgentStream({
                         organizationUuid: slackPrompt.organizationUuid,
@@ -18603,6 +18828,22 @@ Use your existing tools to inspect them when relevant to the user's question (re
             Logger.error('Failed to generate Slack agent response', error);
             return answerDelivered;
         } finally {
+            if (deliveryFailure && streamTs) {
+                await this.slackClient
+                    .stopAgentStream({
+                        organizationUuid: slackPrompt.organizationUuid,
+                        channelId: slackPrompt.slackChannelId,
+                        threadTs,
+                        messageTs: streamTs,
+                        chunks: [],
+                    })
+                    .catch((closeError) =>
+                        Logger.warn(
+                            'Failed to close Slack stream after delivery check failure',
+                            closeError,
+                        ),
+                    );
+            }
             endStatusPhase();
             // Posting already clears the status; this covers paths where
             // nothing was posted so it doesn't linger for two minutes.
@@ -18705,6 +18946,27 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     user,
                     featureFlagId: FeatureFlags.AgentIdentity,
                 });
+            const agentWork = {
+                userUuid: slackPrompt.createdByUserUuid,
+                organizationUuid: slackPrompt.organizationUuid,
+                projectUuid: slackPrompt.projectUuid,
+            };
+            if (agentIdentityEnabled) {
+                await assertAgentWorkUserActive(
+                    this.getAgentWorkDependencies(),
+                    { ...agentWork, surface: AgentActorSurface.SLACK_AGENT },
+                    user,
+                );
+            }
+            const deliveryGuard = createAgentDeliveryGuard({
+                enabled: agentIdentityEnabled,
+                check: () =>
+                    assertAgentWorkAllowed(this.getAgentWorkDependencies(), {
+                        ...agentWork,
+                        surface: AgentActorSurface.SLACK_AGENT,
+                    }),
+                now: Date.now,
+            });
             await agentExecutionContext.run(
                 createAgentExecutionContext({
                     account: fromSession(user),
@@ -18752,6 +19014,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             chatHistoryMessages,
                             canManageAgent,
                             accessRefusalState,
+                            deliveryGuard,
+                            agentWork: agentIdentityEnabled ? agentWork : null,
                         });
                     if (
                         replyDelivered &&

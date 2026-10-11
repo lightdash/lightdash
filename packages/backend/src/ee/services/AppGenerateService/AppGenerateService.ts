@@ -7678,6 +7678,16 @@ export class AppGenerateService extends BaseService {
             ...(codexModel ? { codexModel } : { claudeModel }),
             designUuid: resolvedDesignUuid,
             ...(aiAgentToolCall ? { aiAgentToolCall } : {}),
+            ...(aiAgentToolCall &&
+            agentExecutionContext.getStore()?.agentIdentityEnabled
+                ? {
+                      agentWork: {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid!,
+                          projectUuid,
+                      },
+                  }
+                : {}),
         });
 
         return { appUuid, slug, version };
@@ -7950,6 +7960,16 @@ export class AppGenerateService extends BaseService {
             ...(codexModel ? { codexModel } : { claudeModel }),
             designUuid: effectiveDesignUuid,
             ...(aiAgentToolCall ? { aiAgentToolCall } : {}),
+            ...(aiAgentToolCall &&
+            agentExecutionContext.getStore()?.agentIdentityEnabled
+                ? {
+                      agentWork: {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid!,
+                          projectUuid,
+                      },
+                  }
+                : {}),
         });
 
         return { appUuid, slug: app.slug, version: newVersion };

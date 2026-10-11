@@ -475,9 +475,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 helpers,
             ) => {
                 await tryJobOrTimeout(
-                    this.aiAgentService.deliverSlackArtifactImages(
-                        payload.slackPromptUuid,
-                    ),
+                    this.aiAgentService.deliverSlackArtifactImages(payload),
                     helpers.job,
                     60_000,
                 );
