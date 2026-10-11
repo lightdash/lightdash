@@ -271,8 +271,17 @@ export class OAuthService extends BaseService {
     public async revokeToken(token: string): Promise<boolean> {
         const refreshToken = await this.oauthModel.getRefreshToken(token);
         if (refreshToken) {
-            const deleted = await this.oauthModel.deleteRefreshToken(token);
-            const { userId } = refreshToken.user as UserWithOrganizationUuid;
+            const user = refreshToken.user as UserWithOrganizationUuid;
+            const deleted =
+                refreshToken.familyUuid != null &&
+                refreshToken.agentConnectionGrantUuid == null &&
+                refreshToken.securityStrict === true
+                    ? await this.oauthModel.revokeUnboundRefreshFamily(
+                          refreshToken.familyUuid,
+                          user.userId,
+                      )
+                    : await this.oauthModel.deleteRefreshToken(token);
+            const { userId } = user;
             if (deleted && this.onGrantRevoked !== undefined) {
                 await this.onGrantRevoked({
                     userId,

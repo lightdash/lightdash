@@ -45,6 +45,7 @@ describe('OAuthService edge cases', () => {
             revokeToken: vi.fn(),
             revokeRefreshToken: vi.fn(),
             deleteRefreshToken: vi.fn(),
+            revokeUnboundRefreshFamily: vi.fn(),
             deleteAccessToken: vi.fn(),
             validateRedirectUri: vi.fn(),
         } as AnyType;
@@ -184,6 +185,115 @@ describe('OAuthService edge cases', () => {
             client: { id: 'oauth-mobile', grants: ['refresh_token'] },
             user: { userId: 42, organizationUuid: 'organization-uuid' },
         } as AnyType;
+
+        afterEach(() => {
+            expect(
+                mockOAuthModel.isSecurityStrictForOAuthUser,
+            ).not.toHaveBeenCalled();
+        });
+
+        it.each([true, false])(
+            'returns the family revoke result %s and only notifies on success',
+            async (revoked) => {
+                const familyUuid = '11111111-1111-4111-8111-111111111111';
+                const onGrantRevoked = vi.fn(async () => undefined);
+                const service = new TestOAuthService({
+                    userModel: mockUserModel,
+                    oauthModel: mockOAuthModel,
+                    lightdashConfig: mockLightdashConfig,
+                    onGrantRevoked,
+                });
+                mockOAuthModel.getRefreshToken.mockResolvedValue({
+                    ...refreshToken,
+                    familyUuid,
+                    agentConnectionGrantUuid: null,
+                    securityStrict: true,
+                });
+                mockOAuthModel.revokeUnboundRefreshFamily.mockResolvedValue(
+                    revoked,
+                );
+                mockOAuthModel.deleteRefreshToken.mockResolvedValue(true);
+
+                await expect(
+                    service.revokeToken('refresh-token'),
+                ).resolves.toBe(revoked);
+
+                expect(
+                    mockOAuthModel.revokeUnboundRefreshFamily,
+                ).toHaveBeenCalledExactlyOnceWith(familyUuid, 42);
+                expect(
+                    mockOAuthModel.deleteRefreshToken,
+                ).not.toHaveBeenCalled();
+                expect(
+                    mockOAuthModel.isSecurityStrictForOAuthUser,
+                ).not.toHaveBeenCalled();
+                if (revoked) {
+                    expect(onGrantRevoked).toHaveBeenCalledExactlyOnceWith({
+                        userId: 42,
+                        clientId: 'oauth-mobile',
+                    });
+                } else {
+                    expect(onGrantRevoked).not.toHaveBeenCalled();
+                }
+            },
+        );
+
+        it.each([false, undefined])(
+            'deletes only the refresh token with securityStrict=%s and a family present',
+            async (securityStrict) => {
+                mockOAuthModel.getRefreshToken.mockResolvedValue({
+                    ...refreshToken,
+                    familyUuid: '11111111-1111-4111-8111-111111111111',
+                    agentConnectionGrantUuid: null,
+                    ...(securityStrict === undefined ? {} : { securityStrict }),
+                });
+                mockOAuthModel.deleteRefreshToken.mockResolvedValue(true);
+
+                await expect(
+                    oauthService.revokeToken('refresh-token'),
+                ).resolves.toBe(true);
+
+                expect(
+                    mockOAuthModel.deleteRefreshToken,
+                ).toHaveBeenCalledExactlyOnceWith('refresh-token');
+                expect(
+                    mockOAuthModel.revokeUnboundRefreshFamily,
+                ).not.toHaveBeenCalled();
+            },
+        );
+
+        it.each([
+            { familyUuid: null, agentConnectionGrantUuid: null },
+            {
+                familyUuid: '11111111-1111-4111-8111-111111111111',
+                agentConnectionGrantUuid:
+                    '22222222-2222-4222-8222-222222222222',
+            },
+        ])(
+            'skips the strictness check for $familyUuid and grant $agentConnectionGrantUuid',
+            async (binding) => {
+                mockOAuthModel.getRefreshToken.mockResolvedValue({
+                    ...refreshToken,
+                    ...binding,
+                    securityStrict: true,
+                });
+                mockOAuthModel.deleteRefreshToken.mockResolvedValue(true);
+
+                await expect(
+                    oauthService.revokeToken('refresh-token'),
+                ).resolves.toBe(true);
+
+                expect(
+                    mockOAuthModel.deleteRefreshToken,
+                ).toHaveBeenCalledExactlyOnceWith('refresh-token');
+                expect(
+                    mockOAuthModel.revokeUnboundRefreshFamily,
+                ).not.toHaveBeenCalled();
+                expect(
+                    mockOAuthModel.isSecurityStrictForOAuthUser,
+                ).not.toHaveBeenCalled();
+            },
+        );
 
         it('deletes a refresh token outright and never softly revokes it', async () => {
             vi.mocked(mockOAuthModel.getRefreshToken).mockResolvedValue(
