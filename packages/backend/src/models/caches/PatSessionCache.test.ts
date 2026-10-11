@@ -106,7 +106,7 @@ describe('PatSessionCache', () => {
             },
         );
 
-        it.each([0, 2_000])(
+        it.each([0, 2_000, 6_000])(
             'checks the deadline after a %s ms pause inside node-cache.set',
             async (pauseMs) => {
                 const originalSet = NodeCache.prototype.set;
@@ -126,7 +126,7 @@ describe('PatSessionCache', () => {
                 expect(cache.has(key)).toBe(true);
                 expect(cache.get(key)).toBeDefined();
                 expect(PatSessionCache.get('token-a')).toEqual(
-                    pauseMs === 0 ? fixture : undefined,
+                    pauseMs < 5_000 ? fixture : undefined,
                 );
             },
         );
@@ -161,20 +161,21 @@ describe('PatSessionCache', () => {
             expect(cache.has(key)).toBe(false);
             expect(set).toHaveBeenCalledExactlyOnceWith(key, {
                 value: fixture,
-                expiresAt: writtenAt + 1,
+                expiresAt: writtenAt + 5_000,
             });
             expect(cache.options.stdTTL).toBe(30);
         });
 
-        it.each([30_000, 45_000])(
-            'never caches a lookup aged %s ms',
+        it.each([30_000, 45_000, 600_000])(
+            'caches a lookup aged %s ms for five seconds after the write',
             async (age) => {
                 const set = vi.spyOn(NodeCache.prototype, 'set');
                 const { PatSessionCache } = await loadCache();
                 PatSessionCache.set('token-a', fixture, Date.now() - age);
-                expect(set).not.toHaveBeenCalled();
-                expect(PatSessionCache.get('token-a')).toBeUndefined();
-                vi.advanceTimersByTime(24 * 60 * 60 * 1000);
+                expect(set).toHaveBeenCalledTimes(1);
+                vi.advanceTimersByTime(4_900);
+                expect(PatSessionCache.get('token-a')).toEqual(fixture);
+                vi.advanceTimersByTime(200);
                 expect(PatSessionCache.get('token-a')).toBeUndefined();
             },
         );

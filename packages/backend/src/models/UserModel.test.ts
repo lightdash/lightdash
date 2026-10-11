@@ -1612,7 +1612,7 @@ describe('UserModel', () => {
                 expect(tracker.history.select).toHaveLength(2);
             });
 
-            it.each([0, 2_000])(
+            it.each([0, 2_000, 6_000])(
                 'checks the deadline after a %s ms pause inside node-cache.set',
                 async (pauseMs) => {
                     const { default: RealNodeCache } =
@@ -1640,15 +1640,15 @@ describe('UserModel', () => {
                     expect(cache.has(key)).toBe(true);
                     expect(await lookup()).toEqual({
                         ...initial,
-                        cacheHit: pauseMs === 0,
+                        cacheHit: pauseMs < 5_000,
                     });
                     expect(tracker.history.select).toHaveLength(
-                        pauseMs === 0 ? 1 : 2,
+                        pauseMs < 5_000 ? 1 : 2,
                     );
                 },
             );
 
-            it('returns a 31 second lookup without caching it', async () => {
+            it('caches a 31 second lookup for five seconds after it finishes', async () => {
                 const { default: RealNodeCache } = await import('node-cache');
                 const set = vi.spyOn(RealNodeCache.prototype, 'set');
                 const lookup = await setupLookup(31_000);
@@ -1657,8 +1657,42 @@ describe('UserModel', () => {
                     userDetails.user_uuid,
                 );
                 expect(initial.cacheHit).toBe(false);
-                expect(set).not.toHaveBeenCalled();
+                expect(set).toHaveBeenCalledTimes(1);
                 expect(tracker.history.select).toHaveLength(1);
+
+                vi.advanceTimersByTime(4_900);
+                expect(await lookup()).toEqual({ ...initial, cacheHit: true });
+                expect(tracker.history.select).toHaveLength(1);
+                expect(set).toHaveBeenCalledTimes(1);
+
+                vi.advanceTimersByTime(200);
+                expect(await lookup()).toEqual(initial);
+                expect(tracker.history.select).toHaveLength(2);
+            });
+
+            it('serves 20 cache hits after a stalled lookup with only one database read', async () => {
+                const lookup = await setupLookup(45_000);
+                const initial = await lookup();
+                expect(initial.sessionUser?.userUuid).toBe(
+                    userDetails.user_uuid,
+                );
+                expect(initial.cacheHit).toBe(false);
+                expect(tracker.history.select).toHaveLength(1);
+
+                await Array.from({ length: 20 }).reduce(
+                    async (previousLookup) => {
+                        await previousLookup;
+                        vi.advanceTimersByTime(245);
+                        expect(await lookup()).toEqual({
+                            ...initial,
+                            cacheHit: true,
+                        });
+                        expect(tracker.history.select).toHaveLength(1);
+                    },
+                    Promise.resolve(),
+                );
+
+                vi.advanceTimersByTime(200);
                 expect(await lookup()).toEqual(initial);
                 expect(tracker.history.select).toHaveLength(2);
             });

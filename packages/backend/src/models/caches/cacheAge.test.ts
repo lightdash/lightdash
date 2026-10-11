@@ -22,7 +22,12 @@ describe('cacheAge', () => {
         it.each([
             { age: 0, lifetime: 30_000 },
             { age: 5_000, lifetime: 25_000 },
-            { age: 29_999, lifetime: 1 },
+            { age: 24_000, lifetime: 6_000 },
+            { age: 25_000, lifetime: 5_000 },
+            { age: 26_000, lifetime: 5_000 },
+            { age: 30_000, lifetime: 5_000 },
+            { age: 31_000, lifetime: 5_000 },
+            { age: 600_000, lifetime: 5_000 },
             { age: -5_000, lifetime: 30_000 },
         ])(
             'gives a lookup aged $age ms a $lifetime ms lifetime',
@@ -35,12 +40,15 @@ describe('cacheAge', () => {
             },
         );
 
-        it.each([30_000, 31_000])('rejects a lookup aged %s ms', (age) => {
-            expect(createCacheEntry('value', Date.now() - age)).toBeNull();
+        it('rejects a start time of NaN', () => {
+            expect(createCacheEntry('value', NaN)).toBeNull();
         });
 
-        it.each([NaN, -Infinity])('rejects a start time of %s', (startedAt) => {
-            expect(createCacheEntry('value', startedAt)).toBeNull();
+        it('gives negative infinity a five second lifetime', () => {
+            expect(createCacheEntry('value', -Infinity)).toEqual({
+                value: 'value',
+                expiresAt: Date.now() + 5_000,
+            });
         });
 
         it('clamps positive infinity to the current time', () => {

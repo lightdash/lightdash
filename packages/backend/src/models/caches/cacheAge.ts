@@ -1,4 +1,5 @@
 export const CACHE_TTL_SECONDS = 30;
+const MIN_CACHE_TTL_SECONDS = 5;
 
 export type CacheEntry<T> = {
     value: T;
@@ -9,9 +10,12 @@ export const createCacheEntry = <T>(
     value: T,
     startedAt: number,
 ): CacheEntry<T> | null => {
-    const expiresAt =
-        Math.min(startedAt, Date.now()) + CACHE_TTL_SECONDS * 1000;
-    if (!(Date.now() < expiresAt)) return null;
+    const now = Date.now();
+    const expiresAt = Math.max(
+        Math.min(startedAt, now) + CACHE_TTL_SECONDS * 1000,
+        now + MIN_CACHE_TTL_SECONDS * 1000,
+    );
+    if (!(now < expiresAt)) return null;
     return { value, expiresAt };
 };
 
