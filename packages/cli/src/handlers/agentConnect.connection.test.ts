@@ -99,6 +99,7 @@ beforeEach(async () => {
     process.exitCode = undefined;
     vi.stubEnv('LIGHTDASH_AGENT_CONNECTION', undefined);
     vi.stubEnv('LIGHTDASH_OAUTH_PORT', undefined);
+    vi.stubEnv('CI', undefined);
     GlobalState.setNonInteractive(false);
     vi.spyOn(console, 'error').mockImplementation(() => {});
     directory = await fs.mkdtemp(path.join(tmpdir(), 'agent-connect-'));
