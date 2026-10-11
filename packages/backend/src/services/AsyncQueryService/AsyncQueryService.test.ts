@@ -105,7 +105,10 @@ import {
     defaultJwtToken,
     defaultSessionUser,
 } from '../../auth/account/account.mock';
-import { grantFixture } from '../../auth/agentConnectionGrants/grant.mock';
+import {
+    grantFixture,
+    projectGrantFixture,
+} from '../../auth/agentConnectionGrants/grant.mock';
 import type { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import type { FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
@@ -26500,6 +26503,105 @@ describe('fresh execution producer to result reader', () => {
             ).not.toHaveBeenCalled();
         });
     });
+    test.each(['paged', 'raw', 'stream'] as const)(
+        'v2 delivery enforces the current project matrix for %s',
+        async (path) => {
+            await boundFixture(async (f, auth, queryUuid) => {
+                const required = [
+                    AgentCapability.ReadDiscover,
+                    AgentCapability.Query,
+                    AgentCapability.RawSql,
+                ];
+                const read = async () => {
+                    const args = {
+                        account: auth.req.account!,
+                        projectUuid,
+                        queryUuid,
+                    };
+                    if (path === 'paged')
+                        return readSql(f, args.account, queryUuid);
+                    if (path === 'raw')
+                        return f.service.getRawAsyncQueryResults(args);
+                    const stream = await f.service.getResultsStream(args);
+                    for await (const chunk of stream) void chunk;
+                    return undefined;
+                };
+                Object.assign(
+                    auth.grant,
+                    projectGrantFixture({
+                        [projectUuid]: required,
+                        other: [AgentCapability.DeployUpload],
+                    }),
+                    {
+                        clientId: auth.grant.clientId,
+                        organizationUuid: auth.grant.organizationUuid,
+                        subjectUserUuid: auth.grant.subjectUserUuid,
+                    },
+                );
+                await expect(read()).resolves.not.toThrow();
+                Object.assign(auth.grant, {
+                    resourceConstraints: {
+                        version: 2,
+                        projectCapabilities: {
+                            [projectUuid]: [AgentCapability.DeployUpload],
+                            other: required,
+                        },
+                    },
+                });
+                vi.mocked(
+                    f.service.resultsStorageClient.getDownloadStream,
+                ).mockClear();
+                await expect(read()).rejects.toThrow();
+                expect(
+                    f.service.resultsStorageClient.getDownloadStream,
+                ).not.toHaveBeenCalled();
+            });
+        },
+    );
+
+    test('v2 export cannot borrow approval from another project', async () => {
+        await boundFixture(async (f, auth, queryUuid) => {
+            const required = [
+                AgentCapability.ReadDiscover,
+                AgentCapability.Query,
+                AgentCapability.RawSql,
+            ];
+            Object.assign(
+                auth.grant,
+                projectGrantFixture({
+                    [projectUuid]: required,
+                    other: [AgentCapability.Export],
+                }),
+                {
+                    clientId: auth.grant.clientId,
+                    organizationUuid: auth.grant.organizationUuid,
+                    subjectUserUuid: auth.grant.subjectUserUuid,
+                },
+            );
+            const check = (exportResults: boolean) =>
+                f.service.assertCanReadStoredResults(
+                    auth.req.account!,
+                    projectUuid,
+                    f.rows.get(queryUuid)!,
+                    false,
+                    buildResultReader(auth.req.account!),
+                    exportResults,
+                );
+            await expect(check(false)).resolves.toBeUndefined();
+            await expect(check(true)).rejects.toThrow();
+            Object.assign(auth.grant, {
+                resourceConstraints: {
+                    version: 2,
+                    projectCapabilities: {
+                        [projectUuid]: [...required, AgentCapability.Export],
+                        other: [],
+                    },
+                },
+            });
+            await expect(check(true)).resolves.toBeUndefined();
+        });
+    });
+
     test('a long-lived connection can consume a slow result stream', async () => {
         await boundFixture(async (f, auth, queryUuid) => {
             const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);

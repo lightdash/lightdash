@@ -5,7 +5,11 @@ import {
 import { getRequiredAgentCapabilities } from '../agentPermissions/capabilityMap';
 import { HUMAN_ONLY_IN_MANAGED } from '../agentPermissions/humanOnlyInManaged';
 import { evaluateGrant } from './evaluateGrant';
-import { grantFixture } from './grant.mock';
+import {
+    grantFixture,
+    malformedProjectConstraints,
+    projectGrantFixture,
+} from './grant.mock';
 
 const projectUuid = grantFixture().approvedProjectUuids[0];
 const evaluate = (
@@ -137,3 +141,63 @@ it('allows the CLI startup version check without a project', () => {
         evaluate('apiV1Router GET /health', [AgentCapability.ReadDiscover], []),
     ).toBeNull();
 });
+
+it.each([
+    ['QueryController.executeAsyncMetricQuery', 0, true],
+    ['ProjectController.refresh', 0, false],
+    ['ProjectController.refresh', 1, true],
+    ['QueryController.executeAsyncMetricQuery', 1, false],
+] as const)('v2 checks %s on project %s', (key, project, allowed) => {
+    const grant = projectGrantFixture();
+    expect(
+        evaluateGrant({
+            grant,
+            kind: 'rest',
+            key,
+            projectUuids: [grant.approvedProjectUuids[project]],
+            now: new Date(),
+        }) === null,
+    ).toBe(allowed);
+});
+it('v2 requires an action on every project in a spanning operation', () => {
+    const grant = projectGrantFixture();
+    const run = () =>
+        evaluateGrant({
+            grant,
+            kind: 'rest',
+            key: 'QueryController.executeAsyncMetricQuery',
+            projectUuids: grant.approvedProjectUuids,
+            now: new Date(),
+        });
+    expect(run()).not.toBeNull();
+    Object.assign(
+        grant,
+        projectGrantFixture(
+            Object.fromEntries(
+                grant.approvedProjectUuids.map((uuid) => [
+                    uuid,
+                    [AgentCapability.Query],
+                ]),
+            ),
+        ),
+    );
+    expect(run()).toBeNull();
+});
+it.each(malformedProjectConstraints)(
+    'refuses malformed stored constraints %j',
+    (resourceConstraints) => {
+        const grant = {
+            ...projectGrantFixture({ project: [AgentCapability.Query] }),
+            resourceConstraints,
+        } as ReturnType<typeof grantFixture>;
+        expect(
+            evaluateGrant({
+                grant,
+                kind: 'rest',
+                key: 'QueryController.executeAsyncMetricQuery',
+                projectUuids: ['project'],
+                now: new Date(),
+            }),
+        ).not.toBeNull();
+    },
+);

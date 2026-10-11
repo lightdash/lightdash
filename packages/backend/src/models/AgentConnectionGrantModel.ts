@@ -9,6 +9,7 @@ import {
     type AgentConnectionGrantWithStatus,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { hasValidGrantResourceConstraints } from '../auth/agentConnectionGrants/resourceConstraints';
 import {
     AgentConnectionGrantsTableName,
     type DbAgentConnectionGrant,
@@ -70,6 +71,10 @@ export class AgentConnectionGrantModel {
         database: Knex,
         input: AgentConnectionGrantCreate,
     ): Promise<AgentConnectionGrant> {
+        if (!hasValidGrantResourceConstraints(input))
+            throw new ParameterError(
+                'Invalid agent connection resource constraints',
+            );
         const approvedCapabilities = [...new Set(input.approvedCapabilities)];
         if (
             approvedCapabilities.some(
@@ -156,7 +161,11 @@ export class AgentConnectionGrantModel {
         now: Date,
     ): Promise<AgentConnectionGrant | null> {
         const grant = await this.find(grantUuid);
-        return grant && getStatus(grant, now) === 'active' ? grant : null;
+        return grant &&
+            getStatus(grant, now) === 'active' &&
+            hasValidGrantResourceConstraints(grant)
+            ? grant
+            : null;
     }
 
     async listForSubject({

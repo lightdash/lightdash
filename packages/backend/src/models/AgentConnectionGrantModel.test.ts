@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
+import { malformedProjectConstraints } from '../auth/agentConnectionGrants/grant.mock';
 import { type DbAgentConnectionGrant } from '../database/entities/agentConnectionGrants';
 import { AgentConnectionGrantModel } from './AgentConnectionGrantModel';
 
@@ -456,3 +457,72 @@ test('rolls back the replacement when revoking the old tokens fails', async () =
         tracker.history.all.length,
     );
 });
+
+test.each(malformedProjectConstraints)(
+    'rejects malformed v2 creation and replacement %j',
+    async (resourceConstraints) => {
+        mockCreate();
+        tracker.on.select('agent_connection_grants').response([row]);
+        const invalid = {
+            ...input,
+            approvedCapabilities: [AgentCapability.Query],
+            resourceConstraints,
+        } as AgentConnectionGrantCreate;
+        await expect(model.create(invalid)).rejects.toBeInstanceOf(
+            ParameterError,
+        );
+        await expect(
+            model.replace({
+                organizationUuid: 'org',
+                oldGrantUuid: 'grant',
+                newGrantInput: invalid,
+                actorUserUuid: 'subject',
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(tracker.history.insert).toHaveLength(0);
+        expect(tracker.history.update).toHaveLength(0);
+    },
+);
+test('stores v2 constraints without broadening or repairing them', async () => {
+    const resourceConstraints = {
+        version: 2,
+        projectCapabilities: {
+            project: [AgentCapability.Query],
+            other: [AgentCapability.DeployUpload],
+        },
+    } as unknown as AgentConnectionGrantCreate['resourceConstraints'];
+    tracker.on
+        .select('projects')
+        .response([{ project_uuid: 'project' }, { project_uuid: 'other' }]);
+    tracker.on
+        .insert('agent_connection_grants')
+        .response([{ ...row, resource_constraints: resourceConstraints }]);
+    await expect(
+        model.create({
+            ...input,
+            approvedProjectUuids: ['project', 'other'],
+            approvedCapabilities: [
+                AgentCapability.Query,
+                AgentCapability.DeployUpload,
+            ],
+            resourceConstraints,
+        }),
+    ).resolves.toMatchObject({ resourceConstraints });
+    expect(tracker.history.insert[0].bindings).toContainEqual(
+        JSON.stringify(resourceConstraints),
+    );
+});
+
+test.each(malformedProjectConstraints)(
+    'refuses malformed v2 active rows %j',
+    async (resourceConstraints) => {
+        tracker.on.select('agent_connection_grants').response([
+            {
+                ...row,
+                approved_capabilities: [AgentCapability.Query],
+                resource_constraints: resourceConstraints,
+            },
+        ]);
+        await expect(model.findActive('grant', now)).resolves.toBeNull();
+    },
+);

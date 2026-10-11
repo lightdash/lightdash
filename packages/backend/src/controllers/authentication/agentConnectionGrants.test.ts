@@ -1,3 +1,4 @@
+import { Ability } from '@casl/ability';
 import {
     AgentActorSurface,
     AgentCapability,
@@ -12,6 +13,7 @@ import { fromSession } from '../../auth/account';
 import { fromApiKey } from '../../auth/account/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
 import { AgentConnectionGrantService } from '../../auth/agentConnectionGrants/AgentConnectionGrantService';
+import { projectGrantFixture } from '../../auth/agentConnectionGrants/grant.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { authenticateServiceAccount } from '../../ee/authentication';
 import { AgentConnectionGrantModel } from '../../models/AgentConnectionGrantModel';
@@ -497,7 +499,11 @@ describe('revoked bound bearer lifecycle with a live session', () => {
             tracker.on
                 .select('oauth2_access_tokens')
                 .response(() => (accessStored ? tokenRow : undefined));
-            tracker.on.select('users').response({ user_uuid: user.userUuid });
+            tracker.on.select('users').response({
+                user_uuid: user.userUuid,
+                is_active: true,
+                organization_uuid: user.organizationUuid,
+            });
             const transaction = database.transaction.bind(database);
             const transactionSpy = vi
                 .spyOn(database, 'transaction')
@@ -874,5 +880,108 @@ describe.each([
         });
         await Promise.all([a.run(middleware), b.run(middleware)]);
         expect(agentExecutionContext.getStore()).toBeUndefined();
+    });
+});
+
+it.each([
+    ['QueryController_executeAsyncMetricQuery', 0, true],
+    ['ProjectController_refresh', 0, false],
+    ['ProjectController_refresh', 1, true],
+    ['QueryController_executeAsyncMetricQuery', 1, false],
+] as const)(
+    'enforces v2 through real middleware and grant service: %s on %s',
+    async (operation, project, allowed) => {
+        const f = setup();
+        Object.assign(f.grant, projectGrantFixture(), {
+            clientId: f.token.client.id,
+        });
+        f.req.route.stack[0].handle = Object.defineProperty(() => {}, 'name', {
+            value: operation,
+        });
+        f.req.params.projectUuid = f.grant.approvedProjectUuids[project];
+        const result = await f.run(allowApiKeyAuthentication);
+        if (allowed) expect(result).toEqual({ status: 200, error: undefined });
+        else
+            expect(result.status === 401 || result.error !== undefined).toBe(
+                true,
+            );
+    },
+);
+
+describe.each([
+    allowApiKeyAuthentication,
+    allowOauthAuthentication,
+    allowApiKeyAuthenticationIfPresent,
+])('fresh bound request person through %s', (middleware) => {
+    it.each(['reduced', 'inactive', 'removed', 'other_org'] as const)(
+        'ignores the cached person when %s',
+        async (change) => {
+            const f = setup();
+            const fresh = {
+                ...f.user,
+                ability: new Ability([]),
+                abilityRules: [],
+            };
+            if (change === 'inactive') fresh.isActive = false;
+            if (change === 'other_org') fresh.organizationUuid = 'other';
+            if (change === 'removed')
+                f.deps.userModel.findSessionUserAndOrgByUuid.mockRejectedValue(
+                    new Error('No membership'),
+                );
+            else
+                f.deps.userModel.findSessionUserAndOrgByUuid.mockResolvedValue(
+                    fresh,
+                );
+            f.req.isAuthenticated = (() => true) as Request['isAuthenticated'];
+            const response = await f.run(middleware);
+            if (change === 'reduced') {
+                expect(response).toEqual({ status: 200, error: undefined });
+                expect(f.req.account!.user.ability.can('view', 'Project')).toBe(
+                    false,
+                );
+            } else
+                expect(response).toMatchObject({
+                    status: 401,
+                    body: { error: 'invalid_token' },
+                });
+            expect(
+                f.deps.userModel.findSessionUserAndOrgByUuid,
+            ).toHaveBeenCalledExactlyOnceWith(
+                f.user.userUuid,
+                f.grant.organizationUuid,
+            );
+            expect(f.users.findSessionUser).not.toHaveBeenCalled();
+            expect(authenticateServiceAccount).not.toHaveBeenCalled();
+            expect(passport.authenticate).not.toHaveBeenCalled();
+        },
+    );
+    it('keeps the one cached lookup for unbound OAuth', async () => {
+        const f = setup();
+        Object.assign(f.token, { agentConnectionGrantUuid: null });
+        expect(await f.run(middleware)).toEqual({
+            status: 200,
+            error: undefined,
+        });
+        expect(f.users.findSessionUser).toHaveBeenCalledExactlyOnceWith({
+            id: f.user.userUuid,
+            organization: f.user.organizationUuid,
+        });
+        expect(
+            f.deps.userModel.findSessionUserAndOrgByUuid,
+        ).not.toHaveBeenCalled();
+    });
+    it('does no extra person lookup for an existing session', async () => {
+        const f = setup();
+        f.req.headers.authorization = undefined;
+        f.req.isAuthenticated = (() => true) as Request['isAuthenticated'];
+        f.req.account = fromSession(f.user);
+        expect(await f.run(middleware)).toEqual({
+            status: 200,
+            error: undefined,
+        });
+        expect(f.users.findSessionUser).not.toHaveBeenCalled();
+        expect(
+            f.deps.userModel.findSessionUserAndOrgByUuid,
+        ).not.toHaveBeenCalled();
     });
 });

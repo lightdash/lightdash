@@ -6,7 +6,7 @@ import {
 import { fromOauth } from '../account/account';
 import { defaultSessionUser } from '../account/account.mock';
 import { AgentConnectionGrantService } from './AgentConnectionGrantService';
-import { grantFixture } from './grant.mock';
+import { grantFixture, projectGrantFixture } from './grant.mock';
 import { managedExecutionFixture } from './managedExecution.mock';
 
 const setup = () => {
@@ -835,4 +835,89 @@ describe('current managed policy intersection', () => {
             await expect(run()).rejects.toThrow();
         },
     );
+});
+
+describe.each([false, true])(
+    'v2 queued effects with recheckOperation=%s',
+    (recheckOperation) => {
+        it.each([
+            [AgentCapability.Query, 0, true],
+            [AgentCapability.DeployUpload, 0, false],
+            [AgentCapability.DeployUpload, 1, true],
+            [AgentCapability.Query, 1, false],
+        ] as const)(
+            'checks %s on project %s',
+            async (capability, project, allowed) => {
+                const f = managedExecutionFixture();
+                Object.assign(f.grant, projectGrantFixture(), {
+                    clientId: 'lightdash-cli',
+                });
+                f.execution.operation.key =
+                    capability === AgentCapability.Query
+                        ? 'QueryController.executeAsyncMetricQuery'
+                        : 'ProjectController.refresh';
+                const run = () =>
+                    f.service.assertActiveExecution(f.execution, {
+                        projectUuid: f.grant.approvedProjectUuids[project],
+                        capabilities: [capability],
+                        recheckOperation,
+                    });
+                if (allowed) await expect(run()).resolves.toBeDefined();
+                else await expect(run()).rejects.toThrow();
+            },
+        );
+        it('cannot widen approval when current policy is raised after approval', async () => {
+            const f = managedExecutionFixture();
+            Object.assign(f.grant, projectGrantFixture(), {
+                clientId: 'lightdash-cli',
+            });
+            f.policy.systemRoleMatrix.viewer = [AgentCapability.Query];
+            const run = () =>
+                f.service.assertActiveExecution(f.execution, {
+                    projectUuid: f.projectUuid,
+                    capabilities: [AgentCapability.DeployUpload],
+                    recheckOperation,
+                });
+            await expect(run()).rejects.toThrow();
+            f.policy.systemRoleMatrix.viewer = Object.values(AgentCapability);
+            await expect(run()).rejects.toThrow();
+            await expect(
+                f.service.assertActiveExecution(f.execution, {
+                    projectUuid: f.grant.approvedProjectUuids[1],
+                    capabilities: [AgentCapability.DeployUpload],
+                    recheckOperation,
+                }),
+            ).resolves.toBeDefined();
+        });
+    },
+);
+
+it('checks every project resolved by a multi-project REST contract', async () => {
+    const f = setup();
+    Object.assign(
+        f.grant,
+        projectGrantFixture({
+            a: [AgentCapability.ReadDiscover],
+            b: [AgentCapability.DeployUpload],
+        }),
+    );
+    const account = fromOauth(
+        f.user,
+        f.token,
+        null,
+        await f.service.authenticate(f.token, f.user),
+    );
+    const run = (projects: string[]) =>
+        f.service.assertRestOperation(
+            {
+                account,
+                method: 'GET',
+                params: {},
+                query: { projectUuids: projects },
+                body: {},
+            },
+            'ContentController.listContent',
+        );
+    await expect(run(['a'])).resolves.toEqual(['a']);
+    await expect(run(['a', 'b'])).rejects.toThrow();
 });

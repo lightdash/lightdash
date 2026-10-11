@@ -5,6 +5,7 @@ import {
     type LightdashUser,
 } from '@lightdash/common';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import { hasValidGrantResourceConstraints } from './resourceConstraints';
 
 export const agentConnectionGrantEnabled = async (
     featureFlags: Pick<FeatureFlagModel, 'get'>,
@@ -32,7 +33,7 @@ export const matchesOAuthGrantBinding = (
     },
 ): boolean =>
     grant.grantContractVersion === AGENT_CONNECTION_GRANT_CONTRACT_VERSION &&
-    grant.resourceConstraints.version === 1 &&
+    hasValidGrantResourceConstraints(grant) &&
     grant.subjectUserUuid === binding.subjectUserUuid &&
     grant.organizationUuid === binding.organizationUuid &&
     grant.clientId === binding.clientId &&

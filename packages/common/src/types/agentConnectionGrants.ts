@@ -4,9 +4,12 @@ export const AGENT_CONNECTION_GRANT_DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
 export const AGENT_CONNECTION_GRANT_MAX_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const AGENT_CONNECTION_GRANT_CONTRACT_VERSION = 1;
 
-export type AgentConnectionGrantResourceConstraints = {
-    version: 1;
-};
+export type AgentConnectionGrantResourceConstraints =
+    | { version: 1 }
+    | {
+          version: 2;
+          projectCapabilities: Record<string, AgentCapability[]>;
+      };
 
 export type AgentConnectionGrant = {
     grantUuid: string;

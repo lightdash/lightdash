@@ -37,6 +37,7 @@ import {
     sourceEffectCapabilities,
     uploadEffectCapabilities,
 } from './operationContracts';
+import { grantAllowsCapabilities } from './resourceConstraints';
 
 export type GrantRestRequest = Pick<
     Request,
@@ -135,11 +136,7 @@ export class AgentConnectionGrantService {
         );
         if (
             !grant.approvedProjectUuids.includes(projectUuid) ||
-            capabilities.some(
-                (capability) =>
-                    !Object.values(AgentCapability).includes(capability) ||
-                    !grant.approvedCapabilities.includes(capability),
-            ) ||
+            !grantAllowsCapabilities(grant, [projectUuid], capabilities) ||
             !account.user.ability.can(
                 'view',
                 subject('Project', {
@@ -197,6 +194,28 @@ export class AgentConnectionGrantService {
         return { grant: validatedGrant, account, scope };
     }
 
+    async loadSessionUser(
+        userUuid: string,
+        organizationUuid: string,
+    ): Promise<SessionUser> {
+        try {
+            if (!this.deps.userModel) throw new OAuthBearerRefusalError();
+            const user = await this.deps.userModel.findSessionUserAndOrgByUuid(
+                userUuid,
+                organizationUuid,
+            );
+            if (
+                !user.isActive ||
+                user.userUuid !== userUuid ||
+                user.organizationUuid !== organizationUuid
+            )
+                throw new OAuthBearerRefusalError();
+            return user;
+        } catch {
+            throw new OAuthBearerRefusalError();
+        }
+    }
+
     async authenticate(
         token: Token & Partial<OAuthTokenBinding>,
         user: SessionUser,
@@ -215,6 +234,7 @@ export class AgentConnectionGrantService {
         );
         if (
             !grant ||
+            !user.isActive ||
             !matchesOAuthGrantBinding(grant, {
                 subjectUserUuid: user.userUuid,
                 organizationUuid: user.organizationUuid!,

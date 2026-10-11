@@ -336,12 +336,18 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
                 refuseOAuthToken(req, res);
                 return;
             }
-            req.services
-                .getUserService()
-                .findSessionUser({
-                    id: token.user.userUuid,
-                    organization: token.user.organizationUuid,
-                })
+            (token.agentConnectionGrantUuid == null
+                ? req.services.getUserService().findSessionUser({
+                      id: token.user.userUuid,
+                      organization: token.user.organizationUuid,
+                  })
+                : req.services
+                      .getAgentConnectionGrantService()
+                      .loadSessionUser(
+                          token.user.userUuid,
+                          token.user.organizationUuid,
+                      )
+            )
                 .then(async (user) => {
                     if (req.account?.isAuthenticated()) {
                         Logger.warn(
@@ -488,12 +494,18 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
                 refuseOAuthToken(req, res);
                 return;
             }
-            req.services
-                .getUserService()
-                .findSessionUser({
-                    id: token.user.userUuid,
-                    organization: token.user.organizationUuid,
-                })
+            (token.agentConnectionGrantUuid == null
+                ? req.services.getUserService().findSessionUser({
+                      id: token.user.userUuid,
+                      organization: token.user.organizationUuid,
+                  })
+                : req.services
+                      .getAgentConnectionGrantService()
+                      .loadSessionUser(
+                          token.user.userUuid,
+                          token.user.organizationUuid,
+                      )
+            )
                 .then(async (user) => {
                     if (req.account?.isAuthenticated()) {
                         Logger.warn(

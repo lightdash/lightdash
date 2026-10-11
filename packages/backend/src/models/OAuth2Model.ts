@@ -267,14 +267,31 @@ export class OAuth2Model implements AuthorizationCodeModel {
         allowUnboundFamily = false,
     ): Promise<AgentConnectionGrant> {
         const storedUser = await database('users')
-            .select('user_uuid')
-            .where('user_id', user.userId)
+            .innerJoin(
+                'organization_memberships',
+                'users.user_id',
+                'organization_memberships.user_id',
+            )
+            .innerJoin(
+                'organizations',
+                'organization_memberships.organization_id',
+                'organizations.organization_id',
+            )
+            .select(
+                'users.user_uuid',
+                'users.is_active',
+                'organizations.organization_uuid',
+            )
+            .where('users.user_id', user.userId)
+            .andWhere('organizations.organization_uuid', user.organizationUuid)
             .first();
         const grant = await new AgentConnectionGrantModel({
             database,
         }).findActive(token.agentConnectionGrantUuid, new Date());
         if (
             !storedUser ||
+            storedUser.is_active !== true ||
+            storedUser.organization_uuid !== user.organizationUuid ||
             !grant ||
             !(await agentConnectionGrantEnabled(this.featureFlagModel, {
                 userUuid: storedUser.user_uuid,
