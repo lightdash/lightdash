@@ -1,3 +1,10 @@
+# [2.571.0](https://github.com/lightdash/lightdash/compare/2.570.0...2.571.0) (2026-10-12)
+
+
+### Features
+
+* **oauth:** look up tokens and codes by plain value or stored digest ([#30928](https://github.com/lightdash/lightdash/issues/30928)) ([4db4d21](https://github.com/lightdash/lightdash/commit/4db4d21bc1b1a051dd1d92dece690ef9ee610b75))
+
 # [2.570.0](https://github.com/lightdash/lightdash/compare/2.569.0...2.570.0) (2026-10-12)
 
 
