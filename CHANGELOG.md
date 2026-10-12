@@ -1,3 +1,10 @@
+## [2.568.2](https://github.com/lightdash/lightdash/compare/2.568.1...2.568.2) (2026-10-12)
+
+
+### Bug Fixes
+
+* honour Snowflake role with external browser authentication ([#30926](https://github.com/lightdash/lightdash/issues/30926)) ([c901467](https://github.com/lightdash/lightdash/commit/c9014670c7213d74edc49136b3633872ffa449cb))
+
 ## [2.568.1](https://github.com/lightdash/lightdash/compare/2.568.0...2.568.1) (2026-10-12)
 
 
