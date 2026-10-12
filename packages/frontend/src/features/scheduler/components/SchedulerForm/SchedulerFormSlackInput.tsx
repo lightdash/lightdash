@@ -24,10 +24,13 @@ export const SchedulerFormSlackInput: FC<Props> = ({
     const slackState = useMemo(() => {
         if (isInitialLoading) return SlackStates.LOADING;
         if (!organizationHasSlack) return SlackStates.NO_SLACK;
-        if (!slackInstallation.hasRequiredScopes)
+        if (!slackInstallation.features.scheduledDeliveries.available)
             return SlackStates.MISSING_SCOPES;
         return SlackStates.SUCCESS;
     }, [isInitialLoading, organizationHasSlack, slackInstallation]);
+
+    const missingScopes =
+        slackInstallation?.features.scheduledDeliveries.missingScopes ?? [];
 
     const isDisabled = slackState !== SlackStates.SUCCESS;
 
@@ -64,7 +67,10 @@ export const SchedulerFormSlackInput: FC<Props> = ({
                     </Box>
                 </HoverCard.Target>
                 <HoverCard.Dropdown>
-                    <SchedulerFormSlackError slackState={slackState} />
+                    <SchedulerFormSlackError
+                        slackState={slackState}
+                        missingScopes={missingScopes}
+                    />
                 </HoverCard.Dropdown>
             </HoverCard>
         </Group>
