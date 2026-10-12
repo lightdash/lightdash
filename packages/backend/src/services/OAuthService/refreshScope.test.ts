@@ -621,7 +621,10 @@ describe('strict refresh token families', () => {
                     });
                     return count;
                 }
-                const stored = refreshRows.get(String(bindings.at(-1)));
+                const stored = bindings
+                    .slice(-2)
+                    .map((value) => refreshRows.get(String(value)))
+                    .find((value) => value !== undefined);
                 if (
                     !stored ||
                     (sql.includes('"revoked_at" is null') &&
