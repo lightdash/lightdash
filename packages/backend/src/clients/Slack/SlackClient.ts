@@ -283,7 +283,7 @@ export class SlackClient {
 
     private getCustomIconArgs(
         installationScopes: string[] | undefined,
-        appProfilePhotoUrl: string | undefined,
+        appProfilePhotoUrl: string | null | undefined,
     ): { icon_url: string } | Record<string, never> {
         if (!appProfilePhotoUrl) return {};
         return this.isFeatureAvailable(

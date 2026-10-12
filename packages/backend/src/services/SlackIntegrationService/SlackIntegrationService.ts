@@ -100,6 +100,9 @@ export class SlackIntegrationService<
             hasRequiredScopes: this.slackClient.hasRequiredScopes(
                 installation.scopes,
             ),
+            features: this.slackClient.getFeatureAvailability(
+                installation.scopes,
+            ),
             unfurlsEnabled: installation.unfurlsEnabled,
             aiAgentsEnabled: installation.aiAgentsEnabled,
         };

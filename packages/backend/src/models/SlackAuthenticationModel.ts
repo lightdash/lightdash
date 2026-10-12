@@ -149,7 +149,9 @@ export class SlackAuthenticationModel {
     async getInstallationFromOrganizationUuid(
         organizationUuid: string,
     ): Promise<
-        | (Omit<SlackSettings, 'hasRequiredScopes'> & { appId: string | null })
+        | (Omit<SlackSettings, 'hasRequiredScopes' | 'features'> & {
+              appId: string | null;
+          })
         | undefined
     > {
         const [row] = await this.database(SlackAuthTokensTableName)
