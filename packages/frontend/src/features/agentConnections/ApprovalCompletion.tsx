@@ -30,9 +30,10 @@ export const ApprovalCompletion = ({
         if (attempting.current) return;
         const popup = openCompletionTab();
         if (!popup) return;
+        if (!navigateCompletionTab(popup, completion.completionUrl)) return;
         attempting.current = true;
-        navigateCompletionTab(popup, completion.completionUrl);
         setFallbackAttempted(true);
+        heading.current?.focus();
     };
     return (
         <Stack>

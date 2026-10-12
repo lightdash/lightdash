@@ -10,10 +10,13 @@ export const openCompletionTab = (): Window | null => {
     }
 };
 
+// Returns whether a navigation was attempted; a closed tab is not an attempt.
 export const navigateCompletionTab = (popup: Window, url: string) => {
+    if (popup.closed) return false;
     try {
-        if (!popup.closed) popup.location.replace(url);
+        popup.location.replace(url);
     } catch {
         popup.close();
     }
+    return true;
 };

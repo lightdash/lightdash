@@ -20,7 +20,7 @@ import {
 } from '@mantine/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { validate as isUuid } from 'uuid';
 import { lightdashApi } from '../../api';
 import Callout from '../../components/common/Callout';
@@ -44,6 +44,8 @@ const isTerminal = (failure: ApprovalError | null) =>
 
 const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
     const client = useQueryClient();
+    const navigate = useNavigate();
+    const location = useLocation();
     const queryKey = ['agent-connection-review', requestUuid];
     const reviewQuery = useQuery<AgentConnectionApprovalReview, ApprovalError>({
         queryKey,
@@ -114,11 +116,13 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
                     capabilities: decision === 'approve' ? capabilities : [],
                 } satisfies AgentConnectionApprovalDecision),
             });
-            if (popup) navigateCompletionTab(popup, result.completionUrl);
+            const attempted =
+                popup !== null &&
+                navigateCompletionTab(popup, result.completionUrl);
             setCompletion({
                 decision,
                 completionUrl: result.completionUrl,
-                attempted: popup !== null,
+                attempted,
                 projects: selectedProjects,
                 notice: review.notice,
             });
@@ -128,7 +132,8 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
             const details =
                 apiError.error as AgentConnectionApprovalErrorResponse['error'];
             if (apiError.error.statusCode === 401) {
-                await client.invalidateQueries(['health']);
+                void client.invalidateQueries(['health']);
+                await navigate('/login', { state: { from: location } });
             } else if (
                 details.code === 'approval_selection_changed' ||
                 details.code === 'csrf_failed'

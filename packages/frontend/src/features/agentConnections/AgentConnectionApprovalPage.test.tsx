@@ -484,6 +484,56 @@ describe('approval review', () => {
         ).toBe(true);
         expect(window.location.href).not.toContain(review().nonce);
     });
+    it('loads a fresh review when the session is already restored after a 401', async () => {
+        const close = vi.fn();
+        vi.mocked(window.open).mockReturnValue({
+            close,
+            opener: window,
+        } as unknown as Window);
+        api.mockResolvedValueOnce(review())
+            .mockRejectedValueOnce(error(401, 'authentication_required'))
+            .mockResolvedValueOnce({
+                ...review(),
+                revision: 2,
+                nonce: 'fresh-nonce',
+            });
+        renderWithProviders(
+            <MemoryRouter
+                initialEntries={[
+                    `/agent/connection-approval?request=${requestUuid}`,
+                ]}
+            >
+                <Routes>
+                    <Route
+                        path="/agent/connection-approval"
+                        element={
+                            <PrivateRoute>
+                                <AgentConnectionApprovalPage />
+                            </PrivateRoute>
+                        }
+                    />
+                    <Route path="/login" element={<LoginLanding />} />
+                </Routes>
+            </MemoryRouter>,
+        );
+        fireEvent.click(await screen.findByRole('button', { name: 'Approve' }));
+        await waitFor(() =>
+            expect(
+                api.mock.calls.filter(([args]) => args.method === 'GET'),
+            ).toHaveLength(2),
+        );
+        expect(close).toHaveBeenCalledOnce();
+        fireEvent.click(await screen.findByRole('button', { name: 'Approve' }));
+        await waitFor(() =>
+            expect(
+                api.mock.calls.filter(([args]) => args.method === 'POST'),
+            ).toHaveLength(2),
+        );
+        expect(JSON.parse(String(api.mock.lastCall![0].body))).toMatchObject({
+            revision: 2,
+            nonce: 'fresh-nonce',
+        });
+    });
     it.each(['Approve', 'Cancel'])(
         'returns through login with a fresh review after %s gets a 401',
         async (button) => {
@@ -867,28 +917,46 @@ describe('completion delivery', () => {
         ).toHaveLength(1);
         expectNoCompletionLink();
     });
-    it.each(['closed', 'throws'])(
-        'does not offer a retry after an opened popup %s',
-        async (failure) => {
-            const handle = popup();
-            handle.closed = failure === 'closed';
-            if (failure === 'throws')
-                handle.location.replace.mockImplementation(() => {
-                    throw new Error('Navigation failed');
-                });
-            vi.mocked(window.open).mockReturnValue(handle as unknown as Window);
-            await loadPage();
-            fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
-            expect(await screen.findByText('Sent to the CLI.')).toBeVisible();
-            expectNoCompletionLink();
-            expect(
-                screen.queryByRole('button', { name: 'Return to the CLI' }),
-            ).not.toBeInTheDocument();
-            expect(handle.location.replace).toHaveBeenCalledTimes(
-                failure === 'closed' ? 0 : 1,
-            );
-        },
-    );
+    it('does not offer a retry after an opened popup throws on navigation', async () => {
+        const handle = popup();
+        handle.location.replace.mockImplementation(() => {
+            throw new Error('Navigation failed');
+        });
+        vi.mocked(window.open).mockReturnValue(handle as unknown as Window);
+        await loadPage();
+        fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+        expect(await screen.findByText('Sent to the CLI.')).toBeVisible();
+        expectNoCompletionLink();
+        expect(
+            screen.queryByRole('button', { name: 'Return to the CLI' }),
+        ).not.toBeInTheDocument();
+        expect(handle.location.replace).toHaveBeenCalledTimes(1);
+    });
+    it('keeps the button when the pre-opened tab was closed, because nothing was sent', async () => {
+        const closed = popup();
+        closed.closed = true;
+        vi.mocked(window.open).mockReturnValue(closed as unknown as Window);
+        await loadPage();
+        fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+        const fallback = await screen.findByRole('button', {
+            name: 'Return to the CLI',
+        });
+        expect(screen.queryByText('Sent to the CLI.')).toBeNull();
+        expect(closed.location.replace).not.toHaveBeenCalled();
+        fireEvent.click(fallback);
+        expect(screen.queryByText('Sent to the CLI.')).toBeNull();
+        const handle = popup();
+        vi.mocked(window.open).mockReturnValue(handle as unknown as Window);
+        fireEvent.click(fallback);
+        expect(handle.location.replace).toHaveBeenCalledExactlyOnceWith(
+            completionUrl,
+        );
+        expect(await screen.findByText('Sent to the CLI.')).toBeVisible();
+        expect(
+            screen.getByRole('heading', { name: 'Connect your warehouses' }),
+        ).toHaveFocus();
+        expectNoCompletionLink();
+    });
     it.each(['Approve', 'Cancel'])(
         'closes the pre-opened tab if %s fails',
         async (button) => {
