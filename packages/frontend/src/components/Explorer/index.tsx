@@ -65,7 +65,7 @@ const EMPTY_PARAMETER_REFERENCES: string[] = [];
 type ExplorerProps = {
     hideHeader?: boolean;
     chartView?: boolean;
-    /** The page owns no padding: the explorer insets its top section and pins results flush to the bottom. */
+    /** Page has no padding; results sit flush at the bottom */
     flush?: boolean;
 };
 
