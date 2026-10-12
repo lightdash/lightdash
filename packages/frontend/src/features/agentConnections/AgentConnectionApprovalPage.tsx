@@ -21,7 +21,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
-import { validate as isUuid } from 'uuid';
+import { v4 as uuid, validate as isUuid } from 'uuid';
 import { lightdashApi } from '../../api';
 import Callout from '../../components/common/Callout';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
@@ -46,7 +46,9 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
     const client = useQueryClient();
     const navigate = useNavigate();
     const location = useLocation();
-    const queryKey = ['agent-connection-review', requestUuid];
+    // A per-mount key so a return from sign-in never reuses an old nonce.
+    const [mountId] = useState(() => uuid());
+    const queryKey = ['agent-connection-review', requestUuid, mountId];
     const reviewQuery = useQuery<AgentConnectionApprovalReview, ApprovalError>({
         queryKey,
         queryFn: () =>
@@ -132,7 +134,7 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
             const details =
                 apiError.error as AgentConnectionApprovalErrorResponse['error'];
             if (apiError.error.statusCode === 401) {
-                void client.invalidateQueries(['health']);
+                await client.invalidateQueries(['health']);
                 await navigate('/login', { state: { from: location } });
             } else if (
                 details.code === 'approval_selection_changed' ||

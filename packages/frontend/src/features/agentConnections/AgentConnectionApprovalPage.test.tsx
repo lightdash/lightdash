@@ -947,6 +947,8 @@ describe('completion delivery', () => {
         expect(screen.queryByText('Sent to the CLI.')).toBeNull();
         const handle = popup();
         vi.mocked(window.open).mockReturnValue(handle as unknown as Window);
+        fallback.focus();
+        expect(fallback).toHaveFocus();
         fireEvent.click(fallback);
         expect(handle.location.replace).toHaveBeenCalledExactlyOnceWith(
             completionUrl,
