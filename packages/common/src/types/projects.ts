@@ -1439,6 +1439,8 @@ export type EnsurePlaygroundProjectRequest = {
 export type CreateTrainingPreviewResults = {
     projectUuid: string;
     expiresAt: Date | null;
+    /** The learner's live copy was handed back, with what earlier walkthroughs left in it. */
+    reused: boolean;
 };
 
 export type ApiCreateTrainingPreviewResponse = {
