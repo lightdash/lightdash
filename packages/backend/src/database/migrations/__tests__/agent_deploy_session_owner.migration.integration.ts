@@ -212,7 +212,11 @@ it.each(['another connection', 'person session'] as const)(
 it.each([
     { caller: 'connection', action: 'batch', session: 'unchanged' },
     { caller: 'connection', action: 'finalize', session: 'unchanged' },
-    { caller: 'person session', action: 'batch', session: 'failed' },
+    {
+        caller: 'person session',
+        action: 'batch',
+        session: 'failed (KNOWN DEFECT, must become unchanged)',
+    },
     { caller: 'person session', action: 'finalize', session: 'unchanged' },
 ])(
     '$caller cannot $action through another approved project: staged data unchanged, session $session',
