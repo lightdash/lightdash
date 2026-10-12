@@ -5,7 +5,13 @@ import {
     type AiAccessForUser,
     type AgentConnectionApprovalProject,
 } from '@lightdash/common';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import {
+    act,
+    fireEvent,
+    screen,
+    waitFor,
+    within,
+} from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../api';
@@ -66,10 +72,10 @@ let access = ready();
 let multi = false;
 let enumerationError = false;
 let accessError = false;
-const renderStep = () =>
+const renderStep = (projects = [project]) =>
     renderWithProviders(
         <MemoryRouter>
-            <AgentConnectionApprovalWarehouseStep projects={[project]} />
+            <AgentConnectionApprovalWarehouseStep projects={projects} />
         </MemoryRouter>,
     );
 beforeEach(() => {
@@ -140,6 +146,97 @@ beforeEach(() => {
     });
 });
 describe('approval warehouse setup', () => {
+    it.each([false, true])(
+        'bounds 30 projects and their bindings, unmount=%s',
+        async (leaveEarly) => {
+            const projects = Array.from({ length: 30 }, (_, index) => ({
+                ...project,
+                projectUuid: `project-${index}`,
+                name: `Project ${index}`,
+            }));
+            const resolvers: (() => void)[] = [];
+            const signals: AbortSignal[] = [];
+            let active = 0;
+            let maximum = 0;
+            let started = 0;
+            api.mockImplementation(async ({ url, signal }) => {
+                if (url === '/org/projects') return projects;
+                started += 1;
+                active += 1;
+                maximum = Math.max(maximum, active);
+                if (signal) signals.push(signal);
+                await new Promise<void>((resolve) =>
+                    resolvers.push(() => {
+                        active -= 1;
+                        resolve();
+                    }),
+                );
+                if (url.includes('warehouse-connection-user-credentials'))
+                    return [
+                        {
+                            warehouseConnectionUuid: 'original',
+                            name: 'Default',
+                            isOriginal: true,
+                        },
+                        {
+                            warehouseConnectionUuid: 'extra',
+                            name: 'Additional',
+                            isOriginal: false,
+                        },
+                    ];
+                return ready();
+            });
+            const { unmount } = renderStep(projects);
+            await screen.findByText('Project 29');
+            const lastRow = screen
+                .getByText('Project 29')
+                .closest<HTMLElement>('.mantine-Paper-root')!;
+            expect(
+                within(lastRow).getByLabelText('Loading warehouse sign-ins'),
+            ).toBeVisible();
+            await waitFor(() => expect(started).toBe(4));
+            try {
+                if (leaveEarly) {
+                    unmount();
+                    expect(signals).toHaveLength(4);
+                    expect(signals.every((signal) => signal.aborted)).toBe(
+                        true,
+                    );
+                    await act(async () => {
+                        resolvers.splice(0).forEach((resolve) => resolve());
+                    });
+                    expect(started).toBe(4);
+                } else {
+                    for (let batch = 0; batch < 24; batch += 1) {
+                        await act(async () => {
+                            resolvers.splice(0).forEach((resolve) => resolve());
+                        });
+                        if (screen.queryAllByText('Ready').length === 60) break;
+                        await waitFor(() =>
+                            expect(
+                                resolvers.length > 0 ||
+                                    screen.queryAllByText('Ready').length ===
+                                        60,
+                            ).toBe(true),
+                        );
+                    }
+                    expect(await screen.findAllByText('Ready')).toHaveLength(
+                        60,
+                    );
+                    expect(started).toBe(90);
+                    expect(
+                        screen.queryByLabelText('Loading warehouse sign-ins'),
+                    ).not.toBeInTheDocument();
+                }
+                expect(maximum).toBe(4);
+            } finally {
+                unmount();
+                await act(async () => {
+                    resolvers.splice(0).forEach((resolve) => resolve());
+                });
+            }
+        },
+    );
     it('loads readiness with viewer endpoints and shows ready', async () => {
         renderStep();
         expect(await screen.findByText('Ready')).toBeVisible();

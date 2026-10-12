@@ -71,7 +71,7 @@ export const ApprovalActionRow = ({
                         position="right"
                         maw={320}
                         label={
-                            <Stack gap={2}>
+                            <Stack gap="xxs">
                                 {restrictions.map((line) => (
                                     <Text key={line} size="xs">
                                         {line}
@@ -97,7 +97,7 @@ export const ApprovalActionRow = ({
                 ].join(' ')}
             </VisuallyHidden>
             {warning && !blockedEverywhere && (
-                <Text size="xs" c="orange" mt={4} ml={32} aria-hidden>
+                <Text size="xs" c="orange" mt="xxs" ml="xxl" aria-hidden>
                     {warning}
                 </Text>
             )}

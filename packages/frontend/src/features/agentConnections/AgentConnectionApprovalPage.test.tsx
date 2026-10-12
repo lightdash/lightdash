@@ -1,13 +1,23 @@
 import {
     AgentCapability,
     type AgentConnectionApprovalReview,
+    type HealthState,
 } from '@lightdash/common';
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
+import {
+    act,
+    fireEvent,
+    screen,
+    waitFor,
+    within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../api';
+import PrivateRoute from '../../components/PrivateRoute';
 import { renderWithProviders } from '../../testing/testUtils';
+import LoginLanding from '../users/components/LoginLanding';
 import AgentConnectionApprovalPage from './AgentConnectionApprovalPage';
 
 let enabled: boolean | undefined = true;
@@ -19,6 +29,43 @@ vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
 vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
 vi.mock('./AgentConnectionApprovalWarehouseStep', () => ({
     AgentConnectionApprovalWarehouseStep: () => null,
+}));
+
+let authenticated = true;
+vi.mock(
+    '../../testing/__mocks__/api/healthResponse.mock',
+    async (importOriginal) => {
+        const original = await importOriginal<{
+            default: (overrides: Partial<HealthState>) => HealthState;
+        }>();
+        return {
+            default: () => original.default({ isAuthenticated: authenticated }),
+        };
+    },
+);
+vi.mock('../../hooks/user/useAccount', () => ({
+    useAccount: () => ({ data: { isRegisteredUser: () => true } }),
+}));
+vi.mock('../../hooks/useEmailVerification', () => ({
+    useEmailStatus: () => ({
+        data: { isVerified: true },
+        isInitialLoading: false,
+    }),
+}));
+vi.mock('../../providers/Ability/useAbilityContext', () => {
+    const ability = { rules: [{}], update: vi.fn() };
+    return { useAbilityContext: () => ability };
+});
+vi.mock('../../hooks/useFlashMessages', () => ({
+    useFlashMessages: () => ({ data: {} }),
+}));
+vi.mock('../users/hooks/useLogin', () => ({
+    useFetchLoginOptions: () => ({
+        data: { showOptions: [], forceRedirect: false },
+        isSuccess: true,
+        isInitialLoading: false,
+    }),
+    useLoginWithEmailMutation: () => ({ mutate: vi.fn(), isIdle: true }),
 }));
 
 const requestUuid = '11111111-1111-4111-8111-111111111111';
@@ -125,7 +172,9 @@ const error = (
 
 beforeEach(() => {
     vi.clearAllMocks();
+    api.mockReset();
     enabled = true;
+    authenticated = true;
     api.mockImplementation(async ({ method }) =>
         method === 'GET' ? review() : { completionUrl },
     );
@@ -435,6 +484,101 @@ describe('approval review', () => {
         ).toBe(true);
         expect(window.location.href).not.toContain(review().nonce);
     });
+    it.each(['Approve', 'Cancel'])(
+        'returns through login with a fresh review after %s gets a 401',
+        async (button) => {
+            let client!: QueryClient;
+            let location!: ReturnType<typeof useLocation>;
+            const ObserveSession = () => {
+                client = useQueryClient();
+                location = useLocation();
+                return null;
+            };
+            const close = vi.fn();
+            vi.mocked(window.open).mockReturnValue({
+                close,
+                opener: window,
+            } as unknown as Window);
+            api.mockResolvedValueOnce(review())
+                .mockImplementationOnce(async () => {
+                    authenticated = false;
+                    throw error(401, 'authentication_required');
+                })
+                .mockResolvedValueOnce({
+                    ...review(),
+                    revision: 2,
+                    nonce: 'fresh-nonce',
+                });
+            renderWithProviders(
+                <MemoryRouter
+                    initialEntries={[
+                        `/agent/connection-approval?request=${requestUuid}`,
+                    ]}
+                >
+                    <ObserveSession />
+                    <Routes>
+                        <Route
+                            path="/agent/connection-approval"
+                            element={
+                                <PrivateRoute>
+                                    <AgentConnectionApprovalPage />
+                                </PrivateRoute>
+                            }
+                        />
+                        <Route path="/login" element={<LoginLanding />} />
+                    </Routes>
+                </MemoryRouter>,
+            );
+            fireEvent.click(
+                await screen.findByRole('button', { name: button }),
+            );
+            await waitFor(() => expect(location.pathname).toBe('/login'));
+            expect(
+                location.state.from.pathname + location.state.from.search,
+            ).toBe(`/agent/connection-approval?request=${requestUuid}`);
+            expect(close).toHaveBeenCalledOnce();
+            authenticated = true;
+            await act(async () => {
+                await client.invalidateQueries(['health']);
+            });
+            await screen.findByRole('button', { name: 'Approve' });
+            expect(location.pathname + location.search).toBe(
+                `/agent/connection-approval?request=${requestUuid}`,
+            );
+            expect(
+                api.mock.calls.filter(([args]) => args.method === 'GET'),
+            ).toHaveLength(2);
+            fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+            await waitFor(() =>
+                expect(
+                    api.mock.calls.filter(([args]) => args.method === 'POST'),
+                ).toHaveLength(2),
+            );
+            expect(
+                JSON.parse(String(api.mock.lastCall![0].body)),
+            ).toMatchObject({ revision: 2, nonce: 'fresh-nonce' });
+        },
+    );
+    it('hides unknown visibility and never submits it', async () => {
+        const data = review();
+        data.projects[0].capabilities.push({
+            ...offered(AgentCapability.Administration),
+            visibility: 'future_visibility' as 'offered',
+        });
+        api.mockResolvedValueOnce(data);
+        await loadPage();
+        expect(screen.queryByText('Administration')).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+        await waitFor(() => expect(api).toHaveBeenCalledTimes(2));
+        expect(
+            JSON.parse(String(api.mock.calls[1][0].body)).capabilities,
+        ).toEqual([
+            AgentCapability.ReadDiscover,
+            AgentCapability.Query,
+            AgentCapability.Delete,
+            AgentCapability.Publish,
+        ]);
+    });
     it('allows an empty action list', async () => {
         const data = review();
         data.projects.forEach((p) => {
@@ -571,19 +715,23 @@ describe('approval review', () => {
 });
 
 describe('completion delivery', () => {
+    const expectNoCompletionLink = () => {
+        expect(document.querySelector(`[href="${completionUrl}"]`)).toBeNull();
+        expect(
+            screen.queryByRole('link', { name: 'Return to the CLI' }),
+        ).not.toBeInTheDocument();
+    };
+    const popup = () => ({
+        location: { replace: vi.fn() },
+        close: vi.fn(),
+        closed: false,
+        opener: window,
+    });
     it.each(['Approve', 'Cancel'])(
-        'opens synchronously, completes %s once, and retains the original page',
+        'opens synchronously, attempts %s once, and focuses the retained page',
         async (button) => {
-            const replace = vi.fn();
-            const focus = vi.fn();
-            const popup = {
-                location: { replace },
-                focus,
-                close: vi.fn(),
-                closed: false,
-                opener: window,
-            };
-            vi.mocked(window.open).mockReturnValue(popup as unknown as Window);
+            const handle = popup();
+            vi.mocked(window.open).mockReturnValue(handle as unknown as Window);
             let resolveDecision!: (value: { completionUrl: string }) => void;
             api.mockResolvedValueOnce(review()).mockImplementationOnce(
                 () =>
@@ -592,46 +740,171 @@ describe('completion delivery', () => {
                     }),
             );
             await loadPage();
-            fireEvent.click(screen.getByRole('button', { name: button }));
-            expect(window.open).toHaveBeenCalledTimes(1);
-            expect(replace).not.toHaveBeenCalled();
+            expectNoCompletionLink();
+            const control = screen.getByRole('button', { name: button });
+            fireEvent.click(control);
+            fireEvent.click(control);
+            expect(window.open).toHaveBeenCalledExactlyOnceWith('', '_blank');
+            expect(handle.location.replace).not.toHaveBeenCalled();
+            expectNoCompletionLink();
             await waitFor(() => expect(resolveDecision).toBeDefined());
-            resolveDecision({ completionUrl });
-            const link = await screen.findByRole('link', {
-                name: 'Return to the CLI',
+            await act(async () => resolveDecision({ completionUrl }));
+            expect(await screen.findByText('Sent to the CLI.')).toBeVisible();
+            expect(handle.location.replace).toHaveBeenCalledExactlyOnceWith(
+                completionUrl,
+            );
+            expect(handle.opener).toBeNull();
+            const heading = screen.getByRole('heading', {
+                name:
+                    button === 'Approve'
+                        ? 'Connect your warehouses'
+                        : 'Approval cancelled',
             });
-            expect(replace).toHaveBeenCalledExactlyOnceWith(completionUrl);
-            expect(popup.opener).toBeNull();
+            expect(heading).toBeVisible();
+            expect(heading).toHaveFocus();
+            expect(heading).toHaveAttribute('tabindex', '-1');
+            expectNoCompletionLink();
             expect(
-                screen.getByRole('heading', {
-                    name:
-                        button === 'Approve'
-                            ? 'Connect your warehouses'
-                            : 'Approval cancelled',
-                }),
-            ).toBeVisible();
-            fireEvent.click(link);
-            fireEvent.click(link);
-            expect(replace).toHaveBeenCalledTimes(1);
-            expect(focus).toHaveBeenCalledTimes(2);
+                screen.queryByRole('button', { name: 'Return to the CLI' }),
+            ).not.toBeInTheDocument();
+            expect(
+                api.mock.calls.filter(([args]) => args.method === 'POST'),
+            ).toHaveLength(1);
             expect(window.location.href).not.toContain('/completion');
         },
     );
-    it('offers a usable fallback if the popup was blocked', async () => {
+    it.each(['Approve', 'Cancel'])(
+        'offers a one-shot button when %s popup is blocked',
+        async (button) => {
+            await loadPage();
+            expectNoCompletionLink();
+            fireEvent.click(screen.getByRole('button', { name: button }));
+            const fallback = await screen.findByRole('button', {
+                name: 'Return to the CLI',
+            });
+            expectNoCompletionLink();
+            const handle = popup();
+            vi.mocked(window.open).mockReturnValue(handle as unknown as Window);
+            fireEvent.click(fallback);
+            fireEvent.click(fallback);
+            expect(handle.location.replace).toHaveBeenCalledExactlyOnceWith(
+                completionUrl,
+            );
+            expect(handle.opener).toBeNull();
+            expect(window.open).toHaveBeenCalledTimes(2);
+            expect(await screen.findByText('Sent to the CLI.')).toBeVisible();
+            expectNoCompletionLink();
+            expect(
+                screen.queryByRole('button', { name: 'Return to the CLI' }),
+            ).not.toBeInTheDocument();
+            if (button === 'Approve') {
+                expect(
+                    screen.getByText(
+                        'No connection was created. You can still set up warehouse sign-ins for later.',
+                    ),
+                ).toBeVisible();
+                expect(
+                    screen.getByRole('link', { name: 'Do this later' }),
+                ).toHaveAttribute(
+                    'href',
+                    '/generalSettings/myAgentConnections',
+                );
+            } else
+                expect(
+                    screen.queryByText('Do this later'),
+                ).not.toBeInTheDocument();
+            expect(
+                screen.queryByText(/Your connection is saved/),
+            ).not.toBeInTheDocument();
+        },
+    );
+    it.each(['blocked', 'throws'])(
+        'keeps the button when the fallback tab is %s, because nothing was sent',
+        async (failure) => {
+            await loadPage();
+            fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+            const fallback = await screen.findByRole('button', {
+                name: 'Return to the CLI',
+            });
+            if (failure === 'throws')
+                vi.mocked(window.open).mockImplementation(() => {
+                    throw new Error('Popup unavailable');
+                });
+            fireEvent.click(fallback);
+            expect(window.open).toHaveBeenCalledTimes(2);
+            expect(screen.queryByText('Sent to the CLI.')).toBeNull();
+            expectNoCompletionLink();
+            const handle = popup();
+            vi.mocked(window.open).mockReset();
+            vi.mocked(window.open).mockReturnValue(handle as unknown as Window);
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Return to the CLI' }),
+            );
+            fireEvent.click(fallback);
+            expect(handle.location.replace).toHaveBeenCalledExactlyOnceWith(
+                completionUrl,
+            );
+            expect(await screen.findByText('Sent to the CLI.')).toBeVisible();
+            expect(
+                screen.queryByRole('button', { name: 'Return to the CLI' }),
+            ).not.toBeInTheDocument();
+        },
+    );
+    it('continues a decision if opening the blank tab throws', async () => {
+        vi.mocked(window.open).mockImplementation(() => {
+            throw new Error('Popup unavailable');
+        });
         await loadPage();
         fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
-        const link = await screen.findByRole('link', {
-            name: 'Return to the CLI',
-        });
-        expect(link).toHaveAttribute('href', completionUrl);
-        expect(link).toHaveAttribute('target', '_blank');
         expect(
-            screen.getByText(
-                'No connection was created. You can still set up warehouse sign-ins for later.',
-            ),
+            await screen.findByRole('button', { name: 'Return to the CLI' }),
         ).toBeVisible();
         expect(
-            screen.queryByText(/Your connection is saved/),
-        ).not.toBeInTheDocument();
+            screen.getByRole('heading', { name: 'Connect your warehouses' }),
+        ).toHaveFocus();
+        expect(
+            api.mock.calls.filter(([args]) => args.method === 'POST'),
+        ).toHaveLength(1);
+        expectNoCompletionLink();
     });
+    it.each(['closed', 'throws'])(
+        'does not offer a retry after an opened popup %s',
+        async (failure) => {
+            const handle = popup();
+            handle.closed = failure === 'closed';
+            if (failure === 'throws')
+                handle.location.replace.mockImplementation(() => {
+                    throw new Error('Navigation failed');
+                });
+            vi.mocked(window.open).mockReturnValue(handle as unknown as Window);
+            await loadPage();
+            fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+            expect(await screen.findByText('Sent to the CLI.')).toBeVisible();
+            expectNoCompletionLink();
+            expect(
+                screen.queryByRole('button', { name: 'Return to the CLI' }),
+            ).not.toBeInTheDocument();
+            expect(handle.location.replace).toHaveBeenCalledTimes(
+                failure === 'closed' ? 0 : 1,
+            );
+        },
+    );
+    it.each(['Approve', 'Cancel'])(
+        'closes the pre-opened tab if %s fails',
+        async (button) => {
+            const handle = popup();
+            vi.mocked(window.open).mockReturnValue(handle as unknown as Window);
+            api.mockResolvedValueOnce(review()).mockRejectedValueOnce(
+                error(500, 'internal_error'),
+            );
+            await loadPage();
+            fireEvent.click(screen.getByRole('button', { name: button }));
+            expect(
+                await screen.findByText('Server explanation.'),
+            ).toBeVisible();
+            expect(handle.close).toHaveBeenCalledOnce();
+            expect(handle.location.replace).not.toHaveBeenCalled();
+            expectNoCompletionLink();
+        },
+    );
 });

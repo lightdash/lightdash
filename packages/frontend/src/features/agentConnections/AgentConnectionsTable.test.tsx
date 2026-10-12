@@ -7,6 +7,7 @@ import {
     waitFor,
     within,
 } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../api';
 import { renderWithProviders } from '../../testing/testUtils';
@@ -26,8 +27,8 @@ const connection = (grantUuid = 'grant-1') => ({
             approvedCapabilities: [AgentCapability.Query],
         },
     ],
-    approvedAt: '2026-10-11T12:00:00Z',
-    expiresAt: '2099-10-12T12:00:00Z',
+    approvedAt: new Date(2026, 9, 11, 12).toISOString(),
+    expiresAt: new Date(2099, 9, 12, 12).toISOString(),
     lastUsedAt: null,
     status: 'active',
     revokedAt: null,
@@ -87,12 +88,7 @@ describe('agent connections table', () => {
         const row = within(expander.closest('tr')!);
         expect(row.getByText('CLI · 1 project · 1 action')).toBeVisible();
         expect(
-            row.getByText(
-                new Date(connection().expiresAt).toLocaleString(undefined, {
-                    dateStyle: 'medium',
-                    timeStyle: 'short',
-                }),
-            ),
+            row.getByText(/^2099-10-12, 12:00 \([+-]\d{2}:\d{2}\)$/),
         ).toBeVisible();
         expect(row.getByText('Never used')).toBeVisible();
         expect(row.queryByText('Query data')).not.toBeInTheDocument();
@@ -115,7 +111,7 @@ describe('agent connections table', () => {
     it('shows approved action badges per project and fetches only the expanded active row restrictions once', async () => {
         const data = {
             ...connection(),
-            lastUsedAt: '2026-10-12T10:30:00Z',
+            lastUsedAt: new Date(2026, 9, 12, 10, 30).toISOString(),
             approvedProjects: [
                 connection().approvedProjects[0],
                 {
@@ -166,10 +162,7 @@ describe('agent connections table', () => {
         expect(screen.getByText('CLI · 2 projects · 2 actions')).toBeVisible();
         expect(
             within(expander.closest('tr')!).getByText(
-                new Date(data.lastUsedAt).toLocaleString(undefined, {
-                    dateStyle: 'medium',
-                    timeStyle: 'short',
-                }),
+                /^2026-10-12, 10:30 \([+-]\d{2}:\d{2}\)$/,
             ),
         ).toBeVisible();
         expect(api).toHaveBeenCalledTimes(1);
@@ -193,21 +186,17 @@ describe('agent connections table', () => {
         }
         expect(
             within(details).getByText(
-                `Approved ${new Date(data.approvedAt).toLocaleString(
-                    undefined,
-                    {
-                        dateStyle: 'medium',
-                        timeStyle: 'short',
-                    },
-                )}`,
+                /^Approved 2026-10-11, 12:00 \([+-]\d{2}:\d{2}\)$/,
             ),
         ).toBeVisible();
         expect(
-            await within(details).findByText('Query data: person_permission'),
+            await within(details).findByRole('button', {
+                name: 'Why Query data is limited',
+            }),
         ).toBeVisible();
-        const restriction = within(details).getByText(
-            'Query data: person_permission',
-        ).parentElement!;
+        const restriction = within(details).getByRole('button', {
+            name: 'Why Query data is limited',
+        }).parentElement!.parentElement!;
         expect(within(restriction).getByText('Development')).toBeVisible();
         expect(
             within(restriction).getByText(
@@ -241,10 +230,82 @@ describe('agent connections table', () => {
         expect(details).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Expand grant-1' }));
         expect(
-            await screen.findByText('Query data: person_permission'),
+            await screen.findByRole('button', {
+                name: 'Why Query data is limited',
+            }),
         ).toBeVisible();
         expect(api).toHaveBeenCalledTimes(2);
     });
+    it.each([
+        [
+            'person_permission',
+            'Your permissions in this project do not allow this action.',
+            true,
+        ],
+        ['agent_policy', 'This action is turned off for agents.', true],
+        ['project_access', 'You no longer have access to this project.', true],
+        [
+            'not_supported',
+            'This action is not available for connections.',
+            false,
+        ],
+        ['agent_identity_disabled', 'Agents are turned off.', false],
+        ['invalid_grant', 'Not available right now.', false],
+        ['revoked', 'Not available right now.', false],
+        ['expired', 'Not available right now.', false],
+        ['future_reason', 'Not available right now.', false],
+        [null, 'Not available right now.', false],
+    ] as const)(
+        'explains %s quietly and only promises restoration for access changes',
+        async (reason, sentence, restorable) => {
+            const data = status();
+            Object.assign(data.effectiveProjects[0].capabilities[0], {
+                reason,
+            });
+            api.mockImplementation(async ({ url }) =>
+                url.endsWith('/status') ? data : [connection()],
+            );
+            renderTable();
+            const expander = await screen.findByRole('button', {
+                name: 'Expand grant-1',
+            });
+            const user = userEvent.setup();
+            await user.hover(expander);
+            expect(await screen.findByRole('tooltip')).toHaveTextContent(
+                'Show details',
+            );
+            await user.unhover(expander);
+            await user.click(expander);
+            await user.hover(expander);
+            expect(await screen.findByRole('tooltip')).toHaveTextContent(
+                'Hide details',
+            );
+            await user.unhover(expander);
+            await waitFor(() =>
+                expect(screen.queryByRole('tooltip')).not.toBeInTheDocument(),
+            );
+            const trigger = await screen.findByRole('button', {
+                name: 'Why Query data is limited',
+            });
+            expect(trigger).toHaveAccessibleDescription(sentence);
+            if (reason) expect(document.body.innerHTML).not.toContain(reason);
+            expect(
+                screen.queryByText('May return if your permissions change.') !==
+                    null,
+            ).toBe(restorable);
+            for (
+                let tabs = 0;
+                tabs < 10 && document.activeElement !== trigger;
+                tabs += 1
+            )
+                await user.tab();
+            expect(trigger).toHaveFocus();
+            expect(await screen.findByRole('tooltip')).toHaveTextContent(
+                sentence,
+            );
+            if (reason) expect(document.body.innerHTML).not.toContain(reason);
+        },
+    );
     it.each([
         ['expired', 'ok', 'Expired'],
         ['revoked', 'ok', 'Revoked'],

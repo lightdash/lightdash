@@ -1,50 +1,24 @@
 import { type ApiError } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
+import { createRequestQueue } from './requestQueue';
 import {
     type AgentConnectionRecord,
     type AgentConnectionStatus,
 } from './types';
 
-let activeStatusRequests = 0;
-const statusQueue: (() => void)[] = [];
-const loadStatus = async (
-    grantUuid: string,
-    signal: AbortSignal | undefined,
-) => {
-    await new Promise<void>((resolve, reject) => {
-        const abort = () => {
-            const index = statusQueue.indexOf(start);
-            if (index >= 0) statusQueue.splice(index, 1);
-            reject(signal?.reason);
-        };
-        const start = () => {
-            signal?.removeEventListener('abort', abort);
-            if (signal?.aborted) {
-                reject(signal.reason);
-                return;
-            }
-            activeStatusRequests += 1;
-            resolve();
-        };
-        if (activeStatusRequests < 4) start();
-        else {
-            statusQueue.push(start);
-            signal?.addEventListener('abort', abort, { once: true });
-        }
-    });
-    try {
-        return await lightdashApi<AgentConnectionStatus>({
-            version: 'v2',
-            url: `/user/agent-connections/${encodeURIComponent(grantUuid)}/status`,
-            method: 'GET',
-            signal,
-        });
-    } finally {
-        activeStatusRequests -= 1;
-        statusQueue.shift()?.();
-    }
-};
+const statusQueue = createRequestQueue();
+const loadStatus = (grantUuid: string, signal: AbortSignal | undefined) =>
+    statusQueue(
+        () =>
+            lightdashApi<AgentConnectionStatus>({
+                version: 'v2',
+                url: `/user/agent-connections/${encodeURIComponent(grantUuid)}/status`,
+                method: 'GET',
+                signal,
+            }),
+        signal,
+    );
 
 export const useAgentConnections = () =>
     useQuery<AgentConnectionRecord[], ApiError>({

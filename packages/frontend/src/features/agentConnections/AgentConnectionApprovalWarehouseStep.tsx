@@ -6,18 +6,21 @@ import {
     type AgentConnectionApprovalProject,
     type AiAccessForUser,
 } from '@lightdash/common';
-import { Paper, Stack, Text } from '@mantine/core';
+import { Loader, Paper, Stack, Text } from '@mantine/core';
+import { useState } from 'react';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import { AiServiceAccountConnectionCard } from '../../components/UserSettings/MyAgentConnectionsPanel/AiServiceAccountConnectionCard';
 import { SnowflakeAgentConnectionCard } from '../../components/UserSettings/MyAgentConnectionsPanel/SnowflakeAgentConnectionCard';
 import { useProjects } from '../../hooks/useProjects';
 import { useUserWarehouseCredentials } from '../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
+import { isSingleConnectionProject } from '../../hooks/useWarehouseConnections';
+import { warehouseStepCopy } from './approvalSelection';
 import {
-    isSingleConnectionProject,
-    useWarehouseConnectionsForUserCredentials,
-} from '../../hooks/useWarehouseConnections';
-import { useMyAiAccess } from '../aiAccess/api';
+    useApprovalWarehouseConnections,
+    useApprovalWarehouseReadiness,
+} from './approvalWarehouseApi';
+import { createRequestQueue, type RequestQueue } from './requestQueue';
 
 const SnowflakeSignIn = ({
     access,
@@ -35,7 +38,7 @@ const SnowflakeSignIn = ({
             />
         );
     if (!credentials.data)
-        return <EmptyStateLoader title="Loading warehouse sign-in" />;
+        return <EmptyStateLoader title={warehouseStepCopy.loadingSignIn} />;
     const credential =
         credentials.data.find(
             (item) =>
@@ -47,7 +50,7 @@ const SnowflakeSignIn = ({
             credential={credential}
             snowflakeConfigured
             projectUuid={projectUuid}
-            signInLabel="Sign in"
+            signInLabel={warehouseStepCopy.signIn}
             statusOverride={
                 access.refusal?.reason === AiAccessRefusalReason.SIGN_IN_EXPIRED
                     ? 'expired'
@@ -63,29 +66,30 @@ const WarehouseReadiness = ({
     connectionUuid,
     name,
     warehouseType,
+    queue,
 }: {
     projectUuid: string;
     connectionUuid: string | null;
     name: string | null;
     warehouseType: WarehouseTypes | undefined;
+    queue: RequestQueue;
 }) => {
-    const access = useMyAiAccess(projectUuid, connectionUuid);
+    const access = useApprovalWarehouseReadiness(
+        projectUuid,
+        connectionUuid,
+        queue,
+    );
     if (access.isError)
         return (
             <InlineErrorState
-                message={
-                    access.error?.error.message ??
-                    'Could not load warehouse sign-in.'
-                }
+                message={access.error?.error.message ?? warehouseStepCopy.error}
                 onRetry={() => void access.refetch()}
             />
         );
     if (!access.data)
-        return <EmptyStateLoader title="Checking warehouse sign-in" />;
+        return <Loader size="xs" aria-label={warehouseStepCopy.checking} />;
     if (!access.data.enabled)
-        return (
-            <Text size="sm">Ask an administrator to set up agent sign-in</Text>
-        );
+        return <Text size="sm">{warehouseStepCopy.administrator}</Text>;
     const refusal = access.data.refusal;
     const canSignIn =
         warehouseType === WarehouseTypes.SNOWFLAKE &&
@@ -105,15 +109,13 @@ const WarehouseReadiness = ({
                             projectUuid={projectUuid}
                         />
                     ) : (
-                        <Text size="sm">
-                            Ask an administrator to set up agent sign-in
-                        </Text>
+                        <Text size="sm">{warehouseStepCopy.administrator}</Text>
                     )}
                 </>
             ) : (
                 <>
                     <Text size="sm" c="green">
-                        Ready
+                        {warehouseStepCopy.ready}
                     </Text>
                     {access.data.source === 'ai_service_account' &&
                         warehouseType && (
@@ -130,12 +132,15 @@ const WarehouseReadiness = ({
 const ProjectWarehouses = ({
     project,
     warehouseType,
+    queue,
 }: {
     project: AgentConnectionApprovalProject;
     warehouseType: WarehouseTypes | undefined;
+    queue: RequestQueue;
 }) => {
-    const connections = useWarehouseConnectionsForUserCredentials(
+    const connections = useApprovalWarehouseConnections(
         project.projectUuid,
+        queue,
     );
     const singleConnection = isSingleConnectionProject(connections.error);
     return (
@@ -143,12 +148,10 @@ const ProjectWarehouses = ({
             <Stack gap="sm">
                 <Text fw={500}>{project.name}</Text>
                 {connections.isInitialLoading ? (
-                    <EmptyStateLoader title="Loading warehouse sign-ins" />
+                    <Loader size="xs" aria-label={warehouseStepCopy.loading} />
                 ) : connections.isError && !singleConnection ? (
                     <>
-                        <Text size="sm">
-                            Ask an administrator to set up agent sign-in
-                        </Text>
+                        <Text size="sm">{warehouseStepCopy.administrator}</Text>
                         <InlineErrorState
                             message={connections.error.error.message}
                             onRetry={() => void connections.refetch()}
@@ -156,6 +159,7 @@ const ProjectWarehouses = ({
                     </>
                 ) : singleConnection ? (
                     <WarehouseReadiness
+                        queue={queue}
                         projectUuid={project.projectUuid}
                         connectionUuid={null}
                         name={null}
@@ -164,6 +168,7 @@ const ProjectWarehouses = ({
                 ) : connections.data?.length ? (
                     connections.data.map((connection) => (
                         <WarehouseReadiness
+                            queue={queue}
                             key={connection.warehouseConnectionUuid}
                             projectUuid={project.projectUuid}
                             connectionUuid={
@@ -178,9 +183,7 @@ const ProjectWarehouses = ({
                         />
                     ))
                 ) : (
-                    <Text size="sm">
-                        Ask an administrator to set up agent sign-in
-                    </Text>
+                    <Text size="sm">{warehouseStepCopy.administrator}</Text>
                 )}
             </Stack>
         </Paper>
@@ -192,6 +195,7 @@ export const AgentConnectionApprovalWarehouseStep = ({
 }: {
     projects: AgentConnectionApprovalProject[];
 }) => {
+    const [queue] = useState(createRequestQueue);
     const visibleProjects = useProjects();
     if (visibleProjects.isError)
         return (
@@ -201,11 +205,12 @@ export const AgentConnectionApprovalWarehouseStep = ({
             />
         );
     if (!visibleProjects.data)
-        return <EmptyStateLoader title="Loading warehouse sign-ins" />;
+        return <EmptyStateLoader title={warehouseStepCopy.loading} />;
     return (
         <Stack>
             {projects.map((project) => (
                 <ProjectWarehouses
+                    queue={queue}
                     key={project.projectUuid}
                     project={project}
                     warehouseType={

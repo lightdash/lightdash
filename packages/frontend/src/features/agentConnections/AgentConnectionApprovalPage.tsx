@@ -33,6 +33,7 @@ import {
     type ApprovalCompletionState,
 } from './ApprovalCompletion';
 import { approvalDuration, getApprovalActions } from './approvalSelection';
+import { openCompletionTab, navigateCompletionTab } from './completionDelivery';
 
 type ApprovalError = ApiError | AgentConnectionApprovalErrorResponse;
 const isTerminal = (failure: ApprovalError | null) =>
@@ -91,8 +92,7 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
         submitting.current = true;
         setPending(true);
         setFailure(null);
-        const popup = window.open('', '_blank');
-        if (popup) popup.opener = null;
+        const popup = openCompletionTab();
         try {
             const result = await lightdashApi<
                 AgentConnectionApprovalDecisionResponse['results']
@@ -114,20 +114,11 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
                     capabilities: decision === 'approve' ? capabilities : [],
                 } satisfies AgentConnectionApprovalDecision),
             });
-            let delivered = false;
-            if (popup && !popup.closed) {
-                try {
-                    popup.location.replace(result.completionUrl);
-                    delivered = true;
-                } catch {
-                    popup.close();
-                }
-            }
+            if (popup) navigateCompletionTab(popup, result.completionUrl);
             setCompletion({
                 decision,
                 completionUrl: result.completionUrl,
-                popup,
-                delivered,
+                attempted: popup !== null,
                 projects: selectedProjects,
                 notice: review.notice,
             });
@@ -136,7 +127,9 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
             const apiError = caught as ApprovalError;
             const details =
                 apiError.error as AgentConnectionApprovalErrorResponse['error'];
-            if (
+            if (apiError.error.statusCode === 401) {
+                await client.invalidateQueries(['health']);
+            } else if (
                 details.code === 'approval_selection_changed' ||
                 details.code === 'csrf_failed'
             ) {

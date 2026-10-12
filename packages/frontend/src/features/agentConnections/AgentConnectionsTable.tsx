@@ -1,4 +1,8 @@
-import { getAgentCapabilityName } from '@lightdash/common';
+import {
+    formatTimestamp,
+    TimeFrames,
+    getAgentCapabilityName,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -7,20 +11,26 @@ import {
     Stack,
     Table,
     Text,
+    Tooltip,
+    VisuallyHidden,
 } from '@mantine/core';
 import {
+    IconInfoCircle,
     IconChevronDown,
     IconChevronRight,
     IconPlugConnected,
 } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import MantineIcon from '../../components/common/MantineIcon';
 import { SettingsEmptyState } from '../../components/common/Settings/SettingsEmptyState';
 import { useAgentConnections, useAgentConnectionStatus } from './api';
 import { RevokeAgentConnectionModal } from './RevokeAgentConnectionModal';
-import { type AgentConnectionRecord } from './types';
+import {
+    type AgentConnectionRecord,
+    type AgentConnectionStatus,
+} from './types';
 
 const statusLabels = {
     active: 'Active',
@@ -28,12 +38,125 @@ const statusLabels = {
     revoked: 'Revoked',
 } as const;
 const displayDate = (value: string) =>
-    new Date(value).toLocaleString(undefined, {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-    });
+    formatTimestamp(value, TimeFrames.MINUTE);
+const restrictionReasons = new Map([
+    [
+        'person_permission',
+        'Your permissions in this project do not allow this action.',
+    ],
+    ['agent_policy', 'This action is turned off for agents.'],
+    ['project_access', 'You no longer have access to this project.'],
+    ['not_supported', 'This action is not available for connections.'],
+    ['agent_identity_disabled', 'Agents are turned off.'],
+]);
+const restorableReasons = new Set([
+    'person_permission',
+    'agent_policy',
+    'project_access',
+]);
+type EffectiveProject = AgentConnectionStatus['effectiveProjects'][number];
+
+const RestrictedAction = ({
+    action,
+}: {
+    action: EffectiveProject['capabilities'][number];
+}) => {
+    const descriptionId = useId();
+    const reason =
+        restrictionReasons.get(action.reason ?? '') ??
+        'Not available right now.';
+    const name = getAgentCapabilityName(action.capability);
+    return (
+        <Group gap="xs">
+            <Text size="sm">{name}</Text>
+            <Tooltip
+                label={reason}
+                events={{ hover: true, focus: true, touch: false }}
+                multiline
+                maw={320}
+            >
+                <ActionIcon
+                    size="xs"
+                    aria-label={`Why ${name} is limited`}
+                    aria-describedby={descriptionId}
+                >
+                    <MantineIcon
+                        icon={IconInfoCircle}
+                        color="dimmed"
+                        aria-hidden
+                    />
+                </ActionIcon>
+            </Tooltip>
+            <VisuallyHidden id={descriptionId}>{reason}</VisuallyHidden>
+        </Group>
+    );
+};
+
+const ProjectRestrictions = ({
+    project,
+    approved,
+}: {
+    project: EffectiveProject;
+    approved: AgentConnectionRecord['approvedProjects'][number] | undefined;
+}) => {
+    const approvedCapabilities = new Set(approved?.approvedCapabilities);
+    const restricted = project.capabilities.filter(
+        (action) =>
+            !action.allowed && approvedCapabilities.has(action.capability),
+    );
+    if (!restricted.length) return null;
+    return (
+        <Stack gap="xs">
+            <Text fw={500}>
+                {approved?.name ?? 'Project no longer available'}
+            </Text>
+            {restricted.map((action) => (
+                <RestrictedAction key={action.capability} action={action} />
+            ))}
+            {restricted.some((action) =>
+                restorableReasons.has(action.reason ?? ''),
+            ) && (
+                <Text size="xs" c="dimmed">
+                    May return if your permissions change.
+                </Text>
+            )}
+        </Stack>
+    );
+};
 const count = (value: number, noun: string) =>
     `${value} ${noun}${value === 1 ? '' : 's'}`;
+
+const ConnectionRestrictions = ({
+    status,
+    connection,
+}: {
+    status: ReturnType<typeof useAgentConnectionStatus>;
+    connection: AgentConnectionRecord;
+}) => {
+    if (status.isError)
+        return (
+            <InlineErrorState
+                message={status.error.error.message}
+                onRetry={() => void status.refetch()}
+            />
+        );
+    if (status.isInitialLoading)
+        return <EmptyStateLoader title="Checking restrictions" />;
+    if (!status.data) return null;
+    return (
+        <Stack gap="sm">
+            {status.data.effectiveProjects.map((project) => (
+                <ProjectRestrictions
+                    key={project.projectUuid}
+                    project={project}
+                    approved={connection.approvedProjects.find(
+                        (item) => item.projectUuid === project.projectUuid,
+                    )}
+                />
+            ))}
+        </Stack>
+    );
+};
 
 const ConnectionRow = ({
     connection,
@@ -60,22 +183,26 @@ const ConnectionRow = ({
             <Table.Tr>
                 <Table.Td>
                     <Group gap="xs" wrap="nowrap">
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            aria-label={`${expanded ? 'Collapse' : 'Expand'} ${connection.name}`}
-                            aria-expanded={expanded}
-                            aria-controls={`restrictions-${connection.grantUuid}`}
-                            onClick={() => setExpanded((value) => !value)}
+                        <Tooltip
+                            label={expanded ? 'Hide details' : 'Show details'}
+                            events={{ hover: true, focus: true, touch: false }}
                         >
-                            <MantineIcon
-                                icon={
-                                    expanded
-                                        ? IconChevronDown
-                                        : IconChevronRight
-                                }
-                            />
-                        </ActionIcon>
+                            <ActionIcon
+                                variant="subtle"
+                                aria-label={`${expanded ? 'Collapse' : 'Expand'} ${connection.name}`}
+                                aria-expanded={expanded}
+                                aria-controls={`restrictions-${connection.grantUuid}`}
+                                onClick={() => setExpanded((value) => !value)}
+                            >
+                                <MantineIcon
+                                    icon={
+                                        expanded
+                                            ? IconChevronDown
+                                            : IconChevronRight
+                                    }
+                                />
+                            </ActionIcon>
+                        </Tooltip>
                         <Stack gap={0}>
                             <Text fw={500}>{connection.name}</Text>
                             <Text size="xs" c="dimmed">
@@ -151,98 +278,12 @@ const ConnectionRow = ({
                                 Approved {displayDate(connection.approvedAt)}
                             </Text>
                         </Stack>
-                        {active &&
-                            (status.isError ? (
-                                <InlineErrorState
-                                    message={status.error.error.message}
-                                    onRetry={() => void status.refetch()}
-                                />
-                            ) : status.isInitialLoading ? (
-                                <EmptyStateLoader title="Checking restrictions" />
-                            ) : (
-                                status.data && (
-                                    <Stack gap="sm">
-                                        {status.data.effectiveProjects.map(
-                                            (project) => {
-                                                const approved =
-                                                    connection.approvedProjects.find(
-                                                        (item) =>
-                                                            item.projectUuid ===
-                                                            project.projectUuid,
-                                                    );
-                                                const approvedCapabilities =
-                                                    new Set(
-                                                        approved?.approvedCapabilities,
-                                                    );
-                                                const restricted =
-                                                    project.capabilities.filter(
-                                                        (capability) =>
-                                                            !capability.allowed &&
-                                                            approvedCapabilities.has(
-                                                                capability.capability,
-                                                            ),
-                                                    );
-                                                if (!restricted.length)
-                                                    return null;
-                                                return (
-                                                    <Stack
-                                                        key={
-                                                            project.projectUuid
-                                                        }
-                                                        gap="xs"
-                                                    >
-                                                        <Text fw={500}>
-                                                            {approved?.name ??
-                                                                'Project no longer available'}
-                                                        </Text>
-                                                        {restricted.length ? (
-                                                            <>
-                                                                {restricted.map(
-                                                                    (
-                                                                        capability,
-                                                                    ) => (
-                                                                        <Text
-                                                                            key={
-                                                                                capability.capability
-                                                                            }
-                                                                            size="sm"
-                                                                        >
-                                                                            {getAgentCapabilityName(
-                                                                                capability.capability,
-                                                                            )}
-                                                                            :{' '}
-                                                                            {
-                                                                                capability.reason
-                                                                            }
-                                                                        </Text>
-                                                                    ),
-                                                                )}
-                                                                <Text
-                                                                    size="xs"
-                                                                    c="dimmed"
-                                                                >
-                                                                    May return
-                                                                    if your
-                                                                    permissions
-                                                                    change.
-                                                                </Text>
-                                                            </>
-                                                        ) : (
-                                                            <Text
-                                                                size="sm"
-                                                                c="dimmed"
-                                                            >
-                                                                No current
-                                                                restrictions
-                                                            </Text>
-                                                        )}
-                                                    </Stack>
-                                                );
-                                            },
-                                        )}
-                                    </Stack>
-                                )
-                            ))}
+                        {active && (
+                            <ConnectionRestrictions
+                                status={status}
+                                connection={connection}
+                            />
+                        )}
                     </Table.Td>
                 </Table.Tr>
             )}

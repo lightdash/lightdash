@@ -10,7 +10,7 @@ import {
 import { Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import nock from 'nock';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -47,6 +47,7 @@ const renderSettings = (
     agentIdentityEnabled: boolean | null = false,
     aiSettings = { isCopilotEnabled: false, isTrial: false },
     seedAdminSettings = true,
+    cold = false,
 ) => {
     const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false, staleTime: Infinity } },
@@ -123,7 +124,8 @@ const renderSettings = (
             },
         });
 
-    return renderWithProviders(
+    if (cold) queryClient.clear();
+    const result = renderWithProviders(
         <QueryClientProvider client={queryClient}>
             <MemoryRouter initialEntries={[initialPath]}>
                 <Location />
@@ -140,6 +142,7 @@ const renderSettings = (
             user,
         },
     );
+    return { ...result, queryClient };
 };
 
 const viewProject = {
@@ -699,23 +702,81 @@ describe('agent connections flag-off baseline', () => {
         viewport.restore();
         vi.restoreAllMocks();
     });
+    const observeFetches = () => {
+        const fetch = globalThis.fetch;
+        const requests: string[] = [];
+        let pending = 0;
+        vi.spyOn(globalThis, 'fetch').mockImplementation(
+            async (input, init) => {
+                const request = input instanceof Request ? input : null;
+                const url = new URL(request?.url ?? String(input));
+                requests.push(
+                    `${init?.method ?? request?.method ?? 'GET'} ${url.pathname}${url.search}`,
+                );
+                pending += 1;
+                try {
+                    return await fetch(input, init);
+                } finally {
+                    pending -= 1;
+                }
+            },
+        );
+        return { requests, pending: () => pending };
+    };
+    const normalizeDom = (container: HTMLElement) =>
+        container.innerHTML
+            .replace(/<style[\s\S]*?<\/style>/g, '')
+            .replace(/id="[^"]*"/g, 'id="ID"')
+            .replace(/mantine-[a-z0-9]{8,}/g, 'mantine-ID')
+            .replace(/__m__-_r_[a-z0-9]+_/g, '__m__-ID');
+    const mockProfile = () => {
+        nock(BASE_API_URL)
+            .get('/api/v1/org/users')
+            .optionally()
+            .reply(200, { status: 'ok', results: { data: [] } });
+        nock(BASE_API_URL)
+            .get('/api/v1/user/me/email/status')
+            .reply(200, { status: 'ok', results: { isVerified: true } });
+    };
+    const expectSettled = async (
+        client: QueryClient,
+        pending: () => number,
+    ) => {
+        await screen.findByRole('heading', { name: 'Profile' });
+        await waitFor(() => {
+            expect(
+                client.getQueryData([
+                    'feature-flag',
+                    FeatureFlags.AgentIdentity,
+                ]),
+            ).toMatchObject({ enabled: false });
+            expect(client.isFetching()).toBe(0);
+            expect(pending()).toBe(0);
+        });
+        await act(async () => {});
+        expect(client.isFetching()).toBe(0);
+        expect(pending()).toBe(0);
+        expect(screen.queryByText('My agent identity')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('tab', { name: 'Agent connections' }),
+        ).not.toBeInTheDocument();
+    };
     it.each([false, null])(
-        'preserves the disabled settings page with flag %s',
+        'preserves the full settings lifecycle with initial flag %s',
         async (enabled) => {
-            const fetchSpy = vi.spyOn(globalThis, 'fetch');
-            nock(BASE_API_URL)
-                .get('/api/v1/org/users')
-                .optionally()
-                .reply(200, { status: 'ok', results: [] });
-            nock(BASE_API_URL)
-                .get('/api/v1/user/me/email/status')
-                .optionally()
-                .reply(200, { status: 'ok', results: { isVerified: true } });
+            const observed = observeFetches();
+            mockProfile();
+            let releaseFlag!: () => void;
             if (enabled === null)
                 nock(BASE_API_URL)
                     .get('/api/v2/feature-flag/agent-identity')
-                    .delay(5000)
-                    .reply(200, { status: 'ok', results: { enabled: false } });
+                    .reply((_uri, _body, callback) => {
+                        releaseFlag = () =>
+                            callback(null, [
+                                200,
+                                { status: 'ok', results: { enabled: false } },
+                            ]);
+                    });
             const result = renderSettings(
                 '',
                 [viewProject],
@@ -723,27 +784,113 @@ describe('agent connections flag-off baseline', () => {
                 '/generalSettings/myAgentConnections',
                 enabled,
             );
-            await waitFor(() =>
-                expect(fetchSpy.mock.calls.length).toBeGreaterThan(0),
+            if (enabled === null) {
+                await waitFor(() => {
+                    expect(releaseFlag).toBeDefined();
+                    expect(result.queryClient.isFetching()).toBe(1);
+                    expect(observed.pending()).toBe(1);
+                    expect(
+                        result.queryClient.getQueryData(['account']),
+                    ).toBeDefined();
+                });
+                expect([...observed.requests].sort()).toEqual(
+                    loadingBaseline.requests,
+                );
+                expect(normalizeDom(result.container)).toEqual(
+                    loadingBaseline.dom,
+                );
+                await act(async () => releaseFlag());
+            }
+            await expectSettled(result.queryClient, observed.pending);
+            expect([...observed.requests].sort()).toEqual(
+                [
+                    ...flagOffBaseline.requests,
+                    ...(enabled === null
+                        ? ['GET /api/v2/feature-flag/agent-identity']
+                        : []),
+                ].sort(),
             );
-            await new Promise((resolve) => setTimeout(resolve, 100));
-            const requests = fetchSpy.mock.calls
-                .map(
-                    ([url, init]) =>
-                        `${init?.method ?? 'GET'} ${new URL(String(url)).pathname}`,
-                )
-                .sort();
-            const baseline =
-                enabled === null ? loadingBaseline : flagOffBaseline;
-            expect(requests).toEqual(baseline.requests);
-            const dom = result.container.innerHTML
-                .replace(/<style[\s\S]*?<\/style>/g, '')
-                .replace(/id="[^"]*"/g, 'id="ID"')
-                .replace(/mantine-[a-z0-9]{8,}/g, 'mantine-ID')
-                .replace(/__m__-_r_[a-z0-9]+_/g, '__m__-ID');
-            expect(dom).toEqual(baseline.dom);
+            expect(normalizeDom(result.container)).toEqual(flagOffBaseline.dom);
+            result.unmount();
+            expect(observed.pending()).toBe(0);
         },
     );
+    it('makes no agent data request on a cold profile route with the flag false', async () => {
+        const observed = observeFetches();
+        mockProfile();
+        nock(BASE_API_URL)
+            .persist()
+            .get(/\/api\/v2\/feature-flag\//)
+            .reply(200, (uri) => ({
+                status: 'ok',
+                results: { id: uri.split('/').at(-1), enabled: false },
+            }));
+        nock(BASE_API_URL)
+            .get('/api/v1/org')
+            .reply(200, {
+                status: 'ok',
+                results: {
+                    organizationUuid: 'org',
+                    name: 'Test organization',
+                    defaultProjectUuid: projectUuid,
+                },
+            });
+        nock(BASE_API_URL)
+            .get('/api/v1/org/projects')
+            .reply(200, { status: 'ok', results: [] });
+        nock(BASE_API_URL)
+            .get(`/api/v1/projects/${projectUuid}`)
+            .reply(200, {
+                status: 'ok',
+                results: {
+                    ...scope,
+                    name: 'Test project',
+                    type: ProjectType.DEFAULT,
+                    dbtConnection: { type: DbtProjectType.NONE },
+                },
+            });
+        nock(BASE_API_URL)
+            .get('/api/v1/aiAgents/settings')
+            .reply(200, {
+                status: 'ok',
+                results: { isCopilotEnabled: false, isTrial: false },
+            });
+        const result = renderSettings(
+            '',
+            [viewProject],
+            true,
+            '/generalSettings/profile',
+            null,
+            undefined,
+            true,
+            true,
+        );
+        await expectSettled(result.queryClient, observed.pending);
+        expect(
+            result.queryClient
+                .getQueryCache()
+                .getAll()
+                .filter((query) => query.state.status === 'error')
+                .map((query) => ({
+                    key: query.queryKey,
+                    error: query.state.error,
+                })),
+        ).toEqual([]);
+        expect(observed.requests).toContain(
+            'GET /api/v2/feature-flag/agent-identity',
+        );
+        expect(
+            observed.requests
+                .filter((request) => !request.includes('/feature-flag/'))
+                .filter((request) =>
+                    /agent-connections|agent-identity|ai-access|warehouse.*[Cc]redentials|warehouse-connection-user-credentials/.test(
+                        request,
+                    ),
+                ),
+        ).toEqual([]);
+        result.unmount();
+        expect(observed.pending()).toBe(0);
+    });
 });
 
 describe('agent identity tabs', () => {

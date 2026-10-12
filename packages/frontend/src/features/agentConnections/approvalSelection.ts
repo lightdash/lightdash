@@ -13,7 +13,13 @@ export const getApprovalActions = (
             );
             return answer ? [{ project, answer }] : [];
         });
-        if (!entries.some(({ answer }) => answer.visibility !== 'hidden'))
+        if (
+            !entries.some(
+                ({ answer }) =>
+                    answer.visibility === 'offered' ||
+                    answer.visibility === 'blocked',
+            )
+        )
             return [];
         return [
             {
@@ -55,3 +61,20 @@ export const warehouseStepMessage = (notice: string | null) =>
     notice
         ? 'No connection was created. You can still set up warehouse sign-ins for later.'
         : 'Your connection is saved. Sign in to run queries on these warehouses.';
+
+export const warehouseStepCopy = {
+    heading: 'Connect your warehouses',
+    cancelledHeading: 'Approval cancelled',
+    cancelledMessage: 'No connection was created.',
+    sent: 'Sent to the CLI.',
+    returnToCli: 'Return to the CLI',
+    defer: 'Do this later',
+    deferTo: '/generalSettings/myAgentConnections',
+    loading: 'Loading warehouse sign-ins',
+    loadingSignIn: 'Loading warehouse sign-in',
+    checking: 'Checking warehouse sign-in',
+    error: 'Could not load warehouse sign-in.',
+    administrator: 'Ask an administrator to set up agent sign-in',
+    ready: 'Ready',
+    signIn: 'Sign in',
+} as const;
