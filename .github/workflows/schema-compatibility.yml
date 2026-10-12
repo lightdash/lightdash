@@ -152,6 +152,9 @@ jobs:
         run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
       - name: Build packages
         run: pnpm exec turbo run build --filter=backend^...
+      # Tests that call the API through its registered routes need this pull request's routes.
+      - name: Generate API routes
+        run: pnpm -F backend generate-api
       - name: Migrate and seed with this pull request
         run: ./scripts/n-minus-one.sh --prepare-only --database lightdash
         env:

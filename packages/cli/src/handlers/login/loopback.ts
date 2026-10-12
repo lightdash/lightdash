@@ -1,6 +1,21 @@
 import { createServer, type RequestListener, type Server } from 'http';
 
 export type ConnectionCallback = { code: string; grantUuid: string | null };
+export class ConnectionCallbackError extends Error {
+    readonly code:
+        | 'agent_connections_unavailable'
+        | 'agent_identity_disabled'
+        | null;
+
+    constructor(code: string) {
+        super('Agent connection approval was denied. No credential was saved.');
+        this.code =
+            code === 'agent_connections_unavailable' ||
+            code === 'agent_identity_disabled'
+                ? code
+                : null;
+    }
+}
 export const createConnectionLoopback = async ({
     port,
     state,
@@ -74,12 +89,7 @@ export const createConnectionLoopback = async ({
             'Cache-Control': 'no-store',
         });
         res.end('You can return to the CLI.');
-        if (error !== null)
-            rejectResult(
-                new Error(
-                    'Agent connection approval was denied. No credential was saved.',
-                ),
-            );
+        if (error !== null) rejectResult(new ConnectionCallbackError(error));
         else
             resolveResult({ code: code!, grantUuid: params.get('grant_uuid') });
     };

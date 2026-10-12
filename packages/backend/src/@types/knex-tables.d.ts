@@ -9,6 +9,10 @@ import {
     AgentSystemRoleCapabilitiesTableName,
 } from '../database/entities/agentCapabilityPolicies';
 import {
+    AgentConnectionApprovalRequestsTable,
+    AgentConnectionApprovalRequestsTableName,
+} from '../database/entities/agentConnectionApprovalRequests';
+import {
     AgentConnectionGrantsTable,
     AgentConnectionGrantsTableName,
 } from '../database/entities/agentConnectionGrants';
@@ -750,6 +754,7 @@ declare module 'knex/types/tables' {
     interface Tables {
         [AgentCapabilityPoliciesTableName]: AgentCapabilityPoliciesTable;
         [AgentConnectionGrantsTableName]: AgentConnectionGrantsTable;
+        [AgentConnectionApprovalRequestsTableName]: AgentConnectionApprovalRequestsTable;
         [AgentSystemRoleCapabilitiesTableName]: AgentSystemRoleCapabilitiesTable;
         [AgentActionLogTableName]: AgentActionLogTable;
         [CredentialBindingsTableName]: CredentialBindingsTable;

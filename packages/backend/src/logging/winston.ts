@@ -314,12 +314,16 @@ declare global {
 }
 
 export const sanitizeRequestUrl = (url: string): string => {
-    const queryStart = url.indexOf('?');
-    if (queryStart === -1) return url;
-    const fragmentStart = url.indexOf('#');
-    if (fragmentStart !== -1 && fragmentStart < queryStart) return url;
-    const queryEnd = fragmentStart === -1 ? url.length : fragmentStart;
-    const query = url.slice(queryStart + 1, queryEnd);
+    const sanitizedUrl = url.replace(
+        /^((?:\/[^/?#]+)*\/api\/v2\/user\/agent-connections\/requests\/)[^/?#]+((?:\/(?:decision|completion))?\/?)(?=[?#]|$)/i,
+        '$1[REDACTED]$2',
+    );
+    const queryStart = sanitizedUrl.indexOf('?');
+    if (queryStart === -1) return sanitizedUrl;
+    const fragmentStart = sanitizedUrl.indexOf('#');
+    if (fragmentStart !== -1 && fragmentStart < queryStart) return sanitizedUrl;
+    const queryEnd = fragmentStart === -1 ? sanitizedUrl.length : fragmentStart;
+    const query = sanitizedUrl.slice(queryStart + 1, queryEnd);
     const sanitized = query.split('&').map((pair) => {
         const separator = pair.indexOf('=');
         if (separator === -1) return pair;
@@ -340,6 +344,7 @@ export const sanitizeRequestUrl = (url: string): string => {
                     'state',
                     'access_token',
                     'refresh_token',
+                    'agent_request',
                 ].includes(name),
             )
         ) {
@@ -347,7 +352,7 @@ export const sanitizeRequestUrl = (url: string): string => {
         }
         return pair;
     });
-    return `${url.slice(0, queryStart + 1)}${sanitized.join('&')}${url.slice(queryEnd)}`;
+    return `${sanitizedUrl.slice(0, queryStart + 1)}${sanitized.join('&')}${sanitizedUrl.slice(queryEnd)}`;
 };
 
 const safeRequestHeaderNames = new Set([

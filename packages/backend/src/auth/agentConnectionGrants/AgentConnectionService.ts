@@ -3,7 +3,6 @@ import {
     AGENT_CONNECTION_GRANT_CONTRACT_VERSION,
     AgentActorSurface,
     AgentCapability,
-    assertUnreachable,
     ForbiddenError,
     NotFoundError,
     type AgentConnectionGrant,
@@ -20,6 +19,7 @@ import { BaseService } from '../../services/BaseService';
 import { fromSession } from '../account/account';
 import { agentConnectionGrantEnabled } from './oauthGrantBinding';
 import { supportsAgentConnectionCapability } from './operationContracts';
+import { personAllowsAgentCapability } from './personAllowsAgentCapability';
 import { parseGrantResourceConstraints } from './resourceConstraints';
 
 export type AgentConnectionRecord = {
@@ -238,132 +238,6 @@ export class AgentConnectionService extends BaseService {
         return record;
     }
 
-    private personAllowsCapability(
-        account: RegisteredAccount,
-        projectUuid: UUID,
-        capability: AgentCapability,
-    ): boolean {
-        const ability = this.createAuditedAbility(account);
-        const resource = {
-            organizationUuid: account.organization.organizationUuid!,
-            projectUuid,
-        };
-        const content = {
-            ...resource,
-            inheritsFromOrgOrProject: true,
-            access: [],
-        };
-        switch (capability) {
-            case AgentCapability.ReadDiscover:
-                return ability.can('view', subject('Project', { ...resource }));
-            case AgentCapability.Query:
-                return ability.can('view', subject('Explore', { ...resource }));
-            case AgentCapability.RawSql:
-                return ability.can(
-                    'manage',
-                    subject('SqlRunner', { ...resource }),
-                );
-            case AgentCapability.ContentWrite:
-                return (
-                    ability.can(
-                        'create',
-                        subject('SavedChart', { ...content }),
-                    ) ||
-                    ability.can(
-                        'create',
-                        subject('Dashboard', { ...content }),
-                    ) ||
-                    ability.can(
-                        'create',
-                        subject('Document', { ...content }),
-                    ) ||
-                    ability.can('create', subject('DataApp', { ...content }))
-                );
-            case AgentCapability.Delete:
-                return (
-                    ability.can(
-                        'delete',
-                        subject('SavedChart', { ...content }),
-                    ) ||
-                    ability.can(
-                        'delete',
-                        subject('Dashboard', { ...content }),
-                    ) ||
-                    ability.can(
-                        'delete',
-                        subject('Document', { ...content }),
-                    ) ||
-                    ability.can('delete', subject('DataApp', { ...content }))
-                );
-            case AgentCapability.Publish:
-                return (
-                    ability.can(
-                        'promote',
-                        subject('SavedChart', { ...content }),
-                    ) ||
-                    ability.can(
-                        'promote',
-                        subject('Dashboard', { ...content }),
-                    ) ||
-                    ability.can(
-                        'manage',
-                        subject('ContentVerification', { ...resource }),
-                    ) ||
-                    ability.can(
-                        'create',
-                        subject('ScheduledDeliveries', { ...resource }),
-                    )
-                );
-            case AgentCapability.DeployUpload:
-                return (
-                    ability.can(
-                        'manage',
-                        subject('DeployProject', { ...resource }),
-                    ) ||
-                    ability.can(
-                        'manage',
-                        subject('CompileProject', { ...resource }),
-                    )
-                );
-            case AgentCapability.DbtWriteback:
-                return ability.can(
-                    'manage',
-                    subject('SourceCode', {
-                        ...resource,
-                        isProtectedBranch: false,
-                    }),
-                );
-            case AgentCapability.Export:
-                return ability.can(
-                    'manage',
-                    subject('ExportCsv', { ...resource }),
-                );
-            case AgentCapability.Administration:
-                return (
-                    ability.can(
-                        'manage',
-                        subject('Project', { ...resource }),
-                    ) ||
-                    ability.can(
-                        'manage',
-                        subject('Organization', {
-                            organizationUuid: resource.organizationUuid,
-                        }),
-                    )
-                );
-            case AgentCapability.ExternalTools:
-                return ability.can(
-                    'view',
-                    subject('ExternalConnection', { ...resource }),
-                );
-            default:
-                return assertUnreachable(
-                    capability,
-                    'Unknown agent capability',
-                );
-        }
-    }
-
     async status(
         account: RegisteredAccount,
         grantUuid: UUID,
@@ -406,8 +280,9 @@ export class AgentConnectionService extends BaseService {
                         )
                             reason = 'project_access';
                         else if (
-                            !this.personAllowsCapability(
-                                person,
+                            !personAllowsAgentCapability(
+                                this.createAuditedAbility(person),
+                                person.organization.organizationUuid!,
                                 project.projectUuid,
                                 capability,
                             )

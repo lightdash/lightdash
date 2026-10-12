@@ -2521,6 +2521,48 @@ export class ProjectModel {
         };
     }
 
+    async getSummaries(projectUuids: string[]): Promise<ProjectSummary[]> {
+        const projects = await this.database(ProjectTableName)
+            .leftJoin(
+                OrganizationTableName,
+                'projects.organization_id',
+                'organizations.organization_id',
+            )
+            .select<
+                (Pick<
+                    DbProject,
+                    | 'name'
+                    | 'project_uuid'
+                    | 'slug'
+                    | 'project_type'
+                    | 'copied_from_project_uuid'
+                    | 'created_by_user_uuid'
+                    | 'provisioning_source'
+                > &
+                    Pick<DbOrganization, 'organization_uuid'>)[]
+            >([
+                `${ProjectTableName}.name`,
+                `${ProjectTableName}.project_uuid`,
+                `${ProjectTableName}.slug`,
+                `${OrganizationTableName}.organization_uuid`,
+                `${ProjectTableName}.copied_from_project_uuid`,
+                `${ProjectTableName}.project_type`,
+                `${ProjectTableName}.created_by_user_uuid`,
+                `${ProjectTableName}.provisioning_source`,
+            ])
+            .whereIn('projects.project_uuid', projectUuids);
+        return projects.map((project) => ({
+            organizationUuid: project.organization_uuid,
+            projectUuid: project.project_uuid,
+            slug: project.slug,
+            name: project.name,
+            type: project.project_type,
+            upstreamProjectUuid: project.copied_from_project_uuid || undefined,
+            createdByUserUuid: project.created_by_user_uuid,
+            provisioningSource: project.provisioning_source,
+        }));
+    }
+
     async getUuidBySlug(
         organizationUuid: string,
         projectSlug: string,

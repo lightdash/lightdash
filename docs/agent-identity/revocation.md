@@ -233,6 +233,26 @@ Not promised:
   issued. How long such a token stays valid is up to the warehouse.
 - Revoking a grant removes no warehouse credential.
 
+A person can prepare a CLI approval request with a session or personal access
+token at `POST /api/v2/user/agent-connections/requests` when `agent-identity`
+is enabled for the person and organisation. This stores only a pending request.
+The opaque authorize URL hands the browser to `/agent/connection-approval`;
+this preparation flow creates no grant, authorization code or token.
+
+The same person can review the request in a browser session at
+`GET /api/v2/user/agent-connections/requests/{requestUuid}`. The response says
+"Review only. No connection will be created." A decision at
+`POST /api/v2/user/agent-connections/requests/{requestUuid}/decision` records
+approval or denial once. Approval records only the reviewed selection.
+It creates no grant, authorization code or token.
+
+`GET /api/v2/user/agent-connections/requests/{requestUuid}/completion` returns
+the same browser session to the stored loopback URI once. Approval returns
+`error=agent_connections_unavailable`; denial returns `error=access_denied`.
+Both include the original state and instance issuer. Neither includes a code.
+A reviewed request cannot later become a grant. A new connection needs a new
+request and review.
+
 ## 5. Wider permissions
 
 A grant stores what the person approved: capabilities, projects and resource

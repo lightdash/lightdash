@@ -41,6 +41,11 @@ import {
 import { recordAgentRefusal } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
 import {
+    evaluateAgentPermissionOperations,
+    type AgentPermissionBulkArgs,
+    type AgentPermissionBulkLoaders,
+} from './agentPermissionBulkEvaluation';
+import {
     agentPermissionChecks,
     permissionBlockers,
     permissionRefusal,
@@ -574,6 +579,38 @@ export class AgentPermissionService extends BaseService {
             readChecks,
             requiredCapabilities: [...(requiredCapabilities ?? [])],
         };
+    }
+
+    async evaluateOperations(
+        args: AgentPermissionBulkArgs,
+        loaders: AgentPermissionBulkLoaders,
+    ): Promise<(AgentPermissionCheck | null)[]> {
+        // The bulk loaders must be the models the single check reads from.
+        if (
+            !Object.is(loaders.userModel, this.deps.userModel) ||
+            !Object.is(loaders.projectModel, this.deps.projectModel)
+        )
+            throw new Error(
+                'Bulk agent permission loaders must be the models this service uses.',
+            );
+        return evaluateAgentPermissionOperations(
+            this.deps,
+            loaders,
+            args,
+            await this.loadRequest(args.organizationUuid),
+            (deps) => {
+                const reader = new AgentPermissionService(deps);
+                return async (operation, request) => {
+                    const policy = await reader.resolvePolicyWithRequest({
+                        request,
+                        operation,
+                    });
+                    return reader
+                        .createEvaluation(policy, operation, request)
+                        .readChecks(true);
+                };
+            },
+        );
     }
 
     async assertOperation(args: AssertOperationArgs): Promise<void> {

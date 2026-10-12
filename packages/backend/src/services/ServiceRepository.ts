@@ -26,6 +26,7 @@ import { ModelRepository } from '../models/ModelRepository';
 import PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import type { UtilRepository } from '../utils/UtilRepository';
 import { AdminNotificationService } from './AdminNotificationService/AdminNotificationService';
+import { AgentConnectionApprovalService } from './AgentConnectionApprovalService/AgentConnectionApprovalService';
 import { AgentPermissionService } from './AgentPermissionService/AgentPermissionService';
 import { areOrganizationGroupsAvailable } from './AgentPermissionService/groupsAvailable';
 import { AiAccessService } from './AiAccessService/AiAccessService';
@@ -165,6 +166,7 @@ interface ServiceManifest {
     aiAccessService: AiAccessService;
     agentPermissionService: AgentPermissionService;
     agentConnectionGrantService: AgentConnectionGrantService;
+    agentConnectionApprovalService: AgentConnectionApprovalService;
     agentConnectionService: AgentConnectionService;
     aiServiceAccountService: AiServiceAccountService;
     projectService: ProjectService;
@@ -991,6 +993,24 @@ export class ServiceRepository
                     warehouseConnectionModel:
                         this.models.getWarehouseConnectionModel(),
                     projectService: this.getProjectService(),
+                }),
+        );
+    }
+
+    public getAgentConnectionApprovalService(): AgentConnectionApprovalService {
+        return this.getService(
+            'agentConnectionApprovalService',
+            () =>
+                new AgentConnectionApprovalService({
+                    reviewModel:
+                        this.models.getAgentConnectionApprovalReadModel(),
+                    agentPermissionService: this.getAgentPermissionService(),
+                    siteUrl: this.context.lightdashConfig.siteUrl,
+                    model: this.models.getAgentConnectionApprovalRequestModel(),
+                    userModel: this.models.getUserModel(),
+                    projectModel: this.models.getProjectModel(),
+                    oauthModel: this.models.getOauthModel(),
+                    featureFlags: this.models.getFeatureFlagModel(),
                 }),
         );
     }

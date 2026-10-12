@@ -3,6 +3,7 @@ import { type AgentConnectAttempt } from '../services/AiAccessService/AiAccessSe
 
 declare module 'express-session' {
     interface SessionData {
+        passport?: { user?: unknown };
         'oauth2:snowflake-ai'?: { state?: string };
         agentConnectBindings?: Record<
             string,
