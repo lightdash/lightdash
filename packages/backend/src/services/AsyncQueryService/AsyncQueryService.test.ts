@@ -21916,6 +21916,295 @@ describe('fresh execution producer to result reader', () => {
         return read;
     };
     describe('stored person result value ordering', () => {
+        const setupValueOrdering = () => {
+            const f = setup(false, false, false, false);
+            const controls: UserAccessControls = {
+                userAttributes: { region: ['US', 'EU'] },
+                intrinsicUserAttributes: { email: 'person@example.test' },
+            };
+            const explore = structuredClone(validExplore);
+            explore.tables.a.dimensions.restricted = {
+                ...explore.tables.a.dimensions.dim1,
+                name: 'restricted',
+                anyAttributes: { region: 'EU' },
+            };
+            vi.mocked(f.service.getUserAttributes).mockImplementation(
+                async () => controls,
+            );
+            vi.mocked(
+                f.service.projectModel.getExploreFromCache,
+            ).mockResolvedValue(explore);
+            vi.mocked(
+                f.service.projectModel.findExploresFromCache,
+            ).mockResolvedValue({ [explore.name]: explore });
+            vi.mocked(
+                f.service.projectModel.findExploreByTableName,
+            ).mockResolvedValue(explore);
+            return { ...f, controls, explore };
+        };
+
+        test.each([false, true])(
+            'curated values preserve the stored fingerprint with identity enabled=%s',
+            async (identityEnabled) => {
+                const f = setupValueOrdering();
+                vi.mocked(f.service.featureFlagModel.get).mockImplementation(
+                    async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            featureFlagId === FeatureFlags.AgentIdentity &&
+                            identityEnabled,
+                    }),
+                );
+                f.explore.tables.a.dimensions.dim1.filterAutocomplete = {
+                    fetchFromWarehouse: false,
+                    values: [{ value: 'curated' }],
+                };
+                const result = await f.service.executeAsyncFieldValueSearch({
+                    account: f.account,
+                    projectUuid,
+                    table: 'a',
+                    fieldId: 'a_dim1',
+                    search: '',
+                    limit: 10,
+                    context: QueryExecutionContext.FILTER_AUTOCOMPLETE,
+                });
+                const oldForm = oldResultEntitlementFingerprint(
+                    f.controls,
+                    f.explore,
+                );
+                const current = getResultEntitlementFingerprint(
+                    f.controls,
+                    f.explore,
+                );
+                expect(current).not.toBe(oldForm);
+                expect(
+                    f.rows.get(result.queryUuid)!.requestParameters
+                        .resultProducer!.entitlementFingerprint,
+                ).toBe(identityEnabled ? current : oldForm);
+                expect(f.service.getUserAttributes).toHaveBeenCalledTimes(1);
+                expect(
+                    vi
+                        .mocked(f.service.featureFlagModel.get)
+                        .mock.calls.filter(
+                            ([args]) =>
+                                args.featureFlagId ===
+                                FeatureFlags.AgentIdentity,
+                        ),
+                ).toHaveLength(1);
+                expect(f.execute).not.toHaveBeenCalled();
+            },
+        );
+
+        test('an old unsorted cache entry misses and executes a fresh query without refusal', async () => {
+            const f = setupValueOrdering();
+            const key = vi.spyOn(QueryHistoryModel, 'getCacheKey');
+            const request = {
+                account: f.account,
+                projectUuid,
+                metricQuery: metricQueryMock,
+                context: QueryExecutionContext.EXPLORE,
+                invalidateCache: true,
+            };
+            const first = await f.service.executeAsyncMetricQuery(request);
+            await round24Ready(f, first.queryUuid);
+            const original = f.rows.get(first.queryUuid)!;
+            const [keyProject, identifiers] = key.mock.calls.at(-1)!;
+            const oldProducer = {
+                ...original.requestParameters.resultProducer!,
+                entitlementFingerprint: oldResultEntitlementFingerprint(
+                    f.controls,
+                    f.explore,
+                ),
+            };
+            const oldKey = QueryHistoryModel.getCacheKey(keyProject, {
+                ...identifiers,
+                resultIdentity: {
+                    organizationUuid: projectSummary.organizationUuid,
+                    producer: oldProducer,
+                },
+            });
+            expect(oldKey).not.toBe(original.cacheKey);
+            const candidate = {
+                ...original,
+                cacheKey: oldKey,
+                resultsUpdatedAt: new Date(),
+                resultsCreatedAt: new Date(),
+                resultProducer: oldProducer,
+                queryHistory: {
+                    ...original,
+                    cacheKey: oldKey,
+                    requestParameters: {
+                        ...original.requestParameters,
+                        resultProducer: oldProducer,
+                    },
+                },
+            };
+            const lookup = vi.fn<QueryHistoryModel['findMostRecentByCacheKey']>(
+                async (cacheKey) =>
+                    cacheKey === oldKey ? candidate : undefined,
+            );
+            f.service.queryHistoryModel.findMostRecentByCacheKey = lookup;
+            vi.mocked(
+                f.service.projectModel.getEffectiveResultsCacheTtlSeconds,
+            ).mockResolvedValue(86400);
+            vi.mocked(f.service.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId === FeatureFlags.AgentIdentity ||
+                        featureFlagId === FeatureFlags.ResultsCacheEnabled,
+                }),
+            );
+            const cacheService = new CommercialCacheService({
+                lightdashConfig: lightdashConfigMock,
+                queryHistoryModel: f.service.queryHistoryModel,
+                projectModel: f.service.projectModel,
+                featureFlagModel: f.service.featureFlagModel,
+                storageClient: f.service.resultsStorageClient,
+            });
+            Object.assign(f.service, { cacheService });
+            await expect(
+                cacheService.findCachedResultsFile(
+                    projectUuid,
+                    oldKey,
+                    {
+                        userUuid: f.account.user.id,
+                        organizationUuid: projectSummary.organizationUuid,
+                    },
+                    oldProducer,
+                    true,
+                ),
+            ).resolves.toMatchObject({
+                cacheHit: true,
+                resultProducer: oldProducer,
+            });
+            lookup.mockClear();
+            f.execute.mockClear();
+            const fresh = await f.service.executeAsyncMetricQuery({
+                ...request,
+                invalidateCache: false,
+            });
+            expect(fresh.cacheMetadata.cacheHit).toBe(false);
+            await round24Ready(f, fresh.queryUuid);
+            expect(f.execute).toHaveBeenCalledOnce();
+            expect(lookup).toHaveBeenCalledExactlyOnceWith(
+                original.cacheKey,
+                projectUuid,
+                { excludeAgentClaims: true, excludeAgentProduced: true },
+            );
+            expect(
+                f.rows.get(fresh.queryUuid)!.requestParameters
+                    .cacheSourceQueryUuid,
+            ).toBeUndefined();
+        });
+
+        test.each([
+            {
+                name: 'old ancestor in the same unsorted order allows',
+                oldAncestor: true,
+                after: ['US', 'EU'],
+                allowed: true,
+            },
+            {
+                name: 'old ancestor with reordered values refuses',
+                oldAncestor: true,
+                after: ['EU', 'US'],
+                allowed: false,
+            },
+            {
+                name: 'new ancestor with reordered values allows',
+                oldAncestor: false,
+                after: ['EU', 'US'],
+                allowed: true,
+            },
+            {
+                name: 'old ancestor with a removed value refuses',
+                oldAncestor: true,
+                after: ['EU'],
+                allowed: false,
+            },
+            {
+                name: 'new ancestor with a removed value refuses',
+                oldAncestor: false,
+                after: ['EU'],
+                allowed: false,
+            },
+        ])(
+            'new derived root: $name',
+            async ({ oldAncestor, after, allowed }) => {
+                const f = setupValueOrdering();
+                const source = await f.service.executeAsyncMetricQuery({
+                    account: f.account,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.EXPLORE,
+                    invalidateCache: true,
+                });
+                await round24Ready(f, source.queryUuid);
+                if (oldAncestor) {
+                    f.rows.get(
+                        source.queryUuid,
+                    )!.requestParameters.resultProducer!.entitlementFingerprint =
+                        oldResultEntitlementFingerprint(f.controls, f.explore);
+                }
+                const derived = await f.service.executeAsyncComposeSqlQuery({
+                    account: f.account,
+                    projectUuid,
+                    sql: 'SELECT * FROM source',
+                    references: { source: source.queryUuid },
+                    context: QueryExecutionContext.SQL_RUNNER,
+                });
+                const read = await round24Ready(f, derived.queryUuid);
+                expect(
+                    f.rows.get(derived.queryUuid)!.requestParameters
+                        .resultProducer,
+                ).toMatchObject({
+                    credentialOwner: { kind: 'derived' },
+                    entitlementFingerprint: getSqlResultEntitlementFingerprint(
+                        f.controls,
+                        { sql: 'SELECT * FROM source' },
+                    ),
+                });
+                vi.mocked(
+                    f.service.queryHistoryModel.getManyWithDuckdbExecutions,
+                ).mockClear();
+                f.controls.userAttributes.region = after;
+                expect(
+                    f.rows.get(derived.queryUuid)!.requestParameters
+                        .resultProducer!.entitlementFingerprint,
+                ).toBe(
+                    getSqlResultEntitlementFingerprint(f.controls, {
+                        sql: 'SELECT * FROM source',
+                    }),
+                );
+                if (allowed) {
+                    await expect(read()).resolves.toMatchObject({
+                        status: QueryHistoryStatus.READY,
+                    });
+                } else {
+                    await expect(read()).rejects.toMatchObject({
+                        refusal: {
+                            reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                        },
+                    });
+                    expect(
+                        f.service.resultsStorageClient.getDownloadStream,
+                    ).not.toHaveBeenCalled();
+                    expect(
+                        f.service.resultsStorageClient.getFirstLine,
+                    ).not.toHaveBeenCalled();
+                }
+                expect(
+                    f.service.queryHistoryModel.getManyWithDuckdbExecutions,
+                ).toHaveBeenCalledWith(
+                    [source.queryUuid],
+                    projectUuid,
+                    expect.anything(),
+                    false,
+                );
+            },
+        );
+
         test('flag off skips attribute loading and fingerprint work on a stored read', async () => {
             const f = setup(false, false, false, false);
             const result = await f.service.executeAsyncMetricQuery({

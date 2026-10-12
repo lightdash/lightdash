@@ -41,6 +41,7 @@ import {
     getWarehouseIdentityFingerprint,
     isSameResultAgent,
     isSameResultCredentialOwner,
+    isSameResultProducer,
     isSameResultProducerOwner,
     isSameResultReader,
     matchesResultEntitlementFingerprint,
@@ -231,6 +232,80 @@ const oldResultEntitlementFingerprint = (
 };
 
 describe('warehouse result identity fingerprints', () => {
+    const valueOrderProducer = (entitlementFingerprint: string) =>
+        WarehouseClientFactory.getResultProducer(
+            {
+                warehouseCredentials: postgres,
+                warehouseConnectionUuid: null,
+                aiPlan: null,
+            },
+            'person',
+            null,
+            entitlementFingerprint,
+        );
+    const valueOrderCacheKeys = (entitlementFingerprint: string) => {
+        const resultIdentity = {
+            organizationUuid: 'org',
+            producer: valueOrderProducer(entitlementFingerprint),
+        };
+        return [
+            QueryHistoryModel.getCacheKey('project', {
+                sql: 'select 1',
+                userUuid: 'person',
+                resultIdentity,
+            }),
+            buildCacheHash(
+                ['project', 'person', 'select 1', 'UTC'],
+                resultIdentity,
+            ),
+            buildCacheHash(
+                ['autocomplete', 'project', 'person', 'select 1', 'UTC'],
+                resultIdentity,
+            ),
+        ];
+    };
+
+    test.each([
+        { values: ['US', 'EU'], matches: false },
+        { values: ['EU', 'US'], matches: true },
+        { values: ['EU'], matches: true },
+    ])(
+        'old and new identity cache producers match=$matches for $values',
+        ({ values, matches }) => {
+            const controls: UserAccessControls = {
+                userAttributes: { region: values },
+                intrinsicUserAttributes: { email: 'person@example.test' },
+            };
+            const oldForm = oldResultEntitlementFingerprint(controls);
+            const current = getResultEntitlementFingerprint(controls);
+            expect(
+                isSameResultProducer(
+                    valueOrderProducer(oldForm),
+                    valueOrderProducer(current),
+                ),
+            ).toBe(matches);
+            const oldKeys = valueOrderCacheKeys(oldForm);
+            valueOrderCacheKeys(current).forEach((key, index) =>
+                expect(key === oldKeys[index]).toBe(matches),
+            );
+        },
+    );
+
+    test('identity cache keys share reordered values and separate different value sets', () => {
+        const keys = (region: string[]) =>
+            valueOrderCacheKeys(
+                getResultEntitlementFingerprint({
+                    userAttributes: { region },
+                    intrinsicUserAttributes: { email: 'person@example.test' },
+                }),
+            );
+        expect(keys(['US', 'EU'])).toEqual(keys(['EU', 'US']));
+        const initial = keys(['US', 'EU']);
+        keys(['EU', 'UK']).forEach((key, index) =>
+            expect(key).not.toBe(initial[index]),
+        );
+    });
+
     test.each(['user', 'role', 'host', 'dbname'] as const)(
         'an in-place %s update changes every identity cache key',
         (field) => {

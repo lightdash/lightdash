@@ -8184,6 +8184,23 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 createdAt,
             );
+            const entitlementFingerprintForms =
+                await this.getCurrentResultEntitlementFingerprintForms({
+                    projectUuid,
+                    parameters: getQueryResultRequestParameters(
+                        staticRequestParameters,
+                        {
+                            resultEffectiveParameters,
+                        },
+                    ),
+                    controls: {
+                        ...userAccessControls,
+                        userAttributes: mergedUserAttributes,
+                    },
+                    explore,
+                    metricQuery,
+                    executionScope,
+                });
             await this.queryHistoryModel.recordResultProducer(
                 queryUuid,
                 projectUuid,
@@ -8198,23 +8215,9 @@ export class AsyncQueryService extends ProjectService {
                         context,
                         null,
                     ),
-                    entitlementFingerprint:
-                        await this.getCurrentResultEntitlementFingerprint({
-                            projectUuid,
-                            parameters: getQueryResultRequestParameters(
-                                staticRequestParameters,
-                                {
-                                    resultEffectiveParameters,
-                                },
-                            ),
-                            controls: {
-                                ...userAccessControls,
-                                userAttributes: mergedUserAttributes,
-                            },
-                            explore,
-                            metricQuery,
-                            executionScope,
-                        }),
+                    entitlementFingerprint: identityEnabled
+                        ? entitlementFingerprintForms.current
+                        : entitlementFingerprintForms.valueOrderDependent,
                 },
             );
             const staticColumns: ResultColumns = {
