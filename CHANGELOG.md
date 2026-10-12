@@ -1,3 +1,10 @@
+## [2.568.1](https://github.com/lightdash/lightdash/compare/2.568.0...2.568.1) (2026-10-12)
+
+
+### Bug Fixes
+
+* **themes:** build the design S3 client through the shared factory so gcp_oauth works ([#30918](https://github.com/lightdash/lightdash/issues/30918)) ([d3634e8](https://github.com/lightdash/lightdash/commit/d3634e88b4f9e6aad781fbd0ba646f35dd6d8445)), closes [#30766](https://github.com/lightdash/lightdash/issues/30766)
+
 # [2.568.0](https://github.com/lightdash/lightdash/compare/2.567.0...2.568.0) (2026-10-12)
 
 
