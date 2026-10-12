@@ -8,6 +8,7 @@ import {
     type LightdashUserWithAbilityRules,
 } from '@lightdash/common';
 import { Text } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import nock from 'nock';
@@ -690,10 +691,14 @@ describe('MCP settings route permission parity', () => {
 describe('agent connections flag-off baseline', () => {
     let viewport: ReturnType<typeof mockViewport>;
     beforeEach(() => {
+        notifications.clean();
         localStorage.clear();
         viewport = mockViewport(1280);
     });
-    afterEach(() => viewport.restore());
+    afterEach(() => {
+        viewport.restore();
+        vi.restoreAllMocks();
+    });
     it.each([false, null])(
         'preserves the disabled settings page with flag %s',
         async (enabled) => {
@@ -737,7 +742,6 @@ describe('agent connections flag-off baseline', () => {
                 .replace(/mantine-[a-z0-9]{8,}/g, 'mantine-ID')
                 .replace(/__m__-_r_[a-z0-9]+_/g, '__m__-ID');
             expect(dom).toEqual(baseline.dom);
-            fetchSpy.mockRestore();
         },
     );
 });
@@ -745,10 +749,14 @@ describe('agent connections flag-off baseline', () => {
 describe('agent identity tabs', () => {
     let viewport: ReturnType<typeof mockViewport>;
     beforeEach(() => {
+        notifications.clean();
         localStorage.clear();
         viewport = mockViewport(1280);
     });
-    afterEach(() => viewport.restore());
+    afterEach(() => {
+        viewport.restore();
+        vi.restoreAllMocks();
+    });
     it('shows both tabs with no warehouse rules and only fetches the visible tab', async () => {
         const list = nock(BASE_API_URL)
             .get('/api/v2/user/agent-connections')
@@ -788,6 +796,5 @@ describe('agent identity tabs', () => {
                 String(url).includes('/user/agent-connections'),
             ),
         ).toHaveLength(1);
-        fetchSpy.mockRestore();
     });
 });

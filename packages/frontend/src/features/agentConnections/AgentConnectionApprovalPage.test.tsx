@@ -33,7 +33,7 @@ const offered = (capability: AgentCapability) => ({
 const review = (): AgentConnectionApprovalReview => ({
     request: {
         name: 'work',
-        clientLabel: 'Lightdash CLI',
+        clientLabel: 'CLI',
         expiresInSeconds: 86400,
         expiresAt: '2099-10-12T12:00:00Z',
     },
@@ -54,7 +54,7 @@ const review = (): AgentConnectionApprovalReview => ({
                 {
                     capability: AgentCapability.RawSql,
                     visibility: 'blocked',
-                    reason: 'Server blocks SQL.',
+                    reason: 'Your permissions in this project do not allow this action.',
                     reasonCode: 'person_permission',
                 },
                 {
@@ -75,8 +75,8 @@ const review = (): AgentConnectionApprovalReview => ({
                 {
                     capability: AgentCapability.Query,
                     visibility: 'blocked',
-                    reason: 'Server blocks queries.',
-                    reasonCode: 'agent_policy',
+                    reason: 'This action is turned off for agents.',
+                    reasonCode: 'action_disabled',
                 },
             ],
         },
@@ -84,7 +84,7 @@ const review = (): AgentConnectionApprovalReview => ({
             projectUuid: '44444444-4444-4444-8444-444444444444',
             name: 'Restricted',
             selectable: false,
-            reason: 'Server blocks this project.',
+            reason: 'This person is not allowed to use agents.',
             capabilities: [],
         },
     ],
@@ -166,13 +166,17 @@ describe('approval review', () => {
         ).not.toBeChecked();
         expect(
             screen.getByRole('checkbox', { name: 'Raw SQL' }),
-        ).toHaveAccessibleDescription('Server blocks SQL.');
+        ).toHaveAccessibleDescription(
+            'Your permissions in this project do not allow this action.',
+        );
         expect(
             screen.getByRole('checkbox', { name: 'Restricted' }),
         ).toBeDisabled();
         expect(
             screen.getByRole('checkbox', { name: 'Restricted' }),
-        ).toHaveAccessibleDescription('Server blocks this project.');
+        ).toHaveAccessibleDescription(
+            'This person is not allowed to use agents.',
+        );
         expect(
             screen.getByText(
                 'Deleted content cannot be restored by the agent.',
@@ -193,7 +197,7 @@ describe('approval review', () => {
         await waitFor(() =>
             expect(
                 within(queryRow).getByText(
-                    'Production: Server blocks queries.',
+                    'Production: This action is turned off for agents.',
                 ),
             ).toBeVisible(),
         );
@@ -202,6 +206,20 @@ describe('approval review', () => {
             screen.getByText('Expires 24 hours after approval'),
         ).toBeVisible();
         expect(screen.getByText(/This page stops working at/)).toBeVisible();
+    });
+    it('renders server reason text even when no reason code is supplied', async () => {
+        const data = review();
+        const capability = data.projects[0].capabilities.find(
+            (entry) => entry.capability === AgentCapability.RawSql,
+        )!;
+        capability.reasonCode = null;
+        capability.reason = 'The available permissions could not be checked.';
+        api.mockResolvedValue(data);
+        await loadPage();
+        expect(
+            screen.getByRole('checkbox', { name: 'Raw SQL' }),
+        ).toHaveAccessibleDescription(capability.reason);
+        expect(screen.getByText('work · CLI')).toBeVisible();
     });
     it('renders the response notice and actual expiry without an input', async () => {
         const data = review();
