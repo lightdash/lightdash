@@ -60,7 +60,7 @@ export type S3ConnectionConfig = {
  * Returns the credentials property to assign to an S3ClientConfig, or undefined
  * to let the SDK use its default resolution.
  */
-export function resolveS3Credentials(
+function resolveS3Credentials(
     config: Pick<
         S3ConnectionConfig,
         'accessKey' | 'secretKey' | 'useCredentialsFrom'
