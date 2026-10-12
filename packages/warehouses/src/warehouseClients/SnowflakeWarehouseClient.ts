@@ -882,6 +882,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             // See createProgrammaticAccessToken for more details
             authenticationOptions = {
                 authenticator: EXTERNAL_BROWSER_AUTHENTICATOR,
+                role: credentials.role,
             };
         } else if (
             credentials.privateKey &&
