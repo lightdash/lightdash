@@ -20,6 +20,29 @@
     display: none;
 }
 
+/* Flush: the page has no padding, so the top section insets itself and
+   results sit edge to edge at the bottom like the SQL runner */
+.stack[data-flush='true'] {
+    background-color: var(--mantine-color-body);
+}
+
+.stack[data-flush='true'] .header {
+    padding: var(--mantine-spacing-lg) var(--mantine-spacing-lg) 0;
+    background-color: var(--ld-color-page);
+}
+
+.stack[data-flush='true'] .queryPane {
+    padding: var(--mantine-spacing-lg);
+    background-color: var(--ld-color-page);
+}
+
+.stack[data-flush='true'] .resultsPane [data-explorer-pane] {
+    --paper-radius: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
 /* Matches the SQL runner's editor/results splitter */
 .resizeHandle {
     display: flex;
@@ -46,4 +69,30 @@
 
 .hiddenHandle {
     display: none;
+}
+
+.flushResizeHandle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    height: rem(9px);
+    border-top: 1px solid var(--mantine-color-default-border);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+    background-color: var(--ld-color-page);
+    cursor: row-resize;
+}
+
+.flushResizeHandle::before {
+    content: '';
+    width: rem(32px);
+    height: rem(3px);
+    border-radius: rem(2px);
+    background-color: var(--mantine-color-ldGray-3);
+    transition: background-color 120ms ease;
+}
+
+.flushResizeHandle:hover::before,
+.flushResizeHandle[data-active]::before {
+    background-color: var(--mantine-color-ldGray-5);
 }

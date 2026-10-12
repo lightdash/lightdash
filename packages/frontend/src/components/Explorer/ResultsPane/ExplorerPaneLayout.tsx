@@ -18,7 +18,12 @@ const ExplorerPaneLayout: FC<Props> = ({
     children,
     tourProps,
 }) => (
-    <Card p={0} className={classes.pane} {...tourProps}>
+    <Card
+        p={0}
+        className={classes.pane}
+        data-explorer-pane
+        {...tourProps}
+    >
         <Box className={classes.header}>
             <Group gap="sm" wrap="nowrap" miw={0}>
                 {tabs}

@@ -2,7 +2,7 @@ import {
     getExploreParameterDefinitions,
     getReferencedParameterDefinitions,
 } from '@lightdash/common';
-import { Stack } from '@mantine/core';
+import { Box, Stack } from '@mantine/core';
 import {
     memo,
     useCallback,
@@ -62,8 +62,15 @@ import { WriteBackModal } from './WriteBackModal';
 
 const EMPTY_PARAMETER_REFERENCES: string[] = [];
 
-const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
-    ({ hideHeader = false, chartView = false }) => {
+type ExplorerProps = {
+    hideHeader?: boolean;
+    chartView?: boolean;
+    /** The page owns no padding: the explorer insets its top section and pins results flush to the bottom. */
+    flush?: boolean;
+};
+
+const Explorer: FC<ExplorerProps> = memo(
+    ({ hideHeader = false, chartView = false, flush = false }) => {
         const tableName = useExplorerSelector(selectTableName);
         const dimensions = useExplorerSelector(selectDimensions);
         const metrics = useExplorerSelector(selectMetrics);
@@ -279,13 +286,23 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
                 parameters={parameters}
                 resolvedTimezone={query.data?.resolvedTimezone}
             >
-                <Stack className={classes.stack}>
+                <Stack
+                    className={classes.stack}
+                    gap={flush ? 0 : undefined}
+                    data-flush={flush}
+                >
                     <MergeAutoRun />
                     {!hideHeader &&
                         (isEditMode ? (
-                            <ExplorerHeader />
+                            <Box className={classes.header}>
+                                <ExplorerHeader />
+                            </Box>
                         ) : (
-                            !savedChart && <RefreshDbtButton />
+                            !savedChart && (
+                                <Box className={classes.header}>
+                                    <RefreshDbtButton />
+                                </Box>
+                            )
                         ))}
 
                     {showQueryBuilder ? (
@@ -294,13 +311,15 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
                             storageKey="explorer-results-pane"
                             sizes={isFullscreen ? [100, 0] : undefined}
                             resizable={!isFullscreen}
-                            lineSize={16}
+                            lineSize={flush ? 9 : 16}
                             handleColor="transparent"
                             handleLabel="Resize results"
                             classNames={{
                                 handle: isFullscreen
                                     ? classes.hiddenHandle
-                                    : classes.resizeHandle,
+                                    : flush
+                                      ? classes.flushResizeHandle
+                                      : classes.resizeHandle,
                             }}
                         >
                             <ResizableSplitter.Pane
