@@ -1,3 +1,10 @@
+## [2.565.1](https://github.com/lightdash/lightdash/compare/2.565.0...2.565.1) (2026-10-12)
+
+
+### Bug Fixes
+
+* **agent-identity:** refuse a revoked agent connection access token at once ([#30914](https://github.com/lightdash/lightdash/issues/30914)) ([22e0d74](https://github.com/lightdash/lightdash/commit/22e0d74fd34724079854d334b1366d164d1b2569))
+
 # [2.565.0](https://github.com/lightdash/lightdash/compare/2.564.0...2.565.0) (2026-10-11)
 
 
