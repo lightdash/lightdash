@@ -1,3 +1,10 @@
+## [2.565.2](https://github.com/lightdash/lightdash/compare/2.565.1...2.565.2) (2026-10-12)
+
+
+### Bug Fixes
+
+* account for page scroll in table cell tooltips ([#30916](https://github.com/lightdash/lightdash/issues/30916)) ([4eda721](https://github.com/lightdash/lightdash/commit/4eda721acb57255646fb53cc7dd0f250106a9b75))
+
 ## [2.565.1](https://github.com/lightdash/lightdash/compare/2.565.0...2.565.1) (2026-10-12)
 
 
