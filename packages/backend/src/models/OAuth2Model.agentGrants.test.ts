@@ -633,10 +633,66 @@ it('expires a bound access token with SQL that cannot extend expiry', async () =
     expect(updates[0].sql).toContain(
         '"agent_connection_grant_uuid" is not null',
     );
-    expect(updates[0].sql).toContain('least(expires_at, now())');
+    expect(updates[0].sql).toContain(
+        "least(expires_at, TIMESTAMP '1970-01-01 00:00:00')",
+    );
+    expect(updates[0].sql).not.toContain('now()');
     expect(getTracker().history.delete[0]?.sql).toContain(
         '"agent_connection_grant_uuid" is null',
     );
+    expect(AgentConnectionGrantModel.prototype.revoke).not.toHaveBeenCalled();
+});
+it('repeats bound access-token revocation without revoking the grant', async () => {
+    getTracker().on.update('oauth2_access_tokens').response(1);
+    getTracker().on.delete('oauth2_access_tokens').response(0);
+    await expect(model.deleteAccessToken('access')).resolves.toBe(true);
+    await expect(model.deleteAccessToken('access')).resolves.toBe(true);
+    const updates = getTracker().history.update;
+    expect(updates).toHaveLength(2);
+    expect(updates[1]).toMatchObject({
+        sql: updates[0].sql,
+        bindings: updates[0].bindings,
+    });
+    expect(AgentConnectionGrantModel.prototype.revoke).not.toHaveBeenCalled();
+});
+it('preserves an expiry before the epoch in the SQL expression and token lookup', async () => {
+    const expiresAt = new Date('1969-12-31T23:59:59.000Z');
+    getTracker().on.update('oauth2_access_tokens').response(1);
+    getTracker().on.delete('oauth2_access_tokens').response(0);
+    getTracker()
+        .on.select('oauth2_access_tokens')
+        .response(row({ expires_at: expiresAt }));
+    await expect(model.deleteAccessToken('access')).resolves.toBe(true);
+    expect(getTracker().history.update[0].sql).toContain(
+        "least(expires_at, TIMESTAMP '1970-01-01 00:00:00')",
+    );
+    await expect(model.getAccessToken('access')).resolves.toMatchObject({
+        accessTokenExpiresAt: expiresAt,
+    });
+    expect(AgentConnectionGrantModel.prototype.revoke).not.toHaveBeenCalled();
+});
+it('returns false when revoking an unknown access token', async () => {
+    getTracker().on.update('oauth2_access_tokens').response(0);
+    getTracker().on.delete('oauth2_access_tokens').response(0);
+    await expect(model.deleteAccessToken('unknown')).resolves.toBe(false);
+    expect(getTracker().history.update[0].bindings).toEqual(['unknown']);
+    expect(getTracker().history.delete[0].bindings).toEqual(['unknown']);
+    expect(AgentConnectionGrantModel.prototype.revoke).not.toHaveBeenCalled();
+});
+it('keeps the exact unbound access-token deletion SQL and result', async () => {
+    getTracker().on.update('oauth2_access_tokens').response(0);
+    getTracker().on.delete('oauth2_access_tokens').responseOnce(1);
+    getTracker().on.delete('oauth2_access_tokens').responseOnce(0);
+    await expect(model.deleteAccessToken('access')).resolves.toBe(true);
+    await expect(model.deleteAccessToken('access')).resolves.toBe(false);
+    expect(getTracker().history.delete).toHaveLength(2);
+    for (const query of getTracker().history.delete) {
+        expect(query.sql).toBe(
+            'delete from "oauth2_access_tokens" where "access_token" = $1 and "agent_connection_grant_uuid" is null',
+        );
+        expect(query.bindings).toEqual(['access']);
+    }
+    expect(AgentConnectionGrantModel.prototype.revoke).not.toHaveBeenCalled();
 });
 it.each(['access', 'refresh'] as const)(
     'keeps unbound %s token revocation as deletion',
