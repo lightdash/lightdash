@@ -2,6 +2,7 @@ import {
     type ApiError,
     type SlackAppCustomSettings,
     type SlackChannel,
+    type SlackFeatureAvailabilityMap,
     type SlackSettings,
 } from '@lightdash/common';
 import {
@@ -14,15 +15,40 @@ import { useCallback, useState } from 'react';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
+// An API pod from before `features` shipped omits it during a rolling update
+type LegacySlackSettings = Omit<SlackSettings, 'features'> & {
+    features?: SlackFeatureAvailabilityMap;
+};
+
+export const normalizeSlackSettings = (
+    raw: LegacySlackSettings | undefined,
+): SlackSettings | undefined => {
+    if (raw === undefined) return undefined;
+    if (raw.features) return { ...raw, features: raw.features };
+    const fallback = { available: raw.hasRequiredScopes, missingScopes: [] };
+    return {
+        ...raw,
+        features: {
+            scheduledDeliveries: fallback,
+            customAppProfile: fallback,
+            linkUnfurling: fallback,
+            writebackReactions: fallback,
+            aiAgent: fallback,
+        },
+    };
+};
+
 const getSlack = async () =>
-    lightdashApi<SlackSettings>({
-        url: `/slack/`,
-        method: 'GET',
-        body: undefined,
-    });
+    normalizeSlackSettings(
+        await lightdashApi<SlackSettings>({
+            url: `/slack/`,
+            method: 'GET',
+            body: undefined,
+        }),
+    );
 
 export const useGetSlack = () =>
-    useQuery<SlackSettings, ApiError>({
+    useQuery<SlackSettings | undefined, ApiError>({
         queryKey: ['slack'],
         queryFn: () => getSlack(),
         retry: false,
