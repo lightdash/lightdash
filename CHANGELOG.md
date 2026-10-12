@@ -1,3 +1,10 @@
+## [2.571.1](https://github.com/lightdash/lightdash/compare/2.571.0...2.571.1) (2026-10-12)
+
+
+### Bug Fixes
+
+* **agent-identity:** show a failed connection list on either tab and stop late sign-in navigation ([#30930](https://github.com/lightdash/lightdash/issues/30930)) ([43b0b77](https://github.com/lightdash/lightdash/commit/43b0b771a5bbc348c7c1cb0689afc227a66f0fe3))
+
 # [2.571.0](https://github.com/lightdash/lightdash/compare/2.570.0...2.571.0) (2026-10-12)
 
 
