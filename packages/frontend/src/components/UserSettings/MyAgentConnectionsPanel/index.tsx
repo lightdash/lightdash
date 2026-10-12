@@ -1,11 +1,20 @@
+import { FeatureFlags } from '@lightdash/common';
 import { Tabs } from '@mantine/core';
 import { useSearchParams } from 'react-router';
 import { AgentConnectionsTable } from '../../../features/agentConnections/AgentConnectionsTable';
+import { useAgentConnections } from '../../../features/agentConnections/api';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { SettingsPage } from '../../common/Settings/SettingsPage';
 import { WarehouseAgentSignInsPanel } from './WarehouseAgentSignInsPanel';
 
 export const MyAgentConnectionsPanel = () => {
     const [params, setParams] = useSearchParams();
+    const flag = useServerFeatureFlag(FeatureFlags.AgentIdentity);
+    const connections = useAgentConnections({
+        enabled: flag.data?.enabled === true,
+    });
+    if (!connections.data?.length)
+        return <WarehouseAgentSignInsPanel standalone />;
     const activeTab =
         params.get('tab') === 'warehouses' ? 'warehouses' : 'connections';
     return (

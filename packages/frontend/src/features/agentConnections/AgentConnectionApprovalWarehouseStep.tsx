@@ -6,8 +6,8 @@ import {
     type AgentConnectionApprovalProject,
     type AiAccessForUser,
 } from '@lightdash/common';
-import { Loader, Paper, Stack, Text } from '@mantine/core';
-import { useState } from 'react';
+import { Button, Loader, Paper, Stack, Text } from '@mantine/core';
+import { Link } from 'react-router';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import { AiServiceAccountConnectionCard } from '../../components/UserSettings/MyAgentConnectionsPanel/AiServiceAccountConnectionCard';
@@ -15,12 +15,8 @@ import { SnowflakeAgentConnectionCard } from '../../components/UserSettings/MyAg
 import { useProjects } from '../../hooks/useProjects';
 import { useUserWarehouseCredentials } from '../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import { isSingleConnectionProject } from '../../hooks/useWarehouseConnections';
-import { warehouseStepCopy } from './approvalSelection';
-import {
-    useApprovalWarehouseConnections,
-    useApprovalWarehouseReadiness,
-} from './approvalWarehouseApi';
-import { createRequestQueue, type RequestQueue } from './requestQueue';
+import { warehouseStepCopy, warehouseStepMessage } from './approvalSelection';
+import { useApprovalWarehouses } from './approvalWarehouseApi';
 
 const SnowflakeSignIn = ({
     access,
@@ -63,22 +59,17 @@ const SnowflakeSignIn = ({
 
 const WarehouseReadiness = ({
     projectUuid,
-    connectionUuid,
     name,
     warehouseType,
-    queue,
+    access,
 }: {
     projectUuid: string;
-    connectionUuid: string | null;
     name: string | null;
     warehouseType: WarehouseTypes | undefined;
-    queue: RequestQueue;
+    access: ReturnType<
+        typeof useApprovalWarehouses
+    >['projects'][number]['bindings'][number]['access'];
 }) => {
-    const access = useApprovalWarehouseReadiness(
-        projectUuid,
-        connectionUuid,
-        queue,
-    );
     if (access.isError)
         return (
             <InlineErrorState
@@ -132,16 +123,11 @@ const WarehouseReadiness = ({
 const ProjectWarehouses = ({
     project,
     warehouseType,
-    queue,
-}: {
-    project: AgentConnectionApprovalProject;
+    connections,
+    bindings,
+}: ReturnType<typeof useApprovalWarehouses>['projects'][number] & {
     warehouseType: WarehouseTypes | undefined;
-    queue: RequestQueue;
 }) => {
-    const connections = useApprovalWarehouseConnections(
-        project.projectUuid,
-        queue,
-    );
     const singleConnection = isSingleConnectionProject(connections.error);
     return (
         <Paper p="md">
@@ -157,28 +143,15 @@ const ProjectWarehouses = ({
                             onRetry={() => void connections.refetch()}
                         />
                     </>
-                ) : singleConnection ? (
-                    <WarehouseReadiness
-                        queue={queue}
-                        projectUuid={project.projectUuid}
-                        connectionUuid={null}
-                        name={null}
-                        warehouseType={warehouseType}
-                    />
-                ) : connections.data?.length ? (
-                    connections.data.map((connection) => (
+                ) : bindings.length ? (
+                    bindings.map((binding) => (
                         <WarehouseReadiness
-                            queue={queue}
-                            key={connection.warehouseConnectionUuid}
+                            key={binding.connectionUuid ?? 'original'}
+                            access={binding.access}
                             projectUuid={project.projectUuid}
-                            connectionUuid={
-                                connection.isOriginal
-                                    ? null
-                                    : connection.warehouseConnectionUuid
-                            }
-                            name={connection.name}
+                            name={binding.name}
                             warehouseType={
-                                connection.warehouseType ?? warehouseType
+                                binding.warehouseType ?? warehouseType
                             }
                         />
                     ))
@@ -192,25 +165,40 @@ const ProjectWarehouses = ({
 
 export const AgentConnectionApprovalWarehouseStep = ({
     projects,
+    notice = null,
 }: {
     projects: AgentConnectionApprovalProject[];
+    notice?: string | null;
 }) => {
-    const [queue] = useState(createRequestQueue);
     const visibleProjects = useProjects();
+    const warehouses = useApprovalWarehouses(projects, !!visibleProjects.data);
     if (visibleProjects.isError)
         return (
-            <InlineErrorState
-                message={visibleProjects.error.error.message}
-                onRetry={() => void visibleProjects.refetch()}
-            />
+            <Stack>
+                <InlineErrorState
+                    message={visibleProjects.error.error.message}
+                    onRetry={() => void visibleProjects.refetch()}
+                />
+                <Button
+                    component={Link}
+                    to={warehouseStepCopy.deferTo}
+                    variant="default"
+                >
+                    {warehouseStepCopy.defer}
+                </Button>
+            </Stack>
         );
     if (!visibleProjects.data)
         return <EmptyStateLoader title={warehouseStepCopy.loading} />;
     return (
         <Stack>
-            {projects.map((project) => (
+            {warehouses.needsAttention && (
+                <Text>{warehouseStepMessage(notice)}</Text>
+            )}
+            {warehouses.projects.map(({ project, connections, bindings }) => (
                 <ProjectWarehouses
-                    queue={queue}
+                    connections={connections}
+                    bindings={bindings}
                     key={project.projectUuid}
                     project={project}
                     warehouseType={
@@ -220,6 +208,15 @@ export const AgentConnectionApprovalWarehouseStep = ({
                     }
                 />
             ))}
+            {warehouses.needsAttention && (
+                <Button
+                    component={Link}
+                    to={warehouseStepCopy.deferTo}
+                    variant="default"
+                >
+                    {warehouseStepCopy.defer}
+                </Button>
+            )}
         </Stack>
     );
 };

@@ -16,7 +16,7 @@ import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../api';
 import { renderWithProviders } from '../../testing/testUtils';
-import { AgentConnectionApprovalWarehouseStep } from './AgentConnectionApprovalWarehouseStep';
+import { ApprovalCompletion } from './ApprovalCompletion';
 
 vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
@@ -75,7 +75,15 @@ let accessError = false;
 const renderStep = (projects = [project]) =>
     renderWithProviders(
         <MemoryRouter>
-            <AgentConnectionApprovalWarehouseStep projects={projects} />
+            <ApprovalCompletion
+                completion={{
+                    decision: 'approve',
+                    completionUrl: 'http://localhost/completion',
+                    attempted: true,
+                    projects,
+                    notice: null,
+                }}
+            />
         </MemoryRouter>,
     );
 beforeEach(() => {
@@ -237,6 +245,44 @@ describe('approval warehouse setup', () => {
             }
         },
     );
+    it.each([false, true])(
+        'never shows defer while an all-ready list loads, multiple bindings=%s',
+        async (multiple) => {
+            multi = multiple;
+            const seen: string[] = [];
+            const observer = new MutationObserver((records) => {
+                records.forEach((record) =>
+                    record.addedNodes.forEach((node) =>
+                        seen.push(node.textContent ?? ''),
+                    ),
+                );
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+            try {
+                renderStep();
+                expect(
+                    screen.queryByText('Do this later'),
+                ).not.toBeInTheDocument();
+                await waitFor(() =>
+                    expect(screen.getAllByText('Ready')).toHaveLength(
+                        multiple ? 2 : 1,
+                    ),
+                );
+                expect(
+                    screen.queryByText('Do this later'),
+                ).not.toBeInTheDocument();
+                expect(
+                    seen.some((text) => text.includes('Do this later')),
+                ).toBe(false);
+                expect(
+                    screen.queryByText(/Your connection is saved/),
+                ).not.toBeInTheDocument();
+                expect(api).toHaveBeenCalledTimes(multiple ? 4 : 3);
+            } finally {
+                observer.disconnect();
+            }
+        },
+    );
     it('loads readiness with viewer endpoints and shows ready', async () => {
         renderStep();
         expect(await screen.findByText('Ready')).toBeVisible();
@@ -269,6 +315,13 @@ describe('approval warehouse setup', () => {
             expect(screen.getByText('Expired')).toBeVisible();
         fireEvent.click(button);
         expect(login.mutate).toHaveBeenCalledOnce();
+        expect(
+            screen.getByRole('link', { name: 'Do this later' }),
+        ).toHaveAttribute(
+            'href',
+            '/generalSettings/myAgentConnections?tab=warehouses',
+        );
+        expect(api).toHaveBeenCalledTimes(4);
     });
     it('does not call disabled agent access ready', async () => {
         access = { ...ready(), enabled: false, source: null, identity: null };
@@ -305,12 +358,18 @@ describe('approval warehouse setup', () => {
             ),
         ).toBeVisible();
         expect(screen.getByText('Development')).toBeVisible();
+        expect(
+            screen.getByRole('link', { name: 'Do this later' }),
+        ).toBeVisible();
     });
     it('shows a retryable readiness error', async () => {
         accessError = true;
         renderStep();
         expect(
             (await screen.findAllByText('Warehouse status failed.'))[0],
+        ).toBeVisible();
+        expect(
+            screen.getByRole('link', { name: 'Do this later' }),
         ).toBeVisible();
         accessError = false;
         fireEvent.click(screen.getByRole('button', { name: 'Retry' }));

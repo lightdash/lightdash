@@ -69,7 +69,7 @@ export const warehouseStepCopy = {
     nextStep: 'Return to your terminal.',
     returnToCli: 'Return to the CLI',
     defer: 'Do this later',
-    deferTo: '/generalSettings/myAgentConnections',
+    deferTo: '/generalSettings/myAgentConnections?tab=warehouses',
     loading: 'Loading warehouse sign-ins',
     loadingSignIn: 'Loading warehouse sign-in',
     checking: 'Checking warehouse sign-in',

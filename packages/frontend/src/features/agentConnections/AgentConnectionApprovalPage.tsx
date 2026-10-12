@@ -51,12 +51,13 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
     const queryKey = ['agent-connection-review', requestUuid, mountId];
     const reviewQuery = useQuery<AgentConnectionApprovalReview, ApprovalError>({
         queryKey,
-        queryFn: () =>
+        queryFn: ({ signal }) =>
             lightdashApi({
                 version: 'v2',
                 url: `/user/agent-connections/requests/${encodeURIComponent(requestUuid)}`,
                 method: 'GET',
                 sensitive: true,
+                signal,
             }),
         cacheTime: 0,
         staleTime: Infinity,
@@ -70,7 +71,7 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
         () => new Set<AgentCapability>(),
     );
     const [failure, setFailure] = useState<ApprovalError | null>(null);
-    const [changed, setChanged] = useState(false);
+    const [reviewMessage, setReviewMessage] = useState<string | null>(null);
     const [pending, setPending] = useState(false);
     const submitting = useRef(false);
     const [completion, setCompletion] =
@@ -134,13 +135,28 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
             const details =
                 apiError.error as AgentConnectionApprovalErrorResponse['error'];
             if (apiError.error.statusCode === 401) {
-                await client.invalidateQueries(['health']);
-                await navigate('/login', { state: { from: location } });
+                let timer: ReturnType<typeof setTimeout> | undefined;
+                try {
+                    await Promise.race([
+                        client.invalidateQueries(['health']),
+                        new Promise<void>((resolve) => {
+                            timer = setTimeout(resolve, 5000);
+                        }),
+                    ]);
+                } finally {
+                    clearTimeout(timer);
+                    await navigate('/login', { state: { from: location } });
+                }
             } else if (
                 details.code === 'approval_selection_changed' ||
                 details.code === 'csrf_failed'
             ) {
-                setChanged(true);
+                setReviewMessage(
+                    details.code === 'approval_selection_changed' &&
+                        details.review
+                        ? 'Your permissions changed. Check the selection and approve again.'
+                        : 'This review is out of date. Check it again.',
+                );
                 if (details.review)
                     client.setQueryData(queryKey, details.review);
                 else await reviewQuery.refetch();
@@ -171,11 +187,8 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
                 <Title order={3}>Connect your CLI agent</Title>
                 <Text size="sm">{review.request.name} · CLI</Text>
             </Box>
-            {changed && (
-                <Callout variant="warning">
-                    Your permissions changed. Check the selection and approve
-                    again.
-                </Callout>
+            {reviewMessage && (
+                <Callout variant="warning">{reviewMessage}</Callout>
             )}
             {failure && <InlineErrorState message={failure.error.message} />}
             <Stack gap="xs">

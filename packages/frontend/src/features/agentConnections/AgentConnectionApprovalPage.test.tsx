@@ -484,6 +484,78 @@ describe('approval review', () => {
         ).toBe(true);
         expect(window.location.href).not.toContain(review().nonce);
     });
+    it('aborts an in-flight review when the page unmounts', async () => {
+        api.mockImplementation(() => new Promise(() => {}));
+        const { unmount } = renderPage();
+        await waitFor(() => expect(api).toHaveBeenCalledOnce());
+        const signal = api.mock.calls[0][0].signal;
+        expect(signal).toBeInstanceOf(AbortSignal);
+        expect(signal?.aborted).toBe(false);
+        unmount();
+        expect(signal?.aborted).toBe(true);
+    });
+    it.each([false, true])(
+        'bounds the 401 health wait, resolves early=%s',
+        async (early) => {
+            let client!: QueryClient;
+            let location!: ReturnType<typeof useLocation>;
+            const Observe = () => {
+                client = useQueryClient();
+                location = useLocation();
+                return null;
+            };
+            api.mockResolvedValueOnce(review()).mockRejectedValueOnce(
+                error(401, 'authentication_required'),
+            );
+            renderWithProviders(
+                <MemoryRouter
+                    initialEntries={[
+                        `/agent/connection-approval?request=${requestUuid}`,
+                    ]}
+                >
+                    <Observe />
+                    <AgentConnectionApprovalPage />
+                </MemoryRouter>,
+            );
+            const approve = await screen.findByRole('button', {
+                name: 'Approve',
+            });
+            const from = location;
+            let finish!: () => void;
+            vi.spyOn(client, 'invalidateQueries').mockImplementationOnce(
+                () =>
+                    new Promise<void>((resolve) => {
+                        finish = resolve;
+                    }),
+            );
+            vi.useFakeTimers();
+            const schedule = vi.spyOn(globalThis, 'setTimeout');
+            const clear = vi.spyOn(globalThis, 'clearTimeout');
+            try {
+                await act(async () => fireEvent.click(approve));
+                expect(approve).toBeDisabled();
+                await act(async () => vi.advanceTimersByTimeAsync(4999));
+                expect(location.pathname).toBe(from.pathname);
+                if (early) await act(async () => finish());
+                else await act(async () => vi.advanceTimersByTimeAsync(1));
+                expect(location.pathname).toBe('/login');
+                expect(location.state.from).toEqual(from);
+                expect(approve).not.toBeInTheDocument();
+                const timeoutIndex = schedule.mock.calls.findIndex(
+                    ([, delay]) => delay === 5000,
+                );
+                expect(timeoutIndex).toBeGreaterThanOrEqual(0);
+                expect(clear).toHaveBeenCalledWith(
+                    schedule.mock.results[timeoutIndex].value,
+                );
+                const navigationKey = location.key;
+                await act(async () => vi.advanceTimersByTimeAsync(10000));
+                expect(location.key).toBe(navigationKey);
+            } finally {
+                vi.useRealTimers();
+            }
+        },
+    );
     it('loads a fresh review when the session is already restored after a 401', async () => {
         const close = vi.fn();
         vi.mocked(window.open).mockReturnValue({
@@ -663,6 +735,12 @@ describe('approval review', () => {
                 nonce: 'renewed-private-nonce',
                 revision: 2,
             };
+            if (embedded)
+                renewed.projects[0].capabilities =
+                    renewed.projects[0].capabilities.filter(
+                        ({ capability }) =>
+                            capability !== AgentCapability.Delete,
+                    );
             api.mockResolvedValueOnce(review())
                 .mockRejectedValueOnce(
                     error(
@@ -681,7 +759,9 @@ describe('approval review', () => {
             );
             fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
             await screen.findByText(
-                'Your permissions changed. Check the selection and approve again.',
+                embedded
+                    ? 'Your permissions changed. Check the selection and approve again.'
+                    : 'This review is out of date. Check it again.',
             );
             await waitFor(() =>
                 expect(
@@ -710,7 +790,7 @@ describe('approval review', () => {
                 projectUuids: [firstProject],
                 capabilities: [
                     AgentCapability.ReadDiscover,
-                    AgentCapability.Delete,
+                    ...(embedded ? [] : [AgentCapability.Delete]),
                     AgentCapability.Publish,
                 ],
             });
@@ -736,7 +816,7 @@ describe('approval review', () => {
             ).not.toBeInTheDocument();
         },
     );
-    it('shows the server error and reloads a stale nonce', async () => {
+    it('shows a neutral message and reloads a stale nonce without restoring unticks', async () => {
         api.mockResolvedValueOnce(review())
             .mockRejectedValueOnce(error(403, 'csrf_failed'))
             .mockResolvedValueOnce({
@@ -745,13 +825,21 @@ describe('approval review', () => {
                 revision: 2,
             });
         await loadPage();
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Production' }));
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Query data' }));
         fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
         await waitFor(() => expect(api).toHaveBeenCalledTimes(3));
         expect(
             await screen.findByText(
-                'Your permissions changed. Check the selection and approve again.',
+                'This review is out of date. Check it again.',
             ),
         ).toBeVisible();
+        expect(
+            screen.getByRole('checkbox', { name: 'Production' }),
+        ).not.toBeChecked();
+        expect(
+            screen.getByRole('checkbox', { name: 'Query data' }),
+        ).not.toBeChecked();
     });
     it('shows an ordinary server error without losing the form', async () => {
         api.mockResolvedValueOnce(review()).mockRejectedValueOnce(
@@ -851,22 +939,7 @@ describe('completion delivery', () => {
             expect(
                 screen.queryByRole('button', { name: 'Return to the CLI' }),
             ).not.toBeInTheDocument();
-            if (button === 'Approve') {
-                expect(
-                    screen.getByText(
-                        'No connection was created. You can still set up warehouse sign-ins for later.',
-                    ),
-                ).toBeVisible();
-                expect(
-                    screen.getByRole('link', { name: 'Do this later' }),
-                ).toHaveAttribute(
-                    'href',
-                    '/generalSettings/myAgentConnections',
-                );
-            } else
-                expect(
-                    screen.queryByText('Do this later'),
-                ).not.toBeInTheDocument();
+            expect(screen.queryByText('Do this later')).not.toBeInTheDocument();
             expect(
                 screen.queryByText(/Your connection is saved/),
             ).not.toBeInTheDocument();

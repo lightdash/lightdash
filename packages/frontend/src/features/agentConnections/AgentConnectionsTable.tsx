@@ -1,8 +1,4 @@
-import {
-    formatTimestamp,
-    TimeFrames,
-    getAgentCapabilityName,
-} from '@lightdash/common';
+import { getAgentCapabilityName } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -18,14 +14,13 @@ import {
     IconInfoCircle,
     IconChevronDown,
     IconChevronRight,
-    IconPlugConnected,
 } from '@tabler/icons-react';
 import { useId, useState } from 'react';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import MantineIcon from '../../components/common/MantineIcon';
-import { SettingsEmptyState } from '../../components/common/Settings/SettingsEmptyState';
 import { useAgentConnections, useAgentConnectionStatus } from './api';
+import { ConnectionTimestamp } from './ConnectionTimestamp';
 import { RevokeAgentConnectionModal } from './RevokeAgentConnectionModal';
 import {
     type AgentConnectionRecord,
@@ -37,8 +32,6 @@ const statusLabels = {
     expired: 'Expired',
     revoked: 'Revoked',
 } as const;
-const displayDate = (value: string) =>
-    formatTimestamp(value, TimeFrames.MINUTE);
 const restrictionReasons = new Map([
     [
         'person_permission',
@@ -217,16 +210,22 @@ const ConnectionRow = ({
                     </Group>
                 </Table.Td>
                 <Table.Td>
-                    <Text size="sm">{displayDate(connection.expiresAt)}</Text>
+                    <Text size="sm">
+                        <ConnectionTimestamp value={connection.expiresAt} />
+                    </Text>
                 </Table.Td>
                 <Table.Td>
                     <Text
                         size="sm"
                         c={connection.lastUsedAt ? undefined : 'dimmed'}
                     >
-                        {connection.lastUsedAt
-                            ? displayDate(connection.lastUsedAt)
-                            : 'Never used'}
+                        {connection.lastUsedAt ? (
+                            <ConnectionTimestamp
+                                value={connection.lastUsedAt}
+                            />
+                        ) : (
+                            'Never used'
+                        )}
                     </Text>
                 </Table.Td>
                 <Table.Td>
@@ -275,7 +274,10 @@ const ConnectionRow = ({
                                 </Group>
                             ))}
                             <Text size="xs" c="dimmed">
-                                Approved {displayDate(connection.approvedAt)}
+                                Approved{' '}
+                                <ConnectionTimestamp
+                                    value={connection.approvedAt}
+                                />
                             </Text>
                         </Stack>
                         {active && (
@@ -298,7 +300,7 @@ const ConnectionRow = ({
 };
 
 export const AgentConnectionsTable = () => {
-    const query = useAgentConnections();
+    const query = useAgentConnections({ refetchOnMount: false });
     if (query.isError)
         return (
             <InlineErrorState
@@ -308,14 +310,6 @@ export const AgentConnectionsTable = () => {
         );
     if (!query.data)
         return <EmptyStateLoader title="Loading agent connections" />;
-    if (query.data.length === 0)
-        return (
-            <SettingsEmptyState
-                icon={IconPlugConnected}
-                title="No agent connections"
-                description="Connections will appear here after you approve one."
-            />
-        );
     return (
         <Table.ScrollContainer minWidth={600}>
             <Table>

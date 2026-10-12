@@ -9,11 +9,19 @@ import { useProjects } from '../../../hooks/useProjects';
 import { useUserWarehouseCredentials } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import InlineErrorState from '../../common/InlineErrorState';
 import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
+import { SettingsPage } from '../../common/Settings/SettingsPage';
 import { AiServiceAccountConnectionCard } from './AiServiceAccountConnectionCard';
 import { SnowflakeAgentConnectionCard } from './SnowflakeAgentConnectionCard';
 import { getAgentConnectionVisibility } from './visibility';
 
-export const WarehouseAgentSignInsPanel = () => {
+const description =
+    'See who your agents run as on each warehouse. Some warehouses need you to sign in once.';
+
+export const WarehouseAgentSignInsPanel = ({
+    standalone = false,
+}: {
+    standalone?: boolean;
+}) => {
     const settings = useOrganizationAgentIdentitySettings();
     const projects = useProjects();
     const credentials = useUserWarehouseCredentials();
@@ -31,12 +39,8 @@ export const WarehouseAgentSignInsPanel = () => {
     const queries = [settings, projects, credentials];
     const isLoading = queries.some((query) => query.isInitialLoading);
     const isError = queries.some((query) => query.isError);
-    return (
-        <Stack>
-            <Text c="dimmed">
-                See who your agents run as on each warehouse. Some warehouses
-                need you to sign in once.
-            </Text>
+    const content = (
+        <>
             {isError ? (
                 <InlineErrorState message="Could not load your agent identity." />
             ) : isLoading ? (
@@ -67,6 +71,16 @@ export const WarehouseAgentSignInsPanel = () => {
                         )}
                 </>
             )}
+        </>
+    );
+    return standalone ? (
+        <SettingsPage title="My agent identity" description={description}>
+            {content}
+        </SettingsPage>
+    ) : (
+        <Stack>
+            <Text c="dimmed">{description}</Text>
+            {content}
         </Stack>
     );
 };

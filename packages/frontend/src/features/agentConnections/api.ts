@@ -1,5 +1,10 @@
 import { type ApiError } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+    type UseQueryOptions,
+} from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 import { createRequestQueue } from './requestQueue';
 import {
@@ -20,9 +25,15 @@ const loadStatus = (grantUuid: string, signal: AbortSignal | undefined) =>
         signal,
     );
 
-export const useAgentConnections = () =>
+export const useAgentConnections = (
+    options: Pick<
+        UseQueryOptions<AgentConnectionRecord[], ApiError>,
+        'enabled' | 'refetchOnMount'
+    > = {},
+) =>
     useQuery<AgentConnectionRecord[], ApiError>({
         queryKey: ['agent-connections'],
+        ...options,
         queryFn: () =>
             lightdashApi({
                 version: 'v2',

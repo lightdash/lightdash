@@ -904,10 +904,25 @@ describe('agent identity tabs', () => {
         viewport.restore();
         vi.restoreAllMocks();
     });
-    it('shows both tabs with no warehouse rules and only fetches the visible tab', async () => {
+    it('shows tabs for a revoked row and shares one list request with the table', async () => {
         const list = nock(BASE_API_URL)
             .get('/api/v2/user/agent-connections')
-            .reply(200, { status: 'ok', results: [] });
+            .reply(200, {
+                status: 'ok',
+                results: [
+                    {
+                        grantUuid: 'retained',
+                        name: 'Retained connection',
+                        approvedProjects: [],
+                        approvedAt: '2026-10-12T12:00:00Z',
+                        expiresAt: '2099-10-12T12:00:00Z',
+                        lastUsedAt: null,
+                        status: 'revoked',
+                        revokedAt: '2026-10-12T12:00:00Z',
+                        limitsStatus: 'ok',
+                    },
+                ],
+            });
         const credentials = nock(BASE_API_URL)
             .get('/api/v1/user/warehouseCredentials')
             .reply(200, { status: 'ok', results: [] });
@@ -923,11 +938,11 @@ describe('agent identity tabs', () => {
             await screen.findByRole('heading', { name: 'My agent identity' }),
         ).toBeVisible();
         expect(
-            screen.getByRole('tab', { name: 'Agent connections' }),
+            await screen.findByRole('tab', { name: 'Agent connections' }),
         ).toHaveAttribute('aria-selected', 'true');
-        expect(await screen.findByText('No agent connections')).toBeVisible();
+        expect(await screen.findByText('Retained connection')).toBeVisible();
         expect(list.isDone()).toBe(true);
-        expect(credentials.isDone()).toBe(false);
+        await waitFor(() => expect(credentials.isDone()).toBe(true));
         fireEvent.click(
             screen.getByRole('tab', { name: 'Warehouse sign-ins' }),
         );

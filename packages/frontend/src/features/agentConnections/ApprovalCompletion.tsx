@@ -1,9 +1,8 @@
 import { type AgentConnectionApprovalProject } from '@lightdash/common';
 import { Button, Stack, Text, Title } from '@mantine/core';
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router';
 import { AgentConnectionApprovalWarehouseStep } from './AgentConnectionApprovalWarehouseStep';
-import { warehouseStepMessage, warehouseStepCopy } from './approvalSelection';
+import { warehouseStepCopy } from './approvalSelection';
 import { openCompletionTab, navigateCompletionTab } from './completionDelivery';
 
 export type ApprovalCompletionState = {
@@ -42,11 +41,9 @@ export const ApprovalCompletion = ({
                     ? warehouseStepCopy.heading
                     : warehouseStepCopy.cancelledHeading}
             </Title>
-            <Text>
-                {completion.decision === 'approve'
-                    ? warehouseStepMessage(completion.notice)
-                    : warehouseStepCopy.cancelledMessage}
-            </Text>
+            {completion.decision === 'deny' && (
+                <Text>{warehouseStepCopy.cancelledMessage}</Text>
+            )}
             {attempted ? (
                 <Text size="sm" c="dimmed">
                     {warehouseStepCopy.nextStep}
@@ -59,16 +56,8 @@ export const ApprovalCompletion = ({
             {completion.decision === 'approve' && (
                 <AgentConnectionApprovalWarehouseStep
                     projects={completion.projects}
+                    notice={completion.notice}
                 />
-            )}
-            {completion.decision === 'approve' && (
-                <Button
-                    component={Link}
-                    to={warehouseStepCopy.deferTo}
-                    variant="default"
-                >
-                    {warehouseStepCopy.defer}
-                </Button>
             )}
         </Stack>
     );

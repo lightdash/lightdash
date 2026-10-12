@@ -8,7 +8,7 @@ import {
     within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../api';
 import { renderWithProviders } from '../../testing/testUtils';
 import { AgentConnectionsTable } from './AgentConnectionsTable';
@@ -62,12 +62,51 @@ const renderTable = () => {
     };
 };
 beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 9, 12, 12));
     vi.clearAllMocks();
     api.mockImplementation(async ({ url }) =>
         url.endsWith('/status') ? status() : [connection()],
     );
 });
+afterEach(() => vi.useRealTimers());
 describe('agent connections table', () => {
+    it('uses short local dates with full accessible values on hover and focus', async () => {
+        api.mockResolvedValue([
+            {
+                ...connection(),
+                status: 'revoked',
+                approvedAt: new Date(2025, 9, 13, 13, 28).toISOString(),
+                expiresAt: new Date(2026, 9, 13, 13, 28).toISOString(),
+                lastUsedAt: new Date(2026, 9, 12, 10, 30).toISOString(),
+            },
+        ]);
+        renderTable();
+        await screen.findByText('grant-1');
+        fireEvent.click(screen.getByRole('button', { name: 'Expand grant-1' }));
+        for (const [short, full] of [
+            ['13 Oct, 13:28', /^2026-10-13, 13:28 \([+-]\d{2}:\d{2}\)$/],
+            ['12 Oct, 10:30', /^2026-10-12, 10:30 \([+-]\d{2}:\d{2}\)$/],
+            ['13 Oct 2025, 13:28', /^2025-10-13, 13:28 \([+-]\d{2}:\d{2}\)$/],
+        ] as const) {
+            const date = screen.getByText(short);
+            expect(date).toHaveAccessibleName(full);
+            expect(date).toHaveAttribute('tabindex', '0');
+            await userEvent.hover(date);
+            expect(await screen.findByRole('tooltip')).toHaveTextContent(full);
+            await userEvent.unhover(date);
+            await waitFor(() =>
+                expect(screen.queryByRole('tooltip')).not.toBeInTheDocument(),
+            );
+            act(() => date.focus());
+            expect(date).toHaveFocus();
+            expect(await screen.findByRole('tooltip')).toHaveTextContent(full);
+            act(() => date.blur());
+            await waitFor(() =>
+                expect(screen.queryByRole('tooltip')).not.toBeInTheDocument(),
+            );
+        }
+    });
     it('shows compact columns, summary, dates and status without fetching collapsed rows', async () => {
         renderTable();
         await screen.findByText('grant-1');
@@ -87,10 +126,10 @@ describe('agent connections table', () => {
         ).not.toBeInTheDocument();
         const row = within(expander.closest('tr')!);
         expect(row.getByText('CLI · 1 project · 1 action')).toBeVisible();
-        expect(
-            row.getByText(/^2099-10-12, 12:00 \([+-]\d{2}:\d{2}\)$/),
-        ).toBeVisible();
+        expect(row.getByText('12 Oct 2099, 12:00')).toBeVisible();
         expect(row.getByText('Never used')).toBeVisible();
+        expect(row.getByText('Never used')).not.toHaveAttribute('tabindex');
+        expect(row.getByText('Never used')).not.toHaveAttribute('aria-label');
         expect(row.queryByText('Query data')).not.toBeInTheDocument();
         expect(row.getByText('Active')).toBeVisible();
         expect(row.getByRole('button', { name: 'Revoke' })).toBeVisible();
@@ -161,9 +200,7 @@ describe('agent connections table', () => {
         });
         expect(screen.getByText('CLI · 2 projects · 2 actions')).toBeVisible();
         expect(
-            within(expander.closest('tr')!).getByText(
-                /^2026-10-12, 10:30 \([+-]\d{2}:\d{2}\)$/,
-            ),
+            within(expander.closest('tr')!).getByText('12 Oct, 10:30'),
         ).toBeVisible();
         expect(api).toHaveBeenCalledTimes(1);
         fireEvent.click(expander);
@@ -184,11 +221,7 @@ describe('agent connections table', () => {
             );
             badges.forEach((badge) => expect(badge).toBeVisible());
         }
-        expect(
-            within(details).getByText(
-                /^Approved 2026-10-11, 12:00 \([+-]\d{2}:\d{2}\)$/,
-            ),
-        ).toBeVisible();
+        expect(within(details).getByText('11 Oct, 12:00')).toBeVisible();
         expect(
             await within(details).findByRole('button', {
                 name: 'Why Query data is limited',
@@ -431,16 +464,6 @@ describe('agent connections table', () => {
         await act(async () => {
             resolvers.splice(0).forEach((resolve) => resolve());
         });
-    });
-    it('shows an empty state', async () => {
-        api.mockResolvedValue([]);
-        renderTable();
-        expect(await screen.findByText('No agent connections')).toBeVisible();
-        expect(
-            screen.getByText(
-                'Connections will appear here after you approve one.',
-            ),
-        ).toBeVisible();
     });
     it('shows loading and a retryable error', async () => {
         let reject!: (error: unknown) => void;
