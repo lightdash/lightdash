@@ -225,6 +225,30 @@ describe('SavedChartModel.find (PostgreSQL)', () => {
         ).toEqual([standalone.uuid]);
     });
 
+    test('standalone-only listing skips dashboard history entirely', async () => {
+        const standalone = await addChart();
+        await addChart(true);
+        const queries: string[] = [];
+        const captureQuery = (query: { sql: string }) => {
+            queries.push(query.sql);
+        };
+        database.on('query', captureQuery);
+        try {
+            expect(
+                await uuids({
+                    projectUuid,
+                    excludeChartsSavedInDashboard: true,
+                }),
+            ).toEqual([standalone.uuid]);
+        } finally {
+            database.off('query', captureQuery);
+        }
+        expect(queries).toHaveLength(1);
+        expect(queries[0]).not.toContain('dashboard_versions');
+        expect(queries[0]).not.toContain('dashboard_tile_charts');
+        expect(queries[0]).not.toContain('current_dashboard_charts');
+    });
+
     test('project, space, slug and slug alias filters still apply', async () => {
         const chart = await addChart();
         const other = await addChart(false, otherProjectUuid);

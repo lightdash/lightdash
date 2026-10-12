@@ -3138,9 +3138,10 @@ export class SavedChartModel {
                 if (filters.excludeChartsSavedInDashboard) {
                     void query.whereNotNull(`${SavedChartsTableName}.space_id`); // Note: charts saved in dashboards have saved_queries.space_id = null
                 }
-                if (filters.includeOrphanChartsWithinDashboard) {
-                    // Ignore chart_uuid to be in dashboard_tiles
-                } else {
+                if (
+                    !filters.includeOrphanChartsWithinDashboard &&
+                    !filters.excludeChartsSavedInDashboard
+                ) {
                     const latestDashboardVersions = this.database(
                         DashboardVersionsTableName,
                     )
