@@ -285,3 +285,127 @@ describe('SlackClient scopes', () => {
         ).toEqual(['channels:history', 'groups:history']);
     });
 });
+
+describe('SlackClient custom icon gating', () => {
+    const fullScopes = makeClient().getRequiredScopes();
+
+    const clientWithInstallation = (scopes: string[] | undefined) => {
+        const postMessageMock = vi.fn().mockResolvedValue({ ok: true });
+        const client = new SlackClient({
+            slackAuthenticationModel: {
+                getInstallationFromOrganizationUuid: vi.fn().mockResolvedValue({
+                    appProfilePhotoUrl: 'https://img.example.com/logo.png',
+                    scopes,
+                }),
+            },
+            slackChannelCacheModel: {},
+            lightdashConfig: { slack: {} },
+            analytics: {},
+            schedulerClient: {},
+        } as unknown as ConstructorParameters<typeof SlackClient>[0]);
+        vi.spyOn(client, 'getWebClient').mockResolvedValue({
+            chat: { postMessage: postMessageMock },
+        } as unknown as WebClient);
+        vi.spyOn(client, 'resolveChannelToId').mockResolvedValue('C123');
+        return { client, postMessageMock };
+    };
+
+    it('passes icon_url when chat:write.customize is granted', async () => {
+        const { client, postMessageMock } = clientWithInstallation(fullScopes);
+        await client.postMessage({
+            organizationUuid: 'org',
+            channel: 'C123',
+            text: 'hi',
+        });
+        expect(postMessageMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                icon_url: 'https://img.example.com/logo.png',
+            }),
+        );
+    });
+
+    it('omits icon_url when chat:write.customize is missing', async () => {
+        const { client, postMessageMock } = clientWithInstallation(
+            fullScopes.filter((s) => s !== 'chat:write.customize'),
+        );
+        await client.postMessage({
+            organizationUuid: 'org',
+            channel: 'C123',
+            text: 'hi',
+        });
+        expect(postMessageMock.mock.calls[0][0]).not.toHaveProperty('icon_url');
+    });
+
+    it('omits icon_url on the invalid_blocks retry when the scope is missing', async () => {
+        const { client, postMessageMock } = clientWithInstallation(
+            fullScopes.filter((s) => s !== 'chat:write.customize'),
+        );
+        postMessageMock
+            .mockRejectedValueOnce(
+                invalidBlocksError([
+                    '[ERROR] downloading image failed [json-pointer:/blocks/2/image_url]',
+                ]),
+            )
+            .mockResolvedValueOnce({ ok: true });
+        await client.postMessage({
+            organizationUuid: 'org',
+            channel: 'C123',
+            blocks: blocks as Block[],
+        });
+        expect(postMessageMock).toHaveBeenCalledTimes(2);
+        expect(postMessageMock.mock.calls[1][0]).not.toHaveProperty('icon_url');
+    });
+
+    it('still sends when the installation row has no scopes', async () => {
+        const { client, postMessageMock } = clientWithInstallation(undefined);
+        await client.postMessage({
+            organizationUuid: 'org',
+            channel: 'C123',
+            text: 'hi',
+        });
+        expect(postMessageMock).toHaveBeenCalledTimes(1);
+        expect(postMessageMock.mock.calls[0][0]).not.toHaveProperty('icon_url');
+    });
+});
+
+describe('SlackClient.syncChannelsToCache scope gate', () => {
+    const makeSyncClient = (scopes: string[]) => {
+        const client = new SlackClient({
+            slackAuthenticationModel: {
+                getInstallationFromOrganizationUuid: vi
+                    .fn()
+                    .mockResolvedValue({ scopes }),
+            },
+            slackChannelCacheModel: {
+                getOrganizationId: vi.fn().mockResolvedValue(1),
+                startSync: vi.fn(),
+                upsertChannels: vi.fn(),
+                softDeleteChannelsNotInList: vi.fn(),
+                completeSync: vi.fn(),
+                failSync: vi.fn(),
+            },
+            lightdashConfig: { slack: {} },
+            analytics: {},
+            schedulerClient: {},
+        } as unknown as ConstructorParameters<typeof SlackClient>[0]);
+        vi.spyOn(client, 'fetchAllChannelsForCache').mockResolvedValue([]);
+        return client;
+    };
+
+    it('skips when a scheduled-delivery scope is missing and names it', async () => {
+        const scopes = makeClient()
+            .getRequiredScopes()
+            .filter((s) => s !== 'channels:read');
+        const result = await makeSyncClient(scopes).syncChannelsToCache('org');
+        expect(result.status).toBe('skipped');
+        expect(result.reason).toContain('channels:read');
+    });
+
+    it('runs when only an unrelated scope such as reactions:write is missing', async () => {
+        const scopes = makeClient()
+            .getRequiredScopes()
+            .filter((s) => s !== 'reactions:write');
+        const result = await makeSyncClient(scopes).syncChannelsToCache('org');
+        expect(result.status).toBe('completed');
+    });
+});

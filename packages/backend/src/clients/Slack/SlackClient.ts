@@ -281,6 +281,19 @@ export class SlackClient {
             .available;
     }
 
+    private getCustomIconArgs(
+        installationScopes: string[] | undefined,
+        appProfilePhotoUrl: string | undefined,
+    ): { icon_url: string } | Record<string, never> {
+        if (!appProfilePhotoUrl) return {};
+        return this.isFeatureAvailable(
+            installationScopes,
+            SlackFeature.CUSTOM_APP_PROFILE,
+        )
+            ? { icon_url: appProfilePhotoUrl }
+            : {};
+    }
+
     public getSlackOptions() {
         return {
             signingSecret: this.lightdashConfig.slack?.signingSecret || '',
@@ -622,15 +635,17 @@ export class SlackClient {
             };
         }
 
-        if (!this.hasRequiredScopes(installation.scopes)) {
-            const currentScopes = installation.scopes.join(', ');
-            const requiredScopes = this.getRequiredScopes().join(', ');
+        const deliveries = this.getFeatureAvailability(
+            installation.scopes,
+        ).scheduledDeliveries;
+        if (!deliveries.available) {
+            const missing = deliveries.missingScopes.join(', ');
             Logger.debug(
-                `Skipping Slack channel sync for organization ${organizationUuid}: missing required scopes. Has: [${currentScopes}], needs: [${requiredScopes}]`,
+                `Skipping Slack channel sync for organization ${organizationUuid}: missing scopes [${missing}]`,
             );
             return {
                 status: 'skipped',
-                reason: 'Missing required Slack scopes - user needs to re-install',
+                reason: `Missing Slack scopes for scheduled deliveries: ${missing}. Reinstall the Slack app to grant them.`,
                 totalChannels: 0,
             };
         }
@@ -985,7 +1000,10 @@ export class SlackClient {
             throw new SlackInstallationNotFoundError();
         }
 
-        const { appProfilePhotoUrl } = installation;
+        const customIconArgs = this.getCustomIconArgs(
+            installation.scopes,
+            installation.appProfilePhotoUrl,
+        );
 
         // Resolve channel name to ID for reliable API calls (critical for private channels)
         const resolvedChannel = await this.resolveChannelToId(
@@ -995,7 +1013,7 @@ export class SlackClient {
 
         return webClient.chat
             .postMessage({
-                ...(appProfilePhotoUrl ? { icon_url: appProfilePhotoUrl } : {}),
+                ...customIconArgs,
                 channel: resolvedChannel,
                 ...slackMessageArgs,
             })
@@ -1028,9 +1046,7 @@ export class SlackClient {
                         );
                         return webClient.chat
                             .postMessage({
-                                ...(appProfilePhotoUrl
-                                    ? { icon_url: appProfilePhotoUrl }
-                                    : {}),
+                                ...customIconArgs,
                                 channel: resolvedChannel,
                                 ...slackMessageArgs,
                                 blocks: replaceImageBlocksWithNotice(
@@ -1068,6 +1084,14 @@ export class SlackClient {
         );
 
         if (channelId && channelId !== currentChannelId) {
+            const installation =
+                await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                    organizationUuid,
+                );
+            const customIconArgs = this.getCustomIconArgs(
+                installation?.scopes,
+                appProfilePhotoUrl,
+            );
             await this.joinChannels(organizationUuid, [channelId]);
             await webClient.chat
                 .postMessage({
@@ -1075,9 +1099,7 @@ export class SlackClient {
                     text: `This channel will now receive notifications for failed scheduled delivery jobs in Lightdash. Configuration completed${
                         userFullName.trim().length ? ` by ${userFullName}` : ''
                     }. Stay informed on your job status here.`,
-                    ...(appProfilePhotoUrl
-                        ? { icon_url: appProfilePhotoUrl }
-                        : {}),
+                    ...customIconArgs,
                 })
                 .catch((e) => {
                     slackErrorHandler(
