@@ -1,3 +1,10 @@
+## [2.572.1](https://github.com/lightdash/lightdash/compare/2.572.0...2.572.1) (2026-10-12)
+
+
+### Bug Fixes
+
+* **deploy:** a refused deploy batch no longer fails the deploy session ([#30944](https://github.com/lightdash/lightdash/issues/30944)) ([7822ce8](https://github.com/lightdash/lightdash/commit/7822ce877a069b20d5b22ea10328fe1302ff70e6))
+
 # [2.572.0](https://github.com/lightdash/lightdash/compare/2.571.2...2.572.0) (2026-10-12)
 
 
