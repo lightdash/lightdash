@@ -17,6 +17,7 @@ import {
     AiComposerPipelinePanel,
     type PipelineMode,
 } from '../ee/features/aiCopilot/components/ChatElements/composerPipeline/AiComposerPipelinePanel';
+import { ComposerQueriesToolCallDescription } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/descriptions/ComposerQueriesToolCallDescription';
 
 /** A fan-in pipeline: three sources, one intermediate join, one final join. */
 const fanInQueries: SourceQuery[] = [
@@ -62,34 +63,106 @@ const fanInQueries: SourceQuery[] = [
     },
 ];
 
-const rows = [
-    ['completed', 97, '25.50', 100, '97.0'],
-    ['shipped', 26, '29.64', 30, '86.7'],
-    ['placed', 22, '40.44', 20, '110.0'],
-    ['returned', 4, '13.50', 5, '80.0'],
-    ['return_pending', 2, '19.00', 2, '100.0'],
-] as const;
+const SIMULATION_CODE = `import numpy as np
+import pandas as pd
 
-const ResultsTable = () => (
+def run(inputs, params):
+    orders = inputs["orders"]
+    rng = np.random.default_rng(42)
+    draws = rng.choice(orders["amount"].to_numpy(), size=(1000, 30))
+    totals = draws.sum(axis=1)
+    return pd.DataFrame({"simulation": np.arange(1000), "total_amount": totals})`;
+
+const ordersSource: SourceQuery = {
+    sourceType: QuerySourceType.SQL,
+    nodeId: 'orders',
+    title: 'Order amounts',
+    description: 'Every order amount from the warehouse.',
+    sql: 'SELECT order_id, amount FROM jaffle.orders',
+};
+
+const simulationNode: SourceQuery = {
+    sourceType: QuerySourceType.PYTHON,
+    nodeId: 'simulation',
+    title: 'Simulated monthly revenue',
+    description: '1,000 Monte Carlo draws of 30 orders each.',
+    code: SIMULATION_CODE,
+    references: ['orders'],
+};
+
+const SIMULATION_DESCRIPTION =
+    'Monte Carlo simulation of monthly revenue from warehouse order amounts.';
+
+/** A python node as the terminal node. */
+const pythonTerminalQueries: SourceQuery[] = [ordersSource, simulationNode];
+
+/** A duckdb node reading a python node's result. */
+const duckdbOverPythonQueries: SourceQuery[] = [
+    ordersSource,
+    simulationNode,
+    {
+        sourceType: QuerySourceType.DUCKDB,
+        nodeId: 'percentiles',
+        title: 'Revenue percentiles',
+        description: 'P5, median and P95 of the simulated totals.',
+        sql: 'SELECT quantile_cont(total_amount, 0.05) AS p5, median(total_amount) AS p50, quantile_cont(total_amount, 0.95) AS p95 FROM simulation',
+        references: ['simulation'],
+    },
+];
+
+type ResultTable = {
+    title: string;
+    description: string;
+    columns: string[];
+    rows: (string | number)[][];
+};
+
+const fanInResult: ResultTable = {
+    title: 'Orders by status vs target',
+    description:
+        'Semantic-layer order counts, warehouse average amount and uploaded targets.',
+    columns: [
+        'status',
+        'order_count',
+        'avg_amount',
+        'target_orders',
+        'attainment_pct',
+    ],
+    rows: [
+        ['completed', 97, '25.50', 100, '97.0'],
+        ['shipped', 26, '29.64', 30, '86.7'],
+        ['placed', 22, '40.44', 20, '110.0'],
+        ['returned', 4, '13.50', 5, '80.0'],
+        ['return_pending', 2, '19.00', 2, '100.0'],
+    ],
+};
+
+const ResultsTable = ({ result }: { result: ResultTable }) => (
     <Paper radius={0} bg="ldGray.0">
         <Table fz="xs" highlightOnHover>
             <Table.Thead>
                 <Table.Tr>
-                    <Table.Th>status</Table.Th>
-                    <Table.Th ta="right">order_count</Table.Th>
-                    <Table.Th ta="right">avg_amount</Table.Th>
-                    <Table.Th ta="right">target_orders</Table.Th>
-                    <Table.Th ta="right">attainment_pct</Table.Th>
+                    {result.columns.map((column, index) => (
+                        <Table.Th
+                            key={column}
+                            ta={index > 0 ? 'right' : undefined}
+                        >
+                            {column}
+                        </Table.Th>
+                    ))}
                 </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-                {rows.map(([status, count, avg, target, pct]) => (
-                    <Table.Tr key={status}>
-                        <Table.Td>{status}</Table.Td>
-                        <Table.Td ta="right">{count}</Table.Td>
-                        <Table.Td ta="right">{avg}</Table.Td>
-                        <Table.Td ta="right">{target}</Table.Td>
-                        <Table.Td ta="right">{pct}</Table.Td>
+                {result.rows.map((row) => (
+                    <Table.Tr key={String(row[0])}>
+                        {row.map((cell, index) => (
+                            <Table.Td
+                                key={result.columns[index]}
+                                ta={index > 0 ? 'right' : undefined}
+                            >
+                                {cell}
+                            </Table.Td>
+                        ))}
                     </Table.Tr>
                 ))}
             </Table.Tbody>
@@ -100,6 +173,7 @@ const ResultsTable = () => (
 type ArtifactProps = {
     queries: SourceQuery[];
     terminalNodeId: string;
+    result: ResultTable;
     defaultExpanded?: boolean;
     defaultMode?: PipelineMode;
 };
@@ -108,6 +182,7 @@ type ArtifactProps = {
 const ComposerArtifact = ({
     queries,
     terminalNodeId,
+    result,
     defaultExpanded,
     defaultMode,
 }: ArtifactProps) => (
@@ -138,11 +213,10 @@ const ComposerArtifact = ({
                         >
                             <Stack gap={0} flex={1} miw={0}>
                                 <Text fz="sm" fw={600}>
-                                    Orders by status vs target
+                                    {result.title}
                                 </Text>
                                 <Text fz="xs" c="dimmed">
-                                    Semantic-layer order counts, warehouse
-                                    average amount and uploaded targets.
+                                    {result.description}
                                 </Text>
                             </Stack>
                             <Group gap={2} className={panelStyles.headRight}>
@@ -151,7 +225,7 @@ const ComposerArtifact = ({
                                 </ActionIcon>
                             </Group>
                         </Box>
-                        <ResultsTable />
+                        <ResultsTable result={result} />
                     </Stack>
                 </AiComposerPipelinePanel>
             </Box>
@@ -162,7 +236,11 @@ const ComposerArtifact = ({
 const meta = {
     component: ComposerArtifact,
     title: 'AI Agent/Composer artifact',
-    args: { queries: fanInQueries, terminalNodeId: 'vs_target' },
+    args: {
+        queries: fanInQueries,
+        terminalNodeId: 'vs_target',
+        result: fanInResult,
+    },
 } satisfies Meta<typeof ComposerArtifact>;
 
 export default meta;
@@ -176,4 +254,97 @@ export const Expanded: Story = {
 
 export const Graph: Story = {
     args: { defaultExpanded: true, defaultMode: 'graph' },
+};
+
+export const PythonResult: Story = {
+    args: {
+        queries: pythonTerminalQueries,
+        terminalNodeId: 'simulation',
+        defaultExpanded: true,
+        result: {
+            title: 'Simulated monthly revenue',
+            description: SIMULATION_DESCRIPTION,
+            columns: ['simulation', 'total_amount'],
+            rows: [
+                [0, 1012.5],
+                [1, 948.0],
+                [2, 1087.25],
+                [3, 993.75],
+            ],
+        },
+    },
+};
+
+export const DuckdbOverPython: Story = {
+    args: {
+        queries: duckdbOverPythonQueries,
+        terminalNodeId: 'percentiles',
+        defaultExpanded: true,
+        result: {
+            title: 'Revenue percentiles',
+            description: SIMULATION_DESCRIPTION,
+            columns: ['p5', 'p50', 'p95'],
+            rows: [[871.4, 1001.25, 1139.6]],
+        },
+    },
+};
+
+export const DuckdbOverPythonGraph: Story = {
+    args: { ...DuckdbOverPython.args, defaultMode: 'graph' },
+};
+
+const PYTHON_TRACEBACK = `Traceback (most recent call last):
+  File "<node>", line 8, in run
+    totals = draws.sum(axis=1) / 0
+ZeroDivisionError: division by zero`;
+
+/** The pipeline card of a run whose python node failed; no artifact version exists. */
+export const PythonNodeFailed: StoryObj<
+    typeof ComposerQueriesToolCallDescription
+> = {
+    render: () => (
+        <Box w={640}>
+            <ComposerQueriesToolCallDescription
+                queries={[
+                    {
+                        sourceType: QuerySourceType.SQL,
+                        nodeId: 'orders',
+                        title: 'Order amounts',
+                        description: null,
+                        sql: 'SELECT order_id, amount FROM jaffle.orders',
+                        limit: 500,
+                    },
+                    {
+                        sourceType: QuerySourceType.PYTHON,
+                        nodeId: 'simulation',
+                        title: 'Simulated monthly revenue',
+                        description: null,
+                        code: SIMULATION_CODE.replace(
+                            'draws.sum(axis=1)',
+                            'draws.sum(axis=1) / 0',
+                        ),
+                        references: ['orders'],
+                        limit: 500,
+                    },
+                    {
+                        sourceType: QuerySourceType.DUCKDB,
+                        nodeId: 'percentiles',
+                        title: 'Revenue percentiles',
+                        description: null,
+                        sql: 'SELECT median(total_amount) AS p50 FROM simulation',
+                        references: ['simulation'],
+                        limit: 500,
+                    },
+                ]}
+                nodeStatuses={{
+                    orders: { status: 'success' },
+                    simulation: {
+                        status: 'error',
+                        errorMessage: PYTHON_TRACEBACK,
+                    },
+                    percentiles: { status: 'error', errorMessage: null },
+                }}
+            />
+        </Box>
+    ),
 };

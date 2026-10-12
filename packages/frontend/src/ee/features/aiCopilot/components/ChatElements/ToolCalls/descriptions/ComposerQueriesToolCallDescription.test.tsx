@@ -150,6 +150,127 @@ describe('ComposerQueriesToolCallDescription', () => {
         ).toHaveTextContent('Broken step');
     });
 
+    it('lists a python node with its badge, reads and code', async () => {
+        const { container } = renderWithProviders(
+            <ComposerQueriesToolCallDescription
+                queries={[
+                    sqlNode('orders', 'Orders', 'select 1'),
+                    {
+                        sourceType: QuerySourceType.PYTHON,
+                        nodeId: 'sim',
+                        title: 'Simulated amounts',
+                        description: null,
+                        code: 'def run(inputs, params):\n    return inputs["orders"]',
+                        references: ['orders'],
+                        limit: 500,
+                    },
+                ]}
+            />,
+        );
+
+        expect(screen.getByText('Python')).toBeInTheDocument();
+        expect(screen.getByText('Reads Orders')).toBeInTheDocument();
+        await userEvent.click(
+            screen.getByRole('button', { name: /Simulated amounts/ }),
+        );
+        const codes = [...container.querySelectorAll('code')].map(
+            (code) => code.textContent,
+        );
+        expect(codes.some((code) => code?.includes('def run('))).toBe(true);
+    });
+
+    it('renders a partially streamed python node without code', () => {
+        const { container } = renderWithProviders(
+            <ComposerQueriesToolCallDescription
+                queries={[
+                    {
+                        sourceType: QuerySourceType.PYTHON,
+                        nodeId: 'sim',
+                        title: 'sim',
+                        description: null,
+                        code: '',
+                        references: [],
+                        limit: 500,
+                    },
+                ]}
+                nodeStatuses={{ sim: { status: 'running' } }}
+            />,
+        );
+
+        expect(screen.getByText('Python')).toBeInTheDocument();
+        expect(container.querySelector('code')).not.toBeInTheDocument();
+    });
+
+    it('shows a failed node error as a readable block', () => {
+        const traceback =
+            'Traceback (most recent call last):\n  File "<node>", line 2, in run\nZeroDivisionError: division by zero';
+        renderWithProviders(
+            <ComposerQueriesToolCallDescription
+                queries={[
+                    {
+                        sourceType: QuerySourceType.PYTHON,
+                        nodeId: 'sim',
+                        title: 'Simulated amounts',
+                        description: null,
+                        code: 'def run(inputs, params):\n    return 1 / 0',
+                        references: ['orders'],
+                        limit: 500,
+                    },
+                ]}
+                nodeStatuses={{
+                    sim: { status: 'error', errorMessage: traceback },
+                }}
+            />,
+        );
+
+        const block = screen.getByText(/ZeroDivisionError/);
+        expect(block.tagName).toBe('PRE');
+        expect(block.textContent).toBe(traceback);
+    });
+
+    it('shows a failed call error when no node carries its own', () => {
+        renderWithProviders(
+            <ComposerQueriesToolCallDescription
+                queries={[sqlNode('orders', 'Orders', 'select 1')]}
+                failure="Composer query failed on node(s): orders"
+            />,
+        );
+
+        expect(
+            screen.getByText('Composer query failed on node(s): orders')
+                .tagName,
+        ).toBe('PRE');
+    });
+
+    it('prefers node errors over the call error', () => {
+        renderWithProviders(
+            <ComposerQueriesToolCallDescription
+                queries={[sqlNode('orders', 'Orders', 'select 1')]}
+                nodeStatuses={{
+                    orders: { status: 'error', errorMessage: 'bad column' },
+                }}
+                failure="call failed"
+            />,
+        );
+
+        expect(screen.getByText('bad column')).toBeInTheDocument();
+        expect(screen.queryByText('call failed')).not.toBeInTheDocument();
+    });
+
+    it('hides a failed node error without the SQL scope', () => {
+        vi.mocked(useCanViewAiAgentSql).mockReturnValue(false);
+        const { container } = renderWithProviders(
+            <ComposerQueriesToolCallDescription
+                queries={[sqlNode('broken', 'Broken', 'select broken')]}
+                nodeStatuses={{
+                    broken: { status: 'error', errorMessage: 'bad column' },
+                }}
+            />,
+        );
+
+        expect(container.querySelector('pre')).not.toBeInTheDocument();
+    });
+
     it('shows approval actions under SQL nodes awaiting approval', () => {
         renderWithProviders(
             <Provider store={store}>

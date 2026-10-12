@@ -116,7 +116,11 @@ export const buildComposerArtifactPipeline = ({
         copiedIdsByQueryUuid.set(queryUuid, nodeId);
 
         let node: SourceQuery = { ...earlier.node, nodeId };
-        if (node.sourceType === QuerySourceType.DUCKDB && node.references) {
+        if (
+            (node.sourceType === QuerySourceType.DUCKDB ||
+                node.sourceType === QuerySourceType.PYTHON) &&
+            node.references
+        ) {
             const entries = Array.isArray(node.references)
                 ? node.references.map((reference) => [reference, reference])
                 : Object.entries(node.references);
@@ -143,7 +147,8 @@ export const buildComposerArtifactPipeline = ({
 
     const submittedQueries = queries.map((node): SourceQuery => {
         if (
-            node.sourceType !== QuerySourceType.DUCKDB ||
+            (node.sourceType !== QuerySourceType.DUCKDB &&
+                node.sourceType !== QuerySourceType.PYTHON) ||
             !node.references ||
             Array.isArray(node.references)
         ) {

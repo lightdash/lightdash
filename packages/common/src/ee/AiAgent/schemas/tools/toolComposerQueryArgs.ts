@@ -8,6 +8,7 @@ import {
     QuerySourceType,
     type DuckdbSourceQuery,
     type ExternalSourceQuery,
+    type PythonSourceQuery,
     type SemanticLayerSourceQuery,
     type SqlSourceQuery,
 } from '../../../../types/querySources';
@@ -18,17 +19,33 @@ import { createToolSchema } from '../toolSchemaBuilder';
 export const DEFAULT_COMPOSER_QUERY_LIMIT = 500;
 export const DEFAULT_COMPOSER_QUERY_MAX_LIMIT = 5000;
 
-export const TOOL_COMPOSER_QUERIES_DESCRIPTION = `Run a pipeline: one or more queries submitted together, where duckdb queries join or transform the others' results. The terminal node's table is shown in the thread as a chart artifact and its rows are returned to you.
+type ComposerQueriesDescriptionOptions = {
+    enablePythonNodes: boolean;
+};
+
+export const getToolComposerQueriesDescription = ({
+    enablePythonNodes,
+}: ComposerQueriesDescriptionOptions) => `Run a pipeline: one or more queries submitted together, where ${
+    enablePythonNodes ? 'duckdb and python' : 'duckdb'
+} queries join or transform the others' results. The terminal node's table is shown in the thread as a chart artifact and its rows are returned to you.
 
 Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
 - "sql": raw SQL against the project warehouse; may need user approval. A lone sql node is how raw SQL runs when there is no runSql tool.
 - "external": DuckDB SQL over uploaded or connected tables declared in "tables".
-- "duckdb": DuckDB SQL over other results declared in "references".
+- "duckdb": DuckDB SQL over other results declared in "references".${
+    enablePythonNodes
+        ? `
+- "python": pandas code over other results declared in "references", for what SQL expresses poorly (statistics, forecasting, reshaping). A python node may read duckdb nodes and duckdb nodes may read it. When it fails, the error carries the Python traceback: fix the code and resubmit.`
+        : ''
+}
 
 Every node has a "nodeId" (for references) and a "title" (what users see). The terminal node is the unique sink by default, or "terminalNodeId".
 
 Reuse across calls: every call returns a queryUuid per node. Referencing a queryUuid in the map form of "references" reads the stored result without re-running it or asking for approval. The artifact always shows your latest call's terminal result, so end with the pipeline that produces the table the user should see.`;
+
+export const TOOL_COMPOSER_QUERIES_DESCRIPTION =
+    getToolComposerQueriesDescription({ enablePythonNodes: false });
 
 const nodeIdSchema = z
     .string()
@@ -75,14 +92,22 @@ const sortFieldSchema = z.object({
         .describe('If true sorts in descending order, ascending otherwise.'),
 });
 
+const referencesSchema = z.union([
+    z.array(z.string()),
+    z.record(z.string(), z.string()),
+]);
+
 type CreateToolComposerQueriesArgsSchemaOptions = {
     maxLimit?: number;
     defaultLimit?: number;
+    /** Offers the python node; only when python queries are enabled for the org. */
+    enablePythonNodes?: boolean;
 };
 
 export const createToolComposerQueriesArgsSchema = ({
     maxLimit = DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
     defaultLimit = DEFAULT_COMPOSER_QUERY_LIMIT,
+    enablePythonNodes = false,
 }: CreateToolComposerQueriesArgsSchemaOptions = {}) => {
     const limitSchema = z.coerce
         .number()
@@ -142,11 +167,9 @@ export const createToolComposerQueriesArgsSchema = ({
             .describe(
                 'DuckDB SQL over the referenced results. Each reference is exposed as a table; its columns are the upstream result columns.',
             ),
-        references: z
-            .union([z.array(z.string()), z.record(z.string(), z.string())])
-            .describe(
-                'Which query results the SQL reads. Shorthand array of node ids from this submission (each exposed as a table named by its node id), or a map of {tableName: nodeIdOrQueryUuid} for aliasing or reusing stored results from earlier calls without re-running them.',
-            ),
+        references: referencesSchema.describe(
+            'Which query results the SQL reads. Shorthand array of node ids from this submission (each exposed as a table named by its node id), or a map of {tableName: nodeIdOrQueryUuid} for aliasing or reusing stored results from earlier calls without re-running them.',
+        ),
         limit: limitSchema,
     });
 
@@ -167,12 +190,33 @@ export const createToolComposerQueriesArgsSchema = ({
         limit: limitSchema,
     });
 
-    const sourceQueryNodeSchema = z.discriminatedUnion('sourceType', [
+    const pythonNodeSchema = z.object({
+        sourceType: z.literal(QuerySourceType.PYTHON),
+        nodeId: nodeIdSchema,
+        ...nodeMetaSchema,
+        code: z
+            .string()
+            .describe(
+                `Python defining \`def run(inputs: dict[str, pandas.DataFrame], params: dict) -> pandas.DataFrame\`. inputs[name] is one DataFrame per reference, keyed by its name in "references"; params is empty. Available libraries: pandas, numpy, scipy, pyarrow. No network access and no package installs. Return one DataFrame whose column names match ^[A-Za-z_][A-Za-z0-9_]{0,62}$. Rows past "limit" are dropped, so aggregate in Python when the output would be large.`,
+            ),
+        references: referencesSchema.describe(
+            'Which query results the code reads, at least one. Shorthand array of node ids from this submission (each exposed as inputs[nodeId]), or a map of {inputName: nodeIdOrQueryUuid} for aliasing or reusing stored results from earlier calls without re-running them.',
+        ),
+        limit: limitSchema,
+    });
+
+    const baseNodeSchemas = [
         semanticLayerNodeSchema,
         sqlNodeSchema,
         duckdbNodeSchema,
         externalNodeSchema,
-    ]);
+    ] as const;
+    const sourceQueryNodeSchema = z.discriminatedUnion(
+        'sourceType',
+        enablePythonNodes
+            ? [...baseNodeSchemas, pythonNodeSchema]
+            : [...baseNodeSchemas],
+    );
 
     return createToolSchema()
         .extend({
@@ -190,7 +234,9 @@ export const createToolComposerQueriesArgsSchema = ({
                 .array(sourceQueryNodeSchema)
                 .min(1)
                 .describe(
-                    'The pipeline: one or more source queries submitted together. Order does not matter — dependencies are resolved from duckdb references.',
+                    `The pipeline: one or more source queries submitted together. Order does not matter — dependencies are resolved from ${
+                        enablePythonNodes ? 'duckdb and python' : 'duckdb'
+                    } references.`,
                 ),
             terminalNodeId: z
                 .string()
@@ -206,7 +252,7 @@ export const toolComposerQueriesArgsSchema =
     createToolComposerQueriesArgsSchema();
 
 export type ToolComposerQueryNode = z.infer<
-    typeof toolComposerQueriesArgsSchema
+    ReturnType<typeof createToolComposerQueriesArgsSchema>
 >['queries'][number];
 
 const toSourceQueryNodeMeta = (
@@ -227,7 +273,8 @@ export const toolComposerQueryNodeToSourceQuery = (
     | SemanticLayerSourceQuery
     | SqlSourceQuery
     | DuckdbSourceQuery
-    | ExternalSourceQuery => {
+    | ExternalSourceQuery
+    | PythonSourceQuery => {
     switch (node.sourceType) {
         case QuerySourceType.SEMANTIC_LAYER: {
             const filters: MetricQueryRequest['filters'] | undefined =
@@ -269,6 +316,15 @@ export const toolComposerQueryNodeToSourceQuery = (
                 ...toSourceQueryNodeMeta(node),
                 sql: node.sql,
                 tables: node.tables,
+                limit: node.limit,
+            };
+        case QuerySourceType.PYTHON:
+            return {
+                sourceType: node.sourceType,
+                nodeId: node.nodeId,
+                ...toSourceQueryNodeMeta(node),
+                code: node.code,
+                references: node.references,
                 limit: node.limit,
             };
         default:
@@ -373,6 +429,16 @@ export const parsePartialToolComposerQueriesArgs = (
                         limit: DEFAULT_COMPOSER_QUERY_LIMIT,
                     },
                 ];
+            case QuerySourceType.PYTHON:
+                return [
+                    {
+                        sourceType: QuerySourceType.PYTHON,
+                        ...meta,
+                        code: typeof node.code === 'string' ? node.code : '',
+                        references: asReferenceMapOrArray(node.references),
+                        limit: DEFAULT_COMPOSER_QUERY_LIMIT,
+                    },
+                ];
             default:
                 return [];
         }
@@ -453,7 +519,7 @@ export const toolComposerQueriesOutputSchema = structuredToolOutputSchema({
 });
 
 export type ToolComposerQueriesArgs = z.infer<
-    typeof toolComposerQueriesArgsSchema
+    ReturnType<typeof createToolComposerQueriesArgsSchema>
 >;
 export type ToolComposerQueriesOutput = z.infer<
     typeof toolComposerQueriesOutputSchema

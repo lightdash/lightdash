@@ -1,12 +1,12 @@
 import {
     NotFoundError,
     UnexpectedServerError,
-    type QuerySourceDefinition,
     type QuerySourceType,
 } from '@lightdash/common';
 import type { AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
 import type { ProjectService } from '../ProjectService/ProjectService';
 import { DuckdbQuerySource } from './sources/DuckdbQuerySource';
+import { PythonQuerySource } from './sources/PythonQuerySource';
 import { SemanticLayerQuerySource } from './sources/SemanticLayerQuerySource';
 import { SqlQuerySource } from './sources/SqlQuerySource';
 import type { QuerySourceClient } from './types';
@@ -42,6 +42,7 @@ export class QuerySourceRegistry {
             }),
         );
         registry.register(new DuckdbQuerySource({ asyncQueryService }));
+        registry.register(new PythonQuerySource({ asyncQueryService }));
         return registry;
     }
 
@@ -63,9 +64,7 @@ export class QuerySourceRegistry {
         return source;
     }
 
-    list(): QuerySourceDefinition[] {
-        return Array.from(this.sources.values()).map(
-            (source) => source.definition,
-        );
+    list(): QuerySourceClient[] {
+        return Array.from(this.sources.values());
     }
 }

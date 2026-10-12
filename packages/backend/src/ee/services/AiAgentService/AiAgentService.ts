@@ -15913,6 +15913,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 const [
                     { enabled: multiSourceQueryEnabled },
                     { enabled: composeSqlRunnerEnabled },
+                    { enabled: pythonQueryRunnerEnabled },
                 ] = await Promise.all([
                     this.featureFlagService.get({
                         user,
@@ -15922,6 +15923,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         user,
                         featureFlagId: FeatureFlags.ComposeSqlRunner,
                     }),
+                    this.featureFlagService.get({
+                        user,
+                        featureFlagId: FeatureFlags.PythonQueryRunner,
+                    }),
                 ]);
                 const enableComposerQueries =
                     multiSourceQueryEnabled &&
@@ -15929,6 +15934,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     agentSettings.enableDataAccess &&
                     !isSlackPrompt(prompt) &&
                     responseExecution.mode !== 'deep_research';
+                const enableComposerPythonNodes =
+                    enableComposerQueries && pythonQueryRunnerEnabled;
                 const { enabled: filterExpressionsEnabled } =
                     await this.featureFlagService.get({
                         user,
@@ -16455,6 +16462,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     repoFsSupportsCodeSearch,
                     canRunSql,
                     enableComposerQueries,
+                    enableComposerPythonNodes,
                     canCreateDashboards,
                     autoApproveSql: options.autoApproveSql ?? false,
                     autoApproveSqlUserUuid: options.autoApproveSql

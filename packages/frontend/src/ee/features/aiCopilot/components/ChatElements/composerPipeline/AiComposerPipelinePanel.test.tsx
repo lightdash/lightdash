@@ -266,3 +266,80 @@ describe('AiComposerPipelinePanel query details', () => {
         );
     });
 });
+
+describe('AiComposerPipelinePanel python nodes', () => {
+    const pythonQueries: SourceQuery[] = [
+        queries[0],
+        {
+            sourceType: QuerySourceType.PYTHON,
+            nodeId: 'simulated',
+            title: 'Simulated amounts',
+            description: 'Monte Carlo draws per status.',
+            code: 'def run(inputs, params):\n    return inputs["orders"]',
+            references: ['orders'],
+        },
+        {
+            sourceType: QuerySourceType.DUCKDB,
+            nodeId: 'summary',
+            title: 'Simulation summary',
+            sql: 'select * from simulated',
+            references: ['simulated'],
+        },
+    ];
+
+    it('lists a python node as a transformation with its code behind View code', () => {
+        renderWithProviders(
+            <AiComposerPipelinePanel
+                projectUuid="project"
+                queries={pythonQueries}
+                terminalNodeId="summary"
+                displayedNodeId="summary"
+                displayableNodeIds={new Set(['orders', 'simulated', 'summary'])}
+                onDisplayNode={() => {}}
+                defaultExpanded
+            >
+                <div>results</div>
+            </AiComposerPipelinePanel>,
+        );
+        expect(screen.getByText('Transformation')).toBeInTheDocument();
+        const row = document.getElementById(
+            'composer-pipeline-node-simulated',
+        )!;
+        expect(within(row).getByText('Python')).toBeInTheDocument();
+        expect(
+            within(row).getByText('Monte Carlo draws per status.'),
+        ).toBeInTheDocument();
+        expect(within(row).getByText('Reads Orders by status')).toBeVisible();
+        fireEvent.click(within(row).getByRole('button', { name: 'View code' }));
+        expect(row.querySelector('code')).toHaveTextContent(
+            /def run\(inputs, params\):/,
+        );
+        expect(
+            within(
+                document.getElementById('composer-pipeline-node-summary')!,
+            ).getByText('Reads Simulated amounts'),
+        ).toBeInTheDocument();
+    });
+
+    it('labels a python node in graph mode', () => {
+        renderWithProviders(
+            <AiComposerPipelinePanel
+                projectUuid="project"
+                queries={pythonQueries}
+                terminalNodeId="simulated"
+                displayedNodeId="simulated"
+                displayableNodeIds={new Set(['simulated'])}
+                onDisplayNode={() => {}}
+                defaultExpanded
+                defaultMode="graph"
+            >
+                <div>results</div>
+            </AiComposerPipelinePanel>,
+        );
+        expect(
+            within(
+                screen.getByLabelText('Display Simulated amounts'),
+            ).getByText('Python'),
+        ).toBeInTheDocument();
+    });
+});

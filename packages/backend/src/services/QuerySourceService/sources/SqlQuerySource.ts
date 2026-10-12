@@ -2,6 +2,7 @@ import {
     assertRegisteredAccount,
     ParameterError,
     QuerySourceType,
+    type FeatureFlags,
     type QuerySourceDefinition,
     type QuerySourceSchema,
     type QuerySourceSchemaTable,
@@ -37,6 +38,8 @@ export class SqlQuerySource implements QuerySourceClient {
     };
 
     readonly supportsPivot = true;
+
+    readonly requiredFeatureFlags: FeatureFlags[] = [];
 
     private readonly asyncQueryService: AsyncQueryService;
 

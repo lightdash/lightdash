@@ -21354,6 +21354,7 @@ Reuse across calls: every call returns a queryUuid per node. Referencing a query
                           "sql",
                           "duckdb",
                           "external",
+                          "python",
                         ],
                         "type": "string",
                       },

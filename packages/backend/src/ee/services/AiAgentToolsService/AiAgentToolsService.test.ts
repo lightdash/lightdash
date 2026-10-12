@@ -3645,6 +3645,65 @@ describe('AiAgentToolsService runComposerQueries', () => {
     });
 });
 
+describe('AiAgentToolsService runComposerQueries python failures', () => {
+    it('hands the model the python traceback, bounded to its head and tail', async () => {
+        const traceback = `run() raised:\nTraceback (most recent call last):\n${'  File "main.py", line 3, in run\n'.repeat(
+            500,
+        )}KeyError: 'amount'`;
+        const service = makeService({
+            querySourceService: {
+                executeSourceQueries: vi.fn().mockResolvedValue({
+                    queries: [
+                        {
+                            nodeId: 'forecast',
+                            sourceType: QuerySourceType.PYTHON,
+                            queryUuid: 'query-1',
+                        },
+                    ],
+                }),
+                getSourceQueryStatuses: vi.fn().mockResolvedValue({
+                    statuses: [
+                        {
+                            queryUuid: 'query-1',
+                            status: QueryHistoryStatus.ERROR,
+                            error: traceback,
+                        },
+                    ],
+                }),
+            },
+            asyncQueryService: {
+                getAsyncQueryResults: vi.fn().mockResolvedValue({
+                    status: QueryHistoryStatus.ERROR,
+                    error: traceback,
+                }),
+            },
+        });
+
+        const error = await service
+            .createRuntime(makeRuntimeContext())
+            .runComposerQueries({
+                queries: [
+                    {
+                        sourceType: QuerySourceType.PYTHON,
+                        nodeId: 'forecast',
+                        code: 'def run(inputs, params):\n    return inputs["o"]',
+                        references: {
+                            o: '11111111-1111-4111-8111-111111111111',
+                        },
+                    },
+                ],
+                terminalNodeId: 'forecast',
+            })
+            .catch((e: Error) => e);
+
+        expect(error).toBeInstanceOf(Error);
+        const { message } = error as Error;
+        expect(message).toContain('"forecast" (run() raised:');
+        expect(message).toContain("KeyError: 'amount'");
+        expect(message.length).toBeLessThan(4096 + 200);
+    });
+});
+
 describe('AiAgentToolsService readContent data_app', () => {
     const dataReferences: PersistedDataAppDataReferences = {
         references: [

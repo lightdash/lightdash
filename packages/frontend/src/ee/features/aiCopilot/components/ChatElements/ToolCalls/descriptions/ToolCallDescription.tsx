@@ -39,6 +39,7 @@ import {
 } from '@lightdash/common';
 import type { FC } from 'react';
 import { type SqlApprovalTarget } from '../SqlApprovalActions';
+import { getComposerFailureMessage } from '../utils/composerQueryNodes';
 import type { ToolCallSummary } from '../utils/types';
 import {
     ComposerQueriesToolCallDescription,
@@ -246,6 +247,7 @@ export const ToolCallDescription: FC<{
                 <ComposerQueriesToolCallDescription
                     queries={composerToolArgs.queries ?? []}
                     nodeStatuses={composerNodeStatuses}
+                    failure={getComposerFailureMessage(toolResult)}
                     approval={approval}
                 />
             );

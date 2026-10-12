@@ -1,4 +1,4 @@
-import { truncate } from './truncation';
+import { truncate, truncateMiddle } from './truncation';
 
 describe('truncate', () => {
     it('keeps the requested number of characters before the suffix', () => {
@@ -13,5 +13,20 @@ describe('truncate', () => {
         expect(truncate('abc', 0)).toEqual('');
         expect(truncate('abc', -1)).toEqual('');
         expect(truncate('abc', Number.NaN)).toEqual('');
+    });
+});
+
+describe('truncateMiddle', () => {
+    it('returns short values unchanged', () => {
+        expect(truncateMiddle('short', 10)).toEqual('short');
+    });
+
+    it('keeps the head and the tail within the limit', () => {
+        const traceback = `Traceback:\n${'  frame\n'.repeat(1000)}KeyError: 'amount'`;
+        const truncated = truncateMiddle(traceback, 200);
+        expect(truncated.length).toBeLessThanOrEqual(200);
+        expect(truncated.startsWith('Traceback:')).toBe(true);
+        expect(truncated.endsWith("KeyError: 'amount'")).toBe(true);
+        expect(truncated).toContain('...(truncated)...');
     });
 });

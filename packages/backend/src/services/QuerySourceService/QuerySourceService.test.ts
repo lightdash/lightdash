@@ -39,6 +39,7 @@ import type { ProjectService } from '../ProjectService/ProjectService';
 import { QuerySourceRegistry } from './QuerySourceRegistry';
 import { QuerySourceService } from './QuerySourceService';
 import { DuckdbQuerySource } from './sources/DuckdbQuerySource';
+import { PythonQuerySource } from './sources/PythonQuerySource';
 import { SemanticLayerQuerySource } from './sources/SemanticLayerQuerySource';
 import { SqlQuerySource } from './sources/SqlQuerySource';
 import type {
@@ -68,6 +69,7 @@ const createFakeSource = (
 ): QuerySourceClient & { submitQuery: Mock } => ({
     definition: { sourceType, label: sourceType, description: 'fake source' },
     supportsPivot: sourceType !== QuerySourceType.EXTERNAL,
+    requiredFeatureFlags: [],
     scanSchema: vi.fn().mockResolvedValue({ sourceType, tables: [] }),
     getQueryReferences: (query: SourceQuery) => {
         if (query.sourceType !== QuerySourceType.DUCKDB) return [];
@@ -139,7 +141,7 @@ const createRegistryWithFakes = () => {
 describe('QuerySourceRegistry', () => {
     it('lists registered sources and resolves them by type', () => {
         const { registry } = createRegistryWithFakes();
-        expect(registry.list().map((d) => d.sourceType)).toEqual([
+        expect(registry.list().map((s) => s.definition.sourceType)).toEqual([
             QuerySourceType.SQL,
             QuerySourceType.SEMANTIC_LAYER,
             QuerySourceType.DUCKDB,
@@ -766,6 +768,98 @@ describe('QuerySourceService', () => {
  * upstream results by reference and produce their own columns; no metadata
  * is carried through.
  */
+describe('python query source gating', () => {
+    const createRegistry = () => {
+        const fakes = createRegistryWithFakes();
+        const executeAsyncPythonQuery = vi
+            .fn()
+            .mockResolvedValue({ queryUuid: 'python-query-uuid' });
+        fakes.registry.register(
+            new PythonQuerySource({
+                asyncQueryService: { executeAsyncPythonQuery },
+            }),
+        );
+        return { ...fakes, executeAsyncPythonQuery };
+    };
+    const flagsOnExcept =
+        (disabled: FeatureFlags | null) =>
+        async ({ featureFlagId }: { featureFlagId: FeatureFlags }) => ({
+            enabled: featureFlagId !== disabled,
+        });
+    const pipeline: SourceQuery[] = [
+        { nodeId: 'orders', sourceType: QuerySourceType.SQL, sql: 'SELECT 1' },
+        {
+            nodeId: 'forecast',
+            sourceType: QuerySourceType.PYTHON,
+            code: 'def run(inputs, params):\n    return inputs["orders"]',
+            references: ['orders'],
+        },
+    ];
+
+    it('lists python only when both python flags are on', async () => {
+        const { registry } = createRegistry();
+        const { service, mocks } = createService(registry);
+        const listed = async () =>
+            (await service.listSources(account, projectUuid)).sources.map(
+                (source) => source.sourceType,
+            );
+
+        expect(await listed()).toContain(QuerySourceType.PYTHON);
+        mocks.featureFlagModel.get.mockImplementation(
+            flagsOnExcept(FeatureFlags.PythonQueryRunner),
+        );
+        expect(await listed()).not.toContain(QuerySourceType.PYTHON);
+        mocks.featureFlagModel.get.mockImplementation(
+            flagsOnExcept(FeatureFlags.ComposeSqlRunner),
+        );
+        expect(await listed()).not.toContain(QuerySourceType.PYTHON);
+    });
+
+    it('refuses a python pipeline before submitting any node when python is off', async () => {
+        const { registry, sqlSource, executeAsyncPythonQuery } =
+            createRegistry();
+        const { service, mocks } = createService(registry);
+        mocks.featureFlagModel.get.mockImplementation(
+            flagsOnExcept(FeatureFlags.PythonQueryRunner),
+        );
+
+        await expect(
+            service.executeSourceQueries({
+                ...executionContext,
+                account,
+                projectUuid,
+                queries: pipeline,
+                context: QueryExecutionContext.AI,
+            }),
+        ).rejects.toThrow('python queries are not enabled');
+        expect(sqlSource.submitQuery).not.toHaveBeenCalled();
+        expect(executeAsyncPythonQuery).not.toHaveBeenCalled();
+    });
+
+    it('submits a python node after the nodes it references', async () => {
+        const { registry, executeAsyncPythonQuery } = createRegistry();
+        const { service } = createService(registry);
+
+        const results = await service.executeSourceQueries({
+            ...executionContext,
+            account,
+            projectUuid,
+            queries: [...pipeline].reverse(),
+            context: QueryExecutionContext.AI,
+        });
+
+        expect(results.queries.map((query) => query.nodeId)).toEqual([
+            'orders',
+            'forecast',
+        ]);
+        expect(executeAsyncPythonQuery).toHaveBeenCalledWith(
+            expect.objectContaining({
+                references: { orders: 'orders-query-uuid' },
+            }),
+        );
+    });
+});
+
 describe('composer pipelines return the standard results interface', () => {
     const createRealSources = () => {
         const asyncQueryService = {

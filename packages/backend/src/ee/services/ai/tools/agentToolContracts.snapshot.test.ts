@@ -216,6 +216,7 @@ const makeAgentTools = (
             listThreadComposerPipelines: noop,
             enableDataAccess: true,
             canRunSql: true,
+            enablePythonNodes: false,
             getPrompt: noop,
             recordSqlApproval: noop,
             trackSqlApprovalTimeout: noop,

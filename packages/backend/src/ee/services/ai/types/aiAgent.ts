@@ -288,6 +288,9 @@ export type AiAgentArgs = AnyAiModel & {
     // Whether the runComposerQueries tool (multi-source pipelines) is
     // available: the MultiSourceQuery flag + data access, web chat only in v0.
     enableComposerQueries: boolean;
+    // Whether runComposerQueries offers python nodes: composer queries plus
+    // the PythonQueryRunner flag.
+    enableComposerPythonNodes: boolean;
     // Whether the user can save a generated dashboard anywhere in the project.
     // Gates generateDashboard so the agent does not build one the user is then
     // refused permission to keep.
