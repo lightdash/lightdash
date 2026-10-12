@@ -1002,6 +1002,7 @@ describe('Organisation agent identity settings', () => {
         const expectSettingUpMenu = (
             menu: ReturnType<typeof within>,
             savedSource: 'marked_person' | 'ai_service_account',
+            expectNoPut = true,
         ) => {
             expect(
                 menu.queryByLabelText('Saved choice'),
@@ -1043,9 +1044,10 @@ describe('Organisation agent identity settings', () => {
                     name: `Snowflake: agents run as ${identityLabels[savedSource].label.toLowerCase()}. Change.`,
                 }),
             ).toBeVisible();
-            expect(lightdashApi).not.toHaveBeenCalledWith(
-                expect.objectContaining({ method: 'PUT' }),
-            );
+            if (expectNoPut)
+                expect(lightdashApi).not.toHaveBeenCalledWith(
+                    expect.objectContaining({ method: 'PUT' }),
+                );
         };
 
         it('shows the saved choice and setup hint when nothing is in progress', async () => {
@@ -1121,6 +1123,86 @@ describe('Organisation agent identity settings', () => {
             expect(lightdashApi).not.toHaveBeenCalledWith(
                 expect.objectContaining({ method: 'PUT' }),
             );
+        });
+        it('keeps the setting-up menu after Turn on fails', async () => {
+            vi.mocked(lightdashApi).mockImplementation((request) =>
+                request.method === 'PUT' &&
+                request.url === '/org/agent-identity/snowflake'
+                    ? Promise.reject({ error: { message: 'Save failed' } })
+                    : apiHandler(request),
+            );
+            currentOverview.rules[0].source = 'marked_person';
+            renderSection();
+            await selectAgentSignIn();
+            const turnOn = await screen.findByRole('button', {
+                name: 'Turn on',
+            });
+            await waitFor(() => expect(turnOn).toBeEnabled());
+            fireEvent.click(turnOn);
+            await waitFor(() =>
+                expect(lightdashApi).toHaveBeenCalledWith({
+                    version: 'v2',
+                    url: '/org/agent-identity/snowflake',
+                    method: 'PUT',
+                    body: JSON.stringify({ source: 'agent_sign_in' }),
+                }),
+            );
+            await waitFor(() => expect(mocks.errorToast).toHaveBeenCalled());
+            await waitFor(() =>
+                expect(
+                    screen.getByRole('button', {
+                        name: /^Snowflake: agents run as/,
+                    }),
+                ).toBeEnabled(),
+            );
+            expect(screen.getByText('Not active yet')).toBeVisible();
+            expectSettingUpMenu(await openMenu(), 'marked_person', false);
+        });
+        it('restores the normal menu when the saved choice is selected again', async () => {
+            startUnconfigured();
+            await selectAgentSignIn();
+            const menu = await openMenu();
+            fireEvent.click(
+                menu.getByRole('button', {
+                    name: `${identityLabels.marked_person.label}, ${identityChoiceStateLabels.current.toLowerCase()}`,
+                }),
+            );
+            expect(
+                screen.queryByText('Not active yet'),
+            ).not.toBeInTheDocument();
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+            expect(lightdashApi).not.toHaveBeenCalledWith(
+                expect.objectContaining({ method: 'PUT' }),
+            );
+            expectNormalMenu(await openMenu());
+        });
+        it('clears setup when choosing the shared account and restores the normal menu after Cancel', async () => {
+            startUnconfigured();
+            await selectAgentSignIn();
+            const menu = await openMenu();
+            fireEvent.click(
+                menu.getByRole('button', {
+                    name: identityLabels.ai_service_account.label,
+                }),
+            );
+            expect(
+                screen.queryByText('Not active yet'),
+            ).not.toBeInTheDocument();
+            const dialog = screen.getByRole('dialog', {
+                name: 'Use a shared agent account for Snowflake?',
+            });
+            expect(dialog).toBeVisible();
+            fireEvent.click(
+                within(dialog).getByRole('button', { name: 'Cancel' }),
+            );
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+            expect(
+                screen.queryByText('Not active yet'),
+            ).not.toBeInTheDocument();
+            expect(lightdashApi).not.toHaveBeenCalledWith(
+                expect.objectContaining({ method: 'PUT' }),
+            );
+            expectNormalMenu(await openMenu());
         });
     });
     it('keeps selection pending, renders backend SQL and enables Turn on only after verification passes', async () => {
