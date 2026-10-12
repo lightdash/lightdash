@@ -3141,58 +3141,91 @@ export class SavedChartModel {
                 if (filters.includeOrphanChartsWithinDashboard) {
                     // Ignore chart_uuid to be in dashboard_tiles
                 } else {
-                    // Get charts not saved in a dashboard OR the charts saved a dashboard AND used in the latest dashboard version
+                    const latestDashboardVersions = this.database(
+                        DashboardVersionsTableName,
+                    )
+                        .select(
+                            `${DashboardVersionsTableName}.dashboard_id`,
+                            `${DashboardVersionsTableName}.dashboard_version_id`,
+                        )
+                        .innerJoin(
+                            DashboardsTableName,
+                            `${DashboardsTableName}.dashboard_id`,
+                            `${DashboardVersionsTableName}.dashboard_id`,
+                        )
+                        .innerJoin(
+                            SpaceTableName,
+                            `${SpaceTableName}.space_id`,
+                            `${DashboardsTableName}.space_id`,
+                        )
+                        .innerJoin(
+                            'projects',
+                            'projects.project_id',
+                            `${SpaceTableName}.project_id`,
+                        )
+                        .modify((builder) => {
+                            if (filters.projectUuid) {
+                                void builder.where(
+                                    'projects.project_uuid',
+                                    filters.projectUuid,
+                                );
+                            }
+                        })
+                        .distinctOn(
+                            `${DashboardVersionsTableName}.dashboard_id`,
+                        )
+                        .orderBy([
+                            `${DashboardVersionsTableName}.dashboard_id`,
+                            {
+                                column: `${DashboardVersionsTableName}.created_at`,
+                                order: 'desc',
+                            },
+                            {
+                                column: `${DashboardVersionsTableName}.dashboard_version_id`,
+                                order: 'desc',
+                            },
+                        ]);
+                    const currentDashboardCharts = this.database
+                        .from(
+                            latestDashboardVersions.as(
+                                'latest_dashboard_versions',
+                            ),
+                        )
+                        .innerJoin(
+                            DashboardTileChartTableName,
+                            `${DashboardTileChartTableName}.dashboard_version_id`,
+                            'latest_dashboard_versions.dashboard_version_id',
+                        )
+                        .distinct(
+                            'latest_dashboard_versions.dashboard_id',
+                            `${DashboardTileChartTableName}.saved_chart_id`,
+                        );
                     void query
                         .leftJoin(
-                            DashboardVersionsTableName,
-                            `${DashboardVersionsTableName}.dashboard_id`,
-                            '=',
-                            `${DashboardsTableName}.dashboard_id`,
-                        )
-                        .leftJoin(
-                            DashboardTileChartTableName,
+                            currentDashboardCharts.as(
+                                'current_dashboard_charts',
+                            ),
                             function chartsJoin() {
                                 this.on(
-                                    `${DashboardTileChartTableName}.dashboard_version_id`,
+                                    'current_dashboard_charts.dashboard_id',
                                     '=',
-                                    `${DashboardVersionsTableName}.dashboard_version_id`,
-                                );
-                                this.andOn(
-                                    `${DashboardTileChartTableName}.saved_chart_id`,
+                                    `${DashboardsTableName}.dashboard_id`,
+                                ).andOn(
+                                    'current_dashboard_charts.saved_chart_id',
                                     '=',
                                     `${SavedChartsTableName}.saved_query_id`,
                                 );
                             },
                         )
-                        .where((whereBuilder) => {
-                            void whereBuilder
+                        .where((builder) => {
+                            void builder
                                 .whereNull(
                                     `${DashboardsTableName}.dashboard_id`,
                                 )
-                                .orWhere((orWhereBuilder) => {
-                                    void orWhereBuilder
-                                        .whereNotNull(
-                                            `${DashboardTileChartTableName}.saved_chart_id`,
-                                        )
-                                        .andWhere(
-                                            `${DashboardVersionsTableName}.created_at`,
-                                            '=',
-                                            this.database
-                                                .from(
-                                                    DashboardVersionsTableName,
-                                                )
-                                                .max('created_at')
-                                                .where(
-                                                    `${DashboardVersionsTableName}.dashboard_id`,
-                                                    this.database.ref(
-                                                        `${DashboardsTableName}.dashboard_id`,
-                                                    ),
-                                                ),
-                                        );
-                                });
+                                .orWhereNotNull(
+                                    'current_dashboard_charts.saved_chart_id',
+                                );
                         })
-                        // Deduplicate results since dashboard_versions JOIN can produce
-                        // multiple rows when a chart appears in multiple dashboard versions
                         .distinctOn(`${SavedChartsTableName}.saved_query_uuid`);
                 }
 
@@ -3209,33 +3242,60 @@ export class SavedChartModel {
                     this.applyChartSlugFilter(query, filters.slugs);
                 }
 
-                if (filters.exploreName) {
-                    // TODO: Explore name is not an index in saved_queries_versions
-                    // This is something we could easily optimize (requires migration)
-                    void query
-                        .leftJoin(
-                            SavedChartVersionsTableName,
+                if (filters.exploreName || filters.exploreNames) {
+                    const latestChartVersions = this.database(
+                        SavedChartVersionsTableName,
+                    )
+                        .select(
                             `${SavedChartVersionsTableName}.saved_query_id`,
+                            `${SavedChartVersionsTableName}.explore_name`,
+                        )
+                        .innerJoin(
+                            SavedChartsTableName,
+                            `${SavedChartsTableName}.saved_query_id`,
+                            `${SavedChartVersionsTableName}.saved_query_id`,
+                        )
+                        .modify((builder) => {
+                            if (filters.projectUuid) {
+                                void builder.where(
+                                    `${SavedChartsTableName}.project_uuid`,
+                                    filters.projectUuid,
+                                );
+                            }
+                        })
+                        .distinctOn(
+                            `${SavedChartVersionsTableName}.saved_query_id`,
+                        )
+                        .orderBy([
+                            `${SavedChartVersionsTableName}.saved_query_id`,
+                            {
+                                column: `${SavedChartVersionsTableName}.created_at`,
+                                order: 'desc',
+                            },
+                            {
+                                column: `${SavedChartVersionsTableName}.saved_queries_version_id`,
+                                order: 'desc',
+                            },
+                        ]);
+                    void query
+                        .innerJoin(
+                            latestChartVersions.as('latest_chart_versions'),
+                            'latest_chart_versions.saved_query_id',
                             `${SavedChartsTableName}.saved_query_id`,
                         )
-                        .where(
-                            'saved_queries_versions.explore_name',
+                        .distinctOn(`${SavedChartsTableName}.saved_query_uuid`);
+                    if (filters.exploreName) {
+                        void query.where(
+                            'latest_chart_versions.explore_name',
                             filters.exploreName,
-                        )
-                        .distinctOn(`${SavedChartsTableName}.saved_query_uuid`);
-                }
-                if (filters.exploreNames) {
-                    void query
-                        .leftJoin(
-                            SavedChartVersionsTableName,
-                            `${SavedChartVersionsTableName}.saved_query_id`,
-                            `${SavedChartsTableName}.saved_query_id`,
-                        )
-                        .whereIn(
-                            'saved_queries_versions.explore_name',
+                        );
+                    }
+                    if (filters.exploreNames) {
+                        void query.whereIn(
+                            'latest_chart_versions.explore_name',
                             filters.exploreNames,
-                        )
-                        .distinctOn(`${SavedChartsTableName}.saved_query_uuid`);
+                        );
+                    }
                 }
                 const chartSummaries = await query;
                 return chartSummaries.map((chart) => ({
