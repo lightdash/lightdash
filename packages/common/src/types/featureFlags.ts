@@ -332,6 +332,15 @@ export enum FeatureFlags {
     MultiSourceQuery = 'multi-source-query',
 
     /**
+     * Enable the python query endpoint
+     * (POST /api/v2/projects/{projectUuid}/query/python): user python run in
+     * a sandbox over other queries' results. Requires compose-sql-runner as
+     * well. Off by default everywhere; enable per organization to limit
+     * blast radius while the sandbox runtime is new.
+     */
+    PythonQueryRunner = 'python-query-runner',
+
+    /**
      * Enable the "My query history" page
      * (/projects/{projectUuid}/query-history) and its listing endpoint
      * (GET /api/v2/projects/{projectUuid}/query/history). Off by default.

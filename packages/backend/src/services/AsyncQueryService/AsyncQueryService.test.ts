@@ -1415,6 +1415,39 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    describe('executeAsyncPythonQuery flags', () => {
+        const execute = (flags: Partial<Record<FeatureFlags, boolean>>) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: flags[featureFlagId as FeatureFlags] ?? false,
+                    })),
+                } as unknown as FeatureFlagModel,
+            } as never);
+
+            return service.executeAsyncPythonQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.PYTHON_RUNNER,
+                code: 'def run(inputs, params):\n    return inputs["orders"]',
+                references: { orders: '0b7c9c62-4b6e-4b1a-9c3e-4f6a0c8d2e11' },
+            });
+        };
+
+        test('requires the python query runner flag', async () => {
+            await expect(
+                execute({ [FeatureFlags.ComposeSqlRunner]: true }),
+            ).rejects.toThrow('Python queries are not enabled');
+        });
+
+        test('requires the compose SQL runner flag', async () => {
+            await expect(
+                execute({ [FeatureFlags.PythonQueryRunner]: true }),
+            ).rejects.toThrow('Python queries are not enabled');
+        });
+    });
+
     describe('compose engine in every edition', () => {
         const composeFlags = {
             get: vi.fn(

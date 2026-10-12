@@ -10493,7 +10493,14 @@ export class AsyncQueryService extends ProjectService {
             },
             featureFlagId: FeatureFlags.ComposeSqlRunner,
         });
-        if (!isEndpointEnabled) {
+        const { enabled: isPythonEnabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.PythonQueryRunner,
+        });
+        if (!isEndpointEnabled || !isPythonEnabled) {
             throw new ForbiddenError('Python queries are not enabled');
         }
 

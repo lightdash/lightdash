@@ -104,6 +104,20 @@
                     "mcp": []
                 }
             }
+        },
+        "python-query-endpoint-behind-flag": {
+            "reason": "Adds POST /api/v2/projects/{projectUuid}/query/python, which runs user python in a sandbox over other queries' results. The python-query-runner flag is off by default on Cloud and on self-hosted, and the endpoint refuses every caller with 403 while it is off. No Lightdash client calls it yet; it is reached only by direct API calls during the pilot.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "featureFlag": "python-query-runner",
+                "covers": {
+                    "rest": [
+                        "POST /api/v2/projects/{projectUuid}/query/python"
+                    ],
+                    "mcp": []
+                }
+            }
         }
     }
 }
