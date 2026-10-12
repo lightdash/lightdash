@@ -799,7 +799,9 @@ describe('completion delivery', () => {
             expectNoCompletionLink();
             await waitFor(() => expect(resolveDecision).toBeDefined());
             await act(async () => resolveDecision({ completionUrl }));
-            expect(await screen.findByText('Sent to the CLI.')).toBeVisible();
+            expect(
+                await screen.findByText('Return to your terminal.'),
+            ).toBeVisible();
             expect(handle.location.replace).toHaveBeenCalledExactlyOnceWith(
                 completionUrl,
             );
@@ -842,7 +844,9 @@ describe('completion delivery', () => {
             );
             expect(handle.opener).toBeNull();
             expect(window.open).toHaveBeenCalledTimes(2);
-            expect(await screen.findByText('Sent to the CLI.')).toBeVisible();
+            expect(
+                await screen.findByText('Return to your terminal.'),
+            ).toBeVisible();
             expectNoCompletionLink();
             expect(
                 screen.queryByRole('button', { name: 'Return to the CLI' }),
@@ -869,7 +873,7 @@ describe('completion delivery', () => {
         },
     );
     it.each(['blocked', 'throws'])(
-        'keeps the button when the fallback tab is %s, because nothing was sent',
+        'keeps the button when the fallback tab is %s, because no navigation was attempted',
         async (failure) => {
             await loadPage();
             fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
@@ -882,7 +886,7 @@ describe('completion delivery', () => {
                 });
             fireEvent.click(fallback);
             expect(window.open).toHaveBeenCalledTimes(2);
-            expect(screen.queryByText('Sent to the CLI.')).toBeNull();
+            expect(screen.queryByText('Return to your terminal.')).toBeNull();
             expectNoCompletionLink();
             const handle = popup();
             vi.mocked(window.open).mockReset();
@@ -894,7 +898,9 @@ describe('completion delivery', () => {
             expect(handle.location.replace).toHaveBeenCalledExactlyOnceWith(
                 completionUrl,
             );
-            expect(await screen.findByText('Sent to the CLI.')).toBeVisible();
+            expect(
+                await screen.findByText('Return to your terminal.'),
+            ).toBeVisible();
             expect(
                 screen.queryByRole('button', { name: 'Return to the CLI' }),
             ).not.toBeInTheDocument();
@@ -925,14 +931,16 @@ describe('completion delivery', () => {
         vi.mocked(window.open).mockReturnValue(handle as unknown as Window);
         await loadPage();
         fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
-        expect(await screen.findByText('Sent to the CLI.')).toBeVisible();
+        expect(
+            await screen.findByText('Return to your terminal.'),
+        ).toBeVisible();
         expectNoCompletionLink();
         expect(
             screen.queryByRole('button', { name: 'Return to the CLI' }),
         ).not.toBeInTheDocument();
         expect(handle.location.replace).toHaveBeenCalledTimes(1);
     });
-    it('keeps the button when the pre-opened tab was closed, because nothing was sent', async () => {
+    it('keeps the button when the pre-opened tab was closed, because no navigation was attempted', async () => {
         const closed = popup();
         closed.closed = true;
         vi.mocked(window.open).mockReturnValue(closed as unknown as Window);
@@ -941,10 +949,10 @@ describe('completion delivery', () => {
         const fallback = await screen.findByRole('button', {
             name: 'Return to the CLI',
         });
-        expect(screen.queryByText('Sent to the CLI.')).toBeNull();
+        expect(screen.queryByText('Return to your terminal.')).toBeNull();
         expect(closed.location.replace).not.toHaveBeenCalled();
         fireEvent.click(fallback);
-        expect(screen.queryByText('Sent to the CLI.')).toBeNull();
+        expect(screen.queryByText('Return to your terminal.')).toBeNull();
         const handle = popup();
         vi.mocked(window.open).mockReturnValue(handle as unknown as Window);
         fallback.focus();
@@ -953,7 +961,9 @@ describe('completion delivery', () => {
         expect(handle.location.replace).toHaveBeenCalledExactlyOnceWith(
             completionUrl,
         );
-        expect(await screen.findByText('Sent to the CLI.')).toBeVisible();
+        expect(
+            await screen.findByText('Return to your terminal.'),
+        ).toBeVisible();
         expect(
             screen.getByRole('heading', { name: 'Connect your warehouses' }),
         ).toHaveFocus();

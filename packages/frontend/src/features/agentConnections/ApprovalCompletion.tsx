@@ -49,7 +49,7 @@ export const ApprovalCompletion = ({
             </Text>
             {attempted ? (
                 <Text size="sm" c="dimmed">
-                    {warehouseStepCopy.sent}
+                    {warehouseStepCopy.nextStep}
                 </Text>
             ) : (
                 <Button variant="subtle" onClick={returnToCli}>

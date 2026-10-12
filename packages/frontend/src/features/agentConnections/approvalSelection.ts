@@ -66,7 +66,7 @@ export const warehouseStepCopy = {
     heading: 'Connect your warehouses',
     cancelledHeading: 'Approval cancelled',
     cancelledMessage: 'No connection was created.',
-    sent: 'Sent to the CLI.',
+    nextStep: 'Return to your terminal.',
     returnToCli: 'Return to the CLI',
     defer: 'Do this later',
     deferTo: '/generalSettings/myAgentConnections',
