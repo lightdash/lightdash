@@ -13,7 +13,13 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { StrictMode } from 'react';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import {
+    MemoryRouter,
+    Route,
+    Routes,
+    useLocation,
+    useNavigate,
+} from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../api';
 import PrivateRoute from '../../components/PrivateRoute';
@@ -562,6 +568,116 @@ describe('approval review', () => {
                 await act(async () => vi.advanceTimersByTimeAsync(10000));
                 expect(location.key).toBe(navigationKey);
             } finally {
+                vi.useRealTimers();
+            }
+        },
+    );
+    it.each([
+        'health settles first',
+        'timeout elapses first',
+        'decision pending',
+    ])(
+        'does not navigate after leaving approval with a 401: %s',
+        async (phase) => {
+            let client!: QueryClient;
+            let location!: ReturnType<typeof useLocation>;
+            let navigate!: ReturnType<typeof useNavigate>;
+            const visited: string[] = [];
+            const Observe = () => {
+                client = useQueryClient();
+                location = useLocation();
+                navigate = useNavigate();
+                visited.push(location.pathname);
+                return null;
+            };
+            let rejectDecision!: (reason: unknown) => void;
+            api.mockResolvedValueOnce(review()).mockImplementationOnce(
+                () =>
+                    new Promise((_, reject) => {
+                        rejectDecision = reject;
+                    }),
+            );
+            const rendered = renderWithProviders(
+                <MemoryRouter
+                    initialEntries={[
+                        `/agent/connection-approval?request=${requestUuid}`,
+                    ]}
+                >
+                    <Observe />
+                    <Routes>
+                        <Route
+                            path="/agent/connection-approval"
+                            element={<AgentConnectionApprovalPage />}
+                        />
+                        <Route path="*" element={null} />
+                    </Routes>
+                </MemoryRouter>,
+            );
+            const approve = await screen.findByRole('button', {
+                name: 'Approve',
+            });
+            let finishHealth!: () => void;
+            const invalidate = vi
+                .spyOn(client, 'invalidateQueries')
+                .mockImplementationOnce(
+                    () =>
+                        new Promise<void>((resolve) => {
+                            finishHealth = resolve;
+                        }),
+                );
+            vi.useFakeTimers();
+            const schedule = vi.spyOn(globalThis, 'setTimeout');
+            const clear = vi.spyOn(globalThis, 'clearTimeout');
+            try {
+                await act(async () => fireEvent.click(approve));
+                expect(
+                    api.mock.calls.filter(([args]) => args.method === 'POST'),
+                ).toHaveLength(1);
+                if (phase !== 'decision pending') {
+                    await act(async () =>
+                        rejectDecision(error(401, 'authentication_required')),
+                    );
+                    expect(invalidate).toHaveBeenCalledExactlyOnceWith([
+                        'health',
+                    ]);
+                    expect(
+                        schedule.mock.calls.some(([, delay]) => delay === 5000),
+                    ).toBe(true);
+                }
+                await act(async () => navigate('/elsewhere'));
+                expect(approve).not.toBeInTheDocument();
+                const departed = location;
+                const timeoutIndex = schedule.mock.calls.findIndex(
+                    ([, delay]) => delay === 5000,
+                );
+                const clearedOnUnmount =
+                    timeoutIndex >= 0 &&
+                    clear.mock.calls.some(
+                        ([timer]) =>
+                            timer === schedule.mock.results[timeoutIndex].value,
+                    );
+                if (phase === 'decision pending')
+                    await act(async () =>
+                        rejectDecision(error(401, 'authentication_required')),
+                    );
+                if (phase === 'health settles first')
+                    await act(async () => finishHealth());
+                await act(async () => vi.advanceTimersByTimeAsync(6000));
+                expect(location).toEqual(departed);
+                if (phase === 'timeout elapses first')
+                    await act(async () => finishHealth());
+                expect(location).toEqual(departed);
+                expect(visited).not.toContain('/login');
+                if (phase === 'decision pending')
+                    expect(
+                        schedule.mock.calls.some(([, delay]) => delay === 5000),
+                    ).toBe(false);
+                else expect(clearedOnUnmount).toBe(true);
+            } finally {
+                rendered.unmount();
+                invalidate.mockRestore();
+                schedule.mockRestore();
+                clear.mockRestore();
                 vi.useRealTimers();
             }
         },
