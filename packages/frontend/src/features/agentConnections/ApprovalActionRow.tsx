@@ -1,5 +1,6 @@
 import { AgentCapability, getAgentCapabilityName } from '@lightdash/common';
 import {
+    ActionIcon,
     Box,
     Checkbox,
     Group,
@@ -65,6 +66,7 @@ export const ApprovalActionRow = ({
                 />
                 {showRestrictions && (
                     <Tooltip
+                        events={{ hover: true, focus: true, touch: false }}
                         multiline
                         position="right"
                         maw={320}
@@ -78,11 +80,13 @@ export const ApprovalActionRow = ({
                             </Stack>
                         }
                     >
-                        <MantineIcon
-                            icon={IconInfoCircle}
-                            color="dimmed"
-                            aria-hidden
-                        />
+                        <ActionIcon size="xs" aria-label="Why this is limited">
+                            <MantineIcon
+                                icon={IconInfoCircle}
+                                color="dimmed"
+                                aria-hidden
+                            />
+                        </ActionIcon>
                     </Tooltip>
                 )}
             </Group>

@@ -67,45 +67,182 @@ beforeEach(() => {
     );
 });
 describe('agent connections table', () => {
-    it('shows columns, plain actions, metadata and status without fetching collapsed rows', async () => {
+    it('shows compact columns, summary, dates and status without fetching collapsed rows', async () => {
         renderTable();
         await screen.findByText('grant-1');
-        for (const name of [
-            'Connection',
-            'Projects',
-            'Approved actions',
-            'Expires',
-            'Last used',
-            'Status',
-        ])
-            expect(screen.getByRole('columnheader', { name })).toBeVisible();
-        expect(screen.getByText('CLI')).toBeVisible();
-        expect(screen.getByText('Never used')).toBeVisible();
-        expect(screen.getByText('Query data')).toBeVisible();
-        expect(screen.getByText('Active')).toBeVisible();
         expect(
-            screen.getByText('Expand to check current restrictions'),
+            screen
+                .getAllByRole('columnheader')
+                .map((header) => header.textContent),
+        ).toEqual(['Connection', 'Expires', 'Last used', 'Status', '']);
+        const expander = screen.getByRole('button', { name: 'Expand grant-1' });
+        expect(expander).toHaveAttribute('aria-expanded', 'false');
+        expect(expander).toHaveAttribute(
+            'aria-controls',
+            'restrictions-grant-1',
+        );
+        expect(
+            document.getElementById('restrictions-grant-1'),
+        ).not.toBeInTheDocument();
+        const row = within(expander.closest('tr')!);
+        expect(row.getByText('CLI · 1 project · 1 action')).toBeVisible();
+        expect(
+            row.getByText(
+                new Date(connection().expiresAt).toLocaleString(undefined, {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                }),
+            ),
         ).toBeVisible();
+        expect(row.getByText('Never used')).toBeVisible();
+        expect(row.queryByText('Query data')).not.toBeInTheDocument();
+        expect(row.getByText('Active')).toBeVisible();
+        expect(row.getByRole('button', { name: 'Revoke' })).toBeVisible();
+        expect(
+            screen.queryByText('Expand to check current restrictions'),
+        ).not.toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Edit' }),
         ).not.toBeInTheDocument();
         expect(api).toHaveBeenCalledTimes(1);
-    });
-    it('loads expanded status once and keeps the server reason with the reversible restriction line', async () => {
-        renderTable();
-        fireEvent.click(
-            await screen.findByRole('button', { name: 'Expand grant-1' }),
+        expect(api).toHaveBeenCalledWith(
+            expect.objectContaining({
+                method: 'GET',
+                url: '/user/agent-connections',
+            }),
         );
+    });
+    it('shows approved action badges per project and fetches only the expanded active row restrictions once', async () => {
+        const data = {
+            ...connection(),
+            lastUsedAt: '2026-10-12T10:30:00Z',
+            approvedProjects: [
+                connection().approvedProjects[0],
+                {
+                    projectUuid: 'unrestricted',
+                    name: 'Production',
+                    approvedCapabilities: [
+                        AgentCapability.ReadDiscover,
+                        AgentCapability.Query,
+                    ],
+                },
+            ],
+        };
+        api.mockImplementation(async ({ url }) =>
+            url.endsWith('/status')
+                ? {
+                      ...status(),
+                      ...data,
+                      effectiveProjects: [
+                          status().effectiveProjects[0],
+                          {
+                              projectUuid: 'unrestricted',
+                              capabilities: [
+                                  {
+                                      capability: AgentCapability.ReadDiscover,
+                                      allowed: true,
+                                      reason: null,
+                                  },
+                                  {
+                                      capability: AgentCapability.Query,
+                                      allowed: true,
+                                      reason: null,
+                                  },
+                                  {
+                                      capability: AgentCapability.Delete,
+                                      allowed: false,
+                                      reason: 'not_approved',
+                                  },
+                              ],
+                          },
+                      ],
+                  }
+                : [data, connection('grant-2')],
+        );
+        renderTable();
+        const expander = await screen.findByRole('button', {
+            name: 'Expand grant-1',
+        });
+        expect(screen.getByText('CLI · 2 projects · 2 actions')).toBeVisible();
+        expect(
+            within(expander.closest('tr')!).getByText(
+                new Date(data.lastUsedAt).toLocaleString(undefined, {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                }),
+            ),
+        ).toBeVisible();
+        expect(api).toHaveBeenCalledTimes(1);
+        fireEvent.click(expander);
+        expect(expander).toHaveAccessibleName('Collapse grant-1');
+        expect(expander).toHaveAttribute('aria-expanded', 'true');
+        const details = document.getElementById(
+            expander.getAttribute('aria-controls')!,
+        )!;
+        expect(details).toBeVisible();
+        for (const [name, actions] of [
+            ['Development', ['Query data']],
+            ['Production', ['Read and discover', 'Query data']],
+        ] as const) {
+            const project = within(details).getByText(name).parentElement!;
+            const badges = project.querySelectorAll('.mantine-Badge-root');
+            expect(Array.from(badges, (badge) => badge.textContent)).toEqual(
+                actions,
+            );
+            badges.forEach((badge) => expect(badge).toBeVisible());
+        }
+        expect(
+            within(details).getByText(
+                `Approved ${new Date(data.approvedAt).toLocaleString(
+                    undefined,
+                    {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                    },
+                )}`,
+            ),
+        ).toBeVisible();
+        expect(
+            await within(details).findByText('Query data: person_permission'),
+        ).toBeVisible();
+        const restriction = within(details).getByText(
+            'Query data: person_permission',
+        ).parentElement!;
+        expect(within(restriction).getByText('Development')).toBeVisible();
+        expect(
+            within(restriction).getByText(
+                'May return if your permissions change.',
+            ),
+        ).toBeVisible();
+        expect(
+            within(details).getAllByText(
+                'May return if your permissions change.',
+            ),
+        ).toHaveLength(1);
+        expect(within(details).getAllByText('Production')).toHaveLength(1);
+        expect(
+            within(details).queryByText('No current restrictions'),
+        ).not.toBeInTheDocument();
+        expect(
+            within(details).queryByText(/not_approved/),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Edit' }),
+        ).not.toBeInTheDocument();
+        expect(api).toHaveBeenCalledTimes(2);
+        expect(api).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                method: 'GET',
+                url: '/user/agent-connections/grant-1/status',
+            }),
+        );
+        fireEvent.click(expander);
+        expect(expander).toHaveAttribute('aria-expanded', 'false');
+        expect(details).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Expand grant-1' }));
         expect(
             await screen.findByText('Query data: person_permission'),
         ).toBeVisible();
-        expect(
-            screen.getByText('May return if your permissions change.'),
-        ).toBeVisible();
-        fireEvent.click(
-            screen.getByRole('button', { name: 'Collapse grant-1' }),
-        );
-        fireEvent.click(screen.getByRole('button', { name: 'Expand grant-1' }));
         expect(api).toHaveBeenCalledTimes(2);
     });
     it.each([
@@ -120,6 +257,24 @@ describe('agent connections table', () => {
             ]);
             renderTable();
             expect(await screen.findByText(label)).toBeVisible();
+            const expander = screen.getByRole('button', {
+                name: 'Expand grant-1',
+            });
+            fireEvent.click(expander);
+            expect(expander).toHaveAttribute('aria-expanded', 'true');
+            const details = document.getElementById(
+                expander.getAttribute('aria-controls')!,
+            )!;
+            expect(within(details).getByText('Development')).toBeVisible();
+            expect(
+                within(details)
+                    .getByText('Query data')
+                    .closest('.mantine-Badge-root'),
+            ).toBeVisible();
+            expect(api).toHaveBeenCalledTimes(1);
+            expect(
+                screen.queryByText('Checking restrictions'),
+            ).not.toBeInTheDocument();
             expect(
                 screen.queryByRole('button', { name: 'Revoke' }),
             ).not.toBeInTheDocument();

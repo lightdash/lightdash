@@ -3,6 +3,7 @@ import {
     type AgentConnectionApprovalReview,
 } from '@lightdash/common';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../api';
@@ -177,34 +178,182 @@ describe('approval review', () => {
         ).toHaveAccessibleDescription(
             'This person is not allowed to use agents.',
         );
-        expect(
-            screen.getByText(
+        for (const [name, warning] of [
+            [
+                'Delete content',
                 'Deleted content cannot be restored by the agent.',
-            ),
-        ).toBeVisible();
-        expect(
-            screen.getByText('Other people will see what the agent publishes.'),
-        ).toBeVisible();
-        const queryRow = screen
-            .getByRole('checkbox', { name: 'Query data' })
-            .closest('section')!;
-        expect(
-            within(queryRow).getByText('Available in 1 of 2 selected projects'),
-        ).toBeVisible();
-        fireEvent.click(
-            within(queryRow).getByRole('button', { name: 'Show restrictions' }),
-        );
-        await waitFor(() =>
-            expect(
-                within(queryRow).getByText(
+            ],
+            [
+                'Publish and share',
+                'Other people will see what the agent publishes.',
+            ],
+        ]) {
+            const checkbox = screen.getByRole('checkbox', { name });
+            expect(checkbox).toHaveAccessibleDescription(
+                `${warning} Available in 1 of 2 selected projects`,
+            );
+            const row = checkbox.closest('section')!;
+            expect(within(row).getByText(warning)).toBeVisible();
+            expect(within(row).getByText(warning)).toHaveAttribute(
+                'aria-hidden',
+                'true',
+            );
+        }
+        const user = userEvent.setup();
+        for (const [name, lines] of [
+            [
+                'Query data',
+                [
+                    'Available in 1 of 2 selected projects',
                     'Production: This action is turned off for agents.',
-                ),
-            ).toBeVisible(),
-        );
+                ],
+            ],
+            [
+                'Raw SQL',
+                ['Your permissions in this project do not allow this action.'],
+            ],
+        ] as const) {
+            const checkbox = screen.getByRole('checkbox', { name });
+            expect(checkbox).toHaveAccessibleDescription(lines.join(' '));
+            const trigger = within(checkbox.closest('section')!).getByRole(
+                'button',
+                {
+                    name: 'Why this is limited',
+                },
+            );
+            expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+            await user.hover(trigger);
+            const tooltip = await screen.findByRole('tooltip');
+            for (const line of lines)
+                expect(within(tooltip).getByText(line)).toBeVisible();
+            expect(checkbox).toHaveAccessibleDescription(lines.join(' '));
+            await user.unhover(trigger);
+            await waitFor(() =>
+                expect(screen.queryByRole('tooltip')).not.toBeInTheDocument(),
+            );
+        }
+        expect(
+            screen.queryByRole('button', { name: /restrictions/i }),
+        ).not.toBeInTheDocument();
         expect(screen.getByText(review().notice)).toBeVisible();
         expect(
             screen.getByText('Expires 24 hours after approval'),
         ).toBeVisible();
+        expect(
+            screen.queryByText('Longer than the usual 24 hours'),
+        ).not.toBeInTheDocument();
+    });
+    it('opens restriction tooltips by keyboard for partly available and fully blocked actions', async () => {
+        const user = userEvent.setup();
+        await loadPage();
+        for (const [name, lines] of [
+            [
+                'Query data',
+                [
+                    'Available in 1 of 2 selected projects',
+                    'Production: This action is turned off for agents.',
+                ],
+            ],
+            [
+                'Raw SQL',
+                ['Your permissions in this project do not allow this action.'],
+            ],
+        ] as const) {
+            const checkbox = screen.getByRole('checkbox', { name });
+            const trigger = within(checkbox.closest('section')!).getByRole(
+                'button',
+                {
+                    name: 'Why this is limited',
+                },
+            );
+            for (
+                let tabs = 0;
+                tabs < 20 && document.activeElement !== trigger;
+                tabs += 1
+            )
+                await user.tab();
+            expect(trigger).toHaveFocus();
+            const tooltip = await screen.findByRole('tooltip');
+            for (const line of lines)
+                expect(within(tooltip).getByText(line)).toBeVisible();
+            expect(checkbox).toHaveAccessibleDescription(lines.join(' '));
+            await user.tab();
+            expect(trigger).not.toHaveFocus();
+            await waitFor(() => expect(tooltip).not.toBeInTheDocument());
+        }
+    });
+    it('deduplicates shared blocked reasons and omits warnings when destructive actions are blocked everywhere', async () => {
+        const data = review();
+        for (const project of data.projects.filter(
+            (entry) => entry.selectable,
+        )) {
+            project.capabilities = [
+                AgentCapability.Delete,
+                AgentCapability.Publish,
+            ].map((capability) => ({
+                capability,
+                visibility: 'blocked',
+                reason: 'This action is turned off for agents.',
+                reasonCode: 'action_disabled',
+            }));
+        }
+        api.mockResolvedValue(data);
+        await loadPage();
+        const user = userEvent.setup();
+        for (const name of ['Delete content', 'Publish and share']) {
+            const checkbox = screen.getByRole('checkbox', { name });
+            expect(checkbox).toBeDisabled();
+            expect(checkbox).not.toBeChecked();
+            expect(checkbox).toHaveAccessibleDescription(
+                'This action is turned off for agents.',
+            );
+            const trigger = within(checkbox.closest('section')!).getByRole(
+                'button',
+                { name: 'Why this is limited' },
+            );
+            await user.hover(trigger);
+            const tooltip = await screen.findByRole('tooltip');
+            expect(tooltip).toHaveTextContent(
+                /^This action is turned off for agents\.$/,
+            );
+            await user.unhover(trigger);
+            await waitFor(() =>
+                expect(screen.queryByRole('tooltip')).not.toBeInTheDocument(),
+            );
+        }
+        expect(
+            screen.queryByText(/Deleted content cannot be restored/),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByText(/Other people will see/),
+        ).not.toBeInTheDocument();
+    });
+    it('keeps distinct project reasons when an action is blocked everywhere', async () => {
+        const data = review();
+        data.projects[1].capabilities.push({
+            capability: AgentCapability.RawSql,
+            visibility: 'blocked',
+            reason: 'This action is turned off for agents.',
+            reasonCode: 'action_disabled',
+        });
+        api.mockResolvedValue(data);
+        await loadPage();
+        const checkbox = screen.getByRole('checkbox', { name: 'Raw SQL' });
+        const lines = [
+            'Development: Your permissions in this project do not allow this action.',
+            'Production: This action is turned off for agents.',
+        ];
+        expect(checkbox).toBeDisabled();
+        expect(checkbox).not.toBeChecked();
+        expect(checkbox).toHaveAccessibleDescription(lines.join(' '));
+        await userEvent.setup().hover(
+            within(checkbox.closest('section')!).getByRole('button', {
+                name: 'Why this is limited',
+            }),
+        );
+        const tooltip = await screen.findByRole('tooltip');
+        for (const line of lines)
+            expect(within(tooltip).getByText(line)).toBeVisible();
     });
     it('renders server reason text even when no reason code is supplied', async () => {
         const data = review();
@@ -231,9 +380,15 @@ describe('approval review', () => {
             screen.getByText('Expires 2 days, 1 second after approval'),
         ).toBeVisible();
         expect(
-            screen.getByText('This is longer than the usual 24 hours.'),
+            screen.getByText('Longer than the usual 24 hours'),
         ).toBeVisible();
         expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument();
+        expect(
+            screen.queryByText(/This page stops working at/),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByText('Choose what this agent may do.'),
+        ).not.toBeInTheDocument();
     });
     it('preserves unticks during project changes without fetching and disables approval for zero projects', async () => {
         await loadPage();
@@ -354,10 +509,16 @@ describe('approval review', () => {
             const calls = api.mock.calls.filter(
                 ([args]) => args.method === 'POST',
             );
-            expect(JSON.parse(String(calls[1][0].body))).toMatchObject({
+            expect(JSON.parse(String(calls[1][0].body))).toEqual({
+                decision: 'approve',
                 revision: 2,
                 nonce: renewed.nonce,
                 projectUuids: [firstProject],
+                capabilities: [
+                    AgentCapability.ReadDiscover,
+                    AgentCapability.Delete,
+                    AgentCapability.Publish,
+                ],
             });
         },
     );
