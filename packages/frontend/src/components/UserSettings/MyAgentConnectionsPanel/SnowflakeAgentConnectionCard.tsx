@@ -79,12 +79,55 @@ const SnowflakeAgentConnectionDetails = ({
     </>
 );
 
+const SnowflakeConnectionAction = ({
+    status,
+    allowDisconnect,
+    signInLabel,
+    onDisconnect,
+    login,
+}: {
+    status: SnowflakeAgentStatus;
+    allowDisconnect: boolean;
+    signInLabel: string | undefined;
+    onDisconnect: () => void;
+    login: ReturnType<typeof useSnowflakeAiLoginPopup>;
+}) => {
+    if (status === 'connected')
+        return allowDisconnect ? (
+            <Button size="xs" variant="default" onClick={onDisconnect}>
+                Disconnect
+            </Button>
+        ) : null;
+    if (status === 'unavailable') return null;
+    return (
+        <Button
+            size="xs"
+            onClick={() => {
+                login.reset();
+                login.mutate();
+            }}
+            loading={login.isLoading}
+        >
+            {signInLabel ??
+                (status === 'expired' ? 'Sign in again' : 'Connect agent')}
+        </Button>
+    );
+};
+
 export const SnowflakeAgentConnectionCard = ({
     credential,
     snowflakeConfigured,
+    projectUuid = null,
+    signInLabel,
+    statusOverride,
+    allowDisconnect = true,
 }: {
     credential: UserWarehouseCredentialsWithAgentStatus | null;
     snowflakeConfigured: boolean;
+    projectUuid?: string | null;
+    signInLabel?: string;
+    statusOverride?: SnowflakeAgentStatus;
+    allowDisconnect?: boolean;
 }) => {
     const { data: silentRefreshFlag } = useServerFeatureFlag(
         FeatureFlags.AgentIdentitySilentRefresh,
@@ -93,7 +136,7 @@ export const SnowflakeAgentConnectionCard = ({
     const login = useSnowflakeAiLoginPopup(
         {
             entryPoint: AgentIdentityConnectEntryPoint.MY_AGENT_CONNECTIONS,
-            projectUuid: null,
+            projectUuid,
         },
         { showErrorToast: false },
     );
@@ -107,13 +150,15 @@ export const SnowflakeAgentConnectionCard = ({
             : null,
     );
     const now = Date.now();
-    const status = getSnowflakeAgentStatus(
-        credential,
-        !!login.error && !isPopupBlocked,
-        now,
-        snowflakeConfigured,
-        silentRefreshEnabled,
-    );
+    const status =
+        statusOverride ??
+        getSnowflakeAgentStatus(
+            credential,
+            !!login.error && !isPopupBlocked,
+            now,
+            snowflakeConfigured,
+            silentRefreshEnabled,
+        );
     const badge = getStatusBadge(status);
     return (
         <Paper p="md">
@@ -123,28 +168,13 @@ export const SnowflakeAgentConnectionCard = ({
                         <Title order={5}>Snowflake</Title>
                         <Badge color={badge.color}>{badge.label}</Badge>
                     </Group>
-                    {status === 'connected' ? (
-                        <Button
-                            size="xs"
-                            variant="default"
-                            onClick={() => setIsRemoving(true)}
-                        >
-                            Disconnect
-                        </Button>
-                    ) : status !== 'unavailable' ? (
-                        <Button
-                            size="xs"
-                            onClick={() => {
-                                login.reset();
-                                login.mutate();
-                            }}
-                            loading={login.isLoading}
-                        >
-                            {status === 'expired'
-                                ? 'Sign in again'
-                                : 'Connect agent'}
-                        </Button>
-                    ) : null}
+                    <SnowflakeConnectionAction
+                        status={status}
+                        allowDisconnect={allowDisconnect}
+                        signInLabel={signInLabel}
+                        onDisconnect={() => setIsRemoving(true)}
+                        login={login}
+                    />
                 </Group>
                 <SnowflakeAgentConnectionDetails
                     status={status}

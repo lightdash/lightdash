@@ -8,7 +8,7 @@ import { screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { credential } from './fixtures';
-import { MyAgentConnectionsPanel } from './index';
+import { WarehouseAgentSignInsPanel } from './WarehouseAgentSignInsPanel';
 
 let snowflakeSource: AiIdentitySource = 'agent_sign_in';
 let bigquerySource: AiIdentitySource = 'ai_service_account';
@@ -88,7 +88,7 @@ vi.mock('../../../hooks/useSnowflake', () => ({
     }),
 }));
 
-describe('MyAgentConnectionsPanel', () => {
+describe('WarehouseAgentSignInsPanel', () => {
     beforeEach(() => {
         snowflakeSource = 'agent_sign_in';
         bigquerySource = 'ai_service_account';
@@ -104,11 +104,8 @@ describe('MyAgentConnectionsPanel', () => {
         isInitialLoading = false;
         isError = false;
     });
-    it('shows both applicable cards and the agreed heading', () => {
-        renderWithProviders(<MyAgentConnectionsPanel />);
-        expect(
-            screen.getByRole('heading', { name: 'My agent identity' }),
-        ).toBeInTheDocument();
+    it('shows both applicable cards and the existing description', () => {
+        renderWithProviders(<WarehouseAgentSignInsPanel />);
         expect(
             screen.getByText(
                 'See who your agents run as on each warehouse. Some warehouses need you to sign in once.',
@@ -140,7 +137,7 @@ describe('MyAgentConnectionsPanel', () => {
             snowflakeSource = source;
             configured = enabled;
             warehouses = projectWarehouses;
-            renderWithProviders(<MyAgentConnectionsPanel />);
+            renderWithProviders(<WarehouseAgentSignInsPanel />);
             expect(
                 screen.queryByRole('heading', { name: 'Snowflake' }) !== null,
             ).toBe(visible);
@@ -158,7 +155,7 @@ describe('MyAgentConnectionsPanel', () => {
             bigquerySource = source;
             warehouses = projectWarehouses;
             configured = false;
-            renderWithProviders(<MyAgentConnectionsPanel />);
+            renderWithProviders(<WarehouseAgentSignInsPanel />);
             expect(
                 screen.queryByRole('heading', { name: 'BigQuery' }) !== null,
             ).toBe(visible);
@@ -174,7 +171,7 @@ describe('MyAgentConnectionsPanel', () => {
         (source, projectWarehouses, visible) => {
             athenaSource = source;
             warehouses = projectWarehouses;
-            renderWithProviders(<MyAgentConnectionsPanel />);
+            renderWithProviders(<WarehouseAgentSignInsPanel />);
             expect(
                 screen.queryByRole('heading', { name: 'Athena' }) !== null,
             ).toBe(visible);
@@ -199,7 +196,7 @@ describe('MyAgentConnectionsPanel', () => {
         (source, projectWarehouses, visible) => {
             postgresSource = source;
             warehouses = projectWarehouses;
-            renderWithProviders(<MyAgentConnectionsPanel />);
+            renderWithProviders(<WarehouseAgentSignInsPanel />);
             expect(
                 screen.queryByRole('heading', { name: 'PostgreSQL' }) !== null,
             ).toBe(visible);
@@ -224,7 +221,7 @@ describe('MyAgentConnectionsPanel', () => {
         (source, projectWarehouses, visible) => {
             redshiftSource = source;
             warehouses = projectWarehouses;
-            renderWithProviders(<MyAgentConnectionsPanel />);
+            renderWithProviders(<WarehouseAgentSignInsPanel />);
             expect(
                 screen.queryByRole('heading', { name: 'Redshift' }) !== null,
             ).toBe(visible);
@@ -249,7 +246,7 @@ describe('MyAgentConnectionsPanel', () => {
         (source, projectWarehouses, visible) => {
             trinoSource = source;
             warehouses = projectWarehouses;
-            renderWithProviders(<MyAgentConnectionsPanel />);
+            renderWithProviders(<WarehouseAgentSignInsPanel />);
             expect(
                 screen.queryByRole('heading', { name: 'Trino' }) !== null,
             ).toBe(visible);
@@ -274,7 +271,7 @@ describe('MyAgentConnectionsPanel', () => {
         (source, projectWarehouses, visible) => {
             clickhouseSource = source;
             warehouses = projectWarehouses;
-            renderWithProviders(<MyAgentConnectionsPanel />);
+            renderWithProviders(<WarehouseAgentSignInsPanel />);
             expect(
                 screen.queryByRole('heading', { name: 'ClickHouse' }) !== null,
             ).toBe(visible);
@@ -290,7 +287,7 @@ describe('MyAgentConnectionsPanel', () => {
         },
     );
     it('allows an organisation client to connect when instance health is unconfigured', () => {
-        renderWithProviders(<MyAgentConnectionsPanel />);
+        renderWithProviders(<WarehouseAgentSignInsPanel />);
         expect(
             screen.getByRole('button', { name: 'Connect agent' }),
         ).toBeEnabled();
@@ -298,7 +295,7 @@ describe('MyAgentConnectionsPanel', () => {
     it('shows unavailable setup instead of the empty state for a required Snowflake sign-in', () => {
         configured = false;
         warehouses = [WarehouseTypes.SNOWFLAKE];
-        renderWithProviders(<MyAgentConnectionsPanel />);
+        renderWithProviders(<WarehouseAgentSignInsPanel />);
         expect(
             screen.getByRole('heading', { name: 'Snowflake' }),
         ).toBeInTheDocument();
@@ -318,7 +315,7 @@ describe('MyAgentConnectionsPanel', () => {
     it('shows the neutral empty state when no card applies', () => {
         snowflakeSource = 'marked_person';
         bigquerySource = 'marked_person';
-        renderWithProviders(<MyAgentConnectionsPanel />);
+        renderWithProviders(<WarehouseAgentSignInsPanel />);
         expect(screen.getByText('Your agents run as you')).toBeInTheDocument();
         expect(
             screen.getByText(
@@ -330,10 +327,12 @@ describe('MyAgentConnectionsPanel', () => {
         credentials = [
             { ...credential, purpose: UserWarehouseCredentialPurpose.DEFAULT },
         ];
-        const { rerender } = renderWithProviders(<MyAgentConnectionsPanel />);
+        const { rerender } = renderWithProviders(
+            <WarehouseAgentSignInsPanel />,
+        );
         expect(screen.getByText('Not connected')).toBeInTheDocument();
         credentials = [...credentials, credential];
-        rerender(<MyAgentConnectionsPanel />);
+        rerender(<WarehouseAgentSignInsPanel />);
         expect(screen.getByText('Connected')).toBeInTheDocument();
     });
     it('offers reconnection for an unexpired credential from the previous client', () => {
@@ -344,7 +343,7 @@ describe('MyAgentConnectionsPanel', () => {
                 agentClientCurrent: false,
             },
         ];
-        renderWithProviders(<MyAgentConnectionsPanel />);
+        renderWithProviders(<WarehouseAgentSignInsPanel />);
         expect(screen.getByText('Expired')).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'Sign in again' }),
@@ -356,7 +355,7 @@ describe('MyAgentConnectionsPanel', () => {
     });
     it('waits for data before showing cards or the empty state', () => {
         isInitialLoading = true;
-        renderWithProviders(<MyAgentConnectionsPanel />);
+        renderWithProviders(<WarehouseAgentSignInsPanel />);
         expect(
             screen.queryByRole('heading', { name: 'Snowflake' }),
         ).not.toBeInTheDocument();
@@ -366,7 +365,7 @@ describe('MyAgentConnectionsPanel', () => {
     });
     it('does not describe a failed request as an empty state', () => {
         isError = true;
-        renderWithProviders(<MyAgentConnectionsPanel />);
+        renderWithProviders(<WarehouseAgentSignInsPanel />);
         expect(
             screen.getByText('Could not load your agent identity.'),
         ).toBeInTheDocument();
@@ -379,7 +378,7 @@ describe('MyAgentConnectionsPanel', () => {
         bigquerySource = 'marked_person';
         databricksSource = 'ai_service_account';
         warehouses = [WarehouseTypes.DATABRICKS];
-        renderWithProviders(<MyAgentConnectionsPanel />);
+        renderWithProviders(<WarehouseAgentSignInsPanel />);
         expect(
             screen.getByRole('heading', { name: 'Databricks' }),
         ).toBeInTheDocument();
@@ -398,7 +397,7 @@ describe('MyAgentConnectionsPanel', () => {
                 WarehouseTypes.BIGQUERY,
                 WarehouseTypes.SNOWFLAKE,
             ];
-            renderWithProviders(<MyAgentConnectionsPanel />);
+            renderWithProviders(<WarehouseAgentSignInsPanel />);
             expect(
                 screen
                     .getAllByRole('heading', { level: 5 })

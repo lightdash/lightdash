@@ -23,6 +23,8 @@ import {
 import { LAST_PROJECT_KEY } from '../hooks/useActiveProject';
 import { mockViewport } from '../testing/mockViewport';
 import { renderWithProviders } from '../testing/testUtils';
+import flagOffBaseline from './__fixtures__/agentConnections-disabled-false.json';
+import loadingBaseline from './__fixtures__/agentConnections-disabled-null.json';
 import Settings from './Settings';
 
 const projectUuid = '3675b69e-8324-4110-bdca-059031aa8da3';
@@ -683,4 +685,109 @@ describe('MCP settings route permission parity', () => {
             ).toBeEnabled();
         },
     );
+});
+
+describe('agent connections flag-off baseline', () => {
+    let viewport: ReturnType<typeof mockViewport>;
+    beforeEach(() => {
+        localStorage.clear();
+        viewport = mockViewport(1280);
+    });
+    afterEach(() => viewport.restore());
+    it.each([false, null])(
+        'preserves the disabled settings page with flag %s',
+        async (enabled) => {
+            const fetchSpy = vi.spyOn(globalThis, 'fetch');
+            nock(BASE_API_URL)
+                .get('/api/v1/org/users')
+                .optionally()
+                .reply(200, { status: 'ok', results: [] });
+            nock(BASE_API_URL)
+                .get('/api/v1/user/me/email/status')
+                .optionally()
+                .reply(200, { status: 'ok', results: { isVerified: true } });
+            if (enabled === null)
+                nock(BASE_API_URL)
+                    .get('/api/v2/feature-flag/agent-identity')
+                    .delay(5000)
+                    .reply(200, { status: 'ok', results: { enabled: false } });
+            const result = renderSettings(
+                '',
+                [viewProject],
+                true,
+                '/generalSettings/myAgentConnections',
+                enabled,
+            );
+            await waitFor(() =>
+                expect(fetchSpy.mock.calls.length).toBeGreaterThan(0),
+            );
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            const requests = fetchSpy.mock.calls
+                .map(
+                    ([url, init]) =>
+                        `${init?.method ?? 'GET'} ${new URL(String(url)).pathname}`,
+                )
+                .sort();
+            const baseline =
+                enabled === null ? loadingBaseline : flagOffBaseline;
+            expect(requests).toEqual(baseline.requests);
+            const dom = result.container.innerHTML
+                .replace(/<style[\s\S]*?<\/style>/g, '')
+                .replace(/id="[^"]*"/g, 'id="ID"')
+                .replace(/mantine-[a-z0-9]{8,}/g, 'mantine-ID')
+                .replace(/__m__-_r_[a-z0-9]+_/g, '__m__-ID');
+            expect(dom).toEqual(baseline.dom);
+            fetchSpy.mockRestore();
+        },
+    );
+});
+
+describe('agent identity tabs', () => {
+    let viewport: ReturnType<typeof mockViewport>;
+    beforeEach(() => {
+        localStorage.clear();
+        viewport = mockViewport(1280);
+    });
+    afterEach(() => viewport.restore());
+    it('shows both tabs with no warehouse rules and only fetches the visible tab', async () => {
+        const list = nock(BASE_API_URL)
+            .get('/api/v2/user/agent-connections')
+            .reply(200, { status: 'ok', results: [] });
+        const credentials = nock(BASE_API_URL)
+            .get('/api/v1/user/warehouseCredentials')
+            .reply(200, { status: 'ok', results: [] });
+        const fetchSpy = vi.spyOn(globalThis, 'fetch');
+        renderSettings(
+            '',
+            [viewProject],
+            true,
+            '/generalSettings/myAgentConnections',
+            true,
+        );
+        expect(
+            await screen.findByRole('heading', { name: 'My agent identity' }),
+        ).toBeVisible();
+        expect(
+            screen.getByRole('tab', { name: 'Agent connections' }),
+        ).toHaveAttribute('aria-selected', 'true');
+        expect(await screen.findByText('No agent connections')).toBeVisible();
+        expect(list.isDone()).toBe(true);
+        expect(credentials.isDone()).toBe(false);
+        fireEvent.click(
+            screen.getByRole('tab', { name: 'Warehouse sign-ins' }),
+        );
+        expect(await screen.findByText('Your agents run as you')).toBeVisible();
+        expect(credentials.isDone()).toBe(true);
+        expect(
+            fetchSpy.mock.calls.filter(([url]) =>
+                String(url).includes('/feature-flag/agent-identity'),
+            ),
+        ).toHaveLength(0);
+        expect(
+            fetchSpy.mock.calls.filter(([url]) =>
+                String(url).includes('/user/agent-connections'),
+            ),
+        ).toHaveLength(1);
+        fetchSpy.mockRestore();
+    });
 });
