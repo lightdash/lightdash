@@ -441,7 +441,7 @@ describe('Explore', () => {
         cy.findByText('Is completed').click();
 
         // open SQL
-        cy.findByTestId('SQL-card-expand').click();
+        cy.findByTestId('results-pane-tab-sql').click();
 
         // wait to compile query
         cy.findByText('Open in SQL Runner').parent().should('not.be.disabled');

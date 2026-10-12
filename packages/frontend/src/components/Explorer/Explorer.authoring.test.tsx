@@ -9,9 +9,9 @@ import {
 import { renderWithProviders } from '../../testing/testUtils';
 import Explorer from './index';
 
-const { cardProps, sqlCardProps, exploreBinding } = vi.hoisted(() => ({
+const { cardProps, resultsPaneProps, exploreBinding } = vi.hoisted(() => ({
     cardProps: [] as { renderVisualization: boolean }[],
-    sqlCardProps: [] as {
+    resultsPaneProps: [] as {
         warehouseConnectionUuid: string | null | undefined;
     }[],
     exploreBinding: { value: undefined as string | null | undefined },
@@ -26,15 +26,12 @@ vi.mock('./VisualizationCard/VisualizationCard', () => ({
 vi.mock('./ExplorerHeader', () => ({
     default: () => <div data-testid="explorer-header" />,
 }));
-vi.mock('./ResultsCard/ResultsCard', () => ({
-    default: () => <div data-testid="results-card" />,
-}));
-vi.mock('./SqlCard/SqlCard', () => ({
+vi.mock('./ResultsPane/ResultsPane', () => ({
     default: (props: {
         warehouseConnectionUuid: string | null | undefined;
     }) => {
-        sqlCardProps.push(props);
-        return null;
+        resultsPaneProps.push(props);
+        return <div data-testid="results-pane" />;
     },
 }));
 vi.mock('./FiltersCard/FiltersCard', () => ({
@@ -92,11 +89,6 @@ vi.mock('../../hooks/useDefaultSortField', () => ({
 vi.mock('../../hooks/parameters/useParameters', () => ({
     useParameters: () => ({ data: undefined }),
 }));
-vi.mock('../../hooks/organization/useOrganization', () => ({
-    useOrganization: () => ({
-        data: { organizationUuid: '172a2270-000f-42be-9c68-c4752c23ae51' },
-    }),
-}));
 vi.mock('../../hooks/useExplorerQuery', () => ({
     useExplorerQuery: () => ({
         query: { data: undefined, error: null },
@@ -109,9 +101,6 @@ vi.mock('../../hooks/useProjectUuid', () => ({
 vi.mock('../../providers/Fullscreen/useFullscreen', () => ({
     default: () => ({ isFullscreen: false }),
 }));
-vi.mock('../../providers/Ability', () => ({
-    Can: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
 
 const renderExplorer = ({ authoring = false } = {}) => {
     const store = createExplorerStore();
@@ -122,7 +111,7 @@ const renderExplorer = ({ authoring = false } = {}) => {
         );
     }
     cardProps.length = 0;
-    sqlCardProps.length = 0;
+    resultsPaneProps.length = 0;
     renderWithProviders(
         <Provider store={store}>
             <MemoryRouter>
@@ -141,7 +130,7 @@ describe('Explorer while a chart type is authored', () => {
         exploreBinding.value = 'finance-uuid';
         renderExplorer();
 
-        expect(sqlCardProps.at(-1)?.warehouseConnectionUuid).toBe(
+        expect(resultsPaneProps.at(-1)?.warehouseConnectionUuid).toBe(
             'finance-uuid',
         );
     });
@@ -149,7 +138,7 @@ describe('Explorer while a chart type is authored', () => {
         renderExplorer();
 
         expect(screen.getByTestId('explorer-header')).toBeInTheDocument();
-        expect(screen.getByTestId('results-card')).toBeInTheDocument();
+        expect(screen.getByTestId('results-pane')).toBeInTheDocument();
         expect(
             screen.queryByTestId('chart-type-authoring'),
         ).not.toBeInTheDocument();
@@ -162,7 +151,7 @@ describe('Explorer while a chart type is authored', () => {
         // The modal opens over an unchanged page; the card hosts the modal
         // itself (covered by its own tests) and only pauses the chart render.
         expect(screen.getByTestId('explorer-header')).toBeInTheDocument();
-        expect(screen.getByTestId('results-card')).toBeInTheDocument();
+        expect(screen.getByTestId('results-pane')).toBeInTheDocument();
         expect(screen.getByTestId('filters-card')).toBeInTheDocument();
         expect(screen.getByTestId('merge-auto-run')).toBeInTheDocument();
         expect(screen.getByTestId('visualization-card')).toBeVisible();

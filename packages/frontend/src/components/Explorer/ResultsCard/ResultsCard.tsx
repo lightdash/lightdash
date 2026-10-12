@@ -8,18 +8,16 @@ import {
     useMemo,
     useState,
     type FC,
+    type ReactNode,
 } from 'react';
 import {
-    explorerActions,
     selectColumnOrder,
     selectIsEditMode,
-    selectIsResultsExpanded,
     selectMetricQuery,
     selectParameters,
     selectSavedChart,
     selectSorts,
     selectTableName,
-    useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
@@ -32,9 +30,7 @@ import { useCanExportEmbeddedContent } from '../../../hooks/user/useCanExportEmb
 import { Can } from '../../../providers/Ability';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import useApp from '../../../providers/App/useApp';
-import { ExplorerSection } from '../../../providers/Explorer/types';
 import AddTableCalculationButton from '../../AddTableCalculationButton';
-import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import {
     COLLAPSABLE_CARD_ACTION_ICON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
@@ -42,11 +38,16 @@ import {
 import MantineIcon from '../../common/MantineIcon';
 import ExportSelector from '../../ExportSelector';
 import SortButton from '../../SortButton';
+import ExplorerPaneLayout from '../ResultsPane/ExplorerPaneLayout';
 import { ExplorerResults } from './ExplorerResults';
 import { ResultsViewMode } from './types';
 import { useGroupedResultsAvailability } from './useGroupedResultsAvailability';
 
-const ResultsCard: FC = memo(() => {
+type Props = {
+    tabs: ReactNode;
+};
+
+const ResultsCard: FC<Props> = memo(({ tabs }) => {
     const projectUuid = useProjectUuid();
 
     // View mode state for switching between results and grouped results
@@ -55,8 +56,6 @@ const ResultsCard: FC = memo(() => {
     );
 
     const isEditMode = useExplorerSelector(selectIsEditMode);
-    const resultsIsOpen = useExplorerSelector(selectIsResultsExpanded);
-    const dispatch = useExplorerDispatch();
     const tableName = useExplorerSelector(selectTableName);
     const sorts = useExplorerSelector(selectSorts);
     const metricQuery = useExplorerSelector(selectMetricQuery);
@@ -88,19 +87,8 @@ const ResultsCard: FC = memo(() => {
 
     const savedChart = useExplorerSelector(selectSavedChart);
 
-    const toggleExpandedSection = useCallback(
-        (section: ExplorerSection) => {
-            dispatch(explorerActions.toggleExpandedSection(section));
-        },
-        [dispatch],
-    );
-
     const disabled = useMemo(() => (totalResults ?? 0) <= 0, [totalResults]);
 
-    const toggleCard = useCallback(
-        () => toggleExpandedSection(ExplorerSection.RESULTS),
-        [toggleExpandedSection],
-    );
     const { user } = useApp();
     const ability = useAbilityContext();
     const { data: account } = useAccount();
@@ -147,30 +135,8 @@ const ResultsCard: FC = memo(() => {
         : columnOrder;
 
     return (
-        <CollapsableCard
-            title="Results"
-            isOpen={resultsIsOpen}
-            onToggle={toggleCard}
-            disabled={!tableName}
-            // Walkthrough markers for view:SavedChart: reading a chart means
-            // opening it from Browse and unfolding the rows behind it. The
-            // heading's click is the action; the card is the result. See
-            // scripts/scope-tours.
-            headingTourProps={{
-                'data-tour-anchor': 'results-heading',
-                'data-tour-hint': 'Open the results',
-                'data-tour-scope': 'view:SavedChart',
-                'data-tour-step': '2',
-                'data-tour-route':
-                    '/projects/:projectUuid/saved/:savedQueryUuid',
-                'data-tour-label': 'Open the results',
-                'data-tour-title': 'Open and read a chart',
-                'data-tour-interactive': 'true',
-                'data-tour-via':
-                    '[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"]',
-                'data-tour-docs':
-                    'explore/explore-view.mdx#the-explore-page:li4',
-            }}
+        <ExplorerPaneLayout
+            tabs={tabs}
             tourProps={{
                 'data-tour-scope': 'view:SavedChart',
                 'data-tour-step': '1',
@@ -196,7 +162,6 @@ const ResultsCard: FC = memo(() => {
             }
             rightHeaderElement={
                 projectUuid &&
-                resultsIsOpen &&
                 tableName && (
                     <Group gap="xs" wrap="nowrap">
                         {!isGroupedDisabled && (
@@ -293,7 +258,7 @@ const ResultsCard: FC = memo(() => {
             }
         >
             <ExplorerResults viewMode={viewMode} />
-        </CollapsableCard>
+        </ExplorerPaneLayout>
     );
 });
 

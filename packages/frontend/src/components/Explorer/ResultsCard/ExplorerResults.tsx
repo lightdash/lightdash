@@ -30,6 +30,7 @@ import PivotTable from '../../common/PivotTable';
 import Table from '../../common/Table';
 import { JsonViewerModal } from '../../JsonViewerModal';
 import CellContextMenu from './CellContextMenu';
+import classes from './ExplorerResults.module.css';
 import ColumnHeaderContextMenu from './ColumnHeaderContextMenu';
 import {
     EmptyStateExploreLoading,
@@ -577,7 +578,8 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         <TrackSection name={SectionName.RESULTS_TABLE}>
             <Box
                 px="xs"
-                py="lg"
+                py="xs"
+                className={classes.container}
                 data-testid="results-table-container"
                 // Walkthrough result marker for manage:Explore: the rows a
                 // query of one's own returned.
@@ -591,19 +593,13 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
             >
                 {showGroupedView ? (
                     // Grouped results view - shows pivoted data with hierarchical headers
-                    // Match approximate height of the paginated results table
-                    <Box
-                        style={{
-                            minHeight: 300,
-                            maxHeight: 450,
-                            overflow: 'auto',
-                        }}
-                    >
+                    <Box className={classes.groupedView}>
                         {renderGroupedView()}
                     </Box>
                 ) : (
                     // Regular results view - shows unpivoted data
                     <Table
+                        $shouldExpand
                         status={status}
                         errorDetail={apiError?.error}
                         data={rows || []}

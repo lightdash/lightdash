@@ -6,23 +6,19 @@ import {
     isSqlTableCalculation,
 } from '@lightdash/common';
 import { Box, Group, Skeleton, SegmentedControl } from '@mantine/core';
-import { useHover } from '@mantine/hooks';
 import { IconClipboard } from '@tabler/icons-react';
 import {
     lazy,
     memo,
     Suspense,
-    useCallback,
     useMemo,
     useState,
     type FC,
+    type ReactNode,
 } from 'react';
 import {
-    explorerActions,
-    selectIsSqlExpanded,
     selectMetricQuery,
     selectTableName,
-    useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { useMergeCompiledSql } from '../../../features/mergeQuery/hooks/useMergeCompiledSql';
@@ -31,16 +27,16 @@ import { useProject } from '../../../hooks/useProject';
 import { useCannotViewCompiledSql } from '../../../hooks/user/useCannotViewCompiledSql';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
-import { ExplorerSection } from '../../../providers/Explorer/types';
 import Callout from '../../common/Callout';
-import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import { CopyActionIcon } from '../../common/CopyActionIcon';
 import { type SqlViewType } from '../../RenderedSql';
+import ExplorerPaneLayout from '../ResultsPane/ExplorerPaneLayout';
 import OpenInSqlRunnerButton from './OpenInSqlRunnerButton';
 
 interface SqlCardProps {
     projectUuid: string;
     warehouseConnectionUuid: string | null | undefined;
+    tabs: ReactNode;
 }
 
 // Lazy load because it imports heavy module "@monaco-editor/react"
@@ -51,23 +47,13 @@ const LazyRenderedSql = lazy(() =>
 );
 
 const SqlCard: FC<SqlCardProps> = memo((props) => {
-    const { projectUuid, warehouseConnectionUuid } = props;
-    const { hovered, ref: headingRef } = useHover();
+    const { projectUuid, warehouseConnectionUuid, tabs } = props;
     const [selectedView, setSelectedView] = useState<SqlViewType>('query');
-
-    const sqlIsOpen = useExplorerSelector(selectIsSqlExpanded);
-    const dispatch = useExplorerDispatch();
 
     const unsavedChartVersionTableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const cannotViewCompiledSql = useCannotViewCompiledSql(projectUuid);
 
-    const toggleExpandedSection = useCallback(
-        (section: ExplorerSection) => {
-            dispatch(explorerActions.toggleExpandedSection(section));
-        },
-        [dispatch],
-    );
     const { user } = useApp();
     const { data: project } = useProject(projectUuid);
 
@@ -99,43 +85,10 @@ const SqlCard: FC<SqlCardProps> = memo((props) => {
     );
 
     return (
-        <CollapsableCard
-            isVisualizationCard
-            headingRef={headingRef}
-            title="SQL"
-            isOpen={sqlIsOpen}
-            onToggle={() => toggleExpandedSection(ExplorerSection.SQL)}
-            disabled={!unsavedChartVersionTableName}
-            // Walkthrough markers for view:CompiledSql: the heading's click
-            // unfolds the SQL Lightdash wrote; the card is the result. See
-            // scripts/scope-tours.
-            headingTourProps={{
-                'data-tour-scope': 'view:CompiledSql',
-                'data-tour-step': '2',
-                'data-tour-route':
-                    '/projects/:projectUuid/saved/:savedQueryUuid',
-                'data-tour-label': 'Open the SQL',
-                'data-tour-title': 'Read the SQL behind a chart',
-                'data-tour-interactive': 'true',
-                'data-tour-via':
-                    '[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"]',
-                'data-tour-docs':
-                    'explore/explore-view.mdx#the-explore-page:li5',
-            }}
-            tourProps={{
-                'data-tour-scope': 'view:CompiledSql',
-                'data-tour-step': '1',
-                'data-tour-route':
-                    '/projects/:projectUuid/saved/:savedQueryUuid',
-                'data-tour-label': 'Every chart is a query on a table',
-                'data-tour-docs': 'explore/explore-view.mdx#intro:1',
-                'data-tour-return': 'none',
-                'data-tour-resultdocs':
-                    'get-started/explore-your-data.mdx#3-run-your-own-query:1',
-            }}
+        <ExplorerPaneLayout
+            tabs={tabs}
             headerElement={
                 !cannotViewSqlAuthoredFields &&
-                (hovered || sqlIsOpen) &&
                 data &&
                 isSuccess ? (
                     <CopyActionIcon
@@ -148,7 +101,6 @@ const SqlCard: FC<SqlCardProps> = memo((props) => {
                 ) : undefined
             }
             rightHeaderElement={
-                sqlIsOpen &&
                 !cannotViewSqlAuthoredFields && (
                     <Group gap="xs">
                         {hasPivotQuery && (
@@ -205,7 +157,7 @@ const SqlCard: FC<SqlCardProps> = memo((props) => {
                     <LazyRenderedSql selectedView={selectedView} />
                 </Suspense>
             )}
-        </CollapsableCard>
+        </ExplorerPaneLayout>
     );
 });
 

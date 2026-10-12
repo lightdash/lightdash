@@ -38,8 +38,7 @@ describe.skip('Custom dimensions', () => {
 
         // Show SQL
         cy.findByTestId('Chart-card-expand').click(); // Close chart
-        cy.findByTestId('Results-card-expand').click(); // Close results
-        cy.findByTestId('SQL-card-expand').click();
+        cy.findByTestId('results-pane-tab-sql').click();
 
         const sqlLines = [
             `WITH amount_amount_range_cte AS (`,
@@ -76,8 +75,7 @@ describe.skip('Custom dimensions', () => {
 
         // Show SQL
         cy.findByTestId('Chart-card-expand').click(); // Close chart
-        cy.findByTestId('Results-card-expand').click(); // Close results
-        cy.findByTestId('SQL-card-expand').click();
+        cy.findByTestId('results-pane-tab-sql').click();
 
         const sqlLines = [
             `(random() + 1) AS "random_number",`,
@@ -119,8 +117,7 @@ describe.skip('Custom dimensions', () => {
         cy.contains('1,452.16');
         // Show SQL
         cy.findByTestId('Chart-card-expand').click(); // Close chart
-        cy.findByTestId('Results-card-expand').click(); // Close results
-        cy.findByTestId('SQL-card-expand').click();
+        cy.findByTestId('results-pane-tab-sql').click();
 
         const sqlLines = [
             `('payment_' || ("payments".payment_method)) AS "payment_method",`,
@@ -183,8 +180,7 @@ describe.skip('Custom dimensions', () => {
         cy.contains('6.9');
         // Show SQL
         cy.findByTestId('Chart-card-expand').click(); // Close chart
-        cy.findByTestId('Results-card-expand').click(); // Close results
-        cy.findByTestId('SQL-card-expand').click();
+        cy.findByTestId('results-pane-tab-sql').click();
 
         const sqlLines = [
             `"payments".payment_method AS "payments_payment_method",`,

@@ -37,7 +37,7 @@ import { defaultState } from '../../../providers/Explorer/defaultState';
 import {
     type ConfigCacheMap,
     type ExplorerReduceState,
-    type ExplorerSection,
+    ExplorerSection,
     type MapExtent,
 } from '../../../providers/Explorer/types';
 import {
@@ -206,6 +206,18 @@ const explorerSlice = createSlice({
             } else {
                 state.expandedSections.push(action.payload);
             }
+        },
+
+        setResultsPaneTab: (
+            state,
+            action: PayloadAction<ExplorerSection.RESULTS | ExplorerSection.SQL>,
+        ) => {
+            state.expandedSections = state.expandedSections.filter(
+                (section) =>
+                    section !== ExplorerSection.RESULTS &&
+                    section !== ExplorerSection.SQL,
+            );
+            state.expandedSections.push(action.payload);
         },
 
         setFilters: (state, action: PayloadAction<MetricQuery['filters']>) => {

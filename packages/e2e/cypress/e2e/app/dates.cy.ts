@@ -94,7 +94,7 @@ describe('Date tests', () => {
         cy.get('tbody td').contains('26');
 
         cy.findByTestId('Chart-card-expand').click(); // Collapse charts
-        cy.findByTestId('SQL-card-expand').click();
+        cy.findByTestId('results-pane-tab-sql').click();
 
         cy.wait('@compileQuery')
             .its('response.body.results.query')
@@ -190,7 +190,7 @@ describe('Date tests', () => {
                 );
         }
 
-        cy.findByTestId('SQL-card-expand').click();
+        cy.findByTestId('results-pane-tab-sql').click();
         cy.contains(`("events".timestamp_tz) = ('2020-08-11 22:58:00+00:00')`); // SQL
 
         // TODO tooltip in charts
@@ -211,7 +211,7 @@ describe('Date tests', () => {
         cy.findAllByText('Loading chart').should('have.length', 0);
 
         cy.findByTestId('Filters-card-expand').click();
-        cy.findByTestId('SQL-card-expand').click();
+        cy.findByTestId('results-pane-tab-sql').click();
         cy.findByTestId('Chart-card-expand').click(); // Close chart
 
         cy.wait('@compileQuery'); // wait for initial compiledSQL
@@ -284,7 +284,7 @@ describe('Date tests', () => {
         cy.findAllByText('Loading chart').should('have.length', 0);
 
         cy.findByTestId('Filters-card-expand').click();
-        cy.findByTestId('SQL-card-expand').click();
+        cy.findByTestId('results-pane-tab-sql').click();
         cy.findByTestId('Chart-card-expand').click(); // Close chart
         cy.get('button').contains('Run query').click();
         cy.wait('@compileQuery'); // wait for initial compiledSQL
@@ -390,7 +390,7 @@ describe('Date tests', () => {
         cy.findByRole('dialog').within(() => {
             cy.contains('button', 2024).click();
         });
-        cy.get('[data-testid=SQL-card-expand]').click();
+        cy.get('[data-testid=results-pane-tab-sql]').click();
         cy.wait('@compileQuery')
             .its('response.body.results.query')
             .should(
@@ -478,7 +478,7 @@ describe('Date tests', () => {
             'have.value',
             dayjs(todayDate).format('MMMM D, YYYY'),
         );
-        cy.get('[data-testid=SQL-card-expand]').click();
+        cy.get('[data-testid=results-pane-tab-sql]').click();
         cy.wait('@compileQuery')
             .its('response.body.results.query')
             .should(
@@ -545,7 +545,7 @@ describe('Date tests', () => {
         cy.findByRole('menuitem', { name: 'Add filter' }).click();
 
         cy.contains('button', now.format('YYYY'));
-        cy.get('[data-testid=SQL-card-expand]').click();
+        cy.get('[data-testid=results-pane-tab-sql]').click();
         cy.wait('@compileQuery'); // wait initial load
         cy.wait('@compileQuery')
             .its('response.body.results.query')
@@ -634,7 +634,7 @@ describe('Date tests', () => {
         );
 
         cy.findByTestId('Filters-card-expand').click();
-        cy.findByTestId('SQL-card-expand').click();
+        cy.findByTestId('results-pane-tab-sql').click();
 
         cy.findAllByText('Loading chart').should('have.length', 0);
 

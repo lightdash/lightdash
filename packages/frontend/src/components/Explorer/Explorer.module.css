@@ -1,3 +1,49 @@
 .stack {
-    flex-grow: 1;
+    flex: 1;
+    min-height: 0;
+}
+
+/* Filters and chart scroll above the pinned results pane */
+.queryPane {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-md);
+    overflow-y: auto;
+}
+
+.resultsPane {
+    display: flex;
+    flex-direction: column;
+}
+
+.resultsPane[hidden] {
+    display: none;
+}
+
+/* Matches the SQL runner's editor/results splitter */
+.resizeHandle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    height: var(--mantine-spacing-md);
+    cursor: row-resize;
+}
+
+.resizeHandle::before {
+    content: '';
+    width: rem(32px);
+    height: rem(3px);
+    border-radius: rem(2px);
+    background-color: var(--mantine-color-ldGray-3);
+    transition: background-color 120ms ease;
+}
+
+.resizeHandle:hover::before,
+.resizeHandle[data-active]::before {
+    background-color: var(--mantine-color-ldGray-5);
+}
+
+.hiddenHandle {
+    display: none;
 }

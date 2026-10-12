@@ -1,4 +1,3 @@
-import { subject } from '@casl/ability';
 import {
     getExploreParameterDefinitions,
     getReferencedParameterDefinitions,
@@ -36,15 +35,14 @@ import { MergeAutoRun } from '../../features/mergeQuery/components/MergeAutoRun'
 import { MergeReadOnlyBar } from '../../features/mergeQuery/components/MergeReadOnlyBar';
 import { MergeRelationshipCard } from '../../features/mergeQuery/components/MergeRelationshipCard';
 import { useMergeSafe } from '../../features/mergeQuery/context/useMerge';
-import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useParameters } from '../../hooks/parameters/useParameters';
 import { useCompiledSql } from '../../hooks/useCompiledSql';
 import useDefaultSortField from '../../hooks/useDefaultSortField';
 import { useExplore } from '../../hooks/useExplore';
 import { useExplorerQuery } from '../../hooks/useExplorerQuery';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
-import { Can } from '../../providers/Ability';
 import useFullscreen from '../../providers/Fullscreen/useFullscreen';
+import ResizableSplitter from '../common/ResizableSplitter';
 import ScreenshotReadyIndicator from '../common/ScreenshotReadyIndicator';
 import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
@@ -58,8 +56,7 @@ import FiltersCard from './FiltersCard/FiltersCard';
 import { FormatModal } from './FormatModal';
 import ParametersCard from './ParametersCard/ParametersCard';
 import { PeriodOverPeriodComparisonModal } from './PeriodOverPeriodComparisonModal/PeriodOverPeriodComparisonModal';
-import ResultsCard from './ResultsCard/ResultsCard';
-import SqlCard from './SqlCard/SqlCard';
+import ResultsPane from './ResultsPane/ResultsPane';
 import VisualizationCard from './VisualizationCard/VisualizationCard';
 import { WriteBackModal } from './WriteBackModal';
 
@@ -256,11 +253,22 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
             }
         }, [explore, parameters, dispatch]);
 
-        const { data: org } = useOrganization();
-
         // In fullscreen only the visualization is shown, so it can use the
         // whole viewport
         const { isFullscreen } = useFullscreen();
+
+        // The card also hosts the authoring modal, which needs its
+        // visualization context. The chart itself pauses while the type is
+        // authored so it doesn't render twice.
+        const visualizationCard = (
+            <VisualizationCard
+                projectUuid={projectUuid}
+                renderVisualization={!isAuthoring}
+                onScreenshotReady={handleScreenshotReady}
+                onScreenshotError={handleScreenshotError}
+                minimal={showMinimalChart}
+            />
+        );
 
         return (
             <MetricQueryDataProvider
@@ -280,57 +288,65 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
                             !savedChart && <RefreshDbtButton />
                         ))}
 
-                    {!isFullscreen && showQueryBuilder && <MergeReadOnlyBar />}
-
-                    {!isFullscreen && showQueryBuilder && (
-                        <MergeRelationshipCard />
-                    )}
-
-                    {!isFullscreen &&
-                        showQueryBuilder &&
-                        !!tableName &&
-                        hasReferencedUserParameters && (
-                            <ParametersCard
-                                parameterReferences={
-                                    effectiveParameterReferences
-                                }
-                            />
-                        )}
-
-                    {!isFullscreen && showQueryBuilder && <FiltersCard />}
-
-                    {/* The card also hosts the authoring modal, which needs
-                        its visualization context. The chart itself pauses
-                        while the type is authored so it doesn't render twice. */}
-                    <VisualizationCard
-                        projectUuid={projectUuid}
-                        renderVisualization={!isAuthoring}
-                        onScreenshotReady={handleScreenshotReady}
-                        onScreenshotError={handleScreenshotError}
-                        minimal={showMinimalChart}
-                    />
-
-                    {!isFullscreen && showQueryBuilder && (
-                        <>
-                            <ResultsCard />
-
-                            <Can
-                                I="manage"
-                                this={subject('Explore', {
-                                    organizationUuid: org?.organizationUuid,
-                                    projectUuid,
-                                })}
+                    {showQueryBuilder ? (
+                        <ResizableSplitter
+                            orientation="vertical"
+                            storageKey="explorer-results-pane"
+                            sizes={isFullscreen ? [100, 0] : undefined}
+                            resizable={!isFullscreen}
+                            lineSize={16}
+                            handleColor="transparent"
+                            handleLabel="Resize results"
+                            classNames={{
+                                handle: isFullscreen
+                                    ? classes.hiddenHandle
+                                    : classes.resizeHandle,
+                            }}
+                        >
+                            <ResizableSplitter.Pane
+                                id="explorer-query-builder"
+                                defaultSize={55}
+                                min={20}
+                                className={classes.queryPane}
                             >
-                                {!!projectUuid && (
-                                    <SqlCard
+                                {!isFullscreen && <MergeReadOnlyBar />}
+
+                                {!isFullscreen && <MergeRelationshipCard />}
+
+                                {!isFullscreen &&
+                                    !!tableName &&
+                                    hasReferencedUserParameters && (
+                                        <ParametersCard
+                                            parameterReferences={
+                                                effectiveParameterReferences
+                                            }
+                                        />
+                                    )}
+
+                                {!isFullscreen && <FiltersCard />}
+
+                                {visualizationCard}
+                            </ResizableSplitter.Pane>
+
+                            <ResizableSplitter.Pane
+                                id="explorer-results-pane"
+                                defaultSize={45}
+                                min={15}
+                                hidden={isFullscreen}
+                                className={classes.resultsPane}
+                            >
+                                {!isFullscreen && (
+                                    <ResultsPane
                                         projectUuid={projectUuid}
                                         warehouseConnectionUuid={
                                             explore?.warehouseConnectionUuid
                                         }
                                     />
                                 )}
-                            </Can>
-                        </>
+                            </ResizableSplitter.Pane>
+                        </ResizableSplitter>
+                    ) : (
+                        visualizationCard
                     )}
                 </Stack>
 

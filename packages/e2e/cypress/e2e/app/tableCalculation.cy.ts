@@ -20,8 +20,7 @@ describe.skip('Table calculations', () => {
         cy.contains('Rank in column').click();
 
         // Show SQL
-        cy.findByTestId('Results-card-expand').click(); // Close results
-        cy.findByTestId('SQL-card-expand').click();
+        cy.findByTestId('results-pane-tab-sql').click();
 
         const sqlLines = [
             `RANK() OVER ( ORDER BY "payments_total_revenue" ASC ) AS "rank_in_column_of_total_revenue"`,
@@ -49,8 +48,7 @@ describe.skip('Table calculations', () => {
         cy.contains('Running total').click();
 
         // Show SQL
-        cy.findByTestId('Results-card-expand').click(); // Close results
-        cy.findByTestId('SQL-card-expand').click();
+        cy.findByTestId('results-pane-tab-sql').click();
 
         const sqlLines = [
             `SUM("payments_total_revenue") OVER ( ORDER BY "payments_payment_method" ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW )`,

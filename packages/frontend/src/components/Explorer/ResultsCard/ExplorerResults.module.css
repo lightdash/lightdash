@@ -1,0 +1,8 @@
+.container {
+    height: 100%;
+}
+
+.groupedView {
+    height: 100%;
+    overflow: auto;
+}
