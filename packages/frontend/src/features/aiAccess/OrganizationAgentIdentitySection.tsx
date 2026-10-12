@@ -1,177 +1,106 @@
 import {
-    AGENT_IDENTITY_SOURCES,
     WarehouseTypes,
-    type OrganizationAgentIdentityRule,
     type OrganizationAgentIdentityOverview,
+    type OrganizationAgentIdentityRule,
+    type OrganizationProject,
     type AiIdentitySource,
 } from '@lightdash/common';
-import { Anchor, Box, Group, Select, Stack, Text, Title } from '@mantine/core';
-import { IconAlertTriangle, IconCheck } from '@tabler/icons-react';
-import { Fragment, useState } from 'react';
-import { Link } from 'react-router';
-import MantineIcon from '../../components/common/MantineIcon';
+import { Box, Group, Stack, Text, Title } from '@mantine/core';
+import { useState } from 'react';
 import { SettingsCard } from '../../components/common/Settings/SettingsCard';
-import settingsClasses from '../../components/common/Settings/SettingsCard.module.css';
-import { getWarehouseIcon } from '../../components/ProjectConnection/ProjectConnectFlow/utils';
+import { AgentIdentityChip } from './AgentIdentityChip';
+import classes from './AgentIdentityChip.module.css';
 import AgentIdentityRuleConfirmModal from './AgentIdentityRuleConfirmModal';
-import { useUpdateOrganizationAgentIdentityRule } from './api';
-import { identityLabels, identityWarehouseNames } from './identityLabels';
+import {
+    useSnowflakeAgentSetup,
+    useSnowflakeAgentVerify,
+    useUpdateOrganizationAgentIdentityRule,
+} from './api';
+import { identityWarehouseNames } from './identityLabels';
 import { SnowflakeAgentSetup } from './SnowflakeAgentSetup';
+
+const getVerificationStatus = (
+    verify: ReturnType<typeof useSnowflakeAgentVerify>,
+) => {
+    if (verify.isFetching) return null;
+    if (verify.isError || verify.data?.passed === false) return 'attention';
+    return verify.data?.passed === true ? 'verified' : null;
+};
 
 const AgentIdentityRule = ({
     rule,
     configured,
+    canEdit,
+    setupLoading,
 }: {
     rule: OrganizationAgentIdentityRule;
     configured: boolean;
+    canEdit: boolean;
+    setupLoading: boolean;
 }) => {
     const save = useUpdateOrganizationAgentIdentityRule();
     const [pending, setPending] = useState(false);
+    const [expanded, setExpanded] = useState<boolean | null>(null);
     const [pendingSource, setPendingSource] = useState<Exclude<
         AiIdentitySource,
         'agent_sign_in'
     > | null>(null);
-
-    const warehouseName =
-        identityWarehouseNames[
-            rule.warehouseType as keyof typeof identityWarehouseNames
-        ];
-
+    const active =
+        rule.warehouseType === WarehouseTypes.SNOWFLAKE &&
+        rule.source === 'agent_sign_in';
+    const verify = useSnowflakeAgentVerify(active && canEdit);
+    const needsAttention = verify.isError || verify.data?.passed === false;
+    const setupExpanded = expanded ?? (needsAttention && !setupLoading);
     return (
-        <Box
-            className={settingsClasses.settingsGrid}
-            data-testid={`${rule.warehouseType}-agent-identity-rule`}
-        >
-            <Group gap="sm" wrap="nowrap">
-                {getWarehouseIcon(rule.warehouseType)}
-                <Text size="sm" fw={500}>
-                    {warehouseName}
-                </Text>
-            </Group>
-            <Stack gap="xs">
-                <Select
-                    aria-label={`${warehouseName} agent identity`}
-                    value={rule.source}
-                    data={AGENT_IDENTITY_SOURCES[rule.warehouseType].person.map(
-                        (source) => ({
-                            value: source,
-                            label: identityLabels[source].label,
-                        }),
-                    )}
-                    renderOption={({ option }) => (
-                        <Stack gap={0}>
-                            <Text size="sm">{option.label}</Text>
-                            {option.value === 'agent_sign_in' &&
-                                !configured && (
-                                    <Text size="xs" c="dimmed">
-                                        Needs a one-time Snowflake setup
-                                    </Text>
-                                )}
-                        </Stack>
-                    )}
-                    allowDeselect={false}
-                    disabled={save.isLoading}
-                    w={340}
-                    maw="100%"
-                    onOptionSubmit={(value) => {
-                        const source = AGENT_IDENTITY_SOURCES[
-                            rule.warehouseType
-                        ].person.find((allowed) => allowed === value);
-                        if (
-                            source === 'agent_sign_in' &&
-                            rule.warehouseType === WarehouseTypes.SNOWFLAKE &&
-                            rule.source !== 'agent_sign_in'
-                        ) {
-                            setPending(true);
-                            return;
-                        }
-                        setPending(false);
-                        if (
-                            source &&
-                            source !== 'agent_sign_in' &&
-                            source !== rule.source
-                        )
-                            setPendingSource(source);
+        <>
+            <AgentIdentityChip
+                rule={rule}
+                configured={configured}
+                canEdit={canEdit}
+                saving={save.isLoading}
+                verificationStatus={getVerificationStatus(verify)}
+                setupExpanded={setupExpanded}
+                onToggleSetup={
+                    active ? () => setExpanded(!setupExpanded) : null
+                }
+                onSelect={(source) => {
+                    if (!canEdit || save.isLoading) return;
+                    if (
+                        source === 'agent_sign_in' &&
+                        rule.warehouseType === WarehouseTypes.SNOWFLAKE &&
+                        !active
+                    ) {
+                        setPending(true);
+                        return;
+                    }
+                    setPending(false);
+                    if (source !== rule.source && source !== 'agent_sign_in')
+                        setPendingSource(source);
+                }}
+            />
+            {canEdit && pendingSource && (
+                <AgentIdentityRuleConfirmModal
+                    warehouseType={rule.warehouseType}
+                    source={pendingSource}
+                    saving={save.isLoading}
+                    onClose={() => {
+                        if (!save.isLoading) setPendingSource(null);
                     }}
+                    onConfirm={() =>
+                        save.mutate(
+                            {
+                                warehouseType: rule.warehouseType,
+                                source: pendingSource,
+                            },
+                            { onSuccess: () => setPendingSource(null) },
+                        )
+                    }
                 />
-                <Text size="sm" c="dimmed">
-                    {pending
-                        ? 'Not saved. Finish the setup below, then select Turn on.'
-                        : identityLabels[rule.source].helper}
-                </Text>
-                {pendingSource !== null && (
-                    <AgentIdentityRuleConfirmModal
-                        warehouseType={rule.warehouseType}
-                        source={pendingSource}
-                        onClose={() => setPendingSource(null)}
-                        saving={save.isLoading}
-                        onConfirm={() =>
-                            save.mutate(
-                                {
-                                    warehouseType: rule.warehouseType,
-                                    source: pendingSource,
-                                },
-                                { onSuccess: () => setPendingSource(null) },
-                            )
-                        }
-                    />
-                )}
-                {rule.projectsMissingAiServiceAccount &&
-                    rule.projectsMissingAiServiceAccount.length > 0 && (
-                        <Group
-                            role="status"
-                            gap="xs"
-                            align="flex-start"
-                            wrap="nowrap"
-                        >
-                            <MantineIcon
-                                icon={IconAlertTriangle}
-                                color="orange"
-                                size="sm"
-                            />
-                            <Text size="sm" c="orange" flex={1}>
-                                {rule.projectsMissingAiServiceAccount.length}{' '}
-                                {rule.projectsMissingAiServiceAccount.length ===
-                                1
-                                    ? 'project has'
-                                    : 'projects have'}{' '}
-                                no shared agent account:{' '}
-                                {rule.projectsMissingAiServiceAccount
-                                    .slice(0, 3)
-                                    .map((project, index) => (
-                                        <Fragment key={project.projectUuid}>
-                                            {index > 0 && ', '}
-                                            <Anchor
-                                                component={Link}
-                                                size="sm"
-                                                to={`/generalSettings/projectManagement/${project.projectUuid}/agentIdentity`}
-                                            >
-                                                {project.name}
-                                            </Anchor>
-                                        </Fragment>
-                                    ))}
-                                {rule.projectsMissingAiServiceAccount.length >
-                                    3 &&
-                                    ` and ${rule.projectsMissingAiServiceAccount.length - 3} more`}
-                                .{' '}
-                                {rule.projectsMissingAiServiceAccount.length ===
-                                1
-                                    ? 'Agents are refused on it until a project admin adds one.'
-                                    : 'Agents are refused on them until a project admin adds one.'}
-                            </Text>
-                        </Group>
-                    )}
-                {rule.projectsMissingAiServiceAccount?.length === 0 && (
-                    <Group role="status" gap="xs" wrap="nowrap">
-                        <MantineIcon icon={IconCheck} color="green" size="sm" />
-                        <Text size="sm" c="green" flex={1}>
-                            Every {warehouseName} project has a shared agent
-                            account.
-                        </Text>
-                    </Group>
-                )}
-                {rule.warehouseType === WarehouseTypes.SNOWFLAKE &&
-                    (pending ? (
+            )}
+            {canEdit &&
+                rule.warehouseType === WarehouseTypes.SNOWFLAKE &&
+                (pending ? (
+                    <Box className={classes.setup}>
                         <SnowflakeAgentSetup
                             key="pending"
                             mode="pending"
@@ -187,50 +116,92 @@ const AgentIdentityRule = ({
                                 )
                             }
                         />
-                    ) : rule.source === 'agent_sign_in' ? (
-                        <SnowflakeAgentSetup key="active" mode="active" />
-                    ) : null)}
-            </Stack>
-        </Box>
+                    </Box>
+                ) : active ? (
+                    <Box className={classes.setup}>
+                        <SnowflakeAgentSetup
+                            key="active"
+                            mode="active"
+                            verify={verify}
+                            expanded={expanded}
+                            onToggle={() => setExpanded(!setupExpanded)}
+                        />
+                    </Box>
+                ) : null)}
+        </>
     );
 };
 
-const AgentIdentitySettings = ({
-    settings,
-}: {
-    settings: OrganizationAgentIdentityOverview;
-}) => {
-    return (
-        <Stack gap="lg">
-            {settings.rules
-                .filter((rule) => rule.warehouseType in identityWarehouseNames)
-                .map((rule) => (
-                    <AgentIdentityRule
-                        key={`${rule.warehouseType}-${rule.source}`}
-                        rule={rule}
-                        configured={settings.snowflakeConfigured === true}
-                    />
-                ))}
-        </Stack>
-    );
+const ActiveSnowflakeAgentIdentityRule = (
+    props: Omit<Parameters<typeof AgentIdentityRule>[0], 'setupLoading'>,
+) => {
+    const setup = useSnowflakeAgentSetup();
+    return <AgentIdentityRule {...props} setupLoading={setup.isLoading} />;
 };
 
-const OrganizationAgentIdentitySection = ({
-    settings,
+export const OrganizationAgentIdentityCard = ({
+    overview,
+    projects,
+    canEdit,
 }: {
-    settings: OrganizationAgentIdentityOverview;
+    overview: OrganizationAgentIdentityOverview;
+    projects: Pick<OrganizationProject, 'warehouseType'>[];
+    canEdit: boolean;
 }) => {
+    const [shownWarehouses, setShownWarehouses] = useState<Set<WarehouseTypes>>(
+        () => new Set(),
+    );
+    const warehouses = new Set(
+        projects.map((project) => project.warehouseType),
+    );
+    const rules = overview.rules.filter(
+        (rule) =>
+            rule.warehouseType in identityWarehouseNames &&
+            (warehouses.has(rule.warehouseType) ||
+                rule.source !== 'marked_person' ||
+                shownWarehouses.has(rule.warehouseType)),
+    );
+    if (rules.some((rule) => !shownWarehouses.has(rule.warehouseType))) {
+        setShownWarehouses(
+            new Set([
+                ...shownWarehouses,
+                ...rules.map((rule) => rule.warehouseType),
+            ]),
+        );
+    }
     return (
         <SettingsCard>
             <Stack gap="md">
                 <Title order={5}>Identity</Title>
-                <Text size="sm" c="dimmed">
-                    Choose who agents run as on each warehouse.
-                </Text>
-                <AgentIdentitySettings settings={settings} />
+                {rules.length === 0 ? (
+                    <Text size="sm" c="dimmed">
+                        No warehouses in use yet.
+                    </Text>
+                ) : (
+                    <Group gap="xs">
+                        {rules.map((rule) =>
+                            rule.warehouseType === WarehouseTypes.SNOWFLAKE &&
+                            rule.source === 'agent_sign_in' &&
+                            canEdit ? (
+                                <ActiveSnowflakeAgentIdentityRule
+                                    key={`${rule.warehouseType}-${rule.source}`}
+                                    rule={rule}
+                                    configured={overview.snowflakeConfigured}
+                                    canEdit={canEdit}
+                                />
+                            ) : (
+                                <AgentIdentityRule
+                                    key={`${rule.warehouseType}-${rule.source}`}
+                                    rule={rule}
+                                    configured={overview.snowflakeConfigured}
+                                    canEdit={canEdit}
+                                    setupLoading={false}
+                                />
+                            ),
+                        )}
+                    </Group>
+                )}
             </Stack>
         </SettingsCard>
     );
 };
-
-export default OrganizationAgentIdentitySection;

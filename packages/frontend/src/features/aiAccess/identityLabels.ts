@@ -2,19 +2,31 @@ import { WarehouseTypes, type AiIdentitySource } from '@lightdash/common';
 
 export const identityLabels: Record<
     AiIdentitySource,
-    { label: string; helper: string }
+    {
+        label: string;
+        description: string;
+        shortLabel: string | null;
+        tooltip: string;
+    }
 > = {
     marked_person: {
         label: 'The person',
-        helper: "Agents get the access of the person asking. Their queries are labelled, but warehouse rules can't act on the label.",
+        description:
+            "Gets the access of the person asking, so the warehouse can't limit agents separately.",
+        shortLabel: null,
+        tooltip: "agents run as the person asking, with that person's access.",
     },
     agent_sign_in: {
         label: "The person's agent sign-in",
-        helper: 'Each person signs in to Snowflake once for their agent. Snowflake marks these sessions, so your policies can limit them.',
+        description: 'People sign in once, so Snowflake can limit agents.',
+        shortLabel: 'Agent sign-in',
+        tooltip: "agents run as each person's agent sign-in.",
     },
     ai_service_account: {
         label: 'A shared agent account',
-        helper: 'A project admin adds one account to each project. All agents run as it and get only its access.',
+        description: 'One account per project, added by a project admin.',
+        shortLabel: 'Shared account',
+        tooltip: "agents run as each project's shared agent account.",
     },
 };
 

@@ -9,6 +9,7 @@ import {
 } from '../../components/common/Settings/SettingsPage';
 import { useAiOrganizationAdminSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import { useOrganizationGroups } from '../../hooks/useOrganizationGroups';
+import { useProjects } from '../../hooks/useProjects';
 import useApp from '../../providers/App/useApp';
 import { AgentPermissionsSection } from './AgentPermissionsSection';
 import { type AgentSettingsAccess } from './agentSettingsAccess';
@@ -16,7 +17,7 @@ import {
     useAgentCapabilityPolicy,
     useOrganizationAgentIdentitySettings,
 } from './api';
-import OrganizationAgentIdentitySection from './OrganizationAgentIdentitySection';
+import { OrganizationAgentIdentityCard } from './OrganizationAgentIdentitySection';
 
 const useInitialLoadComplete = (waiting: boolean) => {
     const [ready, setReady] = useState(false);
@@ -24,9 +25,9 @@ const useInitialLoadComplete = (waiting: boolean) => {
     return ready;
 };
 
-const AgentSettingsContent = ({ access }: { access: AgentSettingsAccess }) => {
-    const { user } = useApp();
+const useAgentSettingsData = (access: AgentSettingsAccess) => {
     const identity = useOrganizationAgentIdentitySettings();
+    const projects = useProjects();
     const policy = useAgentCapabilityPolicy();
     const settings = useAiOrganizationAdminSettings({
         enabled: access.agentsMcp,
@@ -41,9 +42,36 @@ const AgentSettingsContent = ({ access }: { access: AgentSettingsAccess }) => {
         ...(access.agentsMcp ? [settings] : []),
         ...(policy.data?.groupsAvailable ? [groups] : []),
     ];
-    const waiting = requiredQueries.some((query) => !query.data);
+    const initialQueries = [...requiredQueries, projects];
+    const waiting = initialQueries.some((query) => !query.data);
     const ready = useInitialLoadComplete(waiting);
-    const failed = requiredQueries.filter((query) => query.isError);
+    const failed = (
+        ready || projects.data ? requiredQueries : initialQueries
+    ).filter((query) => query.isError);
+    return {
+        identity,
+        projects,
+        policy,
+        settings,
+        groups,
+        ready,
+        waiting,
+        failed,
+    };
+};
+
+const AgentSettingsContent = ({ access }: { access: AgentSettingsAccess }) => {
+    const { user } = useApp();
+    const {
+        identity,
+        projects,
+        policy,
+        settings,
+        groups,
+        ready,
+        waiting,
+        failed,
+    } = useAgentSettingsData(access);
     const hasError = failed.length > 0;
     const error = hasError ? (
         <InlineErrorState
@@ -54,11 +82,15 @@ const AgentSettingsContent = ({ access }: { access: AgentSettingsAccess }) => {
         />
     ) : null;
     if (!ready && waiting) return error ?? <EmptyStateLoader />;
-    if (!identity.data || !policy.data) return error;
+    if (!identity.data || !policy.data || !projects.data) return error;
     return (
         <Stack gap="lg">
             {error}
-            <OrganizationAgentIdentitySection settings={identity.data} />
+            <OrganizationAgentIdentityCard
+                overview={identity.data}
+                projects={projects.data}
+                canEdit
+            />
             <AgentPermissionsSection
                 key={user.data?.organizationUuid}
                 policy={{
