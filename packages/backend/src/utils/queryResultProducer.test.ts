@@ -4,16 +4,25 @@ import {
     buildAgentIdentityClaim,
     DatabricksAuthenticationType,
     DuckdbConnectionType,
+    getIntrinsicUserAttributeRegex,
+    getParsedReference,
+    getReferencedDimension,
+    getReferencedMetric,
     getUserAttributeRegex,
     InlineErrorType,
+    lightdashVariablePattern,
+    parameterRegex,
     RedshiftAuthenticationType,
     SnowflakeAuthenticationType,
     WarehouseTypes,
     type AgentConnectionExecution,
     type CreateWarehouseCredentials,
+    type Explore,
+    type MetricQuery,
     type QueryHistory,
     type UserAccessControls,
 } from '@lightdash/common';
+import { createHash } from 'crypto';
 import { QueryHistoryModel } from '../models/QueryHistoryModel/QueryHistoryModel';
 import { aiServiceAccountPlanMock } from '../services/AiAccessService/AiAccessService.mock';
 import {
@@ -25,13 +34,18 @@ import { buildCacheHash } from './cacheUtils';
 import { replaceUserAttributesRaw } from './QueryBuilder/utils';
 import {
     assertQueryConnectionBinding,
+    getModelAccessFingerprint,
     getResultEntitlementFingerprint,
+    getResultEntitlementFingerprintForms,
     getSqlResultEntitlementFingerprint,
     getWarehouseIdentityFingerprint,
     isSameResultAgent,
     isSameResultCredentialOwner,
+    isSameResultProducer,
     isSameResultProducerOwner,
     isSameResultReader,
+    matchesResultEntitlementFingerprint,
+    type ResultEntitlementScope,
 } from './queryResultProducer';
 import { withNewWarehouseCredentialVersion } from './warehouseCredentialVersion';
 
@@ -46,7 +60,252 @@ const postgres: CreateWarehouseCredentials = withNewWarehouseCredentialVersion({
     role: 'reader',
 });
 
+const oldFingerprint = (value: unknown): string =>
+    createHash('sha256').update(JSON.stringify(value)).digest('hex');
+
+const oldResultUserAttributeNames = (
+    scope: ResultEntitlementScope,
+    query: MetricQuery | null,
+): Set<string> | null => {
+    const names = new Set<string>();
+    const resolvingParameters = new Set<string>();
+    const scan = (
+        value: unknown,
+        exploreContext?: Explore,
+        tableContext?: string,
+    ): boolean => {
+        if (typeof value === 'string') {
+            for (const match of value.matchAll(getUserAttributeRegex())) {
+                names.add(match[1]);
+            }
+            for (const match of value.matchAll(parameterRegex)) {
+                const name = match[1];
+                const parameter = scope.parameterValues[name];
+                if (parameter === undefined || resolvingParameters.has(name))
+                    return false;
+                resolvingParameters.add(name);
+                const resolved = scan(parameter, exploreContext, tableContext);
+                resolvingParameters.delete(name);
+                if (!resolved) return false;
+            }
+            const unresolved = value
+                .replace(getUserAttributeRegex(), '')
+                .replace(getIntrinsicUserAttributeRegex(), '')
+                .replace(parameterRegex, '')
+                .replace(lightdashVariablePattern, (placeholder, reference) => {
+                    if (reference === 'TABLE') return '';
+                    return (exploreContext
+                        ? [exploreContext]
+                        : scope.explores
+                    ).some((explore) => {
+                        const { refTable, refName } = getParsedReference(
+                            reference,
+                            tableContext ?? explore.baseTable,
+                        );
+                        const tables = {
+                            ...explore.tables,
+                            ...explore.unfilteredTables,
+                        };
+                        return (
+                            getReferencedDimension(refTable, refName, tables) ||
+                            getReferencedMetric(refTable, refName, tables)
+                        );
+                    })
+                        ? ''
+                        : placeholder;
+                });
+            return (
+                !unresolved.includes('${') &&
+                !unresolved.includes('{%') &&
+                !unresolved.includes('{{')
+            );
+        }
+        if (Array.isArray(value))
+            return value.every((child) =>
+                scan(child, exploreContext, tableContext),
+            );
+        if (value !== null && typeof value === 'object') {
+            return Object.entries(value).every(([key, child]) => {
+                if (key === 'requiredAttributes' || key === 'anyAttributes') {
+                    if (child === undefined || child === null) return true;
+                    if (typeof child !== 'object' || Array.isArray(child))
+                        return false;
+                    Object.keys(child).forEach((name) => names.add(name));
+                }
+                if (
+                    (key === 'tables' || key === 'unfilteredTables') &&
+                    child !== undefined
+                ) {
+                    if (
+                        !child ||
+                        typeof child !== 'object' ||
+                        Array.isArray(child)
+                    )
+                        return false;
+                    return Object.entries(child).every(([name, table]) =>
+                        scan(table, exploreContext, name),
+                    );
+                }
+                const currentTable =
+                    'table' in value && typeof value.table === 'string'
+                        ? value.table
+                        : tableContext;
+                return scan(child, exploreContext, currentTable);
+            });
+        }
+        return true;
+    };
+    try {
+        if (
+            scope.explores.length === 0 ||
+            [...scope.explores, ...(scope.executionExplores ?? [])].some(
+                (explore) =>
+                    !explore.tables[explore.baseTable] ||
+                    (explore.warnings?.length ?? 0) > 0 ||
+                    Object.values(explore.tables).some(
+                        (table) => (table.warnings?.length ?? 0) > 0,
+                    ),
+            )
+        )
+            return null;
+        return [...scope.explores, ...(scope.executionExplores ?? [])].every(
+            (explore) => scan(explore, explore),
+        ) &&
+            scan(scope.projectParameterDefinitions) &&
+            scan(scope.parameterValues) &&
+            scan(
+                query,
+                scope.executionExplores?.[0] ??
+                    scope.explores.find(
+                        (explore) => explore.name === query?.exploreName,
+                    ),
+            )
+            ? names
+            : null;
+    } catch {
+        return null;
+    }
+};
+
+const oldResultEntitlementFingerprint = (
+    controls: UserAccessControls,
+    explore: Explore | null = null,
+    query: MetricQuery | null = null,
+    scope: ResultEntitlementScope | null | undefined = undefined,
+): string => {
+    const resolvedScope =
+        scope === undefined &&
+        explore &&
+        !explore.preAggregateSource &&
+        (explore.preAggregates?.length ?? 0) === 0
+            ? {
+                  explores: [explore],
+                  projectParameterDefinitions: {},
+                  parameterValues: {},
+              }
+            : scope;
+    const names =
+        explore && resolvedScope
+            ? oldResultUserAttributeNames(resolvedScope, query)
+            : null;
+    return oldFingerprint([
+        Object.entries(controls.userAttributes)
+            .filter(
+                ([name, values]) =>
+                    values.length > 0 && (names === null || names.has(name)),
+            )
+            .sort(([a], [b]) => a.localeCompare(b)),
+        Object.entries(controls.intrinsicUserAttributes).sort(([a], [b]) =>
+            a.localeCompare(b),
+        ),
+        ...(explore
+            ? [
+                  (resolvedScope?.explores ?? [explore])
+                      .map((source) => [
+                          source.name,
+                          getModelAccessFingerprint(source),
+                      ])
+                      .sort(([a], [b]) => a.localeCompare(b)),
+              ]
+            : []),
+    ]);
+};
+
 describe('warehouse result identity fingerprints', () => {
+    const valueOrderProducer = (entitlementFingerprint: string) =>
+        WarehouseClientFactory.getResultProducer(
+            {
+                warehouseCredentials: postgres,
+                warehouseConnectionUuid: null,
+                aiPlan: null,
+            },
+            'person',
+            null,
+            entitlementFingerprint,
+        );
+    const valueOrderCacheKeys = (entitlementFingerprint: string) => {
+        const resultIdentity = {
+            organizationUuid: 'org',
+            producer: valueOrderProducer(entitlementFingerprint),
+        };
+        return [
+            QueryHistoryModel.getCacheKey('project', {
+                sql: 'select 1',
+                userUuid: 'person',
+                resultIdentity,
+            }),
+            buildCacheHash(
+                ['project', 'person', 'select 1', 'UTC'],
+                resultIdentity,
+            ),
+            buildCacheHash(
+                ['autocomplete', 'project', 'person', 'select 1', 'UTC'],
+                resultIdentity,
+            ),
+        ];
+    };
+
+    test.each([
+        { values: ['US', 'EU'], matches: false },
+        { values: ['EU', 'US'], matches: true },
+        { values: ['EU'], matches: true },
+    ])(
+        'old and new identity cache producers match=$matches for $values',
+        ({ values, matches }) => {
+            const controls: UserAccessControls = {
+                userAttributes: { region: values },
+                intrinsicUserAttributes: { email: 'person@example.test' },
+            };
+            const oldForm = oldResultEntitlementFingerprint(controls);
+            const current = getResultEntitlementFingerprint(controls);
+            expect(
+                isSameResultProducer(
+                    valueOrderProducer(oldForm),
+                    valueOrderProducer(current),
+                ),
+            ).toBe(matches);
+            const oldKeys = valueOrderCacheKeys(oldForm);
+            valueOrderCacheKeys(current).forEach((key, index) =>
+                expect(key === oldKeys[index]).toBe(matches),
+            );
+        },
+    );
+
+    test('identity cache keys share reordered values and separate different value sets', () => {
+        const keys = (region: string[]) =>
+            valueOrderCacheKeys(
+                getResultEntitlementFingerprint({
+                    userAttributes: { region },
+                    intrinsicUserAttributes: { email: 'person@example.test' },
+                }),
+            );
+        expect(keys(['US', 'EU'])).toEqual(keys(['EU', 'US']));
+        const initial = keys(['US', 'EU']);
+        keys(['EU', 'UK']).forEach((key, index) =>
+            expect(key).not.toBe(initial[index]),
+        );
+    });
+
     test.each(['user', 'role', 'host', 'dbname'] as const)(
         'an in-place %s update changes every identity cache key',
         (field) => {
@@ -423,6 +682,181 @@ describe('warehouse result identity fingerprints', () => {
             );
         expect(scope('EU', '20')).toBe(scope('EU', '30'));
         expect(scope('EU', '20')).not.toBe(scope('US', '20'));
+    });
+
+    describe.each(['semantic', 'SQL'] as const)('%s value ordering', (kind) => {
+        const hash = (controls: UserAccessControls) =>
+            kind === 'SQL'
+                ? getSqlResultEntitlementFingerprint(controls, {
+                      sql: 'SELECT ${ld.attr.region}, ${ld.attr.territory}',
+                  })
+                : getResultEntitlementFingerprint(controls);
+        test.each<UserAccessControls['userAttributes']>([
+            { region: ['US', 'EU'] },
+            { region: ['US', 'EU', 'US'] },
+            { region: ['US', 'EU'], territory: ['z', 'A', 'ä', 'Z'] },
+        ])('sorts copies and preserves duplicates: %j', (userAttributes) => {
+            const controls = {
+                userAttributes,
+                intrinsicUserAttributes: { email: 'person@example.test' },
+            };
+            const before = structuredClone(controls);
+            const reversed = {
+                ...controls,
+                userAttributes: Object.fromEntries(
+                    Object.entries(userAttributes).map(([name, values]) => [
+                        name,
+                        [...values].reverse(),
+                    ]),
+                ),
+            };
+            expect(hash(controls)).toBe(hash(reversed));
+            expect(controls).toEqual(before);
+            expect(hash(controls)).toBe(
+                oldResultEntitlementFingerprint({
+                    ...controls,
+                    userAttributes: Object.fromEntries(
+                        Object.entries(userAttributes).map(([name, values]) => [
+                            name,
+                            [...values].sort(),
+                        ]),
+                    ),
+                }),
+            );
+        });
+        test('keeps duplicate values in the fingerprint', () => {
+            const controls = {
+                userAttributes: { region: ['EU', 'US', 'US'] },
+                intrinsicUserAttributes: {},
+            };
+            expect(hash(controls)).not.toBe(
+                hash({ ...controls, userAttributes: { region: ['EU', 'US'] } }),
+            );
+        });
+    });
+
+    describe('stored fingerprint compatibility', () => {
+        const controls = (values: string[]): UserAccessControls => ({
+            userAttributes: { region: values },
+            intrinsicUserAttributes: { email: 'person@example.test' },
+        });
+        test.each([
+            {
+                name: 'same unsorted values',
+                before: ['US', 'EU'],
+                after: ['US', 'EU'],
+                allowed: true,
+            },
+            {
+                name: 'single value',
+                before: ['EU'],
+                after: ['EU'],
+                allowed: true,
+            },
+            {
+                name: 'real change',
+                before: ['US', 'EU'],
+                after: ['US', 'UK'],
+                allowed: false,
+            },
+            {
+                name: 'old unsorted values now sorted still refuse',
+                before: ['US', 'EU'],
+                after: ['EU', 'US'],
+                allowed: false,
+            },
+        ])('old record: $name', ({ before, after, allowed }) => {
+            expect(
+                matchesResultEntitlementFingerprint(
+                    oldResultEntitlementFingerprint(controls(before)),
+                    getResultEntitlementFingerprintForms(controls(after)),
+                ),
+            ).toBe(allowed);
+        });
+        test.each([
+            {
+                name: 'already sorted values allow',
+                values: ['EU', 'US'],
+                allowed: true,
+            },
+            { name: 'single value allows', values: ['EU'], allowed: true },
+            {
+                name: 'unsorted values refuse until all old pods stop',
+                values: ['US', 'EU'],
+                allowed: false,
+            },
+        ])(
+            'rolling update: old reader with new record and $name',
+            ({ values, allowed }) => {
+                expect(
+                    getResultEntitlementFingerprint(controls(values)) ===
+                        oldResultEntitlementFingerprint(controls(values)),
+                ).toBe(allowed);
+            },
+        );
+        test.each([
+            {
+                name: 'changed value',
+                before: controls(['US', 'EU']),
+                after: controls(['UK', 'EU']),
+            },
+            {
+                name: 'added value',
+                before: controls(['EU']),
+                after: controls(['US', 'EU']),
+            },
+            {
+                name: 'removed value',
+                before: controls(['US', 'EU']),
+                after: controls(['EU']),
+            },
+            {
+                name: 'different attribute',
+                before: controls(['US', 'EU']),
+                after: {
+                    ...controls([]),
+                    userAttributes: { territory: ['US', 'EU'] },
+                },
+            },
+            {
+                name: 'different verified email',
+                before: controls(['US', 'EU']),
+                after: {
+                    ...controls(['US', 'EU']),
+                    intrinsicUserAttributes: { email: 'another@example.test' },
+                },
+            },
+        ])('both stored forms refuse a $name', ({ before, after }) => {
+            const forms = getResultEntitlementFingerprintForms(after);
+            expect(forms.valueOrderDependent).toBe(
+                oldResultEntitlementFingerprint(after),
+            );
+            expect(
+                matchesResultEntitlementFingerprint(
+                    oldResultEntitlementFingerprint(before),
+                    forms,
+                ),
+            ).toBe(false);
+            expect(
+                matchesResultEntitlementFingerprint(
+                    getResultEntitlementFingerprint(before),
+                    forms,
+                ),
+            ).toBe(false);
+        });
+    });
+
+    test('attribute value order does not change the entitlement fingerprint', () => {
+        const controls = {
+            userAttributes: { region: ['EU', 'US'] },
+            intrinsicUserAttributes: { email: 'person@example.test' },
+        };
+        expect(
+            getResultEntitlementFingerprint({
+                ...controls,
+                userAttributes: { region: ['US', 'EU'] },
+            }),
+        ).toBe(getResultEntitlementFingerprint(controls));
     });
 
     describe.each([

@@ -450,8 +450,11 @@ import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import {
     getResultEntitlementFingerprint,
+    getResultEntitlementFingerprintForms,
     isSameResultProducer,
+    isSameResultProducerOwner,
     isSameResultReader,
+    matchesResultEntitlementFingerprint,
 } from '../../utils/queryResultProducer';
 import { runWithConcurrency } from '../../utils/runWithConcurrency';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
@@ -11996,10 +11999,12 @@ export class ProjectService
             const reader = buildResultReader(account);
             const controls = await this.getUserAttributes({ account });
             const entitlementFingerprint =
-                getResultEntitlementFingerprint(controls);
+                getResultEntitlementFingerprintForms(controls);
             if (
-                provenance.resultProducer.entitlementFingerprint !==
-                entitlementFingerprint
+                !matchesResultEntitlementFingerprint(
+                    provenance.resultProducer.entitlementFingerprint ?? null,
+                    entitlementFingerprint,
+                )
             )
                 throw new ForbiddenError(
                     'These results are not compatible with your current access. Run the query again.',
@@ -12045,11 +12050,11 @@ export class ProjectService
                     connection,
                     user.userUuid,
                     reader.kind === 'agent' ? reader.claim : null,
-                    entitlementFingerprint,
+                    entitlementFingerprint.current,
                     account.authentication.type,
                 );
                 if (
-                    !isSameResultProducer(
+                    !isSameResultProducerOwner(
                         provenance.resultProducer,
                         producer,
                     ) ||
