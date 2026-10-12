@@ -515,6 +515,35 @@ describe('SnowflakeWarehouseClient', () => {
         expect(alterSessionSql).toContain('STATEMENT_TIMEOUT_IN_SECONDS = 0,');
     });
 
+    it.each(['ANALYST', undefined])(
+        'passes the configured external-browser role %s to the SDK',
+        async (role) => {
+            const connection = interactiveConnectionMock(executeMock);
+            vi.mocked(createConnection).mockReturnValueOnce(connection);
+            const warehouse = new SnowflakeWarehouseClient({
+                ...credentials,
+                user: 'profile-user',
+                authenticationType:
+                    SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+                role,
+            });
+
+            await warehouse.streamQuery('SELECT CURRENT_ROLE()', () => {}, {});
+
+            expect(createConnection).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    authenticator: 'EXTERNALBROWSER',
+                    role,
+                }),
+            );
+            expect(
+                vi.mocked(createConnection).mock.calls[0][0],
+            ).not.toHaveProperty('username');
+            expect(connection.connectAsync).toHaveBeenCalledOnce();
+            expect(connection.connect).not.toHaveBeenCalled();
+        },
+    );
+
     it('configures the local application authorization-code flow with SDK defaults', () => {
         const warehouse = new SnowflakeWarehouseClient({
             ...credentials,
