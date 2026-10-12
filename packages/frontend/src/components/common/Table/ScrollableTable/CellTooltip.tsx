@@ -13,8 +13,8 @@ const CellTooltip: FC<CellTooltipProps> = ({ elementBounds, ...rest }) => (
                     pointerEvents: 'none',
                     position: 'absolute',
                     zIndex: -1,
-                    left: elementBounds?.x ?? 0,
-                    top: elementBounds?.y ?? 0,
+                    left: (elementBounds?.x ?? 0) + window.scrollX,
+                    top: (elementBounds?.y ?? 0) + window.scrollY,
                     width: elementBounds?.width ?? 0,
                     height: elementBounds?.height ?? 0,
                 }}
