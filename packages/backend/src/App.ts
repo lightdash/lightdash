@@ -65,6 +65,10 @@ import {
     oneLoginPassportStrategy,
     OpenIDClientOktaStrategy,
 } from './controllers/authentication';
+import {
+    AGENT_CONNECTION_REQUEST_PATH,
+    parseAgentConnectionApprovalBody,
+} from './controllers/authentication/agentConnectionApproval';
 import { databricksPassportStrategy } from './controllers/authentication/strategies/databricksStrategy';
 import { slackPassportStrategy } from './controllers/authentication/strategies/slackStrategy';
 import { snowflakePassportStrategy } from './controllers/authentication/strategies/snowflakeStrategy';
@@ -508,6 +512,11 @@ export default class App {
                 this.prometheusMetrics.httpServerRequestMetricsMiddleware(),
             );
         }
+
+        expressApp.post(
+            AGENT_CONNECTION_REQUEST_PATH,
+            parseAgentConnectionApprovalBody,
+        );
 
         // Raise body-parser limit for the data-apps gsheet export route only.
         // Must run BEFORE the global parser below — `express.json()` is a no-op

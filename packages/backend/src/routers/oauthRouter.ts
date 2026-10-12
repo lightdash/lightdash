@@ -30,6 +30,10 @@ import {
     OAuthScope,
     OAuthService,
 } from '../services/OAuthService/OAuthService';
+import {
+    handleAgentApprovalAuthorize,
+    hasAgentApprovalParameter,
+} from './agentConnectionApprovalAuthorize';
 
 const oauthRouter: Router = express.Router({ mergeParams: true });
 
@@ -154,6 +158,11 @@ const sendMissingOrganizationResponse = async (
 // Get authorization - use OAuth2Server
 oauthRouter.get('/authorize', async (req, res, next) => {
     try {
+        if (
+            hasAgentApprovalParameter(req) &&
+            (await handleAgentApprovalAuthorize(req, res))
+        )
+            return;
         const loginUrl = `/login?redirect=${encodeURIComponent(
             req.originalUrl || req.url,
         )}`;
@@ -314,6 +323,11 @@ oauthRouter.get('/authorize', async (req, res, next) => {
 
 oauthRouter.post('/authorize', async (req, res, next) => {
     try {
+        if (
+            hasAgentApprovalParameter(req) &&
+            (await handleAgentApprovalAuthorize(req, res))
+        )
+            return;
         if (!req.user) {
             return res.status(401).send('Unauthorized');
         }

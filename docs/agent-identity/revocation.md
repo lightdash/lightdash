@@ -233,6 +233,12 @@ Not promised:
   issued. How long such a token stays valid is up to the warehouse.
 - Revoking a grant removes no warehouse credential.
 
+A person can prepare a CLI approval request with a session or personal access
+token at `POST /api/v2/user/agent-connections/requests` when `agent-identity`
+is enabled for the person and organisation. This stores only a pending request.
+The opaque authorize URL hands the browser to `/agent/connection-approval`;
+this preparation flow creates no grant, authorization code or token.
+
 ## 5. Wider permissions
 
 A grant stores what the person approved: capabilities, projects and resource

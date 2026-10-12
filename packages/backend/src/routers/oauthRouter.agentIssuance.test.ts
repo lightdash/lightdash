@@ -199,14 +199,15 @@ it('registered authorize and token handlers cannot issue an agent connection wit
                 layer.route &&
                 /agent.?connection|agent.?grant/i.test(layer.route.path),
         );
+        const expectedRoutes: Record<string, string[]> = {
+            '/api/v2/user/agent-connections': ['get'],
+            '/api/v2/user/agent-connections/:grantUuid': ['delete'],
+            '/api/v2/user/agent-connections/:grantUuid/status': ['get'],
+            '/api/v2/user/agent-connections/requests': ['post'],
+        };
         for (const layer of connectionRoutes) {
-            expect(
-                Object.keys(layer.route.methods).every((method) =>
-                    ['get', 'delete'].includes(method),
-                ),
-            ).toBe(true);
-            expect(layer.route.path).toMatch(
-                /^\/api\/v2\/user\/agent-connections(?:\/:grantUuid(?:\/status)?)?$/,
+            expect(Object.keys(layer.route.methods)).toEqual(
+                expectedRoutes[layer.route.path],
             );
         }
     } finally {

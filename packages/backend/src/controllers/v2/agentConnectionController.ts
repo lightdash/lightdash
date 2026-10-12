@@ -1,13 +1,18 @@
 import {
     assertRegisteredAccount,
+    type AgentConnectionApprovalErrorResponse,
+    type AgentConnectionApprovalRequest,
+    type AgentConnectionApprovalResponse,
     type ApiErrorPayload,
     type UUID,
 } from '@lightdash/common';
 import {
+    Body,
     Delete,
     Get,
     Middlewares,
     Path,
+    Post,
     Request,
     Response,
     Route,
@@ -19,13 +24,49 @@ import {
     type AgentConnectionRecord,
     type AgentConnectionStatus,
 } from '../../auth/agentConnectionGrants/AgentConnectionService';
+import { AgentConnectionApprovalRequestError } from '../../models/AgentConnectionApprovalRequestModel';
+import { serializeAgentConnectionApprovalError } from '../../services/AgentConnectionApprovalService/AgentConnectionApprovalError';
 import { allowApiKeyAuthentication, isAuthenticated } from '../authentication';
+import { authenticateAgentConnectionApproval } from '../authentication/agentConnectionApproval';
 import { BaseController } from '../baseController';
 
 @Route('/api/v2/user/agent-connections')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('v2', 'Agent connections')
 export class AgentConnectionController extends BaseController {
+    @Post('requests')
+    @Middlewares([authenticateAgentConnectionApproval])
+    @Response<AgentConnectionApprovalErrorResponse>(
+        'default',
+        'Approval request error',
+    )
+    @SuccessResponse('200', 'Success')
+    async requestApproval(
+        @Request() req: express.Request,
+        @Body() body: AgentConnectionApprovalRequest,
+    ): Promise<
+        AgentConnectionApprovalResponse | AgentConnectionApprovalErrorResponse
+    > {
+        this.setHeader('Cache-Control', 'no-store');
+        try {
+            return {
+                status: 'ok',
+                results: await this.services
+                    .getAgentConnectionApprovalService()
+                    .request(req.account, body),
+            };
+        } catch (error) {
+            const payload = serializeAgentConnectionApprovalError(error);
+            this.setStatus(payload.error.statusCode);
+            if (
+                error instanceof AgentConnectionApprovalRequestError &&
+                error.retryAfterSeconds !== null
+            )
+                this.setHeader('Retry-After', String(error.retryAfterSeconds));
+            return payload;
+        }
+    }
+
     /**
      * Lists the signed-in person's agent connections and stored approvals.
      * @summary List agent connections
