@@ -13,10 +13,13 @@ import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { AiOrganizationSettingsModel } from '../../../ee/models/AiOrganizationSettingsModel';
 import { AgentActionLogModel } from '../../../models/AgentActionLogModel';
 import { AgentCapabilityPolicyModel } from '../../../models/AgentCapabilityPolicyModel';
+import { AgentConnectionApprovalReadModel } from '../../../models/AgentConnectionApprovalReadModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../../../models/GroupsModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../../models/UserModel';
+import { AgentConnectionApprovalService } from '../../../services/AgentConnectionApprovalService/AgentConnectionApprovalService';
+import { approvalOperationCatalogue } from '../../../services/AgentConnectionApprovalService/approvalReview';
 import {
     AgentPermissionService,
     agentSystemRoleMatrix,
@@ -26,6 +29,7 @@ import {
     type MigratedDatabase,
 } from '../../../testing/migratedDatabase';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
+import { type DbAgentConnectionApprovalRequest } from '../../entities/agentConnectionApprovalRequests';
 
 vi.mock('../../../config/lightdashConfig', async () => {
     const { lightdashConfigMock: config } =
@@ -571,4 +575,227 @@ it('preserves model role unions and rejects unknown or foreign projects without 
             ).rejects.toThrow();
         },
     );
+});
+
+const approvalFixture = (f: Awaited<ReturnType<typeof fixture>>) => {
+    const service = new AgentConnectionApprovalService({
+        siteUrl: 'https://instance.example',
+        model: { insertPending: vi.fn(), findOwned: vi.fn() },
+        userModel: f.users,
+        projectModel: f.projectModel,
+        featureFlags: f.flags,
+        oauthModel: { getClient: vi.fn(), validateRedirectUriStrict: vi.fn() },
+        agentPermissionService: f.service,
+        reviewModel: new AgentConnectionApprovalReadModel({
+            database: f.database,
+        }),
+    });
+    const request = (
+        index: number,
+        count: number,
+    ): DbAgentConnectionApprovalRequest =>
+        ({
+            organization_uuid: f.org.organization_uuid,
+            subject_user_uuid: f.people[index].user_uuid,
+            requested_projects: f.projects
+                .slice(0, count)
+                .map((p) => p.project_uuid),
+            requested_capabilities: Object.values(AgentCapability),
+        }) as DbAgentConnectionApprovalRequest;
+    return { service, request };
+};
+
+it('review offered and blocked cells agree with independent enforcement for all parity people and projects in managed mode', async () => {
+    const f = await fixture();
+    const approval = approvalFixture(f);
+    let cells = 0;
+    await forEachSequential(
+        [...f.accounts.entries()],
+        async ([index, account]) => {
+            const answer = await approval.service.getReviewAnswer(
+                account,
+                approval.request(index, 3),
+            );
+            await forEachSequential(answer, async (project) => {
+                await forEachSequential(
+                    project.capabilities.filter(
+                        (c) => c.visibility !== 'hidden',
+                    ),
+                    async (capability) => {
+                        const admitted = approvalOperationCatalogue.filter(
+                            (op) =>
+                                op.capabilities.includes(capability.capability),
+                        );
+                        const permitted = await Promise.all(
+                            admitted.map(async (op) => {
+                                const base = {
+                                    account,
+                                    organizationUuid: f.org.organization_uuid,
+                                    surface: AgentActorSurface.CLI,
+                                    projectUuid: project.projectUuid,
+                                };
+                                const results = await Promise.all([
+                                    refusal(
+                                        f.service.assertOperation({
+                                            ...base,
+                                            kind: 'rest_operation',
+                                            key: op.key,
+                                        }),
+                                    ),
+                                    ...op.capabilities.map((key) =>
+                                        refusal(
+                                            f.service.assertOperation({
+                                                ...base,
+                                                kind: 'capability',
+                                                key,
+                                            }),
+                                        ),
+                                    ),
+                                ]);
+                                return results.every(
+                                    (result) => result === null,
+                                );
+                            }),
+                        );
+                        expect({
+                            project: project.projectUuid,
+                            person: account.user.id,
+                            capability: capability.capability,
+                            offered: capability.visibility === 'offered',
+                        }).toEqual({
+                            project: project.projectUuid,
+                            person: account.user.id,
+                            capability: capability.capability,
+                            offered: permitted.some(Boolean),
+                        });
+                        cells += 1;
+                    },
+                );
+            });
+        },
+    );
+    expect(cells).toBe(8 * 3 * 8);
+});
+
+it('review answer uses equal SQL round trips for 3 and 50 differentiated projects', async () => {
+    const f = await fixture();
+    await f.savePolicy({ allowedGroupUuids: [f.group.group_uuid] });
+    const approval = approvalFixture(f);
+    const count = async (size: number) => {
+        const sql: string[] = [];
+        const listener = (query: { sql: string }) => sql.push(query.sql);
+        f.database.on('query', listener);
+        try {
+            return {
+                answer: await approval.service.getReviewAnswer(
+                    f.accounts[7],
+                    approval.request(7, size),
+                ),
+                sql,
+            };
+        } finally {
+            f.database.off('query', listener);
+        }
+    };
+    const small = await count(3);
+    const large = await count(50);
+    expect(small.answer).toHaveLength(3);
+    expect(large.answer).toHaveLength(50);
+    expect(large.sql.length).toBe(small.sql.length);
+    expect(
+        large.sql.filter((query) => !/^(select|with)\b/i.test(query.trim())),
+    ).toEqual([]);
+    expect(
+        large.sql.filter((query) =>
+            query.includes('from "pre_aggregate_definitions"'),
+        ),
+    ).toHaveLength(1);
+    expect(
+        large.sql.filter((query) => query.includes('from "cached_explore"')),
+    ).toHaveLength(1);
+    expect({
+        small: small.sql.length,
+        large: large.sql.length,
+    }).toMatchSnapshot();
+    for (const project of large.answer) {
+        const fixtureIndex = f.projects.findIndex(
+            (p) => p.project_uuid === project.projectUuid,
+        );
+        expect(
+            project.capabilities.find(
+                (c) => c.capability === AgentCapability.Query,
+            )?.visibility,
+        ).toBe(
+            fixtureIndex % 2 === 1 || fixtureIndex === 2
+                ? 'offered'
+                : 'blocked',
+        );
+        expect(
+            project.capabilities.find(
+                (c) => c.capability === AgentCapability.DeployUpload,
+            )?.visibility,
+        ).toBe(fixtureIndex % 2 === 0 ? 'offered' : 'blocked');
+    }
+});
+
+it('reads scheduled refresh from both real schema sources and narrows only the affected project', async () => {
+    const f = await fixture();
+    const approval = approvalFixture(f);
+    const definition = { name: 'daily', dimensions: [], metrics: [] };
+    const cache = async (index: number, preAggregates: unknown[]) => {
+        const [explore] = await f
+            .database('cached_explore')
+            .insert({
+                project_uuid: f.projects[index].project_uuid,
+                name: `source_${index}`,
+                table_names: [],
+                explore: { name: `source_${index}`, preAggregates },
+            })
+            .returning('*');
+        return explore;
+    };
+    const stored = await cache(1, []);
+    const noCron = await cache(3, [
+        definition,
+        { ...definition, refresh: { cron: null } },
+    ]);
+    await cache(2, [{ ...definition, refresh: { cron: '0 * * * *' } }]);
+    await f.database('pre_aggregate_definitions').insert(
+        [stored, noCron].map((explore, index) => ({
+            project_uuid: explore.project_uuid,
+            source_cached_explore_uuid: explore.cached_explore_uuid,
+            pre_agg_cached_explore_uuid: explore.cached_explore_uuid,
+            pre_aggregate_definition: definition,
+            materialization_metric_query: null,
+            materialization_query_error: null,
+            refresh_cron: index === 0 ? '0 * * * *' : null,
+        })),
+    );
+    const answer = await approval.service.getReviewAnswer(
+        f.accounts[0],
+        approval.request(0, 4),
+    );
+    expect(answer).toHaveLength(4);
+    for (const project of answer) {
+        const index = f.projects.findIndex(
+            (p) => p.project_uuid === project.projectUuid,
+        );
+        const scheduled = index === 1 || index === 2;
+        expect(project.selectable).toBe(true);
+        expect(
+            project.capabilities.find(
+                (c) => c.capability === AgentCapability.DeployUpload,
+            )?.reasonCode,
+        ).toBe(scheduled ? 'scheduled_pre_aggregate_refresh' : null);
+        expect(
+            project.capabilities.find(
+                (c) => c.capability === AgentCapability.Administration,
+            )?.reasonCode,
+        ).toBe(scheduled ? 'scheduled_pre_aggregate_refresh' : null);
+        expect(
+            project.capabilities.find(
+                (c) => c.capability === AgentCapability.Query,
+            )?.visibility,
+        ).toBe('offered');
+    }
 });

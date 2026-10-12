@@ -5,6 +5,7 @@ import { PreAggregateModel } from '../ee/models/PreAggregateModel';
 import { type UtilRepository } from '../utils/UtilRepository';
 import { AgentActionLogModel } from './AgentActionLogModel';
 import { AgentCapabilityPolicyModel } from './AgentCapabilityPolicyModel';
+import { AgentConnectionApprovalReadModel } from './AgentConnectionApprovalReadModel';
 import { AgentConnectionApprovalRequestModel } from './AgentConnectionApprovalRequestModel';
 import { AgentConnectionGrantModel } from './AgentConnectionGrantModel';
 import { AiServiceAccountCredentialsModel } from './AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
@@ -218,6 +219,7 @@ export type ModelManifest = {
     agentActionLogModel: AgentActionLogModel;
     agentCapabilityPolicyModel: AgentCapabilityPolicyModel;
     agentConnectionGrantModel: AgentConnectionGrantModel;
+    agentConnectionApprovalReadModel: AgentConnectionApprovalReadModel;
     agentConnectionApprovalRequestModel: AgentConnectionApprovalRequestModel;
     preAggregateModel: PreAggregateModel;
     preAggregateDailyStatsModel: PreAggregateDailyStatsModel;
@@ -1030,6 +1032,16 @@ export class ModelRepository
                 new AiServiceAccountCredentialsModel({
                     database: this.database,
                     encryptionUtil: this.utils.getEncryptionUtil(),
+                }),
+        );
+    }
+
+    public getAgentConnectionApprovalReadModel(): AgentConnectionApprovalReadModel {
+        return this.getModel(
+            'agentConnectionApprovalReadModel',
+            () =>
+                new AgentConnectionApprovalReadModel({
+                    database: this.database,
                 }),
         );
     }

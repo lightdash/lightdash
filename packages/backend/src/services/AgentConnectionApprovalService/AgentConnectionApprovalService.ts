@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AgentActorSurface,
     AgentCapability,
     FeatureFlags,
     InvalidUser,
@@ -15,13 +16,21 @@ import { z } from 'zod';
 import { fromSession } from '../../auth/account/account';
 import { agentConnectionGrantEnabled } from '../../auth/agentConnectionGrants/oauthGrantBinding';
 import { oauthApiResource } from '../../auth/oauthScopes/oauthResources';
+import { type DbAgentConnectionApprovalRequest } from '../../database/entities/agentConnectionApprovalRequests';
+import { type AgentConnectionApprovalReadModel } from '../../models/AgentConnectionApprovalReadModel';
 import { type AgentConnectionApprovalRequestModel } from '../../models/AgentConnectionApprovalRequestModel';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OAuth2Model } from '../../models/OAuth2Model';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type UserModel } from '../../models/UserModel';
+import { type AgentPermissionService } from '../AgentPermissionService/AgentPermissionService';
 import { BaseService } from '../BaseService';
 import { AgentConnectionApprovalError } from './AgentConnectionApprovalError';
+import {
+    mapApprovalProject,
+    reviewOperations,
+    type ApprovalProject,
+} from './approvalReview';
 
 const schema = z
     .object({
@@ -82,6 +91,14 @@ export class AgentConnectionApprovalService extends BaseService {
     constructor(
         private readonly deps: {
             siteUrl: string;
+            reviewModel: Pick<
+                AgentConnectionApprovalReadModel,
+                'getScheduledRefreshProjectUuids'
+            >;
+            agentPermissionService: Pick<
+                AgentPermissionService,
+                'evaluateOperations'
+            >;
             model: Pick<
                 AgentConnectionApprovalRequestModel,
                 'insertPending' | 'findOwned'
@@ -163,6 +180,78 @@ export class AgentConnectionApprovalService extends BaseService {
             row.callback_consumed_at !== null
         )
             throw new AgentConnectionApprovalError('approval_request_consumed');
+    }
+
+    async getReviewAnswer(
+        account: Account | undefined,
+        row: DbAgentConnectionApprovalRequest,
+    ): Promise<ApprovalProject[]> {
+        const person = await this.freshPerson(account);
+        if (
+            row.subject_user_uuid !== person.user.id ||
+            row.organization_uuid !== person.organization.organizationUuid
+        )
+            throw new AgentConnectionApprovalError('approval_forbidden');
+        const ability = this.createAuditedAbility(person);
+        const projects = (
+            await this.deps.projectModel.getAllByOrganizationUuid(
+                row.organization_uuid,
+            )
+        ).filter(
+            (project) =>
+                (row.requested_projects === null ||
+                    row.requested_projects.includes(project.projectUuid)) &&
+                ability.can(
+                    'view',
+                    subject('Project', {
+                        organizationUuid: row.organization_uuid,
+                        projectUuid: project.projectUuid,
+                    }),
+                ),
+        );
+        if (projects.length > 500)
+            throw new AgentConnectionApprovalError('too_many_projects');
+        if (projects.length === 0) return [];
+        const operationsByProject = projects.map((project) =>
+            reviewOperations(project.projectUuid),
+        );
+        const [checks, scheduled] = await Promise.all([
+            this.deps.agentPermissionService
+                .evaluateOperations({
+                    account: person,
+                    organizationUuid: row.organization_uuid,
+                    surface: AgentActorSurface.CLI,
+                    operations: operationsByProject.flat(),
+                })
+                .catch(() => []),
+            this.deps.reviewModel
+                .getScheduledRefreshProjectUuids(
+                    projects.map((project) => project.projectUuid),
+                )
+                .catch(() => null),
+        ]);
+        let offset = 0;
+        return projects.map((project, index) => {
+            const operations = operationsByProject[index];
+            const projectChecks = checks.slice(
+                offset,
+                offset + operations.length,
+            );
+            offset += operations.length;
+            return mapApprovalProject({
+                project: {
+                    projectUuid: project.projectUuid,
+                    name: project.name,
+                },
+                requested: row.requested_capabilities,
+                operations,
+                checks: projectChecks,
+                scheduledRefresh:
+                    scheduled === null
+                        ? null
+                        : scheduled.includes(project.projectUuid),
+            });
+        });
     }
 
     async request(

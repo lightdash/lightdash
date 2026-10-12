@@ -1002,6 +1002,9 @@ export class ServiceRepository
             'agentConnectionApprovalService',
             () =>
                 new AgentConnectionApprovalService({
+                    reviewModel:
+                        this.models.getAgentConnectionApprovalReadModel(),
+                    agentPermissionService: this.getAgentPermissionService(),
                     siteUrl: this.context.lightdashConfig.siteUrl,
                     model: this.models.getAgentConnectionApprovalRequestModel(),
                     userModel: this.models.getUserModel(),
