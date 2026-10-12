@@ -1,7 +1,7 @@
 import {
     AgentCapability,
     OrganizationMemberRole,
-    type AgentCapabilityPolicyState,
+    type AgentCapabilityPolicy,
     type AgentConnectionExecution,
 } from '@lightdash/common';
 import { vi } from 'vitest';
@@ -36,7 +36,7 @@ export const managedExecutionFixture = () => {
         scopes: ['read', 'write'],
         operation: { kind: 'rest', key: 'ProjectController.refresh' },
     };
-    const policy: AgentCapabilityPolicyState = {
+    const policy: AgentCapabilityPolicy = {
         mode: 'managed',
         version: 1,
         allowedCapabilities: null,

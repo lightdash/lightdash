@@ -1,4 +1,5 @@
 import {
+    Anchor,
     Box,
     Button,
     Group,
@@ -8,6 +9,7 @@ import {
     Text,
     Title,
 } from '@mantine/core';
+import { Link } from 'react-router';
 import ErrorState from '../../../../../../components/common/ErrorState';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
 import { SettingsPage } from '../../../../../../components/common/Settings/SettingsPage';
@@ -16,7 +18,11 @@ import {
     useUpdateAiOrganizationSettings,
 } from '../../../hooks/useAiOrganizationSettings';
 
-export const McpGeneralSettingsPage = () => {
+export const McpGeneralSettingsPage = ({
+    showAgentsPageLink,
+}: {
+    showAgentsPageLink: boolean;
+}) => {
     const {
         data: settings,
         isInitialLoading: isSettingsLoading,
@@ -66,18 +72,35 @@ export const McpGeneralSettingsPage = () => {
                                     MCP clients. Per-agent access still applies.
                                 </Text>
                             </Box>
-                            <Switch
-                                size="md"
-                                aria-label="Enable agents over MCP"
-                                checked={settings.mcpAgentsEnabled}
-                                disabled={isUpdatingSettings}
-                                onChange={(event) =>
-                                    updateSettings({
-                                        mcpAgentsEnabled:
-                                            event.currentTarget.checked,
-                                    })
-                                }
-                            />
+                            {showAgentsPageLink ? (
+                                <Stack gap="xs" align="flex-end">
+                                    <Text size="sm">
+                                        {settings.mcpAgentsEnabled
+                                            ? 'On'
+                                            : 'Off'}
+                                    </Text>
+                                    <Anchor
+                                        component={Link}
+                                        to="/generalSettings/agentIdentity"
+                                        size="sm"
+                                    >
+                                        Change on the Agents page
+                                    </Anchor>
+                                </Stack>
+                            ) : (
+                                <Switch
+                                    size="md"
+                                    aria-label="Enable agents over MCP"
+                                    checked={settings.mcpAgentsEnabled}
+                                    disabled={isUpdatingSettings}
+                                    onChange={(event) =>
+                                        updateSettings({
+                                            mcpAgentsEnabled:
+                                                event.currentTarget.checked,
+                                        })
+                                    }
+                                />
+                            )}
                         </Group>
                     </SettingsCard>
 

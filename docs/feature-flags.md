@@ -314,8 +314,9 @@ off, group admission adds no checks or reads. A PUT can set
 `mode: 'legacy'` to save group admission and preserve the dormant role matrix.
 Reset keeps groups and clears the capability list. Old people and project lists
 are ignored and omitted from GET, PUT and reset. An old browser save succeeds
-and drops those choices. The page uses a temporary API adapter until its
-Same as the person, Read and query, and Custom controls ship.
+and drops those choices. The page uses the final policy API for Same as the
+person, Read and query, and Custom. Capability and group changes require review
+before saving.
 
 ### Snowflake silent agent refresh
 

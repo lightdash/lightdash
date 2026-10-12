@@ -14,9 +14,9 @@ import {
     ParameterError,
     type Account,
     type AgentActorSurface,
-    type AgentCapabilityCeilingState,
-    type AgentCapabilityPolicyOverviewState,
-    type AgentCapabilityPolicyState,
+    type AgentCapabilityCeiling,
+    type AgentCapabilityPolicy,
+    type AgentCapabilityPolicyOverview,
     type AgentPermissionCheck,
     type AgentSystemRoleMatrix,
     type AiAccessRefusal,
@@ -255,7 +255,7 @@ const freezePolicy = (
 
 const projectEnforcementPolicy = (
     policy: ImmutableAgentEnforcementPolicy,
-): AgentCapabilityPolicyState => {
+): AgentCapabilityPolicy => {
     const allowedGroupUuids = policy.hasExistingAllowedGroup
         ? [...(policy.storedAllowedGroupUuids ?? [])]
         : [];
@@ -419,7 +419,7 @@ export class AgentPermissionService extends BaseService {
         projectUuid,
         policy,
     }: ResolvePolicyArgs & {
-        policy: AgentCapabilityPolicyState;
+        policy: AgentCapabilityPolicy;
     }): Promise<ResolvedAgentPolicy> {
         if (account.organization.organizationUuid !== organizationUuid)
             throw new ForbiddenError(
@@ -767,9 +767,7 @@ export class AgentPermissionService extends BaseService {
         return organizationUuid;
     }
 
-    async getPolicy(
-        account: Account,
-    ): Promise<AgentCapabilityPolicyOverviewState> {
+    async getPolicy(account: Account): Promise<AgentCapabilityPolicyOverview> {
         const organizationUuid = await this.assertPolicyAdmin(account);
         return {
             ...(await this.deps.agentCapabilityPolicyModel.get(
@@ -783,8 +781,8 @@ export class AgentPermissionService extends BaseService {
 
     async saveCeiling(
         account: Account,
-        ceiling: AgentCapabilityCeilingState,
-    ): Promise<AgentCapabilityPolicyState> {
+        ceiling: AgentCapabilityCeiling,
+    ): Promise<AgentCapabilityPolicy> {
         const organizationUuid = await this.assertPolicyAdmin(account);
         const mode = ceiling.mode ?? 'managed';
         if (mode !== 'legacy' && mode !== 'managed')
@@ -854,7 +852,7 @@ export class AgentPermissionService extends BaseService {
     async resetToLegacy(
         account: Account,
         version: number | undefined,
-    ): Promise<AgentCapabilityPolicyState> {
+    ): Promise<AgentCapabilityPolicy> {
         const organizationUuid = await this.assertPolicyAdmin(account);
         AgentPermissionService.validateVersion(version);
         const policy =

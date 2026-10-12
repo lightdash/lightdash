@@ -1,7 +1,7 @@
 import {
     AiAccessRefusalReason,
     InvalidUser,
-    type AgentCapabilityPolicyState,
+    type AgentCapabilityPolicy,
 } from '@lightdash/common';
 import type { WebClient } from '@slack/web-api';
 import knex from 'knex';
@@ -27,7 +27,7 @@ const setup = ({
     linked = false,
     multiAgent = false,
 } = {}) => {
-    const policy: AgentCapabilityPolicyState = {
+    const policy: AgentCapabilityPolicy = {
         mode: managed ? 'managed' : 'legacy',
         version: 1,
         allowedCapabilities: null,

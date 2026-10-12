@@ -1,381 +1,201 @@
 import {
-    FeatureFlags,
-    type AgentCapabilityPolicy,
     type AgentCapabilityPolicyOverview,
+    type ApiAiOrganizationSettingsResponse,
+    type Group as OrganizationGroup,
 } from '@lightdash/common';
-import {
-    Alert,
-    Button,
-    Group,
-    Stack,
-    Switch,
-    Text,
-    Title,
-} from '@mantine/core';
-import { useIsMutating } from '@tanstack/react-query';
-import isEqual from 'lodash/isEqual';
+import { Anchor, Button, Group, Stack, Text, Title } from '@mantine/core';
 import { useState } from 'react';
-import EmptyStateLoader from '../../components/common/EmptyStateLoader';
-import InlineErrorState from '../../components/common/InlineErrorState';
-import MantineModal from '../../components/common/MantineModal';
+import Callout from '../../components/common/Callout';
 import { SettingsCard } from '../../components/common/Settings/SettingsCard';
-import useToaster from '../../hooks/toaster/useToaster';
-import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
-import { useProjects } from '../../hooks/useProjects';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
-import useApp from '../../providers/App/useApp';
+import { AgentCapabilityChoices } from './AgentCapabilityChoices';
+import { AgentCapabilitySwitches } from './AgentCapabilitySwitches';
+import { AgentGroupAdmissionSection } from './AgentGroupAdmissionSection';
+import { AgentMcpAccessSwitch } from './AgentMcpAccessSwitch';
 import {
-    AgentAccessPickers,
-    type AgentPickerOption,
-} from './AgentAccessPickers';
-import { AgentCapabilityMatrix } from './AgentCapabilityMatrix';
-import {
-    agentPolicyMutationKey,
-    useAgentCapabilityPolicy,
-    useResetAgentCapabilityPolicy,
-    useSaveAgentCapabilityCeiling,
-} from './api';
-import { EmptyAgentAccessConfirmModal } from './EmptyAgentAccessConfirmModal';
+    chooseAgentPermission,
+    getAgentPermissionChoice,
+} from './agentPermissionDraft';
+import { agentPermissionChoiceLabels } from './agentPermissionLabels';
+import { AgentPermissionsReviewModal } from './AgentPermissionsReviewModal';
+import classes from './AgentPermissionsSection.module.css';
+import { type useAgentCapabilityPolicy } from './api';
+import { useAgentPermissionsForm } from './useAgentPermissionsForm';
 
-const formValues = (
-    policy: AgentCapabilityPolicy,
-    defaults: AgentCapabilityPolicyOverview['defaults'],
-) => ({
-    mode: policy.mode,
-    version: policy.version,
-    systemRoleMatrix:
-        policy.mode === 'legacy' ? defaults : policy.systemRoleMatrix,
-    allowedProjectUuids:
-        policy.mode === 'legacy' ? null : policy.allowedProjectUuids,
-    allowedUserUuids: policy.mode === 'legacy' ? null : policy.allowedUserUuids,
-});
-
-const useAgentPermissionDraft = (policy: AgentCapabilityPolicyOverview) => {
-    type Values = ReturnType<typeof formValues>;
-    const [draft, setDraft] = useState<{
-        baseline: Values;
-        values: Values;
-    } | null>(null);
-    const dirty = draft !== null && !isEqual(draft.values, draft.baseline);
-    const latest = formValues(policy, policy.defaults);
-    const baseline =
-        draft && (dirty || draft.baseline.version > policy.version)
-            ? draft.baseline
-            : latest;
-    const values = dirty ? draft.values : baseline;
-    const ownSavePending =
-        useIsMutating({ mutationKey: agentPolicyMutationKey }) > 0;
-    const conflict =
-        dirty && !ownSavePending && policy.version > baseline.version;
-    const change = (changes: Partial<Values>) =>
-        setDraft({ baseline, values: { ...values, ...changes } });
-    return {
-        baseline,
-        values,
-        dirty,
-        conflict,
-        change,
-        discard: () => setDraft(null),
-        accept: (updated: AgentCapabilityPolicy) => {
-            const saved = formValues(updated, policy.defaults);
-            setDraft({ baseline: saved, values: saved });
-        },
-    };
-};
-
-const AgentPermissionLimits = ({
-    values,
-    starting,
-    dirty,
-    disabled,
-    saving,
-    projects,
-    people,
-    onChange,
-    onDiscard,
-    onSave,
-}: {
-    values: ReturnType<typeof formValues>;
-    starting: boolean;
-    dirty: boolean;
-    disabled: boolean;
-    saving: boolean;
-    projects: AgentPickerOption[];
-    people: AgentPickerOption[];
-    onChange: (changes: Partial<ReturnType<typeof formValues>>) => void;
-    onDiscard: () => void;
-    onSave: () => void;
-}) => (
-    <>
-        {starting && (
-            <Text size="sm" c="dimmed">
-                Not saved yet — these are the starting limits.
-            </Text>
-        )}
-        <Text size="sm" c="dimmed">
-            Limits can reduce what agents do. They do not give a person more
-            access than their roles allow.
-        </Text>
-        <AgentCapabilityMatrix
-            matrix={values.systemRoleMatrix}
-            onChange={(systemRoleMatrix) => onChange({ systemRoleMatrix })}
-            disabled={disabled}
-        />
-        <AgentAccessPickers
-            selection={values}
-            projects={projects}
-            people={people}
-            onChange={onChange}
-            disabled={disabled}
-        />
-        <Group justify="flex-end" gap="sm">
-            {dirty && (
-                <>
-                    <Text size="sm" c="dimmed">
-                        Unsaved changes
-                    </Text>
-                    <Button
-                        variant="subtle"
-                        disabled={saving}
-                        onClick={onDiscard}
-                    >
-                        Discard changes
-                    </Button>
-                </>
-            )}
-            <Button
-                loading={saving}
-                disabled={disabled || !dirty}
-                onClick={onSave}
-            >
-                Save
-            </Button>
-        </Group>
-    </>
-);
-
-const AgentPermissionsForm = ({
+export const AgentPermissionsSection = ({
     policy,
+    groups,
     refetchPolicy,
-    projects,
-    people,
+    loadError,
+    mcpSettings,
 }: {
     policy: AgentCapabilityPolicyOverview;
+    groups: OrganizationGroup[];
     refetchPolicy: ReturnType<typeof useAgentCapabilityPolicy>['refetch'];
-    projects: AgentPickerOption[];
-    people: AgentPickerOption[];
+    loadError: boolean;
+    mcpSettings: ApiAiOrganizationSettingsResponse['results'] | null;
 }) => {
     const {
         baseline,
-        values,
-        dirty,
-        conflict: draftConflict,
-        change,
+        form,
+        choice,
+        setChoice,
+        reviewOpened,
+        setReviewOpened,
+        changes,
+        count,
         accept,
-        discard: discardDraft,
-    } = useAgentPermissionDraft(policy);
-    const limitsOn = values.mode === 'managed';
-    const starting = limitsOn && baseline.mode === 'legacy';
-    const [modal, setModal] = useState<'empty' | 'reset' | null>(null);
-    const [staleRequest, setStaleRequest] = useState(false);
-    const [refreshing, setRefreshing] = useState(false);
-    const { showToastApiError } = useToaster();
-    const conflict = draftConflict || staleRequest;
-    const onSaved = (updated: AgentCapabilityPolicy) => {
-        accept(updated);
-        setModal(null);
-    };
-    const save = useSaveAgentCapabilityCeiling(onSaved);
-    const reset = useResetAgentCapabilityPolicy(onSaved);
-    const saving = save.isLoading || reset.isLoading || refreshing;
-    const editingDisabled = saving || conflict;
-    const discard = () => {
-        discardDraft();
-        setStaleRequest(false);
-        setModal(null);
-    };
-    const refreshPolicy = async () => {
-        setRefreshing(true);
-        try {
-            const result = await refetchPolicy();
-            if (result.isError) {
-                showToastApiError({
-                    title: 'Could not reload agent permissions.',
-                    apiError: result.error.error,
-                });
-                return null;
-            }
-            return result.data;
-        } finally {
-            setRefreshing(false);
-        }
-    };
-    const onFailed = async (requestVersion: number) => {
-        const latest = await refreshPolicy();
-        if (latest && latest.version > requestVersion) setStaleRequest(true);
-    };
-    const reloadLatest = async () => {
-        const latest = await refreshPolicy();
-        if (!latest) return;
-        accept(latest);
-        setStaleRequest(false);
-        setModal(null);
-    };
-    const submit = () => {
-        if (editingDisabled) return;
-        save.mutate(
-            {
-                version: values.version,
-                systemRoleMatrix: values.systemRoleMatrix,
-                allowedProjectUuids: values.allowedProjectUuids,
-                allowedUserUuids: values.allowedUserUuids,
-            },
-            { onError: () => void onFailed(values.version) },
-        );
-    };
+        saving,
+        conflict,
+        disabled,
+        invalidGroups,
+        saveDisabled,
+        saveError,
+        reload,
+        submit,
+    } = useAgentPermissionsForm({ policy, refetchPolicy, loadError });
+    const [whoExpanded, setWhoExpanded] = useState(false);
     return (
         <SettingsCard>
             <Stack gap="lg">
-                <Title order={5}>Permissions</Title>
+                <Stack gap="xs">
+                    <Title order={5}>Permissions</Title>
+                    <Text size="sm" c="dimmed">
+                        What agents may do for a person. Agents never get more
+                        than the person has.
+                    </Text>
+                </Stack>
                 {conflict && (
-                    <Alert color="yellow" title="Agent permissions changed">
+                    <Callout
+                        variant="warning"
+                        title="Agent permissions changed"
+                    >
                         <Stack gap="sm">
                             <Text size="sm">
-                                Someone changed the saved permissions. Reload
-                                the latest permissions before making more
-                                changes.
-                                {dirty &&
-                                    ' This will discard your unsaved changes.'}
+                                Someone changed the saved permissions. Your
+                                unsaved changes are still shown. Reload the
+                                latest permissions to discard them.
                             </Text>
                             <Button
                                 variant="default"
                                 disabled={saving}
-                                loading={refreshing}
-                                onClick={() => void reloadLatest()}
+                                onClick={() => void reload()}
                             >
                                 Reload latest
                             </Button>
                         </Stack>
-                    </Alert>
+                    </Callout>
                 )}
-                <Switch
-                    label="Limit what agents can do"
-                    checked={limitsOn}
-                    disabled={editingDisabled}
-                    onChange={(event) => {
-                        if (event.currentTarget.checked)
-                            change({ mode: 'managed' });
-                        else if (baseline.mode === 'managed') setModal('reset');
-                        else discard();
-                    }}
+                <Stack gap="sm">
+                    <Group justify="space-between">
+                        <Stack gap={0}>
+                            <Title order={5}>What agents can do</Title>
+                            {whoExpanded && (
+                                <Text size="sm" c="dimmed">
+                                    {agentPermissionChoiceLabels[choice]}.
+                                </Text>
+                            )}
+                        </Stack>
+                        {whoExpanded && (
+                            <Button
+                                variant="default"
+                                aria-label="Change what agents can do"
+                                onClick={() => setWhoExpanded(false)}
+                            >
+                                Change
+                            </Button>
+                        )}
+                    </Group>
+                    {!whoExpanded && (
+                        <AgentCapabilityChoices
+                            choice={choice}
+                            current={getAgentPermissionChoice(baseline)}
+                            disabled={disabled}
+                            onChange={(value) => {
+                                setChoice(value);
+                                form.setValues(
+                                    chooseAgentPermission(form.values, value),
+                                );
+                            }}
+                        >
+                            <AgentCapabilitySwitches
+                                draft={form.values}
+                                onChange={form.setValues}
+                                disabled={disabled}
+                            />
+                        </AgentCapabilityChoices>
+                    )}
+                </Stack>
+                <AgentGroupAdmissionSection
+                    available={policy.groupsAvailable}
+                    groups={groups}
+                    selection={form.values.allowedGroupUuids}
+                    savedSelection={baseline.allowedGroupUuids}
+                    expanded={whoExpanded}
+                    onExpand={() => setWhoExpanded(true)}
+                    onChange={(value) =>
+                        form.setFieldValue('allowedGroupUuids', value)
+                    }
+                    disabled={disabled || loadError}
+                    invalid={invalidGroups}
                 />
-                {!limitsOn && (
-                    <Text size="sm">
-                        Agents follow each person's permissions.
-                    </Text>
-                )}
-                {limitsOn && (
-                    <AgentPermissionLimits
-                        values={values}
-                        starting={starting}
-                        dirty={dirty}
-                        disabled={editingDisabled}
-                        saving={saving}
-                        projects={projects}
-                        people={people}
-                        onChange={change}
-                        onDiscard={discard}
-                        onSave={() => {
-                            if (values.allowedUserUuids?.length === 0)
-                                setModal('empty');
-                            else submit();
-                        }}
+                {mcpSettings && (
+                    <AgentMcpAccessSwitch
+                        settings={mcpSettings}
+                        setting="mcpAgentsEnabled"
+                        label="Agents over MCP"
+                        description="MCP clients can use this organization's agents and their context. Per-agent access still applies."
                     />
                 )}
-                <Text size="sm" c="dimmed">
-                    Personal access tokens are not limited. An agent that uses a
-                    person's personal access token has that person's access.
-                </Text>
+                <Stack gap="md" className={classes.footer}>
+                    <Text size="sm" c="dimmed">
+                        Personal access tokens are not limited. An agent that
+                        uses a person's token has that person's access.{' '}
+                        <Anchor
+                            href="https://docs.lightdash.com/references/personal_tokens"
+                            target="_blank"
+                            rel="noreferrer"
+                            size="sm"
+                        >
+                            Learn more
+                        </Anchor>
+                    </Text>
+                    <Group justify="flex-end">
+                        <Text size="sm" c="dimmed" role="status">
+                            {count === 0
+                                ? 'No changes'
+                                : `${count} unsaved ${count === 1 ? 'change' : 'changes'}`}
+                        </Text>
+                        {count > 0 && (
+                            <Button
+                                variant="subtle"
+                                disabled={saving}
+                                onClick={() => accept(policy)}
+                            >
+                                Discard
+                            </Button>
+                        )}
+                        <Button
+                            disabled={saveDisabled}
+                            onClick={() => setReviewOpened(true)}
+                        >
+                            Review and save
+                        </Button>
+                    </Group>
+                </Stack>
+                {reviewOpened && !conflict && (
+                    <AgentPermissionsReviewModal
+                        changes={changes}
+                        groups={groups}
+                        saving={saving}
+                        disabled={saveDisabled}
+                        error={saveError}
+                        onClose={() => {
+                            if (!saving) setReviewOpened(false);
+                        }}
+                        onSave={submit}
+                    />
+                )}
             </Stack>
-            {!conflict && modal === 'empty' && (
-                <EmptyAgentAccessConfirmModal
-                    saving={saving}
-                    onCancel={() => {
-                        change({ allowedUserUuids: baseline.allowedUserUuids });
-                        setModal(null);
-                    }}
-                    onConfirm={submit}
-                />
-            )}
-            {!conflict && modal === 'reset' && (
-                <MantineModal
-                    opened
-                    role="alertdialog"
-                    title="Turn off limits?"
-                    description="Agents will follow each person's permissions again. Project and people limits will no longer apply. Any unsaved changes will be discarded."
-                    onClose={() => {
-                        if (!saving) setModal(null);
-                    }}
-                    confirmLabel="Turn off limits"
-                    confirmLoading={reset.isLoading}
-                    confirmDisabled={saving}
-                    cancelDisabled={saving}
-                    onConfirm={() => {
-                        if (!saving)
-                            reset.mutate(
-                                { version: values.version },
-                                {
-                                    onError: () =>
-                                        void onFailed(values.version),
-                                },
-                            );
-                    }}
-                />
-            )}
         </SettingsCard>
     );
-};
-
-const AgentPermissionsContent = () => {
-    const policy = useAgentCapabilityPolicy();
-    const projects = useProjects();
-    const people = useOrganizationUsers();
-    if (!policy.data || !projects.data || !people.data) {
-        if (policy.isError || projects.isError || people.isError)
-            return (
-                <InlineErrorState
-                    message="Could not load agent permissions."
-                    onRetry={() => {
-                        void policy.refetch();
-                        void projects.refetch();
-                        void people.refetch();
-                    }}
-                />
-            );
-        return <EmptyStateLoader />;
-    }
-    const projectOptions = projects.data.map((project) => ({
-        value: project.projectUuid,
-        label: project.name,
-    }));
-    const peopleOptions = people.data.map((person) => ({
-        value: person.userUuid,
-        label: `${[person.firstName, person.lastName].filter(Boolean).join(' ')} (${person.email})`,
-    }));
-    return (
-        <AgentPermissionsForm
-            policy={policy.data}
-            refetchPolicy={policy.refetch}
-            projects={projectOptions}
-            people={peopleOptions}
-        />
-    );
-};
-
-export const AgentPermissionsSection = () => {
-    const { user } = useApp();
-    const { data: flag } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
-    if (!flag?.enabled || !user.data?.ability.can('manage', 'Organization'))
-        return null;
-    return <AgentPermissionsContent key={user.data.organizationUuid} />;
 };

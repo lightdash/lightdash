@@ -16,8 +16,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../api';
 import settingsClasses from '../../components/common/Settings/SettingsCard.module.css';
 import { renderWithProviders } from '../../testing/testUtils';
+import { AgentIdentitySettingsPage } from './AgentIdentitySettingsPage';
+import { agentSettingsPolicyMock } from './agentSettings.mock';
 import { identityLabels } from './identityLabels';
-import OrganizationAgentIdentitySection from './OrganizationAgentIdentitySection';
 
 const mocks = vi.hoisted(() => ({
     enabled: true,
@@ -31,6 +32,9 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock('../../hooks/settings/useSettingsContext', () => ({
     useSettingsContext: () => ({ showMyAgentConnections: true }),
+}));
+vi.mock('./AgentPermissionsSection', () => ({
+    AgentPermissionsSection: () => null,
 }));
 vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
 vi.mock('../../providers/App/useApp', () => ({
@@ -81,13 +85,23 @@ vi.mock('../../components/common/CodeBlock/CodeBlock', () => ({
 
 const renderSection = () => {
     const client = new QueryClient({
-        defaultOptions: { queries: { retry: false } },
+        defaultOptions: { queries: { retry: false, staleTime: Infinity } },
     });
+    client.setQueryData(
+        ['ai-access', 'org', 'org', 'agent-permissions'],
+        agentSettingsPolicyMock(),
+    );
     const invalidate = vi.spyOn(client, 'invalidateQueries');
     renderWithProviders(
         <QueryClientProvider client={client}>
             <MemoryRouter>
-                <OrganizationAgentIdentitySection />
+                <AgentIdentitySettingsPage
+                    access={{
+                        agentsPage: mocks.enabled && mocks.canManage,
+                        agentsMcp: false,
+                        mcpPage: 'hidden',
+                    }}
+                />
             </MemoryRouter>
         </QueryClientProvider>,
     );
@@ -118,6 +132,7 @@ const apiHandler = async ({
     method,
     body,
 }: Parameters<typeof lightdashApi>[0]) => {
+    if (url === '/org/agent-permissions') return agentSettingsPolicyMock();
     if (url.endsWith('/projects-without-ai-service-account'))
         return missingProjects;
     if (url.endsWith('/setup'))
@@ -1568,7 +1583,7 @@ describe('Organisation agent identity settings', () => {
         });
         renderSection();
         expect(
-            await screen.findByText('Could not load agent identity settings.'),
+            await screen.findByText('Could not load agent settings.'),
         ).toBeInTheDocument();
         vi.mocked(lightdashApi).mockImplementation(apiHandler);
         fireEvent.click(screen.getByRole('button', { name: 'Retry' }));

@@ -3,8 +3,8 @@ import {
     OrganizationMemberRole,
     ParameterError,
     type AgentCapability,
+    type AgentCapabilityPolicy,
     type AgentCapabilityPolicySave,
-    type AgentCapabilityPolicyState,
     type AgentSystemRoleMatrix,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
@@ -69,7 +69,7 @@ export class AgentCapabilityPolicyModel {
     async get(
         organizationUuid: string,
         database: Knex = this.database,
-    ): Promise<AgentCapabilityPolicyState> {
+    ): Promise<AgentCapabilityPolicy> {
         const rows = await database(AgentCapabilityPoliciesTableName)
             .leftJoin(
                 AgentSystemRoleCapabilitiesTableName,
@@ -182,7 +182,7 @@ export class AgentCapabilityPolicyModel {
         allowedGroupUuids,
         systemRoleMatrix,
         updatedByUserUuid,
-    }: AgentCapabilityPolicySave): Promise<AgentCapabilityPolicyState> {
+    }: AgentCapabilityPolicySave): Promise<AgentCapabilityPolicy> {
         return this.database.transaction(async (transaction) => {
             if (allowedGroupUuids !== undefined && allowedGroupUuids !== null) {
                 if (allowedGroupUuids.length === 0)

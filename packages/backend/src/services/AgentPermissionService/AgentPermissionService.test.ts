@@ -7,7 +7,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     OrganizationMemberRole,
-    type AgentCapabilityPolicyState,
+    type AgentCapabilityPolicy,
     type PossibleAbilities,
 } from '@lightdash/common';
 import { fromOauth } from '../../auth/account/account';
@@ -25,7 +25,7 @@ import {
 const setup = () => {
     const account = buildAccount();
     const matrix = agentSystemRoleMatrix([]);
-    const policy: AgentCapabilityPolicyState = {
+    const policy: AgentCapabilityPolicy = {
         mode: 'managed',
         version: 1,
         allowedCapabilities: null,

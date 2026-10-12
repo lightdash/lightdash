@@ -429,7 +429,7 @@ test('MCP switches and historical people and project lists do not gate other sur
                     f.permissions.assertOperation({
                         ...f.operation,
                         kind: 'agent_turn',
-                        key: 'turn',
+                        key: 'agent_turn',
                         surface,
                     }),
                 ).resolves.toBeUndefined();

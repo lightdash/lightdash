@@ -149,8 +149,11 @@ row is intersected with the saved list and ordered by the capability enum.
 Legacy saves and reset set the list to `null`. Reset keeps the dormant role
 matrix and group restriction. A stale version rejects the entire save.
 
-The next page offers Same as the person, Read and query, and Custom. Read and
-query includes Read and discover, Query data, Export results and Raw SQL.
+The Agents page offers three choices. Same as the person stores `legacy`
+with a null capability list. Read and query stores `managed` with Read and
+discover, Query data, Export results and Raw SQL in the list and every role row.
+Custom stores `managed` with the selected list and role rows. It starts with
+all eleven capabilities on. Capability and group changes require review.
 Raw SQL follows warehouse permissions; this preset is not a read-only SQL guard.
 
 ## How checks combine
@@ -201,9 +204,15 @@ enforce modes; log mode records but does not refuse.
 
 ## MCP settings
 
+With `agent-identity` on, Enable agents over MCP appears on the Agents page
+for people who can manage both organization and AI settings. It saves at once.
+For those people, MCP settings shows its state and a link to the Agents page.
+Other AI settings managers keep the working switch on MCP settings.
+Allow content changes via MCP stays on MCP settings.
+
 Both settings stay in `ai_organization_settings` and keep their defaults.
-`AgentPermissionService` does not read either one. The MCP settings page and
-its permission rules stay unchanged.
+`AgentPermissionService` does not read either one. Their server-side
+permission rules stay unchanged.
 
 ### Agents over MCP (`mcpAgentsEnabled`)
 

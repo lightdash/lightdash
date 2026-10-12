@@ -2,7 +2,7 @@ import {
     AgentCapability,
     AiAccessRefusalReason,
     OrganizationMemberRole,
-    type AgentCapabilityPolicyState,
+    type AgentCapabilityPolicy,
 } from '@lightdash/common';
 import { toSessionUser } from '../../../auth/account/account';
 import { buildAccount } from '../../../auth/account/account.mock';
@@ -33,7 +33,7 @@ const setup = () => {
     const account = buildAccount();
     const user = toSessionUser(account);
     const organizationUuid = account.organization.organizationUuid!;
-    const policy: AgentCapabilityPolicyState = {
+    const policy: AgentCapabilityPolicy = {
         mode: 'managed',
         version: 1,
         allowedCapabilities: null,

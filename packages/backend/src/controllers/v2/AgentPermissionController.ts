@@ -1,6 +1,6 @@
 import {
     assertRegisteredAccount,
-    type AgentCapabilityCeilingState,
+    type AgentCapabilityCeiling,
     type AgentPolicyOverviewResponse,
     type AgentPolicyResponse,
     type ApiErrorPayload,
@@ -49,7 +49,7 @@ export class AgentPermissionController extends BaseController {
     @OperationId('saveAgentCapabilityCeiling')
     async saveCeiling(
         @Request() req: express.Request,
-        @Body() body: AgentCapabilityCeilingState,
+        @Body() body: AgentCapabilityCeiling,
     ): Promise<AgentPolicyResponse> {
         assertRegisteredAccount(req.account);
         return {

@@ -5,7 +5,7 @@ import {
     AiAccessRefusedError,
     ForbiddenError,
     OrganizationMemberRole,
-    type AgentCapabilityPolicyState,
+    type AgentCapabilityPolicy,
 } from '@lightdash/common';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
@@ -70,7 +70,7 @@ const setup = (
             ),
     };
     const account = accounts[authentication]();
-    const policy: AgentCapabilityPolicyState = {
+    const policy: AgentCapabilityPolicy = {
         mode: 'managed',
         version: 1,
         allowedCapabilities: null,

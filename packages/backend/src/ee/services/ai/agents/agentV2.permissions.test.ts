@@ -3,7 +3,7 @@ import {
     AgentCapability,
     AiAccessRefusalReason,
     OrganizationMemberRole,
-    type AgentCapabilityPolicyState,
+    type AgentCapabilityPolicy,
 } from '@lightdash/common';
 import { type ToolSet } from 'ai';
 import { buildAccount } from '../../../../auth/account/account.mock';
@@ -17,7 +17,7 @@ import { getAgentTools, withAgentToolPermissions } from './agentV2';
 
 const setup = () => {
     const account = buildAccount();
-    const policy: AgentCapabilityPolicyState = {
+    const policy: AgentCapabilityPolicy = {
         mode: 'managed',
         version: 1,
         allowedCapabilities: null,

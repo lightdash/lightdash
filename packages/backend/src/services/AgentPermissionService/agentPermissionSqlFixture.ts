@@ -3,7 +3,7 @@ import {
     AgentCapability,
     assertIsAccountWithOrg,
     OrganizationMemberRole,
-    type AgentCapabilityPolicyState,
+    type AgentCapabilityPolicy,
     type RegisteredAccount,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
@@ -22,7 +22,7 @@ export const setupPermissionSql = (
     account: RegisteredAccount = buildAccount(),
 ) => {
     assertIsAccountWithOrg(account);
-    const policy: AgentCapabilityPolicyState = {
+    const policy: AgentCapabilityPolicy = {
         mode: 'legacy',
         version: 7,
         allowedCapabilities: null,

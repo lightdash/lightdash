@@ -421,7 +421,7 @@ describe('AI service account save', () => {
     });
 });
 
-describe('temporary policy view adapter', () => {
+describe('final policy contract', () => {
     const matrix = Object.fromEntries(
         Object.values(OrganizationMemberRole).map((role) => [
             role,
@@ -439,7 +439,7 @@ describe('temporary policy view adapter', () => {
         vi.clearAllMocks();
         flagEnabled = true;
     });
-    it('adapts GET without replacing server defaults or making another request', async () => {
+    it('returns the final GET shape without an adapter or extra request', async () => {
         vi.mocked(lightdashApi).mockResolvedValue({
             ...wire,
             defaults: matrix,
@@ -461,8 +461,6 @@ describe('temporary policy view adapter', () => {
                 ...wire,
                 defaults: matrix,
                 groupsAvailable: true,
-                allowedProjectUuids: null,
-                allowedUserUuids: null,
             }),
         );
         expect(
@@ -474,7 +472,7 @@ describe('temporary policy view adapter', () => {
         ).toHaveLength(1);
     });
     it.each(['save', 'reset'] as const)(
-        'adapts the %s response for the old page',
+        'returns the final %s response',
         async (action) => {
             vi.mocked(lightdashApi).mockResolvedValue(wire as never);
             const onSaved = vi.fn();
@@ -487,14 +485,13 @@ describe('temporary policy view adapter', () => {
                     await result.current.save.mutateAsync({
                         version: 1,
                         systemRoleMatrix: matrix,
-                        allowedProjectUuids: ['old'],
+                        mode: 'managed',
+                        allowedCapabilities: [AgentCapability.Query],
                     } as never);
                 else await result.current.reset.mutateAsync({ version: 1 });
             });
             expect(onSaved).toHaveBeenCalledWith({
                 ...wire,
-                allowedProjectUuids: null,
-                allowedUserUuids: null,
             });
         },
     );

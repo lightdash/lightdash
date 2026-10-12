@@ -3,7 +3,7 @@ import {
     AgentActorSurface,
     AgentCapability,
     ForbiddenError,
-    type AgentCapabilityPolicyState,
+    type AgentCapabilityPolicy,
     type PossibleAbilities,
 } from '@lightdash/common';
 import { type Request } from 'express';
@@ -25,7 +25,7 @@ const setup = () => {
     account.user.ability = new Ability<PossibleAbilities>([
         { action: 'manage', subject: 'all' },
     ]);
-    const policy: AgentCapabilityPolicyState = {
+    const policy: AgentCapabilityPolicy = {
         mode: 'legacy' as const,
         version: 0,
         allowedCapabilities: null,

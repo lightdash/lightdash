@@ -93,6 +93,7 @@ import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import Roadmap from '../ee/pages/Roadmap';
 import { AgentIdentitySettingsPage } from '../features/aiAccess/AgentIdentitySettingsPage';
+import { getAgentSettingsAccess } from '../features/aiAccess/agentSettingsAccess';
 import { DataAppAiAnalysisSettingsPage } from '../features/apps/analysis/settings/DataAppAiAnalysisSettingsPage';
 import { DataAppGeneralSettingsPage } from '../features/apps/settings/DataAppGeneralSettingsPage';
 import { getDataAppsSettingsLanding } from '../features/apps/settings/dataAppsSettingsLanding';
@@ -715,7 +716,18 @@ const Settings: FC = () => {
                     '/generalSettings',
                     '',
                 ),
-                element: <AgentIdentitySettingsPage />,
+                element: (
+                    <AgentIdentitySettingsPage
+                        access={getAgentSettingsAccess({
+                            agentIdentityEnabled: isAgentIdentityEnabled,
+                            canManageOrganization:
+                                user?.ability.can('manage', 'Organization') ??
+                                false,
+                            canManageOrgAiAgent,
+                            isAiAvailable: isAiCopilotEnabledOrTrial,
+                        })}
+                    />
+                ),
             });
         }
 
@@ -794,7 +806,23 @@ const Settings: FC = () => {
             if (canManageOrgAiAgent) {
                 allowedRoutes.push({
                     path: '/mcp/general',
-                    element: <McpGeneralSettingsPage />,
+                    element: (
+                        <McpGeneralSettingsPage
+                            showAgentsPageLink={
+                                getAgentSettingsAccess({
+                                    agentIdentityEnabled:
+                                        isAgentIdentityEnabled,
+                                    canManageOrganization:
+                                        user?.ability.can(
+                                            'manage',
+                                            'Organization',
+                                        ) ?? false,
+                                    canManageOrgAiAgent,
+                                    isAiAvailable: isAiCopilotEnabledOrTrial,
+                                }).mcpPage === 'link'
+                            }
+                        />
+                    ),
                 });
             }
             allowedRoutes.push({

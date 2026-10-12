@@ -9,45 +9,16 @@ export type AgentSystemRoleMatrix = Record<
 export interface AgentCapabilityPolicy {
     mode: 'legacy' | 'managed';
     version: number;
-    allowedProjectUuids: string[] | null;
-    allowedUserUuids: string[] | null;
-    allowedGroupUuids: string[] | null;
-    systemRoleMatrix: AgentSystemRoleMatrix;
-}
-
-export interface AgentCapabilityPolicyOverview extends AgentCapabilityPolicy {
-    defaults: AgentSystemRoleMatrix;
-    groupsAvailable: boolean;
-}
-
-export interface AgentCapabilityCeiling extends Pick<
-    AgentCapabilityPolicy,
-    'systemRoleMatrix' | 'allowedProjectUuids'
-> {
-    version?: number;
-    allowedUserUuids?: string[] | null;
-    allowedGroupUuids?: string[] | null;
-    mode?: 'legacy' | 'managed';
-}
-
-export type AgentAccessSelection = Pick<
-    AgentCapabilityCeiling,
-    'version' | 'allowedProjectUuids' | 'allowedUserUuids'
->;
-
-export interface AgentCapabilityPolicyState {
-    mode: 'legacy' | 'managed';
-    version: number;
     allowedCapabilities: AgentCapability[] | null;
     allowedGroupUuids: string[] | null;
     systemRoleMatrix: AgentSystemRoleMatrix;
 }
-export interface AgentCapabilityPolicyOverviewState extends AgentCapabilityPolicyState {
+export interface AgentCapabilityPolicyOverview extends AgentCapabilityPolicy {
     defaults: AgentSystemRoleMatrix;
     groupsAvailable: boolean;
 }
-export interface AgentCapabilityCeilingState extends Pick<
-    AgentCapabilityPolicyState,
+export interface AgentCapabilityCeiling extends Pick<
+    AgentCapabilityPolicy,
     'systemRoleMatrix'
 > {
     version?: number;
@@ -56,7 +27,7 @@ export interface AgentCapabilityCeilingState extends Pick<
     allowedGroupUuids?: string[] | null;
 }
 export interface AgentCapabilityPolicySave extends Omit<
-    AgentCapabilityPolicyState,
+    AgentCapabilityPolicy,
     'version' | 'allowedCapabilities' | 'allowedGroupUuids'
 > {
     version?: number;
@@ -72,11 +43,11 @@ export interface AgentPolicyResponseBase {
     status: 'ok';
 }
 export interface AgentPolicyResponse extends AgentPolicyResponseBase {
-    results: AgentCapabilityPolicyState;
+    results: AgentCapabilityPolicy;
 }
 export interface AgentPolicyOverviewResponse extends Omit<
     AgentPolicyResponse,
     'results'
 > {
-    results: AgentCapabilityPolicyOverviewState;
+    results: AgentCapabilityPolicyOverview;
 }

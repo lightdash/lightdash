@@ -1,8 +1,6 @@
 import {
     FeatureFlags,
     type AgentCapabilityPolicy,
-    type AgentCapabilityPolicyState,
-    type AgentCapabilityPolicyOverviewState,
     type AgentCapabilityPolicyOverview,
     type AgentCapabilityCeiling,
     type ApiOrganizationAgentIdentityProjectsWithoutAiServiceAccountResponse,
@@ -400,14 +398,6 @@ export const useSnowflakeAgentVerify = (enabled: boolean) => {
 
 const agentPolicyUrl = '/org/agent-permissions';
 
-const toLegacyPolicyView = <T extends AgentCapabilityPolicyState>(
-    policy: T,
-) => ({
-    allowedProjectUuids: null,
-    allowedUserUuids: null,
-    ...policy,
-});
-
 export const useAgentCapabilityPolicy = () => {
     const { user } = useApp();
     const { data: flag } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
@@ -419,17 +409,17 @@ export const useAgentCapabilityPolicy = () => {
             'agent-permissions',
         ],
         queryFn: () =>
-            lightdashApi<AgentCapabilityPolicyOverviewState>({
+            lightdashApi<AgentCapabilityPolicyOverview>({
                 version: 'v2',
                 url: agentPolicyUrl,
                 method: 'GET',
                 body: undefined,
-            }).then(toLegacyPolicyView),
+            }),
         enabled: flag?.enabled === true,
     });
 };
 
-export const agentPolicyMutationKey = ['agent-permissions', 'policy-write'];
+const agentPolicyMutationKey = ['agent-permissions', 'policy-write'];
 
 const useAgentPermissionMutation = <
     TResult extends ApiResponse['results'],
@@ -465,26 +455,23 @@ const useAgentPermissionMutation = <
 export const useSaveAgentCapabilityCeiling = (
     onSaved: (policy: AgentCapabilityPolicy) => void,
 ) =>
-    useAgentPermissionMutation<
-        AgentCapabilityPolicyState,
-        AgentCapabilityCeiling
-    >(
+    useAgentPermissionMutation<AgentCapabilityPolicy, AgentCapabilityCeiling>(
         agentPolicyUrl,
         'PUT',
         'Could not save agent permissions.',
-        (policy) => onSaved(toLegacyPolicyView(policy)),
+        onSaved,
         agentPolicyMutationKey,
     );
 export const useResetAgentCapabilityPolicy = (
     onSaved: (policy: AgentCapabilityPolicy) => void,
 ) =>
     useAgentPermissionMutation<
-        AgentCapabilityPolicyState,
+        AgentCapabilityPolicy,
         Pick<AgentCapabilityPolicy, 'version'>
     >(
         `${agentPolicyUrl}/reset`,
         'POST',
         'Could not turn off limits.',
-        (policy) => onSaved(toLegacyPolicyView(policy)),
+        onSaved,
         agentPolicyMutationKey,
     );

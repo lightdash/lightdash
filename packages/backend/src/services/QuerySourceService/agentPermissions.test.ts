@@ -9,7 +9,7 @@ import {
     QuerySourceType,
     QuerySurface,
     type Account,
-    type AgentCapabilityPolicyState,
+    type AgentCapabilityPolicy,
     type SourceQuery,
 } from '@lightdash/common';
 import type { Request } from 'express';
@@ -62,7 +62,7 @@ const setup = (
     account: Account = buildAccount(),
 ) => {
     const organizationUuid = account.organization.organizationUuid!;
-    const policy: AgentCapabilityPolicyState = {
+    const policy: AgentCapabilityPolicy = {
         mode: mode === 'off' ? 'managed' : mode,
         version: 1,
         allowedCapabilities: null,
