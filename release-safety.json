@@ -1,14 +1,30 @@
 {
   "schemaVersion": "2",
-  "version": "2.567.0",
-  "previousVersion": "2.566.0",
-  "releaseDate": "2026-10-12T13:06:48.602Z",
+  "version": "2.568.0",
+  "previousVersion": "2.567.0",
+  "releaseDate": "2026-10-12T13:30:58.395Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20261012000000_add_agent_connection_approval_requests.ts",
+        "edition": "core",
+        "tables": [
+          "agent_connection_approval_requests",
+          "oauth2_clients",
+          "organizations",
+          "users"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

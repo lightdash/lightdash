@@ -72369,6 +72369,56 @@ const models: TsoaRoute.Models = {
         type: { ref: 'ApiSuccess_DocumentLinkingChart-Array_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentConnectionApprovalResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        expiresAt: { dataType: 'string', required: true },
+                        resource: { dataType: 'string', required: true },
+                        issuer: { dataType: 'string', required: true },
+                        authorizationUrl: {
+                            dataType: 'string',
+                            required: true,
+                        },
+                    },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentConnectionApprovalErrorCode: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['authentication_required'] },
+                { dataType: 'enum', enums: ['agent_identity_disabled'] },
+                { dataType: 'enum', enums: ['person_required'] },
+                { dataType: 'enum', enums: ['browser_session_required'] },
+                { dataType: 'enum', enums: ['approval_forbidden'] },
+                { dataType: 'enum', enums: ['csrf_failed'] },
+                { dataType: 'enum', enums: ['invalid_approval_request'] },
+                { dataType: 'enum', enums: ['too_many_projects'] },
+                { dataType: 'enum', enums: ['pending_request_limit'] },
+                { dataType: 'enum', enums: ['agent_connections_unavailable'] },
+                { dataType: 'enum', enums: ['approval_request_not_found'] },
+                { dataType: 'enum', enums: ['approval_request_expired'] },
+                { dataType: 'enum', enums: ['approval_request_consumed'] },
+                { dataType: 'enum', enums: ['approval_not_decided'] },
+                { dataType: 'enum', enums: ['approval_selection_changed'] },
+                { dataType: 'enum', enums: ['internal_error'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AgentCapability: {
         dataType: 'refEnum',
         enums: [
@@ -72384,6 +72434,243 @@ const models: TsoaRoute.Models = {
             'administration',
             'external_tools',
         ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentConnectionApprovalCapability: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                reason: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                reasonCode: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                visibility: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['offered'] },
+                        { dataType: 'enum', enums: ['hidden'] },
+                        { dataType: 'enum', enums: ['blocked'] },
+                    ],
+                    required: true,
+                },
+                capability: { ref: 'AgentCapability', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentConnectionApprovalProject: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                capabilities: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'AgentConnectionApprovalCapability',
+                    },
+                    required: true,
+                },
+                reason: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                selectable: { dataType: 'boolean', required: true },
+                name: { dataType: 'string', required: true },
+                projectUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentConnectionApprovalReview: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                revision: { dataType: 'double', required: true },
+                nonce: { dataType: 'string', required: true },
+                projects: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'AgentConnectionApprovalProject',
+                    },
+                    required: true,
+                },
+                notice: {
+                    dataType: 'enum',
+                    enums: ['Review only. No connection will be created.'],
+                    required: true,
+                },
+                request: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        expiresAt: { dataType: 'string', required: true },
+                        expiresInSeconds: {
+                            dataType: 'double',
+                            required: true,
+                        },
+                        clientLabel: { dataType: 'string', required: true },
+                        name: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentConnectionApprovalErrorResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                error: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        review: { ref: 'AgentConnectionApprovalReview' },
+                        message: { dataType: 'string', required: true },
+                        code: {
+                            ref: 'AgentConnectionApprovalErrorCode',
+                            required: true,
+                        },
+                        name: {
+                            dataType: 'enum',
+                            enums: ['AgentConnectionApprovalError'],
+                            required: true,
+                        },
+                        statusCode: { dataType: 'double', required: true },
+                    },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['error'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentConnectionApprovalRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                resource: { dataType: 'string', required: true },
+                codeChallengeMethod: {
+                    dataType: 'enum',
+                    enums: ['S256'],
+                    required: true,
+                },
+                codeChallenge: { dataType: 'string', required: true },
+                state: { dataType: 'string', required: true },
+                redirectUri: { dataType: 'string', required: true },
+                expiresInSeconds: { dataType: 'double', required: true },
+                capabilities: {
+                    dataType: 'array',
+                    array: { dataType: 'refEnum', ref: 'AgentCapability' },
+                    required: true,
+                },
+                projects: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'array',
+                            array: { dataType: 'refAlias', ref: 'UuidOrSlug' },
+                        },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                name: { dataType: 'string', required: true },
+                clientId: {
+                    dataType: 'enum',
+                    enums: ['lightdash-cli'],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentConnectionApprovalReviewResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'AgentConnectionApprovalReview',
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentConnectionApprovalDecisionResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        completionUrl: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentConnectionApprovalDecision: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                capabilities: {
+                    dataType: 'array',
+                    array: { dataType: 'refEnum', ref: 'AgentCapability' },
+                    required: true,
+                },
+                projectUuids: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'UUID' },
+                    required: true,
+                },
+                nonce: { dataType: 'string', required: true },
+                revision: { dataType: 'double', required: true },
+                decision: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['approve'] },
+                        { dataType: 'enum', enums: ['deny'] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AgentConnectionRecord: {
@@ -139514,6 +139801,256 @@ export function RegisterRoutes(app: Router) {
                     next,
                     validatedArgs,
                     successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAgentConnectionController_requestApproval: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'AgentConnectionApprovalRequest',
+        },
+    };
+    app.post(
+        '/api/v2/user/agent-connections/requests',
+        ...fetchMiddlewares<RequestHandler>(AgentConnectionController),
+        ...fetchMiddlewares<RequestHandler>(
+            AgentConnectionController.prototype.requestApproval,
+        ),
+
+        async function AgentConnectionController_requestApproval(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAgentConnectionController_requestApproval,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AgentConnectionController>(
+                        AgentConnectionController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'requestApproval',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAgentConnectionController_reviewApproval: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        requestUuid: {
+            in: 'path',
+            name: 'requestUuid',
+            required: true,
+            ref: 'UUID',
+        },
+    };
+    app.get(
+        '/api/v2/user/agent-connections/requests/:requestUuid',
+        ...fetchMiddlewares<RequestHandler>(AgentConnectionController),
+        ...fetchMiddlewares<RequestHandler>(
+            AgentConnectionController.prototype.reviewApproval,
+        ),
+
+        async function AgentConnectionController_reviewApproval(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAgentConnectionController_reviewApproval,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AgentConnectionController>(
+                        AgentConnectionController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'reviewApproval',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAgentConnectionController_decideApproval: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        requestUuid: {
+            in: 'path',
+            name: 'requestUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'AgentConnectionApprovalDecision',
+        },
+    };
+    app.post(
+        '/api/v2/user/agent-connections/requests/:requestUuid/decision',
+        ...fetchMiddlewares<RequestHandler>(AgentConnectionController),
+        ...fetchMiddlewares<RequestHandler>(
+            AgentConnectionController.prototype.decideApproval,
+        ),
+
+        async function AgentConnectionController_decideApproval(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAgentConnectionController_decideApproval,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AgentConnectionController>(
+                        AgentConnectionController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'decideApproval',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAgentConnectionController_completeApproval: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        requestUuid: {
+            in: 'path',
+            name: 'requestUuid',
+            required: true,
+            ref: 'UUID',
+        },
+    };
+    app.get(
+        '/api/v2/user/agent-connections/requests/:requestUuid/completion',
+        ...fetchMiddlewares<RequestHandler>(AgentConnectionController),
+        ...fetchMiddlewares<RequestHandler>(
+            AgentConnectionController.prototype.completeApproval,
+        ),
+
+        async function AgentConnectionController_completeApproval(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAgentConnectionController_completeApproval,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AgentConnectionController>(
+                        AgentConnectionController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'completeApproval',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 302,
                 });
             } catch (err) {
                 return next(err);

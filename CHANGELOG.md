@@ -1,3 +1,10 @@
+# [2.568.0](https://github.com/lightdash/lightdash/compare/2.567.0...2.568.0) (2026-10-12)
+
+
+### Features
+
+* **agent-identity:** review an agent connection request before approval (server) ([#30920](https://github.com/lightdash/lightdash/issues/30920)) ([6771aa0](https://github.com/lightdash/lightdash/commit/6771aa09e4e750aacb3a42df7edec2494b17a761))
+
 # [2.567.0](https://github.com/lightdash/lightdash/compare/2.566.0...2.567.0) (2026-10-12)
 
 

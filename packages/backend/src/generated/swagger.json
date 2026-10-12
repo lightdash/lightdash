@@ -67159,6 +67159,61 @@
             "ApiDocumentsLinkingChartResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_DocumentLinkingChart-Array_"
             },
+            "AgentConnectionApprovalResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "expiresAt": {
+                                "type": "string"
+                            },
+                            "resource": {
+                                "type": "string"
+                            },
+                            "issuer": {
+                                "type": "string"
+                            },
+                            "authorizationUrl": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "expiresAt",
+                            "resource",
+                            "issuer",
+                            "authorizationUrl"
+                        ],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "AgentConnectionApprovalErrorCode": {
+                "type": "string",
+                "enum": [
+                    "authentication_required",
+                    "agent_identity_disabled",
+                    "person_required",
+                    "browser_session_required",
+                    "approval_forbidden",
+                    "csrf_failed",
+                    "invalid_approval_request",
+                    "too_many_projects",
+                    "pending_request_limit",
+                    "agent_connections_unavailable",
+                    "approval_request_not_found",
+                    "approval_request_expired",
+                    "approval_request_consumed",
+                    "approval_not_decided",
+                    "approval_selection_changed",
+                    "internal_error"
+                ]
+            },
             "AgentCapability": {
                 "enum": [
                     "read_discover",
@@ -67174,6 +67229,280 @@
                     "external_tools"
                 ],
                 "type": "string"
+            },
+            "AgentConnectionApprovalCapability": {
+                "properties": {
+                    "reason": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "reasonCode": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "visibility": {
+                        "type": "string",
+                        "enum": ["offered", "hidden", "blocked"]
+                    },
+                    "capability": {
+                        "$ref": "#/components/schemas/AgentCapability"
+                    }
+                },
+                "required": [
+                    "reason",
+                    "reasonCode",
+                    "visibility",
+                    "capability"
+                ],
+                "type": "object"
+            },
+            "AgentConnectionApprovalProject": {
+                "properties": {
+                    "capabilities": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentConnectionApprovalCapability"
+                        },
+                        "type": "array"
+                    },
+                    "reason": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "selectable": {
+                        "type": "boolean"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "capabilities",
+                    "reason",
+                    "selectable",
+                    "name",
+                    "projectUuid"
+                ],
+                "type": "object"
+            },
+            "AgentConnectionApprovalReview": {
+                "properties": {
+                    "revision": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "nonce": {
+                        "type": "string"
+                    },
+                    "projects": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentConnectionApprovalProject"
+                        },
+                        "type": "array"
+                    },
+                    "notice": {
+                        "type": "string",
+                        "enum": ["Review only. No connection will be created."],
+                        "nullable": false
+                    },
+                    "request": {
+                        "properties": {
+                            "expiresAt": {
+                                "type": "string"
+                            },
+                            "expiresInSeconds": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "clientLabel": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "expiresAt",
+                            "expiresInSeconds",
+                            "clientLabel",
+                            "name"
+                        ],
+                        "type": "object"
+                    }
+                },
+                "required": [
+                    "revision",
+                    "nonce",
+                    "projects",
+                    "notice",
+                    "request"
+                ],
+                "type": "object"
+            },
+            "AgentConnectionApprovalErrorResponse": {
+                "properties": {
+                    "error": {
+                        "properties": {
+                            "review": {
+                                "$ref": "#/components/schemas/AgentConnectionApprovalReview"
+                            },
+                            "message": {
+                                "type": "string"
+                            },
+                            "code": {
+                                "$ref": "#/components/schemas/AgentConnectionApprovalErrorCode"
+                            },
+                            "name": {
+                                "type": "string",
+                                "enum": ["AgentConnectionApprovalError"],
+                                "nullable": false
+                            },
+                            "statusCode": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["message", "code", "name", "statusCode"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["error"],
+                        "nullable": false
+                    }
+                },
+                "required": ["error", "status"],
+                "type": "object"
+            },
+            "AgentConnectionApprovalRequest": {
+                "properties": {
+                    "resource": {
+                        "type": "string"
+                    },
+                    "codeChallengeMethod": {
+                        "type": "string",
+                        "enum": ["S256"],
+                        "nullable": false
+                    },
+                    "codeChallenge": {
+                        "type": "string"
+                    },
+                    "state": {
+                        "type": "string"
+                    },
+                    "redirectUri": {
+                        "type": "string"
+                    },
+                    "expiresInSeconds": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "capabilities": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentCapability"
+                        },
+                        "type": "array"
+                    },
+                    "projects": {
+                        "items": {
+                            "$ref": "#/components/schemas/UuidOrSlug"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "clientId": {
+                        "type": "string",
+                        "enum": ["lightdash-cli"],
+                        "nullable": false
+                    }
+                },
+                "required": [
+                    "resource",
+                    "codeChallengeMethod",
+                    "codeChallenge",
+                    "state",
+                    "redirectUri",
+                    "expiresInSeconds",
+                    "capabilities",
+                    "projects",
+                    "name",
+                    "clientId"
+                ],
+                "type": "object"
+            },
+            "AgentConnectionApprovalReviewResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AgentConnectionApprovalReview"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "AgentConnectionApprovalDecisionResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "completionUrl": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["completionUrl"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "AgentConnectionApprovalDecision": {
+                "properties": {
+                    "capabilities": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentCapability"
+                        },
+                        "type": "array"
+                    },
+                    "projectUuids": {
+                        "items": {
+                            "$ref": "#/components/schemas/UUID"
+                        },
+                        "type": "array"
+                    },
+                    "nonce": {
+                        "type": "string"
+                    },
+                    "revision": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "decision": {
+                        "type": "string",
+                        "enum": ["approve", "deny"]
+                    }
+                },
+                "required": [
+                    "capabilities",
+                    "projectUuids",
+                    "nonce",
+                    "revision",
+                    "decision"
+                ],
+                "type": "object"
             },
             "AgentConnectionRecord": {
                 "properties": {
@@ -72224,7 +72553,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.567.0",
+        "version": "2.568.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -112217,6 +112546,199 @@
                         "in": "query",
                         "name": "savedSqlUuid",
                         "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/user/agent-connections/requests": {
+            "post": {
+                "operationId": "RequestApproval",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "$ref": "#/components/schemas/AgentConnectionApprovalResponse"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/AgentConnectionApprovalErrorResponse"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Approval request error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AgentConnectionApprovalErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Agent connections"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AgentConnectionApprovalRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/user/agent-connections/requests/{requestUuid}": {
+            "get": {
+                "operationId": "ReviewApproval",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "$ref": "#/components/schemas/AgentConnectionApprovalReviewResponse"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/AgentConnectionApprovalErrorResponse"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Approval request error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AgentConnectionApprovalErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Agent connections"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "requestUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/user/agent-connections/requests/{requestUuid}/decision": {
+            "post": {
+                "operationId": "DecideApproval",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "$ref": "#/components/schemas/AgentConnectionApprovalDecisionResponse"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/AgentConnectionApprovalErrorResponse"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Approval request error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AgentConnectionApprovalErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Agent connections"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "requestUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AgentConnectionApprovalDecision"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/user/agent-connections/requests/{requestUuid}/completion": {
+            "get": {
+                "operationId": "CompleteApproval",
+                "responses": {
+                    "302": {
+                        "description": "Return to client",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {},
+                                        {
+                                            "$ref": "#/components/schemas/AgentConnectionApprovalErrorResponse"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Approval request error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AgentConnectionApprovalErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Agent connections"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "requestUuid",
+                        "required": true,
                         "schema": {
                             "$ref": "#/components/schemas/UUID"
                         }
