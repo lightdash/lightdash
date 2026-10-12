@@ -233,6 +233,8 @@ it.each(['refresh', 'code', 'revoke'] as const)(
     'answers a repeated credential field like an unknown value at the %s surface',
     async (surface) => {
         const ordinary = await call(surface, `ldapp_${nanoid(64)}`);
+        expect(tokenQueries).toBeGreaterThan(0);
+        expect(ordinary.response.status).toBe(surface === 'revoke' ? 200 : 401);
         const first = nanoid(64);
         const second = nanoid(64);
         const repeated = await call(surface, first, false, second);

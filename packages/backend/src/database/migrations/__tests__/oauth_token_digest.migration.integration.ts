@@ -296,6 +296,76 @@ for (const form of forms) {
             }, Promise.resolve());
         });
 
+        it('does not accept a real value wrapped in an array or object', async () => {
+            const f = await fixture(form);
+            const wrap = (value: string) =>
+                [[value], [value, nanoid(8)], { k: value }] as unknown[];
+            await wrap(f.accessToken).reduce(async (previous, wrapped) => {
+                await previous;
+                const presented = wrapped as string;
+                expect(
+                    (await f.model.getAccessToken(presented)) === false,
+                ).toBe(true);
+                expect(await f.model.isAccessTokenBoundToGrant(presented)).toBe(
+                    false,
+                );
+                expect(await f.model.deleteAccessToken(presented)).toBe(false);
+            }, Promise.resolve());
+            await wrap(f.refreshToken).reduce(async (previous, wrapped) => {
+                await previous;
+                const presented = wrapped as string;
+                expect(
+                    (await f.model.getRefreshToken(presented)) === false,
+                ).toBe(true);
+                expect(await f.model.deleteRefreshToken(presented)).toBe(false);
+            }, Promise.resolve());
+            await wrap(f.authorizationCode).reduce(
+                async (previous, wrapped) => {
+                    await previous;
+                    expect(
+                        (await f.model.getAuthorizationCode(
+                            wrapped as string,
+                        )) === false,
+                    ).toBe(true);
+                },
+                Promise.resolve(),
+            );
+            const access = await f.model.getAccessToken(f.accessToken);
+            const refresh = await f.model.getRefreshToken(f.refreshToken);
+            const code = await f.model.getAuthorizationCode(
+                f.authorizationCode,
+            );
+            expect(
+                access !== false && refresh !== false && code !== false,
+            ).toBe(true);
+        });
+
+        it('refuses an array holding a NUL byte without reaching the database', async () => {
+            const f = await fixture(form);
+            let queries = 0;
+            const count = () => {
+                queries += 1;
+            };
+            f.database.on('query', count);
+            try {
+                const presented = ['x', '\u0000'] as unknown as string;
+                expect(
+                    (await f.model.getAccessToken(presented)) === false,
+                ).toBe(true);
+                expect(
+                    (await f.model.getRefreshToken(presented)) === false,
+                ).toBe(true);
+                expect(
+                    (await f.model.getAuthorizationCode(presented)) === false,
+                ).toBe(true);
+                expect(await f.model.deleteAccessToken(presented)).toBe(false);
+                expect(await f.model.deleteRefreshToken(presented)).toBe(false);
+                expect(queries).toBe(0);
+            } finally {
+                f.database.off('query', count);
+            }
+        });
+
         it('revokes and deletes the selected rows', async () => {
             const f = await fixture(form);
             const code = await f.model.getAuthorizationCode(
