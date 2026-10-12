@@ -4,7 +4,6 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Alert,
     Anchor,
     Avatar,
     Badge,
@@ -22,7 +21,6 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
-    IconAlertCircle,
     IconDeviceFloppy,
     IconHelpCircle,
     IconRefresh,
@@ -49,6 +47,7 @@ import { default as MantineIcon } from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
 import { SlackChannelSelect } from '../../common/SlackChannelSelect';
 import { ProjectSelect } from './ProjectSelect';
+import { SlackMissingScopesAlert } from './SlackMissingScopesAlert';
 import { SlackSettingRow } from './SlackSettingRow';
 
 const SLACK_INSTALL_URL = `/api/v1/slack/install/`;
@@ -561,22 +560,11 @@ const SlackSettingsPanel: FC = () => {
                                 </Button>
                             </Group>
 
-                            {organizationHasSlack &&
-                                !slackInstallation.hasRequiredScopes && (
-                                    <Alert
-                                        color="orange"
-                                        icon={
-                                            <MantineIcon
-                                                icon={IconAlertCircle}
-                                            />
-                                        }
-                                    >
-                                        Your Slack integration is not up to
-                                        date, you should reinstall the Slack
-                                        integration to guarantee the best user
-                                        experience.
-                                    </Alert>
-                                )}
+                            {organizationHasSlack && (
+                                <SlackMissingScopesAlert
+                                    features={slackInstallation.features}
+                                />
+                            )}
                         </Stack>
                     </form>
                 ) : (
