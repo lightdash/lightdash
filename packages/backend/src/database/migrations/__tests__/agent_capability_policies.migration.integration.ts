@@ -16,6 +16,7 @@ import {
 import { down, up } from '../20261011000000_add_agent_capability_policies';
 import { up as upAllowedUsers } from '../20261011000001_add_agent_policy_allowed_users';
 import { up as upAllowedGroups } from '../20261011000004_add_agent_policy_allowed_groups';
+import { up as upAllowedCapabilities } from '../20261011000005_add_agent_policy_allowed_capabilities';
 
 let migrated: MigratedDatabase;
 beforeAll(async () => {
@@ -69,6 +70,7 @@ test('backfills exactly four default scopes for every custom role, including emp
         await up(trx);
         await upAllowedUsers(trx);
         await upAllowedGroups(trx);
+        await upAllowedCapabilities(trx);
         await Promise.all(
             roles.map(async (role) => {
                 const rows = await trx('scoped_roles')
@@ -107,8 +109,7 @@ test('serializes concurrent policy saves and replaces the entire grant matrix', 
             model.save({
                 organizationUuid: org.organization_uuid,
                 mode: 'managed',
-                allowedUserUuids: null,
-                allowedProjectUuids: [],
+
                 systemRoleMatrix: matrix(capability),
                 updatedByUserUuid: null,
             }),
@@ -136,7 +137,7 @@ test('serializes concurrent policy saves and replaces the entire grant matrix', 
     ).toEqual([]);
 });
 
-test('rolls the policy version and project limit back when the grant replacement fails', async () => {
+test('rolls the policy version and capability limit back when the policy write fails', async () => {
     const [org] = await migrated
         .database('organizations')
         .insert({ organization_name: 'Atomic capability policy' })
@@ -147,8 +148,7 @@ test('rolls the policy version and project limit back when the grant replacement
     const original = await model.save({
         organizationUuid: org.organization_uuid,
         mode: 'managed',
-        allowedUserUuids: null,
-        allowedProjectUuids: null,
+        allowedCapabilities: Object.values(AgentCapability),
         systemRoleMatrix: matrix(AgentCapability.Query),
         updatedByUserUuid: null,
     });
@@ -156,12 +156,11 @@ test('rolls the policy version and project limit back when the grant replacement
         model.save({
             organizationUuid: org.organization_uuid,
             mode: 'managed',
-            allowedUserUuids: null,
-            allowedProjectUuids: [],
-            systemRoleMatrix: matrix('invalid' as AgentCapability),
-            updatedByUserUuid: null,
+
+            systemRoleMatrix: matrix(AgentCapability.Export),
+            updatedByUserUuid: '00000000-0000-0000-0000-000000000001',
         }),
-    ).rejects.toMatchObject({ code: '23514' });
+    ).rejects.toMatchObject({ code: '23503' });
     expect(await model.get(org.organization_uuid)).toEqual(original);
 });
 
@@ -178,8 +177,7 @@ test.each([0, 1])(
         const input = {
             organizationUuid: org.organization_uuid,
             mode: 'managed' as const,
-            allowedUserUuids: null,
-            allowedProjectUuids: null,
+            allowedCapabilities: Object.values(AgentCapability),
             systemRoleMatrix: matrix(AgentCapability.Query),
             updatedByUserUuid: null,
         };
@@ -226,8 +224,7 @@ test('departed allowed members do not block a matrix edit or reset to legacy', a
     await model.save({
         organizationUuid: org.organization_uuid,
         mode: 'managed',
-        allowedUserUuids: [user.user_uuid],
-        allowedProjectUuids: null,
+
         systemRoleMatrix: matrix(AgentCapability.Query),
         updatedByUserUuid: null,
     });
@@ -236,7 +233,7 @@ test('departed allowed members do not block a matrix edit or reset to legacy', a
         .where({ organization_id: org.organization_id, user_id: user.user_id })
         .delete();
     const current = await model.get(org.organization_uuid);
-    expect(current.allowedUserUuids).toEqual([]);
+    expect(current).not.toHaveProperty('allowedUserUuids');
     const account = buildAccount();
     account.organization.organizationUuid = org.organization_uuid;
     account.user.id = user.user_uuid;
@@ -252,25 +249,25 @@ test('departed allowed members do not block a matrix edit or reset to legacy', a
         groupsModel: { findUserInGroups: vi.fn().mockResolvedValue([]) },
         userModel: { getAgentRoleAssignments: vi.fn() },
         projectModel: { getSummary: vi.fn() },
-        getOrganizationSettings: vi.fn(),
+
         agentActionLogModel: { insert: vi.fn() },
     });
     expect(await service.resetToLegacy(account, current.version)).toMatchObject(
         {
             mode: 'legacy',
-            allowedUserUuids: [],
         },
     );
     const latest = await model.get(org.organization_uuid);
     expect(
         await service.saveCeiling(account, {
             ...latest,
+            allowedCapabilities: Object.values(AgentCapability),
             mode: 'managed',
             systemRoleMatrix: matrix(AgentCapability.Export),
         }),
     ).toMatchObject({
         mode: 'managed',
-        allowedUserUuids: [],
+
         systemRoleMatrix: matrix(AgentCapability.Export),
     });
     const beforeStaleReset = await model.get(org.organization_uuid);
@@ -278,11 +275,4 @@ test('departed allowed members do not block a matrix edit or reset to legacy', a
         service.resetToLegacy(account, current.version),
     ).rejects.toThrow('Agent permissions changed.');
     expect(await model.get(org.organization_uuid)).toEqual(beforeStaleReset);
-    await expect(
-        service.saveCeiling(account, {
-            ...(await model.get(org.organization_uuid)),
-            mode: 'managed',
-            allowedUserUuids: [user.user_uuid],
-        }),
-    ).rejects.toThrow('All allowed users must belong to this organization');
 });

@@ -3,7 +3,7 @@ import {
     AgentCapability,
     assertIsAccountWithOrg,
     OrganizationMemberRole,
-    type AgentCapabilityPolicy,
+    type AgentCapabilityPolicyState,
     type RegisteredAccount,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
@@ -22,11 +22,10 @@ export const setupPermissionSql = (
     account: RegisteredAccount = buildAccount(),
 ) => {
     assertIsAccountWithOrg(account);
-    const policy: AgentCapabilityPolicy = {
+    const policy: AgentCapabilityPolicyState = {
         mode: 'legacy',
         version: 7,
-        allowedProjectUuids: null,
-        allowedUserUuids: null,
+        allowedCapabilities: null,
         allowedGroupUuids: ['live'],
         systemRoleMatrix: agentSystemRoleMatrix(Object.values(AgentCapability)),
     };
@@ -34,7 +33,8 @@ export const setupPermissionSql = (
         policy,
         existingGroups: ['live'],
         members: [account.user.id],
-        currentUsers: [account.user.id],
+        allowedUserUuids: ['excluded-person'] as string[] | null,
+        allowedProjectUuids: ['excluded-project'],
         missing: false,
     };
     tracker.on
@@ -49,10 +49,12 @@ export const setupPermissionSql = (
                           (capabilities.length ? capabilities : [null]).map(
                               (capability) => ({
                                   mode: policy.mode,
+                                  allowed_capabilities:
+                                      policy.allowedCapabilities,
                                   version: policy.version,
                                   allowed_project_uuids:
-                                      policy.allowedProjectUuids,
-                                  allowed_user_uuids: policy.allowedUserUuids,
+                                      state.allowedProjectUuids,
+                                  allowed_user_uuids: state.allowedUserUuids,
                                   allowed_group_uuids: policy.allowedGroupUuids,
                                   has_existing_allowed_group:
                                       policy.allowedGroupUuids === null
@@ -74,11 +76,6 @@ export const setupPermissionSql = (
         .response(() =>
             state.existingGroups.map((group_uuid) => ({ group_uuid })),
         );
-    tracker.on
-        .select((query) =>
-            query.sql.includes('from "organization_memberships"'),
-        )
-        .response(() => state.currentUsers.map((user_uuid) => ({ user_uuid })));
     tracker.on
         .select((query) => query.sql.includes('from "group_memberships"'))
         .response((query) =>
@@ -106,10 +103,7 @@ export const setupPermissionSql = (
                 organizationUuid: account.organization.organizationUuid,
             }),
         },
-        getOrganizationSettings: vi.fn().mockResolvedValue({
-            mcpAgentsEnabled: true,
-            mcpContentWritesEnabled: true,
-        }),
+
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
     };
     const service = new AgentPermissionService(deps);

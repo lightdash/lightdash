@@ -90,7 +90,8 @@ test.each([
         await trx('organization_agent_capability_policies').insert({
             organization_uuid: organization.organization_uuid,
             mode: 'legacy',
-            allowed_project_uuids: null,
+            allowed_capabilities: null,
+            allowed_project_uuids: ['00000000-0000-0000-0000-000000000002'],
             allowed_user_uuids: [user.user_uuid, user.user_uuid],
             allowed_group_uuids: storedGroups,
             version: 1,
@@ -131,11 +132,9 @@ test.each([
                       scenario,
                   ),
         );
-        expect(policy.allowedUserUuids).toEqual(
-            scenario === 'departed person'
-                ? []
-                : [user.user_uuid, user.user_uuid],
-        );
+        expect(policy).not.toHaveProperty('allowedUserUuids');
+        expect(policy).not.toHaveProperty('allowedProjectUuids');
+        expect(policy.allowedCapabilities).toBeNull();
         const account = buildAccount();
         account.organization.organizationUuid = organization.organization_uuid;
         account.user.id = user.user_uuid;
@@ -151,7 +150,7 @@ test.each([
             areGroupsAvailable: vi.fn().mockResolvedValue(false),
             userModel: { getAgentRoleAssignments: vi.fn() },
             projectModel: { getSummary: vi.fn() },
-            getOrganizationSettings: vi.fn(),
+
             agentActionLogModel: { insert },
         });
         const queries: string[] = [];

@@ -184,8 +184,6 @@ const fixture = async () => {
         featureFlagModel: flags,
         userModel: users,
         projectModel: projects,
-        getOrganizationSettings: (uuid) =>
-            settings.findByOrganizationUuid(uuid),
         agentActionLogModel: new AgentActionLogModel({ database }),
         resolveResourceProjectUuid: unusedDependency,
         isCustomRolesLicensed: () => false,
@@ -218,8 +216,7 @@ const fixture = async () => {
     const policy = await policies.save({
         organizationUuid,
         mode: 'managed',
-        allowedProjectUuids: [projectUuid],
-        allowedUserUuids: [userUuid],
+        allowedCapabilities: Object.values(AgentCapability),
         allowedGroupUuids: null,
         systemRoleMatrix: matrix([capability]),
         updatedByUserUuid: userUuid,
@@ -412,6 +409,52 @@ const fixture = async () => {
     };
 };
 
+test('MCP switches and historical people and project lists do not gate other surfaces', async () => {
+    const f = await fixture();
+    await f.settings.upsert(f.organizationUuid, {
+        mcpAgentsEnabled: false,
+        mcpContentWritesEnabled: false,
+    });
+    await f
+        .database('organization_agent_capability_policies')
+        .where('organization_uuid', f.organizationUuid)
+        .update({
+            allowed_user_uuids: [randomUUID()],
+            allowed_project_uuids: [],
+        });
+    await Promise.all(
+        [AgentActorSurface.IN_APP_AGENT, AgentActorSurface.SLACK_AGENT].map(
+            async (surface) => {
+                await expect(
+                    f.permissions.assertOperation({
+                        ...f.operation,
+                        kind: 'agent_turn',
+                        key: 'turn',
+                        surface,
+                    }),
+                ).resolves.toBeUndefined();
+            },
+        ),
+    );
+    await expect(
+        f.permissions.assertOperation({
+            ...f.operation,
+            surface: AgentActorSurface.API,
+        }),
+    ).resolves.toBeUndefined();
+    await f.savePolicy({
+        systemRoleMatrix: matrix([capability, AgentCapability.ContentWrite]),
+    });
+    await expect(
+        f.permissions.assertOperation({
+            ...f.operation,
+            kind: 'capability',
+            key: AgentCapability.ContentWrite,
+            surface: AgentActorSurface.IN_APP_AGENT,
+        }),
+    ).resolves.toBeUndefined();
+});
+
 describe('Committed connection revocation', () => {
     it('refuses access, refresh and queued work immediately while a second CLI grant for the same person remains usable', async () => {
         const f = await fixture();
@@ -586,13 +629,12 @@ describe('Fresh permission checks after committed narrowing', () => {
     it.each([
         ['project role', AiAccessRefusalReason.AGENT_CAPABILITY_DENIED],
         ['capability matrix', AiAccessRefusalReason.AGENT_CAPABILITY_DENIED],
-        ['allowed projects', AiAccessRefusalReason.AGENT_PROJECT_DENIED],
-        ['allowed people', AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED],
+        ['capability list', AiAccessRefusalReason.AGENT_CAPABILITY_DENIED],
         [
             'allowed group membership',
             AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
         ],
-        ['agents enabled', AiAccessRefusalReason.AGENT_ACCESS_DISABLED],
+        ['empty capability list', AiAccessRefusalReason.AGENT_ACCESS_DISABLED],
     ] as const)(
         'refuses the next project-read check after narrowing %s',
         async (change, reason) => {
@@ -625,16 +667,11 @@ describe('Fresh permission checks after committed narrowing', () => {
                         allowedGroupUuids: [group.group_uuid],
                     });
                     break;
-                case 'allowed projects':
+                case 'capability list':
                     await f.savePolicy({
-                        allowedProjectUuids: [],
-                        allowedGroupUuids: [group.group_uuid],
-                    });
-                    break;
-                case 'allowed people':
-                    await f.savePolicy({
-                        allowedUserUuids: [],
-                        allowedGroupUuids: [group.group_uuid],
+                        allowedCapabilities: Object.values(
+                            AgentCapability,
+                        ).filter((value) => value !== capability),
                     });
                     break;
                 case 'allowed group membership':
@@ -642,10 +679,8 @@ describe('Fresh permission checks after committed narrowing', () => {
                         f.groups.removeGroupMember(membership),
                     ).resolves.toBe(true);
                     break;
-                case 'agents enabled':
-                    await f.settings.upsert(f.organizationUuid, {
-                        mcpAgentsEnabled: false,
-                    });
+                case 'empty capability list':
+                    await f.savePolicy({ allowedCapabilities: [] });
                     break;
                 default:
                     assertUnreachable(change, 'Unknown narrowing change');
@@ -657,7 +692,7 @@ describe('Fresh permission checks after committed narrowing', () => {
             });
         },
     );
-    it('known limit: a retained request handle keeps its policy snapshot after the matrix narrows', async () => {
+    it('a retained handle keeps the capability list while the next request sees revocation', async () => {
         const f = await fixture();
         const request = await f.permissions.loadRequest(f.organizationUuid);
         const retainedCheck = () =>
@@ -666,7 +701,11 @@ describe('Fresh permission checks after committed narrowing', () => {
                 operation: f.operation,
             });
         await expect(retainedCheck()).resolves.toBeUndefined();
-        await f.savePolicy({ systemRoleMatrix: matrix([]) });
+        await f.savePolicy({
+            allowedCapabilities: Object.values(AgentCapability).filter(
+                (value) => value !== capability,
+            ),
+        });
         const permissionError = await captureError(f.check());
         expect(permissionError).toBeInstanceOf(AiAccessRefusedError);
         expect(permissionError).toMatchObject({
@@ -686,7 +725,6 @@ describe('Stored grant approval after policy widening', () => {
         await expect(connection.execute()).resolves.toBeDefined();
         const secondProjectUuid = await f.createProject();
         await f.savePolicy({
-            allowedProjectUuids: [f.projectUuid, secondProjectUuid],
             systemRoleMatrix: matrix([capability, AgentCapability.Query]),
         });
         await expect(

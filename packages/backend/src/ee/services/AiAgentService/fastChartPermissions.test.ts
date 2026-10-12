@@ -2,7 +2,7 @@ import {
     AgentCapability,
     AiAccessRefusalReason,
     OrganizationMemberRole,
-    type AgentCapabilityPolicy,
+    type AgentCapabilityPolicyState,
 } from '@lightdash/common';
 import { toSessionUser } from '../../../auth/account/account';
 import { buildAccount } from '../../../auth/account/account.mock';
@@ -33,15 +33,13 @@ const setup = () => {
     const account = buildAccount();
     const user = toSessionUser(account);
     const organizationUuid = account.organization.organizationUuid!;
-    const policy: AgentCapabilityPolicy = {
+    const policy: AgentCapabilityPolicyState = {
         mode: 'managed',
         version: 1,
-        allowedProjectUuids: null,
-        allowedUserUuids: null,
+        allowedCapabilities: null,
         allowedGroupUuids: null,
         systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.Query]),
     };
-    const settings = { mcpAgentsEnabled: true, mcpContentWritesEnabled: true };
     const featureFlagModel = {
         get: vi.fn().mockResolvedValue({ enabled: true }),
     };
@@ -73,9 +71,6 @@ const setup = () => {
         projectModel: {
             getSummary: vi.fn().mockResolvedValue({ organizationUuid }),
         },
-        getOrganizationSettings: vi
-            .fn()
-            .mockImplementation(async () => settings),
         agentActionLogModel: { insert: vi.fn() },
     });
     const effects = {
@@ -168,7 +163,6 @@ const setup = () => {
         prompt,
         args,
         policy,
-        settings,
         featureFlagModel,
         effects,
         resolve,
@@ -178,9 +172,8 @@ const setup = () => {
 
 const denials = [
     ['query', AiAccessRefusalReason.AGENT_CAPABILITY_DENIED],
-    ['project', AiAccessRefusalReason.AGENT_PROJECT_DENIED],
-    ['switch', AiAccessRefusalReason.AGENT_ACCESS_DISABLED],
-    ['user', AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED],
+    ['empty list', AiAccessRefusalReason.AGENT_ACCESS_DISABLED],
+    ['group', AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED],
 ] as const;
 
 test.each(denials)(
@@ -188,9 +181,9 @@ test.each(denials)(
     async (denial, reason) => {
         const h = setup();
         if (denial === 'query') h.policy.systemRoleMatrix.viewer = [];
-        if (denial === 'user') h.policy.allowedUserUuids = [];
-        if (denial === 'project') h.policy.allowedProjectUuids = [];
-        if (denial === 'switch') h.settings.mcpAgentsEnabled = false;
+        if (denial === 'group') h.policy.allowedGroupUuids = [];
+
+        if (denial === 'empty list') h.policy.allowedCapabilities = [];
         await Promise.all(
             (
                 [
@@ -215,9 +208,9 @@ test.each(denials.slice(1))(
     'the real turn rejects %s before fast decisions',
     async (denial, reason) => {
         const h = setup();
-        if (denial === 'user') h.policy.allowedUserUuids = [];
-        if (denial === 'project') h.policy.allowedProjectUuids = [];
-        if (denial === 'switch') h.settings.mcpAgentsEnabled = false;
+        if (denial === 'group') h.policy.allowedGroupUuids = [];
+
+        if (denial === 'empty list') h.policy.allowedCapabilities = [];
         await expect(
             h.service.generateOrStreamAgentResponse(
                 h.user,
@@ -243,9 +236,6 @@ test.each(['off', 'legacy', 'managed'] as const)(
         if (mode === 'legacy') h.policy.mode = 'legacy';
         if (mode !== 'managed') {
             h.policy.systemRoleMatrix.viewer = [];
-            h.settings.mcpAgentsEnabled = false;
-            h.policy.allowedProjectUuids = [];
-            h.policy.allowedUserUuids = [];
         }
         await h.privateService.tryApplyChartEdit(h.args);
         await h.privateService.searchFilterValueCandidates({

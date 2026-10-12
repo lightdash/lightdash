@@ -5,7 +5,7 @@ import {
     AiAccessRefusedError,
     ForbiddenError,
     OrganizationMemberRole,
-    type AgentCapabilityPolicy,
+    type AgentCapabilityPolicyState,
 } from '@lightdash/common';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
@@ -70,11 +70,10 @@ const setup = (
             ),
     };
     const account = accounts[authentication]();
-    const policy: AgentCapabilityPolicy = {
+    const policy: AgentCapabilityPolicyState = {
         mode: 'managed',
         version: 1,
-        allowedProjectUuids: [projectUuid],
-        allowedUserUuids: null,
+        allowedCapabilities: null,
         allowedGroupUuids: null,
         systemRoleMatrix: agentSystemRoleMatrix(restrictedCapabilities),
     };
@@ -107,10 +106,7 @@ const setup = (
                 .fn()
                 .mockResolvedValue({ organizationUuid: user.organizationUuid }),
         },
-        getOrganizationSettings: vi.fn().mockResolvedValue({
-            mcpAgentsEnabled: true,
-            mcpContentWritesEnabled: true,
-        }),
+
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
     };
     const permissions = new AgentPermissionService(deps);
@@ -244,7 +240,7 @@ describe.each(['oauth', 'session'] as const)(
 
         test('refuses unlisted users before dispatch', async () => {
             const { call, handler, policy } = setup(authentication);
-            policy.allowedUserUuids = [];
+            policy.allowedGroupUuids = [];
             expect(await call('run_metric_query')).toMatchObject({
                 isError: true,
                 structuredContent: {
@@ -293,7 +289,7 @@ describe.each(['oauth', 'session'] as const)(
         );
 
         test.each(['selected', 'pinned', 'explicit'] as const)(
-            'refuses a forbidden %s project',
+            'admits a %s project without a saved project-list restriction',
             async (source) => {
                 const { extra, getContext, call, handler } =
                     setup(authentication);
@@ -310,15 +306,8 @@ describe.each(['oauth', 'session'] as const)(
                         ? { projectUuid: 'forbidden-project' }
                         : {},
                 );
-                expect(result).toMatchObject({
-                    isError: true,
-                    structuredContent: {
-                        refusal: {
-                            reason: AiAccessRefusalReason.AGENT_PROJECT_DENIED,
-                        },
-                    },
-                });
-                expect(handler).not.toHaveBeenCalled();
+                expect(result).not.toHaveProperty('isError');
+                expect(handler).toHaveBeenCalledOnce();
             },
         );
 
@@ -328,10 +317,10 @@ describe.each(['oauth', 'session'] as const)(
             getContext.mockResolvedValue({
                 context: { projectUuid: 'forbidden-project' },
             });
-            expect(await call('run_metric_query')).toMatchObject({
-                isError: true,
-            });
-            expect(handler).toHaveBeenCalledOnce();
+            expect(await call('run_metric_query')).not.toHaveProperty(
+                'isError',
+            );
+            expect(handler).toHaveBeenCalledTimes(2);
         });
 
         test('passes null without a selected project', async () => {
@@ -504,13 +493,10 @@ describe('MCP resource protocol permissions', () => {
     });
 
     test.each(resourceUris)(
-        'refuses %s when agent access is disabled',
+        'refuses %s when every capability is unticked',
         async (uri) => {
-            const { client, deps } = await setupResourceProtocol();
-            deps.getOrganizationSettings.mockResolvedValue({
-                mcpAgentsEnabled: false,
-                mcpContentWritesEnabled: true,
-            });
+            const { client, policy } = await setupResourceProtocol();
+            policy.allowedCapabilities = [];
             try {
                 await expect(
                     client.readResource({ uri }),
@@ -527,21 +513,26 @@ describe('MCP resource protocol permissions', () => {
         },
     );
 
-    test.each(resourceUris)('refuses %s for an unlisted user', async (uri) => {
-        const { client, policy } = await setupResourceProtocol();
-        policy.allowedUserUuids = [];
-        try {
-            await expect(client.readResource({ uri })).rejects.toMatchObject({
-                data: {
-                    refusal: {
-                        reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+    test.each(resourceUris)(
+        'refuses %s for a person outside the allowed groups',
+        async (uri) => {
+            const { client, policy } = await setupResourceProtocol();
+            policy.allowedGroupUuids = [];
+            try {
+                await expect(
+                    client.readResource({ uri }),
+                ).rejects.toMatchObject({
+                    data: {
+                        refusal: {
+                            reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+                        },
                     },
-                },
-            });
-        } finally {
-            await client.close();
-        }
-    });
+                });
+            } finally {
+                await client.close();
+            }
+        },
+    );
 
     test.each(resourceUris)('allows %s with discovery', async (uri) => {
         const { client } = await setupResourceProtocol();
@@ -554,21 +545,15 @@ describe('MCP resource protocol permissions', () => {
         }
     });
 
-    test('refuses status for a project outside the ceiling before fetching status', async () => {
+    test('serves status without a policy project-list limit', async () => {
         const { client, getMyAccess } = await setupResourceProtocol();
         try {
             await expect(
                 client.readResource({
                     uri: 'lightdash://projects/forbidden-project/agent-status',
                 }),
-            ).rejects.toMatchObject({
-                data: {
-                    refusal: {
-                        reason: AiAccessRefusalReason.AGENT_PROJECT_DENIED,
-                    },
-                },
-            });
-            expect(getMyAccess).not.toHaveBeenCalled();
+            ).resolves.toHaveProperty('contents');
+            expect(getMyAccess).toHaveBeenCalledOnce();
         } finally {
             await client.close();
         }
@@ -584,13 +569,9 @@ describe('MCP resource protocol permissions', () => {
             getContext.mockResolvedValue({
                 context: { projectUuid: 'forbidden-project' },
             });
-            await expect(client.readResource({ uri })).rejects.toMatchObject({
-                data: {
-                    refusal: {
-                        reason: AiAccessRefusalReason.AGENT_PROJECT_DENIED,
-                    },
-                },
-            });
+            await expect(client.readResource({ uri })).resolves.toHaveProperty(
+                'contents',
+            );
         } finally {
             await client.close();
         }

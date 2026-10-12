@@ -1,7 +1,7 @@
 import {
     AgentCapability,
     OrganizationMemberRole,
-    type AgentCapabilityPolicy,
+    type AgentCapabilityPolicyState,
     type AgentConnectionExecution,
 } from '@lightdash/common';
 import { vi } from 'vitest';
@@ -36,11 +36,10 @@ export const managedExecutionFixture = () => {
         scopes: ['read', 'write'],
         operation: { kind: 'rest', key: 'ProjectController.refresh' },
     };
-    const policy: AgentCapabilityPolicy = {
+    const policy: AgentCapabilityPolicyState = {
         mode: 'managed',
         version: 1,
-        allowedProjectUuids: null,
-        allowedUserUuids: null,
+        allowedCapabilities: null,
         allowedGroupUuids: null,
         systemRoleMatrix: agentSystemRoleMatrix(Object.values(AgentCapability)),
     };
@@ -74,10 +73,7 @@ export const managedExecutionFixture = () => {
                 organizationUuid: grant.organizationUuid,
             }),
         },
-        getOrganizationSettings: vi.fn().mockResolvedValue({
-            mcpAgentsEnabled: true,
-            mcpContentWritesEnabled: true,
-        }),
+
         agentActionLogModel: { insert: vi.fn() },
     });
     const service = new AgentConnectionGrantService({

@@ -165,22 +165,6 @@ exports[`existing refusal snapshot: legacy 1`] = `null`;
 
 exports[`existing refusal snapshot: off 1`] = `null`;
 
-exports[`existing refusal snapshot: project 1`] = `
-{
-  "action": "ask_admin",
-  "capability": null,
-  "code": "ai_access_refused",
-  "connectUrl": null,
-  "message": "Agents cannot access this project. Ask an organization admin to allow it.",
-  "operation": "SchedulerController.post",
-  "policyLayer": "project_scope",
-  "policyVersion": 1,
-  "projectUuid": "project",
-  "reason": "agent_project_denied",
-  "settingsUrl": "/generalSettings/agentIdentity",
-}
-`;
-
 exports[`existing refusal snapshot: publish 1`] = `
 {
   "action": "ask_admin",
@@ -258,21 +242,5 @@ exports[`existing refusal snapshot: unmapped 1`] = `
   "projectUuid": "project",
   "reason": "agent_operation_unmapped",
   "settingsUrl": null,
-}
-`;
-
-exports[`existing refusal snapshot: writes 1`] = `
-{
-  "action": "ask_admin",
-  "capability": "content_write",
-  "code": "ai_access_refused",
-  "connectUrl": null,
-  "message": "Agent content writes are disabled. Ask an organization admin to enable them.",
-  "operation": "SchedulerController.post",
-  "policyLayer": "organization_setting",
-  "policyVersion": 1,
-  "projectUuid": "project",
-  "reason": "agent_setting_denied",
-  "settingsUrl": "/generalSettings/agentIdentity",
 }
 `;

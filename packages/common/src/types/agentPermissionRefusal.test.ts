@@ -83,7 +83,8 @@ describe.each(Object.values(AgentCapability))(
                     capability,
                 );
                 expect(message).toBe(
-                    policyLayer === 'org_ceiling'
+                    policyLayer === 'org_ceiling' ||
+                        policyLayer === 'organization_setting'
                         ? `Your organization's agent permissions do not allow ${name}. Ask an admin to change Permissions on the Agents page.`
                         : `Agents cannot use ${name} here. Ask an admin to review agent permissions.`,
                 );

@@ -22,29 +22,28 @@ test('defaults a missing policy to legacy without granting capabilities', async 
     expect(await model.get('org')).toEqual({
         mode: 'legacy',
         version: 0,
-        allowedUserUuids: null,
+        allowedCapabilities: null,
         allowedGroupUuids: null,
-        allowedProjectUuids: null,
         systemRoleMatrix: emptyMatrix,
     });
     expect(tracker.history.select[0].bindings).toContain('org');
 });
 
-test.each([null, [], ['project']])(
-    'preserves project limit %j and role grants',
-    async (allowedProjectUuids) => {
+test.each([null, [], [AgentCapability.Query]])(
+    'preserves capability limit %j and role grants',
+    async (allowedCapabilities) => {
         tracker.on.select('organization_agent_capability_policies').response([
             {
                 mode: 'managed',
                 version: 3,
-                allowed_project_uuids: allowedProjectUuids,
+                allowed_capabilities: allowedCapabilities,
                 system_role: OrganizationMemberRole.VIEWER,
                 capability: AgentCapability.Query,
             },
             {
                 mode: 'managed',
                 version: 3,
-                allowed_project_uuids: allowedProjectUuids,
+                allowed_capabilities: allowedCapabilities,
                 system_role: OrganizationMemberRole.ADMIN,
                 capability: AgentCapability.RawSql,
             },
@@ -52,9 +51,8 @@ test.each([null, [], ['project']])(
         expect(await model.get('org')).toEqual({
             mode: 'managed',
             version: 3,
-            allowedUserUuids: null,
             allowedGroupUuids: null,
-            allowedProjectUuids,
+            allowedCapabilities,
             systemRoleMatrix: {
                 ...emptyMatrix,
                 viewer: [AgentCapability.Query],
@@ -72,7 +70,7 @@ test('increments the stored version and replaces all matrix rows in the same tra
             version: 4,
             allowed_user_uuids: null,
             allowed_group_uuids: null,
-            allowed_project_uuids: ['project'],
+            allowed_capabilities: [AgentCapability.Query],
         },
     ]);
     tracker.on
@@ -94,18 +92,16 @@ test('increments the stored version and replaces all matrix rows in the same tra
             organizationUuid: 'org',
             mode: 'managed',
             version: 3,
-            allowedUserUuids: null,
             allowedGroupUuids: null,
-            allowedProjectUuids: ['project'],
+            allowedCapabilities: [AgentCapability.Query],
             systemRoleMatrix: matrix,
             updatedByUserUuid: 'user',
         }),
     ).toEqual({
         mode: 'managed',
         version: 4,
-        allowedUserUuids: null,
         allowedGroupUuids: null,
-        allowedProjectUuids: ['project'],
+        allowedCapabilities: [AgentCapability.Query],
         systemRoleMatrix: matrix,
     });
     expect(tracker.history.insert[0].sql).toContain(
@@ -125,7 +121,7 @@ test('clears grants when saving an empty matrix', async () => {
     tracker.on
         .insert('organization_agent_capability_policies')
         .response([
-            { mode: 'managed', version: 5, allowed_project_uuids: null },
+            { mode: 'managed', version: 5, allowed_capabilities: null },
         ]);
     tracker.on
         .delete('organization_agent_system_role_capabilities')
@@ -133,9 +129,7 @@ test('clears grants when saving an empty matrix', async () => {
     await model.save({
         organizationUuid: 'org',
         mode: 'managed',
-        allowedUserUuids: null,
         allowedGroupUuids: null,
-        allowedProjectUuids: null,
         systemRoleMatrix: {
             member: [],
             viewer: [],
@@ -150,134 +144,6 @@ test('clears grants when saving an empty matrix', async () => {
     expect(tracker.history.delete).toHaveLength(1);
 });
 
-const saveUsers = (allowedUserUuids: string[] | null) =>
-    model.save({
-        organizationUuid: 'org',
-        allowedGroupUuids: null,
-        mode: 'managed',
-        allowedProjectUuids: null,
-        allowedUserUuids,
-        systemRoleMatrix: {
-            member: [],
-            viewer: [],
-            interactive_viewer: [],
-            editor: [],
-            developer: [],
-            admin: [],
-        },
-        updatedByUserUuid: null,
-    });
-
-test.each([null, [], ['member'], ['member', 'member']])(
-    'saves user admission %j',
-    async (allowedUserUuids) => {
-        tracker.on
-            .select('organization_memberships')
-            .response([{ user_uuid: 'member' }]);
-        tracker.on.insert('organization_agent_capability_policies').response([
-            {
-                mode: 'managed',
-                version: 1,
-                allowed_project_uuids: null,
-                allowed_user_uuids: allowedUserUuids,
-            },
-        ]);
-        tracker.on
-            .delete('organization_agent_system_role_capabilities')
-            .response(0);
-        expect(await saveUsers(allowedUserUuids)).toMatchObject({
-            allowedUserUuids,
-        });
-        expect(tracker.history.insert[0].bindings).toContainEqual(
-            allowedUserUuids,
-        );
-        if (allowedUserUuids?.length) {
-            expect(tracker.history.select[0].bindings).toContain('org');
-            expect(tracker.history.select[0].sql).toContain(
-                '"organizations"."organization_uuid"',
-            );
-        }
-    },
-);
-
-test('rejects a non-member before changing the policy', async () => {
-    tracker.on
-        .select('organization_memberships')
-        .response([{ user_uuid: 'member' }]);
-    await expect(saveUsers(['member', 'outsider'])).rejects.toBeInstanceOf(
-        ParameterError,
-    );
-    expect(tracker.history.insert).toHaveLength(0);
-    expect(tracker.history.delete).toHaveLength(0);
-});
-
-test.each([null, [], ['member']])(
-    'reads user admission %j',
-    async (allowedUserUuids) => {
-        tracker.on.select('organization_agent_capability_policies').response([
-            {
-                mode: 'managed',
-                version: 1,
-                allowed_project_uuids: null,
-                allowed_user_uuids: allowedUserUuids,
-            },
-        ]);
-        tracker.on
-            .select('organization_memberships')
-            .response([{ user_uuid: 'member' }]);
-        expect(await model.get('org')).toMatchObject({ allowedUserUuids });
-    },
-);
-
-test.each([{ members: [] }, { members: [{ user_uuid: 'member' }] }])(
-    'filters departed members on read without widening admission: %j',
-    async ({ members }) => {
-        tracker.on.select('organization_agent_capability_policies').response([
-            {
-                mode: 'managed',
-                version: 1,
-                allowed_user_uuids: ['member', 'departed'],
-            },
-        ]);
-        tracker.on.select('organization_memberships').response(members);
-        expect((await model.get('org')).allowedUserUuids).toEqual(
-            members.map((member) => member.user_uuid),
-        );
-    },
-);
-
-test('does not revalidate a stored member list when resetting to legacy', async () => {
-    tracker.on
-        .insert('organization_agent_capability_policies')
-        .response([{ mode: 'legacy', version: 2 }]);
-    tracker.on
-        .delete('organization_agent_system_role_capabilities')
-        .response(0);
-    tracker.on
-        .select('organization_agent_capability_policies')
-        .response([{ mode: 'legacy', version: 2 }]);
-    await model.save({
-        organizationUuid: 'org',
-        allowedGroupUuids: null,
-        mode: 'legacy',
-        allowedUserUuids: ['departed'],
-        allowedProjectUuids: null,
-        systemRoleMatrix: {
-            member: [],
-            viewer: [],
-            interactive_viewer: [],
-            editor: [],
-            developer: [],
-            admin: [],
-        },
-        updatedByUserUuid: null,
-    });
-    expect(tracker.history.select).toHaveLength(1);
-    expect(tracker.history.select[0].sql).not.toContain(
-        'organization_memberships',
-    );
-});
-
 test.each([{ rows: [] }, { rows: [{ version: 1 }] }])(
     'rejects stale versions before replacing the matrix: %j',
     async ({ rows }) => {
@@ -289,9 +155,8 @@ test.each([{ rows: [] }, { rows: [{ version: 1 }] }])(
                 organizationUuid: 'org',
                 mode: 'managed',
                 version: 3,
-                allowedUserUuids: null,
                 allowedGroupUuids: null,
-                allowedProjectUuids: null,
+                allowedCapabilities: null,
                 systemRoleMatrix: {
                     member: [],
                     viewer: [],
@@ -313,31 +178,38 @@ test.each([{ rows: [] }, { rows: [{ version: 1 }] }])(
     },
 );
 
-test('an omitted people list keeps the stored column out of the update', async () => {
+test('omitted capabilities preserve the stored limit atomically and normalize the matrix', async () => {
     tracker.on.insert('organization_agent_capability_policies').response([
         {
             mode: 'managed',
             version: 2,
-            allowed_project_uuids: null,
-            allowed_user_uuids: ['member'],
+            allowed_capabilities: [AgentCapability.Query],
+            allowed_group_uuids: null,
         },
     ]);
     tracker.on
         .delete('organization_agent_system_role_capabilities')
         .response(0);
-    await model.save({
+    tracker.on
+        .insert('organization_agent_system_role_capabilities')
+        .response([]);
+    const saved = await model.save({
         organizationUuid: 'org',
-        allowedGroupUuids: null,
         mode: 'managed',
-        allowedProjectUuids: null,
-        systemRoleMatrix: emptyMatrix as never,
-        updatedByUserUuid: 'admin',
+        systemRoleMatrix: {
+            ...emptyMatrix,
+            viewer: [
+                AgentCapability.RawSql,
+                AgentCapability.Query,
+                AgentCapability.Query,
+            ],
+        } as never,
+        updatedByUserUuid: null,
     });
-    const { sql } = tracker.history.insert[0];
-    expect(sql).toContain('do update set');
-    const update = sql.slice(sql.indexOf('do update set'));
-    expect(update).toContain('allowed_project_uuids');
-    expect(update).not.toContain('allowed_user_uuids');
+    expect(saved.allowedCapabilities).toEqual([AgentCapability.Query]);
+    expect(saved.systemRoleMatrix.viewer).toEqual([AgentCapability.Query]);
+    expect(tracker.history.insert[0].sql).toMatch(/COALESCE/i);
+    expect(tracker.history.insert[0].sql).toContain('allowed_user_uuids');
     expect(tracker.history.select).toHaveLength(0);
 });
 
@@ -345,7 +217,6 @@ const saveGroups = (allowedGroupUuids?: string[] | null) =>
     model.save({
         organizationUuid: 'org',
         mode: 'managed',
-        allowedProjectUuids: null,
         allowedGroupUuids,
         systemRoleMatrix: emptyMatrix as never,
         updatedByUserUuid: null,
@@ -452,54 +323,6 @@ test.each([{ stored: [] }, { stored: ['deleted'] }])(
     },
 );
 
-test('legacy saves preserve the stored matrix, project list and people list', async () => {
-    tracker.on.select('organization_agent_capability_policies').response([
-        {
-            mode: 'legacy',
-            version: 3,
-            allowed_project_uuids: ['stored-project'],
-            allowed_user_uuids: ['stored-user'],
-            allowed_group_uuids: ['group'],
-            system_role: OrganizationMemberRole.VIEWER,
-            capability: AgentCapability.Query,
-        },
-    ]);
-    tracker.on
-        .select('organization_memberships')
-        .response([{ user_uuid: 'stored-user' }]);
-    tracker.on.select('groups').response([{ group_uuid: 'group' }]);
-    tracker.on.insert('organization_agent_capability_policies').response([
-        {
-            mode: 'legacy',
-            version: 3,
-            allowed_project_uuids: ['stored-project'],
-            allowed_user_uuids: ['stored-user'],
-            allowed_group_uuids: ['group'],
-        },
-    ]);
-    const saved = await model.save({
-        organizationUuid: 'org',
-        mode: 'legacy',
-        allowedProjectUuids: [],
-        allowedUserUuids: [],
-        allowedGroupUuids: ['group'],
-        systemRoleMatrix: emptyMatrix as never,
-        updatedByUserUuid: null,
-    });
-    expect(saved).toMatchObject({
-        mode: 'legacy',
-        allowedProjectUuids: ['stored-project'],
-        allowedUserUuids: ['stored-user'],
-        allowedGroupUuids: ['group'],
-        systemRoleMatrix: { ...emptyMatrix, viewer: [AgentCapability.Query] },
-    });
-    const { sql } = tracker.history.insert[0];
-    const update = sql.slice(sql.indexOf('do update set'));
-    expect(update).not.toContain('allowed_project_uuids');
-    expect(update).not.toContain('allowed_user_uuids');
-    expect(tracker.history.delete).toHaveLength(0);
-});
-
 describe('getForEnforcement', () => {
     test('defaults a missing policy without another SELECT', async () => {
         tracker.on
@@ -508,8 +331,7 @@ describe('getForEnforcement', () => {
         expect(await model.getForEnforcement('org')).toEqual({
             mode: 'legacy',
             version: 0,
-            allowedProjectUuids: null,
-            allowedUserUuids: null,
+            allowedCapabilities: null,
             storedAllowedGroupUuids: null,
             hasExistingAllowedGroup: null,
             systemRoleMatrix: emptyMatrix,
@@ -532,7 +354,7 @@ describe('getForEnforcement', () => {
                     {
                         mode: 'managed',
                         version: 4,
-                        allowed_project_uuids: ['project'],
+                        allowed_capabilities: [AgentCapability.Query],
                         allowed_user_uuids: null,
                         allowed_group_uuids: stored,
                         has_existing_allowed_group: exists,
@@ -543,8 +365,7 @@ describe('getForEnforcement', () => {
             expect(await model.getForEnforcement('org')).toEqual({
                 mode: 'managed',
                 version: 4,
-                allowedProjectUuids: ['project'],
-                allowedUserUuids: null,
+                allowedCapabilities: [AgentCapability.Query],
                 storedAllowedGroupUuids: stored,
                 hasExistingAllowedGroup: exists,
                 systemRoleMatrix: {
@@ -568,32 +389,34 @@ describe('getForEnforcement', () => {
         },
     );
 
-    test.each([
-        { storedUsers: null },
-        { storedUsers: [] },
-        { storedUsers: ['departed', 'member', 'member'] },
-    ])('only hydrates non-empty people lists: %j', async ({ storedUsers }) => {
-        tracker.on.select('organization_agent_capability_policies').response([
-            {
-                mode: 'legacy',
-                version: 1,
-                allowed_user_uuids: storedUsers,
-                allowed_group_uuids: ['live'],
-                has_existing_allowed_group: true,
-            },
-        ]);
-        if (storedUsers?.length)
+    test.each([null, [], ['departed']])(
+        'ignores stored people and project lists: %j',
+        async (storedUsers) => {
             tracker.on
-                .select('organization_memberships')
-                .response([{ user_uuid: 'member' }]);
-        const policy = await model.getForEnforcement('org');
-        expect(policy.allowedUserUuids).toEqual(
-            storedUsers === null
-                ? null
-                : storedUsers.filter((uuid) => uuid === 'member'),
-        );
-        expect(tracker.history.select).toHaveLength(
-            storedUsers?.length ? 2 : 1,
-        );
-    });
+                .select('organization_agent_capability_policies')
+                .response([
+                    {
+                        mode: 'managed',
+                        version: 1,
+                        allowed_capabilities: null,
+                        allowed_user_uuids: storedUsers,
+                        allowed_project_uuids: ['excluded'],
+                    },
+                ]);
+            const policies = await Promise.all([
+                model.get('org'),
+                model.getForEnforcement('org'),
+            ]);
+            for (const policy of policies) {
+                expect(policy).not.toHaveProperty('allowedUserUuids');
+                expect(policy).not.toHaveProperty('allowedProjectUuids');
+            }
+            expect(tracker.history.select).toHaveLength(2);
+            for (const query of tracker.history.select) {
+                expect(query.sql).not.toContain('allowed_user_uuids');
+                expect(query.sql).not.toContain('allowed_project_uuids');
+                expect(query.sql).not.toContain('.*');
+            }
+        },
+    );
 });

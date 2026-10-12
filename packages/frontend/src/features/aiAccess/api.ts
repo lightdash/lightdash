@@ -1,6 +1,8 @@
 import {
     FeatureFlags,
     type AgentCapabilityPolicy,
+    type AgentCapabilityPolicyState,
+    type AgentCapabilityPolicyOverviewState,
     type AgentCapabilityPolicyOverview,
     type AgentCapabilityCeiling,
     type ApiOrganizationAgentIdentityProjectsWithoutAiServiceAccountResponse,
@@ -398,6 +400,14 @@ export const useSnowflakeAgentVerify = (enabled: boolean) => {
 
 const agentPolicyUrl = '/org/agent-permissions';
 
+const toLegacyPolicyView = <T extends AgentCapabilityPolicyState>(
+    policy: T,
+) => ({
+    allowedProjectUuids: null,
+    allowedUserUuids: null,
+    ...policy,
+});
+
 export const useAgentCapabilityPolicy = () => {
     const { user } = useApp();
     const { data: flag } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
@@ -409,12 +419,12 @@ export const useAgentCapabilityPolicy = () => {
             'agent-permissions',
         ],
         queryFn: () =>
-            lightdashApi<AgentCapabilityPolicyOverview>({
+            lightdashApi<AgentCapabilityPolicyOverviewState>({
                 version: 'v2',
                 url: agentPolicyUrl,
                 method: 'GET',
                 body: undefined,
-            }),
+            }).then(toLegacyPolicyView),
         enabled: flag?.enabled === true,
     });
 };
@@ -455,23 +465,26 @@ const useAgentPermissionMutation = <
 export const useSaveAgentCapabilityCeiling = (
     onSaved: (policy: AgentCapabilityPolicy) => void,
 ) =>
-    useAgentPermissionMutation<AgentCapabilityPolicy, AgentCapabilityCeiling>(
+    useAgentPermissionMutation<
+        AgentCapabilityPolicyState,
+        AgentCapabilityCeiling
+    >(
         agentPolicyUrl,
         'PUT',
         'Could not save agent permissions.',
-        onSaved,
+        (policy) => onSaved(toLegacyPolicyView(policy)),
         agentPolicyMutationKey,
     );
 export const useResetAgentCapabilityPolicy = (
     onSaved: (policy: AgentCapabilityPolicy) => void,
 ) =>
     useAgentPermissionMutation<
-        AgentCapabilityPolicy,
+        AgentCapabilityPolicyState,
         Pick<AgentCapabilityPolicy, 'version'>
     >(
         `${agentPolicyUrl}/reset`,
         'POST',
         'Could not turn off limits.',
-        onSaved,
+        (policy) => onSaved(toLegacyPolicyView(policy)),
         agentPolicyMutationKey,
     );

@@ -7,7 +7,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     OrganizationMemberRole,
-    type AgentCapabilityPolicy,
+    type AgentCapabilityPolicyState,
     type PossibleAbilities,
 } from '@lightdash/common';
 import { fromOauth } from '../../auth/account/account';
@@ -25,11 +25,10 @@ import {
 const setup = () => {
     const account = buildAccount();
     const matrix = agentSystemRoleMatrix([]);
-    const policy: AgentCapabilityPolicy = {
+    const policy: AgentCapabilityPolicyState = {
         mode: 'managed',
         version: 1,
-        allowedProjectUuids: null,
-        allowedUserUuids: null,
+        allowedCapabilities: null,
         allowedGroupUuids: null,
         systemRoleMatrix: { ...matrix, viewer: [AgentCapability.Query] },
     };
@@ -62,10 +61,7 @@ const setup = () => {
                 organizationUuid: account.organization.organizationUuid,
             }),
         },
-        getOrganizationSettings: vi.fn().mockResolvedValue({
-            mcpAgentsEnabled: true,
-            mcpContentWritesEnabled: true,
-        }),
+
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
     };
     const service = new AgentPermissionService(deps);
@@ -84,7 +80,7 @@ test.each(['off', 'legacy'] as const)(
     '%s leaves existing behavior unchanged',
     async (mode) => {
         const { service, deps, operation, policy } = setup();
-        policy.allowedUserUuids = [];
+        policy.allowedCapabilities = [];
         if (mode === 'off')
             deps.featureFlagModel.get.mockResolvedValue({ enabled: false });
         else policy.mode = 'legacy';
@@ -97,7 +93,7 @@ test.each(['off', 'legacy'] as const)(
         ).toHaveBeenCalledTimes(mode === 'off' ? 0 : 1);
         expect(deps.projectModel.getSummary).not.toHaveBeenCalled();
         expect(deps.userModel.getAgentRoleAssignments).not.toHaveBeenCalled();
-        expect(deps.getOrganizationSettings).not.toHaveBeenCalled();
+
         expect(deps.featureFlagModel.get).toHaveBeenCalledWith({
             user: { organizationUuid: operation.organizationUuid },
             featureFlagId: FeatureFlags.AgentIdentity,
@@ -167,39 +163,6 @@ test('refuses unmapped operations and requires external_tools for connected tool
     });
 });
 
-test('applies project limits and only permits org-level discovery without a project', async () => {
-    const { service, policy, operation } = setup();
-    policy.allowedProjectUuids = [];
-    policy.systemRoleMatrix.viewer = [
-        AgentCapability.ReadDiscover,
-        AgentCapability.Query,
-    ];
-    await expect(
-        service.assertOperation({
-            ...operation,
-            key: 'QuerySourceController.executeSourceQueries',
-        }),
-    ).rejects.toMatchObject({
-        refusal: { reason: AiAccessRefusalReason.AGENT_PROJECT_DENIED },
-    });
-    await expect(
-        service.assertOperation({
-            ...operation,
-            projectUuid: null,
-            key: 'UserController.getAccount',
-        }),
-    ).resolves.toBeUndefined();
-    await expect(
-        service.assertOperation({
-            ...operation,
-            projectUuid: null,
-            key: 'QuerySourceController.executeSourceQueries',
-        }),
-    ).rejects.toMatchObject({
-        refusal: { reason: AiAccessRefusalReason.AGENT_PROJECT_DENIED },
-    });
-});
-
 test('raw SQL is allowed with its role grant and no confirmation dependency', async () => {
     const { service, policy, deps, operation } = setup();
     policy.systemRoleMatrix.viewer = [AgentCapability.RawSql];
@@ -209,41 +172,34 @@ test('raw SQL is allowed with its role grant and no confirmation dependency', as
     );
 });
 
-test('the organization write switch bounds content writes', async () => {
-    const { service, policy, deps, operation } = setup();
-    policy.systemRoleMatrix.viewer = [AgentCapability.ContentWrite];
-    deps.getOrganizationSettings.mockResolvedValue({
-        mcpAgentsEnabled: true,
-        mcpContentWritesEnabled: false,
-    });
-    await expect(
-        service.assertOperation({
-            ...operation,
-            key: 'ProjectController.createDashboard',
-        }),
-    ).rejects.toMatchObject({
-        refusal: {
-            reason: AiAccessRefusalReason.AGENT_SETTING_DENIED,
-            capability: AgentCapability.ContentWrite,
-        },
-    });
-});
-
-test('the organization admission switch denies every managed surface', async () => {
-    const { service, deps, operation } = setup();
-    deps.getOrganizationSettings.mockResolvedValue({
-        mcpAgentsEnabled: false,
-        mcpContentWritesEnabled: true,
-    });
-    await expect(
-        service.assertOperation({
-            ...operation,
-            key: 'QuerySourceController.executeSourceQueries',
-        }),
-    ).rejects.toMatchObject({
-        refusal: { reason: AiAccessRefusalReason.AGENT_ACCESS_DISABLED },
-    });
-});
+test.each([
+    AgentActorSurface.IN_APP_AGENT,
+    AgentActorSurface.SLACK_AGENT,
+    AgentActorSurface.API,
+    AgentActorSurface.MCP,
+])(
+    'the permission check has no MCP settings dependency on %s',
+    async (surface) => {
+        const { service, policy, deps, operation } = setup();
+        policy.systemRoleMatrix.viewer = [AgentCapability.ContentWrite];
+        expect(deps).not.toHaveProperty('getOrganizationSettings');
+        await expect(
+            service.assertOperation({
+                ...operation,
+                surface,
+                key: 'ProjectController.createDashboard',
+            }),
+        ).resolves.toBeUndefined();
+        await expect(
+            service.assertOperation({
+                ...operation,
+                surface,
+                kind: 'agent_turn',
+                key: 'agent_turn',
+            }),
+        ).resolves.toBeUndefined();
+    },
+);
 
 test('pure evaluation is suitable for tool filtering', () => {
     expect(
@@ -251,8 +207,7 @@ test('pure evaluation is suitable for tool filtering', () => {
             {
                 mode: 'off',
                 capabilities: null,
-                allowedProjectUuids: null,
-                allowedUserUuids: null,
+                allowedCapabilities: null,
                 allowedGroupUuids: null,
                 version: 0,
                 editableCustomRoleUuid: null,
@@ -260,9 +215,6 @@ test('pure evaluation is suitable for tool filtering', () => {
             {
                 requiredCapabilities: null,
                 projectUuid: null,
-                mcpAgentsEnabled: false,
-                mcpContentWritesEnabled: false,
-                isOrganizationDiscovery: false,
             },
         ),
     ).toBeNull();
@@ -439,51 +391,6 @@ test('resolves a resource project using the trusted resource lookup', async () =
     });
 });
 
-test.each([
-    ['rest_operation', 'SavedChartController.getChartHistory'],
-    ['mcp_tool', 'read_content'],
-    ['agent_tool', 'getMetadata'],
-] as const)(
-    'refuses unresolved project discovery for %s %s when projects are limited',
-    async (kind, key) => {
-        const { service, policy, operation } = setup();
-        policy.allowedProjectUuids = ['project'];
-        policy.systemRoleMatrix.viewer = [AgentCapability.ReadDiscover];
-        await expect(
-            service.assertOperation({
-                ...operation,
-                projectUuid: null,
-                kind,
-                key,
-            }),
-        ).rejects.toMatchObject({
-            refusal: { reason: AiAccessRefusalReason.AGENT_PROJECT_DENIED },
-        });
-    },
-);
-
-test('turn admission checks the project and switch without requiring a capability', async () => {
-    const { service, operation, policy, deps } = setup();
-    policy.systemRoleMatrix.viewer = [];
-    const turn = {
-        ...operation,
-        kind: 'agent_turn' as const,
-        key: 'agent_turn',
-    };
-    await expect(service.assertOperation(turn)).resolves.toBeUndefined();
-    policy.allowedProjectUuids = [];
-    await expect(service.assertOperation(turn)).rejects.toMatchObject({
-        refusal: { reason: AiAccessRefusalReason.AGENT_PROJECT_DENIED },
-    });
-    deps.getOrganizationSettings.mockResolvedValue({
-        mcpAgentsEnabled: false,
-        mcpContentWritesEnabled: true,
-    });
-    await expect(service.assertOperation(turn)).rejects.toMatchObject({
-        refusal: { reason: AiAccessRefusalReason.AGENT_ACCESS_DISABLED },
-    });
-});
-
 test.each([...HUMAN_ONLY_IN_MANAGED])(
     'keeps %s human-only even when every capability is granted',
     async (key) => {
@@ -517,57 +424,41 @@ const admissionSurfaces = [
 describe.each(admissionSurfaces)(
     '%s %s on %s admission',
     (kind, key, surface) => {
-        test.each(['listed', 'unlisted', 'unrestricted', 'empty'] as const)(
-            '%s user list',
-            async (list) => {
-                const { service, policy, account, operation, deps } = setup();
-                const allowedUserLists = {
-                    unrestricted: null,
-                    empty: [],
-                    listed: [account.user.id],
-                    unlisted: ['another-user'],
-                };
-                policy.allowedUserUuids = allowedUserLists[list];
+        test.each(['legacy', 'managed'] as const)(
+            'ignores historical lists in %s',
+            async (mode) => {
+                const { service, policy, operation, deps } = setup();
+                policy.mode = mode;
                 policy.systemRoleMatrix.viewer = [AgentCapability.ReadDiscover];
-                const result = service.assertOperation({
-                    ...operation,
-                    kind,
-                    key,
-                    surface,
-                });
-                if (list === 'listed' || list === 'unrestricted') {
-                    await expect(result).resolves.toBeUndefined();
-                } else {
-                    await expect(result).rejects.toMatchObject({
-                        refusal: {
-                            reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
-                            settingsUrl: '/generalSettings/agentIdentity',
-                            message:
-                                'Your account is not allowed to use agents. Ask an organization admin to update agent access.',
-                        },
-                    });
-                    expect(
-                        deps.agentActionLogModel.insert,
-                    ).toHaveBeenCalledWith(
-                        expect.objectContaining({
-                            reason_code:
-                                AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
-                            policy_version: 1,
-                        }),
-                    );
-                }
+                deps.agentCapabilityPolicyModel.getForEnforcement.mockImplementation(
+                    async () => ({
+                        ...policy,
+                        allowed_user_uuids: ['excluded-person'],
+                        allowed_project_uuids: ['excluded-project'],
+                        storedAllowedGroupUuids: null,
+                        hasExistingAllowedGroup: null,
+                    }),
+                );
+                await expect(
+                    service.assertOperation({
+                        ...operation,
+                        kind,
+                        key,
+                        surface,
+                    }),
+                ).resolves.toBeUndefined();
             },
         );
     },
 );
 
-test('user admission precedes capability checks without granting capabilities', async () => {
+test('group admission precedes capability checks without granting capabilities', async () => {
     const { service, policy, account, operation } = setup();
-    policy.allowedUserUuids = [];
+    policy.allowedGroupUuids = [];
     await expect(service.assertOperation(operation)).rejects.toMatchObject({
         refusal: { reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED },
     });
-    policy.allowedUserUuids = [account.user.id];
+    policy.allowedGroupUuids = null;
     await expect(service.assertOperation(operation)).rejects.toMatchObject({
         refusal: { reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED },
     });
@@ -575,7 +466,7 @@ test('user admission precedes capability checks without granting capabilities', 
 
 test('a stale listed user cannot bypass current organization membership', async () => {
     const { service, policy, account, operation, deps } = setup();
-    policy.allowedUserUuids = [account.user.id];
+    policy.allowedGroupUuids = null;
     deps.userModel.getAgentRoleAssignments.mockRejectedValue(
         new ForbiddenError('Your account does not belong to this organization'),
     );
@@ -743,9 +634,7 @@ const parityCases = [
     'human',
     'disabled',
     'unmapped',
-    'project',
     ...Object.values(AgentCapability),
-    'writes',
 ] as const;
 
 const paritySetup = (scenario: (typeof parityCases)[number]) => {
@@ -756,21 +645,11 @@ const paritySetup = (scenario: (typeof parityCases)[number]) => {
     if (scenario === 'off')
         deps.featureFlagModel.get.mockResolvedValue({ enabled: false });
     if (scenario === 'legacy') policy.mode = 'legacy';
-    if (scenario === 'admission') policy.allowedUserUuids = [];
+    if (scenario === 'admission') policy.allowedGroupUuids = [];
     if (scenario === 'human')
         operation.key = 'AgentPermissionController.saveCeiling';
-    if (scenario === 'disabled')
-        deps.getOrganizationSettings.mockResolvedValue({
-            mcpAgentsEnabled: false,
-            mcpContentWritesEnabled: true,
-        });
+    if (scenario === 'disabled') policy.allowedCapabilities = [];
     if (scenario === 'unmapped') operation.key = 'unknown';
-    if (scenario === 'project') policy.allowedProjectUuids = [];
-    if (scenario === 'writes')
-        deps.getOrganizationSettings.mockResolvedValue({
-            mcpAgentsEnabled: true,
-            mcpContentWritesEnabled: false,
-        });
     const capabilityOperations: Record<AgentCapability, string> = {
         read_discover: 'SavedChartController.getChartHistory',
         query: 'SavedChartController.postChartResults',
@@ -838,13 +717,10 @@ test.each(parityCases)('existing refusal snapshot: %s', async (scenario) => {
     }
 });
 
-test('collects missing delivery capabilities and the write switch in order', async () => {
+test('collects missing delivery capabilities in order', async () => {
     const { service, operation, policy, deps } = setup();
     policy.systemRoleMatrix.viewer = [];
-    deps.getOrganizationSettings.mockResolvedValue({
-        mcpAgentsEnabled: true,
-        mcpContentWritesEnabled: false,
-    });
+
     const refusal = await refusalFrom(
         service.assertOperation({
             ...operation,
@@ -866,14 +742,10 @@ test('collects missing delivery capabilities and the write switch in order', asy
                 checkId: 'capability:publish',
                 capability: AgentCapability.Publish,
             },
-            {
-                checkId: 'content_writes',
-                reason: AiAccessRefusalReason.AGENT_SETTING_DENIED,
-            },
         ],
         explanationUrl: '/generalSettings/myAgentConnections',
     });
-    expect(deps.getOrganizationSettings).toHaveBeenCalledTimes(1);
+
     expect(deps.agentActionLogModel.insert).toHaveBeenCalledTimes(1);
 });
 
@@ -902,12 +774,8 @@ test.each(['hidden_by_scope', 'hidden_by_project', 'visible'] as const)(
     'runtime diagnostics respect OAuth visibility: %s',
     async (visibility) => {
         const { service, operation, deps, policy } = setup();
-        policy.allowedUserUuids = [];
-        policy.allowedProjectUuids = [];
-        deps.getOrganizationSettings.mockResolvedValue({
-            mcpAgentsEnabled: false,
-            mcpContentWritesEnabled: true,
-        });
+        policy.allowedGroupUuids = [];
+
         const account = fromOauth(
             {
                 ...defaultSessionUser,
@@ -960,13 +828,8 @@ test.each(['hidden_by_scope', 'hidden_by_project', 'visible'] as const)(
         expect(blockersComplete).toBe(visible);
         expect(blockers?.map((blocker) => blocker.checkId)).toEqual(
             visible
-                ? [
-                      'agent_admission',
-                      'agent_enabled',
-                      'project_scope',
-                      'capability:raw_sql',
-                  ]
-                : ['agent_admission', 'agent_enabled'],
+                ? ['agent_admission', 'capability:raw_sql']
+                : ['agent_admission'],
         );
         if (!visible) {
             expect(JSON.stringify(blockers)).not.toContain(
@@ -980,7 +843,7 @@ test.each([false, true])(
     'non-primary custom-role diagnostics require organization management: %s',
     async (admin) => {
         const { service, operation, account, policy } = setup();
-        policy.allowedUserUuids = [];
+        policy.allowedGroupUuids = [];
         account.user.ability = new Ability<PossibleAbilities>(
             admin
                 ? [{ action: 'manage', subject: 'all' }]
@@ -1046,21 +909,6 @@ test('runtime sanitization preserves primary custom-role links', async () => {
     expect(refusal?.blockers?.[0].settingsUrl).toBe(refusal?.settingsUrl);
 });
 
-test('diagnostic settings failure retains the primary refusal', async () => {
-    const { service, operation, deps, policy } = setup();
-    policy.allowedUserUuids = [];
-    deps.getOrganizationSettings.mockRejectedValue(
-        new Error('diagnostic failed'),
-    );
-    const refusal = await refusalFrom(service.assertOperation(operation));
-    expect(refusal).toMatchObject({
-        reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
-        blockersComplete: false,
-    });
-    expect(refusal?.blockers?.[0].reason).toBe(refusal?.reason);
-    expect(deps.agentActionLogModel.insert).toHaveBeenCalledTimes(1);
-});
-
 test.each(['allowed', 'off', 'legacy'] as const)(
     'preserves read counts: %s',
     async (scenario) => {
@@ -1077,31 +925,8 @@ test.each(['allowed', 'off', 'legacy'] as const)(
         expect(deps.projectModel.getSummary).toHaveBeenCalledTimes(
             managed ? 1 : 0,
         );
-        expect(deps.getOrganizationSettings).toHaveBeenCalledTimes(
-            managed ? 1 : 0,
-        );
     },
 );
-
-test('bounds diagnostics when an organization settings read does not finish', async () => {
-    vi.useFakeTimers();
-    try {
-        const { service, operation, deps, policy } = setup();
-        policy.allowedUserUuids = [];
-        deps.getOrganizationSettings.mockImplementation(
-            () => new Promise(() => {}),
-        );
-        const promise = refusalFrom(service.assertOperation(operation));
-        await vi.advanceTimersByTimeAsync(2000);
-        expect(await promise).toMatchObject({
-            reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
-            blockersComplete: false,
-        });
-        expect(deps.agentActionLogModel.insert).toHaveBeenCalledTimes(1);
-    } finally {
-        vi.useRealTimers();
-    }
-});
 
 test('raw SQL with its role grant only reads the remaining policy inputs', async () => {
     const { service, operation, deps, policy } = setup();
@@ -1118,19 +943,16 @@ test('raw SQL with its role grant only reads the remaining policy inputs', async
         operation.organizationUuid,
         operation.projectUuid,
     );
-    expect(deps.getOrganizationSettings).toHaveBeenCalledTimes(1);
+
     expect(deps.agentActionLogModel.insert).not.toHaveBeenCalled();
 });
 
 test('all independent blockers are ordered and disclose no role sources or project lists', async () => {
     const { service, operation, deps, policy } = setup();
-    policy.allowedUserUuids = ['another-person'];
-    policy.allowedProjectUuids = ['another-project'];
+    policy.allowedGroupUuids = ['another-group'];
+
     policy.systemRoleMatrix.viewer = [];
-    deps.getOrganizationSettings.mockResolvedValue({
-        mcpAgentsEnabled: false,
-        mcpContentWritesEnabled: false,
-    });
+
     const refusal = await refusalFrom(
         service.assertOperation({
             ...operation,
@@ -1140,11 +962,8 @@ test('all independent blockers are ordered and disclose no role sources or proje
     );
     expect(refusal?.blockers?.map((blocker) => blocker.checkId)).toEqual([
         'agent_admission',
-        'agent_enabled',
-        'project_scope',
         'capability:content_write',
         'capability:raw_sql',
-        'content_writes',
     ]);
     expect(
         new Set(refusal?.blockers?.map((blocker) => blocker.checkId)).size,
@@ -1154,9 +973,8 @@ test('all independent blockers are ordered and disclose no role sources or proje
     );
 });
 
-test('missing organization settings keep the existing enabled defaults', async () => {
+test('content writes do not need an organization settings read', async () => {
     const { service, operation, deps, policy } = setup();
-    deps.getOrganizationSettings.mockResolvedValue(null);
     policy.systemRoleMatrix.viewer = [
         AgentCapability.ContentWrite,
         AgentCapability.Publish,
@@ -1175,8 +993,7 @@ test.each([true, false])(
         const { service, deps, operation, policy } = setup();
         policy.mode = 'legacy';
         policy.allowedGroupUuids = ['group'];
-        policy.allowedUserUuids = [];
-        policy.allowedProjectUuids = [];
+
         deps.groupsModel.findUserInGroups.mockResolvedValue(
             member
                 ? [{ groupUuid: 'group', userUuid: operation.account.user.id }]
@@ -1213,7 +1030,7 @@ test.each([true, false])(
         });
         expect(deps.userModel.getAgentRoleAssignments).not.toHaveBeenCalled();
         expect(deps.projectModel.getSummary).not.toHaveBeenCalled();
-        expect(deps.getOrganizationSettings).not.toHaveBeenCalled();
+
         expect(deps.areGroupsAvailable).not.toHaveBeenCalled();
     },
 );
@@ -1240,7 +1057,6 @@ test.each(['legacy', 'managed'] as const)(
         await expect(service.assertOperation(operation)).rejects.toThrow(
             'membership unavailable',
         );
-        expect(deps.getOrganizationSettings).not.toHaveBeenCalled();
     },
 );
 
@@ -1261,35 +1077,6 @@ test.each([true, false])(
         });
         expect(deps.groupsModel.findUserInGroups).toHaveBeenCalledOnce();
         expect(deps.userModel.getAgentRoleAssignments).toHaveBeenCalledOnce();
-        expect(deps.getOrganizationSettings).toHaveBeenCalledOnce();
-    },
-);
-
-test.each([true, false])(
-    'managed people and group restrictions both apply (person listed %s)',
-    async (listed) => {
-        const { service, deps, operation, policy } = setup();
-        policy.allowedGroupUuids = ['group'];
-        policy.allowedUserUuids = listed ? [operation.account.user.id] : [];
-        deps.groupsModel.findUserInGroups.mockResolvedValue([
-            { groupUuid: 'group' },
-        ]);
-        const action = {
-            ...operation,
-            key: 'QuerySourceController.executeSourceQueries',
-        };
-        if (listed)
-            await expect(
-                service.assertOperation(action),
-            ).resolves.toBeUndefined();
-        else
-            await expect(service.assertOperation(action)).rejects.toMatchObject(
-                {
-                    refusal: {
-                        reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
-                    },
-                },
-            );
     },
 );
 
@@ -1409,7 +1196,158 @@ test.each([
             managed,
         );
         expect(h.deps.projectModel.getSummary).toHaveBeenCalledTimes(managed);
-        expect(h.deps.getOrganizationSettings).toHaveBeenCalledTimes(managed);
+
         expect(h.deps.areGroupsAvailable).not.toHaveBeenCalled();
     },
 );
+
+describe('organization capability list', () => {
+    test('cuts custom role grants and records the organization remedy', async () => {
+        const { service, policy, deps, operation } = setup();
+        Object.assign(policy, { allowedCapabilities: [AgentCapability.Query] });
+        deps.userModel.getAgentRoleAssignments.mockResolvedValue({
+            systemRoles: [],
+            customRoles: [{ roleUuid: 'custom', scopes: ['view:AgentRawSql'] }],
+        });
+        await expect(service.assertOperation(operation)).rejects.toMatchObject({
+            refusal: {
+                reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                policyLayer: 'organization_setting',
+                settingsUrl: '/generalSettings/agentIdentity',
+                blockers: expect.arrayContaining([
+                    expect.objectContaining({
+                        checkId: 'capability:raw_sql',
+                        policyLayer: 'organization_setting',
+                        settingsUrl: '/generalSettings/agentIdentity',
+                    }),
+                ]),
+            },
+        });
+        expect(deps.agentActionLogModel.insert).toHaveBeenCalledWith(
+            expect.objectContaining({ policy_layer: 'organization_setting' }),
+        );
+    });
+    test('preserves a custom grant with a historical null list', async () => {
+        const { service, policy, deps, operation } = setup();
+        Object.assign(policy, { allowedCapabilities: null });
+        deps.userModel.getAgentRoleAssignments.mockResolvedValue({
+            systemRoles: [],
+            customRoles: [{ roleUuid: 'custom', scopes: ['view:AgentRawSql'] }],
+        });
+        await expect(
+            service.assertOperation(operation),
+        ).resolves.toBeUndefined();
+    });
+    test('all eleven organization capabilities do not expand a custom-only role', async () => {
+        const { service, policy, deps, operation, account } = setup();
+        account.user.ability = new Ability<PossibleAbilities>([
+            { action: 'manage', subject: 'all' },
+        ]);
+        Object.assign(policy, {
+            allowedCapabilities: Object.values(AgentCapability),
+        });
+        deps.userModel.getAgentRoleAssignments.mockResolvedValue({
+            systemRoles: [],
+            customRoles: [
+                {
+                    roleUuid: 'custom',
+                    scopes: [
+                        'view:AgentReadDiscover',
+                        'view:AgentQuery',
+                        'view:AgentExport',
+                        'view:AgentRawSql',
+                    ],
+                },
+            ],
+        });
+        await Promise.all(
+            [
+                AgentCapability.ReadDiscover,
+                AgentCapability.Query,
+                AgentCapability.Export,
+                AgentCapability.RawSql,
+            ].map((capability) =>
+                expect(
+                    service.assertOperation({
+                        ...operation,
+                        kind: 'capability',
+                        key: capability,
+                    }),
+                ).resolves.toBeUndefined(),
+            ),
+        );
+        await expect(
+            service.assertOperation({
+                ...operation,
+                kind: 'capability',
+                key: AgentCapability.ContentWrite,
+            }),
+        ).rejects.toMatchObject({
+            refusal: {
+                reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                policyLayer: 'org_ceiling',
+                settingsUrl: '/generalSettings/customRoles/custom',
+            },
+        });
+    });
+    test.each(Object.values(AgentActorSurface))(
+        'an empty list refuses turns on %s including custom roles',
+        async (surface) => {
+            const { service, policy, deps, operation } = setup();
+            Object.assign(policy, { allowedCapabilities: [] });
+            deps.userModel.getAgentRoleAssignments.mockResolvedValue({
+                systemRoles: [],
+                customRoles: [
+                    { roleUuid: 'custom', scopes: ['view:AgentQuery'] },
+                ],
+            });
+            await expect(
+                service.assertOperation({
+                    ...operation,
+                    surface,
+                    kind: 'agent_turn',
+                    key: 'agent_turn',
+                }),
+            ).rejects.toMatchObject({
+                refusal: {
+                    reason: AiAccessRefusalReason.AGENT_ACCESS_DISABLED,
+                    policyLayer: 'organization_setting',
+                    settingsUrl: '/generalSettings/agentIdentity',
+                },
+            });
+            Object.assign(policy, {
+                allowedCapabilities: [AgentCapability.Query],
+            });
+            await expect(
+                service.assertOperation({
+                    ...operation,
+                    surface,
+                    kind: 'agent_turn',
+                    key: 'agent_turn',
+                }),
+            ).resolves.toBeUndefined();
+        },
+    );
+});
+
+test('diagnostic evaluation failure retains the group refusal', async () => {
+    const { service, policy, operation, deps } = setup();
+    policy.allowedGroupUuids = [];
+    const resolved = await service.resolvePolicy(operation);
+    vi.spyOn(resolved.capabilities!, 'has').mockImplementation(() => {
+        throw new Error('diagnostic failed');
+    });
+    vi.spyOn(
+        service as unknown as {
+            resolveManagedPolicy: AgentPermissionService['resolvePolicy'];
+        },
+        'resolveManagedPolicy',
+    ).mockResolvedValue(resolved);
+    await expect(service.assertOperation(operation)).rejects.toMatchObject({
+        refusal: {
+            reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+            blockersComplete: false,
+        },
+    });
+    expect(deps.agentActionLogModel.insert).toHaveBeenCalledOnce();
+});

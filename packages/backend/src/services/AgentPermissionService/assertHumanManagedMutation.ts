@@ -3,7 +3,7 @@ import {
     AiAccessRefusalReason,
     AiAccessRefusedError,
     FeatureFlags,
-    type AgentCapabilityPolicy,
+    type AgentCapabilityPolicyState,
     type MemberAbility,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
@@ -26,7 +26,7 @@ export const getManagedAgentPolicy = async ({
     oauth,
     database,
     featureFlagModel,
-}: HumanManagedMutationContext): Promise<AgentCapabilityPolicy | null> => {
+}: HumanManagedMutationContext): Promise<AgentCapabilityPolicyState | null> => {
     if (
         !organizationUuid ||
         (!oauth &&

@@ -1,5 +1,7 @@
 import {
+    AGENT_CAPABILITY_SCOPES,
     AgentCapability,
+    AiAccessRefusalReason,
     FeatureFlags,
     type AgentConnectionExecution,
 } from '@lightdash/common';
@@ -826,7 +828,7 @@ describe('current managed policy intersection', () => {
             }),
         ).rejects.toThrow();
     });
-    it.each(['project', 'user', 'project role'] as const)(
+    it.each(['capability list', 'group', 'project role'] as const)(
         'rechecks the current %s limit',
         async (limit) => {
             const f = managedExecutionFixture();
@@ -837,8 +839,8 @@ describe('current managed policy intersection', () => {
                     recheckOperation: false,
                 });
             await expect(run()).resolves.toBeDefined();
-            if (limit === 'project') f.policy.allowedProjectUuids = [];
-            if (limit === 'user') f.policy.allowedUserUuids = [];
+            if (limit === 'capability list') f.policy.allowedCapabilities = [];
+            if (limit === 'group') f.policy.allowedGroupUuids = [];
             if (limit === 'project role') f.assignments.systemRoles = [];
             await expect(run()).rejects.toThrow();
         },
@@ -931,3 +933,64 @@ it('checks every project resolved by a multi-project REST contract', async () =>
     await expect(run([a])).resolves.toEqual([a]);
     await expect(run([a, b])).rejects.toThrow();
 });
+
+describe.each([false, true])(
+    'organization limits on connection execution with recheck %s',
+    (recheckOperation) => {
+        it.each(Object.values(AgentCapability))(
+            'cuts custom scope %s after the union',
+            async (capability) => {
+                const f = managedExecutionFixture();
+                f.execution.operation = {
+                    kind: 'rest',
+                    key: 'UserController.getAuthenticatedUser',
+                };
+                f.assignments.systemRoles = [];
+                f.assignments.customRoles = [
+                    {
+                        roleUuid: 'custom',
+                        scopes: Object.values(AGENT_CAPABILITY_SCOPES),
+                    },
+                ];
+                const run = () =>
+                    f.service.assertActiveExecution(f.execution, {
+                        projectUuid: f.projectUuid,
+                        capabilities: [capability],
+                        recheckOperation,
+                    });
+                await expect(run()).resolves.toBeDefined();
+                f.policy.allowedCapabilities = Object.values(
+                    AgentCapability,
+                ).filter((value) => value !== capability);
+                await expect(run()).rejects.toMatchObject({
+                    refusal: {
+                        reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                        policyLayer: 'organization_setting',
+                        settingsUrl: '/generalSettings/agentIdentity',
+                    },
+                });
+            },
+        );
+        it('an empty list refuses execution and one tick admits an approved read', async () => {
+            const f = managedExecutionFixture();
+            f.execution.operation = {
+                kind: 'rest',
+                key: 'UserController.getAuthenticatedUser',
+            };
+            const run = () =>
+                f.service.assertActiveExecution(f.execution, {
+                    projectUuid: f.projectUuid,
+                    capabilities: [AgentCapability.ReadDiscover],
+                    recheckOperation,
+                });
+            f.policy.allowedCapabilities = [];
+            await expect(run()).rejects.toMatchObject({
+                refusal: {
+                    reason: AiAccessRefusalReason.AGENT_ACCESS_DISABLED,
+                },
+            });
+            f.policy.allowedCapabilities = [AgentCapability.ReadDiscover];
+            await expect(run()).resolves.toBeDefined();
+        });
+    },
+);

@@ -15,17 +15,6 @@ export interface AgentCapabilityPolicy {
     systemRoleMatrix: AgentSystemRoleMatrix;
 }
 
-export interface AgentCapabilityPolicySave extends Omit<
-    AgentCapabilityPolicy,
-    'version' | 'allowedUserUuids' | 'allowedGroupUuids'
-> {
-    version?: number;
-    allowedUserUuids?: string[] | null;
-    allowedGroupUuids?: string[] | null;
-    organizationUuid: string;
-    updatedByUserUuid: string | null;
-}
-
 export interface AgentCapabilityPolicyOverview extends AgentCapabilityPolicy {
     defaults: AgentSystemRoleMatrix;
     groupsAvailable: boolean;
@@ -45,3 +34,49 @@ export type AgentAccessSelection = Pick<
     AgentCapabilityCeiling,
     'version' | 'allowedProjectUuids' | 'allowedUserUuids'
 >;
+
+export interface AgentCapabilityPolicyState {
+    mode: 'legacy' | 'managed';
+    version: number;
+    allowedCapabilities: AgentCapability[] | null;
+    allowedGroupUuids: string[] | null;
+    systemRoleMatrix: AgentSystemRoleMatrix;
+}
+export interface AgentCapabilityPolicyOverviewState extends AgentCapabilityPolicyState {
+    defaults: AgentSystemRoleMatrix;
+    groupsAvailable: boolean;
+}
+export interface AgentCapabilityCeilingState extends Pick<
+    AgentCapabilityPolicyState,
+    'systemRoleMatrix'
+> {
+    version?: number;
+    mode?: 'legacy' | 'managed';
+    allowedCapabilities?: AgentCapability[] | null;
+    allowedGroupUuids?: string[] | null;
+}
+export interface AgentCapabilityPolicySave extends Omit<
+    AgentCapabilityPolicyState,
+    'version' | 'allowedCapabilities' | 'allowedGroupUuids'
+> {
+    version?: number;
+    allowedCapabilities?: AgentCapability[] | null;
+    allowedGroupUuids?: string[] | null;
+    organizationUuid: string;
+    updatedByUserUuid: string | null;
+}
+export interface ResetPolicyRequest {
+    version?: number;
+}
+export interface AgentPolicyResponseBase {
+    status: 'ok';
+}
+export interface AgentPolicyResponse extends AgentPolicyResponseBase {
+    results: AgentCapabilityPolicyState;
+}
+export interface AgentPolicyOverviewResponse extends Omit<
+    AgentPolicyResponse,
+    'results'
+> {
+    results: AgentCapabilityPolicyOverviewState;
+}

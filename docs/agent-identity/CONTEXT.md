@@ -14,13 +14,16 @@ _Avoid_: AI principal, agent connections, execution identity (in copy)
 
 **Permissions**:
 What agents may do, whoever they run as. The second section of the org
-**Agents** page, with a "Limit what agents can do" switch. The capability
+**Agents** page. The organization capability list limits every role, including
+custom roles. The next page offers Same as the person, Read and query, and
+Custom; the current page uses a temporary API adapter. The capability
 contract is in [agent-permissions.md](./agent-permissions.md).
 _Avoid_: ceiling, managed mode (in copy)
 
 **Who can use agents**:
 The part of **Permissions** that says which people's agents may run:
-"Everyone the roles allow" or "Only these people".
+everyone whose roles allow agents, or members of selected groups. Saved
+people and project lists do not restrict agents.
 _Avoid_: pilot, pilot preset, pilot users
 
 **Activity**:

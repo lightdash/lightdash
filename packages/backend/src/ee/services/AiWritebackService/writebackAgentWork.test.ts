@@ -30,8 +30,7 @@ it.each([
         const policy = {
             mode: 'managed' as const,
             version: 1,
-            allowedProjectUuids: null,
-            allowedUserUuids: null,
+            allowedCapabilities: null,
             allowedGroupUuids: null,
             storedAllowedGroupUuids: null,
             hasExistingAllowedGroup: null,
@@ -67,10 +66,7 @@ it.each([
                     organizationUuid: marker.organizationUuid,
                 }),
             },
-            getOrganizationSettings: vi.fn().mockResolvedValue({
-                mcpAgentsEnabled: true,
-                mcpContentWritesEnabled: true,
-            }),
+
             agentActionLogModel,
         });
         const guard = createWritebackAgentDeliveryGuard(

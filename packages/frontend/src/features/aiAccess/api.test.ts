@@ -1,4 +1,6 @@
 import {
+    AgentCapability,
+    OrganizationMemberRole,
     AthenaAuthenticationType,
     DatabricksAuthenticationType,
     SnowflakeAuthenticationType,
@@ -13,9 +15,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import { act, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi, lightdashApiResponse } from '../../api';
+import useApp from '../../providers/App/useApp';
 import { renderHookWithProviders } from '../../testing/testUtils';
 import {
     aiAccessApi,
+    useAgentCapabilityPolicy,
+    useSaveAgentCapabilityCeiling,
+    useResetAgentCapabilityPolicy,
     useAiServiceAccount,
     useSaveAiServiceAccount,
     useTestAiServiceAccount,
@@ -413,4 +419,83 @@ describe('AI service account save', () => {
             }),
         );
     });
+});
+
+describe('temporary policy view adapter', () => {
+    const matrix = Object.fromEntries(
+        Object.values(OrganizationMemberRole).map((role) => [
+            role,
+            [AgentCapability.Query],
+        ]),
+    );
+    const wire = {
+        mode: 'managed',
+        version: 2,
+        allowedCapabilities: [AgentCapability.Query],
+        allowedGroupUuids: null,
+        systemRoleMatrix: matrix,
+    };
+    beforeEach(() => {
+        vi.clearAllMocks();
+        flagEnabled = true;
+    });
+    it('adapts GET without replacing server defaults or making another request', async () => {
+        vi.mocked(lightdashApi).mockResolvedValue({
+            ...wire,
+            defaults: matrix,
+            groupsAvailable: true,
+        } as never);
+        flagEnabled = false;
+        const { result, rerender } = renderHookWithProviders(() => ({
+            policy: useAgentCapabilityPolicy(),
+            organizationUuid: useApp().user.data?.organizationUuid,
+        }));
+        await waitFor(() =>
+            expect(result.current.organizationUuid).toBeDefined(),
+        );
+        expect(lightdashApi).not.toHaveBeenCalled();
+        flagEnabled = true;
+        rerender();
+        await waitFor(() =>
+            expect(result.current.policy.data).toEqual({
+                ...wire,
+                defaults: matrix,
+                groupsAvailable: true,
+                allowedProjectUuids: null,
+                allowedUserUuids: null,
+            }),
+        );
+        expect(
+            vi
+                .mocked(lightdashApi)
+                .mock.calls.filter(
+                    ([request]) => request.url === '/org/agent-permissions',
+                ),
+        ).toHaveLength(1);
+    });
+    it.each(['save', 'reset'] as const)(
+        'adapts the %s response for the old page',
+        async (action) => {
+            vi.mocked(lightdashApi).mockResolvedValue(wire as never);
+            const onSaved = vi.fn();
+            const { result } = renderHookWithProviders(() => ({
+                save: useSaveAgentCapabilityCeiling(onSaved),
+                reset: useResetAgentCapabilityPolicy(onSaved),
+            }));
+            await act(async () => {
+                if (action === 'save')
+                    await result.current.save.mutateAsync({
+                        version: 1,
+                        systemRoleMatrix: matrix,
+                        allowedProjectUuids: ['old'],
+                    } as never);
+                else await result.current.reset.mutateAsync({ version: 1 });
+            });
+            expect(onSaved).toHaveBeenCalledWith({
+                ...wire,
+                allowedProjectUuids: null,
+                allowedUserUuids: null,
+            });
+        },
+    );
 });

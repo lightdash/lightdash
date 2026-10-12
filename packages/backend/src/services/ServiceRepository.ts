@@ -1072,10 +1072,6 @@ export class ServiceRepository
                         this.models.getAgentCapabilityPolicyModel(),
                     userModel: this.models.getUserModel(),
                     projectModel: this.models.getProjectModel(),
-                    getOrganizationSettings: (organizationUuid) =>
-                        this.models
-                            .getAiOrganizationSettingsModel<AiOrganizationSettingsModel>()
-                            .findByOrganizationUuid(organizationUuid),
                     agentActionLogModel: this.models.getAgentActionLogModel(),
                 }),
         );
