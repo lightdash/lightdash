@@ -1,3 +1,10 @@
+# [2.567.0](https://github.com/lightdash/lightdash/compare/2.566.0...2.567.0) (2026-10-12)
+
+
+### Features
+
+* **agent-identity:** show the Identity card as one row of warehouse chips ([#30919](https://github.com/lightdash/lightdash/issues/30919)) ([3d3dab9](https://github.com/lightdash/lightdash/commit/3d3dab9ed2c85abb4881aef5841f57bdce4cea49))
+
 # [2.566.0](https://github.com/lightdash/lightdash/compare/2.565.3...2.566.0) (2026-10-12)
 
 

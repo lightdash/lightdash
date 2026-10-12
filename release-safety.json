@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.566.0",
-  "previousVersion": "2.565.3",
-  "releaseDate": "2026-10-12T12:03:05.998Z",
+  "version": "2.567.0",
+  "previousVersion": "2.566.0",
+  "releaseDate": "2026-10-12T13:06:48.602Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261011000005_add_agent_policy_allowed_capabilities.ts",
-        "edition": "core",
-        "tables": [
-          "organization_agent_capability_policies"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -30,21 +17,11 @@
   "api": {
     "rest": {
       "checked": true,
-      "breaking": true,
-      "changes": [
-        "GET /api/v2/org/agent-permissions — removed the required property `results/allowedProjectUuids` from the response with the `200` status",
-        "GET /api/v2/org/agent-permissions — removed the required property `results/allowedUserUuids` from the response with the `200` status",
-        "PUT /api/v2/org/agent-permissions — removed the required property `results/allowedProjectUuids` from the response with the `200` status",
-        "PUT /api/v2/org/agent-permissions — removed the required property `results/allowedUserUuids` from the response with the `200` status",
-        "POST /api/v2/org/agent-permissions/reset — removed the required property `results/allowedProjectUuids` from the response with the `200` status",
-        "POST /api/v2/org/agent-permissions/reset — removed the required property `results/allowedUserUuids` from the response with the `200` status"
-      ],
-      "breakingCount": 6,
-      "advisories": [
-        "PUT /api/v2/org/agent-permissions — removed the request property `allowedProjectUuids`",
-        "PUT /api/v2/org/agent-permissions — removed the request property `allowedUserUuids`"
-      ],
-      "advisoryCount": 2
+      "breaking": false,
+      "changes": [],
+      "breakingCount": 0,
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,
@@ -65,23 +42,5 @@
     "requiredStops": []
   },
   "declaredBreaks": [],
-  "declaredAdvisories": [
-    {
-      "id": "spk-2738-agent-permissions-capability-list-and-group-only-api",
-      "reason": "Only the organization Agents settings page calls these operations. An old browser tab can still save the old shape; its people and project choices are dropped. GET, PUT and reset no longer return those choices. The agent-identity flag is off by default on Cloud and on self-hosted instances. With the flag off nothing changes. With the flag on and limits off no request gets a different answer. With the flag on and limits on, access widens in four ways, and each matches the flag-off behaviour. First, Enable agents over MCP off no longer refuses agents in the app, Slack, the OAuth API or the CLI connection. Second, it no longer refuses generic MCP tools, skill tools and skill resources, or the warehouse connect and status calls; choosing or using a configured agent over MCP is still refused. Third, Allow content changes via MCP off no longer refuses data app generate and iterate over MCP, or content writes on the other surfaces; the MCP create content, edit content and scheduled delivery tools stay hidden. Fourth, a saved people list or project list no longer refuses anyone. To restrict agents, use Who can use agents or untick capabilities. Unticking every capability turns agents off.",
-      "requiredStop": false,
-      "impact": {
-        "kind": "no-external-callers",
-        "firstPartyOnly": "The organization Agents settings page is the only client of these policy operations. Old tabs can save and refresh. Their people and project choices no longer apply.",
-        "covers": {
-          "rest": [
-            "GET /api/v2/org/agent-permissions",
-            "PUT /api/v2/org/agent-permissions",
-            "POST /api/v2/org/agent-permissions/reset"
-          ],
-          "mcp": []
-        }
-      }
-    }
-  ]
+  "declaredAdvisories": []
 }
