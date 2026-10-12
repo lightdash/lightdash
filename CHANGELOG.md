@@ -1,3 +1,10 @@
+## [2.571.2](https://github.com/lightdash/lightdash/compare/2.571.1...2.571.2) (2026-10-12)
+
+
+### Bug Fixes
+
+* **agent-identity:** allow a person's stored result when their attribute values change order ([#30931](https://github.com/lightdash/lightdash/issues/30931)) ([4cfb990](https://github.com/lightdash/lightdash/commit/4cfb990ea2e37a12be859254304e707a8aa7b06b))
+
 ## [2.571.1](https://github.com/lightdash/lightdash/compare/2.571.0...2.571.1) (2026-10-12)
 
 
