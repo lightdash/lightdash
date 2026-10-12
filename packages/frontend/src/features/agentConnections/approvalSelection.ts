@@ -57,10 +57,14 @@ export const approvalDuration = (seconds: number) => {
         .join(', ');
 };
 
+// The server sends a notice while approving only records a decision.
+export const warehouseStepOutcome = (notice: string | null) =>
+    notice ? 'No connection was created.' : 'Your connection is saved.';
+
 export const warehouseStepMessage = (notice: string | null) =>
     notice
-        ? 'No connection was created. You can still set up warehouse sign-ins for later.'
-        : 'Your connection is saved. Sign in to run queries on these warehouses.';
+        ? 'You can still set up warehouse sign-ins for later.'
+        : 'Sign in to run queries on these warehouses.';
 
 export const warehouseStepCopy = {
     heading: 'Connect your warehouses',

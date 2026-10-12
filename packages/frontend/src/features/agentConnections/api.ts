@@ -28,7 +28,7 @@ const loadStatus = (grantUuid: string, signal: AbortSignal | undefined) =>
 export const useAgentConnections = (
     options: Pick<
         UseQueryOptions<AgentConnectionRecord[], ApiError>,
-        'enabled' | 'refetchOnMount'
+        'enabled' | 'refetchOnMount' | 'retryOnMount'
     > = {},
 ) =>
     useQuery<AgentConnectionRecord[], ApiError>({

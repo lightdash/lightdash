@@ -300,7 +300,10 @@ const ConnectionRow = ({
 };
 
 export const AgentConnectionsTable = () => {
-    const query = useAgentConnections({ refetchOnMount: false });
+    const query = useAgentConnections({
+        refetchOnMount: false,
+        retryOnMount: false,
+    });
     if (query.isError)
         return (
             <InlineErrorState

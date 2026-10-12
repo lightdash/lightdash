@@ -97,6 +97,7 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
         submitting.current = true;
         setPending(true);
         setFailure(null);
+        setReviewMessage(null);
         const popup = openCompletionTab();
         try {
             const result = await lightdashApi<

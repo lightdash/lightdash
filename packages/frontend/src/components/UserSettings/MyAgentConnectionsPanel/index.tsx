@@ -13,7 +13,7 @@ export const MyAgentConnectionsPanel = () => {
     const connections = useAgentConnections({
         enabled: flag.data?.enabled === true,
     });
-    if (!connections.data?.length)
+    if (!connections.isError && !connections.data?.length)
         return <WarehouseAgentSignInsPanel standalone />;
     const activeTab =
         params.get('tab') === 'warehouses' ? 'warehouses' : 'connections';

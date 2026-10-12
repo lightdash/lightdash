@@ -67,7 +67,7 @@ describe('agent identity without connections', () => {
             );
         },
     );
-    it('keeps the main panel while the list loads or fails', async () => {
+    it('keeps the main panel while the list loads and shows the list error with a retry when it fails', async () => {
         let reject!: (error: unknown) => void;
         api.mockImplementationOnce(
             () =>
@@ -82,10 +82,12 @@ describe('agent identity without connections', () => {
             reject({ error: { message: 'Connection list failed.' } }),
         );
         await waitFor(() => expect(client.isFetching()).toBe(0));
-        expect(normalizeDom(container)).toBe(baseline.dom);
         expect(
-            screen.queryByText('Connection list failed.'),
-        ).not.toBeInTheDocument();
+            await screen.findByRole('tab', { name: 'Agent connections' }),
+        ).toHaveAttribute('aria-selected', 'true');
+        expect(screen.getByText('Connection list failed.')).toBeVisible();
+        expect(api).toHaveBeenCalledOnce();
+        expect(screen.getByRole('button', { name: /retry/i })).toBeVisible();
     });
     it.each(['active', 'expired', 'revoked'])(
         'reveals tabs for a %s row without fetching the list again',

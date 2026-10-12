@@ -2,7 +2,7 @@ import { type AgentConnectionApprovalProject } from '@lightdash/common';
 import { Button, Stack, Text, Title } from '@mantine/core';
 import { useEffect, useRef, useState } from 'react';
 import { AgentConnectionApprovalWarehouseStep } from './AgentConnectionApprovalWarehouseStep';
-import { warehouseStepCopy } from './approvalSelection';
+import { warehouseStepCopy, warehouseStepOutcome } from './approvalSelection';
 import { openCompletionTab, navigateCompletionTab } from './completionDelivery';
 
 export type ApprovalCompletionState = {
@@ -41,9 +41,11 @@ export const ApprovalCompletion = ({
                     ? warehouseStepCopy.heading
                     : warehouseStepCopy.cancelledHeading}
             </Title>
-            {completion.decision === 'deny' && (
-                <Text>{warehouseStepCopy.cancelledMessage}</Text>
-            )}
+            <Text>
+                {completion.decision === 'approve'
+                    ? warehouseStepOutcome(completion.notice)
+                    : warehouseStepCopy.cancelledMessage}
+            </Text>
             {attempted ? (
                 <Text size="sm" c="dimmed">
                     {warehouseStepCopy.nextStep}

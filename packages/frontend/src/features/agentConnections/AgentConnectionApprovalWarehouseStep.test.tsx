@@ -72,7 +72,8 @@ let access = ready();
 let multi = false;
 let enumerationError = false;
 let accessError = false;
-const renderStep = (projects = [project]) =>
+const reviewOnly = 'Review only. No connection will be created.';
+const renderStep = (projects = [project], notice: string | null = reviewOnly) =>
     renderWithProviders(
         <MemoryRouter>
             <ApprovalCompletion
@@ -81,7 +82,7 @@ const renderStep = (projects = [project]) =>
                     completionUrl: 'http://localhost/completion',
                     attempted: true,
                     projects,
-                    notice: null,
+                    notice,
                 }}
             />
         </MemoryRouter>,
@@ -277,6 +278,12 @@ describe('approval warehouse setup', () => {
                 expect(
                     screen.queryByText(/Your connection is saved/),
                 ).not.toBeInTheDocument();
+                expect(
+                    screen.getByText('No connection was created.'),
+                ).toBeVisible();
+                expect(
+                    screen.queryByText(/set up warehouse sign-ins for later/),
+                ).not.toBeInTheDocument();
                 expect(api).toHaveBeenCalledTimes(multiple ? 4 : 3);
             } finally {
                 observer.disconnect();
@@ -315,6 +322,12 @@ describe('approval warehouse setup', () => {
             expect(screen.getByText('Expired')).toBeVisible();
         fireEvent.click(button);
         expect(login.mutate).toHaveBeenCalledOnce();
+        expect(screen.getByText('No connection was created.')).toBeVisible();
+        expect(
+            screen.getByText(
+                'You can still set up warehouse sign-ins for later.',
+            ),
+        ).toBeVisible();
         expect(
             screen.getByRole('link', { name: 'Do this later' }),
         ).toHaveAttribute(
@@ -395,4 +408,19 @@ describe('approval warehouse setup', () => {
             screen.queryByRole('button', { name: 'Sign in' }),
         ).not.toBeInTheDocument();
     });
+});
+
+it('says the connection is saved only when the server sent no review-only notice', async () => {
+    access = refused(
+        AiAccessRefusalReason.NEEDS_SIGN_IN,
+        AiAccessRefusalAction.SIGN_IN,
+    );
+    renderStep([project], null);
+    expect(await screen.findByText('Your connection is saved.')).toBeVisible();
+    expect(
+        await screen.findByText('Sign in to run queries on these warehouses.'),
+    ).toBeVisible();
+    expect(
+        screen.queryByText('No connection was created.'),
+    ).not.toBeInTheDocument();
 });
