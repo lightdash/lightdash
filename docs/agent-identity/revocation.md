@@ -91,11 +91,10 @@ Limits to know:
 - An admin cannot revoke another person's grant. There is no endpoint.
 - `/oauth/revoke` answers `200` also when the database call fails. A `200`
   alone does not prove that the token is gone.
-- An access token that is revoked on its own gets an expiry of "now" on the
-  database clock, and the API pod compares it with its own clock. Until the
-  pod's clock passes that time the token still works. With the clocks in step
-  that is the same millisecond; a pod whose clock is behind accepts the token
-  for longer.
+- A grant-bound access token that is revoked on its own gets an expiry of
+  1970-01-01 UTC, or keeps its expiry if it is earlier. The next authentication
+  check refuses it without waiting for the API clock to catch up with the
+  database clock. The row, grant and refresh token are kept.
 - Deactivating a person does not revoke the person's grants. They are
   refused while the person is inactive. If the person is reactivated before
   a grant expires, that grant works again.
