@@ -1,3 +1,10 @@
+# [2.570.0](https://github.com/lightdash/lightdash/compare/2.569.0...2.570.0) (2026-10-12)
+
+
+### Features
+
+* **agent-identity:** approval page, warehouse step and agent connections list ([#30923](https://github.com/lightdash/lightdash/issues/30923)) ([321cfeb](https://github.com/lightdash/lightdash/commit/321cfeb5cc51844a2617e3df6c86287dd04fd208))
+
 # [2.569.0](https://github.com/lightdash/lightdash/compare/2.568.3...2.569.0) (2026-10-12)
 
 
