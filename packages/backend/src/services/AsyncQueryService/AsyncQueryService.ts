@@ -394,6 +394,7 @@ import {
     type PreAggregateStrategy,
     type PreAggregationRoutingDecision,
 } from './PreAggregateStrategy';
+import { PythonInputReader } from './python/PythonInputReader';
 import {
     parsePythonResultMeta,
     pythonResultToColumns,
@@ -10630,19 +10631,6 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    /** Reads a referenced result file whole; python inputs are bounded by the node limits. */
-    private static async readStreamToBuffer(
-        stream: NodeJS.ReadableStream,
-    ): Promise<Buffer> {
-        const chunks: Buffer[] = [];
-        for await (const chunk of stream) {
-            chunks.push(
-                typeof chunk === 'string' ? Buffer.from(chunk, 'utf8') : chunk,
-            );
-        }
-        return Buffer.concat(chunks);
-    }
-
     /**
      * The background phase of a python query: wait for the referenced
      * results, push their files into a sandbox, run the harness, re-validate
@@ -10703,6 +10691,7 @@ export class AsyncQueryService extends ProjectService {
                         params: {},
                         limit,
                     };
+                    const inputReader = new PythonInputReader();
                     const inputs = await traceSpan(
                         {
                             op: 'python.query.read_inputs',
@@ -10752,13 +10741,16 @@ export class AsyncQueryService extends ProjectService {
                                             );
                                         return {
                                             name,
-                                            jsonl: await AsyncQueryService.readStreamToBuffer(
+                                            jsonl: await inputReader.read(
                                                 stream,
                                             ),
                                         };
                                     },
                                 ),
-                            ),
+                            ).catch((error: unknown) => {
+                                inputReader.abort(error);
+                                throw error;
+                            }),
                     );
 
                     const run = await this.getPythonSandboxRunner().run({

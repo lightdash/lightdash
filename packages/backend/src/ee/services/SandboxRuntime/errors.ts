@@ -24,6 +24,14 @@ export class SandboxTimeoutError extends Error {
     }
 }
 
+/** Thrown while receiving data, before an oversized response is buffered. */
+export class SandboxOutputLimitError extends Error {
+    constructor(readonly maxBytes: number) {
+        super(`Sandbox output exceeds ${maxBytes} bytes`);
+        this.name = 'SandboxOutputLimitError';
+    }
+}
+
 /** Thrown when communication with the sandbox fails at the transport level. */
 export class SandboxConnectionError extends Error {
     constructor(message = 'Lost connection to the sandbox') {

@@ -4,6 +4,7 @@ import {
     createSandboxProvider,
     S3SnapshotStore,
     SandboxCommandError,
+    SandboxOutputLimitError,
     SandboxTimeoutError,
     type SandboxHandle,
     type SandboxLogger,
@@ -15,6 +16,7 @@ import {
     PYTHON_INPUT_DIR,
     PYTHON_INPUT_META_PATH,
     PYTHON_MAIN_PATH,
+    PYTHON_MAX_RESULT_BYTES,
     PYTHON_OUTPUT_DIR,
     PYTHON_OUTPUT_META_PATH,
     PYTHON_OUTPUT_RESULT_PATH,
@@ -53,6 +55,8 @@ export class PythonExecutionError extends Error {
 
 const COMPILE_TIMEOUT_MS = 30_000;
 const SANDBOX_IDLE_MARGIN_MS = 60_000;
+const MAX_LOG_BYTES = 1024 * 1024;
+const MAX_META_BYTES = 1024 * 1024;
 
 /**
  * Runs one python query in a fresh sandbox: create, compile, feed inputs,
@@ -188,11 +192,20 @@ export class PythonSandboxRunner {
                 },
                 () =>
                     Promise.all([
-                        handle.files.readBytes(PYTHON_OUTPUT_RESULT_PATH),
-                        handle.files.read(PYTHON_OUTPUT_META_PATH),
+                        handle.files.readBytes(PYTHON_OUTPUT_RESULT_PATH, {
+                            maxBytes: PYTHON_MAX_RESULT_BYTES,
+                        }),
+                        handle.files.read(PYTHON_OUTPUT_META_PATH, {
+                            maxBytes: MAX_META_BYTES,
+                        }),
                     ]),
             );
             return { resultJsonl, resultMeta, stdout };
+        } catch (error) {
+            if (error instanceof SandboxOutputLimitError) {
+                throw new PythonExecutionError(error.message);
+            }
+            throw error;
         } finally {
             await traceSpan(
                 {
@@ -225,7 +238,10 @@ export class PythonSandboxRunner {
         try {
             await handle.commands.run(
                 `python3 -I -m py_compile ${PYTHON_MAIN_PATH}`,
-                { timeoutMs: COMPILE_TIMEOUT_MS },
+                {
+                    timeoutMs: COMPILE_TIMEOUT_MS,
+                    maxOutputBytes: MAX_LOG_BYTES,
+                },
             );
         } catch (e) {
             if (e instanceof SandboxCommandError) {
@@ -244,6 +260,7 @@ export class PythonSandboxRunner {
     ): Promise<void> {
         await handle.commands.run(
             `mkdir -p ${PYTHON_INPUT_DIR} ${PYTHON_OUTPUT_DIR}`,
+            { maxOutputBytes: MAX_LOG_BYTES },
         );
         await Promise.all(
             inputs.map((input) =>
@@ -266,7 +283,7 @@ export class PythonSandboxRunner {
         try {
             const result = await handle.commands.run(
                 `cd ${PYTHON_OUTPUT_DIR}/.. && python3 -I ${PYTHON_RUNNER_PATH}`,
-                { timeoutMs },
+                { timeoutMs, maxOutputBytes: MAX_LOG_BYTES },
             );
             return result.stdout;
         } catch (e) {
