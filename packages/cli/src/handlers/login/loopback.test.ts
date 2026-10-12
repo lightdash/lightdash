@@ -2,6 +2,110 @@ import { createServer, Server } from 'http';
 import fetch from 'node-fetch';
 import { createConnectionLoopback } from './loopback';
 
+it.each([
+    ['agent_connections_unavailable', 'agent_connections_unavailable'],
+    ['agent_identity_disabled', 'agent_identity_disabled'],
+    ['access_denied', null],
+    ['unknown-personal-key\u001b[31m$(whoami)', null],
+])(
+    'preserves only recognised denial code %s and rejects replay',
+    async (error, code) => {
+        const listener = await createConnectionLoopback({
+            port: 0,
+            state: 'state',
+            issuer: 'https://example.com',
+            signal: new AbortController().signal,
+        });
+        try {
+            const url = new URL(listener.redirectUri);
+            url.search = new URLSearchParams({
+                state: 'state',
+                iss: 'https://example.com',
+                error: error!,
+                error_description: 'personal-key',
+            }).toString();
+            expect((await fetch(url)).status).toBe(200);
+            await expect(listener.result).rejects.toMatchObject({
+                code,
+                message:
+                    'Agent connection approval was denied. No credential was saved.',
+            });
+            expect((await fetch(url)).status).toBe(400);
+        } finally {
+            await listener.close();
+        }
+        await expect(fetch(listener.redirectUri)).rejects.toThrow();
+    },
+);
+it.each([
+    'path',
+    'method',
+    'missing-state',
+    'missing-iss',
+    'wrong-state',
+    'wrong-iss',
+    'duplicate-state',
+    'duplicate-iss',
+    'duplicate-error',
+    'duplicate-description',
+    'conflicting-code',
+])('does not consume a known denial with %s', async (variant) => {
+    const listener = await createConnectionLoopback({
+        port: 0,
+        state: 'state',
+        issuer: 'https://example.com',
+        signal: new AbortController().signal,
+    });
+    let settled = false;
+    void listener.result.then(
+        () => {
+            settled = true;
+        },
+        () => {
+            settled = true;
+        },
+    );
+    try {
+        const valid = new URL(listener.redirectUri);
+        valid.search = new URLSearchParams({
+            state: 'state',
+            iss: 'https://example.com',
+            error: 'agent_connections_unavailable',
+        }).toString();
+        const invalid = new URL(valid);
+        if (variant === 'path') invalid.pathname = '/callback/extra';
+        if (variant.startsWith('missing-'))
+            invalid.searchParams.delete(variant.slice(8));
+        if (variant.startsWith('wrong-'))
+            invalid.searchParams.set(variant.slice(6), 'wrong');
+        if (variant.startsWith('duplicate-')) {
+            const field =
+                variant === 'duplicate-description'
+                    ? 'error_description'
+                    : variant.slice(10);
+            invalid.searchParams.append(field, 'repeated');
+            invalid.searchParams.append(field, 'repeated');
+        }
+        if (variant === 'conflicting-code')
+            invalid.searchParams.set('code', 'code');
+        expect(
+            (
+                await fetch(invalid, {
+                    method: variant === 'method' ? 'POST' : 'GET',
+                })
+            ).status,
+        ).toBe(400);
+        expect(settled).toBe(false);
+        expect((await fetch(valid)).status).toBe(200);
+        await expect(listener.result).rejects.toMatchObject({
+            code: 'agent_connections_unavailable',
+        });
+    } finally {
+        await listener.close();
+    }
+    await expect(fetch(listener.redirectUri)).rejects.toThrow();
+});
+
 it('binds only loopback, accepts the first callback and rejects replay', async () => {
     const listen = vi.spyOn(Server.prototype, 'listen');
     const abort = new AbortController();

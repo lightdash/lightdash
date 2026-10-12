@@ -54,6 +54,9 @@ const projectUuid = '44444444-4444-4444-8444-444444444444';
 const oldExitCode = process.exitCode;
 const configBytes = 'personal config bytes must never change\n';
 const unavailable = 'Agent connections are not available on this server yet.';
+const disabled =
+    'Agent connections are disabled on this server. Ask an administrator to enable agent identity.';
+const denied = 'Agent connection approval was denied. No credential was saved.';
 const failed =
     'Could not start agent connection approval. No credential was saved. Try again when the server is available.';
 const unchanged =
@@ -654,6 +657,155 @@ it('checks state on denial and accepts only a valid denial', async () => {
     await noSave();
     await closed();
 });
+it.each([
+    {
+        label: 'unavailable',
+        error: 'agent_connections_unavailable',
+        message: unavailable,
+    },
+    { label: 'disabled', error: 'agent_identity_disabled', message: disabled },
+    { label: 'cancel', error: 'access_denied', message: denied },
+    { label: 'unknown', error: 'unknown_error', message: denied },
+    {
+        label: 'shell metacharacters',
+        error: '$(whoami); `id` | >&2',
+        message: denied,
+    },
+    {
+        label: 'ANSI escapes',
+        error: '\u001b[31mhostile\u001b[0m',
+        message: denied,
+    },
+    { label: 'long value', error: 'x'.repeat(10_000), message: denied },
+    {
+        label: 'personal key',
+        error: 'prefix-personal-key-suffix',
+        message: denied,
+    },
+    {
+        label: 'repeated code in one value',
+        error: 'agent_connections_unavailable,agent_connections_unavailable',
+        message: denied,
+    },
+])(
+    'reports only fixed callback text for $label',
+    async ({ error, message }) => {
+        const save = vi.spyOn(AgentConnectionStore.prototype, 'saveSlot');
+        const write = vi.spyOn(fs, 'writeFile');
+        const rename = vi.spyOn(fs, 'rename');
+        let callbackStatus: number | undefined;
+        launcher.mockImplementation(async () => {
+            const url = callback();
+            url.searchParams.delete('code');
+            url.searchParams.set('error', error);
+            url.searchParams.set(
+                'error_description',
+                'personal-key\u001b[31m$(whoami)',
+            );
+            callbackStatus = (await fetch(url)).status;
+            return true;
+        });
+        await run();
+        expect(callbackStatus).toBe(200);
+        expect(process.exitCode).toBe(1);
+        expect(vi.mocked(console.error).mock.calls).toEqual([
+            [
+                `Open this page to approve the agent connection:\n${instance}/api/v1/oauth/authorize?approval_request=test`,
+            ],
+            ['Waiting for browser approval and warehouse setup...'],
+            [message],
+            [unchanged],
+            [
+                `Manage warehouse agent sign-ins in the app:\n${instance}/generalSettings/myAgentConnections`,
+            ],
+        ]);
+        expect(calls.map((call) => [call.method, call.url])).toEqual([
+            ['GET', '/lightdash/api/v1/user'],
+            ['POST', '/lightdash/api/v2/user/agent-connections/requests'],
+        ]);
+        expect(save).not.toHaveBeenCalled();
+        expect(write).not.toHaveBeenCalled();
+        expect(rename).not.toHaveBeenCalled();
+        expect(getConfig).toHaveBeenCalledWith({ readOnly: true });
+        await noSave();
+        await closed();
+    },
+);
+it.each([
+    ['agent_connections_unavailable', unavailable],
+    ['agent_identity_disabled', disabled],
+])(
+    'reuses the POST output for callback code %s, including a screened settings link',
+    async (error, message) => {
+        vi.mocked(getConfig).mockResolvedValue({
+            context: { serverUrl: instance, apiKey: 'generalSettings' },
+        });
+        requestCode = 403;
+        requestReply = { error: { code: error } };
+        await run();
+        const postOutput = output();
+        expect(postOutput).toBe(
+            `${message}\n${unchanged}\nManage warehouse agent sign-ins in the app:\nName unavailable`,
+        );
+        expect(process.exitCode).toBe(1);
+        await noSave();
+        await closed();
+        vi.mocked(console.error).mockClear();
+        requestCode = 200;
+        requestReply = null;
+        launcher.mockImplementation(async () => {
+            const url = callback();
+            url.searchParams.delete('code');
+            url.searchParams.set('error', error);
+            await fetch(url);
+            return true;
+        });
+        await run();
+        expect(
+            vi.mocked(console.error).mock.calls.slice(2).flat().join('\n'),
+        ).toBe(postOutput);
+        expect(process.exitCode).toBe(1);
+        expect(calls).toHaveLength(4);
+        await noSave();
+        await closed();
+    },
+);
+it.each([
+    ['agent_connections_unavailable', 'state'],
+    ['agent_connections_unavailable', 'iss'],
+    ['agent_identity_disabled', 'state'],
+    ['agent_identity_disabled', 'iss'],
+])(
+    'ignores callback %s with wrong %s until a valid denial',
+    async (error, field) => {
+        const responses: number[] = [];
+        launcher.mockImplementation(async () => {
+            const url = callback();
+            url.searchParams.delete('code');
+            url.searchParams.set('error', error);
+            const original = url.searchParams.get(field)!;
+            url.searchParams.set(field, 'wrong');
+            responses.push((await fetch(url)).status);
+            url.searchParams.set(field, original);
+            url.searchParams.set('error', 'access_denied');
+            responses.push((await fetch(url)).status);
+            return true;
+        });
+        await run();
+        expect(responses).toEqual([400, 200]);
+        expect(process.exitCode).toBe(1);
+        expect(vi.mocked(console.error).mock.calls.slice(2)).toEqual([
+            [denied],
+            [unchanged],
+            [
+                `Manage warehouse agent sign-ins in the app:\n${instance}/generalSettings/myAgentConnections`,
+            ],
+        ]);
+        expect(calls).toHaveLength(2);
+        await noSave();
+        await closed();
+    },
+);
 it.each([
     'path',
     'method',

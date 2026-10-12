@@ -32,7 +32,10 @@ import { getConfig } from '../config';
 import { refuseAgentConnection } from '../credentials';
 import GlobalState from '../globalState';
 import { openConnectionBrowser } from './login/connectionBrowser';
-import { createConnectionLoopback } from './login/loopback';
+import {
+    ConnectionCallbackError,
+    createConnectionLoopback,
+} from './login/loopback';
 
 const couldNotStart =
     'Could not start agent connection approval. No credential was saved. Try again when the server is available.';
@@ -41,6 +44,19 @@ const existingConnection =
 const unchanged =
     'No agent connection credential was saved. Your personal CLI login is unchanged.';
 class ApprovalStartError extends Error {}
+const approvalAvailabilityError = (
+    code: unknown,
+): ApprovalStartError | null => {
+    if (code === 'agent_connections_unavailable')
+        return new ApprovalStartError(
+            'Agent connections are not available on this server yet.',
+        );
+    if (code === 'agent_identity_disabled')
+        return new ApprovalStartError(
+            'Agent connections are disabled on this server. Ask an administrator to enable agent identity.',
+        );
+    return null;
+};
 const requestResults = async (
     response: Response,
 ): Promise<Record<string, unknown>> => {
@@ -64,14 +80,8 @@ const requestResults = async (
             typeof envelope.error === 'object' && envelope.error !== null
                 ? responseRecord(envelope.error)
                 : {};
-        if (error.code === 'agent_connections_unavailable')
-            throw new ApprovalStartError(
-                'Agent connections are not available on this server yet.',
-            );
-        if (error.code === 'agent_identity_disabled')
-            throw new ApprovalStartError(
-                'Agent connections are disabled on this server. Ask an administrator to enable agent identity.',
-            );
+        const availabilityError = approvalAvailabilityError(error.code);
+        if (availabilityError !== null) throw availabilityError;
         if (response.status === 403)
             throw new ApprovalStartError(
                 'The server refused agent connection approval. Check your permissions with an administrator.',
@@ -458,7 +468,12 @@ export const agentConnectionConnectHandler = async (
             return;
         }
         let message = couldNotStart;
-        if (
+        const availabilityError =
+            error instanceof ConnectionCallbackError
+                ? approvalAvailabilityError(error.code)
+                : null;
+        if (availabilityError !== null) message = availabilityError.message;
+        else if (
             error instanceof ApprovalStartError ||
             error instanceof PersonalRecoveryError ||
             error instanceof ConnectionProofError
