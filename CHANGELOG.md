@@ -1,3 +1,10 @@
+## [2.568.3](https://github.com/lightdash/lightdash/compare/2.568.2...2.568.3) (2026-10-12)
+
+
+### Bug Fixes
+
+* keep catalog analytics limited to current chart and dashboard versions ([#30925](https://github.com/lightdash/lightdash/issues/30925)) ([8cfa579](https://github.com/lightdash/lightdash/commit/8cfa5793948ac74571698bff9927d8c3a9c2d9d7))
+
 ## [2.568.2](https://github.com/lightdash/lightdash/compare/2.568.1...2.568.2) (2026-10-12)
 
 
