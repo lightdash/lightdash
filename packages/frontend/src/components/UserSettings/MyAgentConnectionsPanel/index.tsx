@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router';
 import { AgentConnectionsTable } from '../../../features/agentConnections/AgentConnectionsTable';
 import { useAgentConnections } from '../../../features/agentConnections/api';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import InlineErrorState from '../../common/InlineErrorState';
 import { SettingsPage } from '../../common/Settings/SettingsPage';
 import { WarehouseAgentSignInsPanel } from './WarehouseAgentSignInsPanel';
 
@@ -19,6 +20,12 @@ export const MyAgentConnectionsPanel = () => {
         params.get('tab') === 'warehouses' ? 'warehouses' : 'connections';
     return (
         <SettingsPage title="My agent identity">
+            {connections.isError && (
+                <InlineErrorState
+                    message={connections.error.error.message}
+                    onRetry={() => void connections.refetch()}
+                />
+            )}
             <Tabs
                 value={activeTab}
                 onChange={(tab) =>
@@ -36,7 +43,7 @@ export const MyAgentConnectionsPanel = () => {
                     <Tabs.Tab value="warehouses">Warehouse sign-ins</Tabs.Tab>
                 </Tabs.List>
                 <Tabs.Panel value="connections" pt="lg">
-                    <AgentConnectionsTable />
+                    {!connections.isError && <AgentConnectionsTable />}
                 </Tabs.Panel>
                 <Tabs.Panel value="warehouses" pt="lg">
                     <WarehouseAgentSignInsPanel />

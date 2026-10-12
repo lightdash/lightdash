@@ -19,7 +19,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { v4 as uuid, validate as isUuid } from 'uuid';
 import { lightdashApi } from '../../api';
@@ -74,6 +74,17 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
     const [reviewMessage, setReviewMessage] = useState<string | null>(null);
     const [pending, setPending] = useState(false);
     const submitting = useRef(false);
+    const mounted = useRef(false);
+    const loginTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+        undefined,
+    );
+    useEffect(() => {
+        mounted.current = true;
+        return () => {
+            mounted.current = false;
+            clearTimeout(loginTimer.current);
+        };
+    }, []);
     const [completion, setCompletion] =
         useState<ApprovalCompletionState | null>(null);
     const review = reviewQuery.data;
@@ -132,21 +143,22 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
             });
         } catch (caught) {
             popup?.close();
+            if (!mounted.current) return;
             const apiError = caught as ApprovalError;
             const details =
                 apiError.error as AgentConnectionApprovalErrorResponse['error'];
             if (apiError.error.statusCode === 401) {
-                let timer: ReturnType<typeof setTimeout> | undefined;
                 try {
                     await Promise.race([
                         client.invalidateQueries(['health']),
                         new Promise<void>((resolve) => {
-                            timer = setTimeout(resolve, 5000);
+                            loginTimer.current = setTimeout(resolve, 5000);
                         }),
                     ]);
                 } finally {
-                    clearTimeout(timer);
-                    await navigate('/login', { state: { from: location } });
+                    clearTimeout(loginTimer.current);
+                    if (mounted.current)
+                        await navigate('/login', { state: { from: location } });
                 }
             } else if (
                 details.code === 'approval_selection_changed' ||
@@ -164,7 +176,7 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
             } else setFailure(apiError);
         } finally {
             submitting.current = false;
-            setPending(false);
+            if (mounted.current) setPending(false);
         }
     };
     if (completion) return <ApprovalCompletion completion={completion} />;
