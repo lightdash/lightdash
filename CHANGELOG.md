@@ -1,3 +1,10 @@
+## [2.565.3](https://github.com/lightdash/lightdash/compare/2.565.2...2.565.3) (2026-10-12)
+
+
+### Bug Fixes
+
+* **ai-agent:** tell Slack agents the chart card carries the explore link ([#30917](https://github.com/lightdash/lightdash/issues/30917)) ([0a5cb71](https://github.com/lightdash/lightdash/commit/0a5cb71c648e41eed13b3524683eed7af2ea0858))
+
 ## [2.565.2](https://github.com/lightdash/lightdash/compare/2.565.1...2.565.2) (2026-10-12)
 
 
