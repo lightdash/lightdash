@@ -17,17 +17,19 @@ type CssVariables = CSSProperties & Record<`--${string}`, string | number>;
 
 interface TableScrollableWrapperProps extends ComponentPropsWithoutRef<'div'> {
     $isDashboard?: boolean;
+    $flush?: boolean;
 }
 
 export const TableScrollableWrapper = forwardRef<
     HTMLDivElement,
     TableScrollableWrapperProps
->(({ $isDashboard, className, ...props }, ref) => (
+>(({ $isDashboard, $flush, className, ...props }, ref) => (
     <div
         ref={ref}
         className={[
             classes.tableScrollableWrapper,
             $isDashboard ? classes.dashboard : undefined,
+            $flush ? classes.flush : undefined,
             className,
         ]
             .filter(Boolean)

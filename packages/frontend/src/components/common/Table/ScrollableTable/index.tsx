@@ -10,6 +10,7 @@ interface ScrollableTableProps {
     showSubtotals?: boolean;
     showRowGrouping?: boolean;
     isDashboard?: boolean;
+    flush?: boolean;
 }
 
 const ScrollableTable: FC<ScrollableTableProps> = ({
@@ -17,6 +18,7 @@ const ScrollableTable: FC<ScrollableTableProps> = ({
     showSubtotals = true,
     showRowGrouping = false,
     isDashboard = false,
+    flush = false,
 }) => {
     const { footer } = useTableContext();
     const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -25,6 +27,7 @@ const ScrollableTable: FC<ScrollableTableProps> = ({
         <TableScrollableWrapper
             ref={tableContainerRef}
             $isDashboard={isDashboard}
+            $flush={flush}
         >
             <Table $showFooter={!!footer?.show}>
                 <TableHeader minimal={minimal} showSubtotals={showSubtotals} />

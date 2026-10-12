@@ -487,10 +487,11 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         return <EmptyStateNoTableData description={description} />;
     }, [dimensions.length, metrics.length]);
 
+    // Rows load as the pane scrolls, so there is no page control
     const pagination = useMemo(
         () => ({
-            show: true,
-            showResultsTotal: true,
+            show: false,
+            showResultsTotal: false,
         }),
         [],
     );
@@ -577,8 +578,6 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
             <Box
-                px="xs"
-                py="xs"
                 className={classes.container}
                 data-testid="results-table-container"
                 // Walkthrough result marker for manage:Explore: the rows a
@@ -621,6 +620,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
                         footer={footer}
                         showSubtotals={false}
                         columnProperties={columnProperties}
+                        flush
                     />
                 )}
 

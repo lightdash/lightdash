@@ -25,10 +25,13 @@ type Props = ComponentProps<typeof TableProvider> & {
     'data-testid'?: string;
     errorDetail?: ApiErrorDetail | null;
     isDashboard?: boolean;
+    /** Fills a framed pane: no border, radius or footer */
+    flush?: boolean;
 };
 
 const Table: FC<React.PropsWithChildren<Props>> = ({
     isDashboard = false,
+    flush = false,
     $shouldExpand,
     $padding,
     status,
@@ -68,6 +71,7 @@ const Table: FC<React.PropsWithChildren<Props>> = ({
                     showSubtotals={showSubtotals}
                     showRowGrouping={showRowGrouping}
                     isDashboard={isDashboard}
+                    flush={flush}
                 />
 
                 {status === 'error' && (
@@ -78,7 +82,7 @@ const Table: FC<React.PropsWithChildren<Props>> = ({
                     <EmptyState />
                 )}
 
-                <TablePagination />
+                {!flush && <TablePagination />}
             </TableContainer>
         </TableProvider>
     );
