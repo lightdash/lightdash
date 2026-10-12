@@ -188,6 +188,7 @@ import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConn
 import { type WarehouseConnectionIdentityModel } from '../../models/WarehouseConnectionIdentityModel/WarehouseConnectionIdentityModel';
 import { WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { WarehouseConnectionTablesModel } from '../../models/WarehouseConnectionTablesModel/WarehouseConnectionTablesModel';
+import { createLegacyWarehouseCredentialReader } from '../../models/WarehouseCredentialReader/createLegacyWarehouseCredentialReader';
 import {
     registerPreAggregateStream,
     STREAM_CONFIGS,
@@ -1377,6 +1378,10 @@ describe('AsyncQueryService', () => {
                         }),
                     },
                     aiServiceAccountCredentialsModel: slots,
+                    warehouseCredentialReader:
+                        createLegacyWarehouseCredentialReader({
+                            aiServiceAccountCredentialsModel: slots as never,
+                        }),
                     projectModel: {
                         getSummary: vi.fn(async () => projectSummary),
                         getWarehouseCredentialsForBinding: vi.fn(
@@ -6141,6 +6146,10 @@ describe('AsyncQueryService', () => {
                     })),
                 },
                 aiServiceAccountCredentialsModel: slots,
+                warehouseCredentialReader:
+                    createLegacyWarehouseCredentialReader({
+                        aiServiceAccountCredentialsModel: slots as never,
+                    }),
                 queryHistoryModel: {
                     getDuckdbExecution: vi.fn(async () => null),
                 },
@@ -7005,6 +7014,21 @@ describe('AsyncQueryService', () => {
                     };
                     const connection =
                         aiServiceAccountPlanMock.credentials as CreateBigqueryCredentials;
+                    const aiServiceAccountCredentialsModel = {
+                        getSecrets: vi.fn(async () => ({
+                            slot: {
+                                uuid: aiServiceAccountPlanMock.credentialUuid,
+                                identityUuid:
+                                    aiServiceAccountPlanMock.identityUuid,
+                            },
+                            secrets: {
+                                type: WarehouseTypes.BIGQUERY,
+                                keyfileContents: connection.keyfileContents,
+                                authenticationType:
+                                    BigqueryAuthenticationType.PRIVATE_KEY,
+                            },
+                        })),
+                    };
                     const aiAccessService = new AiAccessService({
                         agentActionLogModel: {
                             insert: vi.fn().mockResolvedValue(undefined),
@@ -7015,21 +7039,12 @@ describe('AsyncQueryService', () => {
                             get: vi.fn(async () => ({ enabled: true })),
                         },
                         organizationAgentIdentityRulesModel: rules,
-                        aiServiceAccountCredentialsModel: {
-                            getSecrets: vi.fn(async () => ({
-                                slot: {
-                                    uuid: aiServiceAccountPlanMock.credentialUuid,
-                                    identityUuid:
-                                        aiServiceAccountPlanMock.identityUuid,
-                                },
-                                secrets: {
-                                    type: WarehouseTypes.BIGQUERY,
-                                    keyfileContents: connection.keyfileContents,
-                                    authenticationType:
-                                        BigqueryAuthenticationType.PRIVATE_KEY,
-                                },
-                            })),
-                        },
+                        aiServiceAccountCredentialsModel,
+                        warehouseCredentialReader:
+                            createLegacyWarehouseCredentialReader({
+                                aiServiceAccountCredentialsModel:
+                                    aiServiceAccountCredentialsModel as never,
+                            }),
                         projectModel: {
                             getSummary: vi.fn(async () => projectSummary),
                             getWarehouseCredentialsForBinding: vi.fn(
@@ -9549,6 +9564,15 @@ describe('AsyncQueryService', () => {
                         email: 'person@example.test',
                     })),
                 };
+                const aiServiceAccountCredentialsModel = {
+                    getSecrets: vi.fn(async () => ({
+                        slot: {
+                            uuid: 'slot',
+                            identityUuid: 'slot-generation',
+                        },
+                        secrets: snowflakeSecrets,
+                    })),
+                };
                 const access = new AiAccessService({
                     agentActionLogModel: {
                         insert: vi.fn().mockResolvedValue(undefined),
@@ -9559,15 +9583,12 @@ describe('AsyncQueryService', () => {
                     featureFlagModel: flags,
                     organizationAgentIdentityRulesModel: rules,
                     userModel: users,
-                    aiServiceAccountCredentialsModel: {
-                        getSecrets: vi.fn(async () => ({
-                            slot: {
-                                uuid: 'slot',
-                                identityUuid: 'slot-generation',
-                            },
-                            secrets: snowflakeSecrets,
-                        })),
-                    },
+                    aiServiceAccountCredentialsModel,
+                    warehouseCredentialReader:
+                        createLegacyWarehouseCredentialReader({
+                            aiServiceAccountCredentialsModel:
+                                aiServiceAccountCredentialsModel as never,
+                        }),
                 } as unknown as ConstructorParameters<
                     typeof AiAccessService
                 >[0]);
@@ -25684,13 +25705,19 @@ describe('fresh execution producer to result reader', () => {
                         'organizationAgentIdentityRulesModel'
                     ].get,
                 ).mockResolvedValue({ source: 'ai_service_account' } as never);
+                const aiServiceAccountCredentialsModel = {
+                    getSecrets: vi.fn(async () => ({
+                        slot: { uuid: 'slot', identityUuid: 'generation' },
+                        secrets: postgresSecrets,
+                    })),
+                };
                 Object.assign(f.service.aiAccessService, {
-                    aiServiceAccountCredentialsModel: {
-                        getSecrets: vi.fn(async () => ({
-                            slot: { uuid: 'slot', identityUuid: 'generation' },
-                            secrets: postgresSecrets,
-                        })),
-                    },
+                    aiServiceAccountCredentialsModel,
+                    warehouseCredentialReader:
+                        createLegacyWarehouseCredentialReader({
+                            aiServiceAccountCredentialsModel:
+                                aiServiceAccountCredentialsModel as never,
+                        }),
                 });
                 vi.mocked(
                     f.service.queryHistoryModel.recordAiSignInCredential,

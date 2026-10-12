@@ -85,6 +85,7 @@ import {
 import { type UserModel } from '../../models/UserModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
+import type { WarehouseCredentialReader } from '../../models/WarehouseCredentialReader/WarehouseCredentialReader';
 import {
     assertQueryConnectionBinding,
     isConnectionProducedQuery,
@@ -336,6 +337,10 @@ type AiAccessServiceArguments = {
     agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     getWarehouseClientFactory?: () => WarehouseClientFactory;
     analytics: Pick<LightdashAnalytics, 'track'>;
+    warehouseCredentialReader: Pick<
+        WarehouseCredentialReader,
+        'aiServiceAccount'
+    >;
     aiServiceAccountCredentialsModel: AiServiceAccountCredentialsModel;
     organizationAgentIdentityRulesModel: OrganizationAgentIdentityRulesModel;
     organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
@@ -365,6 +370,11 @@ export class AiAccessService extends BaseService {
         | null;
 
     private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
+
+    private readonly warehouseCredentialReader: Pick<
+        WarehouseCredentialReader,
+        'aiServiceAccount'
+    >;
 
     private readonly aiServiceAccountCredentialsModel: AiServiceAccountCredentialsModel;
 
@@ -414,6 +424,7 @@ export class AiAccessService extends BaseService {
         agentActionLogModel,
         getWarehouseClientFactory,
         analytics,
+        warehouseCredentialReader,
         aiServiceAccountCredentialsModel,
         organizationAgentIdentityRulesModel,
         organizationAgentIdentitySettingsModel,
@@ -433,6 +444,7 @@ export class AiAccessService extends BaseService {
         this.agentActionLogModel = agentActionLogModel;
         this.getWarehouseClientFactory = getWarehouseClientFactory ?? null;
         this.analytics = analytics;
+        this.warehouseCredentialReader = warehouseCredentialReader;
         this.aiServiceAccountCredentialsModel =
             aiServiceAccountCredentialsModel;
         this.organizationAgentIdentityRulesModel =
@@ -1719,6 +1731,7 @@ export class AiAccessService extends BaseService {
 
     private get slotResolver() {
         return new AiServiceAccountSlotResolver({
+            warehouseCredentialReader: this.warehouseCredentialReader,
             projectModel: this.projectModel,
             warehouseConnectionModel: this.warehouseConnectionModel,
             aiServiceAccountCredentialsModel:

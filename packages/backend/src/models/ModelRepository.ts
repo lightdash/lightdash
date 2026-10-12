@@ -110,6 +110,8 @@ import { WarehouseConnectionIdentityModel } from './WarehouseConnectionIdentityM
 import { WarehouseConnectionModel } from './WarehouseConnectionModel/WarehouseConnectionModel';
 import { WarehouseConnectionSwitchModel } from './WarehouseConnectionSwitchModel/WarehouseConnectionSwitchModel';
 import { WarehouseConnectionTablesModel } from './WarehouseConnectionTablesModel/WarehouseConnectionTablesModel';
+import { createLegacyWarehouseCredentialReader } from './WarehouseCredentialReader/createLegacyWarehouseCredentialReader';
+import type { WarehouseCredentialReader } from './WarehouseCredentialReader/WarehouseCredentialReader';
 /**
  * Interface outlining all models. Add new models to
  * this list (in alphabetical order, please!).
@@ -200,6 +202,7 @@ export type ModelManifest = {
     warehouseConnectionSwitchModel: WarehouseConnectionSwitchModel;
     warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
     warehouseConnectionTablesModel: WarehouseConnectionTablesModel;
+    warehouseCredentialReader: WarehouseCredentialReader;
     warehouseConnectionIdentityModel: WarehouseConnectionIdentityModel;
     validationModel: ValidationModel;
     catalogModel: CatalogModel;
@@ -1022,6 +1025,15 @@ export class ModelRepository
                     database: this.database,
                     encryptionUtil: this.utils.getEncryptionUtil(),
                 }),
+        );
+    }
+
+    public getWarehouseCredentialReader(): WarehouseCredentialReader {
+        return this.getModel('warehouseCredentialReader', () =>
+            createLegacyWarehouseCredentialReader({
+                aiServiceAccountCredentialsModel:
+                    this.getAiServiceAccountCredentialsModel(),
+            }),
         );
     }
 
