@@ -1,5 +1,6 @@
 import { type WarehouseTablesCatalog } from '@lightdash/common';
 import { useMemo, type FC } from 'react';
+import { useAmbientAiEnabled } from '../../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
 import {
     SqlEditorView,
     type EditorTables,
@@ -107,12 +108,14 @@ export const MultiConnectionSqlEditor: FC<SqlEditorProps> = (props) => {
         [currentTableSchema],
     );
 
+    const isAiEnabled = !!useAmbientAiEnabled(projectUuid);
     const { data: detectedTablesFieldData } = useDetectedTableFields({
         sql,
         quoteChar,
         projectUuid,
         transformedData,
         connectionId: activeConnectionUuid,
+        includeAiPromptTables: isAiEnabled,
     });
 
     return (

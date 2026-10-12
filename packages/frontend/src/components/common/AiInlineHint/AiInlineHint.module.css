@@ -1,0 +1,154 @@
+.host :global(.ai-inline-hint) {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 4px;
+    vertical-align: baseline;
+}
+
+.host :global(.ai-inline-chip) {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 6px 2px;
+    border-radius: 4px;
+    font-family: var(--mantine-font-family);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+    white-space: nowrap;
+
+    /* Mantine Kbd-style keycap: white bg, subtle border, 3D-ish shadow */
+    background-color: var(--mantine-color-body);
+    color: var(--mantine-color-text);
+    border: 1px solid var(--mantine-color-gray-3);
+    box-shadow: 0 1px 0 0 var(--mantine-color-ldGray-3);
+
+    pointer-events: none;
+    user-select: none;
+
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-3);
+        border-color: var(--mantine-color-ldDark-5);
+    }
+}
+
+.host :global(.ai-inline-chip--retry) {
+    color: var(--mantine-color-red-7);
+    border-color: var(--mantine-color-red-3);
+    box-shadow: 0 1px 0 0 var(--mantine-color-red-3);
+
+    @mixin dark {
+        color: var(--mantine-color-red-3);
+        border-color: var(--mantine-color-red-7);
+        box-shadow: 0 1px 0 0 var(--mantine-color-red-7);
+    }
+}
+
+.host :global(.ai-inline-preview) {
+    opacity: 0.45;
+    font-style: italic;
+    pointer-events: none;
+    user-select: none;
+
+    @mixin light {
+        color: var(--mantine-color-indigo-7);
+    }
+
+    @mixin dark {
+        color: var(--mantine-color-indigo-3);
+        opacity: 0.7;
+    }
+}
+
+.host :global(.ai-inline-chip--loading) {
+    position: relative;
+    overflow: hidden;
+}
+
+.host :global(.ai-inline-chip--loading)::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(99, 91, 255, 0.18),
+        transparent
+    );
+    transform: translateX(-100%);
+    animation: ai-inline-keycap-shimmer 1.4s linear infinite;
+    pointer-events: none;
+
+    @mixin dark {
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.14),
+            transparent
+        );
+    }
+}
+
+@keyframes ai-inline-keycap-shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.host :global(.ai-inline-preview--block) {
+    display: block;
+    margin: 0;
+    white-space: pre;
+    overflow: hidden;
+}
+
+.errorText {
+    flex-shrink: 0;
+    margin-top: var(--mantine-spacing-xxs);
+    padding: 6px var(--mantine-spacing-xs);
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-red-7);
+    background-color: var(--mantine-color-red-0);
+    border: 1px solid var(--mantine-color-red-2);
+    border-radius: var(--mantine-radius-sm);
+    max-height: 80px;
+    overflow-y: auto;
+    word-break: break-word;
+
+    @mixin dark {
+        color: var(--mantine-color-red-3);
+        background-color: rgba(224, 49, 49, 0.08);
+        border-color: rgba(224, 49, 49, 0.25);
+    }
+}
+
+.provenance {
+    flex-shrink: 0;
+    padding-inline: var(--mantine-spacing-xxs);
+    padding-top: var(--mantine-spacing-xxs);
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-indigo-7);
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+
+    @mixin dark {
+        color: var(--mantine-color-indigo-3);
+    }
+}
+
+.generating {
+    flex-shrink: 0;
+    padding-inline: var(--mantine-spacing-xxs);
+    padding-top: var(--mantine-spacing-xxs);
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-dimmed);
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+}

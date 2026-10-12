@@ -116,6 +116,33 @@ export type ApiAiGenerateFormulaTableCalculationResponse = {
     results: GeneratedFormulaTableCalculation;
 };
 
+export type SqlRunnerAiColumnContext = {
+    name: string;
+    type: string;
+};
+
+export type SqlRunnerAiTableContext = {
+    schema: string;
+    table: string;
+    /** Null when the table's columns haven't been loaded in the editor. */
+    columns: SqlRunnerAiColumnContext[] | null;
+};
+
+export type GenerateSqlRunnerQueryRequest = {
+    prompt: string;
+    currentSql: string | null;
+    tables: SqlRunnerAiTableContext[];
+};
+
+export type GeneratedSqlRunnerQuery = {
+    sql: string;
+};
+
+export type ApiAiGenerateSqlRunnerQueryResponse = {
+    status: 'ok';
+    results: GeneratedSqlRunnerQuery;
+};
+
 export type TooltipFieldContext = {
     name: string;
     label?: string;
