@@ -113,7 +113,13 @@ export const AgentPermissionsSection = ({
                             onChange={(value) => {
                                 setChoice(value);
                                 form.setValues(
-                                    chooseAgentPermission(form.values, value),
+                                    choice === value
+                                        ? form.values
+                                        : chooseAgentPermission(
+                                              form.values,
+                                              value,
+                                              baseline,
+                                          ),
                                 );
                             }}
                         >

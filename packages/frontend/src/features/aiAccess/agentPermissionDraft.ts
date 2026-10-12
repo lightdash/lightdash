@@ -53,6 +53,16 @@ export const policyToDraft = (
         roles.map((role) => [role, [...policy.systemRoleMatrix[role]]]),
     ) as AgentSystemRoleMatrix,
 });
+export const sameAgentPermissionDraft = (
+    a: AgentPermissionDraft,
+    b: AgentPermissionDraft,
+): boolean =>
+    a.mode === b.mode &&
+    sameSet(a.allowedCapabilities, b.allowedCapabilities) &&
+    sameSet(a.allowedGroupUuids, b.allowedGroupUuids) &&
+    roles.every((role) =>
+        sameSet(a.systemRoleMatrix[role], b.systemRoleMatrix[role]),
+    );
 export const getAgentPermissionChoice = (
     draft: AgentPermissionDraft,
 ): AgentPermissionChoice => {
@@ -67,6 +77,7 @@ export const getAgentPermissionChoice = (
 export const chooseAgentPermission = (
     draft: AgentPermissionDraft,
     choice: AgentPermissionChoice,
+    baseline: AgentPermissionDraft,
 ): AgentPermissionDraft => {
     switch (choice) {
         case 'person':
@@ -83,13 +94,20 @@ export const chooseAgentPermission = (
                 systemRoleMatrix: matrixWith(readAndQueryCapabilities),
             };
         case 'custom':
-            return draft.mode === 'managed'
+            return getAgentPermissionChoice(draft) === 'custom'
                 ? draft
                 : {
                       ...draft,
                       mode: 'managed',
-                      allowedCapabilities: [...allCapabilities],
-                      systemRoleMatrix: matrixWith(allCapabilities),
+                      allowedCapabilities: [
+                          ...(getAgentPermissionChoice(baseline) === 'custom'
+                              ? baseline.allowedCapabilities
+                              : allCapabilities),
+                      ],
+                      systemRoleMatrix:
+                          getAgentPermissionChoice(baseline) === 'custom'
+                              ? baseline.systemRoleMatrix
+                              : matrixWith(allCapabilities),
                   };
         default:
             return assertUnreachable(choice, 'Unknown agent permission choice');
@@ -215,12 +233,20 @@ export const getAgentPermissionChanges = (
 };
 export const countAgentPermissionChanges = (
     changes: AgentPermissionChanges,
-): number =>
-    changes.stops.length +
-    changes.allows.length +
-    changes.roles.reduce(
-        (count, row) => count + row.stops.length + row.allows.length,
-        0,
-    ) +
-    Number(changes.mode !== null) +
-    Number(changes.groups !== null);
+    baseline: AgentPermissionDraft,
+    draft: AgentPermissionDraft,
+): number => {
+    const choice = getAgentPermissionChoice(draft);
+    if (choice !== 'custom' && choice !== getAgentPermissionChoice(baseline))
+        return 1 + Number(changes.groups !== null);
+    return (
+        changes.stops.length +
+        changes.allows.length +
+        changes.roles.reduce(
+            (count, row) => count + row.stops.length + row.allows.length,
+            0,
+        ) +
+        Number(changes.mode !== null) +
+        Number(changes.groups !== null)
+    );
+};

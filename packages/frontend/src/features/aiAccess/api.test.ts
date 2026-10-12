@@ -7,6 +7,7 @@ import {
     BigqueryAuthenticationType,
     WarehouseTypes,
     type AiServiceAccountSlot,
+    type AgentSystemRoleMatrix,
     type AiServiceAccountCredentialInput,
     type AiServiceAccountTestResult,
     type ApiAiServiceAccountSaveResponse,
@@ -21,7 +22,6 @@ import {
     aiAccessApi,
     useAgentCapabilityPolicy,
     useSaveAgentCapabilityCeiling,
-    useResetAgentCapabilityPolicy,
     useAiServiceAccount,
     useSaveAiServiceAccount,
     useTestAiServiceAccount,
@@ -427,7 +427,7 @@ describe('final policy contract', () => {
             role,
             [AgentCapability.Query],
         ]),
-    );
+    ) as AgentSystemRoleMatrix;
     const wire = {
         mode: 'managed',
         version: 2,
@@ -471,28 +471,20 @@ describe('final policy contract', () => {
                 ),
         ).toHaveLength(1);
     });
-    it.each(['save', 'reset'] as const)(
-        'returns the final %s response',
-        async (action) => {
-            vi.mocked(lightdashApi).mockResolvedValue(wire as never);
-            const onSaved = vi.fn();
-            const { result } = renderHookWithProviders(() => ({
-                save: useSaveAgentCapabilityCeiling(onSaved),
-                reset: useResetAgentCapabilityPolicy(onSaved),
-            }));
-            await act(async () => {
-                if (action === 'save')
-                    await result.current.save.mutateAsync({
-                        version: 1,
-                        systemRoleMatrix: matrix,
-                        mode: 'managed',
-                        allowedCapabilities: [AgentCapability.Query],
-                    } as never);
-                else await result.current.reset.mutateAsync({ version: 1 });
+    it('returns the final save response', async () => {
+        vi.mocked(lightdashApi).mockResolvedValue(wire as never);
+        const onSaved = vi.fn();
+        const { result } = renderHookWithProviders(() =>
+            useSaveAgentCapabilityCeiling(onSaved),
+        );
+        await act(async () => {
+            await result.current.mutateAsync({
+                version: 1,
+                systemRoleMatrix: matrix,
+                mode: 'managed',
+                allowedCapabilities: [AgentCapability.Query],
             });
-            expect(onSaved).toHaveBeenCalledWith({
-                ...wire,
-            });
-        },
-    );
+        });
+        expect(onSaved).toHaveBeenCalledWith(wire);
+    });
 });

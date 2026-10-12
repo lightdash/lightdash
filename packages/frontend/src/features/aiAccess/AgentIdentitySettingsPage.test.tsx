@@ -1,5 +1,8 @@
 import {
     AgentCapability,
+    WarehouseTypes,
+    type OrganizationAgentIdentitySnowflakeSetup,
+    type OrganizationAgentIdentitySnowflakeVerify,
     OrganizationMemberRole,
     type ApiResponse,
     type AgentCapabilityPolicyOverview,
@@ -41,11 +44,6 @@ vi.mock('../../hooks/settings/useSettingsContext', () => ({
 vi.mock('../../hooks/toaster/useToaster', () => ({
     default: () => ({ showToastSuccess: vi.fn(), showToastApiError: vi.fn() }),
 }));
-vi.mock('./OrganizationAgentIdentitySection', () => ({
-    default: ({ settings }: { settings: { rules: unknown[] } }) => (
-        <div>Identity {settings.rules.length}</div>
-    ),
-}));
 const matrix = Object.fromEntries(
     Object.values(OrganizationMemberRole).map((role) => [
         role,
@@ -68,20 +66,17 @@ const renderPage = (
         agentsMcp: true,
         mcpPage: 'link' as 'link' | 'switch' | 'hidden',
     },
+    client = new QueryClient({
+        defaultOptions: {
+            queries: { retry: false },
+            mutations: { retry: false },
+        },
+    }),
 ) =>
     render(
         <MantineProvider env="test">
             <MemoryRouter>
-                <QueryClientProvider
-                    client={
-                        new QueryClient({
-                            defaultOptions: {
-                                queries: { retry: false },
-                                mutations: { retry: false },
-                            },
-                        })
-                    }
-                >
+                <QueryClientProvider client={client}>
                     <AgentIdentitySettingsPage access={access} />
                 </QueryClientProvider>
             </MemoryRouter>
@@ -129,9 +124,7 @@ describe('Agents page loading boundary', () => {
                 expect(
                     screen.queryByText('Permissions'),
                 ).not.toBeInTheDocument();
-                expect(
-                    screen.queryByText('Identity 0'),
-                ).not.toBeInTheDocument();
+                expect(screen.queryByText('Identity')).not.toBeInTheDocument();
             };
             assertLoading();
             await act(async () => resolve.get(first)?.(response(first)));
@@ -151,26 +144,21 @@ describe('Agents page loading boundary', () => {
                 resolve.get('/org/groups?includeMembers=1')?.({ data: [] }),
             );
             expect(await screen.findByText('Permissions')).toBeInTheDocument();
-            expect(screen.getByText('Identity 0')).toBeInTheDocument();
+            expect(screen.getByText('Identity')).toBeInTheDocument();
             expect(
                 view.container.querySelectorAll('.mantine-Loader-root'),
             ).toHaveLength(0);
         },
     );
-    it.each(['flag off', 'no organization permission'])(
-        'renders nothing and requests nothing for %s',
-        () => {
-            const view = renderPage({
-                agentsPage: false,
-                agentsMcp: false,
-                mcpPage: 'switch',
-            });
-            expect(
-                view.container.querySelector(':scope > :not(style)'),
-            ).toBeNull();
-            expect(api).not.toHaveBeenCalled();
-        },
-    );
+    it('no access to the page: nothing renders, no request', () => {
+        const view = renderPage({
+            agentsPage: false,
+            agentsMcp: false,
+            mcpPage: 'switch',
+        });
+        expect(view.container.querySelector(':scope > :not(style)')).toBeNull();
+        expect(api).not.toHaveBeenCalled();
+    });
     it('makes no AI admin request without the MCP ability and no group request when unavailable', async () => {
         api.mockImplementation(async ({ url }) =>
             url === '/org/agent-permissions'
@@ -200,10 +188,207 @@ describe('Agents page loading boundary', () => {
         expect(
             await screen.findByText('Could not load agent settings.'),
         ).toBeInTheDocument();
-        expect(screen.queryByText('Identity 0')).not.toBeInTheDocument();
+        expect(screen.queryByText('Identity')).not.toBeInTheDocument();
         api.mockImplementation(async ({ url }) => response(url));
         fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
         expect(await screen.findByText('Permissions')).toBeInTheDocument();
+    });
+    it.each([false, true])(
+        'keeps a dirty draft while newly enabled groups settle with error=%s',
+        async (fail) => {
+            const client = new QueryClient({
+                defaultOptions: { queries: { retry: false } },
+            });
+            let groupsResolve: (
+                value: ApiResponse['results'],
+            ) => void = () => {};
+            let groupsReject: (reason: unknown) => void = () => {};
+            let currentPolicy = { ...policy, groupsAvailable: false };
+            api.mockImplementation(({ url }) => {
+                if (url.startsWith('/org/groups'))
+                    return new Promise((resolve, reject) => {
+                        groupsResolve = resolve;
+                        groupsReject = reject;
+                    });
+                return Promise.resolve(
+                    url === '/org/agent-permissions'
+                        ? currentPolicy
+                        : response(url),
+                );
+            });
+            const view = renderPage(undefined, client);
+            await screen.findByText('Permissions');
+            fireEvent.click(screen.getByRole('radio', { name: 'Custom' }));
+            fireEvent.click(
+                screen.getByRole('switch', { name: 'Delete content' }),
+            );
+            const assertDraft = () => {
+                expect(
+                    view.container.querySelectorAll('.mantine-Loader-root'),
+                ).toHaveLength(0);
+                expect(
+                    screen.getByRole('switch', { name: 'Delete content' }),
+                ).not.toBeChecked();
+                expect(
+                    screen.getByText('2 unsaved changes'),
+                ).toBeInTheDocument();
+            };
+            assertDraft();
+            currentPolicy = { ...currentPolicy, groupsAvailable: true };
+            await act(async () => {
+                await client.invalidateQueries([
+                    'ai-access',
+                    'org',
+                    'org',
+                    'agent-permissions',
+                ]);
+            });
+            await waitFor(() =>
+                expect(api).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        url: '/org/groups?includeMembers=1',
+                    }),
+                ),
+            );
+            assertDraft();
+            expect(
+                screen.queryByText('Who can use agents'),
+            ).not.toBeInTheDocument();
+            await act(async () => {
+                if (fail) groupsReject({ error: { message: 'Unavailable' } });
+                else groupsResolve({ data: [] });
+            });
+            if (fail) {
+                await screen.findByText('Could not load agent settings.');
+                expect(
+                    screen.getByRole('button', { name: 'Review and save' }),
+                ).toBeDisabled();
+            } else await screen.findByText('Who can use agents');
+            assertDraft();
+        },
+    );
+    it.each([
+        'verify fails first',
+        'verify errors first',
+        'setup first',
+        'setup errors first',
+    ])('shows no loader for an active Snowflake rule: %s', async (order) => {
+        const pending = new Map<
+            string,
+            {
+                resolve: (value: ApiResponse['results']) => void;
+                reject: (reason: unknown) => void;
+            }
+        >();
+        const setup: OrganizationAgentIdentitySnowflakeSetup = {
+            configured: false,
+            missingSettings: [],
+            integrationSql: 'SELECT 1',
+            redirectUri: 'https://example.com/callback',
+            client: {
+                source: null,
+                accountUrl: null,
+                clientId: null,
+                hasClientSecret: false,
+                updatedAt: null,
+            },
+        };
+        const verify: OrganizationAgentIdentitySnowflakeVerify = {
+            checkedAt: new Date(),
+            passed: false,
+            checks: [],
+        };
+        api.mockImplementation(({ url }) => {
+            if (url.includes('/snowflake/'))
+                return new Promise((resolve, reject) =>
+                    pending.set(url.split('/').at(-1)!, {
+                        resolve,
+                        reject,
+                    }),
+                );
+            return Promise.resolve(
+                url === '/org/agent-identity'
+                    ? {
+                          ...agentSettingsIdentityMock,
+                          rules: [
+                              {
+                                  warehouseType: WarehouseTypes.SNOWFLAKE,
+                                  source: 'agent_sign_in',
+                                  projectsMissingAiServiceAccount: null,
+                              },
+                          ],
+                      }
+                    : response(url),
+            );
+        });
+        const loaders = () =>
+            view.container.querySelectorAll('.mantine-Loader-root');
+        const steps = () =>
+            screen.queryByRole('button', { name: 'Verify integration' });
+        const settleSetup = () =>
+            act(async () => {
+                if (order === 'setup errors first')
+                    pending
+                        .get('setup')!
+                        .reject({ error: { message: 'Unavailable' } });
+                else pending.get('setup')!.resolve(setup);
+            });
+        const settleVerify = () =>
+            act(async () => {
+                if (order === 'verify errors first')
+                    pending
+                        .get('verify')!
+                        .reject({ error: { message: 'Unavailable' } });
+                else pending.get('verify')!.resolve(verify);
+            });
+        const view = renderPage();
+        await screen.findByText('Permissions');
+        await waitFor(() => expect(pending.size).toBe(2));
+        expect(
+            screen.getByText('Checking Snowflake agent integration'),
+        ).toBeInTheDocument();
+        expect(loaders()).toHaveLength(0);
+        expect(steps()).not.toBeInTheDocument();
+        if (order.startsWith('setup')) await settleSetup();
+        else await settleVerify();
+        expect(loaders()).toHaveLength(0);
+        expect(steps()).not.toBeInTheDocument();
+        if (order.startsWith('setup')) await settleVerify();
+        else await settleSetup();
+        expect(
+            await screen.findByText(
+                /^Snowflake agent integration needs attention/,
+            ),
+        ).toBeInTheDocument();
+        if (order === 'setup errors first')
+            expect(
+                await screen.findByText('Could not load the Snowflake setup.'),
+            ).toBeInTheDocument();
+        else
+            expect(
+                await screen.findByRole('button', {
+                    name: 'Verify integration',
+                }),
+            ).toBeInTheDocument();
+        if (order === 'verify errors first')
+            expect(screen.getByRole('alert')).toHaveTextContent(
+                'Could not verify the Snowflake agent integration.',
+            );
+        expect(loaders()).toHaveLength(0);
+        expect(
+            api.mock.calls.filter(([request]) =>
+                request.url.endsWith('/verify'),
+            ),
+        ).toHaveLength(1);
+    });
+    it('does not request Snowflake setup or verification without an active rule', async () => {
+        renderPage();
+        await screen.findByText('Permissions');
+        expect(
+            api.mock.calls.some(([request]) =>
+                request.url.includes('/snowflake/'),
+            ),
+        ).toBe(false);
     });
     it('shows the title, approved subtitle and organization breadcrumb', async () => {
         renderPage();

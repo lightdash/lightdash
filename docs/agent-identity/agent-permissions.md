@@ -153,7 +153,8 @@ The Agents page offers three choices. Same as the person stores `legacy`
 with a null capability list. Read and query stores `managed` with Read and
 discover, Query data, Export results and Raw SQL in the list and every role row.
 Custom stores `managed` with the selected list and role rows. It starts with
-all eleven capabilities on. Capability and group changes require review.
+all eleven capabilities on; an organization that already saved a Custom list
+gets that list back. Capability and group changes require review.
 Raw SQL follows warehouse permissions; this preset is not a read-only SQL guard.
 
 ## How checks combine

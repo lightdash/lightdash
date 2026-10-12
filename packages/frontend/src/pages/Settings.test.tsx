@@ -12,9 +12,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import nock from 'nock';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BASE_API_URL } from '../api';
 import SettingsMenu from '../components/NavBar/SettingsMenu';
+import {
+    agentSettingsPolicyMock,
+    agentSettingsMcpMock,
+    agentSettingsIdentityMock,
+} from '../features/aiAccess/agentSettings.mock';
 import { LAST_PROJECT_KEY } from '../hooks/useActiveProject';
 import { mockViewport } from '../testing/mockViewport';
 import { renderWithProviders } from '../testing/testUtils';
@@ -38,6 +43,7 @@ const renderSettings = (
     initialPath = `${base}/${page}`,
     agentIdentityEnabled: boolean | null = false,
     aiSettings = { isCopilotEnabled: false, isTrial: false },
+    seedAdminSettings = true,
 ) => {
     const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false, staleTime: Infinity } },
@@ -61,19 +67,15 @@ const renderSettings = (
     });
     queryClient.setQueryData(['projects'], []);
     queryClient.setQueryData(['ai-organization-runtime-settings'], aiSettings);
-    queryClient.setQueryData(['ai-organization-admin-settings'], {
-        mcpAgentsEnabled: true,
-        mcpContentWritesEnabled: true,
-    });
-    queryClient.setQueryData(['ai-access', 'org', 'org', 'agent-permissions'], {
-        mode: 'legacy',
-        version: 0,
-        allowedCapabilities: null,
-        allowedGroupUuids: null,
-        groupsAvailable: false,
-        systemRoleMatrix: {},
-        defaults: {},
-    });
+    if (seedAdminSettings)
+        queryClient.setQueryData(
+            ['ai-organization-admin-settings'],
+            agentSettingsMcpMock(),
+        );
+    queryClient.setQueryData(
+        ['ai-access', 'org', 'org', 'agent-permissions'],
+        agentSettingsPolicyMock(),
+    );
     [
         ...Object.values(FeatureFlags),
         ...Object.values(CommercialFeatureFlags),
@@ -88,10 +90,10 @@ const renderSettings = (
             enabled: agentIdentityEnabled,
         });
     }
-    queryClient.setQueryData(['ai-access', 'org', 'agent-identity'], {
-        requireVerifiedAgentSessions: false,
-        rules: [],
-    });
+    queryClient.setQueryData(
+        ['ai-access', 'org', 'agent-identity'],
+        agentSettingsIdentityMock,
+    );
     queryClient.setQueryData(['organization-warehouse-credentials'], []);
     nock(BASE_API_URL)
         .get('/api/v1/user/account')
@@ -366,6 +368,7 @@ describe('Agent identity settings routes', () => {
     const manageOrganization = {
         action: 'manage',
         subject: 'Organization',
+        conditions: { organizationUuid: 'org' },
     } satisfies LightdashUserWithAbilityRules['abilityRules'][number];
 
     it.each([
@@ -502,6 +505,107 @@ describe('MCP settings route permission parity', () => {
         viewport = mockViewport(1280);
     });
     afterEach(() => viewport.restore());
+    it.each([
+        { enabled: true, manageOrg: true, manageAi: true },
+        { enabled: true, manageOrg: false, manageAi: true },
+        { enabled: true, manageOrg: true, manageAi: false },
+        { enabled: false, manageOrg: true, manageAi: true },
+    ])(
+        'reads and writes through real routes: %j',
+        async ({ enabled, manageOrg, manageAi }) => {
+            const rules: LightdashUserWithAbilityRules['abilityRules'] = [
+                viewProject,
+            ];
+            if (manageOrg)
+                rules.push({
+                    action: 'manage',
+                    subject: 'Organization',
+                    conditions: { organizationUuid: 'org' },
+                });
+            if (manageAi)
+                rules.push({
+                    action: 'manage',
+                    subject: 'OrganizationAiAgent',
+                    conditions: { organizationUuid: 'org' },
+                });
+            const adminRead = vi.fn(() => ({
+                status: 'ok',
+                results: agentSettingsMcpMock(),
+            }));
+            const adminWrite = vi.fn(() => ({
+                status: 'ok',
+                results: { ...agentSettingsMcpMock(), mcpAgentsEnabled: false },
+            }));
+            nock(BASE_API_URL)
+                .get('/api/v1/aiAgents/admin/settings')
+                .optionally()
+                .reply(200, adminRead);
+            const patch = nock(BASE_API_URL)
+                .patch('/api/v1/aiAgents/admin/settings', {
+                    mcpAgentsEnabled: false,
+                })
+                .optionally(!manageAi)
+                .once()
+                .reply(200, adminWrite);
+            const view = renderSettings(
+                '',
+                rules,
+                true,
+                manageAi
+                    ? '/generalSettings/mcp/general'
+                    : AGENT_IDENTITY_SETTINGS_PATH,
+                enabled,
+                { isCopilotEnabled: true, isTrial: false },
+                manageAi,
+            );
+            if (!manageAi) {
+                await screen.findByRole('heading', { name: 'Agents' });
+                expect(
+                    screen.queryByRole('switch', { name: 'Agents over MCP' }),
+                ).not.toBeInTheDocument();
+                expect(adminRead).not.toHaveBeenCalled();
+                expect(adminWrite).not.toHaveBeenCalled();
+                return;
+            }
+            if (enabled && manageOrg) {
+                const link = await screen.findByRole('link', {
+                    name: 'Change on the Agents page',
+                });
+                expect(screen.getByText('On')).toBeInTheDocument();
+                fireEvent.click(link);
+                await screen.findByRole('heading', { name: 'Agents' });
+            }
+            const control = await screen.findByRole('switch', {
+                name:
+                    enabled && manageOrg
+                        ? 'Agents over MCP'
+                        : 'Enable agents over MCP',
+            });
+            expect(control).toBeChecked();
+            fireEvent.click(control);
+            await waitFor(() => expect(patch.isDone()).toBe(true));
+            await waitFor(() => expect(control).not.toBeChecked());
+            expect(adminWrite).toHaveBeenCalledTimes(1);
+            expect(
+                nock.pendingMocks().filter((mock) => mock.startsWith('PATCH')),
+            ).toEqual([]);
+            if (!enabled || !manageOrg) {
+                view.unmount();
+                renderSettings(
+                    '',
+                    rules,
+                    true,
+                    AGENT_IDENTITY_SETTINGS_PATH,
+                    enabled,
+                    { isCopilotEnabled: true, isTrial: false },
+                );
+                await screen.findByRole('heading', { name: 'Profile' });
+                expect(
+                    screen.queryByRole('heading', { name: 'Agents' }),
+                ).not.toBeInTheDocument();
+            }
+        },
+    );
     it.each(
         [false, true].flatMap((enabled) =>
             [false, true].flatMap((manageOrg) =>
@@ -519,7 +623,11 @@ describe('MCP settings route permission parity', () => {
                 viewProject,
             ];
             if (manageOrg)
-                rules.push({ action: 'manage', subject: 'Organization' });
+                rules.push({
+                    action: 'manage',
+                    subject: 'Organization',
+                    conditions: { organizationUuid: 'org' },
+                });
             if (manageAi)
                 rules.push({
                     action: 'manage',

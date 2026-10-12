@@ -2,6 +2,7 @@ import {
     AgentActorSurface,
     AgentCapability,
     AiAccessRefusalReason,
+    OrganizationMemberRole,
 } from '@lightdash/common';
 import { buildAccount } from '../../../auth/account/account.mock';
 import { AgentCapabilityPolicyModel } from '../../../models/AgentCapabilityPolicyModel';
@@ -191,5 +192,103 @@ test('a historical null list preserves custom grants until a save narrows them',
             allowed_user_uuids: null,
             allowed_project_uuids: null,
         });
+    });
+});
+
+test('obsolete saved people and project lists do not restrict role capabilities or appear in reads', async () => {
+    await migrated.database.transaction(async (trx) => {
+        const [org] = await trx('organizations')
+            .insert({ organization_name: 'Role admission contract' })
+            .returning('organization_uuid');
+        const model = new AgentCapabilityPolicyModel({ database: trx });
+        await model.save({
+            organizationUuid: org.organization_uuid,
+            mode: 'managed',
+            version: 0,
+            allowedCapabilities: Object.values(AgentCapability),
+            systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.Query]),
+            updatedByUserUuid: null,
+        });
+        const excludedUser = '00000000-0000-0000-0000-000000000001';
+        const excludedProject = '00000000-0000-0000-0000-000000000002';
+        const projectUuid = '00000000-0000-0000-0000-000000000003';
+        await trx('organization_agent_capability_policies')
+            .where('organization_uuid', org.organization_uuid)
+            .update({
+                allowed_user_uuids: [excludedUser],
+                allowed_project_uuids: [excludedProject],
+            });
+        const account = buildAccount();
+        account.organization.organizationUuid = org.organization_uuid;
+        expect(account.user.id).not.toBe(excludedUser);
+        expect(projectUuid).not.toBe(excludedProject);
+        const row = await trx('organization_agent_capability_policies')
+            .where('organization_uuid', org.organization_uuid)
+            .first();
+        expect(row).toMatchObject({
+            mode: 'managed',
+            allowed_user_uuids: [excludedUser],
+            allowed_project_uuids: [excludedProject],
+        });
+        const service = new AgentPermissionService({
+            agentCapabilityPolicyModel: model,
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            },
+            groupsModel: { findUserInGroups: vi.fn() },
+            userModel: {
+                getAgentRoleAssignments: vi.fn().mockResolvedValue({
+                    systemRoles: [OrganizationMemberRole.DEVELOPER],
+                    customRoles: [],
+                }),
+            },
+            projectModel: {
+                getSummary: vi.fn().mockResolvedValue({
+                    organizationUuid: org.organization_uuid,
+                }),
+            },
+            resolveResourceProjectUuid: vi.fn(),
+            areGroupsAvailable: vi.fn(),
+            isCustomRolesLicensed: () => false,
+            agentActionLogModel: { insert: vi.fn() },
+        });
+        const operation = {
+            account,
+            organizationUuid: org.organization_uuid,
+            projectUuid,
+            kind: 'capability' as const,
+            key: AgentCapability.Query,
+            surface: AgentActorSurface.IN_APP_AGENT,
+        };
+        await expect(
+            service.assertOperation({
+                ...operation,
+                kind: 'agent_turn',
+                key: 'agent_turn',
+            }),
+        ).resolves.toBeUndefined();
+        await expect(
+            service.assertOperation(operation),
+        ).resolves.toBeUndefined();
+        await expect(service.resolvePolicy(operation)).resolves.toMatchObject({
+            capabilities: new Set([AgentCapability.Query]),
+        });
+        await expect(
+            service.assertOperation({
+                ...operation,
+                key: AgentCapability.Delete,
+            }),
+        ).rejects.toMatchObject({
+            refusal: { reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED },
+        });
+        for (const policy of [
+            await model.get(org.organization_uuid),
+            await model.getForEnforcement(org.organization_uuid),
+        ]) {
+            expect(policy).not.toHaveProperty('allowedUserUuids');
+            expect(policy).not.toHaveProperty('allowedProjectUuids');
+            expect(policy).not.toHaveProperty('allowed_user_uuids');
+            expect(policy).not.toHaveProperty('allowed_project_uuids');
+        }
     });
 });

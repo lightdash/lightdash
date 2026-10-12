@@ -462,16 +462,3 @@ export const useSaveAgentCapabilityCeiling = (
         onSaved,
         agentPolicyMutationKey,
     );
-export const useResetAgentCapabilityPolicy = (
-    onSaved: (policy: AgentCapabilityPolicy) => void,
-) =>
-    useAgentPermissionMutation<
-        AgentCapabilityPolicy,
-        Pick<AgentCapabilityPolicy, 'version'>
-    >(
-        `${agentPolicyUrl}/reset`,
-        'POST',
-        'Could not turn off limits.',
-        onSaved,
-        agentPolicyMutationKey,
-    );

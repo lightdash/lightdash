@@ -272,7 +272,10 @@ export const SnowflakeAgentSetup = (props: Props) => {
     const [expanded, setExpanded] = useState(false);
     const [clientEdited, setClientEdited] = useState(false);
     const needsAttention = verify.isError || verify.data?.passed === false;
-    const showSteps = props.mode === 'pending' || expanded || needsAttention;
+    const showSteps =
+        props.mode === 'pending' ||
+        expanded ||
+        (needsAttention && !setup.isLoading);
     const compactConfirm =
         props.mode === 'pending' &&
         !clientEdited &&

@@ -71,7 +71,7 @@ export const AgentCapabilityChoices = ({
                                     </Badge>
                                 ))}
                                 <Badge>× Create and edit content</Badge>
-                                <Badge>6 more</Badge>
+                                <Badge>× 6 more</Badge>
                             </Group>
                             <Text size="sm" c="dimmed">
                                 Raw SQL runs with the person's warehouse

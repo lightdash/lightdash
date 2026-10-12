@@ -10,6 +10,7 @@ import {
     getAgentPermissionChanges,
     getAgentPermissionChoice,
     policyToDraft,
+    sameAgentPermissionDraft,
 } from './agentPermissionDraft';
 import {
     useSaveAgentCapabilityCeiling,
@@ -35,7 +36,7 @@ export const useAgentPermissionsForm = ({
     const [saveError, setSaveError] = useState<string | null>(null);
     const [conflictVersion, setConflictVersion] = useState<number | null>(null);
     const changes = getAgentPermissionChanges(baseline, form.values);
-    const count = countAgentPermissionChanges(changes);
+    const count = countAgentPermissionChanges(changes, baseline, form.values);
     const accept = (updated: AgentCapabilityPolicy) => {
         const next = policyToDraft(updated);
         setBaseline(next);
@@ -46,7 +47,13 @@ export const useAgentPermissionsForm = ({
         setConflictVersion(null);
         setSaveError(null);
     };
-    if (count === 0 && policy.version > baseline.version) accept(policy);
+    if (
+        count === 0 &&
+        (policy.version > baseline.version ||
+            (policy.version === baseline.version &&
+                !sameAgentPermissionDraft(policyToDraft(policy), baseline)))
+    )
+        accept(policy);
     const save = useSaveAgentCapabilityCeiling(accept);
     const saving = save.isLoading || refreshing;
     const conflict =

@@ -1,4 +1,5 @@
 import { Stack } from '@mantine/core';
+import { useState } from 'react';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import PageBreadcrumbs from '../../components/common/PageBreadcrumbs';
@@ -17,6 +18,12 @@ import {
 } from './api';
 import OrganizationAgentIdentitySection from './OrganizationAgentIdentitySection';
 
+const useInitialLoadComplete = (waiting: boolean) => {
+    const [ready, setReady] = useState(false);
+    if (!ready && !waiting) setReady(true);
+    return ready;
+};
+
 const AgentSettingsContent = ({ access }: { access: AgentSettingsAccess }) => {
     const { user } = useApp();
     const identity = useOrganizationAgentIdentitySettings();
@@ -28,12 +35,15 @@ const AgentSettingsContent = ({ access }: { access: AgentSettingsAccess }) => {
         { includeMembers: 1 },
         { enabled: policy.data?.groupsAvailable === true },
     );
-    const failed = [
+    const requiredQueries = [
         identity,
         policy,
         ...(access.agentsMcp ? [settings] : []),
         ...(policy.data?.groupsAvailable ? [groups] : []),
-    ].filter((query) => query.isError);
+    ];
+    const waiting = requiredQueries.some((query) => !query.data);
+    const ready = useInitialLoadComplete(waiting);
+    const failed = requiredQueries.filter((query) => query.isError);
     const hasError = failed.length > 0;
     const error = hasError ? (
         <InlineErrorState
@@ -43,20 +53,20 @@ const AgentSettingsContent = ({ access }: { access: AgentSettingsAccess }) => {
             }}
         />
     ) : null;
-    if (
-        !identity.data ||
-        !policy.data ||
-        (access.agentsMcp && !settings.data) ||
-        (policy.data.groupsAvailable && !groups.data)
-    )
-        return error ?? <EmptyStateLoader />;
+    if (!ready && waiting) return error ?? <EmptyStateLoader />;
+    if (!identity.data || !policy.data) return error;
     return (
         <Stack gap="lg">
             {error}
             <OrganizationAgentIdentitySection settings={identity.data} />
             <AgentPermissionsSection
                 key={user.data?.organizationUuid}
-                policy={policy.data}
+                policy={{
+                    ...policy.data,
+                    groupsAvailable:
+                        policy.data.groupsAvailable &&
+                        groups.data !== undefined,
+                }}
                 groups={groups.data ?? []}
                 refetchPolicy={policy.refetch}
                 loadError={hasError}
