@@ -12,14 +12,14 @@ import {
     connectionFixture,
     matrix,
     seedConnectionClient,
-} from './agentConnectionFixture';
+} from './agentConnectionFixture.mock';
 import {
     enableConnectionFlag,
     forEachInOrder,
     httpRequest,
     sessionCookie,
     startConnectionHttpServer,
-} from './agentConnectionHttpHarness';
+} from './agentConnectionHttpHarness.mock';
 
 let migrated: MigratedDatabase;
 let server: Awaited<ReturnType<typeof startConnectionHttpServer>>;
@@ -205,5 +205,96 @@ it.each(['another connection', 'person session'] as const)(
                 projectUuid: f.projectUuid,
             }),
         });
+    },
+);
+
+// Known defect: a refused batch from the person marks the session failed. The fix flips that row.
+it.each([
+    { caller: 'connection', action: 'batch', session: 'unchanged' },
+    { caller: 'connection', action: 'finalize', session: 'unchanged' },
+    { caller: 'person session', action: 'batch', session: 'failed' },
+    { caller: 'person session', action: 'finalize', session: 'unchanged' },
+])(
+    '$caller cannot $action through another approved project: staged data unchanged, session $session',
+    async ({ caller, action, session }) => {
+        const f = await connectionFixture(migrated.database);
+        await enableConnectionFlag(f.database, f.organizationUuid);
+        const secondProjectUuid = await f.createProject();
+        const capabilities = [AgentCapability.DeployUpload];
+        await f
+            .database('project_memberships')
+            .where('user_id', f.user.user_id)
+            .update({ role: ProjectMemberRole.DEVELOPER });
+        await f.savePolicy({
+            systemRoleMatrix: { ...matrix([]), developer: capabilities },
+        });
+        const connection = await f.createConnection(capabilities, [
+            f.projectUuid,
+            secondProjectUuid,
+        ]);
+        const connectionHeaders = {
+            authorization: `Bearer ${connection.accessToken}`,
+        };
+        const route = `/api/v2/projects/${f.projectUuid}/deploy`;
+        const started = await httpRequest(
+            server.base,
+            route,
+            connectionHeaders,
+            'POST',
+            {},
+        );
+        expect(started.status).toBe(200);
+        const sessionUuid = started.body.results.deploySessionUuid as string;
+        const staged = {
+            ...validExplore,
+            name: 'preserved_staging',
+            label: 'Preserved staging',
+        };
+        expect(
+            (
+                await httpRequest(
+                    server.base,
+                    `${route}/${sessionUuid}/batch`,
+                    connectionHeaders,
+                    'POST',
+                    { explores: [staged], batchNumber: 1, complete: true },
+                )
+            ).status,
+        ).toBe(200);
+        const sessionModel = server.models.getDeploySessionModel();
+        const stagedBefore = await sessionModel.getDeployData(sessionUuid);
+        const sessionBefore = await sessionModel.getSession(sessionUuid);
+        const headers: Record<string, string> =
+            caller === 'connection'
+                ? connectionHeaders
+                : {
+                      cookie: await sessionCookie(
+                          f.database,
+                          f.userUuid,
+                          f.organizationUuid,
+                      ),
+                  };
+        const response = await httpRequest(
+            server.base,
+            `/api/v2/projects/${secondProjectUuid}/deploy/${sessionUuid}/${action}`,
+            headers,
+            'POST',
+            {
+                explores: [{ ...staged, name: 'wrong_project_batch' }],
+                batchNumber: 2,
+                dbtModelNames: [staged.name],
+            },
+        );
+        expect(response.status).toBe(403);
+        expect(await sessionModel.getDeployData(sessionUuid)).toEqual(
+            stagedBefore,
+        );
+        const sessionAfter = await sessionModel.getSession(sessionUuid);
+        if (session === 'unchanged')
+            expect(sessionAfter).toEqual(sessionBefore);
+        else {
+            expect(sessionBefore.status).toBe(DeploySessionStatus.UPLOADING);
+            expect(sessionAfter.status).toBe(DeploySessionStatus.FAILED);
+        }
     },
 );

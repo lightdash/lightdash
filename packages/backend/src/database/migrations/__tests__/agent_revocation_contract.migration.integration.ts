@@ -20,7 +20,7 @@ import {
     encryptionUtil,
     matrix,
     seedConnectionClient,
-} from './agentConnectionFixture';
+} from './agentConnectionFixture.mock';
 
 vi.mock('../../../config/lightdashConfig', async () => {
     const { lightdashConfigMock: config } =

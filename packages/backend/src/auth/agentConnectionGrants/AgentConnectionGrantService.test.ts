@@ -566,7 +566,7 @@ it.each([
         'projectRouter GET /csv/:nanoId',
     ],
     ['CSV export', 'QueryController.downloadResults'],
-    ['CSV file download', 'CsvController.get'],
+    ['Google Sheets export status and URL', 'CsvController.get'],
     ['dashboard CSV export', 'dashboardRouter POST /:dashboardUuid/exportCsv'],
     ['XLSX export', 'QueryController.downloadResults'],
 ] as const)(
@@ -604,76 +604,56 @@ it.each([
     },
 );
 
-// Reading results is two actions today: Query alone is refused, and the message names the missing one.
-it('refuses a connection approved for Query alone when it reads async query results, naming Read and discover', async () => {
-    const { service, token, user, grant } = setup();
-    grant.approvedCapabilities = [AgentCapability.Query];
-    const account = fromOauth(
-        user,
-        token,
-        null,
-        await service.authenticate(token, user),
-    );
-    await expect(
-        service.assertRestOperation(
+it('known pairing: running a query needs Query data; reading its stored results needs Read and discover', async () => {
+    const authorize = async (
+        capabilities: AgentCapability[],
+        operation: string,
+    ) => {
+        const { service, token, user, grant } = setup();
+        grant.approvedCapabilities = capabilities;
+        const account = fromOauth(
+            user,
+            token,
+            null,
+            await service.authenticate(token, user),
+        );
+        return service.assertRestOperation(
             {
                 account,
-                method: 'GET',
+                method:
+                    operation === 'QueryController.getAsyncQueryResults'
+                        ? 'GET'
+                        : 'POST',
                 params: {
                     projectUuid: grant.approvedProjectUuids[0],
                     queryUuid: otherProjectUuid,
                 },
-                query: { page: '1', pageSize: '10' },
+                query: {},
                 body: {},
             },
-            'QueryController.getAsyncQueryResults',
-        ),
-    ).rejects.toThrow(
+            operation,
+        );
+    };
+    const run = 'QueryController.executeAsyncMetricQuery';
+    const read = 'QueryController.getAsyncQueryResults';
+    const projects = grantFixture().approvedProjectUuids;
+    await expect(authorize([AgentCapability.Query], run)).resolves.toEqual(
+        projects,
+    );
+    await expect(authorize([AgentCapability.Query], read)).rejects.toThrow(
         'This agent connection is not approved for Read and discover. Approved: Query data.',
     );
-});
-
-it('allows a Query-approved connection to read its own async query results page by page with ReadDiscover', async () => {
-    const { service, token, user, grant, deps } = setup();
-    grant.approvedCapabilities = [
-        AgentCapability.Query,
-        AgentCapability.ReadDiscover,
-    ];
-    const account = fromOauth(
-        user,
-        token,
-        null,
-        await service.authenticate(token, user),
+    await expect(
+        authorize([AgentCapability.ReadDiscover], read),
+    ).resolves.toEqual(projects);
+    await expect(
+        authorize([AgentCapability.ReadDiscover], run),
+    ).rejects.toThrow(
+        'This agent connection is not approved for Query data. Approved: Read and discover.',
     );
-    await Promise.all(
-        [1, 2, 3].map(async (page) => {
-            await expect(
-                service.assertRestOperation(
-                    {
-                        account,
-                        method: 'GET',
-                        params: {
-                            projectUuid: grant.approvedProjectUuids[0],
-                            queryUuid: otherProjectUuid,
-                        },
-                        query: { page: String(page), pageSize: '10' },
-                        body: {},
-                    },
-                    'QueryController.getAsyncQueryResults',
-                ),
-            ).resolves.toEqual(grant.approvedProjectUuids);
-        }),
-    );
-    expect(
-        deps.resourceResolver.resolveResourceProjectUuid,
-    ).toHaveBeenCalledTimes(3);
-    expect(
-        deps.resourceResolver.resolveResourceProjectUuid,
-    ).toHaveBeenLastCalledWith({
-        type: 'query',
-        uuid: otherProjectUuid,
-        projectUuid: grant.approvedProjectUuids[0],
-    });
+    const both = [AgentCapability.Query, AgentCapability.ReadDiscover];
+    await expect(authorize(both, run)).resolves.toEqual(projects);
+    await expect(authorize(both, read)).resolves.toEqual(projects);
 });
 
 it.each(

@@ -1,7 +1,5 @@
 import { AgentCapability, ProjectMemberRole } from '@lightdash/common';
-import { fork, type ChildProcess } from 'node:child_process';
-import { once } from 'node:events';
-import path from 'node:path';
+import { type ChildProcess } from 'node:child_process';
 import {
     createMigratedDatabase,
     type MigratedDatabase,
@@ -10,91 +8,101 @@ import {
     connectionFixture,
     matrix,
     seedConnectionClient,
-} from './agentConnectionFixture';
+} from './agentConnectionFixture.mock';
 import {
     enableConnectionFlag,
     forEachInOrder,
     httpRequest,
     sessionCookie,
-} from './agentConnectionHttpHarness';
+} from './agentConnectionHttpHarness.mock';
+import {
+    closeConnectionProcess,
+    startConnectionProcess,
+    type TestServer,
+} from './agentConnectionProcessLifecycle.mock';
 
-type TestServer = {
-    child: ChildProcess;
-    base: string;
-    pid: number;
-    databasePid: number;
-};
-const start = (connectionUri: string): Promise<TestServer> =>
-    new Promise((resolve, reject) => {
-        const child = fork(
-            path.join(__dirname, 'agentConnectionHttpProcess.ts'),
-            [],
-            {
-                execArgv: ['--import', require.resolve('tsx')],
-                env: {
-                    ...process.env,
-                    EXPERIMENTAL_CACHE: 'true',
-                    AGENT_TEST_DATABASE_URI: connectionUri,
-                },
-                stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
-            },
+let migrated: MigratedDatabase;
+const children: ChildProcess[] = [];
+const cleanup = async () => {
+    try {
+        const results = await Promise.allSettled(
+            children.map((child) => closeConnectionProcess(child)),
         );
-        let output = '';
-        child.stdout?.on('data', (data) => {
-            output += String(data);
-        });
-        child.stderr?.on('data', (data) => {
-            output += String(data);
-        });
-        const timeout = setTimeout(() => {
-            child.kill();
-            reject(new Error(`Child did not start: ${output.slice(-6000)}`));
-        }, 60000);
-        child.once('error', reject);
-        child.once('exit', (code) => {
+        const failures = results.filter(
+            (result) => result.status === 'rejected',
+        );
+        if (failures.length)
+            throw new AggregateError(
+                failures.map((result) => result.reason),
+                'Child cleanup failed',
+            );
+    } finally {
+        await migrated?.destroy();
+    }
+};
+type CacheState = {
+    kind: 'cache';
+    hit: boolean;
+    active: boolean | null;
+    canViewProject: boolean | null;
+    filledAt: number;
+    expiresAt: number;
+    ttlMs: number;
+};
+const cacheState = (
+    server: TestServer,
+    f: Awaited<ReturnType<typeof connectionFixture>>,
+): Promise<CacheState> =>
+    new Promise((resolve, reject) => {
+        const disposers: (() => void)[] = [];
+        const cleanupRead = () => disposers.forEach((dispose) => dispose());
+        const failed = (error: Error) => {
+            cleanupRead();
+            reject(error);
+        };
+        const exited = () =>
+            failed(new Error('Child exited during cache inspection'));
+        const receive = (message: CacheState) => {
+            if (message.kind === 'cache') {
+                cleanupRead();
+                resolve(message);
+            }
+        };
+        const timeout = setTimeout(
+            () => failed(new Error('Cache inspection timed out')),
+            10000,
+        );
+        disposers.push(() => {
             clearTimeout(timeout);
-            if (code !== 0)
-                reject(
-                    new Error(`Child exited ${code}: ${output.slice(-6000)}`),
-                );
+            server.child.removeListener('message', receive);
+            server.child.removeListener('exit', exited);
         });
-        child.on(
-            'message',
-            (message: {
-                kind: string;
-                base: string;
-                pid: number;
-                databasePid: number;
-            }) => {
-                if (message.kind === 'ready') {
-                    clearTimeout(timeout);
-                    resolve({ child, ...message });
-                }
+        server.child.on('message', receive);
+        server.child.once('exit', exited);
+        server.child.send(
+            {
+                command: 'cache',
+                userUuid: f.userUuid,
+                organizationUuid: f.organizationUuid,
+                projectUuid: f.projectUuid,
+            },
+            (error) => {
+                if (error) failed(error);
             },
         );
     });
-let migrated: MigratedDatabase;
 let first: TestServer;
 let second: TestServer;
 beforeAll(async () => {
     migrated = await createMigratedDatabase();
     await seedConnectionClient(migrated.database);
-    first = await start(migrated.connectionUri);
-    second = await start(migrated.connectionUri);
+    first = await startConnectionProcess(migrated.connectionUri, children);
+    second = await startConnectionProcess(migrated.connectionUri, children);
     expect(first.pid).not.toBe(second.pid);
     expect(first.databasePid).not.toBe(second.databasePid);
     expect(first.pid).not.toBe(process.pid);
 });
-afterAll(async () => {
-    await forEachInOrder([first, second], async (server) => {
-        if (server?.child.connected) {
-            const exited = once(server.child, 'exit');
-            server.child.send({ command: 'close' });
-            await exited;
-        }
-    });
-    await migrated?.destroy();
-});
+afterAll(cleanup);
 const warm = async (
     f: Awaited<ReturnType<typeof connectionFixture>>,
     token: string,
@@ -108,16 +116,10 @@ const warm = async (
     await forEachInOrder([first, second], async (server) => {
         const session = await httpRequest(server.base, route, { cookie });
         expect(session.status).toBe(200);
-        const cached = once(server.child, 'message');
-        server.child.send({
-            command: 'cache',
-            userUuid: f.userUuid,
-            organizationUuid: f.organizationUuid,
-        });
-        expect((await cached)[0]).toEqual({
-            kind: 'cache',
+        expect(await cacheState(server, f)).toMatchObject({
             hit: true,
             active: true,
+            canViewProject: true,
         });
         const reply = await httpRequest(server.base, route, {
             authorization: `Bearer ${token}`,
@@ -137,7 +139,7 @@ it.each([
     'connection revoked',
     'connection expired',
 ] as const)(
-    'both warm processes see %s on their next bound-token request, second server first',
+    '%s: refused on the next request on both servers, second server first',
     async (change) => {
         const f = await connectionFixture(migrated.database);
         await enableConnectionFlag(f.database, f.organizationUuid);
@@ -245,14 +247,60 @@ it.each([
     },
 );
 
-it('an ordinary session on server two retains project access until its independent 30-second cache expires', async () => {
+it('loads the person fresh for a connection while both stale caches still admit the same person session', async () => {
+    const f = await connectionFixture(migrated.database);
+    await enableConnectionFlag(f.database, f.organizationUuid);
+    await f.savePolicy({
+        systemRoleMatrix: {
+            ...matrix([AgentCapability.ReadDiscover]),
+            member: [AgentCapability.ReadDiscover],
+        },
+    });
+    const connection = await f.createConnection();
+    const { cookie, route } = await warm(f, connection.accessToken);
+    const filled = await Promise.all(
+        [first, second].map((server) => cacheState(server, f)),
+    );
+    await f.projects.deleteProjectAccess(f.projectUuid, f.userUuid);
+    await expect(f.check()).resolves.toBeUndefined();
+    await forEachInOrder([second, first], async (server) => {
+        const before = filled[server === first ? 0 : 1];
+        expect(await cacheState(server, f)).toEqual(before);
+        expect(before).toMatchObject({
+            hit: true,
+            active: true,
+            canViewProject: true,
+        });
+        const bearer = await httpRequest(server.base, route, {
+            authorization: `Bearer ${connection.accessToken}`,
+        });
+        const session = await httpRequest(server.base, route, { cookie });
+        expect(await cacheState(server, f)).toEqual(before);
+        process.stdout.write(
+            `Fresh-person isolation server ${server === second ? 'two' : 'one'}: bearer=${bearer.status}, session=${session.status}, cachedProjectAccess=${before.canViewProject}\n`,
+        );
+        expect
+            .soft(
+                bearer.status,
+                'PRODUCTION FINDING if 200: connection used stale project access despite permissive agent policy',
+            )
+            .toBe(403);
+        expect.soft(session.status).toBe(200);
+    });
+});
+
+it('an ordinary session retains stale project access until its own cache expiry, with 5 seconds of expiry tolerance and no response-time upper bound', async () => {
     const f = await connectionFixture(migrated.database);
     await enableConnectionFlag(f.database, f.organizationUuid);
     const connection = await f.createConnection();
-    const started = Date.now();
     const { cookie, route } = await warm(f, connection.accessToken);
+    const filled = await cacheState(second, f);
+    expect(filled.ttlMs).toBeGreaterThan(0);
+    expect(filled.expiresAt - filled.filledAt).toBe(filled.ttlMs);
     await f.projects.deleteProjectAccess(f.projectUuid, f.userUuid);
     const changed = Date.now();
+    expect(await cacheState(second, f)).toEqual(filled);
+    expect(filled).toMatchObject({ hit: true, canViewProject: true });
     expect(
         (
             await httpRequest(second.base, route, {
@@ -263,21 +311,18 @@ it('an ordinary session on server two retains project access until its independe
     expect((await httpRequest(second.base, route, { cookie })).status).toBe(
         200,
     );
-    const waitForRefusal = async (): ReturnType<typeof httpRequest> => {
-        const response = await httpRequest(second.base, route, { cookie });
-        if (response.status !== 200 || Date.now() - changed >= 33000)
-            return response;
-        await new Promise<void>((resolve) => {
-            setTimeout(resolve, 250);
-        });
-        return waitForRefusal();
-    };
-    const response = await waitForRefusal();
-    const elapsed = Date.now() - changed;
-    expect(response.status).toBe(403);
-    expect(elapsed).toBeGreaterThanOrEqual(29500 - (changed - started));
-    expect(elapsed).toBeLessThan(33000);
+    expect(await cacheState(second, f)).toEqual(filled);
+    await new Promise<void>((resolve) => {
+        setTimeout(resolve, Math.max(0, filled.expiresAt + 5000 - Date.now()));
+    });
+    expect(await cacheState(second, f)).toMatchObject({
+        hit: false,
+        canViewProject: null,
+    });
+    expect((await httpRequest(second.base, route, { cookie })).status).toBe(
+        403,
+    );
     process.stdout.write(
-        `Ordinary session cache delay after committed project removal: ${elapsed}ms; warm-up: ${changed - started}ms\n`,
+        `Session cache: ttl=${filled.ttlMs}ms; filled=${filled.filledAt}; expiry=${filled.expiresAt}; refusal observed ${Date.now() - changed}ms after removal\n`,
     );
 });

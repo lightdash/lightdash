@@ -13,14 +13,14 @@ import {
     connectionFixture,
     matrix,
     seedConnectionClient,
-} from './agentConnectionFixture';
+} from './agentConnectionFixture.mock';
 import {
     enableConnectionFlag,
     forEachInOrder,
     httpRequest,
     sessionCookie,
     startConnectionHttpServer,
-} from './agentConnectionHttpHarness';
+} from './agentConnectionHttpHarness.mock';
 
 let migrated: MigratedDatabase;
 let server: Awaited<ReturnType<typeof startConnectionHttpServer>>;

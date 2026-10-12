@@ -19,7 +19,7 @@ import oauthRouter from '../../../routers/oauthRouter';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { ServiceRepository } from '../../../services/ServiceRepository';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
-import { connectionTestConfig } from './agentConnectionFixture';
+import { connectionTestConfig } from './agentConnectionFixture.mock';
 
 const sessionSecret = 'agent-connection-http-test-session-secret';
 export const startConnectionHttpServer = async (database: Knex) => {
