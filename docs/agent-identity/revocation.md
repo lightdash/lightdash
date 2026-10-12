@@ -94,8 +94,9 @@ Limits to know:
 - A grant-bound access token that is revoked on its own gets a fixed expiry
   of 1970-01-01 00:00:00, or keeps its expiry if it is earlier. The next
   authentication check refuses it. It does not wait for the API clock to
-  catch up with the database clock. This holds for any API clock later than
-  1970. The row, grant and refresh token are kept.
+  catch up with the database clock. This holds when the API clock is later
+  than 1970-01-01 00:00:00 in the API process's time zone. The row, grant and
+  refresh token are kept.
 - Deactivating a person does not revoke the person's grants. They are
   refused while the person is inactive. If the person is reactivated before
   a grant expires, that grant works again.
