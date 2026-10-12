@@ -1824,6 +1824,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.serviceRepository.getEmailWhitelabelService(),
                 warehouseConnectCodeModel:
                     context.models.getWarehouseConnectCodeModel(),
+                agentConnectionApprovalRequestModel:
+                    context.models.getAgentConnectionApprovalRequestModel(),
                 aiUsageLedgerModel: context.models.getAiUsageLedgerModel(),
                 learnSandboxService:
                     context.serviceRepository.getLearnSandboxService(),

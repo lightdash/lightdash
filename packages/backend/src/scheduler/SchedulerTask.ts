@@ -186,6 +186,7 @@ import type { PreAggregateModel } from '../ee/models/PreAggregateModel';
 import type { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
 import Logger from '../logging/logger';
 import type { ExecutionContextInfo } from '../logging/winston';
+import { AgentConnectionApprovalRequestModel } from '../models/AgentConnectionApprovalRequestModel';
 import { AiUsageLedgerModel } from '../models/AiUsageLedgerModel';
 import { OrganizationSettingsModel } from '../models/OrganizationSettingsModel';
 import { WarehouseConnectCodeModel } from '../models/WarehouseConnectCodeModel';
@@ -293,6 +294,7 @@ export type SchedulerTaskArguments = {
     organizationSettingsModel: OrganizationSettingsModel;
     emailWhitelabelService: EmailWhitelabelService;
     warehouseConnectCodeModel: WarehouseConnectCodeModel;
+    agentConnectionApprovalRequestModel: AgentConnectionApprovalRequestModel;
     aiUsageLedgerModel: AiUsageLedgerModel;
     learnSandboxService: LearnSandboxService;
 };
@@ -590,6 +592,8 @@ export default class SchedulerTask {
 
     protected readonly warehouseConnectCodeModel: WarehouseConnectCodeModel;
 
+    protected readonly agentConnectionApprovalRequestModel: AgentConnectionApprovalRequestModel;
+
     protected readonly aiUsageLedgerModel: AiUsageLedgerModel;
 
     protected readonly learnSandboxService: LearnSandboxService;
@@ -629,6 +633,8 @@ export default class SchedulerTask {
         this.organizationSettingsModel = args.organizationSettingsModel;
         this.emailWhitelabelService = args.emailWhitelabelService;
         this.warehouseConnectCodeModel = args.warehouseConnectCodeModel;
+        this.agentConnectionApprovalRequestModel =
+            args.agentConnectionApprovalRequestModel;
         this.aiUsageLedgerModel = args.aiUsageLedgerModel;
         this.learnSandboxService = args.learnSandboxService;
     }
