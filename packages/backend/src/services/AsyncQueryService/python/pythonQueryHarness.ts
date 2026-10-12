@@ -275,8 +275,8 @@ def load_input(name, spec):
             frame[column] = pd.to_numeric(frame[column], errors="coerce")
         elif kind == "boolean":
             frame[column] = frame[column].map(
-                lambda value: None if value is None else bool(value)
-            )
+                lambda value: pd.NA if pd.isna(value) else bool(value)
+            ).astype("boolean")
         elif kind in ("date", "timestamp"):
             frame[column] = pd.to_datetime(frame[column], errors="coerce", utc=(kind == "timestamp"))
         else:
@@ -296,7 +296,7 @@ def column_type(series):
 
 
 def to_json_value(value, kind):
-    if value is None:
+    if value is None or value is pd.NA:
         return None
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
         return None
