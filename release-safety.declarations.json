@@ -104,36 +104,6 @@
                     "mcp": []
                 }
             }
-        },
-        "spk-2707-s4b-request-preparation-20261012": {
-            "reason": "Agent connection request preparation requires agent-identity for the person and organisation. This flag is off by default on Cloud and self-hosted instances. The new route stores a pending request and cannot issue a grant, authorization code or token. Existing OAuth clients keep their current path.",
-            "requiredStop": false,
-            "impact": {
-                "kind": "no-external-callers",
-                "featureFlag": "agent-identity",
-                "covers": {
-                    "rest": [
-                        "POST /api/v2/user/agent-connections/requests"
-                    ],
-                    "mcp": []
-                }
-            }
-        },
-        "spk-2707-s4b-review-decisions-20261012": {
-            "reason": "Request review, decision and completion require agent-identity for the person and organisation. This flag is off by default on Cloud and self-hosted instances. Approval records a selection but creates no grant, authorization code or token. Existing OAuth clients keep their current path.",
-            "requiredStop": false,
-            "impact": {
-                "kind": "no-external-callers",
-                "featureFlag": "agent-identity",
-                "covers": {
-                    "rest": [
-                        "GET /api/v2/user/agent-connections/requests/{requestUuid}",
-                        "POST /api/v2/user/agent-connections/requests/{requestUuid}/decision",
-                        "GET /api/v2/user/agent-connections/requests/{requestUuid}/completion"
-                    ],
-                    "mcp": []
-                }
-            }
         }
     }
 }
