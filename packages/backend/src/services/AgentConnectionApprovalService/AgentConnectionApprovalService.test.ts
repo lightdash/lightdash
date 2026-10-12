@@ -34,11 +34,13 @@ const fixture = () => {
             }),
         },
         userModel: {
+            getAgentRoleAssignmentsForProjects: vi.fn(),
             findSessionUserAndOrgByUuid: vi
                 .fn()
                 .mockResolvedValue(defaultSessionUser),
         },
         projectModel: {
+            getSummaries: vi.fn(),
             getAllByOrganizationUuid: vi
                 .fn()
                 .mockResolvedValue([

@@ -77,7 +77,6 @@ const setup = (
         })),
     };
     const projectModel = {
-        getSummaries: vi.fn(),
         getSummary: vi.fn().mockResolvedValue({ organizationUuid }),
     };
     const groupsModel = { findUserInGroups: vi.fn().mockResolvedValue([]) };
@@ -97,7 +96,6 @@ const setup = (
             save: vi.fn(),
         },
         userModel: {
-            getAgentRoleAssignmentsForProjects: vi.fn(),
             getAgentRoleAssignments: vi.fn().mockResolvedValue({
                 systemRoles: [OrganizationMemberRole.DEVELOPER],
                 customRoles: [],

@@ -93,14 +93,12 @@ export const setupPermissionSql = (
         areGroupsAvailable: vi.fn().mockResolvedValue(false),
         isCustomRolesLicensed: () => false,
         userModel: {
-            getAgentRoleAssignmentsForProjects: vi.fn(),
             getAgentRoleAssignments: vi.fn().mockResolvedValue({
                 systemRoles: [OrganizationMemberRole.VIEWER],
                 customRoles: [],
             }),
         },
         projectModel: {
-            getSummaries: vi.fn(),
             getSummary: vi.fn().mockResolvedValue({
                 organizationUuid: account.organization.organizationUuid,
             }),

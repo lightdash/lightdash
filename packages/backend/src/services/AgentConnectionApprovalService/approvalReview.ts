@@ -65,7 +65,6 @@ const reasons = {
     person_permission:
         'Your permissions in this project do not allow this action.',
     agents_disabled: 'Agents are turned off for this organisation.',
-    project_denied: 'Agents are turned off for this project.',
     person_not_admitted: 'This person is not allowed to use agents.',
     action_disabled: 'This action is turned off for agents.',
     scheduled_pre_aggregate_refresh:
@@ -79,14 +78,11 @@ const refusalCode = (check: AgentPermissionCheck | undefined): ReasonCode => {
             return 'person_not_admitted';
         case AiAccessRefusalReason.AGENT_ACCESS_DISABLED:
             return 'agents_disabled';
-        case AiAccessRefusalReason.AGENT_PROJECT_DENIED:
-            return 'project_denied';
-        case AiAccessRefusalReason.AGENT_SETTING_DENIED:
-            return 'action_disabled';
         case AiAccessRefusalReason.AGENT_CAPABILITY_DENIED:
-            return check.policyLayer === 'org_ceiling'
-                ? 'role_denied'
-                : 'action_disabled';
+            if (check.policyLayer === 'org_ceiling') return 'role_denied';
+            if (check.policyLayer === 'organization_setting')
+                return 'action_disabled';
+            return 'unavailable';
         default:
             return 'unavailable';
     }
@@ -124,9 +120,7 @@ export const mapApprovalProject = ({
     const admissionCode = admission ? refusalCode(admission) : null;
     const structural =
         admissionCode !== null &&
-        ['agents_disabled', 'project_denied', 'person_not_admitted'].includes(
-            admissionCode,
-        );
+        ['agents_disabled', 'person_not_admitted'].includes(admissionCode);
     return {
         ...project,
         selectable: !structural,

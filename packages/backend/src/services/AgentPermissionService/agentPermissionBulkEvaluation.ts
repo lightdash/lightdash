@@ -1,10 +1,16 @@
 import { NotFoundError, type AgentPermissionCheck } from '@lightdash/common';
+import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { type UserModel } from '../../models/UserModel';
 import {
     type AgentPermissionRequest,
     type AgentPermissionService,
 } from './AgentPermissionService';
 
 type Dependencies = ConstructorParameters<typeof AgentPermissionService>[0];
+export type AgentPermissionBulkLoaders = {
+    userModel: Pick<UserModel, 'getAgentRoleAssignmentsForProjects'>;
+    projectModel: Pick<ProjectModel, 'getSummaries'>;
+};
 type Operation = Parameters<AgentPermissionService['assertOperation']>[0];
 export type AgentPermissionBulkArgs = Pick<
     Operation,
@@ -18,6 +24,7 @@ export type AgentPermissionBulkArgs = Pick<
 
 export const evaluateAgentPermissionOperations = async (
     deps: Dependencies,
+    loaders: AgentPermissionBulkLoaders,
     args: AgentPermissionBulkArgs,
     request: AgentPermissionRequest,
     createReader: (
@@ -33,12 +40,12 @@ export const evaluateAgentPermissionOperations = async (
     let scoped = deps;
     if (request.enforcementMode === 'managed') {
         const [assignments, projects] = await Promise.all([
-            deps.userModel.getAgentRoleAssignmentsForProjects(
+            loaders.userModel.getAgentRoleAssignmentsForProjects(
                 args.account.user.id,
                 args.organizationUuid,
                 projectUuids,
             ),
-            deps.projectModel.getSummaries(
+            loaders.projectModel.getSummaries(
                 projectUuids.filter((uuid): uuid is string => uuid !== null),
             ),
         ]);
@@ -48,10 +55,6 @@ export const evaluateAgentPermissionOperations = async (
         scoped = {
             ...deps,
             userModel: {
-                getAgentRoleAssignmentsForProjects:
-                    deps.userModel.getAgentRoleAssignmentsForProjects.bind(
-                        deps.userModel,
-                    ),
                 getAgentRoleAssignments: async (
                     _userUuid,
                     _organizationUuid,
@@ -66,9 +69,6 @@ export const evaluateAgentPermissionOperations = async (
                 },
             },
             projectModel: {
-                getSummaries: deps.projectModel.getSummaries.bind(
-                    deps.projectModel,
-                ),
                 getSummary: async (projectUuid) => {
                     const project = summaries.get(projectUuid);
                     if (!project)
@@ -80,16 +80,6 @@ export const evaluateAgentPermissionOperations = async (
             },
         };
     }
-    let settings:
-        | ReturnType<Dependencies['getOrganizationSettings']>
-        | undefined;
-    scoped = {
-        ...scoped,
-        getOrganizationSettings: () => {
-            settings ??= deps.getOrganizationSettings(args.organizationUuid);
-            return settings;
-        },
-    };
     const read = createReader(scoped);
     return Promise.all(
         args.operations.map((operation) =>

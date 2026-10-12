@@ -52,12 +52,14 @@ const fixture = () => {
             consumeCallback: vi.fn(),
         },
         userModel: {
+            getAgentRoleAssignmentsForProjects: vi.fn(),
             findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue({
                 ...defaultSessionUser,
                 ability: new Ability([{ action: 'manage', subject: 'all' }]),
             }),
         },
         projectModel: {
+            getSummaries: vi.fn(),
             getAllByOrganizationUuid: vi.fn().mockResolvedValue([
                 { projectUuid: a, name: 'A' },
                 { projectUuid: b, name: 'B' },
@@ -257,12 +259,6 @@ it.each([
         AiAccessRefusalReason.AGENT_ACCESS_DISABLED,
         'organization_setting',
         'Agents are turned off for this organisation.',
-    ],
-    [
-        'project_scope',
-        AiAccessRefusalReason.AGENT_PROJECT_DENIED,
-        'project_scope',
-        'Agents are turned off for this project.',
     ],
 ] as const)(
     'keeps structurally refused projects visible: %s',
@@ -495,10 +491,22 @@ it('fails closed only for scheduled-refresh capabilities when their source canno
 
 it.each([
     [
+        AiAccessRefusalReason.AGENT_PROJECT_DENIED,
+        'project_scope',
+        'unavailable',
+        'The available permissions could not be checked.',
+    ],
+    [
+        AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+        'unmapped',
+        'unavailable',
+        'The available permissions could not be checked.',
+    ],
+    [
         AiAccessRefusalReason.AGENT_SETTING_DENIED,
         'organization_setting',
-        'action_disabled',
-        'This action is turned off for agents.',
+        'unavailable',
+        'The available permissions could not be checked.',
     ],
     [
         AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,

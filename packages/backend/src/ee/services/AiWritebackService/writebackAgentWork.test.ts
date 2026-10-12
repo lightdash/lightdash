@@ -41,7 +41,6 @@ it.each([
                 .fn()
                 .mockResolvedValue(defaultSessionUser),
             findServiceAccountByUserUuid: vi.fn(),
-            getAgentRoleAssignmentsForProjects: vi.fn(),
             getAgentRoleAssignments: vi.fn().mockResolvedValue({
                 systemRoles: [OrganizationMemberRole.VIEWER],
                 customRoles: [],
@@ -63,7 +62,6 @@ it.each([
             },
             userModel,
             projectModel: {
-                getSummaries: vi.fn(),
                 getSummary: vi.fn().mockResolvedValue({
                     organizationUuid: marker.organizationUuid,
                 }),

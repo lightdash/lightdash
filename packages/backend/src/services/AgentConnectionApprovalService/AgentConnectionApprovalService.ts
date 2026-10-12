@@ -123,8 +123,15 @@ export class AgentConnectionApprovalService extends BaseService {
                 | 'sealDecision'
                 | 'consumeCallback'
             >;
-            userModel: Pick<UserModel, 'findSessionUserAndOrgByUuid'>;
-            projectModel: Pick<ProjectModel, 'getAllByOrganizationUuid'>;
+            userModel: Pick<
+                UserModel,
+                | 'findSessionUserAndOrgByUuid'
+                | 'getAgentRoleAssignmentsForProjects'
+            >;
+            projectModel: Pick<
+                ProjectModel,
+                'getAllByOrganizationUuid' | 'getSummaries'
+            >;
             oauthModel: Pick<
                 OAuth2Model,
                 'getClient' | 'validateRedirectUriStrict'
@@ -237,12 +244,18 @@ export class AgentConnectionApprovalService extends BaseService {
         );
         const [checks, scheduled] = await Promise.all([
             this.deps.agentPermissionService
-                .evaluateOperations({
-                    account: person,
-                    organizationUuid: row.organization_uuid,
-                    surface: AgentActorSurface.CLI,
-                    operations: operationsByProject.flat(),
-                })
+                .evaluateOperations(
+                    {
+                        account: person,
+                        organizationUuid: row.organization_uuid,
+                        surface: AgentActorSurface.CLI,
+                        operations: operationsByProject.flat(),
+                    },
+                    {
+                        userModel: this.deps.userModel,
+                        projectModel: this.deps.projectModel,
+                    },
+                )
                 .catch(() => []),
             this.deps.reviewModel
                 .getScheduledRefreshProjectUuids(

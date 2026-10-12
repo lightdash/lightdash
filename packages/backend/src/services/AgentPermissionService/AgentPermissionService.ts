@@ -43,6 +43,7 @@ import { BaseService } from '../BaseService';
 import {
     evaluateAgentPermissionOperations,
     type AgentPermissionBulkArgs,
+    type AgentPermissionBulkLoaders,
 } from './agentPermissionBulkEvaluation';
 import {
     agentPermissionChecks,
@@ -155,11 +156,8 @@ interface Dependencies {
         AgentCapabilityPolicyModel,
         'get' | 'getForEnforcement' | 'save'
     >;
-    userModel: Pick<
-        UserModel,
-        'getAgentRoleAssignments' | 'getAgentRoleAssignmentsForProjects'
-    >;
-    projectModel: Pick<ProjectModel, 'getSummary' | 'getSummaries'>;
+    userModel: Pick<UserModel, 'getAgentRoleAssignments'>;
+    projectModel: Pick<ProjectModel, 'getSummary'>;
     agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
 }
 
@@ -585,9 +583,11 @@ export class AgentPermissionService extends BaseService {
 
     async evaluateOperations(
         args: AgentPermissionBulkArgs,
+        loaders: AgentPermissionBulkLoaders,
     ): Promise<(AgentPermissionCheck | null)[]> {
         return evaluateAgentPermissionOperations(
             this.deps,
+            loaders,
             args,
             await this.loadRequest(args.organizationUuid),
             (deps) => {

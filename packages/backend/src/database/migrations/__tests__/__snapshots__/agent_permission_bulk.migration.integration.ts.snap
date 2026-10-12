@@ -2,7 +2,7 @@
 
 exports[`review answer uses equal SQL round trips for 3 and 50 differentiated projects 1`] = `
 {
-  "large": 24,
-  "small": 24,
+  "large": 23,
+  "small": 23,
 }
 `;
