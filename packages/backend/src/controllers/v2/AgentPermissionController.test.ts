@@ -51,8 +51,12 @@ const setup = () => {
             })),
             save: vi.fn().mockResolvedValue(policy),
         },
-        userModel: { getAgentRoleAssignments: vi.fn() },
+        userModel: {
+            getAgentRoleAssignmentsForProjects: vi.fn(),
+            getAgentRoleAssignments: vi.fn(),
+        },
         projectModel: {
+            getSummaries: vi.fn(),
             getSummary: vi.fn().mockResolvedValue({
                 organizationUuid: account.organization.organizationUuid,
             }),

@@ -1,0 +1,574 @@
+import {
+    AGENT_CAPABILITY_SCOPES,
+    AgentActorSurface,
+    AgentCapability,
+    AiAccessRefusedError,
+    OrganizationMemberRole,
+    ProjectMemberRole,
+    ProjectType,
+} from '@lightdash/common';
+import { fromSession } from '../../../auth/account/account';
+import { GRANT_OPERATION_CONTRACTS } from '../../../auth/agentConnectionGrants/operationContracts';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { AiOrganizationSettingsModel } from '../../../ee/models/AiOrganizationSettingsModel';
+import { AgentActionLogModel } from '../../../models/AgentActionLogModel';
+import { AgentCapabilityPolicyModel } from '../../../models/AgentCapabilityPolicyModel';
+import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
+import { GroupsModel } from '../../../models/GroupsModel';
+import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { UserModel } from '../../../models/UserModel';
+import {
+    AgentPermissionService,
+    agentSystemRoleMatrix,
+} from '../../../services/AgentPermissionService/AgentPermissionService';
+import {
+    createMigratedDatabase,
+    type MigratedDatabase,
+} from '../../../testing/migratedDatabase';
+import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
+
+vi.mock('../../../config/lightdashConfig', async () => {
+    const { lightdashConfigMock: config } =
+        await import('../../../config/lightdashConfig.mock');
+    return { lightdashConfig: config };
+});
+
+let migrated: MigratedDatabase;
+beforeAll(async () => {
+    migrated = await createMigratedDatabase();
+});
+afterAll(async () => {
+    await migrated?.destroy();
+});
+
+const fixture = async () => {
+    const { database } = migrated;
+    const [org] = await database('organizations')
+        .insert({ organization_name: 'Bulk permissions' })
+        .returning('*');
+    const people = await Promise.all(
+        [
+            OrganizationMemberRole.ADMIN,
+            OrganizationMemberRole.DEVELOPER,
+            OrganizationMemberRole.EDITOR,
+            OrganizationMemberRole.INTERACTIVE_VIEWER,
+            OrganizationMemberRole.VIEWER,
+            OrganizationMemberRole.MEMBER,
+            OrganizationMemberRole.MEMBER,
+            OrganizationMemberRole.MEMBER,
+            OrganizationMemberRole.MEMBER,
+        ].map(async (role, index) => {
+            const [user] = await database('users')
+                .insert({
+                    first_name: `Person ${index}`,
+                    last_name: 'Bulk',
+                    is_marketing_opted_in: false,
+                    is_tracking_anonymized: true,
+                    is_setup_complete: true,
+                    is_active: true,
+                })
+                .returning('*');
+            await database('organization_memberships').insert({
+                organization_id: org.organization_id,
+                user_id: user.user_id,
+                role,
+            });
+            await database('emails').insert({
+                user_id: user.user_id,
+                email: `${user.user_uuid}@example.com`,
+                is_primary: true,
+            });
+            return user;
+        }),
+    );
+    const projects = await database('projects')
+        .insert(
+            Array.from({ length: 50 }, (_, index) => ({
+                organization_id: org.organization_id,
+                name: `Project ${index}`,
+                project_type: ProjectType.DEFAULT,
+                created_by_user_uuid: people[0].user_uuid,
+                dbt_connection: null,
+                dbt_connection_type: null,
+                copied_from_project_uuid: null,
+                dbt_version: '1.7',
+                organization_warehouse_credentials_uuid: null,
+            })),
+        )
+        .returning('*');
+    const [custom] = await database('roles')
+        .insert({
+            name: 'Query only',
+            description: null,
+            level: 'project',
+            organization_uuid: org.organization_uuid,
+            created_by: people[0].user_uuid,
+        })
+        .returning('*');
+    await database('scoped_roles').insert({
+        role_uuid: custom.role_uuid,
+        scope_name: AGENT_CAPABILITY_SCOPES[AgentCapability.Query],
+        granted_by: people[0].user_uuid,
+    });
+    const [group] = await database('groups')
+        .insert({
+            organization_id: org.organization_id,
+            name: 'Deploy group',
+            created_by_user_uuid: people[0].user_uuid,
+            updated_by_user_uuid: people[0].user_uuid,
+        })
+        .returning('*');
+    await database('group_memberships').insert({
+        group_uuid: group.group_uuid,
+        user_id: people[7].user_id,
+        organization_id: org.organization_id,
+    });
+    await database('project_memberships').insert(
+        projects.flatMap((project, index) => [
+            {
+                project_id: project.project_id,
+                user_id: people[5].user_id,
+                role:
+                    index % 2 === 0
+                        ? ProjectMemberRole.VIEWER
+                        : ProjectMemberRole.DEVELOPER,
+                role_uuid: null,
+            },
+            {
+                project_id: project.project_id,
+                user_id: people[6].user_id,
+                role: ProjectMemberRole.VIEWER,
+                role_uuid: custom.role_uuid,
+            },
+        ]),
+    );
+    await database('project_group_access').insert(
+        projects.map((project, index) => ({
+            project_uuid: project.project_uuid,
+            group_uuid: group.group_uuid,
+            role:
+                index % 2 === 0
+                    ? ProjectMemberRole.DEVELOPER
+                    : ProjectMemberRole.VIEWER,
+        })),
+    );
+    await database('project_group_access_custom_roles').insert({
+        project_uuid: projects[2].project_uuid,
+        group_uuid: group.group_uuid,
+        role_uuid: custom.role_uuid,
+    });
+    const encryptionUtil = new EncryptionUtil({
+        lightdashConfig: lightdashConfigMock,
+    });
+    const featureFlagModel = new FeatureFlagModel({
+        database,
+        lightdashConfig: lightdashConfigMock,
+    });
+    const users = new UserModel({
+        database,
+        lightdashConfig: lightdashConfigMock,
+        featureFlagModel,
+    });
+    const projectModel = new ProjectModel({
+        database,
+        lightdashConfig: lightdashConfigMock,
+        encryptionUtil,
+    });
+    const policies = new AgentCapabilityPolicyModel({ database });
+    const settings = new AiOrganizationSettingsModel({
+        database,
+        encryptionUtil,
+    });
+    const roleMatrix = {
+        ...agentSystemRoleMatrix([]),
+        admin: Object.values(AgentCapability),
+        developer: [
+            AgentCapability.DeployUpload,
+            AgentCapability.ReadDiscover,
+            AgentCapability.Administration,
+        ],
+        editor: [
+            AgentCapability.ContentWrite,
+            AgentCapability.Publish,
+            AgentCapability.Delete,
+        ],
+        interactive_viewer: [AgentCapability.RawSql],
+        viewer: [AgentCapability.Query],
+    };
+    const savePolicy = (
+        overrides: Partial<Parameters<typeof policies.save>[0]> = {},
+    ) =>
+        policies.save({
+            organizationUuid: org.organization_uuid,
+            mode: 'managed',
+            allowedProjectUuids: null,
+            allowedUserUuids: null,
+            allowedGroupUuids: null,
+            systemRoleMatrix: roleMatrix,
+            updatedByUserUuid: people[0].user_uuid,
+            ...overrides,
+        });
+    await savePolicy();
+    await settings.upsert(org.organization_uuid, {
+        mcpAgentsEnabled: true,
+        mcpContentWritesEnabled: true,
+    });
+    const flags = {
+        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+            id: featureFlagId,
+            enabled: true,
+        })),
+    };
+    const service = new AgentPermissionService({
+        resolveResourceProjectUuid: async () => null,
+        isCustomRolesLicensed: () => true,
+        areGroupsAvailable: async () => true,
+        featureFlagModel: flags,
+        groupsModel: new GroupsModel({ database }),
+        agentCapabilityPolicyModel: policies,
+        userModel: users,
+        projectModel,
+        getOrganizationSettings: (uuid) =>
+            settings.findByOrganizationUuid(uuid),
+        agentActionLogModel: new AgentActionLogModel({ database }),
+    });
+    const accounts = await Promise.all(
+        people.map(async (person) =>
+            fromSession(
+                await users.findSessionUserAndOrgByUuid(
+                    person.user_uuid,
+                    org.organization_uuid,
+                ),
+                '',
+            ),
+        ),
+    );
+    return {
+        database,
+        org,
+        people,
+        projects,
+        custom,
+        group,
+        service,
+        accounts,
+        settings,
+        savePolicy,
+        roleMatrix,
+        flags,
+        users,
+        projectModel,
+    };
+};
+
+const capabilities = Object.values(AgentCapability).map((key) => ({
+    kind: 'capability' as const,
+    key,
+}));
+const operations = Object.keys(GRANT_OPERATION_CONTRACTS).map((key) => ({
+    kind: 'rest_operation' as const,
+    key,
+}));
+const refusal = async (call: Promise<void>) => {
+    try {
+        await call;
+        return null;
+    } catch (error) {
+        if (!(error instanceof AiAccessRefusedError)) throw error;
+        return {
+            reason: error.refusal.reason,
+            capability: error.refusal.capability ?? null,
+            policyLayer: error.refusal.policyLayer,
+        };
+    }
+};
+
+const forEachSequential = <T>(
+    items: readonly T[],
+    fn: (item: T) => Promise<void>,
+): Promise<void> =>
+    items.reduce(async (previous, item) => {
+        await previous;
+        await fn(item);
+    }, Promise.resolve());
+
+it('matches both operation paths cell by cell with real roles and policies', async () => {
+    const f = await fixture();
+    const scenarios = [
+        'normal',
+        'disabled',
+        'unticked',
+        'excluded',
+        'project-limited',
+        'group-limited',
+        'writes-disabled',
+        'legacy',
+        'off',
+    ] as const;
+    let cells = 0;
+    await forEachSequential(scenarios, async (scenario) => {
+        f.flags.get.mockImplementation(async ({ featureFlagId }) => ({
+            id: featureFlagId,
+            enabled: scenario !== 'off',
+        }));
+        await f.savePolicy({
+            mode: scenario === 'legacy' ? 'legacy' : 'managed',
+            allowedProjectUuids:
+                scenario === 'project-limited'
+                    ? [f.projects[0].project_uuid]
+                    : null,
+            allowedUserUuids: scenario === 'excluded' ? [] : null,
+            allowedGroupUuids:
+                scenario === 'group-limited' ? [f.group.group_uuid] : null,
+            systemRoleMatrix:
+                scenario === 'unticked'
+                    ? agentSystemRoleMatrix([])
+                    : f.roleMatrix,
+        });
+        await f.settings.upsert(f.org.organization_uuid, {
+            mcpAgentsEnabled: scenario !== 'disabled',
+            mcpContentWritesEnabled: scenario !== 'writes-disabled',
+        });
+        await forEachSequential(f.accounts, async (account) => {
+            const checks = f.projects.slice(0, 3).flatMap((project) =>
+                [
+                    ...capabilities,
+                    ...(scenario === 'normal' ? operations : []),
+                ].map((op) => ({
+                    ...op,
+                    projectUuid: project.project_uuid,
+                })),
+            );
+            const base = {
+                account,
+                organizationUuid: f.org.organization_uuid,
+                surface: AgentActorSurface.CLI,
+            };
+            const bulk = await f.service.evaluateOperations({
+                ...base,
+                operations: checks,
+            });
+            expect(bulk).toHaveLength(checks.length);
+            const request = await f.service.loadRequest(
+                f.org.organization_uuid,
+            );
+            await forEachSequential(
+                [...checks.entries()],
+                async ([index, check]) => {
+                    const expected = await refusal(
+                        f.service.assertOperationWithRequest({
+                            request,
+                            operation: { ...base, ...check },
+                        }),
+                    );
+                    const actual = bulk[index];
+                    const cell = `${scenario}/${account.user.id}/${check.projectUuid}/${check.key}`;
+                    expect({
+                        cell,
+                        refusal:
+                            actual === null
+                                ? null
+                                : {
+                                      reason: actual.reason,
+                                      capability: actual.capability,
+                                      policyLayer: actual.policyLayer,
+                                  },
+                    }).toEqual({ cell, refusal: expected });
+                    expect(
+                        await refusal(
+                            f.service.assertOperation({ ...base, ...check }),
+                        ),
+                    ).toEqual(expected);
+                    cells += 1;
+                },
+            );
+        });
+    });
+    expect(cells).toBe(9 * 3 * (9 * capabilities.length + operations.length));
+});
+
+it('keeps role, policy, group, settings and project query counts constant for 3 and 50 differentiated projects', async () => {
+    const f = await fixture();
+    await f.savePolicy({ allowedGroupUuids: [f.group.group_uuid] });
+    const count = async (size: number) => {
+        const sql: string[] = [];
+        const listener = (query: { sql: string }) => sql.push(query.sql);
+        f.database.on('query', listener);
+        try {
+            const result = await f.service.evaluateOperations({
+                account: f.accounts[7],
+                organizationUuid: f.org.organization_uuid,
+                surface: AgentActorSurface.CLI,
+                operations: f.projects.slice(0, size).flatMap((project) =>
+                    capabilities.map((op) => ({
+                        ...op,
+                        projectUuid: project.project_uuid,
+                    })),
+                ),
+            });
+            return { sql, result };
+        } finally {
+            f.database.off('query', listener);
+        }
+    };
+    const small = await count(3);
+    const large = await count(50);
+    const families = (sql: string[]) =>
+        Object.fromEntries(
+            [
+                ...new Set(
+                    sql.map(
+                        (query) => /from "([^"]+)"/.exec(query)?.[1] ?? 'other',
+                    ),
+                ),
+            ]
+                .sort()
+                .map((family) => [
+                    family,
+                    sql.filter(
+                        (query) =>
+                            (/from "([^"]+)"/.exec(query)?.[1] ?? 'other') ===
+                            family,
+                    ).length,
+                ]),
+        );
+    expect(families(large.sql)).toEqual(families(small.sql));
+    expect(large.sql.length).toBeLessThanOrEqual(12);
+    expect(large.sql.every((query) => query.startsWith('select'))).toBe(true);
+    for (const [index, project] of f.projects.entries()) {
+        const queryIndex =
+            index * capabilities.length +
+            capabilities.findIndex((op) => op.key === AgentCapability.Query);
+        const deployIndex =
+            index * capabilities.length +
+            capabilities.findIndex(
+                (op) => op.key === AgentCapability.DeployUpload,
+            );
+        expect({
+            project: project.name,
+            allowed: large.result[queryIndex] === null,
+        }).toEqual({
+            project: project.name,
+            allowed: index % 2 === 1 || index === 2,
+        });
+        expect({
+            project: project.name,
+            allowed: large.result[deployIndex] === null,
+        }).toEqual({ project: project.name, allowed: index % 2 === 0 });
+    }
+    expect(families(large.sql)).toMatchInlineSnapshot(`
+      {
+        "ai_organization_settings": 1,
+        "group_memberships": 2,
+        "organization_agent_capability_policies": 1,
+        "organization_membership_custom_roles": 1,
+        "project_group_access_custom_roles": 1,
+        "project_memberships": 1,
+        "projects": 1,
+        "scoped_roles": 1,
+        "users": 1,
+      }
+    `);
+});
+
+it('reads changed roles again on the next call', async () => {
+    const f = await fixture();
+    const args = {
+        account: f.accounts[5],
+        organizationUuid: f.org.organization_uuid,
+        surface: AgentActorSurface.CLI,
+        operations: [
+            {
+                kind: 'capability' as const,
+                key: AgentCapability.Query,
+                projectUuid: f.projects[0].project_uuid,
+            },
+        ],
+    };
+    expect(await f.service.evaluateOperations(args)).toEqual([null]);
+    await f
+        .database('project_memberships')
+        .where({
+            user_id: f.people[5].user_id,
+            project_id: f.projects[0].project_id,
+        })
+        .delete();
+    expect(await f.service.evaluateOperations(args)).toMatchObject([
+        { reason: 'agent_capability_denied' },
+    ]);
+});
+
+it('preserves model role unions and rejects unknown or foreign projects without a partial answer', async () => {
+    const f = await fixture();
+    const projectUuids = f.projects
+        .slice(0, 3)
+        .map((project) => project.project_uuid);
+    const member = await f.users.getAgentRoleAssignmentsForProjects(
+        f.people[5].user_uuid,
+        f.org.organization_uuid,
+        [...projectUuids, null],
+    );
+    expect(member.get(projectUuids[0])).toEqual({
+        systemRoles: ['member', 'viewer'],
+        customRoles: [],
+    });
+    expect(member.get(projectUuids[1])).toEqual({
+        systemRoles: ['member', 'developer'],
+        customRoles: [],
+    });
+    expect(member.get(null)).toEqual({
+        systemRoles: ['member'],
+        customRoles: [],
+    });
+    const custom = await f.users.getAgentRoleAssignmentsForProjects(
+        f.people[6].user_uuid,
+        f.org.organization_uuid,
+        projectUuids,
+    );
+    expect(custom.get(projectUuids[0])).toEqual({
+        systemRoles: ['member'],
+        customRoles: [
+            {
+                roleUuid: f.custom.role_uuid,
+                scopes: [AGENT_CAPABILITY_SCOPES[AgentCapability.Query]],
+            },
+        ],
+    });
+    const absent = await f.users.getAgentRoleAssignmentsForProjects(
+        f.people[8].user_uuid,
+        f.org.organization_uuid,
+        projectUuids,
+    );
+    expect(absent.get(projectUuids[0])).toEqual({
+        systemRoles: ['member'],
+        customRoles: [],
+    });
+    const foreign = await fixture();
+    await forEachSequential(
+        [
+            '00000000-0000-4000-8000-000000000099',
+            foreign.projects[0].project_uuid,
+        ],
+        async (projectUuid) => {
+            const operation = {
+                kind: 'capability' as const,
+                key: AgentCapability.Query,
+                projectUuid,
+            };
+            const base = {
+                account: f.accounts[0],
+                organizationUuid: f.org.organization_uuid,
+                surface: AgentActorSurface.CLI,
+            };
+            await expect(
+                f.service.evaluateOperations({
+                    ...base,
+                    operations: [operation],
+                }),
+            ).rejects.toThrow();
+            await expect(
+                f.service.assertOperation({ ...base, ...operation }),
+            ).rejects.toThrow();
+        },
+    );
+});

@@ -2474,14 +2474,23 @@ export class ProjectModel {
     }
 
     async getSummary(projectUuid: string): Promise<ProjectSummary> {
-        const project = await this.database(ProjectTableName)
+        const [project] = await this.getSummaries([projectUuid]);
+        if (!project)
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        return project;
+    }
+
+    async getSummaries(projectUuids: string[]): Promise<ProjectSummary[]> {
+        const projects = await this.database(ProjectTableName)
             .leftJoin(
                 OrganizationTableName,
                 'projects.organization_id',
                 'organizations.organization_id',
             )
             .select<
-                Pick<
+                (Pick<
                     DbProject,
                     | 'name'
                     | 'project_uuid'
@@ -2491,7 +2500,7 @@ export class ProjectModel {
                     | 'created_by_user_uuid'
                     | 'provisioning_source'
                 > &
-                    Pick<DbOrganization, 'organization_uuid'>
+                    Pick<DbOrganization, 'organization_uuid'>)[]
             >([
                 `${ProjectTableName}.name`,
                 `${ProjectTableName}.project_uuid`,
@@ -2502,14 +2511,8 @@ export class ProjectModel {
                 `${ProjectTableName}.created_by_user_uuid`,
                 `${ProjectTableName}.provisioning_source`,
             ])
-            .where('projects.project_uuid', projectUuid)
-            .first();
-        if (!project) {
-            throw new NotFoundError(
-                `Cannot find project with id: ${projectUuid}`,
-            );
-        }
-        return {
+            .whereIn('projects.project_uuid', projectUuids);
+        return projects.map((project) => ({
             organizationUuid: project.organization_uuid,
             projectUuid: project.project_uuid,
             slug: project.slug,
@@ -2518,7 +2521,7 @@ export class ProjectModel {
             upstreamProjectUuid: project.copied_from_project_uuid || undefined,
             createdByUserUuid: project.created_by_user_uuid,
             provisioningSource: project.provisioning_source,
-        };
+        }));
     }
 
     async getUuidBySlug(

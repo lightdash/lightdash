@@ -41,6 +41,10 @@ import {
 import { recordAgentRefusal } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
 import {
+    evaluateAgentPermissionOperations,
+    type AgentPermissionBulkArgs,
+} from './agentPermissionBulkEvaluation';
+import {
     agentPermissionChecks,
     permissionBlockers,
     permissionRefusal,
@@ -151,8 +155,11 @@ interface Dependencies {
         AgentCapabilityPolicyModel,
         'get' | 'getForEnforcement' | 'save'
     >;
-    userModel: Pick<UserModel, 'getAgentRoleAssignments'>;
-    projectModel: Pick<ProjectModel, 'getSummary'>;
+    userModel: Pick<
+        UserModel,
+        'getAgentRoleAssignments' | 'getAgentRoleAssignmentsForProjects'
+    >;
+    projectModel: Pick<ProjectModel, 'getSummary' | 'getSummaries'>;
     agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
 }
 
@@ -574,6 +581,28 @@ export class AgentPermissionService extends BaseService {
             readChecks,
             requiredCapabilities: [...(requiredCapabilities ?? [])],
         };
+    }
+
+    async evaluateOperations(
+        args: AgentPermissionBulkArgs,
+    ): Promise<(AgentPermissionCheck | null)[]> {
+        return evaluateAgentPermissionOperations(
+            this.deps,
+            args,
+            await this.loadRequest(args.organizationUuid),
+            (deps) => {
+                const reader = new AgentPermissionService(deps);
+                return async (operation, request) => {
+                    const policy = await reader.resolvePolicyWithRequest({
+                        request,
+                        operation,
+                    });
+                    return reader
+                        .createEvaluation(policy, operation, request)
+                        .readChecks(true);
+                };
+            },
+        );
     }
 
     async assertOperation(args: AssertOperationArgs): Promise<void> {

@@ -109,126 +109,129 @@ it.each(clients)(
         const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
         const captured: Record<string, unknown> = {};
         try {
-            await (['baseline', 'flag-on', 'flag-off-unknown'] as const).reduce(
-                async (previous, variant) => {
-                    await previous;
-                    flag.mockClear();
-                    approvalService.mockClear();
-                    flag.mockResolvedValue({
-                        enabled: variant === 'flag-on',
-                    } as never);
-                    const compared: Record<string, unknown> = {};
-                    await Promise.all(
-                        paths.map(async (scenario) => {
-                            const params = {
-                                client_id: client.id,
-                                redirect_uri:
-                                    scenario === 'invalid-redirect'
-                                        ? 'https://untrusted.example/callback'
-                                        : client.redirect,
-                                response_type: 'code',
-                                resource:
-                                    scenario === 'invalid-resource'
-                                        ? 'https://untrusted.example'
-                                        : client.resource,
-                                ...(variant === 'flag-off-unknown'
-                                    ? { agent_request: 'unknown-request' }
-                                    : {}),
-                                scope: client.scope,
-                                state: 'ordinary-state',
-                                code_challenge: 'c'.repeat(43),
-                                code_challenge_method: 'S256',
-                            };
-                            const post = [
-                                'approve',
-                                'deny',
-                                'token-success',
-                                'token-error',
-                            ].includes(scenario);
-                            const token = scenario.startsWith('token-');
-                            const response = await new Promise<{
-                                status: number;
-                                headers: unknown;
-                                body: string;
-                            }>((resolve, reject) => {
-                                const call = request(
-                                    `${base}/api/v1/oauth/${token ? 'token' : 'authorize'}${post ? '' : `?${new URLSearchParams(params)}`}`,
-                                    {
-                                        method: post ? 'POST' : 'GET',
-                                        headers: {
-                                            'content-type': 'application/json',
-                                            'x-signed-out': String(
-                                                scenario === 'signed-out',
-                                            ),
-                                            connection: 'close',
-                                        },
+            await (
+                ['baseline', 'flag-off', 'flag-on', 'flag-off-unknown'] as const
+            ).reduce(async (previous, variant) => {
+                await previous;
+                flag.mockClear();
+                approvalService.mockClear();
+                flag.mockResolvedValue({
+                    enabled: variant === 'flag-on',
+                } as never);
+                const compared: Record<string, unknown> = {};
+                await Promise.all(
+                    paths.map(async (scenario) => {
+                        const params = {
+                            client_id: client.id,
+                            redirect_uri:
+                                scenario === 'invalid-redirect'
+                                    ? 'https://untrusted.example/callback'
+                                    : client.redirect,
+                            response_type: 'code',
+                            resource:
+                                scenario === 'invalid-resource'
+                                    ? 'https://untrusted.example'
+                                    : client.resource,
+                            ...(variant === 'flag-off-unknown'
+                                ? {
+                                      agent_request:
+                                          '00000000-0000-4000-8000-000000000099',
+                                  }
+                                : {}),
+                            scope: client.scope,
+                            state: 'ordinary-state',
+                            code_challenge: 'c'.repeat(43),
+                            code_challenge_method: 'S256',
+                        };
+                        const post = [
+                            'approve',
+                            'deny',
+                            'token-success',
+                            'token-error',
+                        ].includes(scenario);
+                        const token = scenario.startsWith('token-');
+                        const response = await new Promise<{
+                            status: number;
+                            headers: unknown;
+                            body: string;
+                        }>((resolve, reject) => {
+                            const call = request(
+                                `${base}/api/v1/oauth/${token ? 'token' : 'authorize'}${post ? '' : `?${new URLSearchParams(params)}`}`,
+                                {
+                                    method: post ? 'POST' : 'GET',
+                                    headers: {
+                                        'content-type': 'application/json',
+                                        'x-signed-out': String(
+                                            scenario === 'signed-out',
+                                        ),
+                                        connection: 'close',
                                     },
-                                    (res) => {
-                                        const chunks: Buffer[] = [];
-                                        res.on('data', (chunk: Buffer) =>
-                                            chunks.push(chunk),
-                                        );
-                                        res.on('end', () =>
-                                            resolve({
-                                                status: res.statusCode!,
-                                                headers: res.headers,
-                                                body: Buffer.concat(
-                                                    chunks,
-                                                ).toString(),
-                                            }),
-                                        );
-                                    },
-                                );
-                                call.on('error', reject);
-                                call.end(
-                                    post
-                                        ? JSON.stringify(
-                                              token
-                                                  ? {
-                                                        client_id: client.id,
-                                                        resource:
-                                                            client.resource,
-                                                        grant_type:
-                                                            'authorization_code',
-                                                        code:
-                                                            scenario ===
-                                                            'token-error'
-                                                                ? 'invalid'
-                                                                : 'ordinary-code',
-                                                        ...(variant ===
-                                                        'flag-off-unknown'
-                                                            ? {
-                                                                  agent_request:
-                                                                      'unknown-request',
-                                                              }
-                                                            : {}),
-                                                    }
-                                                  : {
-                                                        ...params,
-                                                        approve: String(
-                                                            scenario !== 'deny',
-                                                        ),
-                                                    },
-                                          )
-                                        : undefined,
-                                );
-                            });
-                            compared[scenario] = response;
-                        }),
-                    );
-                    if (variant === 'baseline') {
-                        Object.assign(captured, compared);
-                        expect(captured).toMatchSnapshot();
-                    } else expect(compared).toEqual(captured);
-                    if (variant !== 'flag-off-unknown') {
-                        expect(flag).not.toHaveBeenCalled();
-                        expect(approvalService).not.toHaveBeenCalled();
-                    }
-                },
-                Promise.resolve(),
-            );
-            expect(oauth.authorize).toHaveBeenCalledTimes(3);
-            expect(oauth.token).toHaveBeenCalledTimes(6);
+                                },
+                                (res) => {
+                                    const chunks: Buffer[] = [];
+                                    res.on('data', (chunk: Buffer) =>
+                                        chunks.push(chunk),
+                                    );
+                                    res.on('end', () =>
+                                        resolve({
+                                            status: res.statusCode!,
+                                            headers: res.headers,
+                                            body: Buffer.concat(
+                                                chunks,
+                                            ).toString(),
+                                        }),
+                                    );
+                                },
+                            );
+                            call.on('error', reject);
+                            call.end(
+                                post
+                                    ? JSON.stringify(
+                                          token
+                                              ? {
+                                                    client_id: client.id,
+                                                    resource: client.resource,
+                                                    grant_type:
+                                                        'authorization_code',
+                                                    code:
+                                                        scenario ===
+                                                        'token-error'
+                                                            ? 'invalid'
+                                                            : 'ordinary-code',
+                                                    ...(variant ===
+                                                    'flag-off-unknown'
+                                                        ? {
+                                                              agent_request:
+                                                                  '00000000-0000-4000-8000-000000000099',
+                                                          }
+                                                        : {}),
+                                                }
+                                              : {
+                                                    ...params,
+                                                    approve: String(
+                                                        scenario !== 'deny',
+                                                    ),
+                                                },
+                                      )
+                                    : undefined,
+                            );
+                        });
+                        compared[scenario] = response;
+                    }),
+                );
+                if (variant === 'baseline') {
+                    Object.assign(captured, compared);
+                    expect(captured).toMatchSnapshot();
+                } else if (variant === 'flag-off-unknown') {
+                    expect(compared).toMatchSnapshot('unknown agent request');
+                } else expect(compared).toEqual(captured);
+                if (variant !== 'flag-off-unknown') {
+                    expect(flag).not.toHaveBeenCalled();
+                    expect(approvalService).not.toHaveBeenCalled();
+                }
+            }, Promise.resolve());
+            expect(oauth.authorize).toHaveBeenCalledTimes(4);
+            expect(oauth.token).toHaveBeenCalledTimes(8);
         } finally {
             await new Promise<void>((resolve, reject) => {
                 server.close((error) => (error ? reject(error) : resolve()));

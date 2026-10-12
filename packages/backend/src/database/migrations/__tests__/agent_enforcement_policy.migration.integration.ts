@@ -148,8 +148,11 @@ test.each([
             resolveResourceProjectUuid: vi.fn(),
             isCustomRolesLicensed: () => false,
             areGroupsAvailable: vi.fn().mockResolvedValue(false),
-            userModel: { getAgentRoleAssignments: vi.fn() },
-            projectModel: { getSummary: vi.fn() },
+            userModel: {
+                getAgentRoleAssignmentsForProjects: vi.fn(),
+                getAgentRoleAssignments: vi.fn(),
+            },
+            projectModel: { getSummaries: vi.fn(), getSummary: vi.fn() },
 
             agentActionLogModel: { insert },
         });

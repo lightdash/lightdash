@@ -66,9 +66,11 @@ export const managedExecutionFixture = () => {
             save: vi.fn(),
         },
         userModel: {
+            getAgentRoleAssignmentsForProjects: vi.fn(),
             getAgentRoleAssignments: vi.fn().mockResolvedValue(assignments),
         },
         projectModel: {
+            getSummaries: vi.fn(),
             getSummary: vi.fn().mockResolvedValue({
                 organizationUuid: grant.organizationUuid,
             }),

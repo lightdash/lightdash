@@ -51,12 +51,14 @@ const setup = () => {
             save: vi.fn(),
         },
         userModel: {
+            getAgentRoleAssignmentsForProjects: vi.fn(),
             getAgentRoleAssignments: vi.fn().mockResolvedValue({
                 systemRoles: [OrganizationMemberRole.VIEWER],
                 customRoles: [],
             }),
         },
         projectModel: {
+            getSummaries: vi.fn(),
             getSummary: vi.fn().mockResolvedValue({
                 organizationUuid: account.organization.organizationUuid,
             }),

@@ -12,25 +12,6 @@ export const hasAgentApprovalParameter = (req: Request): boolean =>
     Object.hasOwn(req.query ?? {}, 'agent_request') ||
     Object.hasOwn(req.body ?? {}, 'agent_request');
 
-const withoutAgentParameter = (url: string): string => {
-    const separator = url.indexOf('?');
-    if (separator < 0) return url;
-    const query = url
-        .slice(separator + 1)
-        .split('&')
-        .filter((part) => {
-            try {
-                return !/^agent_request(?:\[.*\])?$/.test(
-                    decodeURIComponent(part.split('=')[0].replace(/\+/g, ' ')),
-                );
-            } catch {
-                return true;
-            }
-        })
-        .join('&');
-    return `${url.slice(0, separator)}${query ? `?${query}` : ''}`;
-};
-
 export const handleAgentApprovalAuthorize = async (
     req: Request,
     res: Response,
@@ -38,16 +19,6 @@ export const handleAgentApprovalAuthorize = async (
     try {
         const service = req.services.getAgentConnectionApprovalService();
         if (!(await service.isEnabledForUser(req.user))) {
-            const opaqueSignedOut =
-                !req.user &&
-                Object.keys(req.query).length === 1 &&
-                Object.keys(req.body ?? {}).length === 0;
-            if (!opaqueSignedOut) {
-                delete req.query.agent_request;
-                if (req.body) delete req.body.agent_request;
-                req.url = withoutAgentParameter(req.url);
-                req.originalUrl = withoutAgentParameter(req.originalUrl);
-            }
             return false;
         }
         res.set('Cache-Control', 'no-store');
