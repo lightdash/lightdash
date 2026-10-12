@@ -1,9 +1,22 @@
 import { getAgentCapabilityName } from '@lightdash/common';
-import { Badge, Button, Stack, Table, Text } from '@mantine/core';
-import { IconPlugConnected } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Badge,
+    Button,
+    Group,
+    Stack,
+    Table,
+    Text,
+} from '@mantine/core';
+import {
+    IconChevronDown,
+    IconChevronRight,
+    IconPlugConnected,
+} from '@tabler/icons-react';
 import { useState } from 'react';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
+import MantineIcon from '../../components/common/MantineIcon';
 import { SettingsEmptyState } from '../../components/common/Settings/SettingsEmptyState';
 import { useAgentConnections, useAgentConnectionStatus } from './api';
 import { RevokeAgentConnectionModal } from './RevokeAgentConnectionModal';
@@ -14,7 +27,13 @@ const statusLabels = {
     expired: 'Expired',
     revoked: 'Revoked',
 } as const;
-const displayDate = (value: string) => new Date(value).toLocaleString();
+const displayDate = (value: string) =>
+    new Date(value).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    });
+const count = (value: number, noun: string) =>
+    `${value} ${noun}${value === 1 ? '' : 's'}`;
 
 const ConnectionRow = ({
     connection,
@@ -40,59 +59,62 @@ const ConnectionRow = ({
         <>
             <Table.Tr>
                 <Table.Td>
-                    <Text>{connection.name}</Text>
-                    <Text size="xs" c="dimmed">
-                        CLI
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                        Approved {displayDate(connection.approvedAt)}
-                    </Text>
-                    <Button
-                        size="compact-xs"
-                        variant="subtle"
-                        aria-label={`${expanded ? 'Collapse' : 'Expand'} ${connection.name}`}
-                        aria-expanded={expanded}
-                        aria-controls={`restrictions-${connection.grantUuid}`}
-                        onClick={() => setExpanded((value) => !value)}
+                    <Group gap="xs" wrap="nowrap">
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            aria-label={`${expanded ? 'Collapse' : 'Expand'} ${connection.name}`}
+                            aria-expanded={expanded}
+                            aria-controls={`restrictions-${connection.grantUuid}`}
+                            onClick={() => setExpanded((value) => !value)}
+                        >
+                            <MantineIcon
+                                icon={
+                                    expanded
+                                        ? IconChevronDown
+                                        : IconChevronRight
+                                }
+                            />
+                        </ActionIcon>
+                        <Stack gap={0}>
+                            <Text fw={500}>{connection.name}</Text>
+                            <Text size="xs" c="dimmed">
+                                CLI ·{' '}
+                                {count(
+                                    connection.approvedProjects.length,
+                                    'project',
+                                )}{' '}
+                                · {count(actions.length, 'action')}
+                            </Text>
+                        </Stack>
+                    </Group>
+                </Table.Td>
+                <Table.Td>
+                    <Text size="sm">{displayDate(connection.expiresAt)}</Text>
+                </Table.Td>
+                <Table.Td>
+                    <Text
+                        size="sm"
+                        c={connection.lastUsedAt ? undefined : 'dimmed'}
                     >
-                        {expanded
-                            ? 'Hide restrictions'
-                            : 'Expand to check current restrictions'}
-                    </Button>
+                        {connection.lastUsedAt
+                            ? displayDate(connection.lastUsedAt)
+                            : 'Never used'}
+                    </Text>
                 </Table.Td>
                 <Table.Td>
-                    {connection.approvedProjects.map((project) => (
-                        <Text key={project.projectUuid} size="sm">
-                            {project.name ?? 'Project no longer available'}
-                        </Text>
-                    ))}
-                </Table.Td>
-                <Table.Td>
-                    {actions.map((capability) => (
-                        <Text key={capability} size="sm">
-                            {getAgentCapabilityName(capability)}
-                        </Text>
-                    ))}
-                </Table.Td>
-                <Table.Td>{displayDate(connection.expiresAt)}</Table.Td>
-                <Table.Td>
-                    {connection.lastUsedAt
-                        ? displayDate(connection.lastUsedAt)
-                        : 'Never used'}
-                </Table.Td>
-                <Table.Td>
-                    <Badge>
+                    <Badge variant="light" color={active ? 'green' : 'gray'}>
                         {connection.limitsStatus === 'invalid'
                             ? 'Invalid'
                             : statusLabels[connection.status]}
                     </Badge>
                 </Table.Td>
-                <Table.Td>
+                <Table.Td ta="right">
                     {active && (
                         <Button
-                            variant="default"
+                            variant="subtle"
                             color="red"
-                            size="xs"
+                            size="compact-sm"
                             onClick={() => setRevoking(true)}
                         >
                             Revoke
@@ -102,7 +124,33 @@ const ConnectionRow = ({
             </Table.Tr>
             {expanded && (
                 <Table.Tr id={`restrictions-${connection.grantUuid}`}>
-                    <Table.Td colSpan={7}>
+                    <Table.Td colSpan={5}>
+                        <Stack gap="xs" mb={active ? 'sm' : 0}>
+                            {connection.approvedProjects.map((project) => (
+                                <Group key={project.projectUuid} gap="xs">
+                                    <Text size="sm" fw={500}>
+                                        {project.name ??
+                                            'Project no longer available'}
+                                    </Text>
+                                    {project.approvedCapabilities.map(
+                                        (capability) => (
+                                            <Badge
+                                                key={capability}
+                                                variant="default"
+                                                size="sm"
+                                            >
+                                                {getAgentCapabilityName(
+                                                    capability,
+                                                )}
+                                            </Badge>
+                                        ),
+                                    )}
+                                </Group>
+                            ))}
+                            <Text size="xs" c="dimmed">
+                                Approved {displayDate(connection.approvedAt)}
+                            </Text>
+                        </Stack>
                         {active &&
                             (status.isError ? (
                                 <InlineErrorState
@@ -134,6 +182,8 @@ const ConnectionRow = ({
                                                                 capability.capability,
                                                             ),
                                                     );
+                                                if (!restricted.length)
+                                                    return null;
                                                 return (
                                                     <Stack
                                                         key={
@@ -226,14 +276,12 @@ export const AgentConnectionsTable = () => {
             />
         );
     return (
-        <Table.ScrollContainer minWidth={800}>
+        <Table.ScrollContainer minWidth={600}>
             <Table>
                 <Table.Thead>
                     <Table.Tr>
                         {[
                             'Connection',
-                            'Projects',
-                            'Approved actions',
                             'Expires',
                             'Last used',
                             'Status',

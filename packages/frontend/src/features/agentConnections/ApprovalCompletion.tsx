@@ -30,7 +30,7 @@ export const ApprovalCompletion = ({
     };
     return (
         <Stack>
-            <Title order={2}>
+            <Title order={3}>
                 {completion.decision === 'approve'
                     ? 'Connect your warehouses'
                     : 'Approval cancelled'}

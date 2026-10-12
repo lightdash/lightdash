@@ -1,6 +1,16 @@
 import { AgentCapability, getAgentCapabilityName } from '@lightdash/common';
-import { Box, Button, Checkbox, Stack, Text } from '@mantine/core';
-import { useId, useState } from 'react';
+import {
+    Box,
+    Checkbox,
+    Group,
+    Stack,
+    Text,
+    Tooltip,
+    VisuallyHidden,
+} from '@mantine/core';
+import { IconInfoCircle } from '@tabler/icons-react';
+import { useId } from 'react';
+import MantineIcon from '../../components/common/MantineIcon';
 import { type getApprovalActions } from './approvalSelection';
 
 type Props = {
@@ -19,10 +29,10 @@ export const ApprovalActionRow = ({
     onChange,
 }: Props) => {
     const descriptionId = useId();
-    const [expanded, setExpanded] = useState(false);
     const reasons = [
         ...new Set(action.blocked.map(({ reason }) => reason).filter(Boolean)),
     ];
+    const blockedEverywhere = action.offered === 0;
     const mixed = action.offered > 0 && action.offered < projectCount;
     const warning =
         action.capability === AgentCapability.Delete
@@ -30,76 +40,63 @@ export const ApprovalActionRow = ({
             : action.capability === AgentCapability.Publish
               ? 'Other people will see what the agent publishes.'
               : null;
+    const restrictions = [
+        ...(mixed
+            ? [
+                  `Available in ${action.offered} of ${projectCount} selected projects`,
+              ]
+            : []),
+        ...(blockedEverywhere && reasons.length === 1
+            ? reasons
+            : action.blocked.map(
+                  (blocked) => `${blocked.name}: ${blocked.reason}`,
+              )),
+    ];
+    const showRestrictions = blockedEverywhere || mixed;
     return (
         <Box component="section">
-            <Checkbox
-                label={getAgentCapabilityName(action.capability)}
-                checked={checked}
-                disabled={disabled || action.offered === 0}
-                onChange={onChange}
-                aria-describedby={descriptionId}
-            />
-            <Stack id={descriptionId} gap="xs" mt="xs" ml="lg">
-                {warning && (
-                    <Text size="xs" c="orange">
-                        {warning}
-                    </Text>
+            <Group gap="xs" wrap="nowrap">
+                <Checkbox
+                    label={getAgentCapabilityName(action.capability)}
+                    checked={checked}
+                    disabled={disabled || blockedEverywhere}
+                    onChange={onChange}
+                    aria-describedby={descriptionId}
+                />
+                {showRestrictions && (
+                    <Tooltip
+                        multiline
+                        position="right"
+                        maw={320}
+                        label={
+                            <Stack gap={2}>
+                                {restrictions.map((line) => (
+                                    <Text key={line} size="xs">
+                                        {line}
+                                    </Text>
+                                ))}
+                            </Stack>
+                        }
+                    >
+                        <MantineIcon
+                            icon={IconInfoCircle}
+                            color="dimmed"
+                            aria-hidden
+                        />
+                    </Tooltip>
                 )}
-                {action.offered === 0 &&
-                    (reasons.length === 1 ? (
-                        <Text size="xs" c="dimmed">
-                            {reasons[0]}
-                        </Text>
-                    ) : (
-                        action.blocked.map((blocked) => (
-                            <Text
-                                key={blocked.projectUuid}
-                                size="xs"
-                                c="dimmed"
-                            >
-                                {blocked.name}: {blocked.reason}
-                            </Text>
-                        ))
-                    ))}
-                {mixed && (
-                    <>
-                        <Text size="xs" c="dimmed">
-                            Available in {action.offered} of {projectCount}{' '}
-                            selected projects
-                        </Text>
-                        {action.blocked.length > 0 && (
-                            <>
-                                <Button
-                                    variant="subtle"
-                                    size="compact-xs"
-                                    aria-expanded={expanded}
-                                    aria-controls={`${descriptionId}-restrictions`}
-                                    onClick={() =>
-                                        setExpanded((value) => !value)
-                                    }
-                                >
-                                    {expanded
-                                        ? 'Hide restrictions'
-                                        : 'Show restrictions'}
-                                </Button>
-                                {expanded && (
-                                    <Box id={`${descriptionId}-restrictions`}>
-                                        {action.blocked.map((blocked) => (
-                                            <Text
-                                                key={blocked.projectUuid}
-                                                size="xs"
-                                                c="dimmed"
-                                            >
-                                                {blocked.name}: {blocked.reason}
-                                            </Text>
-                                        ))}
-                                    </Box>
-                                )}
-                            </>
-                        )}
-                    </>
-                )}
-            </Stack>
+            </Group>
+            <VisuallyHidden id={descriptionId}>
+                {[
+                    ...(warning && !blockedEverywhere ? [warning] : []),
+                    ...(showRestrictions ? restrictions : []),
+                ].join(' ')}
+            </VisuallyHidden>
+            {warning && !blockedEverywhere && (
+                <Text size="xs" c="orange" mt={4} ml={32} aria-hidden>
+                    {warning}
+                </Text>
+            )}
         </Box>
     );
 };

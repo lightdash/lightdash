@@ -168,8 +168,7 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
         <Stack gap="lg">
             <Callout variant="info">{review.notice}</Callout>
             <Box>
-                <Title order={2}>Connect your CLI agent</Title>
-                <Text c="dimmed">Choose what this agent may do.</Text>
+                <Title order={3}>Connect your CLI agent</Title>
                 <Text size="sm">{review.request.name} · CLI</Text>
             </Box>
             {changed && (
@@ -179,8 +178,8 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
                 </Callout>
             )}
             {failure && <InlineErrorState message={failure.error.message} />}
-            <Stack>
-                <Title order={3}>Projects</Title>
+            <Stack gap="xs">
+                <Title order={5}>Projects</Title>
                 {review.projects.map((project) => (
                     <Box key={project.projectUuid}>
                         <Checkbox
@@ -217,8 +216,8 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
                     </Box>
                 ))}
             </Stack>
-            <Stack>
-                <Title order={3}>Actions</Title>
+            <Stack gap="xs">
+                <Title order={5}>Actions</Title>
                 {actions.map((action) => (
                     <ApprovalActionRow
                         key={action.capability}
@@ -241,19 +240,17 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
                     />
                 ))}
             </Stack>
-            <Text>
-                Expires {approvalDuration(review.request.expiresInSeconds)}{' '}
-                after approval
-            </Text>
-            {review.request.expiresInSeconds > 86400 && (
-                <Callout variant="warning">
-                    This is longer than the usual 24 hours.
-                </Callout>
-            )}
-            <Text size="xs" c="dimmed">
-                This page stops working at{' '}
-                {new Date(review.request.expiresAt).toLocaleString()}.
-            </Text>
+            <Group gap="xs">
+                <Text size="sm" c="dimmed">
+                    Expires {approvalDuration(review.request.expiresInSeconds)}{' '}
+                    after approval
+                </Text>
+                {review.request.expiresInSeconds > 86400 && (
+                    <Text size="sm" c="orange">
+                        Longer than the usual 24 hours
+                    </Text>
+                )}
+            </Group>
             <Group justify="flex-end">
                 <Button
                     variant="default"

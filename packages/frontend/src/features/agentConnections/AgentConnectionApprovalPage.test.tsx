@@ -205,7 +205,6 @@ describe('approval review', () => {
         expect(
             screen.getByText('Expires 24 hours after approval'),
         ).toBeVisible();
-        expect(screen.getByText(/This page stops working at/)).toBeVisible();
     });
     it('renders server reason text even when no reason code is supplied', async () => {
         const data = review();
