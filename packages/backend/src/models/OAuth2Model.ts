@@ -35,6 +35,7 @@ import {
 } from '../auth/oauthScopes/security';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
+import { getStoredTokenCandidates } from '../utils/oauthTokenDigest';
 import { AgentConnectionGrantModel } from './AgentConnectionGrantModel';
 import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 import { matchesRegisteredRedirectUri } from './oauthRedirectUri';
@@ -178,6 +179,8 @@ export class OAuth2Model implements AuthorizationCodeModel {
     async getAuthorizationCode(
         authorizationCode: string,
     ): Promise<AuthorizationCode | false> {
+        const candidates = getStoredTokenCandidates(authorizationCode);
+        if (candidates.length === 0) return false;
         const result = await this.database('oauth2_authorization_codes')
             .select(
                 'oauth2_authorization_codes.*',
@@ -195,9 +198,9 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 'oauth2_authorization_codes.client_id',
                 'oauth2_clients.client_id',
             )
-            .where(
+            .whereIn(
                 'oauth2_authorization_codes.authorization_code',
-                authorizationCode,
+                candidates,
             )
             .first();
 
@@ -227,7 +230,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
             agentConnectionGrantUuid:
                 result.agent_connection_grant_uuid ?? null,
             familyUuid: grant?.refreshFamilyUuid ?? null,
-            authorizationCode: result.authorization_code,
+            authorizationCode,
             expiresAt: new Date(result.expires_at),
             redirectUri: result.redirect_uri,
             scope: result.scope,
@@ -248,8 +251,10 @@ export class OAuth2Model implements AuthorizationCodeModel {
     }
 
     async revokeAuthorizationCode(code: AuthorizationCode): Promise<boolean> {
+        const candidates = getStoredTokenCandidates(code.authorizationCode);
+        if (candidates.length === 0) return false;
         const result = await this.database('oauth2_authorization_codes')
-            .where('authorization_code', code.authorizationCode)
+            .whereIn('authorization_code', candidates)
             .del();
 
         return result > 0;
@@ -371,9 +376,12 @@ export class OAuth2Model implements AuthorizationCodeModel {
         token: Token,
         familyUuid: string | null,
     ): Promise<boolean> {
+        if (!token.refreshToken) return false;
+        const candidates = getStoredTokenCandidates(token.refreshToken);
+        if (candidates.length === 0) return false;
         const consumed = await database('oauth2_refresh_tokens')
             .whereNull('revoked_at')
-            .where('refresh_token', token.refreshToken)
+            .whereIn('refresh_token', candidates)
             .update({
                 revoked_at: database.fn.now(),
                 ...(familyUuid === null
@@ -392,7 +400,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 'agent_connection_grant_uuid',
                 'organization_uuid',
             )
-            .where('refresh_token', token.refreshToken)
+            .whereIn('refresh_token', candidates)
             .first();
         await this.revokeRefreshFamily(
             database,
@@ -426,11 +434,18 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 );
             return this.persistToken(this.database, issued, client, user);
         }
+        const candidates = getStoredTokenCandidates(parentRefreshToken);
+        if (candidates.length === 0)
+            throw new OAuth2Server.InvalidGrantError(
+                issued.agentConnectionGrantUuid != null
+                    ? 'Agent connection refresh binding is invalid'
+                    : 'Refresh token is already used',
+            );
         const saved = await this.database.transaction(async (database) => {
             await this.lockRefreshRotation(database, user.userId);
             if (issued.agentConnectionGrantUuid != null) {
                 const stored = await database('oauth2_refresh_tokens')
-                    .where('refresh_token', parentRefreshToken)
+                    .whereIn('refresh_token', candidates)
                     .forUpdate()
                     .first();
                 if (
@@ -617,14 +632,18 @@ export class OAuth2Model implements AuthorizationCodeModel {
     }
 
     async isAccessTokenBoundToGrant(accessToken: string): Promise<boolean> {
+        const candidates = getStoredTokenCandidates(accessToken);
+        if (candidates.length === 0) return false;
         const row = await this.database('oauth2_access_tokens')
             .select('agent_connection_grant_uuid')
-            .where('access_token', accessToken)
+            .whereIn('access_token', candidates)
             .first();
         return row?.agent_connection_grant_uuid != null;
     }
 
     async getAccessToken(accessToken: string): Promise<Token | false> {
+        const candidates = getStoredTokenCandidates(accessToken);
+        if (candidates.length === 0) return false;
         const result = await this.database('oauth2_access_tokens')
             .select(
                 'oauth2_access_tokens.*',
@@ -642,7 +661,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 'oauth2_clients.client_id',
             )
             .leftJoin('users', 'oauth2_access_tokens.user_id', 'users.user_id')
-            .where('oauth2_access_tokens.access_token', accessToken)
+            .whereIn('oauth2_access_tokens.access_token', candidates)
             .first();
 
         if (!result) {
@@ -671,7 +690,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
         }
 
         return {
-            accessToken: result.access_token,
+            accessToken,
             familyUuid: result.family_uuid ?? null,
             agentConnectionGrantUuid:
                 result.agent_connection_grant_uuid ?? null,
@@ -696,6 +715,8 @@ export class OAuth2Model implements AuthorizationCodeModel {
         if (!token.refreshToken) {
             return false;
         }
+        const candidates = getStoredTokenCandidates(token.refreshToken);
+        if (candidates.length === 0) return false;
 
         if (
             await this.isSecurityStrictForOAuthUser(
@@ -709,7 +730,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
         }
 
         const result = await this.database('oauth2_refresh_tokens')
-            .where('refresh_token', token.refreshToken)
+            .whereIn('refresh_token', candidates)
             .update({
                 revoked_at: this.database.raw('coalesce(revoked_at, now())'),
             });
@@ -736,8 +757,10 @@ export class OAuth2Model implements AuthorizationCodeModel {
     }
 
     async deleteRefreshToken(refreshToken: string): Promise<boolean> {
+        const candidates = getStoredTokenCandidates(refreshToken);
+        if (candidates.length === 0) return false;
         const boundToken = await this.database('oauth2_refresh_tokens')
-            .where('refresh_token', refreshToken)
+            .whereIn('refresh_token', candidates)
             .whereNotNull('agent_connection_grant_uuid')
             .first();
         if (boundToken?.agent_connection_grant_uuid != null) {
@@ -752,7 +775,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
             return true;
         }
         const result = await this.database('oauth2_refresh_tokens')
-            .where('refresh_token', refreshToken)
+            .whereIn('refresh_token', candidates)
             .whereNull('agent_connection_grant_uuid')
             .del();
 
@@ -760,8 +783,10 @@ export class OAuth2Model implements AuthorizationCodeModel {
     }
 
     async deleteAccessToken(accessToken: string): Promise<boolean> {
+        const candidates = getStoredTokenCandidates(accessToken);
+        if (candidates.length === 0) return false;
         const expired = await this.database('oauth2_access_tokens')
-            .where('access_token', accessToken)
+            .whereIn('access_token', candidates)
             .whereNotNull('agent_connection_grant_uuid')
             .update({
                 expires_at: this.database.raw(
@@ -769,7 +794,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 ),
             });
         const result = await this.database('oauth2_access_tokens')
-            .where('access_token', accessToken)
+            .whereIn('access_token', candidates)
             .whereNull('agent_connection_grant_uuid')
             .del();
 
@@ -777,6 +802,8 @@ export class OAuth2Model implements AuthorizationCodeModel {
     }
 
     async getRefreshToken(refreshToken: string): Promise<Token | false> {
+        const candidates = getStoredTokenCandidates(refreshToken);
+        if (candidates.length === 0) return false;
         const result = await this.database('oauth2_refresh_tokens')
             .select(
                 'oauth2_refresh_tokens.*',
@@ -792,7 +819,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 'oauth2_refresh_tokens.client_id',
                 'oauth2_clients.client_id',
             )
-            .where('oauth2_refresh_tokens.refresh_token', refreshToken)
+            .whereIn('oauth2_refresh_tokens.refresh_token', candidates)
             .first();
 
         if (!result) {
@@ -801,7 +828,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
 
         const token: Token = {
             accessToken: '',
-            refreshToken: result.refresh_token,
+            refreshToken,
             resource: result.resource ?? null,
             familyUuid: result.family_uuid ?? null,
             agentConnectionGrantUuid:

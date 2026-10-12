@@ -10,6 +10,7 @@ import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import Logger from '../logging/logger';
 import oauthRouter from '../routers/oauthRouter';
 import { OAuthService } from '../services/OAuthService/OAuthService';
+import { getStoredTokenCandidates } from '../utils/oauthTokenDigest';
 import { AgentConnectionGrantModel } from './AgentConnectionGrantModel';
 import { OAuth2Model } from './OAuth2Model';
 import { type UserModel } from './UserModel';
@@ -517,7 +518,9 @@ it('commits grant and family revocation when a bound refresh loses the rotation 
         reason: 'refresh_reuse',
     });
     expect(tracker.history.update).toHaveLength(1);
-    expect(tracker.history.update[0].sql).toContain('and "refresh_token" = $2');
+    expect(tracker.history.update[0].sql).toContain(
+        'and "refresh_token" in ($2, $3)',
+    );
     expect(
         tracker.history.transactions.every(
             (transaction) => transaction.state === 'committed',
@@ -675,8 +678,14 @@ it('returns false when revoking an unknown access token', async () => {
     getTracker().on.update('oauth2_access_tokens').response(0);
     getTracker().on.delete('oauth2_access_tokens').response(0);
     await expect(model.deleteAccessToken('unknown')).resolves.toBe(false);
-    expect(getTracker().history.update[0].bindings).toEqual(['unknown']);
-    expect(getTracker().history.delete[0].bindings).toEqual(['unknown']);
+    expect(
+        JSON.stringify(getTracker().history.update[0].bindings) ===
+            JSON.stringify(getStoredTokenCandidates('unknown')),
+    ).toBe(true);
+    expect(
+        JSON.stringify(getTracker().history.delete[0].bindings) ===
+            JSON.stringify(getStoredTokenCandidates('unknown')),
+    ).toBe(true);
     expect(AgentConnectionGrantModel.prototype.revoke).not.toHaveBeenCalled();
 });
 it('keeps the exact unbound access-token deletion SQL and result', async () => {
@@ -688,9 +697,12 @@ it('keeps the exact unbound access-token deletion SQL and result', async () => {
     expect(getTracker().history.delete).toHaveLength(2);
     for (const query of getTracker().history.delete) {
         expect(query.sql).toBe(
-            'delete from "oauth2_access_tokens" where "access_token" = $1 and "agent_connection_grant_uuid" is null',
+            'delete from "oauth2_access_tokens" where "access_token" in ($1, $2) and "agent_connection_grant_uuid" is null',
         );
-        expect(query.bindings).toEqual(['access']);
+        expect(
+            JSON.stringify(query.bindings) ===
+                JSON.stringify(getStoredTokenCandidates('access')),
+        ).toBe(true);
     }
     expect(AgentConnectionGrantModel.prototype.revoke).not.toHaveBeenCalled();
 });
