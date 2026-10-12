@@ -10,7 +10,8 @@ vi.mock('../../clients/Aws/S3BaseClient', () => ({
     createS3ClientFromConfig: vi.fn(),
 }));
 
-type ServiceWithS3 = OrganizationDesignService & {
+// getS3Client is private; the double cast is how the sibling test reaches it.
+type ServiceWithS3 = {
     getS3Client: () => { client: S3Client; bucket: string };
 };
 
@@ -21,7 +22,7 @@ const buildService = (s3: LightdashConfig['appRuntime']['s3']): ServiceWithS3 =>
             appRuntime: { ...lightdashConfigMock.appRuntime, s3 },
         },
         organizationDesignModel: {} as OrganizationDesignModel,
-    }) as ServiceWithS3;
+    }) as unknown as ServiceWithS3;
 
 describe('OrganizationDesignService S3 client', () => {
     beforeEach(() => {
