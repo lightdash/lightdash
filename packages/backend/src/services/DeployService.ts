@@ -167,29 +167,28 @@ export class DeployService extends BaseService {
                 projectUuid,
                 explores,
             );
+        const session = await this.deploySessionModel.getSession(sessionUuid);
+
+        // Validate ownership
+        if (session.projectUuid !== projectUuid) {
+            throw new ForbiddenError(
+                `Deploy session does not belong to this project`,
+            );
+        }
+
+        if (session.userUuid !== user.userUuid) {
+            throw new ForbiddenError(
+                `Deploy session does not belong to this user`,
+            );
+        }
+
+        if (session.status !== DeploySessionStatus.UPLOADING) {
+            throw new ForbiddenError(
+                `Deploy session is not in uploading state`,
+            );
+        }
+
         try {
-            const session =
-                await this.deploySessionModel.getSession(sessionUuid);
-
-            // Validate ownership
-            if (session.projectUuid !== projectUuid) {
-                throw new ForbiddenError(
-                    `Deploy session does not belong to this project`,
-                );
-            }
-
-            if (session.userUuid !== user.userUuid) {
-                throw new ForbiddenError(
-                    `Deploy session does not belong to this user`,
-                );
-            }
-
-            if (session.status !== DeploySessionStatus.UPLOADING) {
-                throw new ForbiddenError(
-                    `Deploy session is not in uploading state`,
-                );
-            }
-
             // Add explores to the staging table
             await this.deploySessionModel.addBatch(
                 sessionUuid,
