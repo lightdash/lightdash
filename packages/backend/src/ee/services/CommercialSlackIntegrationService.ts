@@ -65,6 +65,9 @@ export class CommercialSlackIntegrationService extends SlackIntegrationService<C
             hasRequiredScopes: this.slackClient.hasRequiredScopes(
                 installation.scopes,
             ),
+            features: this.slackClient.getFeatureAvailability(
+                installation.scopes,
+            ),
             slackChannelProjectMappings:
                 installation.slackChannelProjectMappings,
             aiThreadAccessConsent: installation.aiThreadAccessConsent,
