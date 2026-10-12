@@ -1,3 +1,10 @@
+# [2.573.0](https://github.com/lightdash/lightdash/compare/2.572.1...2.573.0) (2026-10-12)
+
+
+### Features
+
+* **agent-identity:** show both sections of the agent permissions card open ([#30924](https://github.com/lightdash/lightdash/issues/30924)) ([61c4f80](https://github.com/lightdash/lightdash/commit/61c4f8058f33dbb9213e2e2bd1e4f5ca627a62a6))
+
 ## [2.572.1](https://github.com/lightdash/lightdash/compare/2.572.0...2.572.1) (2026-10-12)
 
 
