@@ -211,10 +211,7 @@ it('runs the manual launch measurements', async () => {
             cpu: os.cpus()[0].model,
             logicalCpus: os.cpus().length,
             memoryBytes: os.totalmem(),
-            os: `${os.type()} ${os.release()} ${os.version()}`,
-            machine: execFileSync('sysctl', ['-n', 'hw.model'], {
-                encoding: 'utf8',
-            }).trim(),
+            os: os.type(),
             node: process.version,
             postgres: (await database.raw('select version()')).rows[0].version,
             loadStart: os.loadavg(),

@@ -34,6 +34,39 @@ const growth = (data: Results) => {
     return `- A: the connection request uses ${smallA.measurement.reads} reads / ${smallA.measurement.rows} returned rows with 50 person projects and ${largeA.measurement.reads} reads / ${largeA.measurement.rows} rows with 500. Holding the person at 500 projects, the one-project grant uses ${narrow.measurement.reads} reads / ${narrow.measurement.rows} rows versus ${largeA.measurement.reads} reads / ${largeA.measurement.rows} for the 500-project grant. SQL count is constant; fresh-person rows grow with memberships and grant bytes grow with selection.\n- B approval: ${small.approval.total.reads} reads at 50 projects and ${large.approval.total.reads} at 500; returned rows grow from ${small.approval.total.rows} to ${large.approval.total.rows}. The query count is ${small.approval.total.reads === large.approval.total.reads ? 'constant' : 'size-dependent'} in these runs.\n- B status: ${small.status.reads} reads at 50 and ${large.status.reads} at 500. Status repeats policy checks for each approved project and capability; its read count grows linearly for this fixed three-capability shape. Returned rows grow from ${small.status.rows} to ${large.status.rows}: every repeated role lookup returns all of the person's project memberships. This is quadratic in N when both the selection and the person's memberships grow to N; more generally the repeated membership rows grow with selected projects times person memberships times capabilities.\n- B storage: constraints text grows from ${small.grantBytes.constraints_text} bytes at 50 to ${large.grantBytes.constraints_text} at 500. Logical size is linear in project selection; PostgreSQL compression changes stored datum growth.\n- B list: at 500 projects, one connection returns ${listOne?.responseBytes.median} response bytes with ${listOne?.reads} reads; 50 connections return ${listMany?.responseBytes.median} bytes with ${listMany?.reads} reads. Response bytes grow with projects times connections while read count stays fixed. request project resolution and list project naming both search an array for each selected project, giving a quadratic comparison bound when organization size grows with selection. The timings alone do not establish a quadratic runtime curve.\n- C: each stored-explore load returns ${firstC.load.rows} rows / ${firstC.databaseTextBytes} text bytes at ${firstC.explores} explores and ${lastC.load.rows} rows / ${lastC.databaseTextBytes} bytes at ${lastC.explores}; rows and bytes are linear in explores.\n- D: buffered retained heap grows from ${firstD?.retainedHeapDelta} bytes at ${firstD?.explores} explores to ${lastD?.retainedHeapDelta} at ${lastD?.explores}. The helper retains the whole input array; the ordinary consumer receives its first explore after one production step, independent of total input size.`;
 };
 
+// Only what a reader needs to weigh the numbers; no host identifiers.
+const environmentLines = (environment: Record<string, unknown>): string => {
+    const operatingSystems: Record<string, string> = {
+        Darwin: 'macOS',
+        Linux: 'Linux',
+        Windows_NT: 'Windows',
+    };
+    const osName = String(environment.os ?? '').split(' ')[0];
+    const postgres = /PostgreSQL [0-9.]+/.exec(
+        String(environment.postgres ?? ''),
+    );
+    return [
+        ['CPU', environment.cpu],
+        ['Logical CPUs', environment.logicalCpus],
+        [
+            'Memory',
+            `${Math.round(Number(environment.memoryBytes) / 1024 ** 3)} GiB`,
+        ],
+        ['Operating system', operatingSystems[osName] ?? osName],
+        ['Node', environment.node],
+        ['Postgres', postgres ? postgres[0] : environment.postgres],
+        ['Commit', environment.commit],
+        ['Date', String(environment.date).slice(0, 10)],
+        ['Warm-up runs excluded', environment.warmups],
+        ['Approved actions', (environment.capabilities as string[]).join(', ')],
+        ['Dimensions per explore', environment.dimensionsPerExplore],
+        ['Metrics per explore', environment.metricsPerExplore],
+        ['Stored explores per project', environment.baseExploresPerProject],
+    ]
+        .map(([label, value]) => `- ${label}: ${String(value)}`)
+        .join('\n');
+};
+
 export const renderReport = (data: Results) => {
     const owner = data.B.filter((row) => [50, 200, 500].includes(row.projects));
     return `# Agent connection launch measurements
@@ -44,9 +77,9 @@ ${data.B.some((row) => row.projects === 500) ? `With three approved capabilities
 
 ## What was measured on
 
-${Object.entries(data.environment)
-    .map(([key, value]) => `- ${key}: ${JSON.stringify(value)}`)
-    .join('\n')}
+${environmentLines(data.environment)}
+
+The machine was under load from other work during the runs.
 
 One organization, one active verified person with an organization member role and a developer role on every project, three groups with that person in all three, and a managed agent policy allowing all capabilities for developers and restricting use to those groups. Each measured connection selects Read and discover, Query, and Deploy and upload. Each project initially stores ten synthetic explores. Project counts increase within one temporary database; the person's memberships increase with them. The 500-project control holds the person constant and selects only one project in the connection. List scenarios contain exactly the stated number of active connections.
 
@@ -310,7 +343,7 @@ ${growth(data)}
 
 ## What the numbers do not show
 
-This is not production hardware or a production-size sample. It excludes remote network latency, concurrent workload control, cold caches, real explore-size distributions and database query-plan scanned rows. Other laptop work can run during these measurements; load averages are recorded rather than interpreted as exclusive access. Warm session-store costs and feature-flag resolution are excluded. Only three approved capabilities and one direct project role are modeled; other policy/role shapes can change the counts. C substitutes compiler and downstream sinks and stops virtual-view writes after their guard; D isolates one buffer helper, not whole-compile peak memory. PostgreSQL datum sizes do not measure total disk allocation.
+This is not production hardware or a production-size sample. It excludes remote network latency, concurrent workload control, cold caches, real explore-size distributions and database query-plan scanned rows. Other work ran on the machine during these measurements, so times are indicative. Warm session-store costs and feature-flag resolution are excluded. Only three approved capabilities and one direct project role are modeled; other policy/role shapes can change the counts. C substitutes compiler and downstream sinks and stops virtual-view writes after their guard; D isolates one buffer helper, not whole-compile peak memory. PostgreSQL datum sizes do not measure total disk allocation.
 
 ## Re-run
 

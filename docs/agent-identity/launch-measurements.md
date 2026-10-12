@@ -6,23 +6,21 @@ With three approved capabilities, a status call at 500 projects uses 12,009 read
 
 ## What was measured on
 
-- date: "2026-10-12T20:24:48.609Z"
-- commit: "d0df5ee2ee43914d3837197eabdf0029775e8476"
-- cpu: "Apple M4 Pro"
-- logicalCpus: 12
-- memoryBytes: 25769803776
-- os: "Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun 9 22:28:34 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6041"
-- machine: "Mac16,8"
-- node: "v24.18.1"
-- postgres: "PostgreSQL 18.6 (Debian 18.6-1.pgdg12+2) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit"
-- loadStart: [11.09716796875,8.5166015625,6.9013671875]
-- warmups: 2
-- capabilities: ["read_discover","query","deploy_upload"]
-- dimensionsPerExplore: 40
-- metricsPerExplore: 10
-- baseExploresPerProject: 10
-- loadEnd: [10.103515625,8.7607421875,7.21044921875]
-- databasePhaseSeconds: 130.28653987500002
+- CPU: Apple M4 Pro
+- Logical CPUs: 12
+- Memory: 24 GiB
+- Operating system: macOS
+- Node: v24.18.1
+- Postgres: PostgreSQL 18.6
+- Commit: d0df5ee2ee43914d3837197eabdf0029775e8476
+- Date: 2026-10-12
+- Warm-up runs excluded: 2
+- Approved actions: read_discover, query, deploy_upload
+- Dimensions per explore: 40
+- Metrics per explore: 10
+- Stored explores per project: 10
+
+The machine was under load from other work during the runs.
 
 One organization, one active verified person with an organization member role and a developer role on every project, three groups with that person in all three, and a managed agent policy allowing all capabilities for developers and restricting use to those groups. Each measured connection selects Read and discover, Query, and Deploy and upload. Each project initially stores ten synthetic explores. Project counts increase within one temporary database; the person's memberships increase with them. The 500-project control holds the person constant and selects only one project in the connection. List scenarios contain exactly the stated number of active connections.
 
@@ -234,7 +232,7 @@ Each row runs in a fresh Vitest fork with explicit GC. A lazy generator creates 
 
 ## What the numbers do not show
 
-This is not production hardware or a production-size sample. It excludes remote network latency, concurrent workload control, cold caches, real explore-size distributions and database query-plan scanned rows. Other laptop work can run during these measurements; load averages are recorded rather than interpreted as exclusive access. Warm session-store costs and feature-flag resolution are excluded. Only three approved capabilities and one direct project role are modeled; other policy/role shapes can change the counts. C substitutes compiler and downstream sinks and stops virtual-view writes after their guard; D isolates one buffer helper, not whole-compile peak memory. PostgreSQL datum sizes do not measure total disk allocation.
+This is not production hardware or a production-size sample. It excludes remote network latency, concurrent workload control, cold caches, real explore-size distributions and database query-plan scanned rows. Other work ran on the machine during these measurements, so times are indicative. Warm session-store costs and feature-flag resolution are excluded. Only three approved capabilities and one direct project role are modeled; other policy/role shapes can change the counts. C substitutes compiler and downstream sinks and stops virtual-view writes after their guard; D isolates one buffer helper, not whole-compile peak memory. PostgreSQL datum sizes do not measure total disk allocation.
 
 ## Re-run
 
