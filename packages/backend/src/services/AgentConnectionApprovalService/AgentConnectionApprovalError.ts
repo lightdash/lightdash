@@ -1,6 +1,7 @@
 import {
     type AgentConnectionApprovalErrorCode,
     type AgentConnectionApprovalErrorResponse,
+    type AgentConnectionApprovalReview,
 } from '@lightdash/common';
 import { type Response } from 'express';
 import { AgentConnectionApprovalRequestError } from '../../models/AgentConnectionApprovalRequestModel';
@@ -75,6 +76,12 @@ export class AgentConnectionApprovalError extends Error {
     }
 }
 
+export class AgentConnectionApprovalSelectionChangedError extends AgentConnectionApprovalError {
+    constructor(readonly review: AgentConnectionApprovalReview) {
+        super('approval_selection_changed');
+    }
+}
+
 export const serializeAgentConnectionApprovalError = (
     error: unknown,
 ): AgentConnectionApprovalErrorResponse => {
@@ -90,6 +97,9 @@ export const serializeAgentConnectionApprovalError = (
             name: 'AgentConnectionApprovalError',
             code,
             message: errors[code].message,
+            ...(error instanceof AgentConnectionApprovalSelectionChangedError
+                ? { review: error.review }
+                : {}),
         },
     };
 };

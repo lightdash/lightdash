@@ -514,7 +514,10 @@ export default class App {
         }
 
         expressApp.post(
-            AGENT_CONNECTION_REQUEST_PATH,
+            [
+                AGENT_CONNECTION_REQUEST_PATH,
+                `${AGENT_CONNECTION_REQUEST_PATH}/:requestUuid/decision`,
+            ],
             parseAgentConnectionApprovalBody,
         );
 

@@ -44,7 +44,13 @@ const refused: AgentPermissionCheck = {
 const fixture = () => {
     const deps = {
         siteUrl: 'https://instance.example',
-        model: { insertPending: vi.fn(), findOwned: vi.fn() },
+        model: {
+            insertPending: vi.fn(),
+            findOwned: vi.fn(),
+            bindReview: vi.fn(),
+            sealDecision: vi.fn(),
+            consumeCallback: vi.fn(),
+        },
         userModel: {
             findSessionUserAndOrgByUuid: vi
                 .fn()
@@ -283,7 +289,7 @@ it.each([
     },
 );
 
-it('blocks the contract-derived Deploy and Administration capabilities for scheduled refresh and keeps the project selectable', async () => {
+it('blocks only Deploy for scheduled refresh and keeps Administration offered and the project selectable', async () => {
     const { deps, service } = fixture();
     deps.reviewModel.getScheduledRefreshProjectUuids.mockResolvedValue([a]);
     const answer = await service.getReviewAnswer(account, row);
@@ -295,9 +301,7 @@ it('blocks the contract-derived Deploy and Administration capabilities for sched
         reason: 'Not available while this project has a scheduled pre-aggregate refresh.',
     });
     expect(capability(answer[0], C.Query).visibility).toBe('offered');
-    expect(capability(answer[0], C.Administration).reasonCode).toBe(
-        'scheduled_pre_aggregate_refresh',
-    );
+    expect(capability(answer[0], C.Administration).visibility).toBe('offered');
     expect(capability(answer[1], C.DeployUpload).visibility).toBe('offered');
 });
 
@@ -484,9 +488,7 @@ it('fails closed only for scheduled-refresh capabilities when their source canno
     expect(capability(answer[0], C.DeployUpload).reasonCode).toBe(
         'unavailable',
     );
-    expect(capability(answer[0], C.Administration).reasonCode).toBe(
-        'unavailable',
-    );
+    expect(capability(answer[0], C.Administration).visibility).toBe('offered');
     expect(capability(answer[0], C.Query).visibility).toBe('offered');
 });
 

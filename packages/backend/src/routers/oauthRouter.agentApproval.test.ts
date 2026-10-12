@@ -411,8 +411,114 @@ it.each(['http://127.0.0.1:32123/callback', 'http://[::1]:32123/callback'])(
     },
 );
 
-it.todo(
-    'scope item 5: Approve through the real registered decision route writes only the pending row and no grant, authorization code, access token or refresh token',
+it.each(['approve', 'deny'] as const)(
+    '%s through the real registered review, decision and completion routes never issues',
+    async (decision) => {
+        const f = await fixture();
+        try {
+            expect((await f.post()).status).toBe(200);
+            const model = f.models.getAgentConnectionApprovalRequestModel();
+            const projectUuid = '22222222-2222-4222-8222-222222222222';
+            const row = {
+                ...f.records[0],
+                agent_connection_approval_request_uuid: requestUuid,
+                request_expires_at: new Date(Date.now() + 900000),
+                requested_projects: [projectUuid],
+                requested_capabilities: [],
+                displayed_selection: null,
+                decision_consumed_at: null,
+                callback_consumed_at: null,
+                terminal_error: null,
+                review_revision: 0,
+            };
+            vi.spyOn(model, 'findOwned').mockImplementation(
+                async () => row as never,
+            );
+            vi.spyOn(model, 'bindReview').mockImplementation(async (args) => {
+                Object.assign(row, {
+                    displayed_selection: args.selection,
+                    review_revision: 1,
+                });
+                return row as never;
+            });
+            vi.spyOn(model, 'sealDecision').mockImplementation(async (args) => {
+                const sealed = await args.decide(row as never, {} as never);
+                Object.assign(row, {
+                    decision_consumed_at: new Date(),
+                    terminal_error:
+                        sealed.decision === 'approve'
+                            ? 'agent_connections_unavailable'
+                            : 'access_denied',
+                });
+                return row as never;
+            });
+            vi.spyOn(model, 'consumeCallback').mockImplementation(
+                async () => row as never,
+            );
+            vi.spyOn(
+                f.services.getAgentConnectionApprovalService(),
+                'getReviewAnswer',
+            ).mockResolvedValue([
+                {
+                    projectUuid,
+                    name: 'Project',
+                    selectable: true,
+                    reason: null,
+                    capabilities: [],
+                },
+            ]);
+            const handoff = await fetch(
+                `${f.base}/api/v1/oauth/authorize?agent_request=${requestUuid}`,
+                { redirect: 'manual' },
+            );
+            expect(handoff.status).toBe(302);
+            const path = `${f.base}${AGENT_CONNECTION_REQUEST_PATH}/${requestUuid}`;
+            const reviewResponse = await fetch(path);
+            expect(reviewResponse.status).toBe(200);
+            const review = (await reviewResponse.json()).results;
+            expect(review.notice).toBe(
+                'Review only. No connection will be created.',
+            );
+            const response = await fetch(`${path}/decision`, {
+                method: 'POST',
+                headers: {
+                    'content-type': 'application/json',
+                    origin: lightdashConfigMock.siteUrl,
+                },
+                body: JSON.stringify({
+                    decision,
+                    revision: review.revision,
+                    nonce: review.nonce,
+                    projectUuids: [projectUuid],
+                    capabilities: [],
+                }),
+            });
+            expect(response.status).toBe(200);
+            const completionUrl = new URL(
+                (await response.json()).results.completionUrl,
+            );
+            const completion = await fetch(
+                `${f.base}${completionUrl.pathname}`,
+                { redirect: 'manual' },
+            );
+            expect(completion.status).toBe(302);
+            const target = new URL(completion.headers.get('location')!);
+            expect(`${target.origin}${target.pathname}`).toBe(body.redirectUri);
+            expect(Object.fromEntries(target.searchParams)).toEqual({
+                error:
+                    decision === 'approve'
+                        ? 'agent_connections_unavailable'
+                        : 'access_denied',
+                state: body.state,
+                iss: body.resource,
+            });
+            for (const result of [reviewResponse, response, completion])
+                expect(result.headers.get('cache-control')).toBe('no-store');
+            f.noIssuance();
+        } finally {
+            await f.close();
+        }
+    },
 );
 
 it('hands a valid request to the frontend through the real GET authorize route without writes', async () => {

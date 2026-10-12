@@ -6,11 +6,14 @@ import {
     InvalidUser,
     NotFoundError,
     type Account,
+    type AgentConnectionApprovalDecision,
     type AgentConnectionApprovalRequest,
     type AgentConnectionApprovalResponse,
+    type AgentConnectionApprovalReview,
     type LightdashUser,
     type RegisteredAccount,
 } from '@lightdash/common';
+import { randomBytes } from 'node:crypto';
 import { validate as isUuid } from 'uuid';
 import { z } from 'zod';
 import { fromSession } from '../../auth/account/account';
@@ -25,12 +28,24 @@ import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type UserModel } from '../../models/UserModel';
 import { type AgentPermissionService } from '../AgentPermissionService/AgentPermissionService';
 import { BaseService } from '../BaseService';
-import { AgentConnectionApprovalError } from './AgentConnectionApprovalError';
+import {
+    AgentConnectionApprovalError,
+    AgentConnectionApprovalSelectionChangedError,
+} from './AgentConnectionApprovalError';
 import {
     mapApprovalProject,
     reviewOperations,
+    sealSelection,
     type ApprovalProject,
 } from './approvalReview';
+import {
+    ApprovalAnswerChanged,
+    approvalAvailability,
+    assertApprovalLoopback,
+    displayedAnswer,
+    narrowReviewAnswer,
+    reviewSelection,
+} from './approvalReviewFlow';
 
 const schema = z
     .object({
@@ -101,7 +116,11 @@ export class AgentConnectionApprovalService extends BaseService {
             >;
             model: Pick<
                 AgentConnectionApprovalRequestModel,
-                'insertPending' | 'findOwned'
+                | 'insertPending'
+                | 'findOwned'
+                | 'bindReview'
+                | 'sealDecision'
+                | 'consumeCallback'
             >;
             userModel: Pick<UserModel, 'findSessionUserAndOrgByUuid'>;
             projectModel: Pick<ProjectModel, 'getAllByOrganizationUuid'>;
@@ -252,6 +271,146 @@ export class AgentConnectionApprovalService extends BaseService {
                         : scheduled.includes(project.projectUuid),
             });
         });
+    }
+
+    private async reviewOwner(
+        account: Account | undefined,
+        requestUuid: string,
+    ) {
+        if (account && account.authentication.type !== 'session')
+            throw new AgentConnectionApprovalError('person_required');
+        const person = await this.freshPerson(account);
+        return {
+            requestUuid,
+            organizationUuid: person.organization.organizationUuid!,
+            subjectUserUuid: person.user.id,
+        };
+    }
+
+    private async bindReview(
+        owner: {
+            requestUuid: string;
+            organizationUuid: string;
+            subjectUserUuid: string;
+        },
+        sessionId: string,
+        projects: ApprovalProject[],
+    ): Promise<AgentConnectionApprovalReview> {
+        const nonce = randomBytes(32).toString('base64url');
+        const row = await this.deps.model.bindReview({
+            ...owner,
+            sessionId,
+            nonce,
+            selection: reviewSelection(projects),
+            policyVersion: 1,
+        });
+        return {
+            request: {
+                name: row.name,
+                clientLabel: 'CLI',
+                expiresInSeconds: row.expires_in_seconds,
+                expiresAt: row.request_expires_at.toISOString(),
+            },
+            ...approvalAvailability(),
+            projects,
+            nonce,
+            revision: row.review_revision,
+        };
+    }
+
+    async review(
+        account: Account | undefined,
+        requestUuid: string,
+        sessionId: string,
+    ): Promise<AgentConnectionApprovalReview> {
+        const owner = await this.reviewOwner(account, requestUuid);
+        const row = await this.deps.model.findOwned(owner);
+        if (row.decision_consumed_at !== null)
+            throw new AgentConnectionApprovalError('approval_request_consumed');
+        const projects = await this.getReviewAnswer(account, row);
+        return this.bindReview(owner, sessionId, projects);
+    }
+
+    async decide(
+        account: Account | undefined,
+        requestUuid: string,
+        sessionId: string,
+        body: AgentConnectionApprovalDecision,
+    ): Promise<{ completionUrl: string }> {
+        const owner = await this.reviewOwner(account, requestUuid);
+        try {
+            await this.deps.model.sealDecision({
+                ...owner,
+                sessionId,
+                nonce: body.nonce,
+                revision: body.revision,
+                decide: async (row) => {
+                    const current = await this.getReviewAnswer(account, row);
+                    if (body.decision === 'deny') return { decision: 'deny' };
+                    if (row.displayed_selection === null)
+                        throw new AgentConnectionApprovalError(
+                            'invalid_approval_request',
+                        );
+                    const { changed, selection } = sealSelection({
+                        requested: {
+                            projects: row.requested_projects,
+                            capabilities: row.requested_capabilities,
+                        },
+                        displayed: displayedAnswer(row.displayed_selection),
+                        current,
+                        selectedProjects: body.projectUuids,
+                        selectedCapabilities: body.capabilities,
+                    });
+                    if (changed)
+                        throw new ApprovalAnswerChanged(
+                            narrowReviewAnswer(
+                                current,
+                                row.displayed_selection,
+                            ),
+                        );
+                    if (selection === null)
+                        throw new AgentConnectionApprovalError(
+                            'invalid_approval_request',
+                        );
+                    return { decision: 'approve', selection, policyVersion: 1 };
+                },
+            });
+        } catch (error) {
+            if (error instanceof ApprovalAnswerChanged)
+                throw new AgentConnectionApprovalSelectionChangedError(
+                    await this.bindReview(owner, sessionId, error.projects),
+                );
+            throw error;
+        }
+        return {
+            completionUrl: `${oauthApiResource(this.deps.siteUrl)}/api/v2/user/agent-connections/requests/${requestUuid}/completion`,
+        };
+    }
+
+    async complete(
+        account: Account | undefined,
+        requestUuid: string,
+        sessionId: string,
+    ): Promise<string> {
+        const owner = await this.reviewOwner(account, requestUuid);
+        const pending = await this.deps.model.findOwned(owner);
+        if (pending.decision_consumed_at === null)
+            throw new AgentConnectionApprovalError('approval_request_consumed');
+        assertApprovalLoopback(pending.redirect_uri);
+        const row = await this.deps.model.consumeCallback({
+            ...owner,
+            sessionId,
+        });
+        assertApprovalLoopback(row.redirect_uri);
+        if (row.terminal_error === null)
+            throw new AgentConnectionApprovalError('approval_request_consumed');
+        const target = new URL(row.redirect_uri);
+        target.search = new URLSearchParams({
+            error: row.terminal_error,
+            state: row.state,
+            iss: oauthApiResource(this.deps.siteUrl),
+        }).toString();
+        return target.toString();
     }
 
     async request(

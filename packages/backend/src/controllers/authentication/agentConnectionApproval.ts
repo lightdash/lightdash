@@ -7,6 +7,10 @@ import {
     sendAgentConnectionApprovalError,
 } from '../../services/AgentConnectionApprovalService/AgentConnectionApprovalError';
 import { parseAgentConnectionApprovalRequest } from '../../services/AgentConnectionApprovalService/AgentConnectionApprovalService';
+import {
+    isApprovalUuid,
+    parseApprovalDecision,
+} from '../../services/AgentConnectionApprovalService/approvalReviewFlow';
 
 export const AGENT_CONNECTION_REQUEST_PATH =
     '/api/v2/user/agent-connections/requests';
@@ -95,6 +99,40 @@ export const authenticateAgentConnectionApproval: RequestHandler = async (
         if (Buffer.byteLength(JSON.stringify(req.body) ?? '') > 64 * 1024)
             throw new AgentConnectionApprovalError('invalid_approval_request');
         req.body = parseAgentConnectionApprovalRequest(req.body);
+        next();
+    } catch (error) {
+        sendAgentConnectionApprovalError(res, error);
+    }
+};
+
+export const authenticateApprovalReview: RequestHandler = (req, res, next) => {
+    try {
+        res.set('Cache-Control', 'no-store');
+        if (
+            req.headers.authorization ||
+            req.headers['x-api-key'] ||
+            req.headers['x-lightdash-token'] ||
+            req.headers['x-embed-token'] ||
+            (req.account && req.account.authentication.type !== 'session')
+        )
+            throw new AgentConnectionApprovalError('person_required');
+        if (!hasApprovalBrowserSession(req))
+            throw new AgentConnectionApprovalError('authentication_required');
+        if (!isApprovalUuid(req.params.requestUuid))
+            throw new AgentConnectionApprovalError('invalid_approval_request');
+        req.account = fromSession(req.user!, req.sessionID);
+        if (req.method === 'POST') {
+            if (req.get('origin') !== new URL(lightdashConfig.siteUrl).origin)
+                throw new AgentConnectionApprovalError('csrf_failed');
+            if (
+                !req.is('application/json') ||
+                Buffer.byteLength(JSON.stringify(req.body) ?? '') > 64 * 1024
+            )
+                throw new AgentConnectionApprovalError(
+                    'invalid_approval_request',
+                );
+            req.body = parseApprovalDecision(req.body);
+        }
         next();
     } catch (error) {
         sendAgentConnectionApprovalError(res, error);

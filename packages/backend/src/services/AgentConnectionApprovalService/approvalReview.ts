@@ -2,6 +2,8 @@ import {
     AgentCapability,
     AiAccessRefusalReason,
     QuerySourceType,
+    type AgentConnectionApprovalCapability,
+    type AgentConnectionApprovalProject,
     type AgentPermissionCheck,
 } from '@lightdash/common';
 import {
@@ -16,19 +18,8 @@ import { type ApprovalSelection } from '../../database/entities/agentConnectionA
 import { type AgentPermissionBulkArgs } from '../AgentPermissionService/agentPermissionBulkEvaluation';
 import { AgentConnectionApprovalError } from './AgentConnectionApprovalError';
 
-export type ApprovalCapability = {
-    capability: AgentCapability;
-    visibility: 'offered' | 'hidden' | 'blocked';
-    reasonCode: string | null;
-    reason: string | null;
-};
-export type ApprovalProject = {
-    projectUuid: string;
-    name: string;
-    selectable: boolean;
-    reason: string | null;
-    capabilities: ApprovalCapability[];
-};
+export type ApprovalCapability = AgentConnectionApprovalCapability;
+export type ApprovalProject = AgentConnectionApprovalProject;
 
 export const approvalOperationCatalogue = Object.entries(
     GRANT_OPERATION_CONTRACTS,
@@ -65,20 +56,7 @@ export const approvalOperationCatalogue = Object.entries(
     ];
 });
 
-export const scheduledRefreshCapabilities = [
-    ...new Set(
-        Object.entries(GRANT_OPERATION_CONTRACTS)
-            .filter(
-                ([key, contract]) =>
-                    ['deployment', 'deployment_session', 'refresh'].includes(
-                        contract.kind,
-                    ) || key === 'ParametersController.replaceParameters',
-            )
-            .flatMap(
-                ([key]) => getRequiredAgentCapabilities('rest', key) ?? [],
-            ),
-    ),
-];
+export const scheduledRefreshCapabilities = [AgentCapability.DeployUpload];
 
 const reasons = {
     unsupported: 'This action is not available for connections.',

@@ -204,6 +204,13 @@ it('registered authorize and token handlers cannot issue an agent connection wit
             '/api/v2/user/agent-connections/:grantUuid': ['delete'],
             '/api/v2/user/agent-connections/:grantUuid/status': ['get'],
             '/api/v2/user/agent-connections/requests': ['post'],
+            '/api/v2/user/agent-connections/requests/:requestUuid': ['get'],
+            '/api/v2/user/agent-connections/requests/:requestUuid/decision': [
+                'post',
+            ],
+            '/api/v2/user/agent-connections/requests/:requestUuid/completion': [
+                'get',
+            ],
         };
         for (const layer of connectionRoutes) {
             expect(Object.keys(layer.route.methods)).toEqual(

@@ -1,5 +1,5 @@
 import { type AgentCapability } from './agentPermissions';
-import { type UuidOrSlug } from './api/uuid';
+import { type UUID, type UuidOrSlug } from './api/uuid';
 
 export type AgentConnectionApprovalRequest = {
     clientId: 'lightdash-cli';
@@ -47,5 +47,52 @@ export type AgentConnectionApprovalErrorResponse = {
         name: 'AgentConnectionApprovalError';
         code: AgentConnectionApprovalErrorCode;
         message: string;
+        review?: AgentConnectionApprovalReview;
     };
+};
+
+export type AgentConnectionApprovalCapability = {
+    capability: AgentCapability;
+    visibility: 'offered' | 'hidden' | 'blocked';
+    reasonCode: string | null;
+    reason: string | null;
+};
+
+export type AgentConnectionApprovalProject = {
+    projectUuid: string;
+    name: string;
+    selectable: boolean;
+    reason: string | null;
+    capabilities: AgentConnectionApprovalCapability[];
+};
+
+export type AgentConnectionApprovalReview = {
+    request: {
+        name: string;
+        clientLabel: string;
+        expiresInSeconds: number;
+        expiresAt: string;
+    };
+    notice: 'Review only. No connection will be created.';
+    projects: AgentConnectionApprovalProject[];
+    nonce: string;
+    revision: number;
+};
+
+export type AgentConnectionApprovalReviewResponse = {
+    status: 'ok';
+    results: AgentConnectionApprovalReview;
+};
+
+export type AgentConnectionApprovalDecision = {
+    decision: 'approve' | 'deny';
+    revision: number;
+    nonce: string;
+    projectUuids: UUID[];
+    capabilities: AgentCapability[];
+};
+
+export type AgentConnectionApprovalDecisionResponse = {
+    status: 'ok';
+    results: { completionUrl: string };
 };

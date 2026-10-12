@@ -1,8 +1,11 @@
 import {
     assertRegisteredAccount,
+    type AgentConnectionApprovalDecision,
+    type AgentConnectionApprovalDecisionResponse,
     type AgentConnectionApprovalErrorResponse,
     type AgentConnectionApprovalRequest,
     type AgentConnectionApprovalResponse,
+    type AgentConnectionApprovalReviewResponse,
     type ApiErrorPayload,
     type UUID,
 } from '@lightdash/common';
@@ -27,7 +30,10 @@ import {
 import { AgentConnectionApprovalRequestError } from '../../models/AgentConnectionApprovalRequestModel';
 import { serializeAgentConnectionApprovalError } from '../../services/AgentConnectionApprovalService/AgentConnectionApprovalError';
 import { allowApiKeyAuthentication, isAuthenticated } from '../authentication';
-import { authenticateAgentConnectionApproval } from '../authentication/agentConnectionApproval';
+import {
+    authenticateAgentConnectionApproval,
+    authenticateApprovalReview,
+} from '../authentication/agentConnectionApproval';
 import { BaseController } from '../baseController';
 
 @Route('/api/v2/user/agent-connections')
@@ -63,6 +69,90 @@ export class AgentConnectionController extends BaseController {
                 error.retryAfterSeconds !== null
             )
                 this.setHeader('Retry-After', String(error.retryAfterSeconds));
+            return payload;
+        }
+    }
+
+    @Get('requests/{requestUuid}')
+    @Middlewares([authenticateApprovalReview])
+    @Response<AgentConnectionApprovalErrorResponse>(
+        'default',
+        'Approval request error',
+    )
+    @SuccessResponse('200', 'Success')
+    async reviewApproval(
+        @Request() req: express.Request,
+        @Path() requestUuid: UUID,
+    ): Promise<
+        | AgentConnectionApprovalReviewResponse
+        | AgentConnectionApprovalErrorResponse
+    > {
+        this.setHeader('Cache-Control', 'no-store');
+        try {
+            return {
+                status: 'ok',
+                results: await this.services
+                    .getAgentConnectionApprovalService()
+                    .review(req.account, requestUuid, req.sessionID),
+            };
+        } catch (error) {
+            const payload = serializeAgentConnectionApprovalError(error);
+            this.setStatus(payload.error.statusCode);
+            return payload;
+        }
+    }
+
+    @Post('requests/{requestUuid}/decision')
+    @Middlewares([authenticateApprovalReview])
+    @Response<AgentConnectionApprovalErrorResponse>(
+        'default',
+        'Approval request error',
+    )
+    @SuccessResponse('200', 'Success')
+    async decideApproval(
+        @Request() req: express.Request,
+        @Path() requestUuid: UUID,
+        @Body() body: AgentConnectionApprovalDecision,
+    ): Promise<
+        | AgentConnectionApprovalDecisionResponse
+        | AgentConnectionApprovalErrorResponse
+    > {
+        this.setHeader('Cache-Control', 'no-store');
+        try {
+            return {
+                status: 'ok',
+                results: await this.services
+                    .getAgentConnectionApprovalService()
+                    .decide(req.account, requestUuid, req.sessionID, body),
+            };
+        } catch (error) {
+            const payload = serializeAgentConnectionApprovalError(error);
+            this.setStatus(payload.error.statusCode);
+            return payload;
+        }
+    }
+
+    @Get('requests/{requestUuid}/completion')
+    @Middlewares([authenticateApprovalReview])
+    @Response<AgentConnectionApprovalErrorResponse>(
+        'default',
+        'Approval request error',
+    )
+    @SuccessResponse('302', 'Return to client')
+    async completeApproval(
+        @Request() req: express.Request,
+        @Path() requestUuid: UUID,
+    ): Promise<void | AgentConnectionApprovalErrorResponse> {
+        this.setHeader('Cache-Control', 'no-store');
+        try {
+            const location = await this.services
+                .getAgentConnectionApprovalService()
+                .complete(req.account, requestUuid, req.sessionID);
+            this.setHeader('Location', location);
+            this.setStatus(302);
+        } catch (error) {
+            const payload = serializeAgentConnectionApprovalError(error);
+            this.setStatus(payload.error.statusCode);
             return payload;
         }
     }

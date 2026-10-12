@@ -580,7 +580,13 @@ it('preserves model role unions and rejects unknown or foreign projects without 
 const approvalFixture = (f: Awaited<ReturnType<typeof fixture>>) => {
     const service = new AgentConnectionApprovalService({
         siteUrl: 'https://instance.example',
-        model: { insertPending: vi.fn(), findOwned: vi.fn() },
+        model: {
+            insertPending: vi.fn(),
+            findOwned: vi.fn(),
+            bindReview: vi.fn(),
+            sealDecision: vi.fn(),
+            consumeCallback: vi.fn(),
+        },
         userModel: f.users,
         projectModel: f.projectModel,
         featureFlags: f.flags,
@@ -790,8 +796,8 @@ it('reads scheduled refresh from both real schema sources and narrows only the a
         expect(
             project.capabilities.find(
                 (c) => c.capability === AgentCapability.Administration,
-            )?.reasonCode,
-        ).toBe(scheduled ? 'scheduled_pre_aggregate_refresh' : null);
+            )?.visibility,
+        ).toBe('offered');
         expect(
             project.capabilities.find(
                 (c) => c.capability === AgentCapability.Query,
