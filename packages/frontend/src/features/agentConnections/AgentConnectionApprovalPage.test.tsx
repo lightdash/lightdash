@@ -12,6 +12,7 @@ import {
     within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { StrictMode } from 'react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../api';
@@ -484,15 +485,24 @@ describe('approval review', () => {
         ).toBe(true);
         expect(window.location.href).not.toContain(review().nonce);
     });
-    it('aborts an in-flight review when the page unmounts', async () => {
-        api.mockImplementation(() => new Promise(() => {}));
-        const { unmount } = renderPage();
-        await waitFor(() => expect(api).toHaveBeenCalledOnce());
-        const signal = api.mock.calls[0][0].signal;
-        expect(signal).toBeInstanceOf(AbortSignal);
-        expect(signal?.aborted).toBe(false);
+    // Each review load gives a new nonce, and a cancelled load still reaches the server.
+    it('loads the review once under strict mode and never cancels the load', async () => {
+        api.mockResolvedValue(review());
+        const { unmount } = renderWithProviders(
+            <StrictMode>
+                <MemoryRouter
+                    initialEntries={[
+                        `/agent/connection-approval?request=${requestUuid}`,
+                    ]}
+                >
+                    <AgentConnectionApprovalPage />
+                </MemoryRouter>
+            </StrictMode>,
+        );
+        await screen.findByRole('button', { name: 'Approve' });
+        expect(api).toHaveBeenCalledOnce();
+        expect(api.mock.calls[0][0].signal).toBeUndefined();
         unmount();
-        expect(signal?.aborted).toBe(true);
     });
     it.each([false, true])(
         'bounds the 401 health wait, resolves early=%s',

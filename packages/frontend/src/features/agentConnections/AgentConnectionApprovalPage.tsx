@@ -51,13 +51,13 @@ const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
     const queryKey = ['agent-connection-review', requestUuid, mountId];
     const reviewQuery = useQuery<AgentConnectionApprovalReview, ApprovalError>({
         queryKey,
-        queryFn: ({ signal }) =>
+        // No abort signal: a cancelled load still reaches the server and stales the next nonce.
+        queryFn: () =>
             lightdashApi({
                 version: 'v2',
                 url: `/user/agent-connections/requests/${encodeURIComponent(requestUuid)}`,
                 method: 'GET',
                 sensitive: true,
-                signal,
             }),
         cacheTime: 0,
         staleTime: Infinity,
