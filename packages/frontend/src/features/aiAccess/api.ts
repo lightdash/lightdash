@@ -419,7 +419,7 @@ export const useAgentCapabilityPolicy = () => {
     });
 };
 
-export const agentPolicyMutationKey = ['agent-permissions', 'policy-write'];
+const agentPolicyMutationKey = ['agent-permissions', 'policy-write'];
 
 const useAgentPermissionMutation = <
     TResult extends ApiResponse['results'],
@@ -459,19 +459,6 @@ export const useSaveAgentCapabilityCeiling = (
         agentPolicyUrl,
         'PUT',
         'Could not save agent permissions.',
-        onSaved,
-        agentPolicyMutationKey,
-    );
-export const useResetAgentCapabilityPolicy = (
-    onSaved: (policy: AgentCapabilityPolicy) => void,
-) =>
-    useAgentPermissionMutation<
-        AgentCapabilityPolicy,
-        Pick<AgentCapabilityPolicy, 'version'>
-    >(
-        `${agentPolicyUrl}/reset`,
-        'POST',
-        'Could not turn off limits.',
         onSaved,
         agentPolicyMutationKey,
     );

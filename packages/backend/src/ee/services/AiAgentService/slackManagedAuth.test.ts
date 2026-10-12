@@ -30,8 +30,7 @@ const setup = ({
     const policy: AgentCapabilityPolicy = {
         mode: managed ? 'managed' : 'legacy',
         version: 1,
-        allowedProjectUuids: null,
-        allowedUserUuids: null,
+        allowedCapabilities: null,
         allowedGroupUuids: restricted ? ['group'] : null,
         systemRoleMatrix: agentSystemRoleMatrix([]),
     };

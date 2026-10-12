@@ -1,5 +1,7 @@
 import {
+    AGENT_CAPABILITY_DEFAULTS,
     AGENT_CAPABILITY_DEFINITIONS,
+    AGENT_CAPABILITY_LIMIT_DEFAULTS,
     AgentCapability,
     getAgentCapabilityName,
 } from './agentPermissions';
@@ -58,3 +60,16 @@ test.each(Object.values(AgentCapability))(
         }
     },
 );
+
+test('policy limits start with all eleven capabilities without changing custom role defaults', () => {
+    expect(AGENT_CAPABILITY_LIMIT_DEFAULTS).toEqual(
+        Object.values(AgentCapability),
+    );
+    expect(AGENT_CAPABILITY_LIMIT_DEFAULTS).toHaveLength(11);
+    expect(AGENT_CAPABILITY_DEFAULTS).toEqual([
+        AgentCapability.ReadDiscover,
+        AgentCapability.Query,
+        AgentCapability.Export,
+        AgentCapability.RawSql,
+    ]);
+});

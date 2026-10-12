@@ -1,6 +1,8 @@
 import {
+    AGENT_CAPABILITY_LIMIT_DEFAULTS,
     OrganizationMemberRole,
     ParameterError,
+    type AgentCapability,
     type AgentCapabilityPolicy,
     type AgentCapabilityPolicySave,
     type AgentSystemRoleMatrix,
@@ -13,7 +15,6 @@ import {
     type DbAgentSystemRoleCapability,
 } from '../database/entities/agentCapabilityPolicies';
 import { GroupTableName } from '../database/entities/groups';
-import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import { OrganizationTableName } from '../database/entities/organizations';
 
 const emptyMatrix = (): AgentSystemRoleMatrix => ({
@@ -25,7 +26,10 @@ const emptyMatrix = (): AgentSystemRoleMatrix => ({
     [OrganizationMemberRole.ADMIN]: [],
 });
 
-interface PolicyWithCapability extends DbAgentCapabilityPolicy {
+interface PolicyWithCapability extends Pick<
+    DbAgentCapabilityPolicy,
+    'mode' | 'version' | 'allowed_capabilities' | 'allowed_group_uuids'
+> {
     system_role: DbAgentSystemRoleCapability['system_role'] | null;
     capability: DbAgentSystemRoleCapability['capability'] | null;
 }
@@ -33,8 +37,7 @@ interface PolicyWithCapability extends DbAgentCapabilityPolicy {
 export interface AgentEnforcementPolicy {
     mode: 'legacy' | 'managed';
     version: number;
-    allowedProjectUuids: string[] | null;
-    allowedUserUuids: string[] | null;
+    allowedCapabilities: AgentCapability[] | null;
     storedAllowedGroupUuids: string[] | null;
     hasExistingAllowedGroup: boolean | null;
     systemRoleMatrix: AgentSystemRoleMatrix;
@@ -45,23 +48,6 @@ export class AgentCapabilityPolicyModel {
 
     constructor({ database }: { database: Knex }) {
         this.database = database;
-    }
-
-    private getAllowedMembers(
-        database: Knex,
-        organizationUuid: string,
-        allowedUserUuids: string[],
-    ) {
-        return database(OrganizationMembershipsTableName)
-            .join('users', 'users.user_id', 'organization_memberships.user_id')
-            .join(
-                'organizations',
-                'organizations.organization_id',
-                'organization_memberships.organization_id',
-            )
-            .where('organizations.organization_uuid', organizationUuid)
-            .whereIn('users.user_uuid', allowedUserUuids)
-            .select('users.user_uuid');
     }
 
     private getAllowedGroups(
@@ -95,7 +81,10 @@ export class AgentCapabilityPolicyModel {
                 organizationUuid,
             )
             .select<PolicyWithCapability[]>(
-                `${AgentCapabilityPoliciesTableName}.*`,
+                `${AgentCapabilityPoliciesTableName}.mode`,
+                `${AgentCapabilityPoliciesTableName}.version`,
+                `${AgentCapabilityPoliciesTableName}.allowed_capabilities`,
+                `${AgentCapabilityPoliciesTableName}.allowed_group_uuids`,
                 `${AgentSystemRoleCapabilitiesTableName}.system_role`,
                 `${AgentSystemRoleCapabilitiesTableName}.capability`,
             );
@@ -106,15 +95,6 @@ export class AgentCapabilityPolicyModel {
                 systemRoleMatrix[row.system_role].push(row.capability);
             }
         }
-        const storedUsers = policy?.allowed_user_uuids ?? null;
-        const members = storedUsers?.length
-            ? await this.getAllowedMembers(
-                  database,
-                  organizationUuid,
-                  storedUsers,
-              )
-            : [];
-        const memberUuids = new Set(members.map((member) => member.user_uuid));
         const storedGroups = policy?.allowed_group_uuids ?? null;
         const groups = storedGroups?.length
             ? await this.getAllowedGroups(
@@ -129,9 +109,7 @@ export class AgentCapabilityPolicyModel {
                 storedGroups?.filter((uuid) => groupUuids.has(uuid)) ?? null,
             mode: policy?.mode ?? 'legacy',
             version: policy?.version ?? 0,
-            allowedProjectUuids: policy?.allowed_project_uuids ?? null,
-            allowedUserUuids:
-                storedUsers?.filter((uuid) => memberUuids.has(uuid)) ?? null,
+            allowedCapabilities: policy?.allowed_capabilities ?? null,
             systemRoleMatrix,
         };
     }
@@ -154,7 +132,10 @@ export class AgentCapabilityPolicyModel {
                     has_existing_allowed_group: boolean | null;
                 })[]
             >(
-                `${AgentCapabilityPoliciesTableName}.*`,
+                `${AgentCapabilityPoliciesTableName}.mode`,
+                `${AgentCapabilityPoliciesTableName}.version`,
+                `${AgentCapabilityPoliciesTableName}.allowed_capabilities`,
+                `${AgentCapabilityPoliciesTableName}.allowed_group_uuids`,
                 `${AgentSystemRoleCapabilitiesTableName}.system_role`,
                 `${AgentSystemRoleCapabilitiesTableName}.capability`,
                 this.database.raw(
@@ -183,21 +164,10 @@ export class AgentCapabilityPolicyModel {
                 systemRoleMatrix[row.system_role].push(row.capability);
             }
         }
-        const storedUsers = policy?.allowed_user_uuids ?? null;
-        const members = storedUsers?.length
-            ? await this.getAllowedMembers(
-                  this.database,
-                  organizationUuid,
-                  storedUsers,
-              )
-            : [];
-        const memberUuids = new Set(members.map((member) => member.user_uuid));
         return {
             mode: policy?.mode ?? 'legacy',
             version: policy?.version ?? 0,
-            allowedProjectUuids: policy?.allowed_project_uuids ?? null,
-            allowedUserUuids:
-                storedUsers?.filter((uuid) => memberUuids.has(uuid)) ?? null,
+            allowedCapabilities: policy?.allowed_capabilities ?? null,
             storedAllowedGroupUuids: policy?.allowed_group_uuids ?? null,
             hasExistingAllowedGroup: policy?.has_existing_allowed_group ?? null,
             systemRoleMatrix,
@@ -208,8 +178,7 @@ export class AgentCapabilityPolicyModel {
         organizationUuid,
         mode,
         version,
-        allowedProjectUuids,
-        allowedUserUuids,
+        allowedCapabilities,
         allowedGroupUuids,
         systemRoleMatrix,
         updatedByUserUuid,
@@ -233,51 +202,38 @@ export class AgentCapabilityPolicyModel {
                         'All allowed groups must belong to this organization',
                     );
             }
-            if (
-                mode === 'managed' &&
-                allowedUserUuids !== undefined &&
-                allowedUserUuids !== null &&
-                allowedUserUuids.length > 0
-            ) {
-                const members = await this.getAllowedMembers(
-                    transaction,
-                    organizationUuid,
-                    allowedUserUuids,
-                );
-                const memberUuids = new Set(
-                    members.map((member) => member.user_uuid),
-                );
-                if (
-                    allowedUserUuids.some(
-                        (userUuid) => !memberUuids.has(userUuid),
-                    )
-                ) {
-                    throw new ParameterError(
-                        'All allowed users must belong to this organization',
-                    );
-                }
-            }
+            const normalizedCapabilities =
+                mode === 'legacy'
+                    ? null
+                    : AGENT_CAPABILITY_LIMIT_DEFAULTS.filter(
+                          (capability) =>
+                              allowedCapabilities === undefined ||
+                              allowedCapabilities?.includes(capability),
+                      );
             const query = transaction(AgentCapabilityPoliciesTableName)
                 .insert({
                     organization_uuid: organizationUuid,
                     mode,
                     version: 1,
-                    allowed_project_uuids:
-                        mode === 'managed' ? allowedProjectUuids : null,
-                    allowed_user_uuids:
-                        mode === 'managed' ? (allowedUserUuids ?? null) : null,
+                    allowed_capabilities: normalizedCapabilities,
+                    allowed_project_uuids: null,
+                    allowed_user_uuids: null,
                     allowed_group_uuids: allowedGroupUuids ?? null,
                     updated_by_user_uuid: updatedByUserUuid,
                 })
                 .onConflict('organization_uuid')
                 .merge({
                     mode,
-                    ...(mode === 'managed' && {
-                        allowed_project_uuids: allowedProjectUuids,
-                        ...(allowedUserUuids !== undefined && {
-                            allowed_user_uuids: allowedUserUuids,
-                        }),
-                    }),
+                    allowed_capabilities:
+                        mode === 'managed' && allowedCapabilities === undefined
+                            ? transaction.raw('COALESCE(??.??, ?::text[])', [
+                                  AgentCapabilityPoliciesTableName,
+                                  'allowed_capabilities',
+                                  [...AGENT_CAPABILITY_LIMIT_DEFAULTS],
+                              ])
+                            : normalizedCapabilities,
+                    allowed_project_uuids: null,
+                    allowed_user_uuids: null,
                     ...(allowedGroupUuids !== undefined && {
                         allowed_group_uuids: allowedGroupUuids,
                     }),
@@ -309,9 +265,17 @@ export class AgentCapabilityPolicyModel {
             await transaction(AgentSystemRoleCapabilitiesTableName)
                 .where('organization_uuid', organizationUuid)
                 .delete();
+            const normalizedMatrix = emptyMatrix();
+            for (const role of Object.values(OrganizationMemberRole)) {
+                normalizedMatrix[role] = AGENT_CAPABILITY_LIMIT_DEFAULTS.filter(
+                    (capability) =>
+                        systemRoleMatrix[role].includes(capability) &&
+                        policy.allowed_capabilities?.includes(capability),
+                );
+            }
             const grants = Object.values(OrganizationMemberRole).flatMap(
                 (role) =>
-                    [...new Set(systemRoleMatrix[role])].map((capability) => ({
+                    normalizedMatrix[role].map((capability) => ({
                         organization_uuid: organizationUuid,
                         system_role: role,
                         capability,
@@ -325,10 +289,9 @@ export class AgentCapabilityPolicyModel {
             return {
                 mode: policy.mode,
                 version: policy.version,
-                allowedProjectUuids: policy.allowed_project_uuids,
-                allowedUserUuids: policy.allowed_user_uuids,
+                allowedCapabilities: policy.allowed_capabilities,
                 allowedGroupUuids: policy.allowed_group_uuids,
-                systemRoleMatrix,
+                systemRoleMatrix: normalizedMatrix,
             };
         });
     }

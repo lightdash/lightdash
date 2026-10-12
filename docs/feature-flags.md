@@ -257,14 +257,17 @@ retain their original messages.
 
 The capability-policy API and `AgentPermissionService` resolve `agent-identity`
 for the target organization only, without a user override. A missing policy starts
-in `legacy` mode. Saving a ceiling or applying the pilot preset activates
-`managed` mode; resetting restores `legacy`. Disabling the flag preserves the
+in `legacy` mode. Saving with limits on activates `managed` mode; resetting
+restores `legacy` and clears the organization capability list. Disabling the flag preserves the
 saved policy and makes the permission service return `off` without new checks.
 
 Managed policy resolution unions system-role matrix grants with custom-role
-capability scopes. The pilot changes the system-role matrix and allowed projects;
-it leaves custom roles unchanged. The organization agent switch bounds all
-managed agent operations, and the content-write switch bounds content writes.
+capability scopes, then intersects them with `allowedCapabilities` when it is
+not null. Null preserves existing grants until the first save. New policy
+defaults contain all eleven capabilities. An empty saved list refuses agent
+turns on every covered surface. Custom roles keep their own scopes. MCP owns
+Agents over MCP and Allow content changes via MCP; neither setting limits
+in-app, Slack or OAuth API operations.
 Raw SQL for agents needs the person's own permission and the raw-SQL grant. It
 needs no project confirmation.
 
@@ -307,11 +310,13 @@ A valid deployment licence and the organization-level `UserGroupsEnabled` flag
 allow new group restrictions. Saved restrictions still apply when groups later
 become unavailable. Clearing a restriction is always allowed. Personal-access-token
 and service-account calls keep their existing exemptions. With `agent-identity`
-off, group admission adds no checks or reads. There is no page control yet;
-set the field through the policy API. A PUT can set
-`mode: 'legacy'` to save group admission without changing the stored capability
-matrix, projects or people. Omitting the new fields keeps today's save behavior.
-Reset keeps the group restriction.
+off, group admission adds no checks or reads. A PUT can set
+`mode: 'legacy'` to save group admission and preserve the dormant role matrix.
+Reset keeps groups and clears the capability list. Old people and project lists
+are ignored and omitted from GET, PUT and reset. An old browser save succeeds
+and drops those choices. The page uses the final policy API for Same as the
+person, Read and query, and Custom. Capability and group changes require review
+before saving.
 
 ### Snowflake silent agent refresh
 

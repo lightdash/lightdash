@@ -1,9 +1,9 @@
 import {
-    AGENT_CAPABILITY_DEFAULTS,
     AgentCapability,
     OrganizationMemberRole,
+    type AgentCapabilityPolicyOverview,
     type AgentSystemRoleMatrix,
-    type AgentCapabilityPolicy,
+    type GroupWithMembers,
 } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -15,69 +15,74 @@ import {
     waitFor,
     within,
 } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../api';
 import { AgentPermissionsSection } from './AgentPermissionsSection';
 
-const mocks = vi.hoisted(() => ({
-    enabled: true,
-    canManage: true,
-    errorToast: vi.fn(),
-}));
-vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
 vi.mock('../../providers/App/useApp', () => ({
     default: () => ({
         user: {
-            data: {
-                organizationUuid: 'org',
-                ability: { can: () => mocks.canManage },
-            },
+            data: { organizationUuid: 'org', ability: { can: () => true } },
         },
     }),
 }));
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({ data: { enabled: mocks.enabled } }),
-}));
-vi.mock('../../hooks/toaster/useToaster', () => ({
-    default: () => ({
-        showToastSuccess: vi.fn(),
-        showToastApiError: mocks.errorToast,
-    }),
+    useServerFeatureFlag: () => ({ data: { enabled: true } }),
 }));
 vi.mock('../../hooks/useProjects', () => ({
-    useProjects: () => ({ data: [{ projectUuid: 'project', name: 'Sales' }] }),
+    useProjects: () => ({ data: [] }),
 }));
 vi.mock('../../hooks/useOrganizationUsers', () => ({
-    useOrganizationUsers: () => ({
-        data: [
-            {
-                userUuid: 'person',
-                firstName: 'Sam',
-                lastName: 'Smith',
-                email: 'sam@example.com',
-            },
-        ],
-    }),
+    useOrganizationUsers: () => ({ data: [] }),
 }));
-const matrix = (capabilities: readonly AgentCapability[]) =>
+vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../hooks/toaster/useToaster', () => ({
+    default: () => ({ showToastSuccess: vi.fn(), showToastApiError: vi.fn() }),
+}));
+const all = Object.values(AgentCapability);
+const matrix = (caps: AgentCapability[]) =>
     Object.fromEntries(
-        Object.values(OrganizationMemberRole).map((role) => [
-            role,
-            [...capabilities],
-        ]),
+        Object.values(OrganizationMemberRole).map((role) => [role, [...caps]]),
     ) as AgentSystemRoleMatrix;
-const legacy = () => ({
-    mode: 'legacy' as 'legacy' | 'managed',
-    version: 0,
-    allowedProjectUuids: null as string[] | null,
-    allowedUserUuids: null as string[] | null,
-    allowedGroupUuids: null as string[] | null,
-    groupsAvailable: true,
+const legacy = (): AgentCapabilityPolicyOverview => ({
+    mode: 'legacy',
+    version: 1,
+    allowedCapabilities: null,
+    allowedGroupUuids: null,
     systemRoleMatrix: matrix([]),
-    defaults: matrix(AGENT_CAPABILITY_DEFAULTS),
+    defaults: matrix(all),
+    groupsAvailable: true,
 });
 let policy = legacy();
+const groups: GroupWithMembers[] = [
+    {
+        uuid: 'a',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdByUserUuid: null,
+        updatedByUserUuid: null,
+        organizationUuid: 'org',
+        name: 'Data team',
+        members: [],
+        memberUuids: ['1', '2', '2'],
+    },
+    {
+        uuid: 'b',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdByUserUuid: null,
+        updatedByUserUuid: null,
+        organizationUuid: 'org',
+        name: 'Analysts',
+        members: [],
+        memberUuids: ['2'],
+    },
+];
+let availableGroups = groups;
+let loadError = false;
+const refetch = vi.fn();
+const api = vi.mocked(lightdashApi);
 const renderSection = () => {
     const client = new QueryClient({
         defaultOptions: {
@@ -85,838 +90,680 @@ const renderSection = () => {
             mutations: { retry: false },
         },
     });
-    render(
-        <MantineProvider env="test">
-            <QueryClientProvider client={client}>
-                <AgentPermissionsSection />
-            </QueryClientProvider>
-        </MantineProvider>,
+    client.setQueryData(
+        ['ai-access', 'org', 'org', 'agent-permissions'],
+        policy,
     );
-    return client;
+    const content = () => (
+        <MantineProvider env="test">
+            <MemoryRouter>
+                <QueryClientProvider client={client}>
+                    <AgentPermissionsSection
+                        policy={policy}
+                        groups={availableGroups}
+                        refetchPolicy={refetch}
+                        loadError={loadError}
+                        mcpSettings={null}
+                    />
+                </QueryClientProvider>
+            </MemoryRouter>
+        </MantineProvider>
+    );
+    const view = render(content());
+    return { rerender: () => view.rerender(content()) };
 };
-const apiMock = vi.mocked(lightdashApi);
-const mutations = () =>
-    apiMock.mock.calls.filter(([request]) => request.method !== 'GET');
-const save = async () =>
-    fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
-const enableLimits = async () => {
-    const toggle = await screen.findByRole('switch', {
-        name: 'Limit what agents can do',
-    });
-    if (!(toggle as HTMLInputElement).checked) fireEvent.click(toggle);
-};
-const pick = async (label: string, option: string) => {
-    fireEvent.click(screen.getByRole('combobox', { name: label }));
-    fireEvent.click(await screen.findByRole('option', { name: option }));
-};
+const choose = (name: string) =>
+    fireEvent.click(screen.getByRole('radio', { name }));
+const toggle = (name: string) =>
+    fireEvent.click(screen.getByRole('switch', { name }));
+const review = () =>
+    fireEvent.click(screen.getByRole('button', { name: 'Review and save' }));
+const save = () =>
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+const custom = () => choose('Custom');
+const expandWho = () =>
+    fireEvent.click(
+        screen.getByRole('button', { name: 'Change who can use agents' }),
+    );
 beforeEach(() => {
     vi.clearAllMocks();
-    apiMock.mockReset();
-    mocks.enabled = true;
-    mocks.canManage = true;
     policy = legacy();
-    vi.mocked(lightdashApi).mockImplementation(async (request) => {
-        if (request.method !== 'GET') {
-            policy = {
-                ...policy,
-                ...(request.body ? JSON.parse(String(request.body)) : {}),
-                mode: request.url.endsWith('/reset') ? 'legacy' : 'managed',
-                version: policy.version + 1,
-            };
-        }
+    availableGroups = groups;
+    loadError = false;
+    refetch.mockImplementation(async () => ({ data: policy, isError: false }));
+    api.mockImplementation(async (request) => {
+        if (request.method === 'GET') return policy;
+        policy = {
+            ...policy,
+            ...JSON.parse(String(request.body)),
+            version: policy.version + 1,
+        };
         return policy;
     });
 });
-describe('Agent permissions', () => {
-    it('shows the backend starting limits in legacy before saving', async () => {
+describe('reviewed agent permissions', () => {
+    it('starts with the saved choice, a clean footer and no old pickers', () => {
         renderSection();
         expect(
-            await screen.findByText("Agents follow each person's permissions."),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByRole('checkbox', { name: 'Admin: Raw SQL' }),
-        ).not.toBeInTheDocument();
-        await enableLimits();
-        expect(
-            screen.getByText('Not saved yet — these are the starting limits.'),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByRole('checkbox', { name: 'Admin: Raw SQL' }),
+            screen.getByRole('radio', { name: 'Same as the person' }),
         ).toBeChecked();
+        expect(screen.getByText('Current')).toBeInTheDocument();
+        expect(screen.getByText('No changes')).toBeInTheDocument();
         expect(
-            screen.getByRole('checkbox', { name: 'Member: Delete content' }),
-        ).not.toBeChecked();
-        expect(screen.getByText('Who can use agents')).toBeInTheDocument();
-        expect(screen.getByText('Allowed projects')).toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: /preset/i }),
-        ).not.toBeInTheDocument();
-        expect(mutations()).toHaveLength(0);
-        await save();
-        await waitFor(() =>
-            expect(mutations()[0]?.[0]).toMatchObject({
-                version: 'v2',
-                url: '/org/agent-permissions',
-                method: 'PUT',
-                body: JSON.stringify({
-                    version: 0,
-                    systemRoleMatrix: policy.defaults,
-                    allowedProjectUuids: null,
-                    allowedUserUuids: null,
-                }),
-            }),
-        );
-        expect(
-            screen.getByRole('switch', { name: 'Limit what agents can do' }),
-        ).toBeChecked();
-        expect(
-            screen.queryByText(
-                'Not saved yet — these are the starting limits.',
-            ),
-        ).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
-        expect(
-            screen.queryByText('Agent permissions changed'),
-        ).not.toBeInTheDocument();
-        expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
-    });
-    it('starts from all projects and everyone after limits were turned off', async () => {
-        policy = {
-            ...legacy(),
-            allowedProjectUuids: ['project'],
-            allowedUserUuids: ['person'],
-        };
-        renderSection();
-        await enableLimits();
-        expect(
-            screen.getByRole('radio', { name: 'All projects' }),
-        ).toBeChecked();
-        expect(
-            screen.getByRole('radio', { name: 'Everyone the roles allow' }),
-        ).toBeChecked();
-        await save();
-        await waitFor(() =>
-            expect(mutations()[0]?.[0]).toMatchObject({
-                method: 'PUT',
-                body: JSON.stringify({
-                    version: 0,
-                    systemRoleMatrix: policy.defaults,
-                    allowedProjectUuids: null,
-                    allowedUserUuids: null,
-                }),
-            }),
-        );
-    });
-
-    it('saves matrix edits, selected projects and named people', async () => {
-        renderSection();
-        await screen.findByText('Permissions');
-        await enableLimits();
-        fireEvent.click(
-            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
-        );
-        fireEvent.click(
-            screen.getByRole('radio', { name: 'Only these projects' }),
-        );
-        await pick('Projects', 'Sales');
-        fireEvent.click(
-            screen.getByRole('radio', { name: 'Only these people' }),
-        );
-        await pick('People', 'Sam Smith (sam@example.com)');
-        await save();
-        await waitFor(() => expect(mutations()).toHaveLength(1));
-        const payload = JSON.parse(String(mutations()[0][0].body));
-        expect(payload).toEqual({
-            version: 0,
-            systemRoleMatrix: {
-                ...matrix(AGENT_CAPABILITY_DEFAULTS),
-                admin: [...AGENT_CAPABILITY_DEFAULTS, AgentCapability.Delete],
-            },
-            allowedProjectUuids: ['project'],
-            allowedUserUuids: ['person'],
-        });
-        await waitFor(() =>
-            expect(
-                screen.queryByText('Unsaved changes'),
-            ).not.toBeInTheDocument(),
-        );
-        expect(
-            screen.queryByText('Agent permissions changed'),
-        ).not.toBeInTheDocument();
-        expect(
-            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
-        ).toBeChecked();
-        expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
-    });
-    it('requires confirmation for no people; cancel restores the saved list and saves nothing', async () => {
-        policy = {
-            ...legacy(),
-            mode: 'managed',
-            allowedUserUuids: ['person'],
-            systemRoleMatrix: matrix(AGENT_CAPABILITY_DEFAULTS),
-        };
-        renderSection();
-        await screen.findByText('Permissions');
-        await enableLimits();
-        await userEvent
-            .setup()
-            .click(screen.getByRole('combobox', { name: 'People' }));
-        await userEvent.setup().keyboard('{Backspace}');
-        await waitFor(() =>
-            expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled(),
-        );
-        await save();
-        const dialog = await screen.findByRole('dialog', {
-            name: "No one's agents can run",
-        });
-        fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-        expect(mutations()).toHaveLength(0);
-        expect(
-            screen.getAllByText('Sam Smith (sam@example.com)')[0],
-        ).toBeInTheDocument();
-        await userEvent
-            .setup()
-            .click(screen.getByRole('combobox', { name: 'People' }));
-        await userEvent.setup().keyboard('{Backspace}');
-        await waitFor(() =>
-            expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled(),
-        );
-        await save();
-        fireEvent.click(
-            within(
-                await screen.findByRole('dialog', {
-                    name: "No one's agents can run",
-                }),
-            ).getByRole('button', {
-                name: 'Confirm',
-            }),
-        );
-        await waitFor(() => expect(mutations()).toHaveLength(1));
-        expect(
-            JSON.parse(String(mutations()[0][0].body)).allowedUserUuids,
-        ).toEqual([]);
-    });
-    it('saves null when switching back to Everyone the roles allow', async () => {
-        policy.allowedUserUuids = ['person'];
-        renderSection();
-        await screen.findByText('Permissions');
-        await enableLimits();
-        fireEvent.click(
-            screen.getByRole('radio', { name: 'Everyone the roles allow' }),
-        );
-        await save();
-        await waitFor(() => expect(mutations()).toHaveLength(1));
-        expect(
-            JSON.parse(String(mutations()[0][0].body)).allowedUserUuids,
-        ).toBeNull();
-    });
-    it('confirms turning off limits and discards dirty edits without a conflict', async () => {
-        policy.mode = 'managed';
-        renderSection();
-        fireEvent.click(
-            await screen.findByRole('checkbox', {
-                name: 'Admin: Delete content',
-            }),
-        );
-        fireEvent.click(
-            await screen.findByRole('switch', {
-                name: 'Limit what agents can do',
-            }),
-        );
-        fireEvent.click(
-            within(screen.getByRole('dialog')).getByRole('button', {
-                name: 'Cancel',
-            }),
-        );
-        expect(mutations()).toHaveLength(0);
-        expect(
-            screen.getByRole('switch', { name: 'Limit what agents can do' }),
-        ).toBeChecked();
-        fireEvent.click(
-            screen.getByRole('switch', { name: 'Limit what agents can do' }),
-        );
-        fireEvent.click(
-            within(screen.getByRole('dialog')).getByRole('button', {
-                name: 'Turn off limits',
-            }),
-        );
-        await waitFor(() =>
-            expect(mutations()[0]?.[0]).toMatchObject({
-                url: '/org/agent-permissions/reset',
-                method: 'POST',
-                body: JSON.stringify({ version: 0 }),
-            }),
-        );
-        await waitFor(() =>
-            expect(
-                screen.getByRole('switch', {
-                    name: 'Limit what agents can do',
-                }),
-            ).not.toBeChecked(),
-        );
-        expect(
-            screen.queryByText('Agent permissions changed'),
-        ).not.toBeInTheDocument();
-        expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
-        expect(
-            screen.queryByRole('checkbox', { name: 'Admin: Delete content' }),
-        ).not.toBeInTheDocument();
-    });
-    it('keeps edits on refetch and reports server errors', async () => {
-        const client = renderSection();
-        await screen.findByText('Permissions');
-        await enableLimits();
-        fireEvent.click(
-            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
-        );
-        await act(() => client.invalidateQueries(['ai-access']));
-        expect(
-            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
-        ).toBeChecked();
-        vi.mocked(lightdashApi).mockRejectedValue({
-            error: { message: 'People must belong to this organization' },
-        });
-        await act(() => client.invalidateQueries(['ai-access']));
-        expect(
-            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
-        ).toBeChecked();
-        await save();
-        await waitFor(() =>
-            expect(mocks.errorToast).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    apiError: {
-                        message: 'People must belong to this organization',
-                    },
-                }),
-            ),
-        );
-    });
-    it('disables edits and repeat saves while a save is in progress', async () => {
-        renderSection();
-        await screen.findByText('Permissions');
-        await enableLimits();
-        let finishSave: (value: AgentCapabilityPolicy) => void = () => {};
-        vi.mocked(lightdashApi).mockImplementationOnce(
-            () =>
-                new Promise<AgentCapabilityPolicy>((resolve) => {
-                    finishSave = resolve;
-                }),
-        );
-        await save();
-        await waitFor(() =>
-            expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled(),
-        );
-        expect(
-            screen.getByRole('checkbox', { name: 'Admin: Raw SQL' }),
+            screen.getByRole('button', { name: 'Review and save' }),
         ).toBeDisabled();
-        expect(
-            screen.getByRole('radio', { name: 'Only these people' }),
-        ).toBeDisabled();
-        await act(async () => {
-            finishSave({ ...policy, mode: 'managed', version: 1 });
-        });
+        expect(screen.queryByText('Allowed projects')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('People')).not.toBeInTheDocument();
+        expect(api).not.toHaveBeenCalled();
     });
-    it('discards the starting draft when switched off before saving', async () => {
+    it('shows the Read and query chips and Raw SQL qualification', () => {
         renderSection();
-        await enableLimits();
-        fireEvent.click(
-            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
-        );
-        fireEvent.click(
-            screen.getByRole('switch', { name: 'Limit what agents can do' }),
-        );
-        expect(
-            screen.queryByRole('checkbox', { name: 'Admin: Delete content' }),
-        ).not.toBeInTheDocument();
-        expect(mutations()).toHaveLength(0);
-        await enableLimits();
-        expect(
-            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
-        ).not.toBeChecked();
-    });
-    it('adopts a newer policy and baseline when the form is clean', async () => {
-        policy = { ...legacy(), mode: 'managed', version: 1 };
-        const client = renderSection();
-        await screen.findByText('Permissions');
-        policy = {
-            ...policy,
-            version: 2,
-            allowedUserUuids: ['person'],
-            systemRoleMatrix: matrix([AgentCapability.Query]),
-        };
-        await act(() => client.invalidateQueries(['ai-access']));
-        await waitFor(() =>
-            expect(
-                screen.getByRole('radio', { name: 'Only these people' }),
-            ).toBeChecked(),
-        );
-        expect(
-            screen.getByRole('checkbox', { name: 'Admin: Query data' }),
-        ).toBeChecked();
-        expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
-        fireEvent.click(
-            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
-        );
-        await save();
-        await waitFor(() => expect(mutations()).toHaveLength(1));
-        expect(JSON.parse(String(mutations()[0][0].body))).toMatchObject({
-            version: 2,
-            allowedUserUuids: ['person'],
-        });
-    });
-    it('shows no conflict when a refetch of its own pending save lands first', async () => {
-        policy = { ...legacy(), mode: 'managed', version: 1 };
-        const client = renderSection();
-        await screen.findByText('Permissions');
-        fireEvent.click(
-            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
-        );
-        let finish: (value: typeof policy) => void = () => undefined;
-        const respond = apiMock.getMockImplementation()!;
-        apiMock.mockImplementation(async (request) => {
-            if (request.method !== 'PUT') return respond(request);
-            policy = {
-                ...policy,
-                ...JSON.parse(String(request.body)),
-                mode: 'managed',
-                version: policy.version + 1,
-            };
-            return new Promise((resolve) => {
-                finish = resolve;
-            });
-        });
-        await save();
-        await waitFor(() => expect(mutations()).toHaveLength(1));
-        await act(() => client.invalidateQueries(['ai-access']));
-        await waitFor(() =>
-            expect(
-                apiMock.mock.calls.filter(
-                    ([request]) => request.method === 'GET',
-                ).length,
-            ).toBeGreaterThan(1),
-        );
-        expect(
-            screen.queryByText('Agent permissions changed'),
-        ).not.toBeInTheDocument();
-        await act(async () => finish(policy));
-        await waitFor(() =>
-            expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled(),
-        );
-        expect(
-            screen.queryByText('Agent permissions changed'),
-        ).not.toBeInTheDocument();
-        expect(
-            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
-        ).toBeChecked();
-    });
-
-    it.each(['save', 'reset'])(
-        'reloads after a stale save so the next %s uses the fresh version',
-        async (nextAction) => {
-            policy = { ...legacy(), mode: 'managed', version: 1 };
-            renderSection();
-            fireEvent.click(
-                await screen.findByRole('checkbox', {
-                    name: 'Admin: Delete content',
-                }),
-            );
-            const conflictError = {
-                error: {
-                    message:
-                        'Agent permissions changed. Reload the latest permissions before saving.',
-                },
-            };
-            policy = { ...policy, version: 2, allowedUserUuids: ['person'] };
-            apiMock.mockRejectedValueOnce(conflictError);
-            await save();
-            expect(
-                await screen.findByText('Agent permissions changed'),
-            ).toBeInTheDocument();
-            expect(
-                screen.getByText(
-                    'Someone changed the saved permissions. Reload the latest permissions before making more changes. This will discard your unsaved changes.',
-                ),
-            ).toBeInTheDocument();
-            expect(mocks.errorToast).toHaveBeenCalledExactlyOnceWith({
-                title: 'Could not save agent permissions.',
-                apiError: conflictError.error,
-            });
-            expect(JSON.parse(String(mutations()[0][0].body)).version).toBe(1);
-            expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
-            policy = {
-                ...policy,
-                version: 3,
-                allowedProjectUuids: ['project'],
-            };
-            fireEvent.click(
-                screen.getByRole('button', { name: 'Reload latest' }),
-            );
-            await waitFor(() =>
-                expect(
-                    screen.queryByText('Agent permissions changed'),
-                ).not.toBeInTheDocument(),
-            );
-            expect(
-                screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
-            ).not.toBeChecked();
-            expect(
-                screen.getByRole('radio', { name: 'Only these projects' }),
-            ).toBeChecked();
-            expect(
-                screen.getByRole('radio', { name: 'Only these people' }),
-            ).toBeChecked();
-            expect(
-                screen.queryByText('Unsaved changes'),
-            ).not.toBeInTheDocument();
-            fireEvent.click(
-                screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
-            );
-            if (nextAction === 'save') {
-                await save();
-            } else {
-                fireEvent.click(
-                    screen.getByRole('button', { name: 'Discard changes' }),
-                );
-                fireEvent.click(
-                    screen.getByRole('switch', {
-                        name: 'Limit what agents can do',
-                    }),
-                );
-                fireEvent.click(
-                    within(screen.getByRole('dialog')).getByRole('button', {
-                        name: 'Turn off limits',
-                    }),
-                );
-            }
-            await waitFor(() => expect(mutations()).toHaveLength(2));
-            expect(JSON.parse(String(mutations()[1][0].body)).version).toBe(3);
-            await waitFor(() =>
-                expect(
-                    screen.queryByText('Unsaved changes'),
-                ).not.toBeInTheDocument(),
-            );
-            if (nextAction === 'reset') {
-                await waitFor(() =>
-                    expect(
-                        screen.getByRole('switch', {
-                            name: 'Limit what agents can do',
-                        }),
-                    ).not.toBeChecked(),
-                );
-            }
-            expect(mocks.errorToast).toHaveBeenCalledTimes(1);
-        },
-    );
-
-    it('turns off limits with the fresh version after a stale save and discard', async () => {
-        policy = { ...legacy(), mode: 'managed', version: 1 };
-        renderSection();
-        fireEvent.click(
-            await screen.findByRole('checkbox', {
-                name: 'Admin: Delete content',
-            }),
-        );
-        policy = { ...policy, version: 2, allowedUserUuids: ['person'] };
-        apiMock.mockRejectedValueOnce({ error: { message: 'Conflict' } });
-        await save();
-        expect(
-            await screen.findByText('Agent permissions changed'),
-        ).toBeInTheDocument();
-        expect(JSON.parse(String(mutations()[0][0].body)).version).toBe(1);
-        fireEvent.click(
-            screen.getByRole('button', { name: 'Discard changes' }),
-        );
-        const toggle = screen.getByRole('switch', {
-            name: 'Limit what agents can do',
-        });
-        expect(toggle).toBeEnabled();
-        expect(
-            screen.queryByText('Agent permissions changed'),
-        ).not.toBeInTheDocument();
-        expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
-        expect(
-            screen.getByRole('radio', { name: 'Only these people' }),
-        ).toBeChecked();
-        fireEvent.click(toggle);
-        fireEvent.click(
-            within(screen.getByRole('dialog')).getByRole('button', {
-                name: 'Turn off limits',
-            }),
-        );
-        await waitFor(() => expect(toggle).not.toBeChecked());
-        expect(mutations()).toHaveLength(2);
-        expect(mutations()[1][0]).toMatchObject({
-            url: '/org/agent-permissions/reset',
-            method: 'POST',
-            body: JSON.stringify({ version: 2 }),
-        });
-        expect(mocks.errorToast).toHaveBeenCalledExactlyOnceWith({
-            title: 'Could not save agent permissions.',
-            apiError: { message: 'Conflict' },
-        });
-    });
-
-    it('shows a conflict after a stale reset of a clean form and closes the modal on reload', async () => {
-        policy = { ...legacy(), mode: 'managed', version: 1 };
-        renderSection();
-        fireEvent.click(
-            await screen.findByRole('switch', {
-                name: 'Limit what agents can do',
-            }),
-        );
-        policy = { ...policy, version: 2 };
-        apiMock.mockRejectedValueOnce({ error: { message: 'Conflict' } });
-        fireEvent.click(
-            within(screen.getByRole('dialog')).getByRole('button', {
-                name: 'Turn off limits',
-            }),
-        );
-        expect(
-            await screen.findByText('Agent permissions changed'),
-        ).toBeInTheDocument();
-        expect(mocks.errorToast).toHaveBeenCalledExactlyOnceWith({
-            title: 'Could not turn off limits.',
-            apiError: { message: 'Conflict' },
-        });
+        choose('Read and query');
         expect(
             screen.getByText(
-                'Someone changed the saved permissions. Reload the latest permissions before making more changes.',
+                "Raw SQL runs with the person's warehouse permissions.",
             ),
         ).toBeInTheDocument();
-        expect(
-            screen.queryByText(/This will discard your unsaved changes\./),
-        ).not.toBeInTheDocument();
-        fireEvent.click(screen.getByRole('button', { name: 'Reload latest' }));
-        await waitFor(() =>
-            expect(
-                screen.queryByText('Agent permissions changed'),
-            ).not.toBeInTheDocument(),
-        );
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-        fireEvent.click(
-            screen.getByRole('switch', { name: 'Limit what agents can do' }),
-        );
-        fireEvent.click(
-            within(screen.getByRole('dialog')).getByRole('button', {
-                name: 'Turn off limits',
-            }),
-        );
-        await waitFor(() =>
-            expect(
-                screen.getByRole('switch', {
-                    name: 'Limit what agents can do',
-                }),
-            ).not.toBeChecked(),
-        );
-        expect(JSON.parse(String(mutations()[1][0].body))).toEqual({
-            version: 2,
-        });
+        expect(screen.getByText('× 6 more')).toBeInTheDocument();
+        expect(api).not.toHaveBeenCalled();
     });
-
-    it('keeps edits without a conflict when a failed save refetches the same version', async () => {
-        policy = { ...legacy(), mode: 'managed', version: 1 };
+    it('opens Custom from the preset with every capability enabled', () => {
         renderSection();
-        fireEvent.click(
-            await screen.findByRole('checkbox', {
-                name: 'Admin: Delete content',
-            }),
-        );
-        apiMock.mockRejectedValueOnce({ error: { message: 'Save failed' } });
-        await save();
-        await waitFor(() =>
-            expect(
-                apiMock.mock.calls.filter(
-                    ([request]) => request.method === 'GET',
-                ),
-            ).toHaveLength(2),
-        );
-        await waitFor(() =>
-            expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled(),
-        );
+        choose('Read and query');
+        custom();
+        expect(screen.getByRole('radio', { name: 'Custom' })).toBeChecked();
+        expect(screen.getByRole('switch', { name: 'Raw SQL' })).toBeChecked();
         expect(
-            screen.queryByText('Agent permissions changed'),
-        ).not.toBeInTheDocument();
-        expect(
-            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
+            screen.getByRole('switch', { name: 'Delete content' }),
         ).toBeChecked();
-        expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
-        expect(mocks.errorToast).toHaveBeenCalledExactlyOnceWith({
-            title: 'Could not save agent permissions.',
-            apiError: { message: 'Save failed' },
-        });
+        expect(screen.getByText('1 unsaved change')).toBeInTheDocument();
     });
-
-    it('recovers controls and keeps edits when the automatic reload fails, then retries save', async () => {
-        policy = { ...legacy(), mode: 'managed', version: 1 };
+    it('counts the Read choice once, plus one for a group change', async () => {
         renderSection();
-        const checkbox = await screen.findByRole('checkbox', {
-            name: 'Admin: Delete content',
-        });
-        fireEvent.click(checkbox);
-        let failReload: (error: unknown) => void = () => {};
-        apiMock.mockRejectedValueOnce({ error: { message: 'Save failed' } });
-        apiMock.mockImplementationOnce(
-            () =>
-                new Promise((_resolve, reject) => {
-                    failReload = reject;
-                }),
+        choose('Read and query');
+        expect(screen.getByText('1 unsaved change')).toBeInTheDocument();
+        expandWho();
+        choose('Only these groups');
+        fireEvent.click(screen.getByRole('combobox', { name: 'Groups' }));
+        fireEvent.click(
+            await screen.findByRole('option', { name: 'Data team (2)' }),
         );
-        await save();
-        await waitFor(() =>
-            expect(
-                apiMock.mock.calls.filter(
-                    ([request]) => request.method === 'GET',
-                ),
-            ).toHaveLength(2),
-        );
-        expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
-        expect(checkbox).toBeDisabled();
-        await act(async () =>
-            failReload({ error: { message: 'Reload failed' } }),
-        );
-        await waitFor(() =>
-            expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled(),
-        );
-        expect(checkbox).toBeEnabled();
-        expect(checkbox).toBeChecked();
-        expect(
-            screen.getByRole('switch', { name: 'Limit what agents can do' }),
-        ).toBeEnabled();
-        expect(
-            screen.getByRole('button', { name: 'Discard changes' }),
-        ).toBeEnabled();
-        expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
-        expect(
-            screen.queryByText('Agent permissions changed'),
-        ).not.toBeInTheDocument();
-        expect(mocks.errorToast).toHaveBeenCalledTimes(2);
-        expect(mocks.errorToast).toHaveBeenNthCalledWith(1, {
-            title: 'Could not save agent permissions.',
-            apiError: { message: 'Save failed' },
-        });
-        expect(mocks.errorToast).toHaveBeenNthCalledWith(2, {
-            title: 'Could not reload agent permissions.',
-            apiError: { message: 'Reload failed' },
-        });
-        await save();
-        await waitFor(() =>
-            expect(
-                screen.queryByText('Unsaved changes'),
-            ).not.toBeInTheDocument(),
-        );
-        expect(mutations()).toHaveLength(2);
-        expect(JSON.parse(String(mutations()[1][0].body))).toMatchObject({
-            version: 1,
-            systemRoleMatrix: {
-                ...matrix([]),
-                admin: [AgentCapability.Delete],
-            },
-        });
-        expect(checkbox).toBeChecked();
-        expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
-        expect(mocks.errorToast).toHaveBeenCalledTimes(2);
+        expect(screen.getByText('2 unsaved changes')).toBeInTheDocument();
     });
-
-    it('keeps the conflict and draft when reloading fails and allows a retry', async () => {
-        policy = { ...legacy(), mode: 'managed', version: 1 };
-        const client = renderSection();
+    it('reviews seven named allows and saves eleven capabilities in every row from saved Read', async () => {
+        const read = [
+            AgentCapability.ReadDiscover,
+            AgentCapability.Query,
+            AgentCapability.Export,
+            AgentCapability.RawSql,
+        ];
+        policy = {
+            ...policy,
+            mode: 'managed',
+            allowedCapabilities: read,
+            systemRoleMatrix: matrix(read),
+        };
+        renderSection();
+        custom();
+        fireEvent.click(
+            screen.getByRole('button', { name: /Developer and admin/ }),
+        );
+        await screen.findByRole('switch', { name: 'Administration' });
+        expect(screen.getAllByRole('switch')).toHaveLength(11);
+        screen
+            .getAllByRole('switch')
+            .forEach((control) => expect(control).toBeChecked());
+        expect(screen.getByText('7 unsaved changes')).toBeInTheDocument();
+        review();
+        const modal = within(screen.getByRole('dialog'));
+        const allows = within(modal.getByText('ALLOWS').parentElement!);
+        const names =
+            'Create and edit content and Delete content and Publish and share and Deploy and upload and Git repository changes (dbt) and Administration and External tools';
+        expect(allows.getByText(names)).toBeInTheDocument();
+        expect(modal.getAllByText(names)).toHaveLength(1);
+        expect(modal.queryByText('STOPS')).not.toBeInTheDocument();
+        save();
+        await waitFor(() => expect(api).toHaveBeenCalled());
+        expect(JSON.parse(String(api.mock.calls[0][0].body))).toMatchObject({
+            allowedCapabilities: all,
+            systemRoleMatrix: matrix(all),
+        });
+    });
+    it('restores the nine saved Custom capabilities and narrowed role row after Read', async () => {
+        const nine = all.filter(
+            (cap) =>
+                cap !== AgentCapability.Delete &&
+                cap !== AgentCapability.Publish,
+        );
+        policy = {
+            ...policy,
+            mode: 'managed',
+            allowedCapabilities: nine,
+            systemRoleMatrix: {
+                ...matrix(nine),
+                admin: [AgentCapability.Query],
+            },
+        };
+        renderSection();
+        choose('Same as the person');
+        expect(screen.getByText('1 unsaved change')).toBeInTheDocument();
+        choose('Read and query');
+        custom();
+        expect(screen.getByText('No changes')).toBeInTheDocument();
+        fireEvent.click(
+            screen.getByRole('button', { name: /Developer and admin/ }),
+        );
+        await screen.findByRole('switch', { name: 'Administration' });
+        expect(
+            screen
+                .getAllByRole('switch')
+                .filter((control) => (control as HTMLInputElement).checked),
+        ).toHaveLength(9);
+        fireEvent.click(
+            screen.getByRole('button', { name: /Different limits per role/ }),
+        );
+        expect(
+            await screen.findByRole('checkbox', { name: 'Admin: Query data' }),
+        ).toBeChecked();
+        expect(
+            screen.getByRole('checkbox', { name: 'Admin: Raw SQL' }),
+        ).not.toBeChecked();
+        custom();
+        expect(screen.getByText('No changes')).toBeInTheDocument();
+    });
+    it('starts Custom on, with collapsed developer and role controls', () => {
+        renderSection();
+        custom();
+        expect(screen.getAllByRole('switch')).toHaveLength(7);
+        expect(
+            screen
+                .getAllByRole('switch')
+                .every((input) => (input as HTMLInputElement).checked),
+        ).toBe(true);
+        expect(
+            screen.getByRole('button', { name: /Developer and admin/ }),
+        ).toHaveAttribute('aria-expanded', 'false');
+        expect(
+            screen.getByRole('button', { name: /Different limits per role/ }),
+        ).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.getByText('1 unsaved change')).toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'Custom roles' }),
+        ).toHaveAttribute('href', '/generalSettings/customRoles');
+    });
+    it('reviews two global stops once each, keeps the draft on Back and saves only after review', async () => {
+        renderSection();
+        custom();
+        toggle('Delete content');
+        toggle('Publish and share');
+        expect(screen.getByText('3 unsaved changes')).toBeInTheDocument();
+        review();
+        const modal = within(screen.getByRole('dialog'));
+        const stops = within(modal.getByText('STOPS').parentElement!);
+        expect(
+            stops.getByText('Delete content and Publish and share'),
+        ).toBeInTheDocument();
+        expect(
+            modal.getAllByText('Delete content and Publish and share'),
+        ).toHaveLength(1);
+        expect(modal.queryByText('ALLOWS')).not.toBeInTheDocument();
+        expect(
+            modal.getByText(
+                'For every role, custom roles included. People can still do these themselves.',
+            ),
+        ).toBeInTheDocument();
+        expect(modal.queryByText('ACTIVITY')).not.toBeInTheDocument();
+        expect(api).not.toHaveBeenCalled();
+        fireEvent.click(modal.getByRole('button', { name: 'Back' }));
+        expect(
+            screen.getByRole('switch', { name: 'Delete content' }),
+        ).not.toBeChecked();
+        review();
+        save();
+        await waitFor(() =>
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+        );
+        expect(screen.getByText('No changes')).toBeInTheDocument();
+        expect(JSON.parse(String(api.mock.calls[0][0].body))).toMatchObject({
+            version: 1,
+            mode: 'managed',
+            allowedCapabilities: all.filter(
+                (cap) =>
+                    cap !== AgentCapability.Delete &&
+                    cap !== AgentCapability.Publish,
+            ),
+        });
+    });
+    it('disables a role cell when its global capability is off', async () => {
+        renderSection();
+        custom();
+        toggle('Delete content');
+        fireEvent.click(
+            screen.getByRole('button', { name: /Different limits per role/ }),
+        );
+        expect(
+            await screen.findByRole('checkbox', {
+                name: 'Admin: Delete content',
+            }),
+        ).toBeDisabled();
+        toggle('Delete content');
+        expect(
+            await screen.findByRole('checkbox', {
+                name: 'Admin: Delete content',
+            }),
+        ).toBeChecked();
+    });
+    it('reviews advanced row edits with the role name', async () => {
+        policy = {
+            ...policy,
+            mode: 'managed',
+            allowedCapabilities: all,
+            systemRoleMatrix: matrix(all),
+        };
+        renderSection();
+        fireEvent.click(
+            screen.getByRole('button', { name: /Different limits per role/ }),
+        );
         fireEvent.click(
             await screen.findByRole('checkbox', {
                 name: 'Admin: Delete content',
             }),
         );
-        policy = { ...policy, version: 2 };
-        await act(() => client.invalidateQueries(['ai-access']));
-        const reload = await screen.findByRole('button', {
-            name: 'Reload latest',
-        });
-        let failReload: (error: unknown) => void = () => {};
-        apiMock.mockImplementationOnce(
-            () =>
-                new Promise((_resolve, reject) => {
-                    failReload = reject;
-                }),
+        expect(screen.getByText('1 unsaved change')).toBeInTheDocument();
+        review();
+        const modal = within(screen.getByRole('dialog'));
+        const row = within(modal.getByText('Admin').parentElement!);
+        expect(row.getAllByText('STOPS: Delete content')).toHaveLength(1);
+        expect(modal.getAllByText('Admin')).toHaveLength(1);
+        expect(modal.getAllByText(/Delete content/)).toHaveLength(1);
+        expect(row.queryByText(/ALLOWS/)).not.toBeInTheDocument();
+    });
+    it('shows historical managed limits as Custom, all global switches on and saved rows intact', async () => {
+        policy = {
+            ...policy,
+            mode: 'managed',
+            systemRoleMatrix: matrix([AgentCapability.Query]),
+        };
+        renderSection();
+        expect(screen.getByRole('radio', { name: 'Custom' })).toBeChecked();
+        expect(screen.getByText('No changes')).toBeInTheDocument();
+        fireEvent.click(
+            screen.getByRole('button', { name: /Different limits per role/ }),
         );
-        fireEvent.click(reload);
-        await waitFor(() => expect(reload).toBeDisabled());
-        await act(async () =>
-            failReload({ error: { message: 'Reload failed' } }),
+        expect(
+            await screen.findByRole('checkbox', {
+                name: 'Admin: Delete content',
+            }),
+        ).not.toBeChecked();
+        expect(
+            screen.getByRole('switch', { name: 'Delete content' }),
+        ).toBeChecked();
+        toggle('Delete content');
+        review();
+        save();
+        await waitFor(() => expect(api).toHaveBeenCalled());
+        expect(
+            JSON.parse(String(api.mock.calls[0][0].body)).systemRoleMatrix,
+        ).toEqual(matrix([AgentCapability.Query]));
+    });
+    it('collapses capabilities for group editing, shows member counts and reviews names without a people count', async () => {
+        renderSection();
+        expandWho();
+        expect(
+            screen.queryByRole('radio', { name: 'Custom' }),
+        ).not.toBeInTheDocument();
+        choose('Only these groups');
+        expect(
+            screen.getByText('Choose at least one group.'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Review and save' }),
+        ).toBeDisabled();
+        fireEvent.click(screen.getByRole('combobox', { name: 'Groups' }));
+        fireEvent.click(
+            await screen.findByRole('option', { name: 'Data team (2)' }),
         );
-        await waitFor(() => expect(reload).toBeEnabled());
+        expect(screen.getAllByText('Data team (2)').length).toBeGreaterThan(0);
+        expect(
+            screen.getByText(
+                'Only members of these groups can use Ask AI, the Slack agent, MCP clients and the CLI.',
+            ),
+        ).toBeInTheDocument();
+        review();
+        const dialog = within(screen.getByRole('dialog'));
+        expect(dialog.getByText('WHO')).toBeInTheDocument();
+        expect(dialog.getByText(/Only members of/)).toHaveTextContent(
+            'Data team',
+        );
+        expect(dialog.queryByText(/\(2\)/)).not.toBeInTheDocument();
+    });
+    it('hides Who when groups are unavailable without a saved restriction', () => {
+        policy = { ...policy, groupsAvailable: false };
+        renderSection();
+        expect(
+            screen.queryByText('Who can use agents'),
+        ).not.toBeInTheDocument();
+    });
+    it('keeps an unavailable saved restriction and clears it only through review', async () => {
+        policy = {
+            ...policy,
+            groupsAvailable: false,
+            allowedGroupUuids: ['hidden'],
+        };
+        renderSection();
+        expect(
+            screen.getByText(
+                'Groups are unavailable. The saved group restriction still applies.',
+            ),
+        ).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Allow everyone' }));
+        review();
+        expect(
+            within(screen.getByRole('dialog')).getByText(
+                'Everyone whose role allows AI can use agents',
+            ),
+        ).toBeInTheDocument();
+        save();
+        await waitFor(() => expect(api).toHaveBeenCalled());
+        expect(JSON.parse(String(api.mock.calls[0][0].body))).toHaveProperty(
+            'allowedGroupUuids',
+            null,
+        );
+    });
+    it('shows missing visible groups neutrally and preserves their list on unrelated saves', async () => {
+        policy = { ...policy, allowedGroupUuids: ['hidden'] };
+        renderSection();
+        expect(
+            screen.getByText('Only these groups: A saved group.'),
+        ).toBeInTheDocument();
+        custom();
+        review();
+        save();
+        await waitFor(() => expect(api).toHaveBeenCalled());
+        expect(
+            JSON.parse(String(api.mock.calls[0][0].body)),
+        ).not.toHaveProperty('allowedGroupUuids');
+    });
+    it('preserves a deleted-group restriction on unrelated saves', async () => {
+        policy = { ...policy, allowedGroupUuids: [] };
+        renderSection();
+        expect(
+            screen.getByText(
+                'No one can use agents. All chosen groups are deleted.',
+            ),
+        ).toBeInTheDocument();
+        custom();
+        review();
+        save();
+        await waitFor(() => expect(api).toHaveBeenCalled());
+        expect(
+            JSON.parse(String(api.mock.calls[0][0].body)),
+        ).not.toHaveProperty('allowedGroupUuids');
+    });
+    it('says agents are off for everyone instead of listing eleven stops', async () => {
+        renderSection();
+        custom();
+        fireEvent.click(
+            screen.getByRole('button', { name: /Developer and admin/ }),
+        );
+        await screen.findByRole('switch', { name: 'Administration' });
+        screen
+            .getAllByRole('switch')
+            .forEach((input) => fireEvent.click(input));
+        expect(
+            screen.getByText('Agents are turned off for everyone.'),
+        ).toBeInTheDocument();
+        review();
+        const modal = within(screen.getByRole('dialog'));
+        expect(
+            modal.getByText('Agents are turned off for everyone'),
+        ).toBeInTheDocument();
+        expect(modal.queryByText('Delete content')).not.toBeInTheDocument();
+        expect(
+            modal.getByText(
+                'No one can use Ask AI, the Slack agent, MCP clients or the CLI. People can still work themselves.',
+            ),
+        ).toBeInTheDocument();
+    });
+    it('reviews restored capabilities and removal of limits', () => {
+        policy = {
+            ...policy,
+            mode: 'managed',
+            allowedCapabilities: [],
+            systemRoleMatrix: matrix([]),
+        };
+        renderSection();
+        toggle('Delete content');
+        review();
+        const modal = within(screen.getByRole('dialog'));
+        const allows = within(modal.getByText('ALLOWS').parentElement!);
+        expect(allows.getAllByText('Delete content')).toHaveLength(1);
+        expect(modal.getAllByText('Delete content')).toHaveLength(1);
+        expect(modal.queryByText('STOPS')).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+        choose('Same as the person');
+        review();
+        expect(
+            within(screen.getByRole('dialog')).getByText(
+                'Agents follow each person’s permissions again.',
+            ),
+        ).toBeInTheDocument();
+    });
+    it('keeps a dirty draft through background updates and Discard accepts the latest policy', () => {
+        const view = renderSection();
+        custom();
+        toggle('Delete content');
+        policy = { ...policy, version: 2, allowedGroupUuids: ['b'] };
+        view.rerender();
+        expect(
+            screen.getByRole('switch', { name: 'Delete content' }),
+        ).not.toBeChecked();
         expect(
             screen.getByText('Agent permissions changed'),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
-        ).toBeChecked();
-        expect(mocks.errorToast).toHaveBeenCalledExactlyOnceWith({
-            title: 'Could not reload agent permissions.',
-            apiError: { message: 'Reload failed' },
-        });
-        fireEvent.click(reload);
-        await waitFor(() =>
-            expect(
-                screen.queryByText('Agent permissions changed'),
-            ).not.toBeInTheDocument(),
-        );
+            screen.getByRole('button', { name: 'Review and save' }),
+        ).toBeDisabled();
+        fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+        expect(screen.getByText('No changes')).toBeInTheDocument();
         expect(
-            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
-        ).not.toBeChecked();
-    });
-
-    it('blocks a dirty draft on a newer version and reload discards it', async () => {
-        policy = { ...legacy(), mode: 'managed', version: 1 };
-        const client = renderSection();
-        await screen.findByText('Permissions');
-        fireEvent.click(
-            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
-        );
-        policy = { ...policy, version: 2, allowedUserUuids: [] };
-        await act(() => client.invalidateQueries(['ai-access']));
-        expect(
-            await screen.findByText('Agent permissions changed'),
+            screen.getByText('Only these groups: Analysts.'),
         ).toBeInTheDocument();
+    });
+    it('retains the draft after a version conflict and never resubmits automatically', async () => {
+        const view = renderSection();
+        custom();
+        api.mockRejectedValueOnce({
+            error: {
+                message: 'Agent permissions changed. Reload and try again.',
+            },
+        });
+        policy = { ...policy, version: 2 };
+        review();
+        save();
+        await waitFor(() => expect(refetch).toHaveBeenCalled());
+        view.rerender();
         expect(
-            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
-        ).toBeChecked();
-        expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
-        expect(mutations()).toHaveLength(0);
+            screen.getByText('Agent permissions changed'),
+        ).toBeInTheDocument();
+        expect(screen.getByRole('radio', { name: 'Custom' })).toBeChecked();
+        expect(api).toHaveBeenCalledTimes(1);
         fireEvent.click(screen.getByRole('button', { name: 'Reload latest' }));
         await waitFor(() =>
-            expect(
-                screen.queryByText('Agent permissions changed'),
-            ).not.toBeInTheDocument(),
+            expect(screen.getByText('No changes')).toBeInTheDocument(),
         );
-        expect(
-            apiMock.mock.calls.filter(([request]) => request.method === 'GET'),
-        ).toHaveLength(3);
-        expect(
-            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
-        ).not.toBeChecked();
+        expect(api).toHaveBeenCalledTimes(1);
+    });
+    it('keeps the modal and draft after failure and disables duplicate saves while pending', async () => {
+        renderSection();
+        custom();
+        let reject: (value: unknown) => void = () => {};
+        api.mockImplementationOnce(
+            () =>
+                new Promise((_resolve, fail) => {
+                    reject = fail;
+                }),
+        );
+        review();
+        save();
         await waitFor(() =>
             expect(
-                screen.getByRole('radio', { name: 'Only these people' }),
-            ).toBeChecked(),
+                screen.getByRole('button', { name: 'Save changes' }),
+            ).toBeDisabled(),
         );
-        expect(screen.getByRole('combobox', { name: 'People' })).toHaveValue(
-            '',
+        await act(async () => reject({ error: { message: 'Unavailable' } }));
+        await waitFor(() =>
+            expect(
+                screen.getByRole('button', { name: 'Save changes' }),
+            ).toBeEnabled(),
         );
-        fireEvent.click(
-            screen.getByRole('checkbox', { name: 'Admin: Query data' }),
-        );
-        await save();
-        expect(
-            await screen.findByRole('dialog', {
-                name: "No one's agents can run",
-            }),
-        ).toBeInTheDocument();
-        expect(mutations()).toHaveLength(0);
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByText('1 unsaved change')).toBeInTheDocument();
     });
-    it.each(['flag', 'permission'])('hides controls without %s', (gate) => {
-        mocks.enabled = gate !== 'flag';
-        mocks.canManage = gate !== 'permission';
+    it('shows an empty group picker and blocks a new empty restriction', () => {
+        availableGroups = [];
         renderSection();
-        expect(screen.queryByText('Permissions')).not.toBeInTheDocument();
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expandWho();
+        choose('Only these groups');
+        expect(
+            screen.getAllByText('No groups available').length,
+        ).toBeGreaterThan(0);
+        expect(
+            screen.getByText('Choose at least one group.'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Review and save' }),
+        ).toBeDisabled();
+    });
+    it('updates a clean draft when newer saved data arrives', () => {
+        const view = renderSection();
+        policy = {
+            ...policy,
+            version: 2,
+            mode: 'managed',
+            allowedCapabilities: all,
+            systemRoleMatrix: matrix(all),
+        };
+        view.rerender();
+        expect(screen.getByRole('radio', { name: 'Custom' })).toBeChecked();
+        expect(screen.getByText('No changes')).toBeInTheDocument();
+    });
+    it.each([[[]], [['a']]])(
+        'refreshes clean same-version groups to %j',
+        async (remaining) => {
+            policy = {
+                ...policy,
+                allowedGroupUuids: remaining.length ? ['a', 'b'] : ['a'],
+            };
+            const view = renderSection();
+            expandWho();
+            policy = { ...policy, allowedGroupUuids: remaining };
+            availableGroups = groups.filter((group) =>
+                remaining.includes(group.uuid),
+            );
+            view.rerender();
+            expect(screen.queryByText('Analysts (1)')).not.toBeInTheDocument();
+            expect(screen.queryByText('A saved group')).not.toBeInTheDocument();
+            if (remaining.length === 0) {
+                expect(
+                    screen.getByText(
+                        'No one can use agents. All chosen groups are deleted.',
+                    ),
+                ).toBeInTheDocument();
+                expect(
+                    screen.queryByText('Data team (2)'),
+                ).not.toBeInTheDocument();
+            } else
+                expect(
+                    screen.getAllByText('Data team (2)').length,
+                ).toBeGreaterThan(0);
+            expect(screen.getByText('No changes')).toBeInTheDocument();
+            fireEvent.click(
+                screen.getByRole('button', {
+                    name: 'Change what agents can do',
+                }),
+            );
+            custom();
+            review();
+            save();
+            await waitFor(() => expect(api).toHaveBeenCalled());
+            expect(
+                JSON.parse(String(api.mock.calls[0][0].body)),
+            ).not.toHaveProperty('allowedGroupUuids');
+        },
+    );
+    it('keeps the Custom view when a same-version refresh only reorders the saved lists', async () => {
+        const read = [
+            AgentCapability.ReadDiscover,
+            AgentCapability.Query,
+            AgentCapability.Export,
+            AgentCapability.RawSql,
+        ];
+        policy = {
+            ...policy,
+            mode: 'managed',
+            allowedCapabilities: read,
+            systemRoleMatrix: matrix(read),
+        };
+        const view = renderSection();
+        custom();
+        fireEvent.click(
+            screen.getByRole('button', { name: /Developer and admin/ }),
+        );
+        await screen.findByRole('switch', { name: 'Administration' });
+        screen
+            .getAllByRole('switch')
+            .slice(4)
+            .forEach((control) => fireEvent.click(control));
+        expect(screen.getByText('No changes')).toBeInTheDocument();
+        expect(screen.getByRole('radio', { name: 'Custom' })).toBeChecked();
+        policy = {
+            ...policy,
+            allowedCapabilities: [...read].reverse(),
+            systemRoleMatrix: matrix([...read].reverse()),
+        };
+        view.rerender();
+        expect(screen.getByRole('radio', { name: 'Custom' })).toBeChecked();
+        expect(screen.getAllByRole('switch')).toHaveLength(11);
+        expect(screen.getByText('No changes')).toBeInTheDocument();
+    });
+    it('does not replace dirty same-version groups', () => {
+        policy = { ...policy, allowedGroupUuids: ['a'] };
+        const view = renderSection();
+        custom();
+        toggle('Delete content');
+        policy = { ...policy, allowedGroupUuids: [] };
+        view.rerender();
+        expect(
+            screen.getByText('Only these groups: Data team.'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('switch', { name: 'Delete content' }),
+        ).not.toBeChecked();
+        expect(screen.getByText('2 unsaved changes')).toBeInTheDocument();
+    });
+    it('ignores older policy props after accepting a newer baseline', () => {
+        const view = renderSection();
+        const older = policy;
+        policy = { ...policy, version: 2, allowedGroupUuids: ['b'] };
+        view.rerender();
+        policy = older;
+        view.rerender();
+        expect(
+            screen.getByText('Only these groups: Analysts.'),
+        ).toBeInTheDocument();
+        expect(screen.getByText('No changes')).toBeInTheDocument();
+    });
+    it('keeps the draft and blocks saves and group edits on a stale-data error', () => {
+        const view = renderSection();
+        custom();
+        expandWho();
+        choose('Only these groups');
+        loadError = true;
+        view.rerender();
+        expect(
+            screen.getByRole('button', { name: 'Review and save' }),
+        ).toBeDisabled();
+        expect(screen.getByRole('combobox', { name: 'Groups' })).toBeDisabled();
     });
 });

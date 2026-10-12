@@ -2518,8 +2518,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                         {
                             mode,
                             capabilities: new Set(capabilities),
-                            allowedProjectUuids: null,
-                            allowedUserUuids: null,
+                            allowedCapabilities: null,
                             allowedGroupUuids: null,
                             version: 1,
                             editableCustomRoleUuid: null,
@@ -2530,9 +2529,6 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                                 AgentCapability.DbtWriteback,
                             ],
                             projectUuid: 'p1',
-                            mcpAgentsEnabled: true,
-                            mcpContentWritesEnabled: false,
-                            isOrganizationDiscovery: false,
                         },
                     );
                     if (denial)

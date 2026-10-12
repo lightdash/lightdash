@@ -468,8 +468,7 @@ describe('upsertSettings model validation', () => {
                 allowedGroupUuids: null,
                 mode: 'managed',
                 version: 1,
-                allowedProjectUuids: null,
-                allowedUserUuids: null,
+                allowedCapabilities: null,
                 systemRoleMatrix: {} as never,
             });
         const account = fromOauth(toSessionUser(user), {

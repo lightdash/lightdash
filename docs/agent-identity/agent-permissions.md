@@ -9,7 +9,7 @@ that is already queued, is in [revocation.md](./revocation.md).
 The source of truth in code:
 
 | What | Where |
-|---|---|
+| ---------------------------------------------- | --------------------------------------------------------------------------------- |
 | Capability keys, plain names, what each allows | `AGENT_CAPABILITY_DEFINITIONS` in `packages/common/src/types/agentPermissions.ts` |
 | Which operations need which capabilities | `packages/backend/src/auth/agentPermissions/capabilityMap.ts` |
 | Operations only a person can do | `packages/backend/src/auth/agentPermissions/humanOnlyInManaged.ts` |
@@ -18,7 +18,7 @@ The source of truth in code:
 
 Capability checks and the people-only list apply only when the
 `agent-identity` feature flag is on and "Limit what agents can do" is on.
-The legacy switches at the end of this page apply in every mode.
+MCP owns its two settings in every mode. The permission check does not read them.
 
 ## Group admission
 
@@ -30,27 +30,28 @@ An explicit empty list is rejected; use `null` to allow everyone.
 
 Group admission applies with capability limits off (`legacy`) and on
 (`managed`) when `agent-identity` is on. It covers MCP tools and resource reads,
-in-app and Slack agents, OAuth REST, and query sources. Managed mode also
-requires the person to pass the existing people list when it is set. Slack
-uses the verified sender when a group restriction is active.
+in-app and Slack agents, OAuth REST, and query sources. Slack uses the verified
+sender when a group restriction is active. Saved people and project lists no
+longer restrict agents.
 
 Groups are available when the deployment has a valid licence and the groups
 flag is on for the organization. The API reports this as `groupsAvailable`.
 New restrictions need groups to be available. A saved restriction still applies
 if groups later become unavailable. An admin can always clear it with `null`.
 Personal-access-token and service-account calls keep their existing exemptions.
-There is no page control yet; set the field through the policy API. A PUT with
-`mode: 'legacy'` saves group admission and preserves the stored capability
-matrix, projects and people. The matrix and project fields are still required
-and validated. Omitting `mode` keeps the current managed-save behavior. Reset
-keeps the group restriction.
+The policy API accepts group admission in either mode. A PUT with
+`mode: 'legacy'` preserves the stored role matrix and clears the capability
+list. Omitting `mode` means managed. Reset keeps the group restriction.
+GET, PUT and reset omit the old people and project choices. Old browser tabs
+can still save them, but the server ignores them and clears the old columns.
+The current page uses a temporary response adapter until the page rewrite.
 
 ## The 11 capabilities
 
 Refusals and settings use the plain name. Never show the key to people.
 
 | Key | Short name (matrix) | Plain name | Allows |
-|---|---|---|---|
+| ---------------- | ------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `read_discover` | Read | Read and discover | Find and read projects, data models, content, context and existing query results. |
 | `query` | Query | Query data | Run queries through data models and run saved semantic content. |
 | `raw_sql` | Raw SQL | Raw SQL | List warehouse tables and write or run SQL directly. |
@@ -74,7 +75,7 @@ An operation that needs several capabilities is allowed only when every one is
 allowed. Missing any one refuses it.
 
 | Operation | Needs |
-|---|---|
+| --------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
 | Scheduled delivery (create, edit, enable, change owner), on MCP, in-app, Slack and REST | Create and edit content + Publish and share |
 | Google Sheets sync as code | Create and edit content + Publish and share |
 | Run a saved SQL chart | Query data + Raw SQL |
@@ -128,33 +129,53 @@ entry. An operation with no entry is refused (`agent_operation_unmapped`).
 Connected external tools always need External tools, and only tools enabled
 on that connection are callable.
 
-## All, none and inherited
+## Organization capability limits
 
-These are states of the stored policy, not new stored values.
+`allowedCapabilities: null` adds no limit to saved role grants. Existing
+managed policies keep this value until their first save. A saved list limits
+everyone, including people with custom roles. An empty list turns agents off
+on every surface covered by this feature, including turns that need no
+capability. The refusal points to the organization Agents settings page.
 
-| Setting | All | None | Inherited |
-|---|---|---|---|
-| Projects (`allowedProjectUuids`) | `null`: every project the person can use. | `[]`: no project. Organization-level discovery that needs only Read still works. | Not used. |
-| Who can use agents (`allowedUserUuids`) | `null`: "Everyone the roles allow". | `[]`: no one's agents can run. | An update that leaves the field out keeps the stored list. |
-| A role's capabilities | Every capability listed explicitly. Never a wildcard, so a new capability is not granted by default. | Empty list: this role grants nothing. Another role can still grant. | Not used for capabilities. |
-| "Limit what agents can do" off (`mode: legacy`) | Not "all". Agents keep the person's ordinary permissions, and the old switches still apply. | Not "none". | This is the only inherited state: agents inherit the person's permissions with no capability limit. |
+New policy defaults contain all eleven capabilities. Custom roles keep their
+own agent permissions. The organization list can only narrow them.
+With every capability ticked, limits on still keeps three safeguards that
+"Same as the person" does not have: actions reserved for people, refusal of
+unmapped operations, and a verified sender on Slack.
+
+A managed save accepts an empty list but rejects explicit `null`. An omitted
+list keeps the saved list or uses all eleven if no list is stored. Each role
+row is intersected with the saved list and ordered by the capability enum.
+Legacy saves and reset set the list to `null`. Reset keeps the dormant role
+matrix and group restriction. A stale version rejects the entire save.
+
+The Agents page offers three choices. Same as the person stores `legacy`
+with a null capability list. Read and query stores `managed` with Read and
+discover, Query data, Export results and Raw SQL in the list and every role row.
+Custom stores `managed` with the selected list and role rows. It starts with
+all eleven capabilities on; an organization that already saved a Custom list
+gets that list back. Capability and group changes require review.
+Raw SQL follows warehouse permissions; this preset is not a read-only SQL guard.
 
 ## How checks combine
 
 Within a person's roles, capabilities add up (union). The system role matrix,
 the person's custom roles and their group roles each add capabilities. A role
-that leaves a capability out does not take it away from another role.
+that leaves a capability out does not take it away from another role. The
+organization list then intersects that union. A capability excluded by the
+list points to the organization setting. A missing role grant within the list
+keeps the role remedy, including the custom-role link when available.
 
 Across independent checks, every check must pass (intersection). No check can
 cancel another.
 
 | Check | Where |
-|---|---|
+| ------------------------------------------------------------------------------------ | -------------------------------------------------------- |
 | The person's own permissions on the resource (CASL) | The service that does the work |
 | The OAuth grant and token scopes, when OAuth enforcement is on | `fromOauth`, `scopedAbility.ts`, `mcpTools.ts` |
-| Who can use agents, projects, and the capabilities from the person's roles | `AgentPermissionService.assertOperation` and `evaluate` |
+| Group admission, the organization list, and the capabilities from the person's roles | `AgentPermissionService.assertOperation` and `evaluate`  |
 | Project, data and destination limits (pinned project, agent tags, SQL scope) | MCP, agent tools and data services |
-| Legacy switches | See the inventory below |
+| MCP settings                                                                         | MCP tool registration and configured-agent gates         |
 | Operations only a person can do | `humanOnlyInManaged.ts`, `assertHumanManagedMutation.ts` |
 
 The evaluator stops at the first refusal. The refusal names the check that
@@ -182,40 +203,40 @@ permissions as covering every AI client.
 include the SQL runner and exports. Scope enforcement has null, log and
 enforce modes; log mode records but does not refuse.
 
-## Legacy switch inventory (for step 3)
+## MCP settings
 
-All three live in `ai_organization_settings`. They are written through
-`AiOrganizationSettingsService.upsertSettings` (PATCH on
-`AiAgentAdminController`). When "Limit what agents can do" is on, only a
-person can call it. Step 1 does not change them.
+With `agent-identity` on, Enable agents over MCP appears on the Agents page
+for people who can manage both organization and AI settings. It saves at once.
+For those people, MCP settings shows its state and a link to the Agents page.
+Other AI settings managers keep the working switch on MCP settings.
+Allow content changes via MCP stays on MCP settings.
 
-### `mcpAgentsEnabled` refuses every agent surface when limits are on
+Both settings stay in `ai_organization_settings` and keep their defaults.
+`AgentPermissionService` does not read either one. Their server-side
+permission rules stay unchanged.
 
-This is the most important finding for step 3. Its label says MCP agents, but
-when "Limit what agents can do" is on, turning it off stops every agent.
+### Agents over MCP (`mcpAgentsEnabled`)
 
-| Mode | What it blocks when off |
-|---|---|
-| Flag off | MCP agent-selection tools (`list_agents`, `route_agent`, `set_agent`, `get_current_agent`) and explicit `agentUuid` scope lookups. Hides agents in project and context listings and ignores a saved selected agent and its tags. Other MCP tools, Ask AI and Slack still work. |
-| Flag on, limits off (`legacy`) | Same as flag off. |
-| Flag on, limits on (`managed`) | Everything above, and every operation that reaches `AgentPermissionService`: MCP over OAuth and session, in-app agent turns and tools, Slack, OAuth REST and connected tools. The refusal is `agent_access_disabled`. PAT traffic gets only the flag-off behaviour. |
+When off, MCP refuses `list_agents`, `route_agent`, `set_agent`,
+`get_current_agent` and explicit configured-agent scope lookups. It hides
+configured agents from project/context results and ignores saved agent context.
+It does not stop in-app agents, Slack or OAuth API operations in either mode.
+Other MCP tools still need their independent permissions.
 
-Column `mcp_agents_enabled`, not null, default true. A missing settings row
-reads as true. Readers: `AiOrganizationSettingsService` (decision helper),
-`AgentPermissionService` (managed evaluator), `McpService` (agent listing,
-selected agent, agent tags, agent tools). Frontend: MCP general settings and
-AI general settings pages.
+### Allow content changes via MCP (`mcpContentWritesEnabled`)
 
-### `mcpContentWritesEnabled`
+When off, MCP hides `create_content`, `edit_content` and
+`create_scheduled_delivery`. Calling a hidden tool returns the existing
+missing-tool result. In-app, Slack and OAuth API content writes still need
+their capabilities and ordinary permissions, but do not read this switch.
 
-| Mode | What it blocks when off |
-|---|---|
-| Flag off, or limits off | MCP does not register `create_content`, `edit_content` and `create_scheduled_delivery`. Data app tools and writeback have their own checks. In-app and Slack content tools are not affected. |
-| Limits on (`managed`) | Every operation that needs Create and edit content, on every surface. This includes scheduled deliveries, data app creation and REST edits. Delete, Publish-only, Deploy and Git repository operations are not affected. The refusal is `agent_setting_denied`. |
+Organization/agent skills and data-app generation/iteration keep the existing
+flag-off gaps in these MCP gates. They are tracked separately.
 
-Column `mcp_content_writes_enabled`, not null, default true. Readers:
-`AiOrganizationSettingsService`, `AgentPermissionService`, `McpService` and
-`mcpRouter` (per-request tool registration).
+Previously, with limits on, Agents over MCP off refused agents on every
+covered surface and the content switch refused content writes on every
+surface. Use Who can use agents or capability limits to restrict other
+surfaces. Untick every capability to turn agents off across covered surfaces.
 
 ### `requireExplicitSlackChannelLinking` (strict Slack channels)
 
@@ -230,6 +251,9 @@ Column `require_explicit_slack_channel_linking`, not null, default false.
 The Slack settings panel shows it inverted as "Automatic channel linking".
 Readers: `AiOrganizationSettingsService` and `AiAgentService`.
 
-When step 3 folds these into the policy, it must keep each one's real reach,
-its default, the inverted Slack toggle, and the scheduled delivery side
-effect of content writes.
+## Rolling updates
+
+The additive migration is schema-compatible with old pods. Old API and worker
+pods ignore the new organization list and can still grant an unticked
+capability from a custom role. Keep `agent-identity` disabled, or defer policy
+saves, until all serving pods use this version.

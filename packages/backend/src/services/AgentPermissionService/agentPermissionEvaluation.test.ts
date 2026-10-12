@@ -13,8 +13,7 @@ import {
 const policy: ResolvedAgentPolicy = {
     mode: 'managed',
     capabilities: new Set(),
-    allowedProjectUuids: null,
-    allowedUserUuids: null,
+    allowedCapabilities: null,
     allowedGroupUuids: null,
     version: 1,
     editableCustomRoleUuid: null,
@@ -22,9 +21,6 @@ const policy: ResolvedAgentPolicy = {
 const operation: AgentPolicyEvaluation = {
     requiredCapabilities: [AgentCapability.RawSql],
     projectUuid: 'project',
-    mcpAgentsEnabled: true,
-    mcpContentWritesEnabled: true,
-    isOrganizationDiscovery: false,
 };
 
 test('shared sequence includes every blocker while evaluate keeps the first', () => {
@@ -36,9 +32,7 @@ test('shared sequence includes every blocker while evaluate keeps the first', ()
         'human_only',
         'agent_enabled',
         'operation_mapping',
-        'project_scope',
         'capability',
-        'content_writes',
     ]);
     expect(
         checks
@@ -69,50 +63,62 @@ test.each(Object.values(AgentCapability))(
     },
 );
 
-test.each([
-    [null, null, false, true],
-    [[], 'project', false, false],
-    [['project'], 'project', false, true],
-    [[], null, true, true],
-    [[], null, false, false],
-] as const)(
-    'project scope %j / %s / discovery %s',
-    (allowedProjectUuids, projectUuid, isOrganizationDiscovery, allowed) => {
-        const result = evaluate(
-            {
-                ...policy,
-                capabilities: new Set([AgentCapability.ReadDiscover]),
-                allowedProjectUuids:
-                    allowedProjectUuids === null
-                        ? null
-                        : [...allowedProjectUuids],
-            },
-            {
-                ...operation,
-                requiredCapabilities: [AgentCapability.ReadDiscover],
-                projectUuid,
-                isOrganizationDiscovery,
-            },
-        );
-        expect(result?.reason ?? null).toBe(
-            allowed ? null : AiAccessRefusalReason.AGENT_PROJECT_DENIED,
-        );
+test.each([null, [AgentCapability.Query]])(
+    'a nonempty or absent list admits a turn: %j',
+    (allowedCapabilities) => {
+        expect(
+            evaluate(
+                { ...policy, allowedCapabilities },
+                { ...operation, requiredCapabilities: [] },
+            ),
+        ).toBeNull();
     },
 );
 
-test('checks a known project independently of an unknown action mapping', () => {
-    const checks = agentPermissionChecks(
-        { ...policy, allowedProjectUuids: [] },
-        { ...operation, requiredCapabilities: null },
-    ).map((step) => step.evaluate());
+test('an empty list refuses a turn before mapping with the organization remedy', () => {
     expect(
-        checks
-            .filter((check) => check.reason !== null)
-            .map((check) => check.reason),
-    ).toEqual([
-        AiAccessRefusalReason.AGENT_OPERATION_UNMAPPED,
-        AiAccessRefusalReason.AGENT_PROJECT_DENIED,
-    ]);
+        evaluate(
+            { ...policy, allowedCapabilities: [] },
+            { ...operation, requiredCapabilities: [] },
+        ),
+    ).toEqual({
+        reason: AiAccessRefusalReason.AGENT_ACCESS_DISABLED,
+        capability: null,
+        policyLayer: 'organization_setting',
+        settingsUrl: '/generalSettings/agentIdentity',
+    });
+});
+
+test('the organization list takes precedence over a custom role grant and its remedy', () => {
+    expect(
+        evaluate(
+            {
+                ...policy,
+                allowedCapabilities: [AgentCapability.Query],
+                capabilities: new Set([AgentCapability.RawSql]),
+                editableCustomRoleUuid: 'custom',
+            },
+            operation,
+        ),
+    ).toEqual({
+        reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+        capability: AgentCapability.RawSql,
+        policyLayer: 'organization_setting',
+        settingsUrl: '/generalSettings/agentIdentity',
+    });
+});
+
+test('a missing role grant within the list retains the custom role remedy', () => {
+    expect(
+        evaluate(
+            {
+                ...policy,
+                allowedCapabilities: [AgentCapability.RawSql],
+                editableCustomRoleUuid: 'custom',
+            },
+            operation,
+        )?.settingsUrl,
+    ).toBe('/generalSettings/customRoles/custom');
 });
 
 test('legacy restriction evaluates only admission, even for unmapped human-only operations', () => {
@@ -121,7 +127,6 @@ test('legacy restriction evaluates only admission, even for unmapped human-only 
             ...policy,
             mode: 'legacy',
             allowedGroupUuids: ['group'],
-            allowedUserUuids: [],
         },
         {
             ...operation,

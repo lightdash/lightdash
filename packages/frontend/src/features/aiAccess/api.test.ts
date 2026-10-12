@@ -1,10 +1,13 @@
 import {
+    AgentCapability,
+    OrganizationMemberRole,
     AthenaAuthenticationType,
     DatabricksAuthenticationType,
     SnowflakeAuthenticationType,
     BigqueryAuthenticationType,
     WarehouseTypes,
     type AiServiceAccountSlot,
+    type AgentSystemRoleMatrix,
     type AiServiceAccountCredentialInput,
     type AiServiceAccountTestResult,
     type ApiAiServiceAccountSaveResponse,
@@ -13,9 +16,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { act, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi, lightdashApiResponse } from '../../api';
+import useApp from '../../providers/App/useApp';
 import { renderHookWithProviders } from '../../testing/testUtils';
 import {
     aiAccessApi,
+    useAgentCapabilityPolicy,
+    useSaveAgentCapabilityCeiling,
     useAiServiceAccount,
     useSaveAiServiceAccount,
     useTestAiServiceAccount,
@@ -412,5 +418,73 @@ describe('AI service account save', () => {
                 sensitive: true,
             }),
         );
+    });
+});
+
+describe('final policy contract', () => {
+    const matrix = Object.fromEntries(
+        Object.values(OrganizationMemberRole).map((role) => [
+            role,
+            [AgentCapability.Query],
+        ]),
+    ) as AgentSystemRoleMatrix;
+    const wire = {
+        mode: 'managed',
+        version: 2,
+        allowedCapabilities: [AgentCapability.Query],
+        allowedGroupUuids: null,
+        systemRoleMatrix: matrix,
+    };
+    beforeEach(() => {
+        vi.clearAllMocks();
+        flagEnabled = true;
+    });
+    it('returns the final GET shape without an adapter or extra request', async () => {
+        vi.mocked(lightdashApi).mockResolvedValue({
+            ...wire,
+            defaults: matrix,
+            groupsAvailable: true,
+        } as never);
+        flagEnabled = false;
+        const { result, rerender } = renderHookWithProviders(() => ({
+            policy: useAgentCapabilityPolicy(),
+            organizationUuid: useApp().user.data?.organizationUuid,
+        }));
+        await waitFor(() =>
+            expect(result.current.organizationUuid).toBeDefined(),
+        );
+        expect(lightdashApi).not.toHaveBeenCalled();
+        flagEnabled = true;
+        rerender();
+        await waitFor(() =>
+            expect(result.current.policy.data).toEqual({
+                ...wire,
+                defaults: matrix,
+                groupsAvailable: true,
+            }),
+        );
+        expect(
+            vi
+                .mocked(lightdashApi)
+                .mock.calls.filter(
+                    ([request]) => request.url === '/org/agent-permissions',
+                ),
+        ).toHaveLength(1);
+    });
+    it('returns the final save response', async () => {
+        vi.mocked(lightdashApi).mockResolvedValue(wire as never);
+        const onSaved = vi.fn();
+        const { result } = renderHookWithProviders(() =>
+            useSaveAgentCapabilityCeiling(onSaved),
+        );
+        await act(async () => {
+            await result.current.mutateAsync({
+                version: 1,
+                systemRoleMatrix: matrix,
+                mode: 'managed',
+                allowedCapabilities: [AgentCapability.Query],
+            });
+        });
+        expect(onSaved).toHaveBeenCalledWith(wire);
     });
 });

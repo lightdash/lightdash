@@ -20,8 +20,7 @@ const setup = () => {
     const policy: AgentCapabilityPolicy = {
         mode: 'managed',
         version: 1,
-        allowedProjectUuids: null,
-        allowedUserUuids: null,
+        allowedCapabilities: null,
         allowedGroupUuids: null,
         systemRoleMatrix: agentSystemRoleMatrix([]),
     };
@@ -58,10 +57,7 @@ const setup = () => {
                 organizationUuid: account.organization.organizationUuid,
             }),
         },
-        getOrganizationSettings: vi.fn().mockResolvedValue({
-            mcpAgentsEnabled: true,
-            mcpContentWritesEnabled: true,
-        }),
+
         agentActionLogModel: { insert: vi.fn() },
     });
     const assertToolOperation = vi.fn((kind, key, connectedTool) =>
@@ -301,7 +297,7 @@ test('a namespace collision cannot inherit another server approval', async () =>
 
 test('agent tool execution refuses unlisted users before running SQL', async () => {
     const h = setup();
-    h.policy.allowedUserUuids = [];
+    h.policy.allowedGroupUuids = [];
     h.policy.systemRoleMatrix.viewer = [AgentCapability.RawSql];
     await expect(
         executeTool(h.buildTools().runSql, { sql: 'SELECT 1', limit: 1 }),

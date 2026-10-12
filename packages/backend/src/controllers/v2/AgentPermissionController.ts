@@ -1,7 +1,10 @@
 import {
     assertRegisteredAccount,
-    type AgentCapabilityPolicy,
+    type AgentCapabilityCeiling,
+    type AgentPolicyOverviewResponse,
+    type AgentPolicyResponse,
     type ApiErrorPayload,
+    type ResetPolicyRequest,
 } from '@lightdash/common';
 import {
     Body,
@@ -17,29 +20,11 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import {
-    type AgentCapabilityCeiling,
-    type AgentCapabilityPolicyOverview,
-} from '../../services/AgentPermissionService/AgentPermissionService';
-import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from '../authentication';
 import { BaseController } from '../baseController';
-
-interface AgentPolicyResponse {
-    status: 'ok';
-    results: AgentCapabilityPolicy;
-}
-interface AgentPolicyOverviewResponse extends Omit<
-    AgentPolicyResponse,
-    'results'
-> {
-    results: AgentCapabilityPolicyOverview;
-}
-interface ResetPolicyRequest {
-    version?: number;
-}
 
 @Route('/api/v2/org/agent-permissions')
 @Response<ApiErrorPayload>('default', 'Error')

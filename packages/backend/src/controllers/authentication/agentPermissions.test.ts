@@ -12,7 +12,7 @@ import { type Request, type RequestHandler, type Response } from 'express';
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import passport from 'passport';
-import { fromSession } from '../../auth/account/account';
+import { fromServiceAccount, fromSession } from '../../auth/account/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
 import { grantFixture } from '../../auth/agentConnectionGrants/grant.mock';
 import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
@@ -56,15 +56,17 @@ const setup = ({
     allowedProjectUuids = null,
     allowedUserUuids = null,
     allowedGroupUuids = null,
+    allowedCapabilities = null,
 }: {
     mode?: 'off' | 'legacy' | 'managed';
     operation?: string;
-    authentication?: 'oauth' | 'pat' | 'session';
+    authentication?: 'oauth' | 'pat' | 'session' | 'service-account';
     scopes?: string[];
     projectUuid?: string | null;
     allowedProjectUuids?: string[] | null;
     allowedUserUuids?: string[] | null;
     allowedGroupUuids?: string[] | null;
+    allowedCapabilities?: AgentCapability[] | null;
 } = {}) => {
     const ability = new Ability<PossibleAbilities>([
         { action: 'manage', subject: 'all' },
@@ -77,8 +79,9 @@ const setup = ({
     const getPolicy = vi.fn().mockResolvedValue({
         mode: mode === 'managed' ? 'managed' : 'legacy',
         version: 1,
-        allowedProjectUuids,
-        allowedUserUuids,
+        allowed_project_uuids: allowedProjectUuids,
+        allowed_user_uuids: allowedUserUuids,
+        allowedCapabilities,
         allowedGroupUuids,
         systemRoleMatrix: agentSystemRoleMatrix(restrictedCapabilities),
     });
@@ -118,10 +121,7 @@ const setup = ({
                 .fn()
                 .mockResolvedValue({ organizationUuid: user.organizationUuid }),
         },
-        getOrganizationSettings: vi.fn().mockResolvedValue({
-            mcpAgentsEnabled: true,
-            mcpContentWritesEnabled: true,
-        }),
+
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
     });
     const assertOperationWithRequest = vi.spyOn(
@@ -178,7 +178,23 @@ const setup = ({
     } as unknown as Request;
     lightdashConfig.auth.pat.enabled = true;
     vi.mocked(authenticateServiceAccount).mockImplementation(
-        (_req, _res, next) => next(),
+        (req, _res, next) => {
+            if (authentication === 'service-account') {
+                req.account = fromServiceAccount(
+                    {
+                        ...user,
+                        serviceAccount: {
+                            uuid: 'service-account',
+                            description: 'test',
+                        },
+                    },
+                    'token',
+                );
+                req.isAuthenticated = (() =>
+                    true) as Request['isAuthenticated'];
+            }
+            next();
+        },
     );
     vi.mocked(passport.authenticate).mockReturnValue(
         (req: Request, _res: Response, next: Parameters<RequestHandler>[2]) => {
@@ -290,7 +306,7 @@ describe.each([
         await expect(run(middleware)).resolves.toBeUndefined();
     });
     it.each(['another-project', null])(
-        'refuses an unresolved or excluded query project: %s',
+        'ignores the old project list for a query project: %s',
         async (projectUuid) => {
             const { request, run } = setup({
                 operation: 'QueryController_executeAsyncMetricQuery',
@@ -299,10 +315,7 @@ describe.each([
             });
             request.body = { projectUuid: 'project' };
             request.query = { projectUuid: 'project' };
-            expect(await run(middleware)).toMatchObject({
-                statusCode: 403,
-                refusal: { reason: AiAccessRefusalReason.AGENT_PROJECT_DENIED },
-            });
+            expect(await run(middleware)).toBeUndefined();
         },
     );
     it.each([
@@ -383,17 +396,14 @@ describe.each([
         expect(await run(middleware)).toBe(failure);
         expect(assertOperationWithRequest).not.toHaveBeenCalled();
     });
-    it('refuses an unresolved resource project when the policy limits projects', async () => {
+    it('admits an unresolved resource without the old project list', async () => {
         const { request, run, assertOperationWithRequest } = setup({
             operation: 'QueryController_executeAsyncMetricQuery',
             projectUuid: null,
             allowedProjectUuids: ['project'],
         });
         request.params.queryUuid = 'ae9b5604-df2a-47bb-b04f-85822df26f7d';
-        expect(await run(middleware)).toMatchObject({
-            statusCode: 403,
-            refusal: { reason: AiAccessRefusalReason.AGENT_PROJECT_DENIED },
-        });
+        expect(await run(middleware)).toBeUndefined();
         expect(
             assertOperationWithRequest.mock.calls[0][0].operation.projectUuid,
         ).toBeNull();
@@ -446,11 +456,21 @@ describe.each([
     });
 });
 
-it.each(['pat', 'session'] as const)(
-    'leaves %s outside the agent policy',
-    async (authentication) => {
+it.each(
+    ['pat', 'session', 'service-account'].flatMap((authentication) =>
+        ['off', 'managed'].map((mode) => ({ authentication, mode })),
+    ),
+)(
+    'leaves $authentication outside the $mode agent policy',
+    async ({ authentication, mode }) => {
         const { run, assertOperationWithRequest, getPolicy } = setup({
-            authentication,
+            authentication: authentication as
+                | 'pat'
+                | 'session'
+                | 'service-account',
+            mode: mode as 'off' | 'managed',
+            allowedCapabilities: [],
+            allowedGroupUuids: [],
             allowedUserUuids: [],
         });
         await expect(run(allowApiKeyAuthentication)).resolves.toBeUndefined();
@@ -477,8 +497,7 @@ it.each([
             allowedGroupUuids: null,
             mode: 'managed',
             version: 1,
-            allowedProjectUuids: null,
-            allowedUserUuids: null,
+            allowedCapabilities: null,
             systemRoleMatrix: agentSystemRoleMatrix([
                 AgentCapability.Administration,
                 AgentCapability.Publish,
@@ -528,8 +547,7 @@ it('allows managed OAuth space metadata edits with content_write', async () => {
         allowedGroupUuids: null,
         mode: 'managed',
         version: 1,
-        allowedProjectUuids: null,
-        allowedUserUuids: null,
+        allowedCapabilities: null,
         systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.ContentWrite]),
     });
     await expect(run(allowApiKeyAuthentication)).resolves.toBeUndefined();
@@ -543,8 +561,7 @@ it('checks access changes after allowing the OAuth space REST operation', async 
         allowedGroupUuids: null,
         mode: 'managed' as const,
         version: 1,
-        allowedProjectUuids: null,
-        allowedUserUuids: null,
+        allowedCapabilities: null,
         systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.ContentWrite]),
     };
     getPolicy.mockResolvedValue(policy);
@@ -613,31 +630,44 @@ it('checks access changes after allowing the OAuth space REST operation', async 
 });
 
 it.each([null, [], [defaultSessionUser.userUuid], ['another-user']])(
-    'OAuth REST enforces named users %j',
+    'OAuth REST ignores historical people and project lists %j',
     async (allowedUserUuids) => {
         const { run } = setup({
             operation: 'UserController_getAccount',
             scopes: ['read'],
             allowedUserUuids,
+            allowedProjectUuids: ['other-project'],
             projectUuid: null,
         });
-        if (
-            allowedUserUuids === null ||
-            allowedUserUuids.includes(defaultSessionUser.userUuid)
-        ) {
-            await expect(
-                run(allowApiKeyAuthentication),
-            ).resolves.toBeUndefined();
-        } else {
+        await expect(run(allowApiKeyAuthentication)).resolves.toBeUndefined();
+    },
+);
+
+it.each([
+    { allowedCapabilities: [] },
+    { allowedCapabilities: [AgentCapability.ReadDiscover] },
+])(
+    'OAuth REST applies capability list $allowedCapabilities',
+    async ({ allowedCapabilities }) => {
+        const { run } = setup({
+            operation: 'UserController_getAccount',
+            scopes: ['read'],
+            projectUuid: null,
+            allowedCapabilities,
+        });
+        if (allowedCapabilities.length === 0)
             await expect(run(allowApiKeyAuthentication)).resolves.toMatchObject(
                 {
                     refusal: {
-                        reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+                        reason: AiAccessRefusalReason.AGENT_ACCESS_DISABLED,
                         settingsUrl: '/generalSettings/agentIdentity',
                     },
                 },
             );
-        }
+        else
+            await expect(
+                run(allowApiKeyAuthentication),
+            ).resolves.toBeUndefined();
     },
 );
 

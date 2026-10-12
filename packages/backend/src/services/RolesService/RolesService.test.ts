@@ -139,8 +139,7 @@ describe('RolesService', () => {
                 allowedGroupUuids: null,
                 mode: 'managed',
                 version: 1,
-                allowedProjectUuids: null,
-                allowedUserUuids: null,
+                allowedCapabilities: null,
                 systemRoleMatrix: {} as never,
             });
             await expect(
@@ -167,8 +166,7 @@ describe('RolesService', () => {
                 allowedGroupUuids: null,
                 mode: 'managed',
                 version: 1,
-                allowedProjectUuids: null,
-                allowedUserUuids: null,
+                allowedCapabilities: null,
                 systemRoleMatrix: {} as never,
             });
             await expect(
@@ -203,8 +201,7 @@ describe('RolesService', () => {
                         allowedGroupUuids: null,
                         mode: 'legacy',
                         version: 0,
-                        allowedProjectUuids: null,
-                        allowedUserUuids: null,
+                        allowedCapabilities: null,
                         systemRoleMatrix: {} as never,
                     });
                 mockRolesModel.getRoleByUuid.mockResolvedValue(mockCustomRole);
@@ -254,8 +251,7 @@ describe('RolesService', () => {
                     allowedGroupUuids: null,
                     mode: 'managed',
                     version: 1,
-                    allowedProjectUuids: null,
-                    allowedUserUuids: null,
+                    allowedCapabilities: null,
                     systemRoleMatrix: {} as never,
                 });
                 const mutation = service[method] as (

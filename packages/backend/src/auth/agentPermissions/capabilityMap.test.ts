@@ -608,8 +608,7 @@ it.each(compositeFixtures)(
         const policy = {
             mode: 'managed' as const,
             capabilities: new Set<AgentCapability>(expected),
-            allowedProjectUuids: null,
-            allowedUserUuids: null,
+            allowedCapabilities: null,
             allowedGroupUuids: null,
             version: 1,
             editableCustomRoleUuid: null,
@@ -617,9 +616,6 @@ it.each(compositeFixtures)(
         const operation = {
             requiredCapabilities,
             projectUuid: 'project',
-            mcpAgentsEnabled: true,
-            mcpContentWritesEnabled: true,
-            isOrganizationDiscovery: false,
         };
         expect(evaluate(policy, operation)).toBeNull();
         for (const missing of expected) {

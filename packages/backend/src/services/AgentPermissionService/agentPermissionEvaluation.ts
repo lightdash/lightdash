@@ -82,16 +82,10 @@ export const agentPermissionChecks = (
             )
                 return notNeeded('agent_admission', 'Who can use agents');
             if (
-                (policy.mode === 'managed' &&
-                    policy.allowedUserUuids !== null &&
-                    (operation.userUuid === undefined ||
-                        !policy.allowedUserUuids.includes(
-                            operation.userUuid,
-                        ))) ||
-                (policy.allowedGroupUuids !== null &&
-                    (policy.allowedGroupUuids.length === 0 ||
-                        operation.userUuid === undefined ||
-                        operation.groupMember !== true))
+                policy.allowedGroupUuids !== null &&
+                (policy.allowedGroupUuids.length === 0 ||
+                    operation.userUuid === undefined ||
+                    operation.groupMember !== true)
             )
                 return refused(
                     'agent_admission',
@@ -128,7 +122,7 @@ export const agentPermissionChecks = (
         {
             kind: 'agent_enabled',
             evaluate: () =>
-                operation.mcpAgentsEnabled
+                policy.allowedCapabilities?.length !== 0
                     ? permissionCheck(
                           'agent_enabled',
                           'Agents enabled',
@@ -161,94 +155,52 @@ export const agentPermissionChecks = (
                           'The requirements for this action are known.',
                       ),
         },
-        {
-            kind: 'project_scope',
-            evaluate: () => {
-                if (
-                    required === null &&
-                    operation.projectUuid === null &&
-                    policy.allowedProjectUuids !== null &&
-                    operation.isOrganizationDiscovery
-                )
-                    return permissionCheck(
-                        'project_scope',
-                        'Allowed projects',
-                        'not_checked',
-                        'The requirements for this action are unknown.',
-                    );
-                return policy.allowedProjectUuids !== null &&
-                    (operation.projectUuid === null
-                        ? !operation.isOrganizationDiscovery ||
-                          (required ?? []).some(
-                              (capability) =>
-                                  capability !== AgentCapability.ReadDiscover,
-                          )
-                        : !policy.allowedProjectUuids.includes(
-                              operation.projectUuid,
-                          ))
-                    ? refused(
-                          'project_scope',
-                          'Allowed projects',
-                          AiAccessRefusalReason.AGENT_PROJECT_DENIED,
-                          'project_scope',
-                      )
-                    : permissionCheck(
-                          'project_scope',
-                          'Allowed projects',
-                          'allowed',
-                          operation.projectUuid === null
-                              ? 'Organization access is allowed for this action.'
-                              : 'Agents can use this project.',
-                      );
-            },
-        },
         ...[...new Set(required ?? [])].map((capability) => ({
             kind: 'capability' as const,
-            evaluate: (): AgentPermissionCheck => ({
-                ...(policy.capabilities?.has(capability)
-                    ? {
-                          ...permissionCheck(
-                              'capability',
-                              getAgentCapabilityName(capability),
-                              'allowed',
-                              `This person's roles grant ${getAgentCapabilityName(capability)} to agents.`,
-                          ),
-                          capability,
-                      }
-                    : refused(
-                          'capability',
-                          getAgentCapabilityName(capability),
-                          AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
-                          'org_ceiling',
-                          capability,
-                          policy.editableCustomRoleUuid
-                              ? `/generalSettings/customRoles/${policy.editableCustomRoleUuid}`
-                              : '/generalSettings/agentIdentity',
-                      )),
-                id: `capability:${capability}`,
-            }),
-        })),
-        {
-            kind: 'content_writes',
-            evaluate: () => {
-                if (!required?.includes(AgentCapability.ContentWrite))
-                    return notNeeded('content_writes', 'Agent content writes');
-                if (operation.mcpContentWritesEnabled)
-                    return permissionCheck(
-                        'content_writes',
-                        'Agent content writes',
-                        'allowed',
-                        'Agent content writes are on.',
-                    );
-                return refused(
-                    'content_writes',
-                    'Agent content writes',
-                    AiAccessRefusalReason.AGENT_SETTING_DENIED,
-                    'organization_setting',
-                    AgentCapability.ContentWrite,
-                );
+            evaluate: (): AgentPermissionCheck => {
+                const id = `capability:${capability}`;
+                if (
+                    policy.allowedCapabilities !== null &&
+                    !policy.allowedCapabilities.includes(capability)
+                ) {
+                    return {
+                        ...refused(
+                            'capability',
+                            getAgentCapabilityName(capability),
+                            AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                            'organization_setting',
+                            capability,
+                        ),
+                        id,
+                    };
+                }
+                if (policy.capabilities?.has(capability)) {
+                    return {
+                        ...permissionCheck(
+                            'capability',
+                            getAgentCapabilityName(capability),
+                            'allowed',
+                            `This person's roles grant ${getAgentCapabilityName(capability)} to agents.`,
+                        ),
+                        capability,
+                        id,
+                    };
+                }
+                return {
+                    ...refused(
+                        'capability',
+                        getAgentCapabilityName(capability),
+                        AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                        'org_ceiling',
+                        capability,
+                        policy.editableCustomRoleUuid
+                            ? `/generalSettings/customRoles/${policy.editableCustomRoleUuid}`
+                            : '/generalSettings/agentIdentity',
+                    ),
+                    id,
+                };
             },
-        },
+        })),
     ];
 };
 

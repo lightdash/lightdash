@@ -37,7 +37,7 @@ statement about the next check, not about elapsed time:
 ## Summary
 
 | Change | Takes effect | Delay |
-|---|---|---|
+| -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | A grant is revoked | Next request with its access token; next refresh; next check of queued work for it | No cache. The next check reads the database. |
 | A person's role, project access or place in **Who can use agents** changes; a capability is removed; agents are turned off | Next agent permission check | No cache for the agent permission check. With the cache on, the person's ordinary role on a plain OAuth token, a personal access token or a browser session can be up to one cache entry old (30 seconds after its lookup finished). |
 | A person is deactivated | Next request | No cache for a grant-bound token and for queued work. With the cache on, a plain OAuth token, a personal access token or a browser session can be up to one cache entry old. |
@@ -77,7 +77,7 @@ token that is refused does not become a plain OAuth token.
 Ways to revoke:
 
 | Way | Effect |
-|---|---|
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | The owner API, `DELETE /api/v2/user/agent-connections/{grantUuid}` | Revokes the grant |
 | `POST /api/v1/oauth/revoke` with the grant's live **refresh** token | Revokes the grant |
 | A second use of a refresh token of the grant that was already used or revoked | Revokes the grant |
@@ -106,32 +106,31 @@ Limits to know:
 An agent permission check has two steps:
 
 - `AgentPermissionService.loadRequest` reads the flag and the organisation's
-  **Permissions**: the mode, the capabilities for each role, the allowed
-  projects, and **Who can use agents**. It returns a handle.
+  **Permissions**: the mode, the capabilities for each role, the organization
+  capability list, and allowed groups. It returns a frozen handle.
 - `assertOperationWithRequest` evaluates one operation with that handle. With
   "Limit what agents can do" on, it reads the person's current role
-  assignments. It reads the organisation's agent settings (agents on, content
-  writes on) at each evaluation. It reads the person's group membership once
+  assignments. It reads the person's group membership once
   for each handle.
 
 These reads do not use the caches below. A handle belongs to one request. It
 keeps the **Permissions** that it loaded, so it does not see a later change
 to them. It keeps the result of its first group lookup, so it does not see a
 group change after that lookup. The next request sees both. Role assignments
-and agent settings are read again at each evaluation.
+are read again at each evaluation. MCP owns its own settings; the permission
+check does not read them.
 
 What the next check sees:
 
 | Change | Result |
-|---|---|
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | A role, or a custom role's capability scope, is removed from the person | The capability is gone, unless another role or custom role of the person still gives it. Roles add up. |
 | A capability is removed from a role on the **Agents** page | The same. The table of capabilities for each role is not an upper limit on what a custom role gives. |
-| A project is removed from the allowed projects | Refused for that project |
-| The person is removed from "Only these people" | Refused |
+| A capability is unticked in the organization list                       | Refused for every role, including custom roles                                                         |
 | The person is removed from an allowed group | Refused, when the person is in no other allowed group |
-| Agents are turned off for the organisation | Refused |
+| Every capability is unticked with limits on                             | Refused, including agent turns                                                                         |
 
-The capability, project, people and "agents turned off" rows apply with
+The capability and "every capability unticked" rows apply with
 "Limit what agents can do" on. Group admission applies in both modes. A
 person's active state is not part of this check: authentication and the job
 checks cover it.
@@ -139,7 +138,7 @@ checks cover it.
 Who is under **Permissions**:
 
 | Caller | Under **Permissions** | The person's ordinary role and active state come from |
-|---|---|---|
+| ------------------------------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------- |
 | MCP with a grant-bound OAuth token | Yes, and also limited to what the person approved | The database, on every request |
 | MCP with a plain OAuth token | Yes | The session cache, when it is on |
 | The agent in the app (browser session) | Yes | The session cache, when it is on |
@@ -167,7 +166,7 @@ that asks for it. There is no timer: a step that takes long is not
 interrupted.
 
 | Work | Checked at | When refused |
-|---|---|---|
+| --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | Slack agent: the answer | The start. While the answer streams, at an update when 30 seconds have passed since the last check. Before each final message and the SQL approval card. | The stream is closed and the remaining messages are not posted. The thread gets the refusal message. |
 | Slack agent: chart images and outcome messages | Before each upload and each message | The remaining uploads and messages are not posted |
 | Scheduled delivery with an AI summary | Before the summary is generated. At the start of each send. | The delivery goes out without the summary |
@@ -182,7 +181,7 @@ What each check covers:
   principals are exempt from the active check.
 - Slack, the scheduled delivery summary and Autopilot also check
   **Permissions** for an agent turn: **Who can use agents**, and with "Limit
-  what agents can do" on also the allowed projects and agents on. They do
+  what agents can do" on also whether the saved capability list is empty. They do
   not check each capability again at these points; the tool calls inside a
   turn check their own capabilities.
 - dbt writeback also checks the dbt writeback capability. From the MCP tool
@@ -204,7 +203,7 @@ malformed marker are recorded on the remediation, with no audit record.
 Not covered yet:
 
 | Work | Ticket |
-|---|---|
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- |
 | Agent turns over HTTP: the turn is admitted at its start and each tool call is checked, but nothing checks the person again while a long turn runs or before the runtime stores its answer | SPK-2752 |
 | Review automation and its exports | SPK-2753 |
 | Long-running agent pipelines (data apps, deep research, onboarding), and the compile job that a writeback preview queues | SPK-2754 |
@@ -221,7 +220,7 @@ Known behaviour that is not changed:
 ## 4. Credentials for the warehouse
 
 | Credential | Removed when |
-|---|---|
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | The person's agent sign-in (Snowflake) | The person is deactivated through `UserModel.updateUser`, in the same transaction, with the flag on or off. The person is removed (the row goes with the user). A new sign-in for an inactive person is refused. |
 | Shared agent account | The project or its warehouse connection is deleted, or an admin removes it. It belongs to the project, not to a person. |
 | The organisation's Snowflake agent client | The organisation is deleted. An admin can replace it; there is no way to remove it. |
@@ -254,7 +253,7 @@ role and active state. Both exist only when `EXPERIMENTAL_CACHE=true`. With
 the variable unset these two caches do not exist.
 
 | Cache | Holds | Used by | Lifetime |
-|---|---|---|---|
+| -------------------------------- | --------------------------------------------------------------- | -------------------------------- | ----------------------- |
 | `sessionUserCache` (`UserModel`) | The person for a browser session or a plain OAuth token | Session and plain OAuth requests | 30 seconds for an entry |
 | `PatSessionCache` | The person and the token's own data for a personal access token | Personal access token requests | 30 seconds for an entry |
 
@@ -283,7 +282,7 @@ process. Before each trial the entries were left to expire, one request per
 probe filled them, and the change was made straight after.
 
 | Change | How it was made | Trials | Time until the last of the four probes saw it |
-|---|---|---|---|
+| -------------------------------------- | ------------------------------------------- | ------ | --------------------------------------------- |
 | The person is deactivated | Written to the database directly | 5 | 30.1 to 30.3 seconds |
 | The person's organisation role changes | Through the API of one of the two processes | 5 | 30.1 to 30.2 seconds |
 
@@ -311,7 +310,7 @@ compatibility" job):
 
 | File | Pins |
 |---|---|
-| `agent_revocation_contract.migration.integration.ts` | A revoked grant refuses its access token, its refresh and the check that queued work uses, and a second grant of the same person keeps working. A revoked refresh token ends the grant; a revoked access token does not. A removed project role, capability, allowed project, allowed person, group membership or "agents on" setting is seen by the next permission check, and a handle that was loaded before keeps its **Permissions**. A wider policy does not widen a stored grant. Deactivation deletes the agent sign-in, or rolls back when the delete fails. Removal deletes the person's grants, tokens and own credentials and keeps a shared credential for an external MCP server. |
+| `agent_revocation_contract.migration.integration.ts` | A revoked grant refuses its access token, its refresh and the check that queued work uses, and a second grant of the same person keeps working. A revoked refresh token ends the grant; a revoked access token does not. A removed project role, capability, organization capability list or group membership is seen by the next permission check, and a handle that was loaded before keeps its **Permissions**. A wider policy does not widen a stored grant. Deactivation deletes the agent sign-in, or rolls back when the delete fails. Removal deletes the person's grants, tokens and own credentials and keeps a shared credential for an external MCP server. |
 | `oauth_access_revocation_clock.migration.integration.ts` | A grant's access token that is revoked on its own is refused at once while the API clock is fixed at 2000 and the database clock is later. The row stays bound, the grant and refresh token stay usable, and a second connection works. A repeated revoke changes nothing, an earlier expiry is kept, and the stored expiry is the same when the database session uses another time zone. |
 | `oauth_refresh_rotation.migration.integration.ts` | With strict refresh handling, revoking a refresh token that is bound to no grant deletes its whole family; a refresh that is in flight cannot bring it back. |
 | `agent_connection_grants.migration.integration.ts` | The rows that a grant revoke changes and keeps. |
@@ -332,7 +331,7 @@ already issued.
 ## Where it is in code
 
 | What | Where |
-|---|---|
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | Grant revoke | `AgentConnectionGrantModel.revoke`, `AgentConnectionService.revoke` |
 | Token lookup, refresh and `/oauth/revoke` | `OAuth2Model.getAccessToken`, `getRefreshToken`, `deleteAccessToken`, `revokeUnboundRefreshFamily`; `OAuthService.revokeToken` |
 | Agent permission check | `AgentPermissionService.loadRequest`, `assertOperationWithRequest` |

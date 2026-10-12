@@ -1059,8 +1059,7 @@ describe('AiAccessService', () => {
                     allowedGroupUuids: null,
                     mode: 'managed',
                     version: 1,
-                    allowedProjectUuids: null,
-                    allowedUserUuids: null,
+                    allowedCapabilities: null,
                     systemRoleMatrix: {} as never,
                 });
             const oauth = fromOauth(toSessionUser(admin), {

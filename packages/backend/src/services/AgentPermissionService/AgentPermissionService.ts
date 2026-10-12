@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import {
-    AGENT_CAPABILITY_DEFAULTS,
+    AGENT_CAPABILITY_LIMIT_DEFAULTS,
     AGENT_CAPABILITY_SCOPES,
     AgentCapability,
     AiAccessRefusalReason,
@@ -14,13 +14,13 @@ import {
     ParameterError,
     type Account,
     type AgentActorSurface,
+    type AgentCapabilityCeiling,
     type AgentCapabilityPolicy,
+    type AgentCapabilityPolicyOverview,
     type AgentPermissionCheck,
     type AgentSystemRoleMatrix,
     type AiAccessRefusal,
-    type AiOrganizationSettings,
     type RegisteredAccount,
-    type UUID,
 } from '@lightdash/common';
 import { getRequiredAgentCapabilities } from '../../auth/agentPermissions/capabilityMap';
 import { HUMAN_ONLY_IN_MANAGED } from '../../auth/agentPermissions/humanOnlyInManaged';
@@ -50,8 +50,7 @@ import {
 export interface ResolvedAgentPolicy {
     mode: 'off' | 'legacy' | 'managed';
     capabilities: Set<AgentCapability> | null;
-    allowedProjectUuids: string[] | null;
-    allowedUserUuids: string[] | null;
+    allowedCapabilities: AgentCapability[] | null;
     allowedGroupUuids: string[] | null;
     version: number;
     editableCustomRoleUuid: string | null;
@@ -60,9 +59,6 @@ export interface ResolvedAgentPolicy {
 export interface AgentPolicyEvaluation {
     requiredCapabilities: readonly AgentCapability[] | null;
     projectUuid: string | null;
-    mcpAgentsEnabled: boolean;
-    mcpContentWritesEnabled: boolean;
-    isOrganizationDiscovery: boolean;
 }
 
 export interface AgentPolicyDenial {
@@ -82,48 +78,6 @@ export type AgentPermissionOperationKind =
     | 'tool_effect'
     | 'rest_operation'
     | 'connected_mcp_tool';
-
-const ORGANIZATION_DISCOVERY_OPERATIONS: Record<
-    AgentPermissionOperationKind,
-    readonly string[]
-> = {
-    mcp_tool: [
-        'connect_agent',
-        'get_lightdash_version',
-        'list_projects',
-        'get_context',
-        'get_current_project',
-    ],
-    agent_tool: ['listProjects'],
-    agent_turn: [],
-    capability: [],
-    tool_effect: [],
-    connected_mcp_tool: [],
-    rest_operation: [
-        'UserController.getAccount',
-        'UserController.getAuthenticatedUser',
-        'UserController.getEmailVerificationStatus',
-        'UserController.getOrganizationsUserCanJoin',
-        'UserController.getPersonalAccessTokens',
-        'UserController.getUserLearnProgress',
-        'UserController.getUserOnboarding',
-        'OrganizationController.getOrganization',
-        'OrganizationController.getProjects',
-        'OrganizationController.getColorPalettes',
-        'OrganizationController.getImpersonationSettings',
-        'OrganizationController.getLearnAccess',
-        'OrganizationController.getOrganizationBrand',
-        'OrganizationController.getOrganizationMemberByEmail',
-        'OrganizationController.getOrganizationMemberByUuid',
-        'OrganizationController.getOrganizationMembers',
-        'OrganizationController.listGroupsInOrganization',
-        'organizationRouter GET /access',
-        'organizationRouter GET /onboardingStatus',
-        'organizationRouter.getOnboarding',
-        'organizationRouter.getOrganizationAccess',
-        'apiV1Router GET /health',
-    ],
-};
 
 const requiredCapabilitiesForOperation = (
     kind: AgentPermissionOperationKind,
@@ -199,27 +153,7 @@ interface Dependencies {
     >;
     userModel: Pick<UserModel, 'getAgentRoleAssignments'>;
     projectModel: Pick<ProjectModel, 'getSummary'>;
-    getOrganizationSettings: (
-        organizationUuid: string,
-    ) => Promise<Pick<
-        AiOrganizationSettings,
-        'mcpAgentsEnabled' | 'mcpContentWritesEnabled'
-    > | null>;
     agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
-}
-
-export interface AgentCapabilityPolicyOverview extends AgentCapabilityPolicy {
-    defaults: AgentSystemRoleMatrix;
-    groupsAvailable: boolean;
-}
-
-export interface AgentCapabilityCeiling {
-    version?: number;
-    allowedProjectUuids: UUID[] | null;
-    allowedUserUuids?: UUID[] | null;
-    allowedGroupUuids?: UUID[] | null;
-    mode?: 'legacy' | 'managed';
-    systemRoleMatrix: AgentSystemRoleMatrix;
 }
 
 export const agentSystemRoleMatrix = (
@@ -236,8 +170,7 @@ export const agentSystemRoleMatrix = (
 type ImmutableAgentEnforcementPolicy = {
     readonly mode: 'legacy' | 'managed';
     readonly version: number;
-    readonly allowedProjectUuids: readonly string[] | null;
-    readonly allowedUserUuids: readonly string[] | null;
+    readonly allowedCapabilities: readonly AgentCapability[] | null;
     readonly storedAllowedGroupUuids: readonly string[] | null;
     readonly hasExistingAllowedGroup: boolean | null;
     readonly systemRoleMatrix: Readonly<
@@ -300,14 +233,10 @@ const freezePolicy = (
 ): ImmutableAgentEnforcementPolicy =>
     Object.freeze({
         ...policy,
-        allowedProjectUuids:
-            policy.allowedProjectUuids === null
+        allowedCapabilities:
+            policy.allowedCapabilities === null
                 ? null
-                : Object.freeze([...policy.allowedProjectUuids]),
-        allowedUserUuids:
-            policy.allowedUserUuids === null
-                ? null
-                : Object.freeze([...policy.allowedUserUuids]),
+                : Object.freeze([...policy.allowedCapabilities]),
         storedAllowedGroupUuids:
             policy.storedAllowedGroupUuids === null
                 ? null
@@ -333,14 +262,10 @@ const projectEnforcementPolicy = (
     return {
         mode: policy.mode,
         version: policy.version,
-        allowedProjectUuids:
-            policy.allowedProjectUuids === null
+        allowedCapabilities:
+            policy.allowedCapabilities === null
                 ? null
-                : [...policy.allowedProjectUuids],
-        allowedUserUuids:
-            policy.allowedUserUuids === null
-                ? null
-                : [...policy.allowedUserUuids],
+                : [...policy.allowedCapabilities],
         allowedGroupUuids:
             policy.storedAllowedGroupUuids === null ? null : allowedGroupUuids,
         systemRoleMatrix: Object.fromEntries(
@@ -443,8 +368,7 @@ export class AgentPermissionService extends BaseService {
             return {
                 mode: 'off',
                 capabilities: null,
-                allowedProjectUuids: null,
-                allowedUserUuids: null,
+                allowedCapabilities: null,
                 allowedGroupUuids: null,
                 version: 0,
                 editableCustomRoleUuid: null,
@@ -468,8 +392,7 @@ export class AgentPermissionService extends BaseService {
             return {
                 mode: 'off',
                 capabilities: null,
-                allowedProjectUuids: null,
-                allowedUserUuids: null,
+                allowedCapabilities: null,
                 allowedGroupUuids: null,
                 version: 0,
                 editableCustomRoleUuid: null,
@@ -527,6 +450,12 @@ export class AgentPermissionService extends BaseService {
                     capabilities.add(capability);
             }),
         );
+        if (policy.allowedCapabilities !== null) {
+            for (const capability of capabilities) {
+                if (!policy.allowedCapabilities.includes(capability))
+                    capabilities.delete(capability);
+            }
+        }
         const canEditRoles =
             this.deps.isCustomRolesLicensed() &&
             this.createAuditedAbility(account).can(
@@ -536,8 +465,7 @@ export class AgentPermissionService extends BaseService {
         return {
             mode: 'managed',
             version: policy.version,
-            allowedProjectUuids: policy.allowedProjectUuids,
-            allowedUserUuids: policy.allowedUserUuids,
+            allowedCapabilities: policy.allowedCapabilities,
             allowedGroupUuids: policy.allowedGroupUuids,
             capabilities,
             editableCustomRoleUuid: canEditRoles
@@ -603,16 +531,10 @@ export class AgentPermissionService extends BaseService {
             humanOnly:
                 args.kind === 'rest_operation' &&
                 HUMAN_ONLY_IN_MANAGED.has(args.key),
-            mcpAgentsEnabled: true,
-            mcpContentWritesEnabled: true,
-            isOrganizationDiscovery: ORGANIZATION_DISCOVERY_OPERATIONS[
-                args.kind
-            ].includes(args.key),
         };
         const steps = agentPermissionChecks(policy, operation);
         const checks: AgentPermissionCheck[] = [];
         let membershipPromise: Promise<void> | undefined;
-        let settingsPromise: Promise<void> | undefined;
         const readCheck = async (step: (typeof steps)[number]) => {
             if (
                 step.kind === 'agent_admission' &&
@@ -628,17 +550,6 @@ export class AgentPermissionService extends BaseService {
                         });
                     await membershipPromise;
                 }
-            }
-            if (step.kind === 'agent_enabled') {
-                settingsPromise ??= this.deps
-                    .getOrganizationSettings(args.organizationUuid)
-                    .then((settings) => {
-                        operation.mcpAgentsEnabled =
-                            settings?.mcpAgentsEnabled ?? true;
-                        operation.mcpContentWritesEnabled =
-                            settings?.mcpContentWritesEnabled ?? true;
-                    });
-                await settingsPromise;
             }
             const check = step.evaluate();
             checks.push(check);
@@ -753,8 +664,7 @@ export class AgentPermissionService extends BaseService {
                     (blocker) =>
                         !hiddenProject ||
                         blocker.checkId === primary.id ||
-                        (blocker.checkId !== 'project_scope' &&
-                            !blocker.checkId.startsWith('capability:')),
+                        !blocker.checkId.startsWith('capability:'),
                 )
                 .map((blocker) => {
                     if (blocker.checkId === primary.id) return blocker;
@@ -857,30 +767,13 @@ export class AgentPermissionService extends BaseService {
         return organizationUuid;
     }
 
-    private async validateProjects(
-        organizationUuid: string,
-        projectUuids: string[] | null,
-    ): Promise<void> {
-        await Promise.all(
-            (projectUuids ?? []).map(async (projectUuid) => {
-                if (
-                    (await this.deps.projectModel.getSummary(projectUuid))
-                        .organizationUuid !== organizationUuid
-                )
-                    throw new ParameterError(
-                        'All allowed projects must belong to this organization',
-                    );
-            }),
-        );
-    }
-
     async getPolicy(account: Account): Promise<AgentCapabilityPolicyOverview> {
         const organizationUuid = await this.assertPolicyAdmin(account);
         return {
             ...(await this.deps.agentCapabilityPolicyModel.get(
                 organizationUuid,
             )),
-            defaults: agentSystemRoleMatrix(AGENT_CAPABILITY_DEFAULTS),
+            defaults: agentSystemRoleMatrix(AGENT_CAPABILITY_LIMIT_DEFAULTS),
             groupsAvailable:
                 await this.deps.areGroupsAvailable(organizationUuid),
         };
@@ -891,12 +784,26 @@ export class AgentPermissionService extends BaseService {
         ceiling: AgentCapabilityCeiling,
     ): Promise<AgentCapabilityPolicy> {
         const organizationUuid = await this.assertPolicyAdmin(account);
-        await this.validateProjects(
-            organizationUuid,
-            ceiling.allowedProjectUuids,
-        );
+        const mode = ceiling.mode ?? 'managed';
+        if (mode !== 'legacy' && mode !== 'managed')
+            throw new ParameterError('Invalid agent permissions mode');
+        AgentPermissionService.validateVersion(ceiling.version);
+        if (
+            ceiling.allowedCapabilities !== undefined &&
+            (mode === 'legacy'
+                ? ceiling.allowedCapabilities !== null
+                : !Array.isArray(ceiling.allowedCapabilities) ||
+                  ceiling.allowedCapabilities.some(
+                      (capability) =>
+                          !Object.values(AgentCapability).includes(capability),
+                  ))
+        )
+            throw new ParameterError(
+                'Provide a valid capability list for this mode',
+            );
         const roles = Object.values(OrganizationMemberRole);
         if (
+            !ceiling.systemRoleMatrix ||
             Object.keys(ceiling.systemRoleMatrix).length !== roles.length ||
             roles.some(
                 (role) =>
@@ -922,11 +829,24 @@ export class AgentPermissionService extends BaseService {
                 'Groups are not available for this organization.',
             );
         return this.deps.agentCapabilityPolicyModel.save({
-            ...ceiling,
+            version: ceiling.version,
+            allowedCapabilities: ceiling.allowedCapabilities,
+            allowedGroupUuids: ceiling.allowedGroupUuids,
+            systemRoleMatrix: ceiling.systemRoleMatrix,
             organizationUuid,
-            mode: ceiling.mode ?? 'managed',
+            mode,
             updatedByUserUuid: account.user.id,
         });
+    }
+
+    private static validateVersion(version: number | undefined): void {
+        if (
+            version !== undefined &&
+            (!Number.isInteger(version) || version < 0)
+        )
+            throw new ParameterError(
+                'Provide a non-negative integer policy version',
+            );
     }
 
     async resetToLegacy(
@@ -934,10 +854,12 @@ export class AgentPermissionService extends BaseService {
         version: number | undefined,
     ): Promise<AgentCapabilityPolicy> {
         const organizationUuid = await this.assertPolicyAdmin(account);
+        AgentPermissionService.validateVersion(version);
         const policy =
             await this.deps.agentCapabilityPolicyModel.get(organizationUuid);
         return this.deps.agentCapabilityPolicyModel.save({
-            ...policy,
+            systemRoleMatrix: policy.systemRoleMatrix,
+            allowedCapabilities: null,
             allowedGroupUuids: undefined,
             version,
             organizationUuid,

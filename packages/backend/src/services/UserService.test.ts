@@ -4987,8 +4987,7 @@ describe('UserService', () => {
                         allowedGroupUuids: null,
                         mode: mode === 'legacy' ? 'legacy' : 'managed',
                         version: 1,
-                        allowedProjectUuids: null,
-                        allowedUserUuids: null,
+                        allowedCapabilities: null,
                         systemRoleMatrix: agentSystemRoleMatrix([]),
                     });
                 const actor = { ...sessionUser };
@@ -5051,8 +5050,7 @@ describe('UserService', () => {
                         allowedGroupUuids: null,
                         mode: 'managed',
                         version: 1,
-                        allowedProjectUuids: null,
-                        allowedUserUuids: null,
+                        allowedCapabilities: null,
                         systemRoleMatrix: agentSystemRoleMatrix([]),
                     });
                 const originalFind =

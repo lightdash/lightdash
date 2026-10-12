@@ -39,8 +39,7 @@ export const managedExecutionFixture = () => {
     const policy: AgentCapabilityPolicy = {
         mode: 'managed',
         version: 1,
-        allowedProjectUuids: null,
-        allowedUserUuids: null,
+        allowedCapabilities: null,
         allowedGroupUuids: null,
         systemRoleMatrix: agentSystemRoleMatrix(Object.values(AgentCapability)),
     };
@@ -74,10 +73,7 @@ export const managedExecutionFixture = () => {
                 organizationUuid: grant.organizationUuid,
             }),
         },
-        getOrganizationSettings: vi.fn().mockResolvedValue({
-            mcpAgentsEnabled: true,
-            mcpContentWritesEnabled: true,
-        }),
+
         agentActionLogModel: { insert: vi.fn() },
     });
     const service = new AgentConnectionGrantService({

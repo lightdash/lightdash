@@ -1,27 +1,20 @@
 import {
     AGENT_IDENTITY_SOURCES,
-    FeatureFlags,
     WarehouseTypes,
     type OrganizationAgentIdentityRule,
+    type OrganizationAgentIdentityOverview,
     type AiIdentitySource,
 } from '@lightdash/common';
 import { Anchor, Box, Group, Select, Stack, Text, Title } from '@mantine/core';
 import { IconAlertTriangle, IconCheck } from '@tabler/icons-react';
 import { Fragment, useState } from 'react';
 import { Link } from 'react-router';
-import EmptyStateLoader from '../../components/common/EmptyStateLoader';
-import InlineErrorState from '../../components/common/InlineErrorState';
 import MantineIcon from '../../components/common/MantineIcon';
 import { SettingsCard } from '../../components/common/Settings/SettingsCard';
 import settingsClasses from '../../components/common/Settings/SettingsCard.module.css';
 import { getWarehouseIcon } from '../../components/ProjectConnection/ProjectConnectFlow/utils';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
-import useApp from '../../providers/App/useApp';
 import AgentIdentityRuleConfirmModal from './AgentIdentityRuleConfirmModal';
-import {
-    useOrganizationAgentIdentitySettings,
-    useUpdateOrganizationAgentIdentityRule,
-} from './api';
+import { useUpdateOrganizationAgentIdentityRule } from './api';
 import { identityLabels, identityWarehouseNames } from './identityLabels';
 import { SnowflakeAgentSetup } from './SnowflakeAgentSetup';
 
@@ -202,38 +195,31 @@ const AgentIdentityRule = ({
     );
 };
 
-const AgentIdentitySettings = () => {
-    const settings = useOrganizationAgentIdentitySettings();
-    if (settings.isLoading) return <EmptyStateLoader />;
-    if (settings.isError)
-        return (
-            <InlineErrorState
-                message="Could not load agent identity settings."
-                onRetry={() => {
-                    void settings.refetch();
-                }}
-            />
-        );
+const AgentIdentitySettings = ({
+    settings,
+}: {
+    settings: OrganizationAgentIdentityOverview;
+}) => {
     return (
         <Stack gap="lg">
-            {settings.data?.rules
+            {settings.rules
                 .filter((rule) => rule.warehouseType in identityWarehouseNames)
                 .map((rule) => (
                     <AgentIdentityRule
                         key={`${rule.warehouseType}-${rule.source}`}
                         rule={rule}
-                        configured={settings.data?.snowflakeConfigured === true}
+                        configured={settings.snowflakeConfigured === true}
                     />
                 ))}
         </Stack>
     );
 };
 
-const OrganizationAgentIdentitySection = () => {
-    const { user } = useApp();
-    const { data: flag } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
-    if (!flag?.enabled || !user.data?.ability.can('manage', 'Organization'))
-        return null;
+const OrganizationAgentIdentitySection = ({
+    settings,
+}: {
+    settings: OrganizationAgentIdentityOverview;
+}) => {
     return (
         <SettingsCard>
             <Stack gap="md">
@@ -241,7 +227,7 @@ const OrganizationAgentIdentitySection = () => {
                 <Text size="sm" c="dimmed">
                     Choose who agents run as on each warehouse.
                 </Text>
-                <AgentIdentitySettings />
+                <AgentIdentitySettings settings={settings} />
             </Stack>
         </SettingsCard>
     );

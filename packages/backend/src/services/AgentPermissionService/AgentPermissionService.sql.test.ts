@@ -1,4 +1,9 @@
-import { AiAccessRefusalReason, AiAccessRefusedError } from '@lightdash/common';
+import {
+    AgentActorSurface,
+    AgentCapability,
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
+} from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import {
@@ -135,7 +140,7 @@ test.each([
 ])('flag off reads nothing for $groups', async ({ groups }) => {
     const h = setupPermissionSql(database, tracker);
     h.state.policy.allowedGroupUuids = groups;
-    h.state.policy.allowedUserUuids = ['person'];
+    h.state.allowedUserUuids = ['person'];
     h.deps.featureFlagModel.get.mockResolvedValue({ enabled: false });
     const request = await h.service.loadRequest(h.operation.organizationUuid);
     expect(request.enforcementMode).toBe('off');
@@ -157,11 +162,11 @@ test.each([
 });
 
 test.each([{ groups: null }, { groups: ['live'] }])(
-    'managed people hydration adds one shared read: $groups',
+    'managed evaluation ignores stored people without a hydration read: $groups',
     async ({ groups }) => {
         const h = setupPermissionSql(database, tracker);
         h.state.policy.mode = 'managed';
-        h.state.policy.allowedUserUuids = [h.operation.account.user.id];
+        h.state.allowedUserUuids = [h.operation.account.user.id];
         h.state.policy.allowedGroupUuids = groups;
         const request = await h.service.loadRequest(
             h.operation.organizationUuid,
@@ -177,14 +182,13 @@ test.each([{ groups: null }, { groups: ['live'] }])(
         expectAdmissionSql(tracker, {
             policy: 1,
             groups: 0,
-            people: 1,
+            people: 0,
             membership: groups === null ? 0 : 1,
         });
         expect(h.deps.projectModel.getSummary).toHaveBeenCalledTimes(3);
         expect(h.deps.userModel.getAgentRoleAssignments).toHaveBeenCalledTimes(
             3,
         );
-        expect(h.deps.getOrganizationSettings).toHaveBeenCalledTimes(3);
     },
 );
 
@@ -394,7 +398,7 @@ test.each(['member', 'non-member'] as const)(
                 ),
             ).toEqual(['project-1', 'project-2', 'project-3']);
         }
-        expect(h.deps.getOrganizationSettings).not.toHaveBeenCalled();
+
         expectAdmissionSql(tracker, {
             policy: 0,
             groups: 0,
@@ -427,7 +431,7 @@ test('shares a rejected membership read and never retries or admits', async () =
         }),
     ).rejects.toThrow('membership failed');
     expect(h.deps.agentActionLogModel.insert).not.toHaveBeenCalled();
-    expect(h.deps.getOrganizationSettings).not.toHaveBeenCalled();
+
     expectAdmissionSql(tracker, {
         policy: 0,
         groups: 0,
@@ -466,7 +470,7 @@ test.each([
         groups: ['live'],
         people: ['departed'],
         members: true,
-        expectedPeople: 1,
+        expectedPeople: 0,
         expectedMembership: 1,
         admitted: true,
     },
@@ -477,9 +481,9 @@ test.each([
         groups: ['live'],
         people: ['departed'],
         members: true,
-        expectedPeople: 1,
+        expectedPeople: 0,
         expectedMembership: 1,
-        admitted: false,
+        admitted: true,
     },
     {
         name: 'empty managed people',
@@ -490,7 +494,7 @@ test.each([
         members: true,
         expectedPeople: 0,
         expectedMembership: 1,
-        admitted: false,
+        admitted: true,
     },
     {
         name: 'foreign groups',
@@ -509,7 +513,7 @@ test.each([
     h.state.policy.mode = profile.mode;
     h.state.policy.allowedGroupUuids =
         profile.groups === null ? null : [...profile.groups];
-    h.state.policy.allowedUserUuids =
+    h.state.allowedUserUuids =
         profile.people === null ? null : [...profile.people];
     const request = await h.service.loadRequest(h.operation.organizationUuid);
     const result = h.service.assertOperationWithRequest({
@@ -694,3 +698,54 @@ test('keeps the full managed refusal and activity record', async () => {
       }
     `);
 });
+
+test('copies and freezes the capability list while the next handle sees revocation', async () => {
+    const h = setupPermissionSql(database, tracker);
+    h.state.policy.mode = 'managed';
+    h.state.policy.allowedCapabilities = [AgentCapability.RawSql];
+    const request = await h.service.loadRequest(h.operation.organizationUuid);
+    expect(Object.isFrozen(request.policy?.allowedCapabilities)).toBe(true);
+    h.state.policy.allowedCapabilities.splice(0);
+    await expect(
+        h.service.assertOperationWithRequest({
+            request,
+            operation: h.operation,
+        }),
+    ).resolves.toBeUndefined();
+    await expect(h.service.assertOperation(h.operation)).rejects.toMatchObject({
+        refusal: { reason: AiAccessRefusalReason.AGENT_ACCESS_DISABLED },
+    });
+    expectAdmissionSql(tracker, {
+        policy: 2,
+        groups: 0,
+        people: 0,
+        membership: 2,
+    });
+});
+
+test.each([
+    ['mcp_tool', 'read_content', AgentActorSurface.MCP],
+    ['agent_tool', 'getMetadata', AgentActorSurface.IN_APP_AGENT],
+    ['agent_tool', 'getMetadata', AgentActorSurface.SLACK_AGENT],
+    ['agent_turn', 'agent_turn', AgentActorSurface.IN_APP_AGENT],
+    ['agent_turn', 'agent_turn', AgentActorSurface.SLACK_AGENT],
+    ['rest_operation', 'UserController.getAccount', AgentActorSurface.API],
+] as const)(
+    'raw historical lists never refuse %s %s on %s',
+    async (kind, key, surface) => {
+        const h = setupPermissionSql(database, tracker);
+        h.state.policy.mode = 'managed';
+        h.state.policy.allowedGroupUuids = null;
+        h.state.allowedUserUuids = ['excluded-person'];
+        h.state.allowedProjectUuids = ['excluded-project'];
+        await expect(
+            h.service.assertOperation({ ...h.operation, kind, key, surface }),
+        ).resolves.toBeUndefined();
+        expectAdmissionSql(tracker, {
+            policy: 1,
+            groups: 0,
+            people: 0,
+            membership: 0,
+        });
+    },
+);

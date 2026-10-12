@@ -65,8 +65,7 @@ const setup = (
     const policy: AgentCapabilityPolicy = {
         mode: mode === 'off' ? 'managed' : mode,
         version: 1,
-        allowedProjectUuids: [projectUuid],
-        allowedUserUuids: null,
+        allowedCapabilities: null,
         allowedGroupUuids: null,
         systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.Query]),
     };
@@ -105,10 +104,7 @@ const setup = (
         groupsModel,
         areGroupsAvailable: vi.fn().mockResolvedValue(true),
         isCustomRolesLicensed: () => false,
-        getOrganizationSettings: vi.fn().mockResolvedValue({
-            mcpAgentsEnabled: true,
-            mcpContentWritesEnabled: true,
-        }),
+
         resolveResourceProjectUuid: vi.fn().mockResolvedValue(projectUuid),
         agentActionLogModel: { insert: vi.fn() },
     });
@@ -208,6 +204,7 @@ const setup = (
     } as unknown as Request;
     return {
         service,
+        permissions,
         groupsModel,
         policy,
         composer,
@@ -528,5 +525,74 @@ test.each(['scan', 'dispatch', 'semantic'] as const)(
             people: 0,
             membership: surface === 'semantic' ? 0 : 1,
         });
+    },
+);
+
+test.each([
+    AgentActorSurface.MCP,
+    AgentActorSurface.IN_APP_AGENT,
+    AgentActorSurface.SLACK_AGENT,
+])(
+    'empty capability list stops %s query source before dispatch',
+    async (surface) => {
+        const h = setup();
+        h.policy.systemRoleMatrix.developer = [
+            AgentCapability.Query,
+            AgentCapability.RawSql,
+        ];
+        h.policy.allowedCapabilities = [];
+        await expect(h.composer(surface, [sqlQuery])).rejects.toMatchObject({
+            refusal: {
+                reason: AiAccessRefusalReason.AGENT_ACCESS_DISABLED,
+                settingsUrl: '/generalSettings/agentIdentity',
+            },
+        });
+        expect(h.asyncQueryService.executeAsyncSqlQuery).not.toHaveBeenCalled();
+        h.policy.allowedCapabilities = [
+            AgentCapability.Query,
+            AgentCapability.RawSql,
+        ];
+        await h.composer(surface, [sqlQuery]);
+        expect(h.asyncQueryService.executeAsyncSqlQuery).toHaveBeenCalledOnce();
+    },
+);
+
+describe.each(['off', 'managed'] as const)(
+    'ordinary REST queries with flag mode %s',
+    (mode) => {
+        test.each(['session', 'pat', 'service-account'] as const)(
+            '%s makes no policy read',
+            async (kind) => {
+                const accounts = {
+                    session: () => buildAccount(),
+                    pat: () => fromApiKey(defaultSessionUser, 'token'),
+                    'service-account': () =>
+                        fromServiceAccount(
+                            {
+                                ...defaultSessionUser,
+                                serviceAccount: {
+                                    uuid: 'service-account',
+                                    description: 'test',
+                                },
+                            },
+                            'token',
+                        ),
+                };
+                const account = accounts[kind]();
+                const h = setup(mode, account);
+                h.policy.allowedCapabilities = [];
+                h.policy.allowedGroupUuids = [];
+                const load = vi.spyOn(h.permissions, 'loadRequest');
+                await h.controller.executeSourceQueries(
+                    { queries: [sqlQuery] },
+                    projectUuid,
+                    { ...h.request, account } as Request,
+                );
+                expect(
+                    h.asyncQueryService.executeAsyncSqlQuery,
+                ).toHaveBeenCalledOnce();
+                expect(load).not.toHaveBeenCalled();
+            },
+        );
     },
 );

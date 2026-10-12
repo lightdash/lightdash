@@ -1,5 +1,6 @@
 import {
     AgentActorSurface,
+    AgentCapability,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     type AiAgent,
@@ -236,3 +237,26 @@ test.each([true, false])(
         expect(h.modelStart).toHaveBeenCalledTimes(verified ? 1 : 0);
     },
 );
+
+test('all capabilities unticked refuses the verified Slack turn before decisions', async () => {
+    const h = setup(true, false, defaultSessionUser.userUuid);
+    const sql = setupPermissionSql(
+        admissionDatabase,
+        admissionTracker,
+        fromSession(defaultSessionUser),
+    );
+    sql.state.policy.mode = 'managed';
+    sql.state.policy.allowedGroupUuids = null;
+    sql.state.policy.allowedCapabilities = [];
+    Object.assign(h.service, { agentPermissionService: sql.service });
+    await expect(h.run()).rejects.toMatchObject({
+        refusal: {
+            reason: AiAccessRefusalReason.AGENT_ACCESS_DISABLED,
+            settingsUrl: '/generalSettings/agentIdentity',
+        },
+    });
+    expect(h.modelStart).not.toHaveBeenCalled();
+    sql.state.policy.allowedCapabilities = [AgentCapability.Query];
+    await expect(h.run()).rejects.toThrow('model started');
+    expect(h.modelStart).toHaveBeenCalledOnce();
+});

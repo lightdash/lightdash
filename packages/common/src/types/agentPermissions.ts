@@ -50,7 +50,7 @@ export const AGENT_CAPABILITY_DEFINITIONS: Record<
         capability: AgentCapability.RawSql,
         shortName: 'Raw SQL',
         name: 'Raw SQL',
-        allows: 'Inspect permitted warehouse tables and write or run SQL directly, subject to project scope and SQL approval.',
+        allows: "Inspect permitted warehouse tables and write or run SQL directly, subject to the person's warehouse permissions.",
         examples: ['Run SQL', 'List warehouse tables', 'Write a SQL chart'],
     },
     [AgentCapability.ContentWrite]: {
@@ -144,4 +144,18 @@ export const AGENT_CAPABILITY_DEFAULTS = [
     AgentCapability.Query,
     AgentCapability.Export,
     AgentCapability.RawSql,
+] as const;
+
+export const AGENT_CAPABILITY_LIMIT_DEFAULTS = [
+    AgentCapability.ReadDiscover,
+    AgentCapability.Query,
+    AgentCapability.RawSql,
+    AgentCapability.ContentWrite,
+    AgentCapability.Delete,
+    AgentCapability.Publish,
+    AgentCapability.DeployUpload,
+    AgentCapability.DbtWriteback,
+    AgentCapability.Export,
+    AgentCapability.Administration,
+    AgentCapability.ExternalTools,
 ] as const;
