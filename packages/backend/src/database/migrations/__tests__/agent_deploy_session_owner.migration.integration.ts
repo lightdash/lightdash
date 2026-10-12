@@ -2,6 +2,7 @@ import {
     AgentCapability,
     DeploySessionStatus,
     ProjectMemberRole,
+    ProjectType,
 } from '@lightdash/common';
 import { randomUUID } from 'node:crypto';
 import { validExplore } from '../../../services/ProjectService/ProjectService.mock';
@@ -22,6 +23,7 @@ import {
     startConnectionHttpServer,
 } from './agentConnectionHttpHarness.mock';
 import {
+    assignDeployCustomRole,
     captureSql,
     databaseRows,
     deployFixture,
@@ -410,6 +412,10 @@ it.each([
         const uuid = await f.start();
         await f.batch(uuid, firstExplore, 1);
         await server.models.getDeploySessionModel().updateStatus(uuid, status);
+        await f
+            .database('project_memberships')
+            .where('user_id', f.user.user_id)
+            .update({ role: ProjectMemberRole.VIEWER });
         const before = await deployRows(f.database);
         await forEachInOrder(['finalize', 'batch'], async (action) => {
             expect(
@@ -423,9 +429,13 @@ it.each([
     },
 );
 
-it.each(['finalized', 'unknown', 'malformed'])(
-    'pins the HTTP error for a %s session UUID without writing deploy rows',
-    async (kind) => {
+it.each(
+    ['finalized', 'unknown', 'malformed'].flatMap((kind) =>
+        ['batch', 'finalize'].map((action) => ({ kind, action })),
+    ),
+)(
+    'pins the HTTP error for a $kind session UUID on $action without writing deploy rows',
+    async ({ kind, action }) => {
         const f = await deployFixture(migrated.database, server);
         let uuid = kind === 'malformed' ? 'not-a-uuid' : randomUUID();
         if (kind === 'finalized') {
@@ -434,7 +444,7 @@ it.each(['finalized', 'unknown', 'malformed'])(
             await f.finish(uuid, [firstExplore]);
         }
         const before = await deployRows(f.database);
-        const response = await f.request(`/${uuid}/batch`, {
+        const response = await f.request(`/${uuid}/${action}`, {
             explores: [secondExplore],
             batchNumber: 2,
         });
@@ -565,13 +575,27 @@ it('four-route permissions: one-shot PUT /deploy allows a developer and publishe
 });
 
 it.each(['viewer', 'removed'])(
-    'known behaviour: the deploy permission is checked at start only; a person who loses it after starting can still add a batch and finalize (%s)',
+    'the deploy permission is checked at start and at finalize; batches rely on ownership (%s)',
     async (access) => {
         const f = await deployFixture(migrated.database, server);
+        await f.request(
+            '',
+            {
+                explores: [validExplore],
+                complete: true,
+                dbtModelNames: [validExplore.name],
+            },
+            'PUT',
+        );
+        const published = await f.projects.getAllExploresFromCache(
+            f.projectUuid,
+        );
+        expect(Object.values(published)).toHaveLength(1);
         const uuid = await f.start();
         const membership = f
             .database('project_memberships')
             .where('user_id', f.user.user_id);
+        const memberships = await membership.clone();
         if (access === 'viewer')
             await membership.update({ role: ProjectMemberRole.VIEWER });
         else await membership.delete();
@@ -580,6 +604,31 @@ it.each(['viewer', 'removed'])(
         );
         await f.batch(uuid, firstExplore, 1);
         await f.batch(uuid, secondExplore, 2);
+        const before = await deployRows(f.database);
+        const visibleBefore = await databaseRows(f.database);
+        const queuedBefore = [...server.queued];
+        expect(await f.request(`/${uuid}/finalize`)).toEqual(
+            refused('User does not have permission to deploy to this project'),
+        );
+        expect(await deployRows(f.database)).toEqual(before);
+        expect(await databaseRows(f.database)).toEqual(visibleBefore);
+        expect(await f.projects.getAllExploresFromCache(f.projectUuid)).toEqual(
+            published,
+        );
+        expect(server.queued).toEqual(queuedBefore);
+        expect(
+            await server.models.getDeploySessionModel().getSession(uuid),
+        ).toMatchObject({
+            status: DeploySessionStatus.UPLOADING,
+            batchCount: 2,
+            exploreCount: 2,
+        });
+        if (access === 'viewer')
+            await f
+                .database('project_memberships')
+                .where('user_id', f.user.user_id)
+                .update({ role: ProjectMemberRole.DEVELOPER });
+        else await f.database('project_memberships').insert(memberships);
         await f.finish(uuid, [firstExplore, secondExplore]);
     },
 );
@@ -635,7 +684,7 @@ it('start and two batches change only deploy staging, leaving every project-visi
     await f.finish(uuid, [firstExplore, secondExplore]);
 });
 
-it('keeps the ordered SQL statements and HTTP answers of a correct start, batch, batch and finalize from main', async () => {
+it('keeps the part 1 SQL order and HTTP answers with exactly one project read before finalize writes', async () => {
     const f = await deployFixture(migrated.database, server);
     const trace = captureSql(f.database);
     try {
@@ -664,11 +713,20 @@ it('keeps the ordered SQL statements and HTTP answers of a correct start, batch,
     } finally {
         trace.stop();
     }
+    expect(mainDeploySql).toHaveLength(81);
+    expect(mainDeploySql[56]).toMatch(/^select .* from "projects" /);
+    expect(mainDeploySql[55]).toBe(
+        'select * from "deploy_sessions" where "deploy_session_uuid" = $1 limit $2',
+    );
+    expect(mainDeploySql[57]).toBe(
+        'update "deploy_sessions" set "status" = $1 where "deploy_session_uuid" = $2',
+    );
+    expect(mainDeploySql[56]).toBe(mainDeploySql[58]);
     expect(trace.statements).toEqual(mainDeploySql);
 });
 
 it.each(['session', 'PAT'] as const)(
-    'refuses an ordinary owner batch through another deployable project (%s); the owner can still finish',
+    'refuses an ordinary owner batch and finalize through another deployable project (%s); the owner can still finish',
     async (credential) => {
         const f = await deployFixture(migrated.database, server, credential);
         const otherProject = await f.createProject();
@@ -679,17 +737,214 @@ it.each(['session', 'PAT'] as const)(
         const uuid = await f.start();
         await f.batch(uuid, firstExplore, 1);
         const before = await deployRows(f.database);
-        expect(
-            await httpRequest(
-                server.base,
-                `/api/v2/projects/${otherProject}/deploy/${uuid}/batch`,
-                f.headers,
-                'POST',
-                { explores: [secondExplore], batchNumber: 2 },
-            ),
-        ).toEqual(refused('Deploy session does not belong to this project'));
-        expect(await deployRows(f.database)).toEqual(before);
+        await forEachInOrder(['batch', 'finalize'], async (action) => {
+            expect(
+                await httpRequest(
+                    server.base,
+                    `/api/v2/projects/${otherProject}/deploy/${uuid}/${action}`,
+                    f.headers,
+                    'POST',
+                    { explores: [secondExplore], batchNumber: 2 },
+                ),
+            ).toEqual(
+                refused('Deploy session does not belong to this project'),
+            );
+            expect(await deployRows(f.database)).toEqual(before);
+        });
         await f.batch(uuid, secondExplore, 2);
         await f.finish(uuid, [firstExplore, secondExplore]);
     },
 );
+
+it.each(['deactivated', 'removed from organisation'])(
+    'refuses finalize for a person %s before entering the deploy service',
+    async (change) => {
+        const f = await deployFixture(migrated.database, server);
+        const uuid = await f.start();
+        await f.batch(uuid, firstExplore, 1);
+        if (change === 'deactivated')
+            await f
+                .database('users')
+                .where('user_id', f.user.user_id)
+                .update({ is_active: false });
+        else
+            await f
+                .database('organization_memberships')
+                .where('user_id', f.user.user_id)
+                .delete();
+        const before = await deployRows(f.database);
+        const visibleBefore = await databaseRows(f.database);
+        const queuedBefore = [...server.queued];
+        const finalize = vi.spyOn(
+            server.services.getDeployService(),
+            'finalizeDeploy',
+        );
+        try {
+            expect(await f.request(`/${uuid}/finalize`)).toEqual({
+                status: change === 'deactivated' ? 403 : 404,
+                body: {
+                    status: 'error',
+                    error: {
+                        statusCode: change === 'deactivated' ? 403 : 404,
+                        name:
+                            change === 'deactivated'
+                                ? 'DeactivatedAccountError'
+                                : 'InvalidUser',
+                        message:
+                            change === 'deactivated'
+                                ? 'Your account has been deactivated. Please contact your organization administrator.'
+                                : `Cannot find user with uuid ${f.userUuid} and org ${f.organizationUuid}`,
+                        data: {},
+                    },
+                },
+            });
+            expect(finalize).not.toHaveBeenCalled();
+            expect(await deployRows(f.database)).toEqual(before);
+            expect(await databaseRows(f.database)).toEqual(visibleBefore);
+            expect(server.queued).toEqual(queuedBefore);
+        } finally {
+            finalize.mockRestore();
+        }
+    },
+);
+
+it('refuses finalize after the custom role loses manage:DeployProject and permits the same session after restoration', async () => {
+    const f = await deployFixture(migrated.database, server);
+    const roleUuid = await assignDeployCustomRole(f, [
+        'view:Project',
+        'manage:DeployProject',
+    ]);
+    const uuid = await f.start();
+    await f.batch(uuid, firstExplore, 1);
+    const scope = { role_uuid: roleUuid, scope_name: 'manage:DeployProject' };
+    await f.database('scoped_roles').where(scope).delete();
+    const before = await deployRows(f.database);
+    const visibleBefore = await databaseRows(f.database);
+    const queuedBefore = [...server.queued];
+    expect(await f.request(`/${uuid}/finalize`)).toEqual(
+        refused('User does not have permission to deploy to this project'),
+    );
+    expect(await deployRows(f.database)).toEqual(before);
+    expect(await databaseRows(f.database)).toEqual(visibleBefore);
+    expect(server.queued).toEqual(queuedBefore);
+    await f
+        .database('scoped_roles')
+        .insert({ ...scope, granted_by: f.userUuid });
+    await f.finish(uuid, [firstExplore]);
+});
+
+it('permits preview finalize through manage:DeployProject@self and refuses a non-creator with the same scope at start', async () => {
+    const f = await deployFixture(migrated.database, server);
+    const upstream = await f.createProject();
+    const scopes = ['view:Project', 'manage:DeployProject@self'];
+    await assignDeployCustomRole(f, scopes, upstream);
+    await f.database.raw(
+        'update projects set project_type = ?, copied_from_project_uuid = ? where project_uuid = ?',
+        [ProjectType.PREVIEW, upstream, f.projectUuid],
+    );
+    const [preview] = await f
+        .database('projects')
+        .where('project_uuid', f.projectUuid);
+    await f
+        .database('project_memberships')
+        .where({ user_id: f.user.user_id, project_id: preview.project_id })
+        .update({ role: ProjectMemberRole.VIEWER });
+    const stranger = await connectionFixture(f.database, f.organizationUuid);
+    await assignDeployCustomRole(stranger, scopes, upstream);
+    await f.database('project_memberships').insert({
+        project_id: preview.project_id,
+        user_id: stranger.user.user_id,
+        role: ProjectMemberRole.VIEWER,
+    });
+    const strangerHeaders = await personHeaders(server, stranger, 'session');
+    const before = await deployRows(f.database);
+    expect(
+        await httpRequest(server.base, f.route, strangerHeaders, 'POST', {}),
+    ).toEqual(
+        refused('User does not have permission to deploy to this project'),
+    );
+    expect(await deployRows(f.database)).toEqual(before);
+    const uuid = await f.start();
+    await f.batch(uuid, firstExplore, 1);
+    await f.finish(uuid, [firstExplore]);
+});
+
+it('refuses a connection finalize when its person loses the deploy role without changing staging or publishing', async () => {
+    const f = await deployFixture(migrated.database, server);
+    await enableConnectionFlag(f.database, f.organizationUuid);
+    const capabilities = [AgentCapability.DeployUpload];
+    await f.savePolicy({
+        systemRoleMatrix: { ...matrix([]), developer: capabilities },
+    });
+    const connection = await f.createConnection(capabilities);
+    const headers = { authorization: `Bearer ${connection.accessToken}` };
+    const started = await httpRequest(
+        server.base,
+        f.route,
+        headers,
+        'POST',
+        {},
+    );
+    expect(started.status).toBe(200);
+    const uuid = started.body.results.deploySessionUuid as string;
+    await f.batch(uuid, firstExplore, 1);
+    await f
+        .database('project_memberships')
+        .where('user_id', f.user.user_id)
+        .update({ role: ProjectMemberRole.VIEWER });
+    const before = await deployRows(f.database);
+    const visibleBefore = await databaseRows(f.database);
+    const queuedBefore = [...server.queued];
+    const finalize = vi.spyOn(
+        server.services.getDeployService(),
+        'finalizeDeploy',
+    );
+    try {
+        const response = await httpRequest(
+            server.base,
+            `${f.route}/${uuid}/finalize`,
+            headers,
+            'POST',
+            {},
+        );
+        expect(response).toMatchObject({
+            status: 403,
+            body: {
+                status: 'error',
+                error: {
+                    statusCode: 403,
+                    name: 'ForbiddenError',
+                    message:
+                        "Your organization's agent permissions do not allow Deploy and upload. Ask an admin to change Permissions on the Agents page.",
+                    data: {
+                        reason: 'agent_capability_denied',
+                        policyLayer: 'org_ceiling',
+                        capability: 'deploy_upload',
+                    },
+                },
+            },
+        });
+        expect(finalize).not.toHaveBeenCalled();
+        expect(await deployRows(f.database)).toEqual(before);
+        expect(await databaseRows(f.database)).toEqual({
+            ...visibleBefore,
+            agent_action_log: expect.any(Array),
+            agent_connection_grants: expect.any(Array),
+        });
+        expect(
+            await f
+                .database('agent_action_log')
+                .where('organization_uuid', f.organizationUuid),
+        ).toEqual([
+            expect.objectContaining({
+                outcome: 'denied',
+                policy_layer: 'org_ceiling',
+                reason_code: 'agent_capability_denied',
+                capability: 'deploy_upload',
+            }),
+        ]);
+        expect(server.queued).toEqual(queuedBefore);
+    } finally {
+        finalize.mockRestore();
+    }
+});

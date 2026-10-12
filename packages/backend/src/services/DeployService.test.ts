@@ -139,7 +139,17 @@ describe('DeployService', () => {
                 projectService,
                 schedulerClient,
             } as never);
-            const user = toSessionUser(buildAccount(new Ability()));
+            const user = toSessionUser(
+                buildAccount(
+                    new Ability([
+                        {
+                            action: 'manage',
+                            subject: 'DeployProject',
+                            conditions: { projectUuid: 'project-uuid' },
+                        },
+                    ]),
+                ),
+            );
 
             await service.finalizeDeploy(
                 user,
@@ -165,7 +175,17 @@ describe('DeployService', () => {
         const updateStatus = vi.fn().mockResolvedValue(undefined);
         const deleteSession = vi.fn().mockResolvedValue(undefined);
         const generateValidation = vi.fn().mockResolvedValue(undefined);
-        const user = toSessionUser(buildAccount(new Ability()));
+        const user = toSessionUser(
+            buildAccount(
+                new Ability([
+                    {
+                        action: 'manage',
+                        subject: 'DeployProject',
+                        conditions: { projectUuid: 'project-uuid' },
+                    },
+                ]),
+            ),
+        );
         const service = new DeployService({
             deploySessionModel: {
                 getSession: vi.fn().mockResolvedValue({
@@ -251,7 +271,17 @@ describe('DeployService', () => {
         const failure = new Error('validation unavailable');
         const trackCliSourceDeploy = vi.fn().mockResolvedValue(undefined);
         const updateStatus = vi.fn().mockResolvedValue(undefined);
-        const user = toSessionUser(buildAccount(new Ability()));
+        const user = toSessionUser(
+            buildAccount(
+                new Ability([
+                    {
+                        action: 'manage',
+                        subject: 'DeployProject',
+                        conditions: { projectUuid: 'project-uuid' },
+                    },
+                ]),
+            ),
+        );
         const service = new DeployService({
             deploySessionModel: {
                 getSession: vi.fn().mockResolvedValue({

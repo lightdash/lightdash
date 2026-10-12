@@ -14593,6 +14593,11 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             { subject: 'Project', action: ['update', 'view'] },
             { subject: 'Job', action: ['create'] },
             { subject: 'CompileProject', action: ['manage'] },
+            {
+                subject: 'DeployProject',
+                action: ['manage'],
+                conditions: { projectUuid: 'projectUuid' },
+            },
         ]),
     };
 
