@@ -1,3 +1,10 @@
+# [2.572.0](https://github.com/lightdash/lightdash/compare/2.571.2...2.572.0) (2026-10-12)
+
+
+### Features
+
+* **agent-identity:** delete expired agent connection approval requests every hour ([#30938](https://github.com/lightdash/lightdash/issues/30938)) ([a7a6d22](https://github.com/lightdash/lightdash/commit/a7a6d22434975a4c9d9cc9c6cf4f6f00501c54dc))
+
 ## [2.571.2](https://github.com/lightdash/lightdash/compare/2.571.1...2.571.2) (2026-10-12)
 
 
