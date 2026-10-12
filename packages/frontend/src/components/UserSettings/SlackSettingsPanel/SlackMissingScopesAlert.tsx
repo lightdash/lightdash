@@ -2,10 +2,9 @@ import {
     SlackFeature,
     type SlackFeatureAvailabilityMap,
 } from '@lightdash/common';
-import { Alert, List, Text } from '@mantine/core';
-import { IconAlertCircle } from '@tabler/icons-react';
+import { List, Text } from '@mantine/core';
 import { type FC } from 'react';
-import MantineIcon from '../../common/MantineIcon';
+import Callout from '../../common/Callout';
 
 const FEATURE_LABELS: Record<SlackFeature, string> = {
     [SlackFeature.SCHEDULED_DELIVERIES]: 'Scheduled deliveries',
@@ -26,7 +25,7 @@ export const SlackMissingScopesAlert: FC<Props> = ({ features }) => {
     if (unavailable.length === 0) return null;
 
     return (
-        <Alert color="orange" icon={<MantineIcon icon={IconAlertCircle} />}>
+        <Callout variant="warning">
             <Text pb="xs">
                 The installed Slack app is missing scopes for some features.
                 Reinstall the Slack integration to grant them.
@@ -41,6 +40,6 @@ export const SlackMissingScopesAlert: FC<Props> = ({ features }) => {
                     </List.Item>
                 ))}
             </List>
-        </Alert>
+        </Callout>
     );
 };
