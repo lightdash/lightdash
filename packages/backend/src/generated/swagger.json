@@ -54429,6 +54429,48 @@
                 "required": ["appProfilePhotoUrl", "notificationChannel"],
                 "type": "object"
             },
+            "SlackFeatureAvailability": {
+                "properties": {
+                    "missingScopes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "available": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["missingScopes", "available"],
+                "type": "object"
+            },
+            "SlackFeatureAvailabilityMap": {
+                "properties": {
+                    "aiAgent": {
+                        "$ref": "#/components/schemas/SlackFeatureAvailability"
+                    },
+                    "writebackReactions": {
+                        "$ref": "#/components/schemas/SlackFeatureAvailability"
+                    },
+                    "linkUnfurling": {
+                        "$ref": "#/components/schemas/SlackFeatureAvailability"
+                    },
+                    "customAppProfile": {
+                        "$ref": "#/components/schemas/SlackFeatureAvailability"
+                    },
+                    "scheduledDeliveries": {
+                        "$ref": "#/components/schemas/SlackFeatureAvailability"
+                    }
+                },
+                "required": [
+                    "aiAgent",
+                    "writebackReactions",
+                    "linkUnfurling",
+                    "customAppProfile",
+                    "scheduledDeliveries"
+                ],
+                "type": "object"
+            },
             "SlackSettings": {
                 "properties": {
                     "aiAgentsEnabled": {
@@ -54452,6 +54494,9 @@
                     },
                     "aiRequireOAuth": {
                         "type": "boolean"
+                    },
+                    "features": {
+                        "$ref": "#/components/schemas/SlackFeatureAvailabilityMap"
                     },
                     "hasRequiredScopes": {
                         "type": "boolean"
@@ -54495,6 +54540,7 @@
                     }
                 },
                 "required": [
+                    "features",
                     "hasRequiredScopes",
                     "scopes",
                     "createdAt",
@@ -72553,7 +72599,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.568.3",
+        "version": "2.569.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

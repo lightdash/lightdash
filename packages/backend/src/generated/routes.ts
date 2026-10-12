@@ -59726,6 +59726,49 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SlackFeatureAvailability: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                missingScopes: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                available: { dataType: 'boolean', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SlackFeatureAvailabilityMap: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                aiAgent: { ref: 'SlackFeatureAvailability', required: true },
+                writebackReactions: {
+                    ref: 'SlackFeatureAvailability',
+                    required: true,
+                },
+                linkUnfurling: {
+                    ref: 'SlackFeatureAvailability',
+                    required: true,
+                },
+                customAppProfile: {
+                    ref: 'SlackFeatureAvailability',
+                    required: true,
+                },
+                scheduledDeliveries: {
+                    ref: 'SlackFeatureAvailability',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SlackSettings: {
         dataType: 'refAlias',
         type: {
@@ -59743,6 +59786,10 @@ const models: TsoaRoute.Models = {
                 aiMultiAgentChannelId: { dataType: 'string' },
                 aiLinksOnly: { dataType: 'boolean' },
                 aiRequireOAuth: { dataType: 'boolean' },
+                features: {
+                    ref: 'SlackFeatureAvailabilityMap',
+                    required: true,
+                },
                 hasRequiredScopes: { dataType: 'boolean', required: true },
                 aiThreadAccessConsent: { dataType: 'boolean' },
                 slackChannelProjectMappings: {

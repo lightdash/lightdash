@@ -1,3 +1,10 @@
+# [2.569.0](https://github.com/lightdash/lightdash/compare/2.568.3...2.569.0) (2026-10-12)
+
+
+### Features
+
+* **slack:** evaluate Slack scopes per feature instead of all-or-nothing ([#30921](https://github.com/lightdash/lightdash/issues/30921)) ([8483cc3](https://github.com/lightdash/lightdash/commit/8483cc3f9f9b72934b8186e6589a7947cc19965a))
+
 ## [2.568.3](https://github.com/lightdash/lightdash/compare/2.568.2...2.568.3) (2026-10-12)
 
 
