@@ -9,9 +9,11 @@ import {
     GeneratedChartMetadata,
     GeneratedCustomDimension,
     GeneratedFormulaTableCalculation,
+    GeneratedSqlRunnerQuery,
     GeneratedTableCalculation,
     GeneratedTooltip,
     GenerateFormulaTableCalculationRequest,
+    GenerateSqlRunnerQueryRequest,
     GenerateTableCalculationRequest,
     GenerateTooltipRequest,
     getErrorMessage,
@@ -48,6 +50,7 @@ import {
     GenerateChartMetadataGenerated,
     GenerateCustomDimensionGenerated,
     GenerateFormulaTableCalculationGenerated,
+    GenerateSqlRunnerQueryGenerated,
     GenerateTableCalculationGenerated,
     GenerateTooltipGenerated,
 } from '../../analytics';
@@ -81,6 +84,7 @@ import {
     GeneratedGoogleSheetsExtensionReportDraft,
     GenerateGoogleSheetsExtensionReportDraftRequest,
 } from '../ai/agents/googleSheetsExtensionReportDraftTypes';
+import { generateSqlRunnerQuery as generateSqlRunnerQueryFromContext } from '../ai/agents/sqlRunnerQueryGenerator';
 import {
     generateTableCalculation as generateTableCalculationFromContext,
     sanitizeCustomFormat,
@@ -810,6 +814,53 @@ export class AiService extends BaseService {
             type: result.type as TableCalculationType,
             format: sanitizeFormulaCustomFormat(result.format ?? undefined),
         };
+    }
+
+    async generateSqlRunnerQuery(
+        user: SessionUser,
+        projectUuid: string,
+        payload: GenerateSqlRunnerQueryRequest,
+    ): Promise<GeneratedSqlRunnerQuery> {
+        const project = await this.projectService.getProject(
+            projectUuid,
+            fromSession(user),
+        );
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('SqlRunner', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const warehouseType = project.warehouseConnection?.type;
+        if (!warehouseType) {
+            throw new ForbiddenError('Warehouse type is not available');
+        }
+
+        const modelOptions = await this.getAmbientAiModel(user, {
+            projectUuid,
+        });
+        const result = await generateSqlRunnerQueryFromContext(modelOptions, {
+            ...payload,
+            warehouseType,
+        });
+
+        this.analytics.track<GenerateSqlRunnerQueryGenerated>({
+            userId: user.userUuid,
+            event: 'ai.sql_runner_query.generated',
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                userId: user.userUuid,
+            },
+        });
+
+        return result;
     }
 
     async generateTooltip(

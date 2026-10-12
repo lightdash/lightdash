@@ -39,6 +39,7 @@ export const AI_CALL_FEATURES = [
     'table-calc',
     'custom-dimension',
     'formula-table-calc',
+    'sql-runner-query',
     'compaction',
     'embedding',
     'project-router',

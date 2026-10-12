@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { getSqlAiPromptTablePaths } from '../utils/sqlAiPrompt';
 import { extractTableReferences } from '../utils/sqlCompletion/analyze';
 import { type SqlCatalog } from '../utils/sqlCompletionScope';
 import {
@@ -60,17 +61,23 @@ export const useDetectedTableFields = ({
     projectUuid,
     transformedData,
     connectionId,
+    includeAiPromptTables,
 }: {
     sql: string;
     quoteChar: string;
     projectUuid: string;
     transformedData?: SqlCatalog;
     connectionId?: string;
+    /** Also load tables named in `-- prompt` lines, as context for AI. */
+    includeAiPromptTables: boolean;
 }) => {
     const detectedPaths = useMemo(() => {
         if (!sql || !quoteChar) return [];
-        return extractTableReferences(sql, quoteChar);
-    }, [sql, quoteChar]);
+        const sqlPaths = extractTableReferences(sql, quoteChar);
+        return includeAiPromptTables
+            ? [...sqlPaths, ...getSqlAiPromptTablePaths(sql)]
+            : sqlPaths;
+    }, [sql, quoteChar, includeAiPromptTables]);
 
     const tableReferences = useMemo((): TableReference[] => {
         if (!transformedData || !projectUuid) return [];

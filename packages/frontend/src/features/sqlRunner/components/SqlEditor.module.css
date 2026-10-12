@@ -7,3 +7,21 @@
         max-width: calc(100vw - 48px);
     }
 }
+
+.wrapper {
+    display: flex;
+    flex-direction: column;
+}
+
+.editorArea {
+    flex: 1;
+    min-height: 0;
+}
+
+.aiStatus {
+    padding-inline: var(--mantine-spacing-xs);
+}
+
+.aiStatus:not(:empty) {
+    padding-bottom: var(--mantine-spacing-xs);
+}
