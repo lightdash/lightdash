@@ -1,3 +1,10 @@
+## [2.573.1](https://github.com/lightdash/lightdash/compare/2.573.0...2.573.1) (2026-10-12)
+
+
+### Bug Fixes
+
+* **agent-identity:** mark the identity choice being set up in the chip menu ([#30946](https://github.com/lightdash/lightdash/issues/30946)) ([a3df613](https://github.com/lightdash/lightdash/commit/a3df61372d9c277accd2726120d71a837a3c3e28))
+
 # [2.573.0](https://github.com/lightdash/lightdash/compare/2.572.1...2.573.0) (2026-10-12)
 
 
