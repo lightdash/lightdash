@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { fromOauth } from '../account/account';
 import { defaultSessionUser } from '../account/account.mock';
+import { getRequiredAgentCapabilities } from '../agentPermissions/capabilityMap';
 import { AgentConnectionGrantService } from './AgentConnectionGrantService';
 import { grantFixture, projectGrantFixture } from './grant.mock';
 import { managedExecutionFixture } from './managedExecution.mock';
@@ -551,6 +552,128 @@ it('refuses saved PNG export even with export approval', async () => {
     expect(
         deps.resourceResolver.resolveResourceProjectUuid,
     ).not.toHaveBeenCalled();
+});
+
+it.each([
+    ['query result download', 'QueryController.downloadResults'],
+    [
+        'scheduled query-result download',
+        'QueryController.scheduleDownloadResults',
+    ],
+    ['scheduled-delivery file download', 'FileController.getFile'],
+    [
+        'legacy scheduled-delivery CSV download',
+        'projectRouter GET /csv/:nanoId',
+    ],
+    ['CSV export', 'QueryController.downloadResults'],
+    ['CSV file download', 'CsvController.get'],
+    ['dashboard CSV export', 'dashboardRouter POST /:dashboardUuid/exportCsv'],
+    ['XLSX export', 'QueryController.downloadResults'],
+] as const)(
+    'refuses %s even with every approvable action',
+    async (_name, operation) => {
+        const { service, token, user, grant, deps } = setup();
+        grant.approvedCapabilities = Object.values(AgentCapability);
+        const account = fromOauth(
+            user,
+            token,
+            null,
+            await service.authenticate(token, user),
+        );
+        expect(getRequiredAgentCapabilities('rest', operation)).toEqual([
+            AgentCapability.Export,
+        ]);
+        await expect(
+            service.assertRestOperation(
+                {
+                    account,
+                    method: 'POST',
+                    params: {
+                        projectUuid: grant.approvedProjectUuids[0],
+                        queryUuid: otherProjectUuid,
+                    },
+                    query: {},
+                    body: { type: _name === 'XLSX export' ? 'xlsx' : 'csv' },
+                },
+                operation,
+            ),
+        ).rejects.toThrow("This agent connection can't use this operation.");
+        expect(
+            deps.resourceResolver.resolveResourceProjectUuid,
+        ).not.toHaveBeenCalled();
+    },
+);
+
+// Reading results is two actions today: Query alone is refused, and the message names the missing one.
+it('refuses a connection approved for Query alone when it reads async query results, naming Read and discover', async () => {
+    const { service, token, user, grant } = setup();
+    grant.approvedCapabilities = [AgentCapability.Query];
+    const account = fromOauth(
+        user,
+        token,
+        null,
+        await service.authenticate(token, user),
+    );
+    await expect(
+        service.assertRestOperation(
+            {
+                account,
+                method: 'GET',
+                params: {
+                    projectUuid: grant.approvedProjectUuids[0],
+                    queryUuid: otherProjectUuid,
+                },
+                query: { page: '1', pageSize: '10' },
+                body: {},
+            },
+            'QueryController.getAsyncQueryResults',
+        ),
+    ).rejects.toThrow(
+        'This agent connection is not approved for Read and discover. Approved: Query data.',
+    );
+});
+
+it('allows a Query-approved connection to read its own async query results page by page with ReadDiscover', async () => {
+    const { service, token, user, grant, deps } = setup();
+    grant.approvedCapabilities = [
+        AgentCapability.Query,
+        AgentCapability.ReadDiscover,
+    ];
+    const account = fromOauth(
+        user,
+        token,
+        null,
+        await service.authenticate(token, user),
+    );
+    await Promise.all(
+        [1, 2, 3].map(async (page) => {
+            await expect(
+                service.assertRestOperation(
+                    {
+                        account,
+                        method: 'GET',
+                        params: {
+                            projectUuid: grant.approvedProjectUuids[0],
+                            queryUuid: otherProjectUuid,
+                        },
+                        query: { page: String(page), pageSize: '10' },
+                        body: {},
+                    },
+                    'QueryController.getAsyncQueryResults',
+                ),
+            ).resolves.toEqual(grant.approvedProjectUuids);
+        }),
+    );
+    expect(
+        deps.resourceResolver.resolveResourceProjectUuid,
+    ).toHaveBeenCalledTimes(3);
+    expect(
+        deps.resourceResolver.resolveResourceProjectUuid,
+    ).toHaveBeenLastCalledWith({
+        type: 'query',
+        uuid: otherProjectUuid,
+        projectUuid: grant.approvedProjectUuids[0],
+    });
 });
 
 it.each(
