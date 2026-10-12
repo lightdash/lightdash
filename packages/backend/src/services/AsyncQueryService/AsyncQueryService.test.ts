@@ -34,7 +34,13 @@ import {
     getAgentClientLabel,
     getAiExecutionCredentialUuid,
     getFilterRulesFromGroup,
+    getIntrinsicUserAttributeRegex,
+    getParsedReference,
+    getReferencedDimension,
+    getReferencedMetric,
+    getUserAttributeRegex,
     isMergeMetricSource,
+    lightdashVariablePattern,
     MergeJoinType,
     MergeQueryErrorKind,
     MetricType,
@@ -43,6 +49,7 @@ import {
     NotSupportedError,
     OrganizationAccessStatus,
     ParameterError,
+    parameterRegex,
     PersistentDownloadFileAccessMode,
     PersonSignInProvider,
     PossibleAbilities,
@@ -87,6 +94,7 @@ import {
 } from '@lightdash/common';
 import type { SshTunnel } from '@lightdash/warehouses';
 import * as warehouses from '@lightdash/warehouses';
+import { createHash } from 'crypto';
 import type express from 'express';
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
@@ -201,9 +209,11 @@ import { applyMergeTerminalWrapper } from '../../utils/QueryBuilder/MergeQueryBu
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import {
+    getModelAccessFingerprint,
     getResultEntitlementFingerprint,
     getSqlResultEntitlementFingerprint,
     getWarehouseIdentityFingerprint,
+    type ResultEntitlementScope,
 } from '../../utils/queryResultProducer';
 import {
     copyWarehouseCredentialVersions,
@@ -772,6 +782,177 @@ const withTestQueryAgent = <T>(
 const testAuthMethod = (claim: AgentIdentityClaim | null): AuthType => {
     if (claim?.act.surface !== AgentActorSurface.MCP) return 'session';
     return claim.act.client_id === null ? 'pat' : 'oauth';
+};
+
+const oldFingerprint = (value: unknown): string =>
+    createHash('sha256').update(JSON.stringify(value)).digest('hex');
+
+const oldResultUserAttributeNames = (
+    scope: ResultEntitlementScope,
+    query: MetricQuery | null,
+): Set<string> | null => {
+    const names = new Set<string>();
+    const resolvingParameters = new Set<string>();
+    const scan = (
+        value: unknown,
+        exploreContext?: Explore,
+        tableContext?: string,
+    ): boolean => {
+        if (typeof value === 'string') {
+            for (const match of value.matchAll(getUserAttributeRegex())) {
+                names.add(match[1]);
+            }
+            for (const match of value.matchAll(parameterRegex)) {
+                const name = match[1];
+                const parameter = scope.parameterValues[name];
+                if (parameter === undefined || resolvingParameters.has(name))
+                    return false;
+                resolvingParameters.add(name);
+                const resolved = scan(parameter, exploreContext, tableContext);
+                resolvingParameters.delete(name);
+                if (!resolved) return false;
+            }
+            const unresolved = value
+                .replace(getUserAttributeRegex(), '')
+                .replace(getIntrinsicUserAttributeRegex(), '')
+                .replace(parameterRegex, '')
+                .replace(lightdashVariablePattern, (placeholder, reference) => {
+                    if (reference === 'TABLE') return '';
+                    return (exploreContext
+                        ? [exploreContext]
+                        : scope.explores
+                    ).some((explore) => {
+                        const { refTable, refName } = getParsedReference(
+                            reference,
+                            tableContext ?? explore.baseTable,
+                        );
+                        const tables = {
+                            ...explore.tables,
+                            ...explore.unfilteredTables,
+                        };
+                        return (
+                            getReferencedDimension(refTable, refName, tables) ||
+                            getReferencedMetric(refTable, refName, tables)
+                        );
+                    })
+                        ? ''
+                        : placeholder;
+                });
+            return (
+                !unresolved.includes('${') &&
+                !unresolved.includes('{%') &&
+                !unresolved.includes('{{')
+            );
+        }
+        if (Array.isArray(value))
+            return value.every((child) =>
+                scan(child, exploreContext, tableContext),
+            );
+        if (value !== null && typeof value === 'object') {
+            return Object.entries(value).every(([key, child]) => {
+                if (key === 'requiredAttributes' || key === 'anyAttributes') {
+                    if (child === undefined || child === null) return true;
+                    if (typeof child !== 'object' || Array.isArray(child))
+                        return false;
+                    Object.keys(child).forEach((name) => names.add(name));
+                }
+                if (
+                    (key === 'tables' || key === 'unfilteredTables') &&
+                    child !== undefined
+                ) {
+                    if (
+                        !child ||
+                        typeof child !== 'object' ||
+                        Array.isArray(child)
+                    )
+                        return false;
+                    return Object.entries(child).every(([name, table]) =>
+                        scan(table, exploreContext, name),
+                    );
+                }
+                const currentTable =
+                    'table' in value && typeof value.table === 'string'
+                        ? value.table
+                        : tableContext;
+                return scan(child, exploreContext, currentTable);
+            });
+        }
+        return true;
+    };
+    try {
+        if (
+            scope.explores.length === 0 ||
+            [...scope.explores, ...(scope.executionExplores ?? [])].some(
+                (explore) =>
+                    !explore.tables[explore.baseTable] ||
+                    (explore.warnings?.length ?? 0) > 0 ||
+                    Object.values(explore.tables).some(
+                        (table) => (table.warnings?.length ?? 0) > 0,
+                    ),
+            )
+        )
+            return null;
+        return [...scope.explores, ...(scope.executionExplores ?? [])].every(
+            (explore) => scan(explore, explore),
+        ) &&
+            scan(scope.projectParameterDefinitions) &&
+            scan(scope.parameterValues) &&
+            scan(
+                query,
+                scope.executionExplores?.[0] ??
+                    scope.explores.find(
+                        (explore) => explore.name === query?.exploreName,
+                    ),
+            )
+            ? names
+            : null;
+    } catch {
+        return null;
+    }
+};
+
+const oldResultEntitlementFingerprint = (
+    controls: UserAccessControls,
+    explore: Explore | null = null,
+    query: MetricQuery | null = null,
+    scope: ResultEntitlementScope | null | undefined = undefined,
+): string => {
+    const resolvedScope =
+        scope === undefined &&
+        explore &&
+        !explore.preAggregateSource &&
+        (explore.preAggregates?.length ?? 0) === 0
+            ? {
+                  explores: [explore],
+                  projectParameterDefinitions: {},
+                  parameterValues: {},
+              }
+            : scope;
+    const names =
+        explore && resolvedScope
+            ? oldResultUserAttributeNames(resolvedScope, query)
+            : null;
+    return oldFingerprint([
+        Object.entries(controls.userAttributes)
+            .filter(
+                ([name, values]) =>
+                    values.length > 0 && (names === null || names.has(name)),
+            )
+            .sort(([a], [b]) => a.localeCompare(b)),
+        Object.entries(controls.intrinsicUserAttributes).sort(([a], [b]) =>
+            a.localeCompare(b),
+        ),
+        ...(explore
+            ? [
+                  (resolvedScope?.explores ?? [explore])
+                      .map((source) => [
+                          source.name,
+                          getModelAccessFingerprint(source),
+                      ])
+                      .sort(([a], [b]) => a.localeCompare(b)),
+              ]
+            : []),
+    ]);
 };
 
 describe('underlying data dimension selection', () => {
@@ -21734,6 +21915,201 @@ describe('fresh execution producer to result reader', () => {
         vi.mocked(f.service.resultsStorageClient.getFirstLine).mockClear();
         return read;
     };
+    describe('stored person result value ordering', () => {
+        test('flag off skips attribute loading and fingerprint work on a stored read', async () => {
+            const f = setup(false, false, false, false);
+            const result = await f.service.executeAsyncMetricQuery({
+                account: f.account,
+                projectUuid,
+                metricQuery: metricQueryMock,
+                context: QueryExecutionContext.EXPLORE,
+                invalidateCache: true,
+            });
+            const read = await round24Ready(f, result.queryUuid);
+            vi.mocked(f.service.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled: false,
+                }),
+            );
+            vi.mocked(f.service.getUserAttributes).mockClear();
+            const fingerprints =
+                await import('../../utils/queryResultProducer');
+            const fingerprint = vi.spyOn(
+                fingerprints,
+                'getResultEntitlementFingerprintForms',
+            );
+            try {
+                await expect(read()).resolves.toMatchObject({
+                    status: QueryHistoryStatus.READY,
+                });
+                expect(f.service.getUserAttributes).not.toHaveBeenCalled();
+                expect(fingerprint).not.toHaveBeenCalled();
+            } finally {
+                fingerprint.mockRestore();
+            }
+        });
+
+        test.each<{
+            change: string;
+            before: UserAccessControls['userAttributes'];
+            after: UserAccessControls['userAttributes'];
+            email: string;
+            allowed: boolean;
+            oldRecord: boolean;
+        }>([
+            {
+                change: 'reordered values are allowed',
+                before: { region: ['EU', 'US'] },
+                after: { region: ['US', 'EU'] },
+                email: 'person@example.test',
+                allowed: true,
+                oldRecord: false,
+            },
+            {
+                change: 'changed value refuses',
+                before: { region: ['EU', 'US'] },
+                after: { region: ['EU', 'UK'] },
+                email: 'person@example.test',
+                allowed: false,
+                oldRecord: false,
+            },
+            {
+                change: 'added value refuses',
+                before: { region: ['EU'] },
+                after: { region: ['EU', 'US'] },
+                email: 'person@example.test',
+                allowed: false,
+                oldRecord: false,
+            },
+            {
+                change: 'removed value refuses',
+                before: { region: ['EU', 'US'] },
+                after: { region: ['EU'] },
+                email: 'person@example.test',
+                allowed: false,
+                oldRecord: false,
+            },
+            {
+                change: 'different attribute refuses',
+                before: { region: ['EU', 'US'] },
+                after: { territory: ['EU', 'US'] },
+                email: 'person@example.test',
+                allowed: false,
+                oldRecord: false,
+            },
+            {
+                change: 'different verified email refuses',
+                before: { region: ['EU', 'US'] },
+                after: { region: ['EU', 'US'] },
+                email: 'another@example.test',
+                allowed: false,
+                oldRecord: false,
+            },
+            {
+                change: 'old record same unsorted order allows',
+                before: { region: ['US', 'EU'] },
+                after: { region: ['US', 'EU'] },
+                email: 'person@example.test',
+                allowed: true,
+                oldRecord: true,
+            },
+            {
+                change: 'old record single value allows',
+                before: { region: ['EU'] },
+                after: { region: ['EU'] },
+                email: 'person@example.test',
+                allowed: true,
+                oldRecord: true,
+            },
+            {
+                change: 'old record real change refuses',
+                before: { region: ['US', 'EU'] },
+                after: { region: ['UK', 'EU'] },
+                email: 'person@example.test',
+                allowed: false,
+                oldRecord: true,
+            },
+            {
+                change: 'old record unsorted then sorted still refuses',
+                before: { region: ['US', 'EU'] },
+                after: { region: ['EU', 'US'] },
+                email: 'person@example.test',
+                allowed: false,
+                oldRecord: true,
+            },
+        ])('$change', async ({ before, after, email, allowed, oldRecord }) => {
+            const f = setup(false, false, false, false);
+            const controls: UserAccessControls = {
+                userAttributes: before,
+                intrinsicUserAttributes: { email: 'person@example.test' },
+            };
+            vi.mocked(f.service.getUserAttributes).mockImplementation(
+                async () => controls,
+            );
+            const explore = structuredClone(validExplore);
+            explore.tables.a.dimensions.restricted = {
+                ...explore.tables.a.dimensions.dim1,
+                name: 'restricted',
+                anyAttributes: { region: 'EU', territory: 'EU' },
+            };
+            vi.mocked(
+                f.service.projectModel.getExploreFromCache,
+            ).mockResolvedValue(explore);
+            vi.mocked(
+                f.service.projectModel.findExploresFromCache,
+            ).mockResolvedValue({ [explore.name]: explore });
+            const result = await f.service.executeAsyncMetricQuery({
+                account: f.account,
+                projectUuid,
+                metricQuery: metricQueryMock,
+                context: QueryExecutionContext.EXPLORE,
+                invalidateCache: true,
+            });
+            const read = await round24Ready(f, result.queryUuid);
+            expect(
+                f.rows.get(result.queryUuid)!.requestParameters.resultProducer,
+            ).toMatchObject({
+                authMethod: 'session',
+                agentIdentity: null,
+                entitlementFingerprint: expect.any(String),
+            });
+            if (oldRecord) {
+                f.rows.get(
+                    result.queryUuid,
+                )!.requestParameters.resultProducer!.entitlementFingerprint =
+                    oldResultEntitlementFingerprint(controls, explore);
+                expect((await read()).status).toBe(QueryHistoryStatus.READY);
+                vi.mocked(
+                    f.service.resultsStorageClient.getDownloadStream,
+                ).mockClear();
+                vi.mocked(
+                    f.service.resultsStorageClient.getFirstLine,
+                ).mockClear();
+            }
+            vi.mocked(f.service.getUserAttributes).mockClear();
+            controls.userAttributes = after;
+            controls.intrinsicUserAttributes = { email };
+            if (allowed) {
+                await expect(read()).resolves.toMatchObject({
+                    status: QueryHistoryStatus.READY,
+                });
+            } else {
+                await expect(read()).rejects.toMatchObject({
+                    refusal: {
+                        reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                    },
+                });
+                expect(
+                    f.service.resultsStorageClient.getDownloadStream,
+                ).not.toHaveBeenCalled();
+                expect(
+                    f.service.resultsStorageClient.getFirstLine,
+                ).not.toHaveBeenCalled();
+            }
+            expect(f.service.getUserAttributes).toHaveBeenCalledTimes(1);
+        });
+    });
     describe.each(['requiredAttributes', 'anyAttributes'] as const)(
         'stored person results with %s',
         (restriction) => {

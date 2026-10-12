@@ -287,6 +287,7 @@ import {
     assertQueryConnectionBinding,
     isConnectionProducedQuery,
     isSameResultAgent,
+    type ResultEntitlementFingerprintForms,
     type ResultEntitlementScope,
 } from '../../utils/queryResultProducer';
 import {
@@ -304,6 +305,7 @@ import {
 } from '../AiAccessService/agentExecutionContext';
 import {
     getQueryResultEntitlementFingerprint,
+    getQueryResultEntitlementFingerprintForms,
     getQueryResultNodeKind,
     getQueryResultRequestParameters,
     getQuerySourceParameters,
@@ -595,7 +597,7 @@ export class AsyncQueryService extends ProjectService {
         Map<string, Promise<QueryHistory>>
     >();
 
-    private async getCurrentResultEntitlementFingerprint({
+    private async getCurrentResultEntitlementFingerprintForms({
         projectUuid,
         parameters,
         controls,
@@ -611,7 +613,7 @@ export class AsyncQueryService extends ProjectService {
         explore: Explore | null;
         metricQuery: MetricQuery | null;
         getExplore?: (name: string) => Promise<Explore | ExploreError>;
-    }): Promise<string> {
+    }): Promise<ResultEntitlementFingerprintForms> {
         let scope = executionScope ?? null;
         if (
             executionScope === undefined &&
@@ -636,13 +638,22 @@ export class AsyncQueryService extends ProjectService {
                 parameterValues: parameters?.resultEffectiveParameters ?? {},
             });
         }
-        return getQueryResultEntitlementFingerprint({
+        return getQueryResultEntitlementFingerprintForms({
             parameters,
             controls,
             explore,
             metricQuery,
             scope,
         });
+    }
+
+    private async getCurrentResultEntitlementFingerprint(
+        args: Parameters<
+            AsyncQueryService['getCurrentResultEntitlementFingerprintForms']
+        >[0],
+    ): Promise<string> {
+        return (await this.getCurrentResultEntitlementFingerprintForms(args))
+            .current;
     }
 
     private getSubmissionQueryHistory(
@@ -2002,7 +2013,7 @@ export class AsyncQueryService extends ProjectService {
             identityEnabled: identityEnabled ?? undefined,
             refreshAccount: getCurrentAccount,
             entitlementFingerprint: async (node: QueryHistory) =>
-                this.getCurrentResultEntitlementFingerprint({
+                this.getCurrentResultEntitlementFingerprintForms({
                     projectUuid,
                     parameters: node.requestParameters,
                     controls: await getControls(),

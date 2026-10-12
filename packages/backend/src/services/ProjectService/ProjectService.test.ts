@@ -11953,9 +11953,13 @@ describe('ProjectService', () => {
             },
         );
 
-        test.each(['stream', 'pivot'] as const)(
-            'downloads the %s writer output using its real sidecar',
-            async (writer) => {
+        test.each(
+            ['stream', 'pivot'].flatMap((writer) =>
+                [false, true].map((oldRecord) => ({ writer, oldRecord })),
+            ),
+        )(
+            'downloads the $writer writer output using its real sidecar with old record=$oldRecord',
+            async ({ writer, oldRecord }) => {
                 const configured = getMockedProjectService(
                     lightdashConfigWithGoogleOAuthMock,
                 );
@@ -11965,10 +11969,15 @@ describe('ProjectService', () => {
                         enabled: featureFlagId === FeatureFlags.AgentIdentity,
                     }),
                 );
-                vi.spyOn(configured, 'getUserAttributes').mockResolvedValue({
-                    userAttributes: {},
+                const controls = {
+                    userAttributes: {
+                        region: oldRecord ? ['US', 'EU'] : ['EU', 'US'],
+                    },
                     intrinsicUserAttributes: {},
-                });
+                };
+                vi.spyOn(configured, 'getUserAttributes').mockResolvedValue(
+                    controls,
+                );
                 vi.spyOn(
                     configured.warehouseClientFactory,
                     'resolveWarehouseCredentials',
@@ -12114,11 +12123,40 @@ describe('ProjectService', () => {
                         },
                     },
                 });
+                if (oldRecord) {
+                    if (!provenance)
+                        throw new Error('Expected producer provenance');
+                    provenance.resultProducer.entitlementFingerprint =
+                        createHash('sha256')
+                            .update(
+                                JSON.stringify([
+                                    Object.entries(controls.userAttributes)
+                                        .filter(
+                                            ([, values]) => values.length > 0,
+                                        )
+                                        .sort(([a], [b]) => a.localeCompare(b)),
+                                    Object.entries(
+                                        controls.intrinsicUserAttributes,
+                                    ).sort(([a], [b]) => a.localeCompare(b)),
+                                ]),
+                            )
+                            .digest('hex');
+                    expect(
+                        provenance.resultProducer.entitlementFingerprint,
+                    ).not.toBe(getResultEntitlementFingerprint(controls));
+                    files.set(
+                        `${rows.get(fileId)!.path}.provenance.txt`,
+                        JSON.stringify(provenance),
+                    );
+                }
+                controls.userAttributes.region = ['US', 'EU'];
+                vi.mocked(configured.getUserAttributes).mockClear();
                 const stream = await configured.getFileStream(
                     user,
                     projectUuid,
                     fileId,
                 );
+                expect(configured.getUserAttributes).toHaveBeenCalledTimes(1);
                 expect(await text(stream)).toBe(
                     `${JSON.stringify(resultsWith1Row.rows[0])}\n`,
                 );

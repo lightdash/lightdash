@@ -91,6 +91,8 @@ import {
     isSameResultAgent,
     isSameResultProducerOwner,
     isSameResultReader,
+    matchesResultEntitlementFingerprint,
+    type ResultEntitlementFingerprintForms,
 } from '../../utils/queryResultProducer';
 import { assertHumanManagedMutation } from '../AgentPermissionService/assertHumanManagedMutation';
 import {
@@ -327,7 +329,9 @@ type ResultReadOptions = {
     authorizeNode?: (node: QueryHistory) => Promise<void>;
     identityEnabled?: boolean;
     refreshAccount?: () => Promise<Account>;
-    entitlementFingerprint?: (node: QueryHistory) => Promise<string>;
+    entitlementFingerprint?: (
+        node: QueryHistory,
+    ) => Promise<ResultEntitlementFingerprintForms>;
     internalLookup?: boolean;
 };
 
@@ -2013,7 +2017,7 @@ export class AiAccessService extends BaseService {
         const currentAccount = refreshAccount
             ? await refreshAccount()
             : account;
-        let currentEntitlement: string | null = null;
+        let currentEntitlement: ResultEntitlementFingerprintForms | null = null;
         const agentActor =
             reader.kind === 'agent'
                 ? {
@@ -2248,8 +2252,10 @@ export class AiAccessService extends BaseService {
                         currentEntitlement = await entitlementFingerprint(node);
                     if (
                         currentEntitlement !== null &&
-                        storedProducer?.entitlementFingerprint !==
-                            currentEntitlement
+                        !matchesResultEntitlementFingerprint(
+                            storedProducer?.entitlementFingerprint ?? null,
+                            currentEntitlement,
+                        )
                     )
                         throw refuse(uuid, 'entitlement_mismatch');
                     if (
@@ -2435,7 +2441,7 @@ export class AiAccessService extends BaseService {
                                         },
                                         currentAccount.user.id,
                                         claim,
-                                        currentEntitlement,
+                                        currentEntitlement?.current ?? null,
                                         reader.authMethod,
                                     );
                             } else {
@@ -2466,7 +2472,7 @@ export class AiAccessService extends BaseService {
                                         resolved,
                                         currentAccount.user.id,
                                         claim,
-                                        currentEntitlement,
+                                        currentEntitlement?.current ?? null,
                                         reader.authMethod,
                                     );
                             }

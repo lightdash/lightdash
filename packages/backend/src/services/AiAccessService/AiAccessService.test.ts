@@ -7202,7 +7202,10 @@ describe('result producer compatibility', () => {
                 f.service.assertCanReadResults(account, 'project', row, {
                     reader: { kind: 'person', authMethod: 'session' },
                     authorizeNode,
-                    entitlementFingerprint: async () => 'after',
+                    entitlementFingerprint: async () => ({
+                        current: 'after',
+                        valueOrderDependent: 'after-old',
+                    }),
                 }),
             ).rejects.toBeInstanceOf(AiAccessRefusedError);
             expect(authorizeNode).toHaveBeenCalledOnce();

@@ -13,8 +13,9 @@ import {
     type UserAccessControls,
 } from '@lightdash/common';
 import {
-    getResultEntitlementFingerprint,
-    getSqlResultEntitlementFingerprint,
+    getResultEntitlementFingerprintForms,
+    getSqlResultEntitlementFingerprintForms,
+    type ResultEntitlementFingerprintForms,
     type ResultEntitlementScope,
 } from '../../utils/queryResultProducer';
 import { agentExecutionContext } from './agentExecutionContext';
@@ -70,7 +71,7 @@ export const getQueryResultRequestParameters = (
         agentExecutionContext.getStore()?.agentConnectionExecution ?? undefined,
 });
 
-export const getQueryResultEntitlementFingerprint = ({
+export const getQueryResultEntitlementFingerprintForms = ({
     parameters,
     controls,
     explore,
@@ -82,14 +83,17 @@ export const getQueryResultEntitlementFingerprint = ({
     explore: Explore | null;
     metricQuery: MetricQuery | null;
     scope?: ResultEntitlementScope | null;
-}): string => {
+}): ResultEntitlementFingerprintForms => {
     const kind = getQueryResultNodeKind(parameters);
     switch (kind) {
         case 'derived':
         case 'sql':
-            return getSqlResultEntitlementFingerprint(controls, parameters);
+            return getSqlResultEntitlementFingerprintForms(
+                controls,
+                parameters,
+            );
         case 'semantic':
-            return getResultEntitlementFingerprint(
+            return getResultEntitlementFingerprintForms(
                 controls,
                 explore,
                 metricQuery,
@@ -99,6 +103,10 @@ export const getQueryResultEntitlementFingerprint = ({
             return assertUnreachable(kind, 'Unknown result node kind');
     }
 };
+
+export const getQueryResultEntitlementFingerprint = (
+    args: Parameters<typeof getQueryResultEntitlementFingerprintForms>[0],
+): string => getQueryResultEntitlementFingerprintForms(args).current;
 
 export const resolveResultEntitlementScope = async ({
     exploreName,
