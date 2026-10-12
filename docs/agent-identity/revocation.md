@@ -91,10 +91,11 @@ Limits to know:
 - An admin cannot revoke another person's grant. There is no endpoint.
 - `/oauth/revoke` answers `200` also when the database call fails. A `200`
   alone does not prove that the token is gone.
-- A grant-bound access token that is revoked on its own gets an expiry of
-  1970-01-01 UTC, or keeps its expiry if it is earlier. The next authentication
-  check refuses it without waiting for the API clock to catch up with the
-  database clock. The row, grant and refresh token are kept.
+- A grant-bound access token that is revoked on its own gets a fixed expiry
+  of 1970-01-01 00:00:00, or keeps its expiry if it is earlier. The next
+  authentication check refuses it. It does not wait for the API clock to
+  catch up with the database clock. This holds for any API clock later than
+  1970. The row, grant and refresh token are kept.
 - Deactivating a person does not revoke the person's grants. They are
   refused while the person is inactive. If the person is reactivated before
   a grant expires, that grant works again.
@@ -310,6 +311,7 @@ compatibility" job):
 | File | Pins |
 |---|---|
 | `agent_revocation_contract.migration.integration.ts` | A revoked grant refuses its access token, its refresh and the check that queued work uses, and a second grant of the same person keeps working. A revoked refresh token ends the grant; a revoked access token does not. A removed project role, capability, allowed project, allowed person, group membership or "agents on" setting is seen by the next permission check, and a handle that was loaded before keeps its **Permissions**. A wider policy does not widen a stored grant. Deactivation deletes the agent sign-in, or rolls back when the delete fails. Removal deletes the person's grants, tokens and own credentials and keeps a shared credential for an external MCP server. |
+| `oauth_access_revocation_clock.migration.integration.ts` | A grant's access token that is revoked on its own is refused at once while the API clock is fixed at 2000 and the database clock is later. The row stays bound, the grant and refresh token stay usable, and a second connection works. A repeated revoke changes nothing, an earlier expiry is kept, and the stored expiry is the same when the database session uses another time zone. |
 | `oauth_refresh_rotation.migration.integration.ts` | With strict refresh handling, revoking a refresh token that is bound to no grant deletes its whole family; a refresh that is in flight cannot bring it back. |
 | `agent_connection_grants.migration.integration.ts` | The rows that a grant revoke changes and keeps. |
 | `agent_sign_in_deactivation.migration.integration.ts` | Deactivation and a new agent sign-in cannot both win, in either order. |

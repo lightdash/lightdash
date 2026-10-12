@@ -289,3 +289,47 @@ it('keeps a bound expiry before the epoch unchanged on repeated revocation', asy
     await revokeAndCheckExpiry();
     await revokeAndCheckExpiry();
 });
+
+it.each(['America/New_York', 'Asia/Tokyo'])(
+    'stores the same fixed expiry when the database session uses %s',
+    async (timeZone) => {
+        const f = await fixture();
+        const live = await f.createConnection();
+        const early = await f.createConnection();
+        const earlyExpiry = new Date('1969-12-31T23:59:59.000Z');
+        await f
+            .database('oauth2_access_tokens')
+            .where('access_token', early.accessToken)
+            .update({ expires_at: earlyExpiry });
+        await f.database.transaction(async (trx) => {
+            await trx.raw('select set_config(?, ?, true)', [
+                'TimeZone',
+                timeZone,
+            ]);
+            const model = new OAuth2Model(trx, lightdashConfig, {
+                get: async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled: featureFlagId === FeatureFlags.AgentIdentity,
+                }),
+            });
+            await expect(
+                model.deleteAccessToken(live.accessToken),
+            ).resolves.toBe(true);
+            await expect(
+                model.deleteAccessToken(early.accessToken),
+            ).resolves.toBe(true);
+        });
+        const expiry = async (token: string) =>
+            (
+                await f
+                    .database('oauth2_access_tokens')
+                    .where('access_token', token)
+                    .first()
+            )?.expires_at;
+        expect(await expiry(live.accessToken)).toEqual(new Date(0));
+        expect(await expiry(early.accessToken)).toEqual(earlyExpiry);
+        await expect(live.authenticate()).rejects.toMatchObject({
+            name: 'invalid_token',
+        });
+    },
+);

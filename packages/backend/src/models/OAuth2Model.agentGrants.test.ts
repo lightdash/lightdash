@@ -634,7 +634,7 @@ it('expires a bound access token with SQL that cannot extend expiry', async () =
         '"agent_connection_grant_uuid" is not null',
     );
     expect(updates[0].sql).toContain(
-        "least(expires_at, TIMESTAMPTZ '1970-01-01 00:00:00+00')",
+        "least(expires_at, TIMESTAMP '1970-01-01 00:00:00')",
     );
     expect(updates[0].sql).not.toContain('now()');
     expect(getTracker().history.delete[0]?.sql).toContain(
@@ -664,7 +664,7 @@ it('preserves an expiry before the epoch in the SQL expression and token lookup'
         .response(row({ expires_at: expiresAt }));
     await expect(model.deleteAccessToken('access')).resolves.toBe(true);
     expect(getTracker().history.update[0].sql).toContain(
-        "least(expires_at, TIMESTAMPTZ '1970-01-01 00:00:00+00')",
+        "least(expires_at, TIMESTAMP '1970-01-01 00:00:00')",
     );
     await expect(model.getAccessToken('access')).resolves.toMatchObject({
         accessTokenExpiresAt: expiresAt,

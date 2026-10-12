@@ -483,7 +483,7 @@ describe('revoked bound bearer lifecycle with a live session', () => {
                 if (tokenRow.agent_connection_grant_uuid === null) return 0;
                 if (
                     sql.includes(
-                        "least(expires_at, TIMESTAMPTZ '1970-01-01 00:00:00+00')",
+                        "least(expires_at, TIMESTAMP '1970-01-01 00:00:00')",
                     )
                 )
                     tokenRow.expires_at = new Date(

@@ -765,7 +765,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
             .whereNotNull('agent_connection_grant_uuid')
             .update({
                 expires_at: this.database.raw(
-                    "least(expires_at, TIMESTAMPTZ '1970-01-01 00:00:00+00')",
+                    "least(expires_at, TIMESTAMP '1970-01-01 00:00:00')",
                 ),
             });
         const result = await this.database('oauth2_access_tokens')
