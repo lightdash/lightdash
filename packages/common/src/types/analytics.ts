@@ -169,6 +169,7 @@ export enum QueryExecutionContext {
     METRICS_EXPLORER = 'metricsExplorer',
     PRE_AGGREGATE_MATERIALIZATION = 'preAggregateMaterialization',
     COMPOSE_SQL_RUNNER = 'composeSqlRunner',
+    PYTHON_RUNNER = 'pythonRunner',
     MULTI_SOURCE_QUERY = 'multiSourceQuery',
     DATA_APP_SAMPLE = 'dataAppSample',
     DESKTOP = 'desktop',

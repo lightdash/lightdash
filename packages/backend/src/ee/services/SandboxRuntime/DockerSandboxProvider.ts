@@ -264,6 +264,11 @@ export class DockerSandboxProvider implements SandboxProvider {
             Tty: false,
             Labels: { [SANDBOX_LABEL]: 'data-app' },
             Env: toEnvList(spec.envs),
+            // Docker has no per-host allowlist: an empty allowlist is honoured
+            // as no network at all; anything else keeps the default bridge.
+            HostConfig: {
+                NetworkMode: spec.egress.allow.length === 0 ? 'none' : 'bridge',
+            },
         });
         await container.start();
         this.logger.info(

@@ -115,6 +115,24 @@ export type ExecuteAsyncComposeSqlQueryRequestParams =
         references?: Record<string, UUID>;
     };
 
+/** Python `run(inputs, params)` over other async queries' results, executed in a sandbox. */
+export type ExecuteAsyncPythonQueryRequestParams =
+    CommonExecuteQueryRequestParams & {
+        /**
+         * Python source defining `run(inputs: dict[str, pandas.DataFrame], params: dict) -> pandas.DataFrame`.
+         * Each key of `references` is exposed in `inputs` as a DataFrame.
+         */
+        code: string;
+        /** Maximum rows kept from the returned DataFrame; the rest are dropped and the result marked truncated. */
+        limit?: number;
+        /**
+         * Results of other async queries exposed to the code as DataFrames, keyed
+         * by input name: {"orders": "<queryUuid>"} is read as inputs["orders"].
+         * Typed Record<string, UUID> for the same TSOA reason as compose SQL.
+         */
+        references: Record<string, UUID>;
+    };
+
 export type ExecuteAsyncExternalSqlQueryRequestParams =
     CommonExecuteQueryRequestParams & {
         sql: string;
@@ -213,6 +231,7 @@ export type ExecuteAsyncQueryRequestParams = (
     | ExecuteAsyncComposeMergeQueryRequestParams
     | ExecuteAsyncSqlQueryRequestParams
     | ExecuteAsyncComposeSqlQueryRequestParams
+    | ExecuteAsyncPythonQueryRequestParams
     | ExecuteAsyncSavedChartRequestParams
     | ExecuteAsyncDashboardChartRequestParams
     | ExecuteAsyncUnderlyingDataRequestParams

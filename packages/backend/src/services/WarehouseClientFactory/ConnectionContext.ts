@@ -156,6 +156,7 @@ export const surfaceFromQueryContext = (
         case QueryExecutionContext.METRICS_EXPLORER:
         case QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION:
         case QueryExecutionContext.COMPOSE_SQL_RUNNER:
+        case QueryExecutionContext.PYTHON_RUNNER:
         case QueryExecutionContext.MULTI_SOURCE_QUERY:
         case QueryExecutionContext.DESKTOP:
             return ConnectionSurface.APP;

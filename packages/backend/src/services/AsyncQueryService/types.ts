@@ -213,6 +213,14 @@ export type ExecuteAsyncComposeSqlQueryArgs = CommonAsyncQueryArgs & {
     pivotConfiguration?: PivotConfiguration;
 };
 
+export type ExecuteAsyncPythonQueryArgs = CommonAsyncQueryArgs & {
+    /** Python source defining run(inputs, params) -> pandas.DataFrame. */
+    code: string;
+    limit?: number;
+    /** Input name -> queryUuid of a previous async query exposed as that DataFrame. */
+    references: Record<string, UUID>;
+};
+
 export type ExecuteAsyncExternalSqlQueryArgs = CommonAsyncQueryArgs & {
     sql: string;
     limit?: number;

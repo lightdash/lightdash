@@ -153,6 +153,7 @@ import {
     type ExecuteAsyncExternalSqlQueryRequestParams,
     type ExecuteAsyncFieldValueSearchRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
+    type ExecuteAsyncPythonQueryRequestParams,
     type ExecuteAsyncQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
@@ -393,6 +394,20 @@ import {
     type PreAggregateStrategy,
     type PreAggregationRoutingDecision,
 } from './PreAggregateStrategy';
+import {
+    parsePythonResultMeta,
+    pythonResultToColumns,
+    pythonResultToFields,
+    resultColumnsToPythonInput,
+    validatePythonCode,
+    validatePythonResultRows,
+    type PythonInputMeta,
+} from './python/pythonQueryHarness';
+import {
+    PythonExecutionError,
+    PythonSandboxRunner,
+    type PythonSandboxInput,
+} from './python/PythonSandboxRunner';
 import { canReuseQueryResult } from './queryResultReuse';
 import { queryUsageProperties } from './queryUsage';
 import {
@@ -415,6 +430,7 @@ import {
     type ExecuteAsyncFieldValueSearchArgs,
     type ExecuteAsyncMergeQueryArgs,
     type ExecuteAsyncMetricQueryArgs,
+    type ExecuteAsyncPythonQueryArgs,
     type ExecuteAsyncQueryReturn,
     type ExecuteAsyncSavedChartQueryArgs,
     type ExecuteAsyncSqlChartArgs,
@@ -756,6 +772,8 @@ export class AsyncQueryService extends ProjectService {
     private readonly organizationAccessService: OrganizationAccessService;
 
     private readonly composeEngineClient: ComposeEngineClient;
+
+    private pythonSandboxRunner: PythonSandboxRunner | undefined;
 
     private readonly getQuerySourceService: () => QuerySourceService;
     private readonly getDocumentService: () => DocumentService;
@@ -10432,6 +10450,441 @@ export class AsyncQueryService extends ProjectService {
             usedParametersValues: {},
             resolvedTimezone: null,
         };
+    }
+
+    /** Python queries run for at most this long inside the sandbox. */
+    static readonly PYTHON_RUN_TIMEOUT_MS = 5 * 60 * 1000;
+
+    private getPythonSandboxRunner(): PythonSandboxRunner {
+        if (!this.pythonSandboxRunner) {
+            this.pythonSandboxRunner = new PythonSandboxRunner({
+                lightdashConfig: this.lightdashConfig,
+                logger: this.logger,
+            });
+        }
+        return this.pythonSandboxRunner;
+    }
+
+    /**
+     * Runs python `run(inputs, params)` over other queries' results in a
+     * sandbox and streams the returned DataFrame through the standard async
+     * query pipeline, so results are polled with getAsyncQueryResults like
+     * any other async query. Mirrors executeAsyncComposeSqlQuery: the same
+     * flag, the same ability, the same reference authorization. The sandbox
+     * holds no credentials and has no egress; the referenced result files
+     * are pushed in and the one result file is read back and re-validated
+     * here before it is written as a result.
+     */
+    async executeAsyncPythonQuery({
+        account,
+        projectUuid,
+        code,
+        context,
+        querySurface,
+        limit,
+        references,
+    }: ExecuteAsyncPythonQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
+        assertIsAccountWithOrg(account);
+
+        const { enabled: isEndpointEnabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.ComposeSqlRunner,
+        });
+        if (!isEndpointEnabled) {
+            throw new ForbiddenError('Python queries are not enabled');
+        }
+
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
+        const { organizationUuid } = projectSummary;
+
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Explore', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (Object.keys(references).length === 0) {
+            throw new ParameterError(
+                'A python query must reference at least one query result.',
+            );
+        }
+        validatePythonCode(code);
+
+        const { maxLimit, defaultLimit } = this.lightdashConfig.query;
+        const effectiveLimit = limit ?? defaultLimit;
+        if (!Number.isInteger(effectiveLimit) || effectiveLimit < 1) {
+            throw new ParameterError('limit must be a positive integer');
+        }
+        if (effectiveLimit > maxLimit) {
+            throw new ParameterError(`limit must be at most ${maxLimit} rows`);
+        }
+
+        const agentIdentity = await this.authorizeQueryReferences({
+            account,
+            projectUuid,
+            references,
+            context,
+            querySurface,
+        });
+
+        const queryTags: RunQueryTags = withAgentMarkerTag({
+            ...this.getUserQueryTags(account),
+            ...AsyncQueryService.getSchedulerQueryTags(),
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            query_context: context,
+        });
+
+        const requestParameters: ExecuteAsyncPythonQueryRequestParams = {
+            code,
+            limit: effectiveLimit,
+            context,
+            references,
+        };
+        // No seed in the key: the same code over the same inputs is one
+        // result, and a re-run is an explicit new submission, so each
+        // submission gets its own file.
+        const cacheKey = `${QueryHistoryModel.getCacheKey(projectUuid, {
+            sql: JSON.stringify({ code, references, limit: effectiveLimit }),
+            userUuid: null,
+        })}.${randomUUID()}`;
+
+        const queryCreatedAt = new Date();
+        const { queryUuid } = await this.createQueryHistory(
+            account,
+            {
+                projectUuid,
+                organizationUuid,
+                context,
+                ...(agentIdentity ? { agentIdentity } : {}),
+                fields: {},
+                compiledSql: code,
+                requestParameters,
+                usedParameters: {},
+                metricQuery: {
+                    exploreName: SQL_QUERY_MOCK_EXPLORER_NAME,
+                    dimensions: [],
+                    metrics: [],
+                    filters: {},
+                    sorts: [],
+                    limit: effectiveLimit,
+                    tableCalculations: [],
+                    additionalMetrics: [],
+                },
+                cacheKey,
+                pivotConfiguration: null,
+                originalColumns: {},
+            },
+            undefined,
+            undefined,
+            querySurface,
+        );
+        this.prometheusMetrics?.trackQueryStateTransition(
+            'new',
+            QueryHistoryStatus.PENDING,
+            context,
+        );
+
+        void this.runPythonQuery({
+            account,
+            queryUuid,
+            projectUuid,
+            code,
+            references,
+            limit: effectiveLimit,
+            cacheKey,
+            context,
+            queryTags,
+            queryCreatedAt,
+        }).catch((e) => {
+            this.logger.error(
+                `Async python query ${queryUuid} failed outside its error path: ${getErrorMessage(
+                    e,
+                )}`,
+            );
+        });
+
+        return {
+            queryUuid,
+            cacheMetadata: { cacheHit: false },
+            parameterReferences: [],
+            usedParametersValues: {},
+            resolvedTimezone: null,
+        };
+    }
+
+    /** Reads a referenced result file whole; python inputs are bounded by the node limits. */
+    private static async readStreamToBuffer(
+        stream: NodeJS.ReadableStream,
+    ): Promise<Buffer> {
+        const chunks: Buffer[] = [];
+        for await (const chunk of stream) {
+            chunks.push(
+                typeof chunk === 'string' ? Buffer.from(chunk, 'utf8') : chunk,
+            );
+        }
+        return Buffer.concat(chunks);
+    }
+
+    /**
+     * The background phase of a python query: wait for the referenced
+     * results, push their files into a sandbox, run the harness, re-validate
+     * what comes back and write it as a regular JSONL result. Every phase is
+     * a span under python.query.run.
+     */
+    private async runPythonQuery({
+        account,
+        queryUuid,
+        projectUuid,
+        code,
+        references,
+        limit,
+        cacheKey,
+        context,
+        queryTags,
+        queryCreatedAt,
+    }: {
+        account: Account;
+        queryUuid: string;
+        projectUuid: string;
+        code: string;
+        references: Record<string, string>;
+        limit: number;
+        cacheKey: string;
+        context: QueryExecutionContext;
+        queryTags: RunQueryTags;
+        queryCreatedAt: Date;
+    }): Promise<void> {
+        const attributes = {
+            'lightdash.queryUuid': queryUuid,
+            'lightdash.projectUuid': projectUuid,
+            'lightdash.queryContext': queryTags.query_context,
+            'lightdash.referenceCount': Object.keys(references).length,
+            'lightdash.limit': limit,
+        };
+        await traceSpan(
+            { op: 'python.query.run', name: 'python.query.run', attributes },
+            async (span) => {
+                const startedAt = Date.now();
+                try {
+                    const histories = await traceSpan(
+                        {
+                            op: 'python.query.wait_references',
+                            name: 'python.query.wait_references',
+                            attributes,
+                        },
+                        () =>
+                            this.waitForQueryReferences({
+                                projectUuid,
+                                references,
+                                labelByTable: {},
+                            }),
+                    );
+
+                    const inputMeta: PythonInputMeta = {
+                        inputs: {},
+                        params: {},
+                        limit,
+                    };
+                    const inputs = await traceSpan(
+                        {
+                            op: 'python.query.read_inputs',
+                            name: 'python.query.read_inputs',
+                            attributes,
+                        },
+                        () =>
+                            Promise.all(
+                                Object.entries(histories).map(
+                                    async ([
+                                        name,
+                                        history,
+                                    ]): Promise<PythonSandboxInput> => {
+                                        if (
+                                            history.resultsExpiresAt &&
+                                            history.resultsExpiresAt <
+                                                new Date()
+                                        ) {
+                                            throw new ResultsExpiredError();
+                                        }
+                                        if (!history.resultsFileName) {
+                                            throw new NotFoundError(
+                                                `Result file not found for query ${history.queryUuid}`,
+                                            );
+                                        }
+                                        const columns =
+                                            Object.keys(history.columns ?? {})
+                                                .length === 0 &&
+                                            history.totalRowCount === 0
+                                                ? getColumnsFromItemsMap(
+                                                      history.fields,
+                                                  )
+                                                : (history.columns ?? {});
+                                        inputMeta.inputs[name] = {
+                                            columns:
+                                                resultColumnsToPythonInput(
+                                                    columns,
+                                                ),
+                                        };
+                                        const storageClient =
+                                            this.getResultsStorageClientForContext(
+                                                history.context,
+                                            );
+                                        const stream =
+                                            await storageClient.getDownloadStream(
+                                                history.resultsFileName,
+                                            );
+                                        return {
+                                            name,
+                                            jsonl: await AsyncQueryService.readStreamToBuffer(
+                                                stream,
+                                            ),
+                                        };
+                                    },
+                                ),
+                            ),
+                    );
+
+                    const run = await this.getPythonSandboxRunner().run({
+                        queryUuid,
+                        code,
+                        inputs,
+                        inputMeta,
+                        timeoutMs: AsyncQueryService.PYTHON_RUN_TIMEOUT_MS,
+                    });
+
+                    const { meta, rows } = await traceSpan(
+                        {
+                            op: 'python.query.validate_output',
+                            name: 'python.query.validate_output',
+                            attributes: {
+                                ...attributes,
+                                'lightdash.resultBytes':
+                                    run.resultJsonl.byteLength,
+                            },
+                        },
+                        async () => {
+                            const parsedMeta = parsePythonResultMeta(
+                                run.resultMeta,
+                            );
+                            return {
+                                meta: parsedMeta,
+                                rows: validatePythonResultRows(
+                                    run.resultJsonl,
+                                    parsedMeta,
+                                    limit,
+                                ),
+                            };
+                        },
+                    );
+                    span.setAttributes({
+                        'lightdash.rowCount': rows.length,
+                        'lightdash.truncated': meta.truncated,
+                    });
+
+                    const resultsStorageClient =
+                        this.getResultsStorageClientForContext(context);
+                    if (!resultsStorageClient.isEnabled) {
+                        throw new S3Error('S3 is not enabled');
+                    }
+                    const fileName =
+                        QueryHistoryModel.createUniqueResultsFileName(cacheKey);
+                    const createdAt = new Date();
+                    await traceSpan(
+                        {
+                            op: 's3.upload',
+                            name: 'python.query.upload_result',
+                            attributes: {
+                                ...attributes,
+                                'lightdash.totalRows': rows.length,
+                            },
+                        },
+                        async () => {
+                            const upload =
+                                resultsStorageClient.createUploadStream(
+                                    S3ResultsFileStorageClient.sanitizeFileExtension(
+                                        fileName,
+                                    ),
+                                    { contentType: 'application/jsonl' },
+                                );
+                            await upload.write(rows);
+                            await upload.close();
+                        },
+                    );
+
+                    const expiresAt = await this.getCacheExpiresAt(
+                        projectUuid,
+                        createdAt,
+                    );
+                    await this.queryHistoryModel.update(
+                        queryUuid,
+                        projectUuid,
+                        {
+                            status: QueryHistoryStatus.READY,
+                            error: null,
+                            warehouse_execution_time_ms: Date.now() - startedAt,
+                            total_row_count: rows.length,
+                            results_file_name: fileName,
+                            results_created_at: createdAt,
+                            results_updated_at: new Date(),
+                            results_expires_at: expiresAt,
+                            columns: pythonResultToColumns(meta),
+                            fields: pythonResultToFields(meta),
+                        },
+                        account,
+                    );
+                    this.prometheusMetrics?.trackQueryStateTransition(
+                        QueryHistoryStatus.PENDING,
+                        QueryHistoryStatus.READY,
+                        context,
+                    );
+                    this.trackQueryTerminalStatus(
+                        QueryHistoryStatus.READY,
+                        queryCreatedAt,
+                        context,
+                    );
+                    this.logger.info(
+                        `Python query ${queryUuid} ready: ${rows.length} rows${
+                            meta.truncated ? ' (truncated)' : ''
+                        } in ${Date.now() - startedAt}ms`,
+                    );
+                } catch (e) {
+                    const message =
+                        e instanceof PythonExecutionError
+                            ? e.message
+                            : getErrorMessage(e);
+                    span.setAttributes({ 'lightdash.error': message });
+                    this.logger.warn(
+                        `Python query ${queryUuid} failed: ${message}`,
+                    );
+                    await this.queryHistoryModel.updateStatusToError(
+                        queryUuid,
+                        projectUuid,
+                        message,
+                        account,
+                    );
+                    this.prometheusMetrics?.trackQueryStateTransition(
+                        QueryHistoryStatus.PENDING,
+                        QueryHistoryStatus.ERROR,
+                        context,
+                    );
+                    this.trackQueryTerminalStatus(
+                        QueryHistoryStatus.ERROR,
+                        queryCreatedAt,
+                        context,
+                    );
+                }
+            },
+        );
     }
 
     /**
