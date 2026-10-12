@@ -37,7 +37,9 @@ vi.mock('../../hooks/toaster/useToaster', () => ({
         showToastApiError: toasts.error,
     }),
 }));
-vi.mock('./OrganizationAgentIdentitySection', () => ({ default: () => null }));
+vi.mock('./OrganizationAgentIdentitySection', () => ({
+    OrganizationAgentIdentityCard: () => null,
+}));
 const api = vi.mocked(lightdashApi);
 let settings = agentSettingsMcpMock();
 const renderPages = (input: {
@@ -81,6 +83,7 @@ beforeEach(() => {
                 settings = { ...settings, ...JSON.parse(String(request.body)) };
             return settings;
         }
+        if (request.url === '/org/projects') return [];
         if (request.url === '/org/agent-identity')
             return agentSettingsIdentityMock;
         if (request.url === '/org/agent-permissions')

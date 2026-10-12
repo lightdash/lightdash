@@ -2,12 +2,15 @@ import {
     type OrganizationAgentIdentitySnowflakeSetup,
     type OrganizationAgentIdentitySnowflakeVerify,
 } from '@lightdash/common';
+import { Button } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../api';
 import { renderWithProviders } from '../../testing/testUtils';
+import { useSnowflakeAgentVerify } from './api';
 import { SnowflakeAgentSetup } from './SnowflakeAgentSetup';
 
 const mocks = vi.hoisted(() => ({
@@ -66,6 +69,21 @@ const verified: OrganizationAgentIdentitySnowflakeVerify = {
         },
     ],
 };
+const ActiveSetupHarness = () => {
+    const verify = useSnowflakeAgentVerify(true);
+    const [expanded, setExpanded] = useState<boolean | null>(null);
+    return (
+        <>
+            <Button onClick={() => setExpanded(true)}>View setup</Button>
+            <SnowflakeAgentSetup
+                mode="active"
+                verify={verify}
+                expanded={expanded}
+                onToggle={() => setExpanded(false)}
+            />
+        </>
+    );
+};
 const renderSetup = (active = false) => {
     const client = new QueryClient({
         defaultOptions: { queries: { retry: false } },
@@ -75,7 +93,7 @@ const renderSetup = (active = false) => {
         <QueryClientProvider client={client}>
             <MemoryRouter>
                 {active ? (
-                    <SnowflakeAgentSetup mode="active" />
+                    <ActiveSetupHarness />
                 ) : (
                     <SnowflakeAgentSetup
                         mode="pending"

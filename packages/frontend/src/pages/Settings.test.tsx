@@ -400,13 +400,19 @@ describe('Agent identity settings routes', () => {
                     screen.getByRole('link', { name: 'Agents' }),
                 ).toHaveAttribute('href', '/generalSettings/agentIdentity');
                 expect(
-                    screen.getByText(/Choose who agents run as/),
+                    screen.getByRole('heading', { name: 'Identity' }),
                 ).toBeInTheDocument();
                 expect(
                     screen.getByText(
                         'Who agents run as, and what they may do. Agents are Ask AI, the Slack agent, MCP clients and the CLI.',
                     ),
                 ).toBeInTheDocument();
+                expect(
+                    screen.getByText('No warehouses in use yet.'),
+                ).toBeInTheDocument();
+                expect(
+                    screen.queryByText(/^Agents run as the person asking/),
+                ).not.toBeInTheDocument();
                 for (const link of screen.getAllByRole('link', {
                     name: 'My warehouse connections',
                 })) {
@@ -484,7 +490,7 @@ describe('Agent identity settings routes', () => {
             screen.getByText('No warehouse credentials'),
         ).toBeInTheDocument();
         expect(
-            screen.queryByText(/Choose who agents run as/),
+            screen.queryByRole('heading', { name: 'Identity' }),
         ).not.toBeInTheDocument();
         expect(
             screen.queryByRole('heading', { name: 'Agents' }),
