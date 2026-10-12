@@ -1,12 +1,27 @@
 import OAuth2Server from '@node-oauth/oauth2-server';
 import express from 'express';
 import { once } from 'node:events';
+import { readFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { type AddressInfo } from 'node:net';
+import path from 'node:path';
 import { defaultSessionUser } from '../auth/account/account.mock';
 import { InvalidTargetError } from '../auth/oauthScopes/oauthResources';
 import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import oauthRouter from './oauthRouter';
+
+const readOrdinaryResponses = (): Record<string, Record<string, unknown>> => {
+    const contents = readFileSync(
+        path.join(__dirname, '__fixtures__', 'oauthRouter.ordinaryPaths.json'),
+        'utf8',
+    );
+    try {
+        return JSON.parse(contents);
+    } catch {
+        throw new Error('The ordinary OAuth response fixture is invalid.');
+    }
+};
+const ordinaryResponses = readOrdinaryResponses();
 
 const clients = [
     {
@@ -221,9 +236,13 @@ it.each(clients)(
                 );
                 if (variant === 'baseline') {
                     Object.assign(captured, compared);
-                    expect(captured).toMatchSnapshot();
+                    expect(captured).toEqual(
+                        ordinaryResponses[client.name].baseline,
+                    );
                 } else if (variant === 'flag-off-unknown') {
-                    expect(compared).toMatchSnapshot('unknown agent request');
+                    expect(compared).toEqual(
+                        ordinaryResponses[client.name]['flag-off-unknown'],
+                    );
                 } else expect(compared).toEqual(captured);
                 if (variant !== 'flag-off-unknown') {
                     expect(flag).not.toHaveBeenCalled();

@@ -1,11 +1,14 @@
+import { JWT_HEADER_NAME } from '@lightdash/common';
 import express from 'express';
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import fetch from 'node-fetch';
 import { once } from 'node:events';
+import { request as httpRequest } from 'node:http';
 import { type AddressInfo } from 'node:net';
 import { fromSession } from '../auth/account/account';
 import { defaultSessionUser } from '../auth/account/account.mock';
+import { lightdashConfig } from '../config/lightdashConfig';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import {
     AGENT_CONNECTION_REQUEST_PATH,
@@ -13,6 +16,7 @@ import {
 } from '../controllers/authentication/agentConnectionApproval';
 import { RegisterRoutes } from '../generated/routes';
 import Logger from '../logging/logger';
+import { jwtAuthMiddleware } from '../middlewares/jwtAuthMiddleware';
 import { AgentConnectionApprovalRequestError } from '../models/AgentConnectionApprovalRequestModel';
 import { AgentConnectionGrantModel } from '../models/AgentConnectionGrantModel';
 import { ModelRepository } from '../models/ModelRepository';
@@ -158,6 +162,7 @@ const fixture = async () => {
             Boolean(req.user)) as typeof req.isAuthenticated;
         next();
     });
+    app.use(jwtAuthMiddleware);
     app.use('/api/v1/oauth', oauthRouter);
     RegisterRoutes(app);
     const server = app.listen(0, '127.0.0.1');
@@ -743,3 +748,151 @@ it('carries an opaque signed-out login through a default-off instance for a scop
         await f.close();
     }
 });
+
+it.each(
+    ['create', 'review', 'decision', 'completion', 'authorize'].flatMap(
+        (route) =>
+            [
+                [JWT_HEADER_NAME, 'embed-sentinel'],
+                [JWT_HEADER_NAME, ''],
+                [
+                    'Authorization',
+                    '',
+                    'Authorization',
+                    'Bearer credential-sentinel',
+                ],
+            ].map((credentialHeaders) => ({ route, credentialHeaders })),
+    ),
+)(
+    'refuses credential ambiguity on $route: $credentialHeaders',
+    async ({ route, credentialHeaders }) => {
+        const f = await fixture();
+        try {
+            const paths: Record<string, string> = {
+                create: AGENT_CONNECTION_REQUEST_PATH,
+                authorize: `/api/v1/oauth/authorize?agent_request=${requestUuid}`,
+                review: `${AGENT_CONNECTION_REQUEST_PATH}/${requestUuid}`,
+                decision: `${AGENT_CONNECTION_REQUEST_PATH}/${requestUuid}/decision`,
+                completion: `${AGENT_CONNECTION_REQUEST_PATH}/${requestUuid}/completion`,
+            };
+            const path = paths[route];
+            const method =
+                route === 'create' || route === 'decision' ? 'POST' : 'GET';
+            {
+                const result = await new Promise<{
+                    status: number;
+                    body: string;
+                }>((resolve, reject) => {
+                    const call = httpRequest(
+                        `${f.base}${path}`,
+                        {
+                            method,
+                            headers: [
+                                'Host',
+                                new URL(f.base).host,
+                                'Content-Type',
+                                'application/json',
+                                'Origin',
+                                new URL(lightdashConfigMock.siteUrl).origin,
+                                'Cookie',
+                                'connect.sid=session-sentinel',
+                                ...credentialHeaders,
+                            ],
+                        },
+                        (response) => {
+                            const chunks: Buffer[] = [];
+                            response.on('data', (chunk: Buffer) =>
+                                chunks.push(chunk),
+                            );
+                            response.on('end', () =>
+                                resolve({
+                                    status: response.statusCode!,
+                                    body: Buffer.concat(chunks).toString(),
+                                }),
+                            );
+                        },
+                    );
+                    call.on('error', reject);
+                    call.end(
+                        method === 'POST' ? JSON.stringify(body) : undefined,
+                    );
+                });
+                expect({
+                    route,
+                    credentialHeaders,
+                    status: result.status,
+                }).toEqual({ route, credentialHeaders, status: 403 });
+            }
+            expect(f.pat).not.toHaveBeenCalled();
+            f.noIssuance();
+        } finally {
+            await f.close();
+        }
+    },
+);
+
+it.each(['signed-out', 'service-account', 'embed', 'oauth'])(
+    'refuses an existing %s principal or actual embed header before PAT replacement',
+    async (mode) => {
+        const f = await fixture();
+        try {
+            const response = await f.post(body, {
+                'x-test-auth': mode,
+                authorization: 'ApiKey pat-sentinel',
+                ...(mode === 'signed-out'
+                    ? { [JWT_HEADER_NAME]: 'embed-sentinel' }
+                    : {}),
+            });
+            expect(response.status).toBe(403);
+            expect(f.pat).not.toHaveBeenCalled();
+            expect(f.records).toEqual([]);
+            f.noIssuance();
+        } finally {
+            await f.close();
+        }
+    },
+);
+
+it.each(['session', 'signed-out'])(
+    'keeps the canonical instance sub-path for a %s hand-off',
+    async (mode) => {
+        const previous = lightdashConfig.siteUrl;
+        lightdashConfig.siteUrl = 'https://example.test/team///';
+        const f = await fixture();
+        try {
+            vi.spyOn(
+                f.models.getAgentConnectionApprovalRequestModel(),
+                'findOwned',
+            ).mockResolvedValue({
+                agent_connection_approval_request_uuid: requestUuid,
+                subject_user_uuid: defaultSessionUser.userUuid,
+                organization_uuid: defaultSessionUser.organizationUuid,
+                decision_consumed_at: null,
+                callback_consumed_at: null,
+            } as never);
+            const response = await fetch(
+                `${f.base}/api/v1/oauth/authorize?agent_request=${requestUuid}`,
+                {
+                    headers: { 'x-test-auth': mode },
+                    redirect: 'manual',
+                },
+            );
+            expect(response.status).toBe(302);
+            const location = new URL(response.headers.get('location')!);
+            if (mode === 'session') {
+                expect(location.pathname + location.search).toBe(
+                    `/team/agent/connection-approval?request=${requestUuid}`,
+                );
+            } else {
+                expect(location.pathname).toBe('/team/login');
+                expect(location.searchParams.get('redirect')).toBe(
+                    `/team/api/v1/oauth/authorize?agent_request=${requestUuid}`,
+                );
+            }
+            f.noIssuance();
+        } finally {
+            lightdashConfig.siteUrl = previous;
+            await f.close();
+        }
+    },
+);

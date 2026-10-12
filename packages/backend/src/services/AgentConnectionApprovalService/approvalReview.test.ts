@@ -52,9 +52,10 @@ const fixture = () => {
             consumeCallback: vi.fn(),
         },
         userModel: {
-            findSessionUserAndOrgByUuid: vi
-                .fn()
-                .mockResolvedValue(defaultSessionUser),
+            findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue({
+                ...defaultSessionUser,
+                ability: new Ability([{ action: 'manage', subject: 'all' }]),
+            }),
         },
         projectModel: {
             getAllByOrganizationUuid: vi.fn().mockResolvedValue([
@@ -159,7 +160,7 @@ it('omits unrequested capabilities and unknown or inaccessible projects without 
         ability: new Ability([
             {
                 action: 'view',
-                subject: 'Project',
+                subject: ['Project', 'Explore'],
                 conditions: { projectUuid: a },
             },
         ]),
@@ -332,7 +333,7 @@ it.each(['throws', 'missing'] as const)(
     },
 );
 
-it('requires the upload and source effect permissions as well as the base operation', async () => {
+it('checks each supported capability independently like connection status', async () => {
     const { deps, service } = fixture();
     deps.agentPermissionService.evaluateOperations.mockImplementation(
         async ({ operations }: AgentPermissionBulkArgs) =>
@@ -465,12 +466,12 @@ it.each([
     expect(() => sealSelection({ ...selection(), ...override })).toThrow();
 });
 
-it('reports unavailable when one candidate is undetermined and the rest are refused', async () => {
+it('reports unavailable when the capability result is missing', async () => {
     const { deps, service } = fixture();
     deps.agentPermissionService.evaluateOperations.mockImplementation(
         async ({ operations }: AgentPermissionBulkArgs) =>
             operations.map((op) =>
-                op.key === 'QueryController.executeAsyncMetricQuery'
+                op.kind === 'capability' && op.key === C.Query
                     ? undefined
                     : refused,
             ),
@@ -527,3 +528,35 @@ it.each([
         });
     },
 );
+
+it('blocks ordinary person permissions even when every agent policy check allows the action', async () => {
+    const { deps, service } = fixture();
+    deps.userModel.findSessionUserAndOrgByUuid.mockResolvedValue({
+        ...defaultSessionUser,
+        ability: new Ability([{ action: 'view', subject: 'Project' }]),
+    });
+    const answer = await service.getReviewAnswer(account, row);
+    expect(capability(answer[0], C.RawSql)).toEqual({
+        capability: C.RawSql,
+        visibility: 'blocked',
+        reasonCode: 'person_permission',
+        reason: 'Your permissions in this project do not allow this action.',
+    });
+    expect(capability(answer[0], C.ReadDiscover).visibility).toBe('offered');
+    expect(deps.userModel.findSessionUserAndOrgByUuid).toHaveBeenCalledTimes(1);
+});
+
+it('matches status capability approval when a composite operation needs another capability', async () => {
+    const { deps, service } = fixture();
+    deps.agentPermissionService.evaluateOperations.mockImplementation(
+        async ({ operations }: AgentPermissionBulkArgs) =>
+            operations.map((op) =>
+                op.kind === 'capability' && op.key === C.DeployUpload
+                    ? refused
+                    : null,
+            ),
+    );
+    const answer = await service.getReviewAnswer(account, row);
+    expect(capability(answer[0], C.Publish).visibility).toBe('offered');
+    expect(capability(answer[0], C.DeployUpload).visibility).toBe('blocked');
+});

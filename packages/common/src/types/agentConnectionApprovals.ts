@@ -28,6 +28,7 @@ export type AgentConnectionApprovalErrorCode =
     | 'authentication_required'
     | 'agent_identity_disabled'
     | 'person_required'
+    | 'browser_session_required'
     | 'approval_forbidden'
     | 'csrf_failed'
     | 'invalid_approval_request'
@@ -37,6 +38,7 @@ export type AgentConnectionApprovalErrorCode =
     | 'approval_request_not_found'
     | 'approval_request_expired'
     | 'approval_request_consumed'
+    | 'approval_not_decided'
     | 'approval_selection_changed'
     | 'internal_error';
 

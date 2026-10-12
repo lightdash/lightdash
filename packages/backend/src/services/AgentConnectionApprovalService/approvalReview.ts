@@ -62,6 +62,8 @@ const reasons = {
     unsupported: 'This action is not available for connections.',
     unavailable: 'The available permissions could not be checked.',
     role_denied: 'Your role in this project does not allow this action.',
+    person_permission:
+        'Your permissions in this project do not allow this action.',
     agents_disabled: 'Agents are turned off for this organisation.',
     project_denied: 'Agents are turned off for this project.',
     person_not_admitted: 'This person is not allowed to use agents.',
@@ -94,11 +96,6 @@ export const reviewOperations = (
     projectUuid: string,
 ): AgentPermissionBulkArgs['operations'] => [
     { projectUuid, kind: 'agent_turn', key: 'agent_turn' },
-    ...Object.keys(GRANT_OPERATION_CONTRACTS).map((key) => ({
-        projectUuid,
-        kind: 'rest_operation' as const,
-        key,
-    })),
     ...Object.values(AgentCapability)
         .filter(supportsAgentConnectionCapability)
         .map((key) => ({ projectUuid, kind: 'capability' as const, key })),
@@ -110,12 +107,14 @@ export const mapApprovalProject = ({
     operations,
     checks,
     scheduledRefresh,
+    personAllows,
 }: {
     project: Pick<ApprovalProject, 'projectUuid' | 'name'>;
     requested: AgentCapability[];
     operations: AgentPermissionBulkArgs['operations'];
     checks: (AgentPermissionCheck | null | undefined)[];
     scheduledRefresh: boolean | null;
+    personAllows: (capability: AgentCapability) => boolean;
 }): ApprovalProject => {
     const read = (kind: string, key: string) =>
         checks[
@@ -144,6 +143,8 @@ export const mapApprovalProject = ({
             });
             if (!supportsAgentConnectionCapability(capability))
                 return entry('hidden', 'unsupported');
+            if (!personAllows(capability))
+                return entry('blocked', 'person_permission');
             if (
                 scheduledRefreshCapabilities.includes(capability) &&
                 scheduledRefresh !== false
@@ -154,28 +155,9 @@ export const mapApprovalProject = ({
                         ? 'scheduled_pre_aggregate_refresh'
                         : 'unavailable',
                 );
-            const candidates = approvalOperationCatalogue.filter((op) =>
-                op.capabilities.includes(capability),
-            );
-            const results = candidates.map((op) => {
-                if (!op.mapped) return undefined;
-                const required = [
-                    read('rest_operation', op.key),
-                    ...op.capabilities.map((key) => read('capability', key)),
-                ];
-                return (
-                    required.find((check) => check !== null) ??
-                    (required.every((check) => check === null)
-                        ? null
-                        : undefined)
-                );
-            });
-            if (results.some((check) => check === null))
-                return entry('offered', null);
-            if (results.some((check) => check === undefined))
-                return entry('blocked', 'unavailable');
-            const refusal = results.find((check) => check !== undefined);
-            return entry('blocked', refusalCode(refusal ?? undefined));
+            const check = read('capability', capability);
+            if (check === null) return entry('offered', null);
+            return entry('blocked', refusalCode(check));
         }),
     };
 };

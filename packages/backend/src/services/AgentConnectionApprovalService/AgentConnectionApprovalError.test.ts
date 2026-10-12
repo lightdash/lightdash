@@ -62,3 +62,35 @@ it('translates storage errors without changing their code', () => {
         error: { statusCode: 429, code: 'pending_request_limit' },
     });
 });
+
+it.each([
+    [
+        'browser_session_required',
+        403,
+        'A signed-in browser session is required.',
+    ],
+    [
+        'csrf_failed',
+        403,
+        'The request could not be verified. Reload the page and try again.',
+    ],
+    [
+        'approval_not_decided',
+        409,
+        'This approval request has not been decided yet.',
+    ],
+] as const)('describes %s accurately', (code, statusCode, message) => {
+    expect(
+        serializeAgentConnectionApprovalError(
+            new AgentConnectionApprovalError(code),
+        ),
+    ).toEqual({
+        status: 'error',
+        error: {
+            name: 'AgentConnectionApprovalError',
+            statusCode,
+            code,
+            message,
+        },
+    });
+});

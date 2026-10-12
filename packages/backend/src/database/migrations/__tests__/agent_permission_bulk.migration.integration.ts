@@ -8,18 +8,23 @@ import {
     ProjectType,
 } from '@lightdash/common';
 import { fromSession } from '../../../auth/account/account';
-import { GRANT_OPERATION_CONTRACTS } from '../../../auth/agentConnectionGrants/operationContracts';
+import { AgentConnectionService } from '../../../auth/agentConnectionGrants/AgentConnectionService';
+import {
+    GRANT_OPERATION_CONTRACTS,
+    supportsAgentConnectionCapability,
+} from '../../../auth/agentConnectionGrants/operationContracts';
+import { personAllowsAgentCapability } from '../../../auth/agentConnectionGrants/personAllowsAgentCapability';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { AiOrganizationSettingsModel } from '../../../ee/models/AiOrganizationSettingsModel';
 import { AgentActionLogModel } from '../../../models/AgentActionLogModel';
 import { AgentCapabilityPolicyModel } from '../../../models/AgentCapabilityPolicyModel';
 import { AgentConnectionApprovalReadModel } from '../../../models/AgentConnectionApprovalReadModel';
+import { AgentConnectionGrantModel } from '../../../models/AgentConnectionGrantModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../../../models/GroupsModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../../models/UserModel';
 import { AgentConnectionApprovalService } from '../../../services/AgentConnectionApprovalService/AgentConnectionApprovalService';
-import { approvalOperationCatalogue } from '../../../services/AgentConnectionApprovalService/approvalReview';
 import {
     AgentPermissionService,
     agentSystemRoleMatrix,
@@ -45,7 +50,7 @@ afterAll(async () => {
     await migrated?.destroy();
 });
 
-const fixture = async () => {
+const fixture = async (customRolesEnabled = false) => {
     const { database } = migrated;
     const [org] = await database('organizations')
         .insert({ organization_name: 'Bulk permissions' })
@@ -170,7 +175,10 @@ const fixture = async () => {
     });
     const users = new UserModel({
         database,
-        lightdashConfig: lightdashConfigMock,
+        lightdashConfig: {
+            ...lightdashConfigMock,
+            customRoles: { enabled: customRolesEnabled },
+        },
         featureFlagModel,
     });
     const projectModel = new ProjectModel({
@@ -611,7 +619,7 @@ const approvalFixture = (f: Awaited<ReturnType<typeof fixture>>) => {
     return { service, request };
 };
 
-it('review offered and blocked cells agree with independent enforcement for all parity people and projects in managed mode', async () => {
+it('review offered and blocked cells agree with independent capability policy and person permissions in managed mode', async () => {
     const f = await fixture();
     const approval = approvalFixture(f);
     let cells = 0;
@@ -628,39 +636,14 @@ it('review offered and blocked cells agree with independent enforcement for all 
                         (c) => c.visibility !== 'hidden',
                     ),
                     async (capability) => {
-                        const admitted = approvalOperationCatalogue.filter(
-                            (op) =>
-                                op.capabilities.includes(capability.capability),
-                        );
-                        const permitted = await Promise.all(
-                            admitted.map(async (op) => {
-                                const base = {
-                                    account,
-                                    organizationUuid: f.org.organization_uuid,
-                                    surface: AgentActorSurface.CLI,
-                                    projectUuid: project.projectUuid,
-                                };
-                                const results = await Promise.all([
-                                    refusal(
-                                        f.service.assertOperation({
-                                            ...base,
-                                            kind: 'rest_operation',
-                                            key: op.key,
-                                        }),
-                                    ),
-                                    ...op.capabilities.map((key) =>
-                                        refusal(
-                                            f.service.assertOperation({
-                                                ...base,
-                                                kind: 'capability',
-                                                key,
-                                            }),
-                                        ),
-                                    ),
-                                ]);
-                                return results.every(
-                                    (result) => result === null,
-                                );
+                        const result = await refusal(
+                            f.service.assertOperation({
+                                account,
+                                organizationUuid: f.org.organization_uuid,
+                                surface: AgentActorSurface.CLI,
+                                projectUuid: project.projectUuid,
+                                kind: 'capability',
+                                key: capability.capability,
                             }),
                         );
                         expect({
@@ -672,7 +655,13 @@ it('review offered and blocked cells agree with independent enforcement for all 
                             project: project.projectUuid,
                             person: account.user.id,
                             capability: capability.capability,
-                            offered: permitted.some(Boolean),
+                            offered:
+                                personAllowsAgentCapability(
+                                    account.user.ability,
+                                    f.org.organization_uuid,
+                                    project.projectUuid,
+                                    capability.capability,
+                                ) && result === null,
                         });
                         cells += 1;
                     },
@@ -732,7 +721,13 @@ it('review answer uses equal SQL round trips for 3 and 50 differentiated project
                 (c) => c.capability === AgentCapability.Query,
             )?.visibility,
         ).toBe(
-            fixtureIndex % 2 === 1 || fixtureIndex === 2
+            (fixtureIndex % 2 === 1 || fixtureIndex === 2) &&
+                personAllowsAgentCapability(
+                    f.accounts[7].user.ability,
+                    f.org.organization_uuid,
+                    project.projectUuid,
+                    AgentCapability.Query,
+                )
                 ? 'offered'
                 : 'blocked',
         );
@@ -805,3 +800,143 @@ it('reads scheduled refresh from both real schema sources and narrows only the a
         ).toBe('offered');
     }
 });
+
+it.each(['managed', 'legacy'] as const)(
+    'review agrees with status for every parity person/project/capability in %s mode',
+    async (mode) => {
+        const f = await fixture(true);
+        await f.savePolicy({
+            mode,
+            systemRoleMatrix: {
+                ...f.roleMatrix,
+                viewer: [AgentCapability.Query, AgentCapability.RawSql],
+            },
+        });
+        await f.database('scoped_roles').insert(
+            [
+                'view:Project',
+                'manage:SqlRunner',
+                AGENT_CAPABILITY_SCOPES[AgentCapability.RawSql],
+            ].map((scope_name) => ({
+                role_uuid: f.custom.role_uuid,
+                scope_name,
+                granted_by: f.people[0].user_uuid,
+            })),
+        );
+        const approval = approvalFixture(f);
+        const statusService = new AgentConnectionService({
+            model: new AgentConnectionGrantModel({ database: f.database }),
+            userModel: f.users,
+            projectModel: f.projectModel,
+            featureFlags: f.flags,
+            getAgentPermissionService: () => f.service,
+        });
+        const supported = Object.values(AgentCapability).filter(
+            supportsAgentConnectionCapability,
+        );
+        let cells = 0;
+        await forEachSequential(
+            [...f.accounts.entries()],
+            async ([index, account]) => {
+                const answer = await approval.service.getReviewAnswer(
+                    account,
+                    approval.request(index, 3),
+                );
+                await forEachSequential(
+                    f.projects.slice(0, 3),
+                    async (project) => {
+                        await forEachSequential(
+                            supported,
+                            async (capability) => {
+                                const [grant] = await f
+                                    .database('agent_connection_grants')
+                                    .insert({
+                                        organization_uuid:
+                                            f.org.organization_uuid,
+                                        subject_user_uuid: account.user.id,
+                                        client_id: 'lightdash-cli',
+                                        credential_kind: 'oauth',
+                                        actor_kind: 'agent',
+                                        name: `matrix-${cells}`,
+                                        resource: 'https://instance.example',
+                                        approved_capabilities: [capability],
+                                        approved_project_uuids: [
+                                            project.project_uuid,
+                                        ],
+                                        resource_constraints: {
+                                            version: 2,
+                                            projectCapabilities: {
+                                                [project.project_uuid]: [
+                                                    capability,
+                                                ],
+                                            },
+                                        },
+                                        grant_contract_version: 1,
+                                        approval_method: 'browser_consent',
+                                        expires_at: new Date(
+                                            Date.now() + 60000,
+                                        ),
+                                    })
+                                    .returning('*');
+                                const status = await statusService.status(
+                                    account,
+                                    grant.agent_connection_grant_uuid,
+                                );
+                                const effective =
+                                    status.effectiveProjects[0].capabilities[0];
+                                const cell = answer
+                                    .find(
+                                        (p) =>
+                                            p.projectUuid ===
+                                            project.project_uuid,
+                                    )
+                                    ?.capabilities.find(
+                                        (c) => c.capability === capability,
+                                    );
+                                expect({
+                                    mode,
+                                    person: index,
+                                    project: project.name,
+                                    capability,
+                                    offered: cell?.visibility === 'offered',
+                                }).toEqual({
+                                    mode,
+                                    person: index,
+                                    project: project.name,
+                                    capability,
+                                    offered: effective.allowed,
+                                });
+                                if (
+                                    index === 4 &&
+                                    capability === AgentCapability.RawSql
+                                ) {
+                                    expect(cell).toMatchObject({
+                                        visibility: 'blocked',
+                                        reasonCode: 'person_permission',
+                                    });
+                                    expect(effective).toMatchObject({
+                                        allowed: false,
+                                        reason: 'person_permission',
+                                    });
+                                }
+                                if (
+                                    index === 6 &&
+                                    capability === AgentCapability.RawSql
+                                ) {
+                                    expect(cell?.visibility).toBe('offered');
+                                    expect(effective.allowed).toBe(true);
+                                }
+                                if (!cell)
+                                    expect(effective.reason).toBe(
+                                        'project_access',
+                                    );
+                                cells += 1;
+                            },
+                        );
+                    },
+                );
+            },
+        );
+        expect(cells).toBe(9 * 3 * 8);
+    },
+);

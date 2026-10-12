@@ -1,3 +1,4 @@
+import { JWT_HEADER_NAME } from '@lightdash/common';
 import { type Request, type RequestHandler } from 'express';
 import express from 'express';
 import { fromApiKey, fromSession } from '../../auth/account/account';
@@ -14,6 +15,25 @@ import {
 
 export const AGENT_CONNECTION_REQUEST_PATH =
     '/api/v2/user/agent-connections/requests';
+
+const alternativeCredentialHeaders = [
+    'x-api-key',
+    'x-lightdash-token',
+    JWT_HEADER_NAME,
+];
+
+const approvalHeaderCount = (req: Request, name: string): number =>
+    Math.max(
+        req.rawHeaders.filter(
+            (header, index) => index % 2 === 0 && header.toLowerCase() === name,
+        ).length,
+        Number(Object.hasOwn(req.headers, name)),
+    );
+
+export const hasApprovalCredentialHeader = (req: Request): boolean =>
+    ['authorization', ...alternativeCredentialHeaders].some(
+        (name) => approvalHeaderCount(req, name) > 0,
+    );
 
 export const hasApprovalBrowserSession = (req: Request): boolean =>
     Boolean(
@@ -48,19 +68,20 @@ export const authenticateAgentConnectionApproval: RequestHandler = async (
 ) => {
     try {
         res.set('Cache-Control', 'no-store');
-        const authorizationHeaders = req.rawHeaders.filter(
-            (_, index) =>
-                index % 2 === 0 &&
-                req.rawHeaders[index].toLowerCase() === 'authorization',
-        );
+        if (
+            req.account &&
+            !['session', 'pat'].includes(req.account.authentication.type)
+        )
+            throw new AgentConnectionApprovalError('person_required');
+        const authorizationHeaders = approvalHeaderCount(req, 'authorization');
         const { authorization } = req.headers;
         const browser = hasApprovalBrowserSession(req);
         if (
-            authorizationHeaders.length > 1 ||
-            (browser && authorization) ||
-            req.headers['x-api-key'] ||
-            req.headers['x-lightdash-token'] ||
-            req.headers['x-embed-token']
+            authorizationHeaders > 1 ||
+            (browser && authorizationHeaders > 0) ||
+            alternativeCredentialHeaders.some(
+                (name) => approvalHeaderCount(req, name) > 0,
+            )
         )
             throw new AgentConnectionApprovalError('person_required');
         if (authorization) {
@@ -109,13 +130,10 @@ export const authenticateApprovalReview: RequestHandler = (req, res, next) => {
     try {
         res.set('Cache-Control', 'no-store');
         if (
-            req.headers.authorization ||
-            req.headers['x-api-key'] ||
-            req.headers['x-lightdash-token'] ||
-            req.headers['x-embed-token'] ||
+            hasApprovalCredentialHeader(req) ||
             (req.account && req.account.authentication.type !== 'session')
         )
-            throw new AgentConnectionApprovalError('person_required');
+            throw new AgentConnectionApprovalError('browser_session_required');
         if (!hasApprovalBrowserSession(req))
             throw new AgentConnectionApprovalError('authentication_required');
         if (!isApprovalUuid(req.params.requestUuid))

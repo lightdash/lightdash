@@ -75,6 +75,67 @@ describe('request logging', () => {
         vi.restoreAllMocks();
     });
 
+    it.each([
+        '/api/v1/projects/project-uuid',
+        '/api/v1/oauth/authorize?client_id=ordinary&scope=read%20write',
+        '/api/v2/user/agent-connections',
+        '/api/v2/user/agent-connections/grant-uuid/status',
+        '/unrelated/requests/11111111-1111-4111-8111-111111111111?next=hello+world#fragment',
+        '/callback?code=secret&state=secret&other=value',
+    ])('pins both HTTP loggers for ordinary URL %s', (url) => {
+        vi.spyOn(Date, 'now').mockReturnValue(1000);
+        const logs = vi
+            .spyOn(winstonLogger, 'log')
+            .mockImplementation(() => winstonLogger);
+        lightdashConfig.mode = LightdashMode.DEFAULT;
+        const request = createRequest();
+        request.url = url;
+        const response = createResponse();
+        expressWinstonPreResponseMiddleware(request, response, vi.fn());
+        expressWinstonMiddleware(request, response, vi.fn());
+        response.end();
+        const expectedUrl =
+            url === '/callback?code=secret&state=secret&other=value'
+                ? '/callback?code=[REDACTED]&state=[REDACTED]&other=value'
+                : url;
+        expect(logs.mock.calls.map(([entry]) => JSON.stringify(entry))).toEqual(
+            [
+                JSON.stringify({
+                    level: 'http',
+                    message: `GET ${expectedUrl}`,
+                    req: { method: 'GET', url: expectedUrl },
+                    includesResponse: false,
+                }),
+                JSON.stringify({
+                    req: {
+                        url: expectedUrl,
+                        headers: {
+                            host: 'lightdash.example.com',
+                            'user-agent': 'logging-test',
+                            'x-request-id': 'request-id',
+                            'lightdash-app-uuid': 'app-uuid',
+                            'lightdash-build-hash': 'build-hash',
+                            'lightdash-cli-version': '1.2.3',
+                            'lightdash-request-method': 'CLI',
+                            'lightdash-sdk-version': '4.5.6',
+                            'lightdash-signed-download': 'true',
+                            'lightdash-version': '7.8.9',
+                        },
+                        method: 'GET',
+                    },
+                    res: { statusCode: 200 },
+                    responseTime: 0,
+                    requestMethod: 'CLI',
+                    sdkVersion: '4.5.6',
+                    clientVersion: '7.8.9',
+                    includesResponse: true,
+                    level: 'http',
+                    message: `GET ${expectedUrl} 200 - 0 ms`,
+                }),
+            ],
+        );
+    });
+
     it('omits headers from pre-response logs', () => {
         const logSpy = vi
             .spyOn(winstonLogger, 'log')

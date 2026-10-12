@@ -1,4 +1,10 @@
-import { AiAccessRefusalReason, AgentCapability as C } from '@lightdash/common';
+import { Ability } from '@casl/ability';
+import {
+    AiAccessRefusalReason,
+    AgentCapability as C,
+    LightdashMode,
+    type SessionUser,
+} from '@lightdash/common';
 import express from 'express';
 import fetch, { type RequestInit } from 'node-fetch';
 import { createHash, randomUUID } from 'node:crypto';
@@ -13,6 +19,10 @@ import {
 } from '../../../controllers/authentication/agentConnectionApproval';
 import { RegisterRoutes } from '../../../generated/routes';
 import Logger from '../../../logging/logger';
+import {
+    expressWinstonMiddleware,
+    expressWinstonPreResponseMiddleware,
+} from '../../../logging/winston';
 import { AgentConnectionGrantModel } from '../../../models/AgentConnectionGrantModel';
 import { ModelRepository } from '../../../models/ModelRepository';
 import { OAuth2Model } from '../../../models/OAuth2Model';
@@ -30,6 +40,7 @@ vi.mock('../../../config/lightdashConfig', async () => {
     return {
         lightdashConfig: {
             ...config,
+            mode: LightdashMode.DEFAULT,
             auth: {
                 ...config.auth,
                 pat: { ...config.auth.pat, enabled: true },
@@ -72,8 +83,9 @@ const fixture = async () => {
     const [user] = await database('users')
         .insert({ first_name: 'Approval', last_name: 'Subject' } as never)
         .returning('*');
-    const person = {
+    const person: SessionUser = {
         ...defaultSessionUser,
+        ability: new Ability([{ action: 'manage', subject: 'all' }]),
         userUuid: user.user_uuid,
         userId: user.user_id,
         organizationUuid: org.organization_uuid,
@@ -139,6 +151,7 @@ const fixture = async () => {
         vi.spyOn(Logger, level).mockImplementation(() => Logger),
     );
     vi.spyOn(Logger, 'child').mockReturnValue(Logger);
+    const httpLogs = vi.spyOn(Logger, 'log').mockImplementation(() => Logger);
     const app = express();
     app.post(AGENT_CONNECTION_REQUEST_PATH, parseAgentConnectionApprovalBody);
     app.post(
@@ -168,6 +181,8 @@ const fixture = async () => {
             Boolean(req.user)) as typeof req.isAuthenticated;
         next();
     });
+    app.use(expressWinstonPreResponseMiddleware);
+    app.use(expressWinstonMiddleware);
     app.use('/api/v1/oauth', oauthRouter);
     RegisterRoutes(app);
     const server = app.listen(0, '127.0.0.1');
@@ -254,6 +269,7 @@ const fixture = async () => {
     const before = await counts();
     return {
         call,
+        httpLogs,
         create,
         review,
         decide,
@@ -285,16 +301,20 @@ const fixture = async () => {
                     if (nonce) {
                         expect(JSON.stringify(rows)).not.toContain(nonce);
                         expect(
-                            JSON.stringify(
-                                logs.flatMap((log) => log.mock.calls),
-                            ),
+                            JSON.stringify([
+                                ...logs.flatMap((log) => log.mock.calls),
+                                ...httpLogs.mock.calls,
+                            ]),
                         ).not.toContain(nonce);
                     }
                 }
                 for (const value of [
                     JSON.stringify(rows),
                     JSON.stringify(responses),
-                    JSON.stringify(logs.flatMap((log) => log.mock.calls)),
+                    JSON.stringify([
+                        ...logs.flatMap((log) => log.mock.calls),
+                        ...httpLogs.mock.calls,
+                    ]),
                 ])
                     expect(value).not.toMatch(
                         /pat-sentinel|proxy-sentinel|verifier-sentinel/,
@@ -381,6 +401,23 @@ it.each(['approve', 'deny'] as const)(
                           },
                       },
             );
+            expect(sealed!.review_revision).toBeGreaterThan(0);
+            expect(sealed!.approved_at).toEqual(
+                decision === 'approve' ? sealed!.decision_consumed_at : null,
+            );
+            expect(sealed!.approval_policy_version).toBe(
+                decision === 'approve' ? 1 : null,
+            );
+            expect(sealed!.callback_consumed_at).toBeNull();
+            for (const refused of [
+                await f.call(f.path(uuid)),
+                await f.decide(uuid, displayed, { decision }),
+            ]) {
+                expect(refused).toMatchObject({
+                    status: 409,
+                    payload: { error: { code: 'approval_request_consumed' } },
+                });
+            }
             const completion = await f.complete(uuid);
             expect(completion.status).toBe(302);
             const callback = new URL(completion.location!);
@@ -399,7 +436,52 @@ it.each(['approve', 'deny'] as const)(
             ]);
             expect(callback.searchParams.has('code')).toBe(false);
             expect(callback.searchParams.has('grant_uuid')).toBe(false);
-            expect((await f.complete(uuid)).status).toBe(409);
+            const captured = JSON.stringify(f.httpLogs.mock.calls);
+            for (const value of [
+                uuid,
+                input.state,
+                input.codeChallenge,
+                displayed.nonce,
+                'pat-sentinel',
+                'proxy-sentinel',
+                'verifier-sentinel',
+            ])
+                expect(captured).not.toContain(value);
+            const httpEntries = f.httpLogs.mock.calls.map(
+                ([entry]) =>
+                    entry as unknown as {
+                        level: string;
+                        includesResponse: boolean;
+                    },
+            );
+            expect(
+                httpEntries.filter(
+                    (entry) =>
+                        entry.level === 'http' &&
+                        entry.includesResponse === false,
+                ).length,
+            ).toBeGreaterThanOrEqual(5);
+            expect(
+                httpEntries.filter(
+                    (entry) =>
+                        entry.level === 'http' &&
+                        entry.includesResponse === true,
+                ).length,
+            ).toBeGreaterThanOrEqual(5);
+
+            for (const refused of [
+                await f.call(f.path(uuid)),
+                await f.decide(uuid, displayed, { decision }),
+                await f.complete(uuid),
+            ]) {
+                expect(refused).toMatchObject({
+                    status: 409,
+                    payload: { error: { code: 'approval_request_consumed' } },
+                });
+            }
+            expect((await f.row(uuid))!.callback_consumed_at).toBeInstanceOf(
+                Date,
+            );
             expect((await f.decide(uuid, displayed, { decision })).status).toBe(
                 409,
             );
@@ -457,30 +539,42 @@ it.each([
         {},
         { authorization: 'ApiKey pat-sentinel' },
         403,
-        'person_required',
+        'browser_session_required',
     ],
     [
         'OAuth bearer',
         {},
         { authorization: 'Bearer token' },
         403,
-        'person_required',
+        'browser_session_required',
     ],
     [
         'service account',
         {},
         { 'x-test-auth': 'service-account' },
         403,
-        'person_required',
+        'browser_session_required',
     ],
-    ['OAuth account', {}, { 'x-test-auth': 'oauth' }, 403, 'person_required'],
-    ['PAT account', {}, { 'x-test-auth': 'pat' }, 403, 'person_required'],
+    [
+        'OAuth account',
+        {},
+        { 'x-test-auth': 'oauth' },
+        403,
+        'browser_session_required',
+    ],
+    [
+        'PAT account',
+        {},
+        { 'x-test-auth': 'pat' },
+        403,
+        'browser_session_required',
+    ],
     [
         'proxy credential',
         {},
         { 'x-api-key': 'proxy-sentinel' },
         403,
-        'person_required',
+        'browser_session_required',
     ],
     [
         'populated user only',
@@ -500,6 +594,14 @@ it.each([
             const response = await f.decide(uuid, displayed, body, headers);
             expect(response.status).toBe(status);
             expect(response.payload.error.code).toBe(code);
+            if (code === 'csrf_failed')
+                expect(response.payload.error.message).toBe(
+                    'The request could not be verified. Reload the page and try again.',
+                );
+            if (code === 'browser_session_required')
+                expect(response.payload.error.message).toBe(
+                    'A signed-in browser session is required.',
+                );
             expect(await f.row(uuid)).toEqual(before);
         } finally {
             await f.close();
@@ -647,9 +749,20 @@ it('requires the owner for review and completion and a decision before completio
             },
         });
         expect(await f.row(uuid)).toEqual(before);
-        expect((await f.complete(uuid)).status).toBe(409);
+        expect(await f.complete(uuid)).toMatchObject({
+            status: 409,
+            payload: {
+                error: {
+                    code: 'approval_not_decided',
+                    message: 'This approval request has not been decided yet.',
+                },
+            },
+        });
         const displayed = await f.review(uuid);
-        expect((await f.complete(uuid)).status).toBe(409);
+        expect(await f.complete(uuid)).toMatchObject({
+            status: 409,
+            payload: { error: { code: 'approval_not_decided' } },
+        });
         expect((await f.decide(uuid, displayed)).status).toBe(200);
         const sealed = await f.row(uuid);
         expect(
@@ -757,7 +870,7 @@ it.each([
             expect(response.payload.error.code).toBe(
                 kind === 'session-missing'
                     ? 'authentication_required'
-                    : 'person_required',
+                    : 'browser_session_required',
             );
         }
         expect(await f.row(uuid)).toEqual(before);

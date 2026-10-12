@@ -1,6 +1,11 @@
 import { type Request, type Response } from 'express';
 import { validate as isUuid } from 'uuid';
-import { hasApprovalBrowserSession } from '../controllers/authentication/agentConnectionApproval';
+import { oauthApiResource } from '../auth/oauthScopes/oauthResources';
+import { lightdashConfig } from '../config/lightdashConfig';
+import {
+    hasApprovalBrowserSession,
+    hasApprovalCredentialHeader,
+} from '../controllers/authentication/agentConnectionApproval';
 import {
     AgentConnectionApprovalError,
     sendAgentConnectionApprovalError,
@@ -35,22 +40,23 @@ export const handleAgentApprovalAuthorize = async (
         )
             throw new AgentConnectionApprovalError('invalid_approval_request');
         if (
-            req.headers.authorization ||
-            req.headers['x-api-key'] ||
-            req.headers['x-lightdash-token'] ||
-            req.headers['x-embed-token']
+            hasApprovalCredentialHeader(req) ||
+            (req.account && req.account.authentication.type !== 'session')
         )
             throw new AgentConnectionApprovalError('person_required');
         const requestUuid = values[0];
+        const instancePath = new URL(
+            oauthApiResource(lightdashConfig.siteUrl),
+        ).pathname.replace(/\/$/, '');
         if (!hasApprovalBrowserSession(req)) {
             res.redirect(
-                `/login?redirect=${encodeURIComponent(`/api/v1/oauth/authorize?agent_request=${requestUuid}`)}`,
+                `${instancePath}/login?redirect=${encodeURIComponent(`${instancePath}/api/v1/oauth/authorize?agent_request=${requestUuid}`)}`,
             );
             return true;
         }
         await service.assertReviewable(req.account, requestUuid);
         res.redirect(
-            `${AGENT_CONNECTION_APPROVAL_ROUTE}?request=${requestUuid}`,
+            `${instancePath}${AGENT_CONNECTION_APPROVAL_ROUTE}?request=${requestUuid}`,
         );
         return true;
     } catch (error) {

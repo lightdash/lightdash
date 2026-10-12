@@ -23,13 +23,18 @@ const errors: Record<
         message:
             'A person using a session or personal access token is required.',
     },
+    browser_session_required: {
+        status: 403,
+        message: 'A signed-in browser session is required.',
+    },
     approval_forbidden: {
         status: 403,
         message: 'Sign in with the account that started this request.',
     },
     csrf_failed: {
         status: 403,
-        message: 'The request origin could not be verified.',
+        message:
+            'The request could not be verified. Reload the page and try again.',
     },
     invalid_approval_request: {
         status: 422,
@@ -54,6 +59,10 @@ const errors: Record<
     approval_request_expired: {
         status: 410,
         message: 'Approval request has expired.',
+    },
+    approval_not_decided: {
+        status: 409,
+        message: 'This approval request has not been decided yet.',
     },
     approval_request_consumed: {
         status: 409,

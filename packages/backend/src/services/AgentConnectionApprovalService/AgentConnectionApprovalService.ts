@@ -18,6 +18,7 @@ import { validate as isUuid } from 'uuid';
 import { z } from 'zod';
 import { fromSession } from '../../auth/account/account';
 import { agentConnectionGrantEnabled } from '../../auth/agentConnectionGrants/oauthGrantBinding';
+import { personAllowsAgentCapability } from '../../auth/agentConnectionGrants/personAllowsAgentCapability';
 import { oauthApiResource } from '../../auth/oauthScopes/oauthResources';
 import { type DbAgentConnectionApprovalRequest } from '../../database/entities/agentConnectionApprovalRequests';
 import { type AgentConnectionApprovalReadModel } from '../../models/AgentConnectionApprovalReadModel';
@@ -262,6 +263,13 @@ export class AgentConnectionApprovalService extends BaseService {
                     projectUuid: project.projectUuid,
                     name: project.name,
                 },
+                personAllows: (capability) =>
+                    personAllowsAgentCapability(
+                        ability,
+                        row.organization_uuid,
+                        project.projectUuid,
+                        capability,
+                    ),
                 requested: row.requested_capabilities,
                 operations,
                 checks: projectChecks,
@@ -278,7 +286,7 @@ export class AgentConnectionApprovalService extends BaseService {
         requestUuid: string,
     ) {
         if (account && account.authentication.type !== 'session')
-            throw new AgentConnectionApprovalError('person_required');
+            throw new AgentConnectionApprovalError('browser_session_required');
         const person = await this.freshPerson(account);
         return {
             requestUuid,
@@ -395,7 +403,7 @@ export class AgentConnectionApprovalService extends BaseService {
         const owner = await this.reviewOwner(account, requestUuid);
         const pending = await this.deps.model.findOwned(owner);
         if (pending.decision_consumed_at === null)
-            throw new AgentConnectionApprovalError('approval_request_consumed');
+            throw new AgentConnectionApprovalError('approval_not_decided');
         assertApprovalLoopback(pending.redirect_uri);
         const row = await this.deps.model.consumeCallback({
             ...owner,
