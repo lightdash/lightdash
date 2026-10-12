@@ -88,9 +88,7 @@ const SqlCard: FC<SqlCardProps> = memo((props) => {
         <ExplorerPaneLayout
             tabs={tabs}
             headerElement={
-                !cannotViewSqlAuthoredFields &&
-                data &&
-                isSuccess ? (
+                !cannotViewSqlAuthoredFields && data && isSuccess ? (
                     <CopyActionIcon
                         value={formattedSql}
                         icon={IconClipboard}

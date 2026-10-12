@@ -210,7 +210,9 @@ const explorerSlice = createSlice({
 
         setResultsPaneTab: (
             state,
-            action: PayloadAction<ExplorerSection.RESULTS | ExplorerSection.SQL>,
+            action: PayloadAction<
+                ExplorerSection.RESULTS | ExplorerSection.SQL
+            >,
         ) => {
             state.expandedSections = state.expandedSections.filter(
                 (section) =>

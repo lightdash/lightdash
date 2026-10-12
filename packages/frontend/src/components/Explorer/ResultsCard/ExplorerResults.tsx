@@ -30,8 +30,8 @@ import PivotTable from '../../common/PivotTable';
 import Table from '../../common/Table';
 import { JsonViewerModal } from '../../JsonViewerModal';
 import CellContextMenu from './CellContextMenu';
-import classes from './ExplorerResults.module.css';
 import ColumnHeaderContextMenu from './ColumnHeaderContextMenu';
+import classes from './ExplorerResults.module.css';
 import {
     EmptyStateExploreLoading,
     EmptyStateNoColumns,
