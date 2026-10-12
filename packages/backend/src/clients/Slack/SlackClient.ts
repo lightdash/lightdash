@@ -3,6 +3,8 @@ import {
     friendlyName,
     getErrorMessage,
     getSlackErrorCode,
+    getSlackFeatureAvailability,
+    getSlackInstallScopes,
     getSlackInvalidBlockIndices,
     isSlackRateLimitedError,
     isUnrecoverableSlackError,
@@ -11,6 +13,8 @@ import {
     SlackAppCustomSettings,
     SlackChannel,
     SlackError,
+    SlackFeature,
+    SlackFeatureAvailabilityMap,
     SlackFileUploadError,
     SlackInstallationNotFoundError,
     SlackSettings,
@@ -252,24 +256,29 @@ export class SlackClient {
     }
 
     // eslint-disable-next-line class-methods-use-this
+    protected isCommercial(): boolean {
+        return false;
+    }
+
     public getRequiredScopes() {
-        return [
-            'links:read',
-            'links:write',
-            'chat:write',
-            'chat:write.customize',
-            'channels:read',
-            'groups:read',
-            'users:read',
-            'app_mentions:read',
-            'files:write',
-            'files:read',
-            // Used to react with :white_check_mark: on writeback prompts.
-            // Best-effort — installs that haven't re-authorized for this
-            // scope silently skip the reaction.
-            'reactions:write',
-            // 'channels:join', - Made optional since users can manually add the app to channels
-        ];
+        return getSlackInstallScopes(this.isCommercial());
+    }
+
+    public getFeatureAvailability(
+        installationScopes: string[] | undefined,
+    ): SlackFeatureAvailabilityMap {
+        return getSlackFeatureAvailability(
+            installationScopes,
+            this.isCommercial(),
+        );
+    }
+
+    public isFeatureAvailable(
+        installationScopes: string[] | undefined,
+        feature: SlackFeature,
+    ): boolean {
+        return this.getFeatureAvailability(installationScopes)[feature]
+            .available;
     }
 
     public getSlackOptions() {

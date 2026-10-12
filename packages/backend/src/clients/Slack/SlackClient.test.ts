@@ -1,4 +1,6 @@
+import { SlackFeature } from '@lightdash/common';
 import { type Block, type WebClient } from '@slack/web-api';
+import { CommercialSlackClient } from '../../ee/clients/Slack/SlackClient';
 import Logger from '../../logging/logger';
 import { SlackClient } from './SlackClient';
 
@@ -206,5 +208,80 @@ describe('SlackClient.fetchAllChannelsForCache', () => {
         } finally {
             vi.useRealTimers();
         }
+    });
+});
+
+const makeClient = () =>
+    new SlackClient({
+        slackAuthenticationModel: {},
+        slackChannelCacheModel: {},
+        lightdashConfig: { slack: {} },
+        analytics: {},
+        schedulerClient: {},
+    } as unknown as ConstructorParameters<typeof SlackClient>[0]);
+
+const makeCommercialClient = () =>
+    new CommercialSlackClient({
+        slackAuthenticationModel: {},
+        slackChannelCacheModel: {},
+        lightdashConfig: { slack: {} },
+        analytics: {},
+        schedulerClient: {},
+    } as unknown as ConstructorParameters<typeof CommercialSlackClient>[0]);
+
+describe('SlackClient scopes', () => {
+    it('requests the historical non-commercial install scopes', () => {
+        expect([...makeClient().getRequiredScopes()].sort()).toEqual(
+            [
+                'links:read',
+                'links:write',
+                'chat:write',
+                'chat:write.customize',
+                'channels:read',
+                'groups:read',
+                'users:read',
+                'app_mentions:read',
+                'files:write',
+                'files:read',
+                'reactions:write',
+            ].sort(),
+        );
+    });
+
+    it('requests the history scopes as well on the commercial client', () => {
+        const scopes = makeCommercialClient().getRequiredScopes();
+        expect(scopes).toContain('channels:history');
+        expect(scopes).toContain('groups:history');
+        expect(makeCommercialClient().getSlackOptions().scopes).toEqual(scopes);
+    });
+
+    it('hasRequiredScopes is false when any install scope is missing', () => {
+        const client = makeClient();
+        const full = client.getRequiredScopes();
+        expect(client.hasRequiredScopes(full)).toBe(true);
+        expect(
+            client.hasRequiredScopes(
+                full.filter((s) => s !== 'reactions:write'),
+            ),
+        ).toBe(false);
+    });
+
+    it('reports per-feature availability using the client edition', () => {
+        const base = makeClient();
+        const commercial = makeCommercialClient();
+        const withoutHistory = base.getRequiredScopes();
+        expect(
+            base.isFeatureAvailable(withoutHistory, SlackFeature.AI_AGENT),
+        ).toBe(true);
+        expect(
+            commercial.isFeatureAvailable(
+                withoutHistory,
+                SlackFeature.AI_AGENT,
+            ),
+        ).toBe(false);
+        expect(
+            commercial.getFeatureAvailability(withoutHistory).aiAgent
+                .missingScopes,
+        ).toEqual(['channels:history', 'groups:history']);
     });
 });
