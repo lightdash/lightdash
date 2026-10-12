@@ -76954,18 +76954,13 @@ const models: TsoaRoute.Models = {
                 required: true,
             },
             version: { dataType: 'double', required: true },
-            allowedProjectUuids: {
+            allowedCapabilities: {
                 dataType: 'union',
                 subSchemas: [
-                    { dataType: 'array', array: { dataType: 'string' } },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            allowedUserUuids: {
-                dataType: 'union',
-                subSchemas: [
-                    { dataType: 'array', array: { dataType: 'string' } },
+                    {
+                        dataType: 'array',
+                        array: { dataType: 'refEnum', ref: 'AgentCapability' },
+                    },
                     { dataType: 'enum', enums: [null] },
                 ],
                 required: true,
@@ -77017,18 +77012,13 @@ const models: TsoaRoute.Models = {
                 required: true,
             },
             version: { dataType: 'double', required: true },
-            allowedProjectUuids: {
+            allowedCapabilities: {
                 dataType: 'union',
                 subSchemas: [
-                    { dataType: 'array', array: { dataType: 'string' } },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            allowedUserUuids: {
-                dataType: 'union',
-                subSchemas: [
-                    { dataType: 'array', array: { dataType: 'string' } },
+                    {
+                        dataType: 'array',
+                        array: { dataType: 'refEnum', ref: 'AgentCapability' },
+                    },
                     { dataType: 'enum', enums: [null] },
                 ],
                 required: true,
@@ -77058,38 +77048,8 @@ const models: TsoaRoute.Models = {
     AgentCapabilityCeiling: {
         dataType: 'refObject',
         properties: {
+            systemRoleMatrix: { ref: 'AgentSystemRoleMatrix', required: true },
             version: { dataType: 'double' },
-            allowedProjectUuids: {
-                dataType: 'union',
-                subSchemas: [
-                    {
-                        dataType: 'array',
-                        array: { dataType: 'refAlias', ref: 'UUID' },
-                    },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            allowedUserUuids: {
-                dataType: 'union',
-                subSchemas: [
-                    {
-                        dataType: 'array',
-                        array: { dataType: 'refAlias', ref: 'UUID' },
-                    },
-                    { dataType: 'enum', enums: [null] },
-                ],
-            },
-            allowedGroupUuids: {
-                dataType: 'union',
-                subSchemas: [
-                    {
-                        dataType: 'array',
-                        array: { dataType: 'refAlias', ref: 'UUID' },
-                    },
-                    { dataType: 'enum', enums: [null] },
-                ],
-            },
             mode: {
                 dataType: 'union',
                 subSchemas: [
@@ -77097,7 +77057,23 @@ const models: TsoaRoute.Models = {
                     { dataType: 'enum', enums: ['managed'] },
                 ],
             },
-            systemRoleMatrix: { ref: 'AgentSystemRoleMatrix', required: true },
+            allowedCapabilities: {
+                dataType: 'union',
+                subSchemas: [
+                    {
+                        dataType: 'array',
+                        array: { dataType: 'refEnum', ref: 'AgentCapability' },
+                    },
+                    { dataType: 'enum', enums: [null] },
+                ],
+            },
+            allowedGroupUuids: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'array', array: { dataType: 'string' } },
+                    { dataType: 'enum', enums: [null] },
+                ],
+            },
         },
         additionalProperties: true,
     },

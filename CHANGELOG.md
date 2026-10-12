@@ -1,3 +1,10 @@
+# [2.566.0](https://github.com/lightdash/lightdash/compare/2.565.3...2.566.0) (2026-10-12)
+
+
+### Features
+
+* **agent-identity:** rebuild the Agents permissions page with one list of limits for the whole organization ([#30915](https://github.com/lightdash/lightdash/issues/30915)) ([94e4e92](https://github.com/lightdash/lightdash/commit/94e4e923b24dd9600fbea27fed7841f89bd6aad2))
+
 ## [2.565.3](https://github.com/lightdash/lightdash/compare/2.565.2...2.565.3) (2026-10-12)
 
 

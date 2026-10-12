@@ -72049,16 +72049,9 @@
                         "type": "number",
                         "format": "double"
                     },
-                    "allowedProjectUuids": {
+                    "allowedCapabilities": {
                         "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
-                    "allowedUserUuids": {
-                        "items": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/AgentCapability"
                         },
                         "type": "array",
                         "nullable": true
@@ -72083,8 +72076,7 @@
                 "required": [
                     "mode",
                     "version",
-                    "allowedProjectUuids",
-                    "allowedUserUuids",
+                    "allowedCapabilities",
                     "allowedGroupUuids",
                     "systemRoleMatrix",
                     "defaults",
@@ -72130,16 +72122,9 @@
                         "type": "number",
                         "format": "double"
                     },
-                    "allowedProjectUuids": {
+                    "allowedCapabilities": {
                         "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
-                    "allowedUserUuids": {
-                        "items": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/AgentCapability"
                         },
                         "type": "array",
                         "nullable": true
@@ -72158,8 +72143,7 @@
                 "required": [
                     "mode",
                     "version",
-                    "allowedProjectUuids",
-                    "allowedUserUuids",
+                    "allowedCapabilities",
                     "allowedGroupUuids",
                     "systemRoleMatrix"
                 ],
@@ -72183,40 +72167,33 @@
             },
             "AgentCapabilityCeiling": {
                 "properties": {
+                    "systemRoleMatrix": {
+                        "$ref": "#/components/schemas/AgentSystemRoleMatrix"
+                    },
                     "version": {
                         "type": "number",
                         "format": "double"
                     },
-                    "allowedProjectUuids": {
-                        "items": {
-                            "$ref": "#/components/schemas/UUID"
-                        },
-                        "type": "array",
-                        "nullable": true
+                    "mode": {
+                        "type": "string",
+                        "enum": ["legacy", "managed"]
                     },
-                    "allowedUserUuids": {
+                    "allowedCapabilities": {
                         "items": {
-                            "$ref": "#/components/schemas/UUID"
+                            "$ref": "#/components/schemas/AgentCapability"
                         },
                         "type": "array",
                         "nullable": true
                     },
                     "allowedGroupUuids": {
                         "items": {
-                            "$ref": "#/components/schemas/UUID"
+                            "type": "string"
                         },
                         "type": "array",
                         "nullable": true
-                    },
-                    "mode": {
-                        "type": "string",
-                        "enum": ["legacy", "managed"]
-                    },
-                    "systemRoleMatrix": {
-                        "$ref": "#/components/schemas/AgentSystemRoleMatrix"
                     }
                 },
-                "required": ["allowedProjectUuids", "systemRoleMatrix"],
+                "required": ["systemRoleMatrix"],
                 "type": "object",
                 "additionalProperties": true
             },
@@ -72247,7 +72224,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.565.3",
+        "version": "2.566.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
