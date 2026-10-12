@@ -585,6 +585,14 @@ export class AgentPermissionService extends BaseService {
         args: AgentPermissionBulkArgs,
         loaders: AgentPermissionBulkLoaders,
     ): Promise<(AgentPermissionCheck | null)[]> {
+        // The bulk loaders must be the models the single check reads from.
+        if (
+            !Object.is(loaders.userModel, this.deps.userModel) ||
+            !Object.is(loaders.projectModel, this.deps.projectModel)
+        )
+            throw new Error(
+                'Bulk agent permission loaders must be the models this service uses.',
+            );
         return evaluateAgentPermissionOperations(
             this.deps,
             loaders,

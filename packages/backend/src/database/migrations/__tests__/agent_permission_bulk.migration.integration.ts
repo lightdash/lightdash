@@ -513,6 +513,43 @@ it('keeps role, policy, group and project query counts constant for 3 and 50 dif
     `);
 });
 
+it('refuses loaders that are not the models the single check uses', async () => {
+    const f = await fixture();
+    const args = {
+        account: f.accounts[5],
+        organizationUuid: f.org.organization_uuid,
+        surface: AgentActorSurface.CLI,
+        operations: [
+            {
+                kind: 'capability' as const,
+                key: AgentCapability.Query,
+                projectUuid: f.projects[0].project_uuid,
+            },
+        ],
+    };
+    const message =
+        'Bulk agent permission loaders must be the models this service uses.';
+    await expect(
+        f.service.evaluateOperations(args, {
+            userModel: {
+                getAgentRoleAssignmentsForProjects: (...loaderArgs) =>
+                    f.loaders.userModel.getAgentRoleAssignmentsForProjects(
+                        ...loaderArgs,
+                    ),
+            },
+            projectModel: f.loaders.projectModel,
+        }),
+    ).rejects.toThrow(message);
+    await expect(
+        f.service.evaluateOperations(args, {
+            userModel: f.loaders.userModel,
+            projectModel: {
+                getSummaries: (...loaderArgs) =>
+                    f.loaders.projectModel.getSummaries(...loaderArgs),
+            },
+        }),
+    ).rejects.toThrow(message);
+});
 it('reads changed roles again on the next call', async () => {
     const f = await fixture();
     const args = {
