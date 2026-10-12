@@ -131,6 +131,10 @@ import {
     type AgentCapabilityPolicy,
     type AgentCapabilityPolicyOverview,
 } from './agentCapabilityPolicy';
+import {
+    type AgentConnectionApprovalDecisionResponse,
+    type AgentConnectionApprovalReviewResponse,
+} from './agentConnectionApprovals';
 import type {
     ApiAiServiceAccountSlotResponse,
     ApiAiServiceAccountTestResponse,
@@ -1367,6 +1371,8 @@ export type ProjectSavedChartStatus = boolean;
 export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
+    | AgentConnectionApprovalReviewResponse['results']
+    | AgentConnectionApprovalDecisionResponse['results']
     | AgentCapabilityPolicy
     | AgentCapabilityPolicyOverview
     | OrganizationAgentIdentitySettings
