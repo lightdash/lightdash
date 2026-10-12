@@ -55,8 +55,6 @@ type ComposerQueriesToolCallDescriptionProps = {
     nodeStatuses?: Record<string, ComposerQueryNodeStatus>;
     /** Present while the pipeline's warehouse SQL nodes await approval. */
     approval?: SqlApprovalTarget;
-    /** Error text of a failed call; shown when no node carries its own error. */
-    failure?: string | null;
 };
 
 const NODE_STATUS_LABELS = {
@@ -159,17 +157,6 @@ const getNodePresentation = (
             } as const;
         }
     }
-};
-
-// Tracebacks can quote node code, so they follow the same scope as the code.
-const NodeError: FC<{ message: string }> = ({ message }) => {
-    const canViewSql = useCanViewAiAgentSql();
-    if (!canViewSql) return null;
-    return (
-        <Box component="pre" className={styles.error}>
-            {message}
-        </Box>
-    );
 };
 
 const NodeBody: FC<{ node: ToolComposerQueryNode }> = ({ node }) => {
@@ -295,10 +282,6 @@ const ComposerQueryNode: FC<{
             <Collapse expanded={open} transitionDuration={200}>
                 <Stack gap={6} className={styles.body}>
                     <NodeBody node={node} />
-                    {nodeStatus?.status === 'error' &&
-                    nodeStatus.errorMessage ? (
-                        <NodeError message={nodeStatus.errorMessage} />
-                    ) : null}
                     {showApproval ? (
                         <SqlApprovalActions {...approval} review={null} />
                     ) : null}
@@ -310,7 +293,7 @@ const ComposerQueryNode: FC<{
 
 export const ComposerQueriesToolCallDescription: FC<
     ComposerQueriesToolCallDescriptionProps
-> = ({ queries, nodeStatuses, approval, failure = null }) => {
+> = ({ queries, nodeStatuses, approval }) => {
     const titlesByNodeId = useMemo(
         () =>
             Object.fromEntries(
@@ -318,11 +301,6 @@ export const ComposerQueriesToolCallDescription: FC<
             ),
         [queries],
     );
-    const hasNodeError = Object.values(nodeStatuses ?? {}).some(
-        (nodeStatus) =>
-            nodeStatus.status === 'error' && nodeStatus.errorMessage,
-    );
-    const callFailure = hasNodeError ? null : failure;
     // One decision covers the whole call, so the actions render once, under
     // the last node waiting on it.
     const approvalNodeId = queries.findLast(
@@ -341,11 +319,6 @@ export const ComposerQueriesToolCallDescription: FC<
                     }
                 />
             ))}
-            {callFailure ? (
-                <Box className={styles.failure}>
-                    <NodeError message={callFailure} />
-                </Box>
-            ) : null}
         </Stack>
     );
 };

@@ -84,24 +84,3 @@
         animation: none;
     }
 }
-
-.error {
-    margin: 0;
-    max-height: 220px;
-    overflow: auto;
-    padding: 8px 10px;
-    border: 1px solid var(--mantine-color-default-border);
-    border-left: 2px solid var(--mantine-color-red-6);
-    border-radius: 6px;
-    background: var(--mantine-color-ldGray-0);
-    color: var(--mantine-color-red-7);
-    font-family: var(--mantine-font-family-monospace);
-    font-size: 11px;
-    line-height: 1.5;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-}
-
-.failure {
-    padding: 4px 0 6px;
-}

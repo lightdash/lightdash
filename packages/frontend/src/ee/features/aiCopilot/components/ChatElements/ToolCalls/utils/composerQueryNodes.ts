@@ -1,6 +1,5 @@
 import {
     QuerySourceType,
-    type AiAgentToolResult,
     type ToolComposerQueriesArgs,
     type ToolComposerQueryNode,
 } from '@lightdash/common';
@@ -23,18 +22,3 @@ export const getComposerQueryNodes = (
 
 export const isWarehouseSqlNode = (node: ToolComposerQueryNode) =>
     node.sourceType === QuerySourceType.SQL;
-
-/**
- * The error text of a failed composer call, from its persisted tool result.
- * The model-facing wrapper is dropped when the error sits in a fenced block.
- */
-export const getComposerFailureMessage = (
-    toolResult: AiAgentToolResult | undefined,
-): string | null => {
-    if (toolResult?.toolName !== 'runComposerQueries') return null;
-    const metadata = toolResult.metadata as { status?: string } | null;
-    if (metadata?.status !== 'error') return null;
-    const fenced = /```[^\n]*\n([\s\S]*?)\n```/.exec(toolResult.result);
-    const message = (fenced?.[1] ?? toolResult.result).trim();
-    return message.length > 0 ? message : null;
-};
