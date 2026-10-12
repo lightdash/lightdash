@@ -248,6 +248,7 @@ export function instanceEnvironment(input: {
     return {
         ...env,
         LIGHTDASH_MODE: 'development',
+        DEV_SCOPED_COOKIE_NAMES_ENABLED: 'true',
         IS_PULL_REQUEST: 'false',
         ALLOW_MISSING_MIGRATIONS: 'false',
         AI_COPILOT_ENABLED: local.AI_COPILOT_ENABLED ?? 'false',

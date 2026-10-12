@@ -156,6 +156,7 @@ test('instance env overrides inherited identity, secret, database and unsafe glo
     assert.equal(env.PGWIRE_PORT, undefined);
     assert.equal(env.PGCONNECTIONURI, undefined);
     assert.equal(env.LIGHTDASH_MODE, 'development');
+    assert.equal(env.DEV_SCOPED_COOKIE_NAMES_ENABLED, 'true');
     assert.equal(env.ALLOW_MISSING_MIGRATIONS, 'false');
     assert.deepEqual(parseEnv(dotenvText(env)), env);
     const applied = tierEnvironment(env, {
