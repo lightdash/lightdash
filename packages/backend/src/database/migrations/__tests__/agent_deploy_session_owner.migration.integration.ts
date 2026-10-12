@@ -684,7 +684,7 @@ it('start and two batches change only deploy staging, leaving every project-visi
     await f.finish(uuid, [firstExplore, secondExplore]);
 });
 
-it('keeps the part 1 SQL order and HTTP answers with exactly one project read before finalize writes', async () => {
+it('keeps the part 1 SQL order and HTTP answers with exactly one project summary read, and no credential read, before finalize writes', async () => {
     const f = await deployFixture(migrated.database, server);
     const trace = captureSql(f.database);
     try {
@@ -715,13 +715,16 @@ it('keeps the part 1 SQL order and HTTP answers with exactly one project read be
     }
     expect(mainDeploySql).toHaveLength(81);
     expect(mainDeploySql[56]).toMatch(/^select .* from "projects" /);
+    expect(mainDeploySql[56]).not.toMatch(
+        /dbt_connection|encrypted_credentials|warehouse_credentials/,
+    );
     expect(mainDeploySql[55]).toBe(
         'select * from "deploy_sessions" where "deploy_session_uuid" = $1 limit $2',
     );
     expect(mainDeploySql[57]).toBe(
         'update "deploy_sessions" set "status" = $1 where "deploy_session_uuid" = $2',
     );
-    expect(mainDeploySql[56]).toBe(mainDeploySql[58]);
+    expect(mainDeploySql[58]).toBe(mainDeploySql[10]);
     expect(trace.statements).toEqual(mainDeploySql);
 });
 

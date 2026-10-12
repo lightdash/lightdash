@@ -262,7 +262,7 @@ export class DeployService extends BaseService {
         }
 
         const permissionProject =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+            await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
