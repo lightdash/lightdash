@@ -102,8 +102,9 @@ export class DbtCliClient implements DbtClient {
         dbtDepsErrorHint,
         partialParseBaselinePath,
     }: DbtCliArgs) {
-        this.dbtProjectDirectory = dbtProjectDirectory;
-        this.dbtProfilesDirectory = dbtProfilesDirectory;
+        // Resolved up front because dbt runs with the project directory as its cwd
+        this.dbtProjectDirectory = path.resolve(dbtProjectDirectory);
+        this.dbtProfilesDirectory = path.resolve(dbtProfilesDirectory);
         this.environment = environment;
         this.environmentVariableAllowlist = environmentVariableAllowlist;
         this.explicitCredentials = explicitCredentials;
@@ -259,6 +260,8 @@ export class DbtCliClient implements DbtClient {
                 }": ${dbtExec} ${dbtArgs.join(' ')}`,
             );
             const dbtProcess = await execa(dbtExec, dbtArgs, {
+                // dbt 1.5 creates dbt_packages relative to the cwd, not the project dir
+                cwd: this.dbtProjectDirectory,
                 all: true,
                 stdio: ['pipe', 'pipe', process.stderr],
                 extendEnv: false,
