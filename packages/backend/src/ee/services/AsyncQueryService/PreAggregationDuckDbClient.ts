@@ -141,7 +141,7 @@ export class PreAggregationDuckDbClient {
     }
 
     // Reads managed materializations, so its session is the pre-aggregate
-    // bucket's; composed queries run on the OSS compose engine instead
+    // bucket's; composed queries run in a one-shot DuckDB sandbox instead
     createPreAggregateWarehouseClient(): WarehouseClient {
         if (!this.cachedWarehouseClient) {
             const duckdbRuntimeConfig = getDuckdbRuntimeConfig(

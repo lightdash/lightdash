@@ -30,7 +30,7 @@ const toPivotConfiguration = (
     sortBy: layout.sortBy,
 });
 
-/** Pivots a stored node result on the compose engine: one DuckDB node reading it by query id. No warehouse query. */
+/** Pivots a stored node result in a sandbox: one DuckDB node reading it by query id. No warehouse query. */
 const executeComposerPivot = async (
     projectUuid: string,
     queryUuid: string,
