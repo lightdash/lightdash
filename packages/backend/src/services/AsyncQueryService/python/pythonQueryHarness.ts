@@ -204,14 +204,14 @@ export const pythonResultToColumns = (meta: PythonResultMeta): ResultColumns =>
     );
 
 /** Fields shaped like SQL-runner results so paging and formatting work unchanged. */
-export const pythonResultToFields = (meta: PythonResultMeta): ItemsMap =>
+export const pythonColumnsToFields = (columns: ResultColumns): ItemsMap =>
     Object.fromEntries(
-        meta.columns.map<[string, Dimension]>((column) => [
-            column.name,
+        Object.values(columns).map<[string, Dimension]>((column) => [
+            column.reference,
             {
-                name: column.name,
-                label: column.name,
-                type: toDimensionType(column.type),
+                name: column.reference,
+                label: column.reference,
+                type: column.type,
                 table: '',
                 fieldType: FieldType.DIMENSION,
                 sql: '',
@@ -220,6 +220,9 @@ export const pythonResultToFields = (meta: PythonResultMeta): ItemsMap =>
             },
         ]),
     );
+
+export const pythonResultToFields = (meta: PythonResultMeta): ItemsMap =>
+    pythonColumnsToFields(pythonResultToColumns(meta));
 
 /** Column types of a referenced result, as the harness reads them. */
 export const resultColumnsToPythonInput = (

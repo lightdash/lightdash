@@ -1,4 +1,5 @@
 import { getErrorMessage, MissingConfigError } from '@lightdash/common';
+import { createHash } from 'crypto';
 import { type LightdashConfig } from '../../../config/parseConfig';
 import {
     createSandboxProvider,
@@ -110,13 +111,25 @@ export class PythonSandboxRunner {
         return this.provider;
     }
 
-    private buildSpec(timeoutMs: number): SandboxSpec {
+    private getTemplateRef(): string {
         const { appRuntime } = this.lightdashConfig;
+        return appRuntime.sandboxProvider === 'e2b'
+            ? `${appRuntime.e2bPythonTemplateName}:${appRuntime.e2bPythonTemplateTag}`
+            : appRuntime.sandboxPythonDockerImage;
+    }
+
+    /** What runs the code: the sandbox template and the harness inside it. */
+    get version(): string {
+        const harness = createHash('sha256')
+            .update(PYTHON_RUNNER_SOURCE)
+            .digest('hex')
+            .slice(0, 16);
+        return `${this.lightdashConfig.appRuntime.sandboxProvider}:${this.getTemplateRef()}:${harness}`;
+    }
+
+    private buildSpec(timeoutMs: number): SandboxSpec {
         return {
-            templateRef:
-                appRuntime.sandboxProvider === 'e2b'
-                    ? `${appRuntime.e2bPythonTemplateName}:${appRuntime.e2bPythonTemplateTag}`
-                    : appRuntime.sandboxPythonDockerImage,
+            templateRef: this.getTemplateRef(),
             timeoutMs: timeoutMs + SANDBOX_IDLE_MARGIN_MS,
             egress: { allow: [] },
         };
