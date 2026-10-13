@@ -11,5 +11,24 @@ egress and no credentials.
 - Local: `SANDBOX_PROVIDER=docker`, image `SANDBOX_PYTHON_DOCKER_IMAGE` (default
   `lightdash-python-runner:local`), built with `./build-local-image.sh`.
 
-E2B publishing (`build-sandbox.ts`, `assign-tag.ts`, `post-release.yml` entry) is
-not wired yet; see `sandboxes/CLAUDE.md` for the required files.
+## Publishing
+
+Every release publishes the template to both E2B regions through the
+`e2b-templates` matrix in `.github/workflows/post-release.yml`: it builds
+`lightdash-python-runner:<version>` (and moves `:latest`) when this directory
+changed since the previous release, otherwise it retags `:latest` with the
+release version (`assign-tag.ts`). Manual build:
+
+```bash
+sfw pnpm install --frozen-lockfile
+E2B_API_KEY=... E2B_PYTHON_TEMPLATE_TAG=<tag> pnpm run build
+```
+
+## Environment variables (backend)
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `E2B_PYTHON_TEMPLATE_NAME` | `lightdash-python-runner` | E2B template name |
+| `E2B_PYTHON_TEMPLATE_TAG` | running Lightdash version | E2B template tag |
+| `SANDBOX_PYTHON_DOCKER_IMAGE` | `lightdash-python-runner:local` | Image for `SANDBOX_PROVIDER=docker` |
+| `SANDBOX_INPUT_MAX_BYTES` | `67108864` (64 MiB) | Total input bytes pushed into one sandbox run |
