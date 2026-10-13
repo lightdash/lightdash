@@ -298,7 +298,6 @@ const buildPipeline = () => {
         cacheService,
         resultsStorageClient,
         natsClient: {
-            enqueueDuckdbQuery: vi.fn(),
             enqueueWarehouseQuery: vi.fn(),
             enqueuePreAggregateQuery: vi.fn(),
         },
