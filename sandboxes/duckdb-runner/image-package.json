@@ -1,0 +1,11 @@
+{
+    "name": "lightdash-duckdb-runner-image",
+    "private": true,
+    "dependencies": {
+        "@lightdash/common": "file:lightdash-common.tgz",
+        "@lightdash/warehouses": "file:lightdash-warehouses.tgz"
+    },
+    "overrides": {
+        "@lightdash/common": "$@lightdash/common"
+    }
+}

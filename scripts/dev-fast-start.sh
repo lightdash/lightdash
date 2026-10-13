@@ -406,6 +406,8 @@ if grep -q "^SANDBOX_PROVIDER=docker" .env.development.local 2>/dev/null; then
     ensure_sandbox_image lightdash-sandbox:local ./sandboxes/data-apps/build-local-image.sh SANDBOX_DOCKER_IMAGE
     ensure_sandbox_image lightdash-ai-writeback:local ./sandboxes/ai-writeback/build-local-image.sh SANDBOX_AI_WRITEBACK_DOCKER_IMAGE
     ensure_sandbox_image lightdash-agent-onboarding:local ./sandboxes/agent-onboarding/build-local-image.sh SANDBOX_AGENT_ONBOARDING_DOCKER_IMAGE
+    ensure_sandbox_image lightdash-python-runner:local ./sandboxes/python-runner/build-local-image.sh SANDBOX_PYTHON_DOCKER_IMAGE
+    ensure_sandbox_image lightdash-duckdb-runner:local ./sandboxes/duckdb-runner/build-local-image.sh SANDBOX_DUCKDB_DOCKER_IMAGE
 fi
 
 step "Wait for PostgreSQL"
