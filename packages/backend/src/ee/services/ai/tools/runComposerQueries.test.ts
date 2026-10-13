@@ -1,11 +1,14 @@
 import {
     ChartKind,
+    parseAiArtifactChartConfig,
     QuerySourceType,
     VizAggregationOptions,
     VizIndexType,
+    type AiArtifact,
     type AiComposerChartArtifactConfig,
     type AiWebAppPrompt,
     type SemanticLayerSourceQuery,
+    type SlackPrompt,
     type SourceQuery,
     type ToolComposerQueriesArgs,
     type ToolComposerQueriesOutput,
@@ -14,6 +17,8 @@ import type { ZodType } from 'zod';
 import { EMPTY_QUERY_GUIDANCE } from '../decisions/queryReview';
 import type { QueryReviewer } from '../decisions/queryReview';
 import type { PlanComposerViz } from '../decisions/vizPlanner';
+import { AgentContext } from '../utils/AgentContext';
+import { getSlackTablePreviews } from '../utils/slackTablePreviews';
 import {
     getRunComposerQueries,
     resolveTerminalNodeId,
@@ -40,6 +45,42 @@ const makePrompt = (): AiWebAppPrompt => ({
     humanScore: null,
     modelConfig: null,
     battleProfile: null,
+});
+
+const makeSlackPrompt = (): SlackPrompt => ({
+    ...makePrompt(),
+    response_slack_ts: 'response-ts',
+    slackUserId: 'slack-user',
+    slackChannelId: 'slack-channel',
+    promptSlackTs: 'prompt-ts',
+    slackThreadTs: 'thread-ts',
+});
+
+// Fake artifact store: returns the saved version as the database would.
+const storeArtifact = async ({
+    title,
+    vizConfig,
+}: {
+    title?: string;
+    vizConfig: Record<string, unknown>;
+}): Promise<AiArtifact> => ({
+    artifactUuid: 'artifact-uuid',
+    threadUuid: 'thread-uuid',
+    artifactType: 'chart',
+    savedQueryUuid: null,
+    savedSqlUuid: null,
+    savedDashboardUuid: null,
+    createdAt: new Date(),
+    versionNumber: 1,
+    versionUuid: 'version-uuid',
+    title: title ?? null,
+    description: null,
+    chartConfig: parseAiArtifactChartConfig(vizConfig),
+    dashboardConfig: null,
+    promptUuid: 'prompt-uuid',
+    versionCreatedAt: new Date(),
+    verifiedByUserUuid: null,
+    verifiedAt: null,
 });
 
 type ComposerNode = ToolComposerQueriesArgs['queries'][number];
@@ -128,6 +169,8 @@ const makeTool = ({
     enablePythonNodes = false,
     enableDataAccess = true,
     waitForSqlApproval = vi.fn().mockResolvedValue('approved'),
+    prompt = makePrompt(),
+    agentContext = new AgentContext([]),
 }: {
     reviewQuery?: QueryReviewer;
     planViz?: PlanComposerViz;
@@ -137,8 +180,11 @@ const makeTool = ({
     enablePythonNodes?: boolean;
     enableDataAccess?: boolean;
     waitForSqlApproval?: import('vitest').Mock;
+    prompt?: AiWebAppPrompt | SlackPrompt;
+    agentContext?: AgentContext;
 } = {}) => {
     const dependencies = {
+        agentContext,
         reviewQuery,
         planViz,
         updateProgress: vi.fn().mockResolvedValue(undefined),
@@ -170,11 +216,11 @@ const makeTool = ({
                 rowCount: 1,
             },
         }),
-        getPrompt: vi.fn().mockResolvedValue(makePrompt()),
+        getPrompt: vi.fn().mockResolvedValue(prompt),
         waitForSqlApproval,
         recordSqlApproval: vi.fn().mockResolvedValue(true),
         trackSqlApprovalTimeout: vi.fn(),
-        createOrUpdateArtifact: vi.fn().mockResolvedValue(undefined),
+        createOrUpdateArtifact: vi.fn(storeArtifact),
         listThreadComposerPipelines: vi.fn().mockResolvedValue([]),
         maxQueryLimit: 5000,
         enableDataAccess,
@@ -191,6 +237,64 @@ const makeTool = ({
 };
 
 describe('getRunComposerQueries', () => {
+    it('in Slack, the reply can show the terminal result as a table that links to the thread', async () => {
+        const agentContext = new AgentContext([]);
+        const { tool, dependencies } = makeTool({
+            autoApproveSql: true,
+            prompt: makeSlackPrompt(),
+            agentContext,
+        });
+
+        const output = await executeTool(tool, makeArgs(), 'composer-call');
+        const [artifact] = await Promise.all(
+            dependencies.createOrUpdateArtifact.mock.results.map(
+                (result) => result.value,
+            ),
+        );
+        // The model selects the table using the queryUuid it was given.
+        const queryUuid = output.result.match(/queryUuid is ([^;\s]+)/)?.[1];
+
+        const previews = await getSlackTablePreviews({
+            enableDataAccess: true,
+            slackLinksOnly: false,
+            selectedQueryUuids: queryUuid ? [queryUuid] : [],
+            toolCalls: [
+                {
+                    tool_call_id: 'composer-call',
+                    tool_name: 'runComposerQueries',
+                    tool_args: makeArgs(),
+                },
+            ],
+            toolResults: [
+                {
+                    toolCallId: 'composer-call',
+                    toolType: 'built-in',
+                    toolName: 'runComposerQueries',
+                    metadata: output.metadata,
+                },
+            ],
+            artifacts: [artifact],
+            url: 'https://lightdash.test/threads/thread-uuid',
+            runtimeResults: agentContext.getSlackTableResults(),
+            authorize: vi.fn().mockResolvedValue(undefined),
+            getResults: vi
+                .fn()
+                .mockRejectedValue(new Error('stored results not needed')),
+            onLoadError: vi.fn(),
+        });
+
+        expect(previews).toEqual([
+            expect.objectContaining({
+                status: 'ready',
+                title: 'Revenue vs signups',
+                url: 'https://lightdash.test/threads/thread-uuid',
+                queryResults: expect.objectContaining({
+                    rows: [{ month: '2026-01', signups: 12 }],
+                }),
+            }),
+        ]);
+    });
+
     it('runs the pipeline, stores a composer artifact and returns the terminal snapshot', async () => {
         const { tool, dependencies } = makeTool({ autoApproveSql: true });
 
@@ -749,7 +853,12 @@ describe('composer artifact with reused nodes', () => {
                 'Terminal columns: total (number).',
             ].join('\n'),
         );
-        expect(JSON.stringify(output)).not.toContain('run-query');
+        expect(
+            JSON.stringify({
+                result: output.result,
+                structuredContent: output.structuredContent,
+            }),
+        ).not.toContain('run-query');
     });
 
     it('copies a node reached directly and transitively once', async () => {

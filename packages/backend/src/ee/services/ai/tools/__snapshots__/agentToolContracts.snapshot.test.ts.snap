@@ -21221,6 +21221,12 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                 {
                   "additionalProperties": false,
                   "properties": {
+                    "artifactVersionUuid": {
+                      "type": "string",
+                    },
+                    "queryUuid": {
+                      "type": "string",
+                    },
                     "status": {
                       "enum": [
                         "success",
@@ -21420,6 +21426,12 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                 {
                   "additionalProperties": false,
                   "properties": {
+                    "artifactVersionUuid": {
+                      "type": "string",
+                    },
+                    "queryUuid": {
+                      "type": "string",
+                    },
                     "status": {
                       "enum": [
                         "success",

@@ -31,6 +31,7 @@ import type {
     UpdateProgressFn,
     WaitForSqlApprovalFn,
 } from '../types/aiAgentDependencies';
+import { type AgentContext } from '../utils/AgentContext';
 import { serializeData } from '../utils/serializeData';
 import type {
     ExecuteStructuredToolResult,
@@ -41,6 +42,7 @@ import { validateSelectOnly } from './runSql';
 import { type TrackSqlApprovalTimeoutFn } from './sqlApprovals';
 
 type Dependencies = {
+    agentContext: AgentContext;
     reviewQuery?: QueryReviewer;
     planViz?: PlanComposerViz;
     updateProgress: UpdateProgressFn;
@@ -63,8 +65,17 @@ const toolDefinition = runComposerQueriesToolDefinition.for('agent');
 
 const PREVIEW_ROW_LIMIT = 50;
 
+type ComposerQueriesSuccessMetadata = {
+    status: 'success';
+    queryUuid: string;
+    artifactVersionUuid: string;
+};
+
 type ComposerQueriesOutput =
-    | ExecuteStructuredToolResult<ToolComposerQueriesStructuredContent>
+    | ExecuteStructuredToolResult<
+          ToolComposerQueriesStructuredContent,
+          ComposerQueriesSuccessMetadata
+      >
     | ExecuteToolErrorResult<{ status: 'error' | 'rejected' | 'timeout' }>;
 
 const failure = (
@@ -121,6 +132,7 @@ export const resolveTerminalNodeId = (
 };
 
 export const getRunComposerQueries = ({
+    agentContext,
     reviewQuery,
     planViz,
     updateProgress,
@@ -295,14 +307,17 @@ export const getRunComposerQueries = ({
                         : '',
                 ]);
 
-                // v0 surface is web chat only; keep Slack (if ever assembled
-                // there) to the text result without an artifact.
+                // Slack renders composer results as a native table, so it skips
+                // viz planning; the artifact backs the thread link.
+                const isSlack = isSlackPrompt(prompt);
+                const terminalNode = queries.find(
+                    (query) => query.nodeId === resolvedTerminalNodeId,
+                );
                 let vizNote: string | null = null;
-                if (!isSlackPrompt(prompt)) {
-                    const terminalNode = queries.find(
-                        (query) => query.nodeId === resolvedTerminalNodeId,
-                    );
-                    const vizConfig =
+                let vizConfig: AiComposerChartArtifactConfig['vizConfig'] =
+                    null;
+                if (!isSlack) {
+                    vizConfig =
                         (await planViz?.({
                             title: title ?? null,
                             description: description ?? null,
@@ -327,21 +342,32 @@ export const getRunComposerQueries = ({
                                   vizConfig: null,
                               }),
                           );
-                    await createOrUpdateArtifact({
-                        threadUuid: prompt.threadUuid,
-                        promptUuid: prompt.promptUuid,
-                        artifactType: 'chart',
-                        title: title ?? 'Composer query results',
-                        ...(description ? { description } : {}),
-                        vizConfig: {
-                            source: 'composer',
-                            schemaVersion: 1,
-                            queries,
-                            terminalNodeId: resolvedTerminalNodeId,
-                            vizConfig,
-                        } satisfies AiComposerChartArtifactConfig,
+                }
+                const artifact = await createOrUpdateArtifact({
+                    threadUuid: prompt.threadUuid,
+                    promptUuid: prompt.promptUuid,
+                    artifactType: 'chart',
+                    title: title ?? 'Composer query results',
+                    ...(description ? { description } : {}),
+                    vizConfig: {
+                        source: 'composer',
+                        schemaVersion: 1,
+                        queries,
+                        terminalNodeId: resolvedTerminalNodeId,
+                        vizConfig,
+                    } satisfies AiComposerChartArtifactConfig,
+                });
+                if (isSlack && enableDataAccess) {
+                    agentContext.registerSlackTableResults(terminal.queryUuid, {
+                        rows: terminal.rows,
+                        fields: {},
                     });
                 }
+                const metadata: ComposerQueriesSuccessMetadata = {
+                    status: 'success',
+                    queryUuid: terminal.queryUuid,
+                    artifactVersionUuid: artifact.versionUuid,
+                };
 
                 const nodes = queries.map((node) => ({
                     nodeId: node.nodeId,
@@ -379,6 +405,11 @@ export const getRunComposerQueries = ({
                     `Composer query complete. Terminal node "${resolvedTerminalNodeId}" returned ${terminal.rowCount} rows.`,
                     `Nodes in this pipeline (a later call can read any of them by node id without resubmitting it):\n${nodeSummary}`,
                     `Terminal columns: ${columnSummary}.`,
+                    ...(isSlack
+                        ? [
+                              `This execution's queryUuid is ${terminal.queryUuid}; use exactly this value to reference it.`,
+                          ]
+                        : []),
                     ...(review && terminal.rowCount !== 0 ? [review] : []),
                     ...(emptyReview !== null ? [emptyReview] : []),
                 ].join('\n');
@@ -396,7 +427,7 @@ export const getRunComposerQueries = ({
                 if (!enableDataAccess || terminal.rowCount === 0) {
                     return {
                         result: `${resultSummary}${vizLine}`,
-                        metadata: { status: 'success' },
+                        metadata,
                         structuredContent: { ...summary, preview: null },
                     };
                 }
@@ -426,7 +457,7 @@ export const getRunComposerQueries = ({
                         previewCsv,
                         'csv',
                     )}${vizLine}`,
-                    metadata: { status: 'success' },
+                    metadata,
                     structuredContent: {
                         ...summary,
                         preview: { rows: previewRows, truncated },

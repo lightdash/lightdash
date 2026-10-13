@@ -2024,6 +2024,7 @@ export const getAgentTools = (
 
     const runComposerQueries = args.enableComposerQueries
         ? getRunComposerQueries({
+              agentContext,
               reviewQuery,
               planViz,
               updateProgress: dependencies.updateProgress,
