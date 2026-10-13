@@ -19,8 +19,10 @@ import type { Mock } from 'vitest';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import type { INatsClient } from '../../clients/NatsClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import Logger from '../../logging/logger';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { SqlQueryComposer } from '../../utils/QueryBuilder/SqlQueryComposer';
+import { AiAccessService } from '../AiAccessService/AiAccessService';
 import type { ICacheService } from '../CacheService/ICacheService';
 import type { CacheHitCacheResult } from '../CacheService/types';
 import {
@@ -134,9 +136,12 @@ const fieldByUpdateKey: Record<string, keyof Row> = {
 const buildHarness = ({
     flags = {},
     runnerSource,
+    realReaderCheck = false,
 }: {
     flags?: Partial<Record<FeatureFlags, boolean>>;
     runnerSource?: string;
+    /** Authorizes references with the real AiAccessService instead of a pass-through. */
+    realReaderCheck?: boolean;
 } = {}) => {
     const files = new Map<string, Buffer>([
         ['orders-file', toJsonl(ordersRows)],
@@ -348,6 +353,47 @@ const buildHarness = ({
         enqueuePreAggregateQuery: vi.fn(),
         enqueueMaterializationQuery: vi.fn(),
     };
+    const featureFlagModel = {
+        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+            id: featureFlagId,
+            enabled:
+                flags[featureFlagId as FeatureFlags] ??
+                featureFlagId === FeatureFlags.ComposeSqlRunner,
+        })),
+    };
+    const projectModel = {
+        getSummary: vi.fn(async () => projectSummary),
+        getEffectiveResultsCacheTtlSeconds: vi.fn(async () => 3600),
+        getWarehouseCredentialsForBinding: vi.fn(async () => ({
+            type: 'postgres',
+        })),
+    };
+    const aiAccessService = realReaderCheck
+        ? new AiAccessService({
+              lightdashConfig: {
+                  ...lightdashConfigMock,
+                  ai: {
+                      ...lightdashConfigMock.ai,
+                      agentResultIdentityCheckEnabled: true,
+                  },
+              },
+              analytics: analyticsMock,
+              featureFlagModel,
+              projectModel,
+              queryHistoryModel: {
+                  ...queryHistoryModel,
+                  getDuckdbExecution: vi.fn(async () => null),
+                  getManyWithDuckdbExecutions: vi.fn(async (uuids: string[]) =>
+                      uuids.map((uuid) => ({
+                          queryHistory: rows.get(uuid),
+                          execution: null,
+                      })),
+                  ),
+              },
+          } as unknown as ConstructorParameters<typeof AiAccessService>[0])
+        : {
+              assertCanReadResultsForQueries: vi.fn(async () => new Map()),
+          };
     const provider = new RecordingProvider();
     const runner = new DuckdbSandboxRunner({
         lightdashConfig: lightdashConfigMock,
@@ -367,25 +413,11 @@ const buildHarness = ({
         cacheService,
         resultsStorageClient,
         natsClient,
-        projectModel: {
-            getSummary: vi.fn(async () => projectSummary),
-            getEffectiveResultsCacheTtlSeconds: vi.fn(async () => 3600),
-        },
+        projectModel,
         projectParametersModel: { find: vi.fn(async () => []) },
         userModel: { findSessionUserAndOrgByUuid: vi.fn(async () => user) },
-        featureFlagModel: {
-            get: vi.fn(
-                async ({ featureFlagId }: { featureFlagId: string }) => ({
-                    id: featureFlagId,
-                    enabled:
-                        flags[featureFlagId as FeatureFlags] ??
-                        featureFlagId === FeatureFlags.ComposeSqlRunner,
-                }),
-            ),
-        },
-        aiAccessService: {
-            assertCanReadResultsForQueries: vi.fn(async () => new Map()),
-        },
+        featureFlagModel,
+        aiAccessService,
     } as unknown as ConstructorParameters<typeof AsyncQueryService>[0]);
     Object.assign(service, { duckdbSandboxRunner: runner });
     vi.spyOn(service, 'getUserAttributes').mockResolvedValue({
@@ -496,6 +528,7 @@ const buildHarness = ({
 
     return {
         service,
+        aiAccessService,
         rows,
         files,
         provider,
@@ -743,6 +776,49 @@ describe('DuckDB queries over results run in a one-shot sandbox', () => {
             authMethod: sessionAccount.authentication.type,
             entitlementFingerprint: expect.any(String),
         });
+    }, 30_000);
+
+    test('a derived row without a producer is refused by the reader check', async () => {
+        const { service, aiAccessService, rows, provider } = buildHarness({
+            flags: { [FeatureFlags.AgentIdentity]: true },
+            realReaderCheck: true,
+        });
+        const lineageWarning = vi.spyOn(
+            (aiAccessService as unknown as { logger: typeof Logger }).logger,
+            'warn',
+        );
+        const derivedUuid = '5f4e3d2c-1b0a-4987-8654-3210fedcba98';
+        rows.set(
+            derivedUuid,
+            readyResult(derivedUuid, 'orders-file', {
+                requestParameters: {
+                    sql: 'SELECT * FROM orders',
+                    references: {},
+                } as unknown as QueryHistory['requestParameters'],
+            }),
+        );
+        const rowsBefore = rows.size;
+
+        await expect(
+            service.executeAsyncComposeSqlQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.AI,
+                sql: 'SELECT * FROM derived',
+                references: { derived: derivedUuid },
+            }),
+        ).rejects.toThrow(
+            'These results are not compatible with your current access. Run the query again.',
+        );
+        expect(lineageWarning).toHaveBeenCalledWith(
+            'Agent result lineage refused',
+            expect.objectContaining({
+                refusedNode: derivedUuid,
+                reason: 'missing_producer',
+            }),
+        );
+        expect(rows.size).toBe(rowsBefore);
+        expect(provider.created).toHaveLength(0);
     }, 30_000);
 
     test('without a sandbox provider the submission fails naming the missing configuration', async () => {
