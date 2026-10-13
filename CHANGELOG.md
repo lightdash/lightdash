@@ -1,3 +1,10 @@
+## [2.576.1](https://github.com/lightdash/lightdash/compare/2.576.0...2.576.1) (2026-10-13)
+
+
+### Bug Fixes
+
+* **ai:** markdown tables scroll inside their own box instead of widening the chat ([#30967](https://github.com/lightdash/lightdash/issues/30967)) ([5a245af](https://github.com/lightdash/lightdash/commit/5a245af51a4636742986e0aebd1177d24490c106))
+
 # [2.576.0](https://github.com/lightdash/lightdash/compare/2.575.4...2.576.0) (2026-10-13)
 
 
