@@ -11403,11 +11403,13 @@ export class AsyncQueryService extends ProjectService {
             async (span) => {
                 const startedAt = Date.now();
                 const runner = this.getDuckdbSandboxRunner();
-                const createSandbox = () =>
+                const createSandbox = (referenceWaitMs: number) =>
                     runner.create({
                         queryUuid,
                         projectUuid,
-                        timeoutMs: DuckdbSandboxRunner.DUCKDB_RUN_TIMEOUT_MS,
+                        commandTimeoutMs:
+                            DuckdbSandboxRunner.DUCKDB_RUN_TIMEOUT_MS,
+                        referenceWaitMs,
                     });
                 let sandboxPromise: Promise<DuckdbSandbox> | null = null;
                 /** Destroys the sandbox if one was started; a failed create is ignored. */
@@ -11427,7 +11429,9 @@ export class AsyncQueryService extends ProjectService {
                             references.references,
                         )
                     ) {
-                        sandboxPromise = createSandbox();
+                        sandboxPromise = createSandbox(
+                            AsyncQueryService.REFERENCE_WAIT_TIMEOUT_MS,
+                        );
                         // Awaited after the wait; until then a failure must not go unhandled
                         sandboxPromise.catch(() => undefined);
                     }
@@ -11549,7 +11553,7 @@ export class AsyncQueryService extends ProjectService {
                         bound,
                         attributes,
                     );
-                    sandboxPromise ??= createSandbox();
+                    sandboxPromise ??= createSandbox(0);
                     const sandbox = await sandboxPromise;
                     await sandbox.writeInputs(inputs);
                     const statement = await this.composeDuckdbSandboxStatement({

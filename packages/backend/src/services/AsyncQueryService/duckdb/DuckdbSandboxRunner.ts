@@ -40,8 +40,10 @@ export type DuckdbSandboxInput = {
 export type DuckdbSandboxCreateArgs = {
     queryUuid: string;
     projectUuid: string;
-    /** Per-command timeout for the probe and the run. */
-    timeoutMs: number;
+    /** Per-command timeout for the probe and the run; defaults to {@link DuckdbSandboxRunner.DUCKDB_RUN_TIMEOUT_MS}. */
+    commandTimeoutMs?: number;
+    /** Longest the caller may still wait for inputs after creation; 0 when they are ready. */
+    referenceWaitMs: number;
 };
 
 export type DuckdbSandboxOpenArgs = DuckdbSandboxCreateArgs & {
@@ -78,6 +80,22 @@ export class DuckdbSandboxExecutionError extends Error {
         this.name = 'DuckdbSandboxExecutionError';
     }
 }
+
+/** Lifetime budgeted for writing inputs and reading the output. */
+export const DUCKDB_TRANSFER_MARGIN_MS = 2 * 60 * 1000;
+
+/**
+ * What the sandbox must outlive: the remaining reference wait, the probe and
+ * the run, and the transfers. Expiry pauses an e2b sandbox and nothing resumes it.
+ */
+export const getDuckdbSandboxLifetimeMs = ({
+    referenceWaitMs,
+    commandTimeoutMs,
+}: {
+    referenceWaitMs: number;
+    commandTimeoutMs: number;
+}): number =>
+    referenceWaitMs + 2 * commandTimeoutMs + DUCKDB_TRANSFER_MARGIN_MS;
 
 const MAX_LOG_BYTES = 1024 * 1024;
 const MAX_META_BYTES = 1024 * 1024;
@@ -164,9 +182,20 @@ export class DuckdbSandboxRunner {
      * waiting for them. Callers must `close()` it.
      */
     async create(args: DuckdbSandboxCreateArgs): Promise<DuckdbSandbox> {
-        const { queryUuid, projectUuid, timeoutMs } = args;
+        const {
+            queryUuid,
+            projectUuid,
+            referenceWaitMs,
+            commandTimeoutMs:
+                timeoutMs = DuckdbSandboxRunner.DUCKDB_RUN_TIMEOUT_MS,
+        } = args;
         const provider = this.sandboxProvider.get();
-        const spec = this.sandboxProvider.buildSpec(timeoutMs);
+        const spec = this.sandboxProvider.buildSpec(
+            getDuckdbSandboxLifetimeMs({
+                referenceWaitMs,
+                commandTimeoutMs: timeoutMs,
+            }),
+        );
         const settings = this.getSettings();
         const attributes = {
             'lightdash.queryUuid': queryUuid,
@@ -175,6 +204,7 @@ export class DuckdbSandboxRunner {
             'lightdash.templateRef': spec.templateRef,
             'lightdash.duckdbMemoryLimit': settings.memoryLimit,
             'lightdash.duckdbThreads': settings.threads,
+            'lightdash.sandboxTimeoutMs': spec.timeoutMs,
         };
 
         const handle = await traceSpan(

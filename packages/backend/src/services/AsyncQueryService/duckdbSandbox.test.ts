@@ -19,6 +19,7 @@ import type { Mock } from 'vitest';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import type { INatsClient } from '../../clients/NatsClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { type SandboxSpec } from '../../ee/services/SandboxRuntime/types';
 import Logger from '../../logging/logger';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { SqlQueryComposer } from '../../utils/QueryBuilder/SqlQueryComposer';
@@ -96,8 +97,11 @@ class RecordingProvider extends LocalProcessSandboxProvider {
     /** Shared timeline: the provider records `create`, tests record their own events. */
     readonly events: string[] = [];
 
-    async create() {
+    readonly specs: SandboxSpec[] = [];
+
+    async create(spec?: SandboxSpec) {
         this.events.push('create');
+        if (spec) this.specs.push(spec);
         const handle = await super.create();
         this.created.push(handle.sandboxId);
         return handle;
@@ -875,7 +879,7 @@ describe('DuckDB queries over results run in a one-shot sandbox', () => {
             const { composeSql, runner } = buildHarness();
             const create = runner.create.bind(runner);
             vi.spyOn(runner, 'create').mockImplementation((args) =>
-                create({ ...args, timeoutMs: 1000 }),
+                create({ ...args, commandTimeoutMs: 1000 }),
             );
 
             const row = await composeSql({
@@ -969,6 +973,43 @@ describe('DuckDB queries over results run in a one-shot sandbox', () => {
             expect(row.duckdbExecution?.refusal).toEqual({ kind: 'row_cap' });
             expect(provider.created).toHaveLength(1);
             expect(existsSync(provider.created[0])).toBe(false);
+        }, 30_000);
+
+        test('a sandbox created while waiting lives through the whole reference wait, the probe and the run', async () => {
+            const { composeSql, rows, provider } = buildHarness();
+            const finishOrders = startWithOrdersRunning(rows, provider);
+
+            const pending = composeSql();
+            await finishOrders();
+            await pending;
+
+            const referenceWaitMs = 15 * 60_000;
+            const commandMs = 5 * 60_000;
+            expect(provider.specs).toHaveLength(1);
+            expect(provider.specs[0].timeoutMs).toBeGreaterThanOrEqual(
+                referenceWaitMs + 2 * commandMs,
+            );
+        }, 30_000);
+
+        test('a sandbox created over ready references budgets the probe, the run and transfer, but no wait', async () => {
+            const waiting = buildHarness();
+            const finishOrders = startWithOrdersRunning(
+                waiting.rows,
+                waiting.provider,
+            );
+            const pending = waiting.composeSql();
+            await finishOrders();
+            await pending;
+
+            const { composeSql, provider } = buildHarness();
+            await composeSql();
+
+            const commandMs = 5 * 60_000;
+            expect(provider.specs).toHaveLength(1);
+            expect(provider.specs[0].timeoutMs).toBeGreaterThan(2 * commandMs);
+            expect(provider.specs[0].timeoutMs).toBeLessThan(
+                waiting.provider.specs[0].timeoutMs,
+            );
         }, 30_000);
 
         test('references already ready are looked up in the cache before any sandbox is created', async () => {

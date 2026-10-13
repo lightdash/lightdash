@@ -5,7 +5,10 @@ import {
 } from '@lightdash/common';
 import { existsSync } from 'node:fs';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
-import { type SandboxProvider } from '../../../ee/services/SandboxRuntime/types';
+import {
+    type SandboxProvider,
+    type SandboxSpec,
+} from '../../../ee/services/SandboxRuntime/types';
 import { getJsonlReferenceSelect } from '../../../utils/duckdb/duckdbSqlTables';
 import { LocalProcessSandboxProvider } from '../sandbox/LocalProcessSandboxProvider';
 import { DUCKDB_RUNNER_SOURCE } from './duckdbSandboxHarness';
@@ -23,7 +26,10 @@ const logger = { info: vi.fn(), warn: vi.fn(), debug: vi.fn(), error: vi.fn() };
 class RecordingProvider extends LocalProcessSandboxProvider {
     readonly sandboxIds: string[] = [];
 
-    async create() {
+    readonly specs: SandboxSpec[] = [];
+
+    async create(spec?: SandboxSpec) {
+        if (spec) this.specs.push(spec);
         const handle = await super.create();
         this.sandboxIds.push(handle.sandboxId);
         return handle;
@@ -71,7 +77,8 @@ const ordersInput = {
 const createArgs = {
     queryUuid: 'query-uuid',
     projectUuid: 'project-uuid',
-    timeoutMs: 30_000,
+    commandTimeoutMs: 30_000,
+    referenceWaitMs: 0,
 };
 
 const openArgs = { ...createArgs, inputs: [ordersInput] };
@@ -206,7 +213,7 @@ describe('DuckdbSandboxRunner over a local process sandbox', () => {
 
         await expect(
             runner.withSession(
-                { ...openArgs, timeoutMs: 1_000 },
+                { ...openArgs, commandTimeoutMs: 1_000 },
                 async (session) =>
                     session.run(
                         'SELECT COUNT(*) AS n FROM range(100000000) a, range(100000000) b',
@@ -257,6 +264,49 @@ describe('DuckdbSandboxRunner over a local process sandbox', () => {
             await sandbox.close();
         }
         expect(existsSync(provider.sandboxIds[0])).toBe(false);
+    });
+
+    describe('sandbox lifetime', () => {
+        const lifetimeOf = async (args: {
+            commandTimeoutMs?: number;
+            referenceWaitMs: number;
+        }) => {
+            const provider = new RecordingProvider();
+            const sandbox = await createRunner(provider).create({
+                queryUuid: 'query-uuid',
+                projectUuid: 'project-uuid',
+                ...args,
+            });
+            await sandbox.close();
+            expect(provider.specs).toHaveLength(1);
+            return provider.specs[0].timeoutMs;
+        };
+
+        it('covers the probe, the run, input and output transfer and an idle margin', async () => {
+            // 2 x 30s commands + 2 min transfer + 1 min idle
+            expect(
+                await lifetimeOf({
+                    commandTimeoutMs: 30_000,
+                    referenceWaitMs: 0,
+                }),
+            ).toBe(60_000 + 120_000 + 60_000);
+        });
+
+        it('adds the reference wait still to come after creation', async () => {
+            // 15 min wait + 2 x 30s commands + 2 min transfer + 1 min idle
+            expect(
+                await lifetimeOf({
+                    commandTimeoutMs: 30_000,
+                    referenceWaitMs: 15 * 60_000,
+                }),
+            ).toBe(15 * 60_000 + 60_000 + 120_000 + 60_000);
+        });
+
+        it('budgets two five-minute commands when no command timeout is given', async () => {
+            expect(await lifetimeOf({ referenceWaitMs: 0 })).toBe(
+                10 * 60_000 + 120_000 + 60_000,
+            );
+        });
     });
 
     it('destroys a sandbox closed before any input was written', async () => {

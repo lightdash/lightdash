@@ -8,7 +8,8 @@ import {
     type SandboxSpec,
 } from '../../../ee/services/SandboxRuntime';
 
-const SANDBOX_IDLE_MARGIN_MS = 60_000;
+/** Added to every requested lifetime so a sandbox is never reaped mid-read. */
+export const SANDBOX_IDLE_MARGIN_MS = 60_000;
 
 export type OneShotSandboxProviderArgs = {
     lightdashConfig: LightdashConfig;
