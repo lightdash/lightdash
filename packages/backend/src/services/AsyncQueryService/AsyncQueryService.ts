@@ -10537,6 +10537,7 @@ export class AsyncQueryService extends ProjectService {
             throw new ParameterError(`limit must be at most ${maxLimit} rows`);
         }
 
+        const identityEnabled = await this.isResultIdentityEnabled(account);
         const agentIdentity = await this.authorizeQueryReferences({
             account,
             projectUuid,
@@ -10559,6 +10560,43 @@ export class AsyncQueryService extends ProjectService {
             context,
             references,
         };
+        const metricQuery: MetricQuery = {
+            exploreName: SQL_QUERY_MOCK_EXPLORER_NAME,
+            dimensions: [],
+            metrics: [],
+            filters: {},
+            sorts: [],
+            limit: effectiveLimit,
+            tableCalculations: [],
+            additionalMetrics: [],
+        };
+        // A python result is derived from the results it reads, so it is
+        // stamped like a DuckDB result over references: the agent reader
+        // check refuses a derived row that carries no producer
+        const resultEntitlementFingerprint = identityEnabled
+            ? getQueryResultEntitlementFingerprint({
+                  parameters: getQueryResultRequestParameters(
+                      requestParameters,
+                      {},
+                  ),
+                  controls: await this.getUserAttributes({ account }),
+                  explore: null,
+                  metricQuery,
+              })
+            : null;
+        const reader = buildResultReader(
+            account,
+            context,
+            querySurface ?? null,
+        );
+        const resultProducer: QueryResultProducer = {
+            entitlementFingerprint: resultEntitlementFingerprint,
+            version: 1,
+            warehouseConnectionUuid: null,
+            credentialOwner: { kind: 'derived' },
+            authMethod: account.authentication.type,
+            agentIdentity: reader.kind === 'agent' ? reader.claim : null,
+        };
         // No seed in the key: the same code over the same inputs is one
         // result, and a re-run is an explicit new submission, so each
         // submission gets its own file.
@@ -10579,16 +10617,7 @@ export class AsyncQueryService extends ProjectService {
                 compiledSql: code,
                 requestParameters,
                 usedParameters: {},
-                metricQuery: {
-                    exploreName: SQL_QUERY_MOCK_EXPLORER_NAME,
-                    dimensions: [],
-                    metrics: [],
-                    filters: {},
-                    sorts: [],
-                    limit: effectiveLimit,
-                    tableCalculations: [],
-                    additionalMetrics: [],
-                },
+                metricQuery,
                 cacheKey,
                 pivotConfiguration: null,
                 originalColumns: {},
@@ -10596,6 +10625,13 @@ export class AsyncQueryService extends ProjectService {
             undefined,
             undefined,
             querySurface,
+            { resultEntitlementFingerprint },
+        );
+        await this.queryHistoryModel.recordResultProducer(
+            queryUuid,
+            projectUuid,
+            account.user.id,
+            resultProducer,
         );
         this.prometheusMetrics?.trackQueryStateTransition(
             'new',

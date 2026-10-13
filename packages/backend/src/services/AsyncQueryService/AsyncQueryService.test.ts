@@ -1448,6 +1448,104 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    describe('executeAsyncPythonQuery result producer', () => {
+        const referencedQueryUuid = '0b7c9c62-4b6e-4b1a-9c3e-4f6a0c8d2e11';
+        const referenced = {
+            queryUuid: referencedQueryUuid,
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            createdByUserUuid: sessionAccount.user.id,
+            context: QueryExecutionContext.AI,
+            status: QueryHistoryStatus.READY,
+            resultsFileName: 'referenced-results.jsonl',
+            resultsExpiresAt: null,
+            columns: { one: { reference: 'one', type: DimensionType.NUMBER } },
+            metricQuery: metricQueryMock,
+            requestParameters: { query: metricQueryMock },
+        } as unknown as QueryHistory;
+
+        const submit = async (identityEnabled: boolean) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            featureFlagId === FeatureFlags.AgentIdentity
+                                ? identityEnabled
+                                : true,
+                    })),
+                } as unknown as FeatureFlagModel,
+                queryHistoryModel: {
+                    create: vi.fn(async () => ({ queryUuid: 'python-uuid' })),
+                    get: vi.fn(async () => referenced),
+                    recordResultProducer: vi.fn(),
+                } as unknown as QueryHistoryModel,
+            } as never);
+            vi.spyOn(service, 'getUserAttributes').mockResolvedValue({
+                userAttributes: {},
+                intrinsicUserAttributes: {},
+            });
+            const run = vi
+                .spyOn(service as AnyType, 'runPythonQuery')
+                .mockResolvedValue(undefined);
+            const submission = await service.executeAsyncPythonQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.AI,
+                querySurface: QuerySurface.APP,
+                code: 'def run(inputs, params):\n    return inputs["orders"]',
+                references: { orders: referencedQueryUuid },
+            });
+            return { service, run, submission };
+        };
+
+        test('stamps the row with a derived producer and the entitlement fingerprint before running', async () => {
+            const { service, run, submission } = await submit(true);
+
+            expect(submission.queryUuid).toBe('python-uuid');
+            const stored = vi.mocked(service.queryHistoryModel.create).mock
+                .calls[0][1].requestParameters;
+            const fingerprint = stored.resultEntitlementFingerprint;
+            expect(fingerprint).toEqual(expect.any(String));
+            expect(
+                service.queryHistoryModel.recordResultProducer,
+            ).toHaveBeenCalledWith(
+                'python-uuid',
+                projectUuid,
+                sessionAccount.user.id,
+                {
+                    version: 1,
+                    authMethod: 'session',
+                    warehouseConnectionUuid: null,
+                    credentialOwner: { kind: 'derived' },
+                    entitlementFingerprint: fingerprint,
+                    agentIdentity: buildQueryAgentIdentity(
+                        sessionAccount,
+                        QueryExecutionContext.AI,
+                        QuerySurface.APP,
+                    ),
+                },
+            );
+            expect(
+                vi.mocked(service.queryHistoryModel.recordResultProducer).mock
+                    .invocationCallOrder[0],
+            ).toBeLessThan(run.mock.invocationCallOrder[0]);
+        });
+
+        test('records the producer without a fingerprint when agent identity is off', async () => {
+            const { service } = await submit(false);
+
+            const producer = vi.mocked(
+                service.queryHistoryModel.recordResultProducer,
+            ).mock.calls[0][3];
+            expect(producer?.credentialOwner).toEqual({ kind: 'derived' });
+            expect(producer?.entitlementFingerprint).toBeNull();
+            const stored = vi.mocked(service.queryHistoryModel.create).mock
+                .calls[0][1].requestParameters;
+            expect(stored.resultEntitlementFingerprint).toBeNull();
+        });
+    });
+
     describe('compose engine in every edition', () => {
         const composeFlags = {
             get: vi.fn(
