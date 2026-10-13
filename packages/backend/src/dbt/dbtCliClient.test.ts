@@ -1,6 +1,7 @@
 import { DbtError, SupportedDbtVersions } from '@lightdash/common';
 import execa from 'execa';
 import * as fs from 'fs/promises';
+import path from 'path';
 import { DbtCliClient } from './dbtCliClient';
 import {
     cliArgs as cliArgsWithoutVersion,
@@ -130,6 +131,32 @@ describe('DbtCliClient environment', () => {
         const [, , options] = execaMock.mock.calls[0];
 
         expect(options).toMatchObject({ extendEnv: false });
+    });
+
+    it('runs dbt from the project directory', async () => {
+        await new DbtCliClient(cliArgs).installDeps();
+        const [, , options] = execaMock.mock.calls[0];
+
+        expect(options).toMatchObject({ cwd: cliArgs.dbtProjectDirectory });
+    });
+
+    it('resolves relative directories before changing the cwd', async () => {
+        await new DbtCliClient({
+            ...cliArgs,
+            dbtProjectDirectory: 'relative/project',
+            dbtProfilesDirectory: 'relative/profiles',
+        }).installDeps();
+        const [, args, options] = execaMock.mock.calls[0];
+
+        expect(options).toMatchObject({
+            cwd: path.resolve('relative/project'),
+        });
+        expect(args).toEqual(
+            expect.arrayContaining([
+                path.resolve('relative/project'),
+                path.resolve('relative/profiles'),
+            ]),
+        );
     });
 
     it('does not hand backend secrets to dbt', async () => {

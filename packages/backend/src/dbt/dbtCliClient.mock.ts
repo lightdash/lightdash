@@ -7,8 +7,8 @@ import {
 import { ExecaError, ExecaReturnValue } from 'execa';
 
 export const cliArgs = {
-    dbtProjectDirectory: 'dbtProjectDirectory',
-    dbtProfilesDirectory: 'dbtProfilesDirectory',
+    dbtProjectDirectory: '/tmp/dbtProjectDirectory',
+    dbtProfilesDirectory: '/tmp/dbtProfilesDirectory',
     environment: {},
     environmentVariableAllowlist: [],
     profileName: 'profileName',
@@ -20,9 +20,9 @@ export const expectedDbtOptions = ['--no-use-colors', '--log-format', 'json'];
 
 export const expectedCommandOptions = [
     '--profiles-dir',
-    'dbtProfilesDirectory',
+    '/tmp/dbtProfilesDirectory',
     '--project-dir',
-    'dbtProjectDirectory',
+    '/tmp/dbtProjectDirectory',
     '--target',
     'target',
     '--profile',
