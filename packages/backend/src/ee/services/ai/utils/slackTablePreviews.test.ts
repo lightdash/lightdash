@@ -148,9 +148,8 @@ const composerArtifact = (versionUuid: string): AiArtifact => {
 };
 
 describe('getSlackTablePreviews', () => {
-    it('loads a selected composer terminal result, authorizing its semantic explores', async () => {
-        const input = {
-            ...setup(),
+    it('hides a composer result from users who cannot access one of its semantic explores', async () => {
+        const composerCall = {
             selectedQueryUuids: ['query-composer'],
             toolCalls: [
                 {
@@ -173,19 +172,41 @@ describe('getSlackTablePreviews', () => {
             ],
             artifacts: [composerArtifact('composer-version')],
         };
-        const previews = await getSlackTablePreviews(input);
-        expect(previews).toEqual([
+        const authorizeExplores =
+            (allowed: string[]) =>
+            async ({ exploreNames }: { exploreNames: string[] }) => {
+                if (exploreNames.some((name) => !allowed.includes(name))) {
+                    throw new Error('Forbidden');
+                }
+            };
+
+        const [allowed] = await getSlackTablePreviews({
+            ...setup(),
+            ...composerCall,
+            authorize: authorizeExplores(['payments']),
+        });
+        const [denied] = await getSlackTablePreviews({
+            ...setup(),
+            ...composerCall,
+            authorize: authorizeExplores(['orders']),
+        });
+
+        expect(allowed).toEqual(
             expect.objectContaining({
                 status: 'ready',
                 title: 'Revenue pipeline',
-                url: 'https://lightdash.test/threads/thread',
-                artifactVersionUuid: 'composer-version',
+                queryResults: expect.objectContaining({
+                    rows: [{ month: 'September', customers: 100 }],
+                }),
             }),
-        ]);
-        expect(input.authorize).toHaveBeenCalledWith({
-            queryUuid: 'query-composer',
-            exploreNames: ['payments'],
-        });
+        );
+        expect(denied).toEqual(
+            expect.objectContaining({
+                status: 'unavailable',
+                url: 'https://lightdash.test/threads/thread',
+            }),
+        );
+        expect(denied).not.toHaveProperty('queryResults');
     });
 
     it('omits all table results when the final answer selects none', async () => {
