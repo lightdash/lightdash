@@ -1,3 +1,10 @@
+## [2.575.1](https://github.com/lightdash/lightdash/compare/2.575.0...2.575.1) (2026-10-13)
+
+
+### Performance Improvements
+
+* **agent-identity:** the scheduled-refresh guard reads stored state with one small query ([#30952](https://github.com/lightdash/lightdash/issues/30952)) ([d4ed632](https://github.com/lightdash/lightdash/commit/d4ed632858dcce4c4f413a8a45998cea558c47d7))
+
 # [2.575.0](https://github.com/lightdash/lightdash/compare/2.574.0...2.575.0) (2026-10-13)
 
 

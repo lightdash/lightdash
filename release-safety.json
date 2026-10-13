@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.575.0",
-  "previousVersion": "2.574.0",
-  "releaseDate": "2026-10-13T08:21:14.832Z",
+  "version": "2.575.1",
+  "previousVersion": "2.575.0",
+  "releaseDate": "2026-10-13T09:07:17.605Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -20,24 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v2/projects/{projectUuid}/query-sources — added the new `python` enum value to the `results/sources/items/sourceType` response property for the response status `200`",
-        "POST /api/v2/projects/{projectUuid}/query-sources/queries — added the new `python` enum value to the `results/queries/items/sourceType` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/query-sources/{sourceType}/schema — added the new `python` enum value to the `results/sourceType` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/query/history — added the new `pythonRunner` enum value to the `results/data/items/context` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/query/history — added the new `pythonRunner` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncComposeMergeQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/query/history — added the new `pythonRunner` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncComposeSqlQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/query/history — added the new `pythonRunner` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncDashboardChartRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/query/history — added the new `pythonRunner` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncDashboardSqlChartRequestParams]/anyOf[#/components/schemas/ExecuteAsyncDashboardSqlChartBySlugRequestParams]/allOf[#/components/schemas/ExecuteAsyncDashboardSqlChartCommonParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/query/history — added the new `pythonRunner` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncDashboardSqlChartRequestParams]/anyOf[#/components/schemas/ExecuteAsyncDashboardSqlChartByUuidRequestParams]/allOf[#/components/schemas/ExecuteAsyncDashboardSqlChartCommonParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/query/history — added the new `pythonRunner` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncFieldValueSearchRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/query/history — added the new `pythonRunner` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncMergeQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/query/history — added the new `pythonRunner` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncMetricQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/query/history — added the new `pythonRunner` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncSavedChartRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/query/history — added the new `pythonRunner` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncSqlQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/query/history — added the new `pythonRunner` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncUnderlyingDataRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`"
-      ],
-      "advisoryCount": 15
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,
