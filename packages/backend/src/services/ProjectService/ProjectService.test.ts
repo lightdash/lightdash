@@ -10487,6 +10487,9 @@ describe('ProjectService', () => {
                     explores,
                     undefined,
                     undefined,
+                    ...(kind === 'no-cron'
+                        ? [undefined, expect.any(Function)]
+                        : []),
                 );
             },
         );

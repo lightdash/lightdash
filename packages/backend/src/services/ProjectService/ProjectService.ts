@@ -315,6 +315,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import * as fs from 'fs';
 import { GoogleAuth } from 'google-auth-library';
 import * as yaml from 'js-yaml';
+import { type Knex } from 'knex';
 import { uniq } from 'lodash';
 import fetch from 'node-fetch';
 import { Readable } from 'stream';
@@ -384,7 +385,9 @@ import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import {
     ProjectModel,
+    type ExploreWriteCheck,
     type PushToPreview,
+    type StagedExploreWriteCheck,
 } from '../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import type { RefreshTokenRotation } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
@@ -560,6 +563,7 @@ import {
     type ReconcilePlaygroundBundlesResult,
 } from './playgroundBundle';
 import {
+    assertIncomingPreAggregateRefresh,
     assertPreAggregateRefresh,
     EMPTY_PRE_AGGREGATE_REFRESH,
 } from './preAggregateRefresh';
@@ -3764,6 +3768,54 @@ export class ProjectService
         assertPreAggregateRefresh(stored, explores);
     }
 
+    private getConnectionExploreWriteChecks(
+        projectUuid: string,
+    ):
+        | []
+        | [
+              (
+                  trx: Knex.Transaction,
+                  explores?: (Explore | ExploreError)[],
+              ) => Promise<void>,
+          ] {
+        if (!agentExecutionContext.getStore()?.agentConnectionExecution)
+            return [];
+        return [
+            async (trx, explores = []) => {
+                const stored =
+                    await this.projectModel.getPreAggregateRefreshSummary(
+                        projectUuid,
+                        trx,
+                    );
+                assertPreAggregateRefresh(stored, explores);
+            },
+        ];
+    }
+
+    private getConnectionStagedWriteChecks(
+        projectUuid: string,
+    ): [] | [StagedExploreWriteCheck] {
+        if (!agentExecutionContext.getStore()?.agentConnectionExecution)
+            return [];
+        return [
+            async (trx, saveUuid) => {
+                const stored =
+                    await this.projectModel.getPreAggregateRefreshSummary(
+                        projectUuid,
+                        trx,
+                    );
+                assertPreAggregateRefresh(stored, []);
+                const incoming =
+                    await this.projectModel.getStagedPreAggregateRefreshSummary(
+                        projectUuid,
+                        saveUuid,
+                        trx,
+                    );
+                assertIncomingPreAggregateRefresh(incoming);
+            },
+        ];
+    }
+
     private async prepareConnectionExploreStream(
         projectUuid: string,
         stream: AsyncIterable<Explore | ExploreError>,
@@ -4029,11 +4081,17 @@ export class ProjectService
             ...metadata,
             connectionWarnings: [],
             saveExplores: async (summary) => {
+                const [beforeWrite] = this.getConnectionExploreWriteChecks(
+                    args.projectUuid,
+                );
+                const writeCheckArgs: [undefined?, ExploreWriteCheck?] =
+                    beforeWrite ? [undefined, beforeWrite] : [];
                 const saved = await this.projectModel.saveExploresToCache(
                     args.projectUuid,
                     explores,
                     args.complete,
                     dbtModelNames,
+                    ...writeCheckArgs,
                 );
                 explores.forEach((explore) => summary.add(explore));
                 return saved;
@@ -4177,6 +4235,7 @@ export class ProjectService
                 const saved = await this.multiConnectionCompiler.save(
                     args.projectUuid,
                     sourceDeploy,
+                    ...this.getConnectionStagedWriteChecks(args.projectUuid),
                 );
                 explores.forEach((explore) => summary.add(explore));
                 return saved;
@@ -4217,6 +4276,7 @@ export class ProjectService
                         },
                         persistArtifacts: async () => {},
                     },
+                    ...this.getConnectionStagedWriteChecks(args.projectUuid),
                 );
                 explores.forEach((explore) => summary.add(explore));
                 return saved;
@@ -4257,18 +4317,25 @@ export class ProjectService
                     onCompiled?.(summary);
                 }
                 if (multiConnection) {
-                    return this.multiConnectionCompiler.save(args.projectUuid, {
-                        ...multiConnection,
-                        exploreStream: observedExplores(),
-                        ...(agentExecutionContext.getStore()
-                            ?.agentConnectionExecution
-                            ? { persistArtifacts: async () => {} }
-                            : {}),
-                    });
+                    return this.multiConnectionCompiler.save(
+                        args.projectUuid,
+                        {
+                            ...multiConnection,
+                            exploreStream: observedExplores(),
+                            ...(agentExecutionContext.getStore()
+                                ?.agentConnectionExecution
+                                ? { persistArtifacts: async () => {} }
+                                : {}),
+                        },
+                        ...this.getConnectionStagedWriteChecks(
+                            args.projectUuid,
+                        ),
+                    );
                 }
                 return this.projectModel.saveExploreStreamToCache(
                     args.projectUuid,
                     observedExplores(),
+                    ...this.getConnectionStagedWriteChecks(args.projectUuid),
                 );
             },
         });
@@ -16913,6 +16980,7 @@ export class ProjectService
             },
             warehouseSqlBuilder,
             boundConnectionUuid,
+            ...this.getConnectionExploreWriteChecks(projectUuid),
         );
 
         this.analytics.trackAccount(account, {
@@ -17005,6 +17073,7 @@ export class ProjectService
             },
             warehouseSqlBuilder,
             expectedExplore,
+            ...this.getConnectionExploreWriteChecks(projectUuid),
         );
 
         this.analytics.trackAccount(account, {
@@ -17453,6 +17522,7 @@ export class ProjectService
         await this.projectParametersModel.replace(
             projectUuid,
             parameters ?? {},
+            ...this.getConnectionExploreWriteChecks(projectUuid),
         );
     }
 

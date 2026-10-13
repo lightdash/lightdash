@@ -21,6 +21,21 @@ export const EMPTY_PRE_AGGREGATE_REFRESH: Readonly<StoredPreAggregateRefresh> =
 const malformedMessage =
     'Explores for this project have an invalid pre-aggregate definition.';
 
+export const assertIncomingPreAggregateRefresh = ({
+    hasScheduledRefresh,
+    hasMalformedPreAggregates,
+}: Pick<
+    StoredPreAggregateRefresh,
+    'hasScheduledRefresh' | 'hasMalformedPreAggregates'
+>): void => {
+    if (hasScheduledRefresh)
+        throw new ForbiddenError(
+            'This agent connection cannot add a pre-aggregate with a scheduled refresh. A person can add it.',
+        );
+    if (hasMalformedPreAggregates)
+        throw new UnexpectedServerError(malformedMessage);
+};
+
 export const assertPreAggregateRefresh = (
     stored: StoredPreAggregateRefresh,
     incoming: (Explore | ExploreError)[],
@@ -53,10 +68,8 @@ export const assertPreAggregateRefresh = (
             if (definition.refresh?.cron != null) hasScheduledRefresh = true;
         });
     });
-    if (hasScheduledRefresh)
-        throw new ForbiddenError(
-            'This agent connection cannot add a pre-aggregate with a scheduled refresh. A person can add it.',
-        );
-    if (hasMalformedPreAggregates)
-        throw new UnexpectedServerError(malformedMessage);
+    assertIncomingPreAggregateRefresh({
+        hasScheduledRefresh,
+        hasMalformedPreAggregates,
+    });
 };

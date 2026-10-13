@@ -274,6 +274,16 @@ export type MultiConnectionCarry =
           warehouseConnectionUuid: string | null;
       };
 
+export type ExploreWriteCheck = (
+    trx: Knex.Transaction,
+    explores: (Explore | ExploreError)[],
+) => Promise<void>;
+
+export type StagedExploreWriteCheck = (
+    trx: Knex.Transaction,
+    saveUuid: string,
+) => Promise<void>;
+
 export type ProjectModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
@@ -3114,19 +3124,51 @@ export class ProjectModel {
         projectUuid: string,
         trx?: Knex.Transaction,
     ): Promise<StoredPreAggregateRefresh> {
-        const result = await (trx ?? this.database).raw<{
+        const database = trx ?? this.database;
+        return ProjectModel.queryPreAggregateRefreshSummary(
+            database,
+            database(CachedExploreTableName)
+                .select('explore')
+                .where('project_uuid', projectUuid),
+            database.raw(
+                `EXISTS (
+                SELECT 1 FROM pre_aggregate_definitions
+                WHERE project_uuid = ? AND refresh_cron IS NOT NULL
+            )`,
+                [projectUuid],
+            ),
+        );
+    }
+
+    async getStagedPreAggregateRefreshSummary(
+        projectUuid: string,
+        saveUuid: string,
+        trx: Knex.Transaction,
+    ): Promise<StoredPreAggregateRefresh> {
+        return ProjectModel.queryPreAggregateRefreshSummary(
+            trx,
+            trx(CachedExploreStagingTableName).select('explore').where({
+                project_uuid: projectUuid,
+                save_uuid: saveUuid,
+            }),
+            trx.raw('false'),
+        );
+    }
+
+    private static async queryPreAggregateRefreshSummary(
+        database: Knex,
+        source: Knex.QueryBuilder,
+        scheduledDefinition: Knex.Raw,
+    ): Promise<StoredPreAggregateRefresh> {
+        const result = await database.raw<{
             rows: StoredPreAggregateRefresh[];
         }>(
             `WITH stored AS MATERIALIZED (
                 SELECT explore -> 'preAggregates' AS definitions,
                        jsonb_typeof(explore) AS explore_type
-                FROM cached_explore
-                WHERE project_uuid = ?
+                FROM (?) AS explores
             )
-            SELECT EXISTS (
-                SELECT 1 FROM pre_aggregate_definitions
-                WHERE project_uuid = ? AND refresh_cron IS NOT NULL
-            ) AS "hasScheduledDefinition",
+            SELECT ? AS "hasScheduledDefinition",
             COALESCE(bool_or(
                 definition -> 'refresh' -> 'cron' IS NOT NULL
                 AND definition -> 'refresh' -> 'cron' <> 'null'::jsonb
@@ -3142,7 +3184,7 @@ export class ProjectModel {
                 CASE WHEN jsonb_typeof(definitions) = 'array'
                      THEN definitions ELSE '[]'::jsonb END
             ) AS elements(definition) ON true`,
-            [projectUuid, projectUuid],
+            [source, scheduledDefinition],
         );
         return result.rows[0];
     }
@@ -3471,6 +3513,8 @@ export class ProjectModel {
         complete = false,
         dbtModelNames?: string[],
         playgroundBundleVersion?: string,
+        // Use only statements on the given transaction; no other I/O or connection.
+        beforeWrite?: ExploreWriteCheck,
     ) {
         return wrapSentryTransaction(
             'ProjectModel.saveExploresToCache',
@@ -3481,6 +3525,7 @@ export class ProjectModel {
                         trx,
                         projectUuid,
                     );
+                    if (beforeWrite) await beforeWrite(trx, explores);
                     const cachedExploresQuery = trx(CachedExploreTableName)
                         .select<{ explore: Explore | ExploreError }[]>(
                             'explore',
@@ -3674,6 +3719,8 @@ export class ProjectModel {
     async saveExploreStreamToCache(
         projectUuid: string,
         explores: AsyncIterable<Explore | ExploreError>,
+        // Use only statements on the given transaction; no other I/O or connection.
+        beforeWrite?: StagedExploreWriteCheck,
     ): Promise<{ cachedExploreUuids: string[] }> {
         return wrapSentryTransaction(
             'ProjectModel.saveExploresToCache',
@@ -3762,6 +3809,7 @@ export class ProjectModel {
                                     [...USER_MANAGED_EXPLORE_TYPES],
                                 ],
                             );
+                            if (beforeWrite) await beforeWrite(trx, saveUuid);
                             const expectedNames = new Set(stagedNames);
                             managedResult.rows.forEach(({ name }) =>
                                 expectedNames.add(name),
@@ -3912,6 +3960,8 @@ export class ProjectModel {
         projectUuid: string,
         explores: AsyncIterable<BoundExplore>,
         carry: MultiConnectionCarry,
+        // Use only statements on the given transaction; no other I/O or connection.
+        beforeWrite?: StagedExploreWriteCheck,
     ): Promise<{ cachedExploreUuids: string[] }> {
         return wrapSentryTransaction(
             'ProjectModel.saveMultiConnectionExplores',
@@ -4010,6 +4060,7 @@ export class ProjectModel {
                                     [...USER_MANAGED_EXPLORE_TYPES],
                                 ],
                             );
+                            if (beforeWrite) await beforeWrite(trx, saveUuid);
                             const expectedNames = new Set(
                                 stagedBindings.keys(),
                             );
@@ -7671,6 +7722,8 @@ export class ProjectModel {
         }: CreateVirtualViewPayload,
         warehouseSqlBuilder: WarehouseSqlBuilder,
         warehouseConnectionUuid: string | null = null,
+        // Use only statements on the given transaction; no other I/O or connection.
+        beforeWrite?: ExploreWriteCheck,
     ): Promise<Explore> {
         const virtualView = createVirtualView(
             name,
@@ -7683,6 +7736,7 @@ export class ProjectModel {
 
         await this.database.transaction(async (trx) => {
             await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
+            if (beforeWrite) await beforeWrite(trx, [virtualView]);
             const existing = await trx(CachedExploreTableName)
                 .select('name')
                 .where('project_uuid', projectUuid)
@@ -7711,6 +7765,8 @@ export class ProjectModel {
         payload: UpdateVirtualViewPayload,
         warehouseSqlBuilder: WarehouseSqlBuilder,
         expectedExplore?: Explore,
+        // Use only statements on the given transaction; no other I/O or connection.
+        beforeWrite?: ExploreWriteCheck,
     ) {
         const translatedToExplore = createVirtualView(
             exploreName,
@@ -7723,6 +7779,7 @@ export class ProjectModel {
 
         await this.database.transaction(async (trx) => {
             await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
+            if (beforeWrite) await beforeWrite(trx, [translatedToExplore]);
             const existing = await trx(CachedExploreTableName)
                 .select<{ explore: Explore | ExploreError }[]>('explore')
                 .where('project_uuid', projectUuid)
@@ -7824,7 +7881,7 @@ export class ProjectModel {
         });
     }
 
-    private static async lockAndEnsureCachedExplores(
+    static async lockAndEnsureCachedExplores(
         trx: Transaction,
         projectUuid: string,
     ): Promise<void> {

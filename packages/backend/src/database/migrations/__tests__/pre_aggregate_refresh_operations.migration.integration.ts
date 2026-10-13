@@ -59,17 +59,17 @@ const incomingOperations = [
 ];
 const expectedReads: Record<string, number> = {
     schedule: 1,
-    compile: 4,
-    deploy: 1,
-    array: 1,
+    compile: 7,
+    deploy: 2,
+    array: 2,
     retained: 1,
     start: 1,
     batch: 1,
-    finalize: 2,
-    parameters: 1,
-    'virtual-create': 1,
-    'virtual-update': 1,
-    stream: 1,
+    finalize: 3,
+    parameters: 2,
+    'virtual-create': 2,
+    'virtual-update': 2,
+    stream: 3,
     refresh: 1,
 };
 const captureOutcome = async (run: () => Promise<unknown>) => {
@@ -291,7 +291,7 @@ test.each(
         const reads = Object.entries(measured.sample.sql)
             .filter(([sql]) => sql.includes('"hasMalformedPreAggregates"'))
             .reduce((sum, [, row]) => sum + row.count, 0);
-        const executionReads = stored ? 1 : 5;
+        const executionReads = stored ? 1 : 8;
         expect(reads).toBe(connection ? executionReads : 0);
         if (connection && stored) {
             expect(log).not.toHaveBeenCalledWith(
