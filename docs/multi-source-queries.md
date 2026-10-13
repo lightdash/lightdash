@@ -1,7 +1,6 @@
 # Multi-source queries
 
-Implements the query-API layer of the
-[multi-source query platform plan](multi-source-query-platform-plan.md): one
+The query-API layer under composer queries and merges: one
 common interface to scan schemas and execute queries against heterogeneous
 query sources, and the ability to chain queries across sources. Every query —
 whatever its source — lands in the standard async query pipeline
@@ -14,8 +13,8 @@ results are fetched with the standard results endpoint and carry the universal
 - **Query source** (`QuerySourceType` in
   `packages/common/src/types/querySources.ts`): anything that can scan a
   schema and run a query returning the standard table format. Built-ins:
-  `semanticLayer` (metric queries), `sql` (SQL runner), `duckdb` (compose
-  engine over other results). Sources are deliberately not `WarehouseTypes` —
+  `semanticLayer` (metric queries), `sql` (SQL runner), `duckdb` (DuckDB
+  over other results, run in a one-shot sandbox). Sources are deliberately not `WarehouseTypes` —
   they plug in above the warehouse client layer, so non-SQL sources (HTTP
   APIs, Google Sheets, CSV uploads) fit the same contract.
 - **Source query** (`SourceQuery`): the tagged union the submit endpoint
@@ -72,10 +71,11 @@ than referencing expired results.
   `submitQuery` (returns a `queryUuid`). Each source owns its authorization,
   applying the same checks as the execution path it wraps, and honours the
   execution context it is handed: `semanticLayer` and `sql` nodes apply all
-  of it; `duckdb` and `external` nodes resolve parameters, never serve from a
-  cache (so invalidation is trivially honoured), have no attribute-scoped SQL
-  to apply overrides to, and refuse a pivot on a public submission, since raw
-  SQL has no fields to pivot on. A `duckdb` node submitted with an execution
+  of it; `duckdb` and `external` nodes resolve parameters, have no
+  attribute-scoped SQL to apply overrides to, and refuse a pivot on a public
+  submission, since raw SQL has no fields to pivot on. A `duckdb` node is
+  served from the results cache only by its SQL, the result files it reads,
+  its parameters and the sandbox version, and honours invalidation. A `duckdb` node submitted with an execution
   plan (a merge's join) pivots through the plan's composer.
 - `QuerySourceRegistry.ts` — sources register by `sourceType`; the service
   resolves and lists them. Commercial/self-hosted extensions register
@@ -86,22 +86,20 @@ than referencing expired results.
 - `QuerySourceService.ts` — endpoint logic: validation, dependency-ordered
   submission, batch status.
 
-The reference wait lives in `AsyncQueryService.runDuckdbQuery` (the
-background phase of `executeAsyncComposeSqlQuery`): references are validated
-and authorized at submit time with the exact access checks of fetching results
-by uuid, then resolved to S3-backed CTEs once the referenced queries complete.
-The statement then runs on an isolated DuckDB session whose storage
-credentials reach exactly those result files, so user SQL cannot read the
-rest of the results bucket; a duckdb query that references nothing is refused
-at submit, since it would have nothing to run on.
-The run rebuilds itself from the `query_history` row and its
-`duckdb_execution` column, so with the NATS worker on it runs on the worker
-(subject `duckdb.query.jobs` on the `DUCKDB_QUERY_JOBS` stream, its own
-durable consumer), and in the API process otherwise.
-One caveat inherited by design: on the worker, a waiting query occupies a
-worker slot; dependency-ordered submission keeps queue order aligned with
-dependency order, and a dedicated consumer is the fix if slot starvation ever
-materializes.
+The reference wait lives in the background phase of
+`executeAsyncComposeSqlQuery`, driven by the API process: references are
+validated and authorized at submit time with the exact access checks of
+fetching results by uuid, then read from results storage once the referenced
+queries complete. A duckdb query that references nothing is refused at
+submit, since it would have nothing to run on. The statement then runs in a
+one-shot sandbox created through the configured sandbox provider: the
+referenced result files are written into it, DuckDB reads only those files,
+and the result is read back, validated and uploaded. The sandbox has no
+credentials and no egress, so user SQL cannot reach the rest of the results
+bucket. There is no worker hop and no queue; the run rebuilds itself from the
+`query_history` row and its `duckdb_execution` column. Without a sandbox
+provider, submission fails with a missing-configuration error. See
+`docs/merge-queries/architecture.md` for the run sequence and limits.
 
 ## API
 

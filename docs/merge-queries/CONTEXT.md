@@ -2,7 +2,8 @@
 
 Joining the results of two explore queries into one result set, in the
 Explorer, over the semantic layer. Both sides run as ordinary metric queries;
-the join runs in DuckDB over their materialized results.
+the join runs in DuckDB, in a one-shot sandbox, over their materialized
+results.
 
 Read `architecture.md` in this directory before changing execution. A second,
 older execution path still exists and is being removed; building against it is
@@ -95,13 +96,6 @@ remedy rather than a filter. Both checks refuse on evidence only: an
 unrecorded limit or row count never refuses.
 _Avoid_: limit (collides with the merged result's own limit), truncation
 
-**Compose engine**:
-The DuckDB instance that executes joins over materialized results. Shared with
-the compose SQL runner and external sources. Not a warehouse, and not
-per-project.
-_Avoid_: merge engine (there is no engine specific to merges), DuckDB (as a
-product noun in user-facing copy)
-
 **Query source**:
 A registered kind of node in a composed query: the semantic layer, raw SQL,
 DuckDB over other results, or an external source. A merge is two semantic-layer
@@ -120,12 +114,14 @@ node (there are none in the saved definition)
 ## Boundaries
 
 - Merges join the **semantic layer**. Merging existing query results by uuid is
-  reachable through the AI agent path only. Merging external sources rides the
-  same engine but belongs to the external sources context.
+  reachable through the AI agent path only. Merging external sources belongs to
+  the external sources context, which keeps its own DuckDB outside the sandbox.
 - The Explorer is the surface. The composed-query API is a separate developer
   surface with its own flag; a merge must not require it.
 - The `merge-queries` flag gates the feature. Composition itself is not
   flagged: it is the plumbing under merges and external sources both.
+- A merge needs a configured sandbox provider for its join; without one,
+  submission fails naming the missing configuration.
 
 ## Dashboards
 
@@ -144,5 +140,9 @@ be applied to one side only without misaligning the join.
 
 - `architecture.md` in this directory: how a merge executes.
 - `docs/multi-source-queries.md`: the composed-query DAG a merge executes as.
-- `docs/external-sources/CONTEXT.md`: the other consumer of the compose engine.
-- `docs/pre-aggregates/CONTEXT.md`: shares the DuckDB engine, different purpose.
+- `docs/external-sources/CONTEXT.md`: also queried with DuckDB, but in a
+  server process, not in a sandbox.
+- `docs/pre-aggregates/CONTEXT.md`: also DuckDB in a server process, different
+  purpose.
+- `docs/composer-queries/adr/0001-duckdb-over-results-runs-only-in-a-sandbox.md`:
+  why the join runs in a sandbox and never in a server process.

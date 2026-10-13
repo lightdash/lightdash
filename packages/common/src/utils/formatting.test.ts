@@ -3761,10 +3761,9 @@ describe('isUnambiguousTemporalString', () => {
     );
 });
 
-// Converter gap fixes (docs/composer-viz-plan/01-design.md §2): the format
-// expression produced for a CustomFormat must render identically to the
-// structured applyCustomFormat path, or return null when no ECMA-376 form
-// exists (the formatOptions escape hatch).
+// Converter gap fixes: the format expression produced for a CustomFormat must
+// render identically to the structured applyCustomFormat path, or return null
+// when no ECMA-376 form exists (the formatOptions escape hatch).
 describe('convertCustomFormatToFormatExpression gap fixes', () => {
     const gridValues = [-9876543.21, 0, 0.1234, 1234567, 12345.1235];
     const gridRounds = [undefined, 0, 2, -2];
@@ -4081,8 +4080,8 @@ describe('getFormatExpression year-number guard', () => {
     });
 });
 
-// Blast-radius pins (docs/composer-viz-plan/01-design.md §2): existing
-// consumers of the converter whose output changes with the gap fixes.
+// Blast-radius pins: existing consumers of the converter whose output changes
+// with the gap fixes.
 describe('converter gap fixes blast radius', () => {
     describe('getFieldFormatOverrideProps', () => {
         test('DEFAULT/ID/DATE overrides now encode as expressions', () => {
