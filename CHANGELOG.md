@@ -1,3 +1,10 @@
+## [2.577.1](https://github.com/lightdash/lightdash/compare/2.577.0...2.577.1) (2026-10-13)
+
+
+### Bug Fixes
+
+* project-scoped service accounts can deploy to previews they create ([#30976](https://github.com/lightdash/lightdash/issues/30976)) ([2138f35](https://github.com/lightdash/lightdash/commit/2138f3521e1916f795533242ffd487a0cf677bce))
+
 # [2.577.0](https://github.com/lightdash/lightdash/compare/2.576.1...2.577.0) (2026-10-13)
 
 
