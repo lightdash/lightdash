@@ -137,6 +137,15 @@ export type DuckdbResourceLimits = {
     threads?: number; // e.g. 1
 };
 
+export type DuckdbLocalFilesConfig = {
+    /** The only directory user SQL may read files from. */
+    inputDirectory: string;
+    /** Spill directory for operators that exceed the memory limit. */
+    tempDirectory: string;
+    memoryLimit: string;
+    threads: number;
+};
+
 export type DuckdbLogger = {
     info: (message: string, metadata?: Record<string, unknown>) => void;
     warn?: (message: string, metadata?: Record<string, unknown>) => void;
@@ -653,6 +662,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
 
     private allowsPreAggregateFileReads = false;
 
+    private localFilesConfig: DuckdbLocalFilesConfig | null = null;
+
     private hasWarnedAboutMotherduckTimezone = false;
 
     constructor(
@@ -818,6 +829,18 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     ): DuckdbWarehouseClient {
         const client = new DuckdbWarehouseClient(credentials, options);
         client.allowsPreAggregateFileReads = true;
+        return client;
+    }
+
+    /**
+     * Isolated in-memory sessions that can only read files under
+     * `inputDirectory`; the configuration is locked before any user SQL runs.
+     */
+    static createForLocalFiles(
+        config: DuckdbLocalFilesConfig,
+    ): DuckdbWarehouseClient {
+        const client = new DuckdbWarehouseClient();
+        client.localFilesConfig = config;
         return client;
     }
 
@@ -1983,6 +2006,41 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         );
     }
 
+    private async withLocalFilesSession<T>(
+        config: DuckdbLocalFilesConfig,
+        callback: (db: DuckdbConnection) => Promise<T>,
+        timezone: string | null,
+    ): Promise<T> {
+        const instance = await DuckDBInstance.create(':memory:');
+        const connection = await instance.connect();
+        try {
+            const inputDirectory = this.escapeString(config.inputDirectory);
+            await connection.run(
+                `SET allowed_directories = ['${inputDirectory}'];`,
+            );
+            await connection.run(
+                `SET temp_directory = '${this.escapeString(config.tempDirectory)}';`,
+            );
+            await connection.run(
+                `SET memory_limit = '${this.escapeString(config.memoryLimit)}';`,
+            );
+            await connection.run(`SET threads = ${Number(config.threads)};`);
+            await DuckdbWarehouseClient.hardenInstance(connection);
+            if (timezone) {
+                await connection.run(
+                    `SET TimeZone = '${this.escapeString(timezone)}';`,
+                );
+            }
+            await connection.run('SET enable_external_access = false;');
+            await connection.run('SET lock_configuration = true;');
+            return await callback(connection);
+        } finally {
+            connection.closeSync?.();
+            connection.disconnectSync?.();
+            instance.closeSync?.();
+        }
+    }
+
     /** Ephemeral DuckDB instance with resource limits (e.g. parquet conversion). */
     private async withIsolatedSession<T>(
         callback: (db: DuckdbConnection) => Promise<T>,
@@ -2185,6 +2243,13 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             );
         }
         try {
+            if (this.localFilesConfig) {
+                return await this.withLocalFilesSession(
+                    this.localFilesConfig,
+                    callback,
+                    null,
+                );
+            }
             if (this.parquetConfig) {
                 try {
                     return await this.withEphemeralQuerySession(
@@ -2791,88 +2856,95 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     ): Promise<void> {
         const reportPhase = options?.onPhaseTiming;
         let hasEmittedRows = false;
-        await this.withSession(
-            async (db) => {
-                const sessionStart = performance.now();
-                if (options?.timezone) {
-                    if (!this.isMotherduck()) {
-                        await db.run(
-                            `SET TimeZone = '${this.escapeString(
-                                options.timezone,
-                            )}';`,
-                        );
-                    } else if (!this.hasWarnedAboutMotherduckTimezone) {
-                        this.hasWarnedAboutMotherduckTimezone = true;
-                        const message = `Requested timezone "${options.timezone}" cannot be applied because MotherDuck locks configuration under saas_mode; timestamps return in the server default zone instead of the configured zone.`;
-                        if (this.logger?.warn) {
-                            this.logger.warn(message);
-                        } else {
-                            this.logger?.info(message);
-                        }
-                    }
-                }
-
-                const profilePath =
-                    this.logger &&
-                    this.enableQueryProfiling &&
-                    !this.embeddedConfig &&
-                    !this.isMotherduck()
-                        ? path.join(
-                              os.tmpdir(),
-                              `duckdb-profile-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
-                          )
-                        : undefined;
-
-                if (profilePath) {
-                    await db.run("PRAGMA enable_profiling='json';");
-                    await db.run(`PRAGMA profiling_output='${profilePath}';`);
-                }
-
-                if (this.embeddedConfig) {
+        const runStreamQuery = async (db: DuckdbConnection) => {
+            const sessionStart = performance.now();
+            if (options?.timezone && !this.localFilesConfig) {
+                if (!this.isMotherduck()) {
                     await db.run(
-                        "SET disabled_filesystems = 'LocalFileSystem';",
+                        `SET TimeZone = '${this.escapeString(
+                            options.timezone,
+                        )}';`,
                     );
-                }
-                if (this.allowsPreAggregateFileReads) {
-                    await this.validatePreAggregateSql(db, sql);
-                } else {
-                    await this.validateUserSql(db, sql);
-                }
-                reportPhase?.('session', performance.now() - sessionStart);
-
-                const queryStart = performance.now();
-                const result = await db.stream(
-                    this.getSQLWithMetadata(sql, options?.tags),
-                    this.getBindValues(options),
-                );
-                const fields =
-                    DuckdbWarehouseClient.getFieldsFromStreamResult(result);
-
-                let fetchStart: number | undefined;
-                // eslint-disable-next-line no-restricted-syntax
-                for await (const rows of result.yieldRowObjectJson()) {
-                    if (fetchStart === undefined) {
-                        reportPhase?.('query', performance.now() - queryStart);
-                        fetchStart = performance.now();
+                } else if (!this.hasWarnedAboutMotherduckTimezone) {
+                    this.hasWarnedAboutMotherduckTimezone = true;
+                    const message = `Requested timezone "${options.timezone}" cannot be applied because MotherDuck locks configuration under saas_mode; timestamps return in the server default zone instead of the configured zone.`;
+                    if (this.logger?.warn) {
+                        this.logger.warn(message);
+                    } else {
+                        this.logger?.info(message);
                     }
-                    hasEmittedRows = true;
-                    await streamCallback({ fields, rows });
                 }
+            }
+
+            const profilePath =
+                this.logger &&
+                this.enableQueryProfiling &&
+                !this.embeddedConfig &&
+                !this.isMotherduck()
+                    ? path.join(
+                          os.tmpdir(),
+                          `duckdb-profile-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
+                      )
+                    : undefined;
+
+            if (profilePath) {
+                await db.run("PRAGMA enable_profiling='json';");
+                await db.run(`PRAGMA profiling_output='${profilePath}';`);
+            }
+
+            if (this.embeddedConfig) {
+                await db.run("SET disabled_filesystems = 'LocalFileSystem';");
+            }
+            if (this.allowsPreAggregateFileReads || this.localFilesConfig) {
+                await this.validatePreAggregateSql(db, sql);
+            } else {
+                await this.validateUserSql(db, sql);
+            }
+            reportPhase?.('session', performance.now() - sessionStart);
+
+            const queryStart = performance.now();
+            const result = await db.stream(
+                this.getSQLWithMetadata(sql, options?.tags),
+                this.getBindValues(options),
+            );
+            const fields =
+                DuckdbWarehouseClient.getFieldsFromStreamResult(result);
+
+            let fetchStart: number | undefined;
+            // eslint-disable-next-line no-restricted-syntax
+            for await (const rows of result.yieldRowObjectJson()) {
                 if (fetchStart === undefined) {
                     reportPhase?.('query', performance.now() - queryStart);
-                    reportPhase?.('fetch', 0);
-                } else {
-                    reportPhase?.('fetch', performance.now() - fetchStart);
+                    fetchStart = performance.now();
                 }
+                hasEmittedRows = true;
+                await streamCallback({ fields, rows });
+            }
+            if (fetchStart === undefined) {
+                reportPhase?.('query', performance.now() - queryStart);
+                reportPhase?.('fetch', 0);
+            } else {
+                reportPhase?.('fetch', performance.now() - fetchStart);
+            }
 
-                if (profilePath) {
-                    await this.logQueryProfile(
-                        profilePath,
-                        this.logger!,
-                        options?.tags,
-                    );
-                }
-            },
+            if (profilePath) {
+                await this.logQueryProfile(
+                    profilePath,
+                    this.logger!,
+                    options?.tags,
+                );
+            }
+        };
+        if (this.localFilesConfig) {
+            await this.withLocalFilesSession(
+                this.localFilesConfig,
+                runStreamQuery,
+                options?.timezone ?? null,
+            );
+            return;
+        }
+        await this.withSession(
+            runStreamQuery,
             options?.tags?.organization_uuid,
             () => !hasEmittedRows,
             reportPhase,
