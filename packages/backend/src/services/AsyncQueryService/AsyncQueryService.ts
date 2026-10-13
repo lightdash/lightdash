@@ -439,7 +439,7 @@ import {
     type ExecuteAsyncUnderlyingDataQueryArgs,
     type GetAsyncQueryResultsArgs,
     type PollingOptions,
-    type PreAggregateExecutionEngine,
+    type PreAggregateExecutionTarget,
     type PreAggregationRoute,
     type QueryHistoryActor,
     type RunAsyncPreAggregateQueryArgs,
@@ -509,7 +509,7 @@ type AsyncQueryExecutionPlan =
     | {
           target: 'pre_aggregate';
           preAggregateQuery: string;
-          preAggregateExecution: PreAggregateExecutionEngine;
+          preAggregateExecution: PreAggregateExecutionTarget;
           warehouseQuery: string;
           preAggregateResolved: true;
           resultProducer?: QueryResultProducer;
@@ -4026,15 +4026,22 @@ export class AsyncQueryService extends ProjectService {
 
         if (resolution.resolved) {
             this.logger.info(
-                `Pre-agg route selected for ${queryUuid} (${resolution.execution}): ${preAggregationRoute.sourceExploreName}/${preAggregationRoute.preAggregateName}`,
+                `Pre-agg route selected for ${queryUuid} (${resolution.engine}): ${preAggregationRoute.sourceExploreName}/${preAggregationRoute.preAggregateName}`,
             );
+            const preAggregateExecution: PreAggregateExecutionTarget =
+                resolution.engine === 'duckdb'
+                    ? {
+                          engine: 'duckdb',
+                          materializationUri: resolution.materializationUri,
+                      }
+                    : { engine: 'project_warehouse' };
             return {
                 target: 'pre_aggregate',
                 preAggregateQuery: resolution.query,
-                preAggregateExecution: resolution.execution,
+                preAggregateExecution,
                 warehouseQuery,
                 preAggregateResolved: true,
-                ...(resolution.execution === 'duckdb' && resultProducer
+                ...(resolution.engine === 'duckdb' && resultProducer
                     ? { resultProducer }
                     : {}),
             };
@@ -4058,6 +4065,22 @@ export class AsyncQueryService extends ProjectService {
             preAggregateResolved: false,
             preAggregateResolveReason: resolution.reason,
         };
+    }
+
+    /**
+     * A run without its materialization recorded (a row an earlier release
+     * wrote) cannot be given a session that reaches the whole bucket; it
+     * throws here so the run takes the warehouse fallback instead.
+     */
+    private static getLockedMaterializationUri(
+        execution: Extract<PreAggregateExecutionTarget, { engine: 'duckdb' }>,
+    ): string {
+        if (execution.materializationUri === null) {
+            throw new Error(
+                'Pre-aggregate run has no recorded materialization to lock its DuckDB session to',
+            );
+        }
+        return execution.materializationUri;
     }
 
     private async runAsyncPreAggregateQueryInScope({
@@ -4091,11 +4114,18 @@ export class AsyncQueryService extends ProjectService {
         resultEntitlementFingerprint,
     }: RunAsyncPreAggregateQueryArgs) {
         try {
-            // Managed pre-aggregates run on the DuckDB client override;
-            // external ones run on the normal project warehouse client.
+            // Managed pre-aggregates run on a DuckDB session locked to their
+            // materialization; external ones run on the project warehouse client.
             const duckDbWarehouseClient =
-                preAggregateExecution === 'duckdb'
-                    ? this.preAggregateStrategy.createPreAggregateWarehouseClient()
+                preAggregateExecution.engine === 'duckdb'
+                    ? this.preAggregateStrategy.createPreAggregateWarehouseClient(
+                          {
+                              materializationUri:
+                                  AsyncQueryService.getLockedMaterializationUri(
+                                      preAggregateExecution,
+                                  ),
+                          },
+                      )
                     : undefined;
 
             await this.runAsyncWarehouseQuery({
@@ -4154,7 +4184,7 @@ export class AsyncQueryService extends ProjectService {
                     true,
                 );
                 this.logger.warn(
-                    `Pre-aggregate execution (${preAggregateExecution}) failed for ${queryUuid} and execution fallback is disabled. Marking query as errored`,
+                    `Pre-aggregate execution (${preAggregateExecution.engine}) failed for ${queryUuid} and execution fallback is disabled. Marking query as errored`,
                 );
                 await this.markAsyncQueryErrored({
                     inheritedFromProjectUuid: null,
@@ -4172,7 +4202,7 @@ export class AsyncQueryService extends ProjectService {
                         personaliseSharedSignInError(preAggregateError, null),
                     )}`,
                     executionSource:
-                        preAggregateExecution === 'duckdb'
+                        preAggregateExecution.engine === 'duckdb'
                             ? 'pre_aggregate_duckdb'
                             : 'pre_aggregate_warehouse',
                     warehouseType: null,
@@ -4189,17 +4219,17 @@ export class AsyncQueryService extends ProjectService {
             );
             Sentry.getActiveSpan()?.setAttribute(
                 'lightdash.executionSource',
-                preAggregateExecution === 'duckdb'
+                preAggregateExecution.engine === 'duckdb'
                     ? 'warehouse_after_duckdb_fallback'
                     : 'warehouse_after_pre_aggregate_fallback',
             );
             this.logger.warn(
-                `Pre-agg execution (${preAggregateExecution}) failed for ${queryUuid}: ${getErrorMessage(
+                `Pre-agg execution (${preAggregateExecution.engine}) failed for ${queryUuid}: ${getErrorMessage(
                     preAggregateError,
                 )}. Falling back to warehouse`,
             );
             const fallbackReason: PreAggregateFallbackReason =
-                preAggregateExecution === 'duckdb'
+                preAggregateExecution.engine === 'duckdb'
                     ? 'duckdb_execution_error'
                     : 'external_execution_error';
             this.prometheusMetrics?.incrementPreAggregateFallback(
@@ -5601,6 +5631,30 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
+    // Rows written before the engine column existed default to duckdb
+    private static getPreAggregateExecutionFromHistory(
+        query: Pick<
+            QueryHistory,
+            'preAggregateExecution' | 'preAggregateMaterializationUri'
+        >,
+    ): PreAggregateExecutionTarget {
+        const engine = query.preAggregateExecution ?? 'duckdb';
+        switch (engine) {
+            case 'duckdb':
+                return {
+                    engine,
+                    materializationUri: query.preAggregateMaterializationUri,
+                };
+            case 'project_warehouse':
+                return { engine };
+            default:
+                return assertUnreachable(
+                    engine,
+                    'Unknown pre-aggregate execution engine',
+                );
+        }
+    }
+
     private async buildPreAggregateQueryArgs(
         queryUuid: string,
         queryTagsOverride?: RunQueryTags,
@@ -5651,8 +5705,8 @@ export class AsyncQueryService extends ProjectService {
             agentIdentity: query.agentIdentity,
             resultProducer: query.requestParameters.resultProducer,
             preAggregateQuery: query.preAggregateCompiledSql,
-            // Default to duckdb for rows written before the column existed
-            preAggregateExecution: query.preAggregateExecution ?? 'duckdb',
+            preAggregateExecution:
+                AsyncQueryService.getPreAggregateExecutionFromHistory(query),
             warehouseQuery: query.compiledSql,
             displayTimezone,
         };
@@ -6770,7 +6824,8 @@ export class AsyncQueryService extends ProjectService {
                     if (executionPlan.target === 'pre_aggregate') {
                         span.setAttribute(
                             'lightdash.executionSource',
-                            executionPlan.preAggregateExecution === 'duckdb'
+                            executionPlan.preAggregateExecution.engine ===
+                                'duckdb'
                                 ? 'pre_aggregate_duckdb'
                                 : 'pre_aggregate_warehouse',
                         );
@@ -6812,7 +6867,8 @@ export class AsyncQueryService extends ProjectService {
                     >[0] = 'warehouse';
                     if (executionPlan.target === 'pre_aggregate') {
                         executedSource =
-                            executionPlan.preAggregateExecution === 'duckdb'
+                            executionPlan.preAggregateExecution.engine ===
+                            'duckdb'
                                 ? 'pre_aggregate_duckdb'
                                 : 'pre_aggregate_warehouse';
                     } else if (executionPlan.target === 'external_source') {
@@ -6863,7 +6919,13 @@ export class AsyncQueryService extends ProjectService {
                                 pre_aggregate_compiled_sql:
                                     executionPlan.preAggregateQuery,
                                 pre_aggregate_execution:
-                                    executionPlan.preAggregateExecution,
+                                    executionPlan.preAggregateExecution.engine,
+                                pre_aggregate_materialization_uri:
+                                    executionPlan.preAggregateExecution
+                                        .engine === 'duckdb'
+                                        ? executionPlan.preAggregateExecution
+                                              .materializationUri
+                                        : null,
                             },
                             account,
                         );

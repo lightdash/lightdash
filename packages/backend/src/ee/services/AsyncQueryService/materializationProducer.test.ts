@@ -143,7 +143,11 @@ describe('managed materialization producer provenance', () => {
             const result = await f.strategy.resolveExecution(f.args);
             expect(result.resolved).toBe(true);
             if (!result.resolved) throw new Error(result.reason);
-            expect(result.execution).toBe('duckdb');
+            expect(result.engine).toBe('duckdb');
+            if (result.engine !== 'duckdb') throw new Error(result.engine);
+            expect(result.materializationUri).toBe(
+                `s3://bucket/folder/results.${format}`,
+            );
             expect(result.query).toContain('"a"."a_dim1"');
             expect(result.query).toContain('EU');
             expect(result.query).toContain('reader@example.test');
@@ -154,7 +158,21 @@ describe('managed materialization producer provenance', () => {
             expect(f.getResults).toHaveBeenCalledExactlyOnceWith(
                 'folder/results.producer',
             );
-            expect(f.createDuckdbWarehouseClient).toHaveBeenCalledOnce();
+            // Resolution compiles only; the run builds a session locked to the file
+            expect(f.createDuckdbWarehouseClient).not.toHaveBeenCalled();
+            f.strategy.createPreAggregateWarehouseClient({
+                materializationUri: result.materializationUri,
+            });
+            expect(
+                f.createDuckdbWarehouseClient,
+            ).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    s3Config: expect.objectContaining({
+                        scope: [`s3://bucket/folder/results.${format}`],
+                    }),
+                    allowedPaths: [`s3://bucket/folder/results.${format}`],
+                }),
+            );
             expect(f.uploadResults).toHaveBeenCalledBefore(f.getResults);
         },
     );

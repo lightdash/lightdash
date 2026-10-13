@@ -213,6 +213,13 @@ export type DuckdbWarehouseClientOptions = {
     projectUuid?: string;
     /** Process-local per-organization cap for isolated S3 query clients. */
     organizationConcurrencyLimit?: number;
+    /**
+     * Locks an isolated session's engine to these exact paths: DuckDB refuses
+     * every other object, bucket and local file (`allowed_paths` with
+     * `enable_external_access` off), whatever the SQL asks for. Cannot be
+     * combined with a shared instance, whose settings outlive the query.
+     */
+    allowedPaths?: string[];
 };
 
 export const mapFieldTypeFromTypeId = (typeId: number): DimensionType => {
@@ -651,6 +658,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
 
     private readonly organizationConcurrencyLimit?: number;
 
+    private readonly allowedPaths?: string[];
+
     private allowsPreAggregateFileReads = false;
 
     private hasWarnedAboutMotherduckTimezone = false;
@@ -801,6 +810,19 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         this.projectUuid = options?.projectUuid;
         this.organizationConcurrencyLimit =
             options?.organizationConcurrencyLimit;
+        if (options?.allowedPaths) {
+            if (options.instanceCacheKey || options.enableInstanceCache) {
+                throw new ParameterError(
+                    'A DuckDB session locked to allowed paths cannot share an instance',
+                );
+            }
+            if (options.allowedPaths.length === 0) {
+                throw new ParameterError(
+                    'A DuckDB session locked to allowed paths needs at least one path',
+                );
+            }
+            this.allowedPaths = [...options.allowedPaths];
+        }
     }
 
     private static hashDucklakeConfig(
@@ -946,6 +968,24 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         await db.run('SET allow_unredacted_secrets = false;');
     }
 
+    /**
+     * Restricts the engine, not just SQL validation: once external access is
+     * off only the listed paths open, and the setting cannot be turned back
+     * on for the life of the instance. Runs last in a bootstrap, after the
+     * extensions and secrets it would otherwise block.
+     */
+    private static async lockFileAccess(
+        db: DuckdbConnection,
+        allowedPaths: readonly string[],
+    ): Promise<void> {
+        const literal = (value: string) =>
+            `'${DuckdbWarehouseClient.escapeDuckdbString(value)}'`;
+        await db.run(
+            `SET allowed_paths = [${allowedPaths.map(literal).join(',')}];`,
+        );
+        await db.run('SET enable_external_access = false;');
+    }
+
     private static async applyResourceLimits(
         db: DuckdbConnection,
         resourceLimits?: DuckdbResourceLimits,
@@ -1083,6 +1123,11 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 // eslint-disable-next-line no-await-in-loop
                 await db.run(stmt);
             }
+        }
+
+        // Never set on a shared instance: the constructor refuses that pairing
+        if (client.allowedPaths) {
+            await DuckdbWarehouseClient.lockFileAccess(db, client.allowedPaths);
         }
 
         await DuckdbWarehouseClient.hardenInstance(db);
@@ -1974,6 +2019,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 // eslint-disable-next-line no-await-in-loop
                 await db.run(stmt);
             }
+        }
+
+        if (this.allowedPaths) {
+            await DuckdbWarehouseClient.lockFileAccess(db, this.allowedPaths);
         }
 
         await DuckdbWarehouseClient.hardenInstance(db);

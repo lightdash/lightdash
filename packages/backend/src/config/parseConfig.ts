@@ -2013,7 +2013,7 @@ export type LightdashConfig = {
         enabled: boolean;
         parquetEnabled: boolean;
         materializationMaxRows: number | null;
-        /** Max memory DuckDB can use for caching parquet data and query intermediates on the shared query instance (e.g. '256MB', '1GB', '2GB'). Only affects pre-aggregate reads, not materializations which use isolated instances. */
+        /** Memory budget of each pre-aggregate read session (e.g. '256MB', '1GB'). Every read runs in its own DuckDB instance locked to the one materialization it serves, so the budget is per query, not shared. Materializations use their own isolated instances. */
         duckdbQueryMemoryLimit: string | null;
         s3?: Omit<S3Config, 'expirationTime'>;
     };

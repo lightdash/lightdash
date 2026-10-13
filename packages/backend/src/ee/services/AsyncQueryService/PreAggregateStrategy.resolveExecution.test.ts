@@ -15,7 +15,7 @@ const makeStrategy = () => {
         resolve: vi.fn().mockResolvedValue({
             resolved: true,
             query: 'SELECT duckdb',
-            warehouseClient: {},
+            materializationUri: 's3://preagg-bucket/rollup.parquet',
         }),
     };
     const externalResolver = {
@@ -74,7 +74,7 @@ const resolveExecutionParams = (externalTable?: string) => ({
 });
 
 describe('PreAggregateStrategy.resolveExecution', () => {
-    test('managed routes resolve via DuckDB with duckdb execution', async () => {
+    test('managed routes resolve via DuckDB, naming the materialization the run is locked to', async () => {
         const { strategy, duckDbClient, externalResolver } = makeStrategy();
 
         const result = await strategy.resolveExecution(
@@ -84,7 +84,8 @@ describe('PreAggregateStrategy.resolveExecution', () => {
         expect(result).toEqual({
             resolved: true,
             query: 'SELECT duckdb',
-            execution: 'duckdb',
+            engine: 'duckdb',
+            materializationUri: 's3://preagg-bucket/rollup.parquet',
         });
         expect(duckDbClient.resolve).toHaveBeenCalledTimes(1);
         expect(externalResolver.resolve).not.toHaveBeenCalled();
@@ -100,7 +101,7 @@ describe('PreAggregateStrategy.resolveExecution', () => {
         expect(result).toEqual({
             resolved: true,
             query: 'SELECT external',
-            execution: 'project_warehouse',
+            engine: 'project_warehouse',
         });
         expect(externalResolver.resolve).toHaveBeenCalledTimes(1);
         expect(duckDbClient.resolve).not.toHaveBeenCalled();

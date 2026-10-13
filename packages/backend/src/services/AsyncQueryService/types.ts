@@ -189,6 +189,16 @@ export type PreAggregationRouteMode = 'required' | 'opportunistic';
 
 export type { PreAggregateExecutionEngine };
 
+/**
+ * Where a matched pre-aggregate query executes. A managed one carries the
+ * materialization its locked DuckDB session may read; the URI is null only
+ * on history rows written before it was persisted, and such a run falls back
+ * to the warehouse rather than open a wider session.
+ */
+export type PreAggregateExecutionTarget =
+    | { engine: 'duckdb'; materializationUri: string | null }
+    | { engine: 'project_warehouse' };
+
 export type PreAggregationRoute = {
     sourceExploreName: string;
     preAggregateName: string;
@@ -338,7 +348,7 @@ export type RunAsyncPreAggregateQueryArgs = Omit<
     resultProducer?: QueryResultProducer;
     preAggregateQuery: string;
     warehouseQuery: string;
-    preAggregateExecution: PreAggregateExecutionEngine;
+    preAggregateExecution: PreAggregateExecutionTarget;
 };
 
 /** Known at compile time, so nothing is probed and nothing overwritten. */

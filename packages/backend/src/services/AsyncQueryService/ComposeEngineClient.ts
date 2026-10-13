@@ -16,8 +16,9 @@ import { resolveCaCertFile } from '../../utils/duckdb/resolveCaCertFile';
 
 export const COMPOSE_ENGINE_INSTANCE_CACHE_KEY = 'compose-engine-instance';
 
-// External-source files share the pre-aggregates bucket, so they share its
-// warm instance with managed pre-aggregates too
+// The warm instance over the pre-aggregates bucket. External-source compiles
+// use it; managed pre-aggregate reads never do, they run in sessions locked to
+// one materialization, since a shared secret reaches every tenant's files
 export const PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY =
     'pre-aggregate-query-instance';
 

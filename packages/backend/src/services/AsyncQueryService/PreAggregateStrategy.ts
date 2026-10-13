@@ -23,7 +23,7 @@ import {
 } from '@lightdash/common';
 import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import {
-    type PreAggregateExecutionEngine,
+    type PreAggregateExecutionTarget,
     type PreAggregationRoute,
 } from './types';
 
@@ -71,8 +71,15 @@ export interface PreAggregateStrategy {
         resolveArgs: ResolveExecutionArgs;
     }): Promise<PreAggregateExecutionResolution>;
 
-    // The DuckDB client that reads managed materializations
-    createPreAggregateWarehouseClient(): WarehouseClient;
+    /**
+     * The DuckDB session a managed pre-aggregate run executes on: a private,
+     * resource-limited instance locked to the one materialization it serves,
+     * so the SQL it runs, user-authored fragments included, can read no other
+     * object in the pre-aggregates bucket and no local file.
+     */
+    createPreAggregateWarehouseClient(target: {
+        materializationUri: string;
+    }): WarehouseClient;
 
     recordStats(params: {
         projectUuid: string;
@@ -122,7 +129,7 @@ export type ResolveExecutionArgs = {
 };
 
 export type PreAggregateExecutionResolution =
-    | { resolved: true; query: string; execution: PreAggregateExecutionEngine }
+    | ({ resolved: true; query: string } & PreAggregateExecutionTarget)
     | { resolved: false; reason: string; isFatal: boolean };
 
 /* eslint-disable class-methods-use-this */

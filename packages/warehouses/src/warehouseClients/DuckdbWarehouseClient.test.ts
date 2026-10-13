@@ -1685,6 +1685,133 @@ describe('DuckdbWarehouseClient', () => {
         await first;
     });
 
+    describe('sessions locked to allowed paths', () => {
+        const materialization = 's3://bucket/materialization.parquet';
+        const createLockedClient = (run: Mock) => {
+            createInstanceMock.mockImplementation(async () =>
+                createMockConnection(
+                    vi.fn(async () =>
+                        getMockStreamResult(
+                            [[{ val: 1 }]],
+                            [DUCKDB_TYPE_IDS.INTEGER],
+                        ),
+                    ),
+                    run,
+                ),
+            );
+            return DuckdbWarehouseClient.createForPreAggregate(
+                {
+                    type: 'duckdb_s3',
+                    s3Config: {
+                        endpoint: 's3.amazonaws.com',
+                        forcePathStyle: false,
+                        useSsl: true,
+                        accessKey: 'key',
+                        secretKey: 'secret',
+                        scope: [materialization],
+                    },
+                },
+                {
+                    resourceLimits: { memoryLimit: '128MB', threads: 1 },
+                    allowedPaths: [materialization],
+                },
+            );
+        };
+
+        it('locks the engine to the paths after the secret and before the query, on every session', async () => {
+            const run = vi.fn();
+            const client = createLockedClient(run);
+
+            await client.runQuery(
+                `SELECT 1 FROM read_parquet('${materialization}')`,
+            );
+            await client.runQuery(
+                `SELECT 1 FROM read_parquet('${materialization}')`,
+            );
+
+            expect(createInstanceMock).toHaveBeenCalledTimes(2);
+            const statements = run.mock.calls.map(([sql]) => sql as string);
+            const lockIndexes = statements.flatMap((sql, index) =>
+                sql === 'SET enable_external_access = false;' ? [index] : [],
+            );
+            expect(lockIndexes).toHaveLength(2);
+            lockIndexes.forEach((lockIndex) => {
+                const session = statements.slice(0, lockIndex + 1);
+                const secretIndex = session.reduce(
+                    (found, sql, index) =>
+                        sql.includes('CREATE OR REPLACE SECRET __lightdash_s3')
+                            ? index
+                            : found,
+                    -1,
+                );
+                expect(secretIndex).toBeGreaterThan(-1);
+                expect(session[session.length - 2]).toBe(
+                    `SET allowed_paths = ['${materialization}'];`,
+                );
+                expect(secretIndex).toBeLessThan(lockIndex - 1);
+            });
+            expect(statements).toContain(
+                `SET allowed_paths = ['${materialization}'];`,
+            );
+            expect(
+                statements.find((sql) =>
+                    sql.includes('CREATE OR REPLACE SECRET __lightdash_s3'),
+                ),
+            ).toContain(`SCOPE ('${materialization}')`);
+        });
+
+        it('escapes the allowed paths', async () => {
+            const run = vi.fn();
+            createInstanceMock.mockImplementation(async () =>
+                createMockConnection(
+                    vi.fn(async () =>
+                        getMockStreamResult(
+                            [[{ val: 1 }]],
+                            [DUCKDB_TYPE_IDS.INTEGER],
+                        ),
+                    ),
+                    run,
+                ),
+            );
+            const client = DuckdbWarehouseClient.createForPreAggregate(
+                duckdbS3Credentials,
+                {
+                    resourceLimits: { memoryLimit: '128MB', threads: 1 },
+                    allowedPaths: ["s3://bucket/o'brien.parquet"],
+                },
+            );
+
+            await client.runQuery('SELECT 1');
+
+            expect(run).toHaveBeenCalledWith(
+                "SET allowed_paths = ['s3://bucket/o''brien.parquet'];",
+            );
+        });
+
+        it('refuses to lock a shared instance, whose settings outlive the query', () => {
+            expect(
+                () =>
+                    new DuckdbWarehouseClient(duckdbS3Credentials, {
+                        instanceCacheKey: 'shared',
+                        allowedPaths: [materialization],
+                    }),
+            ).toThrow('cannot share an instance');
+            expect(
+                () =>
+                    new DuckdbWarehouseClient(duckdbS3Credentials, {
+                        enableInstanceCache: true,
+                        allowedPaths: [materialization],
+                    }),
+            ).toThrow('cannot share an instance');
+            expect(
+                () =>
+                    new DuckdbWarehouseClient(duckdbS3Credentials, {
+                        allowedPaths: [],
+                    }),
+            ).toThrow('at least one path');
+        });
+    });
+
     it('should load bundled extensions without runtime installs', async () => {
         const accessMock = vi.spyOn(fs, 'access').mockResolvedValue();
         try {

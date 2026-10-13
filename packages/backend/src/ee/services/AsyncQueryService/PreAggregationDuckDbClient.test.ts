@@ -69,7 +69,7 @@ describe('PreAggregationDuckDbClient', () => {
             preAggregateModel:
                 preAggregateModel as unknown as PreAggregateModel,
             projectModel: projectModel as unknown as ProjectModel,
-            sharedResourceLimits: resolvedLightdashConfig.preAggregates
+            resourceLimits: resolvedLightdashConfig.preAggregates
                 .duckdbQueryMemoryLimit
                 ? {
                       memoryLimit:
@@ -166,7 +166,7 @@ describe('PreAggregationDuckDbClient', () => {
         ).not.toHaveBeenCalled();
     });
 
-    test('creates the pre-aggregate DuckDB client from the pre-aggregate S3 config', () => {
+    test('creates a DuckDB session locked to the one materialization it reads, never shared', () => {
         const createForPreAggregateSpy = vi.spyOn(
             DuckdbWarehouseClient,
             'createForPreAggregate',
@@ -186,10 +186,17 @@ describe('PreAggregationDuckDbClient', () => {
                 getExploreFromCache: vi.fn(),
             },
         });
+        const materializationUri = 's3://mock_preagg_bucket/abc123.parquet';
 
-        const warehouseClient = client.createPreAggregateWarehouseClient();
+        const warehouseClient = client.createPreAggregateWarehouseClient({
+            materializationUri,
+        });
+        const again = client.createPreAggregateWarehouseClient({
+            materializationUri: 's3://mock_preagg_bucket/def456.parquet',
+        });
 
         expect(warehouseClient).toBeInstanceOf(DuckdbWarehouseClient);
+        expect(again).not.toBe(warehouseClient);
         expect(createForPreAggregateSpy).toHaveBeenCalledWith(
             {
                 type: 'duckdb_s3',
@@ -200,15 +207,62 @@ describe('PreAggregationDuckDbClient', () => {
                     secretKey: undefined,
                     forcePathStyle: false,
                     useSsl: true,
+                    scope: [materializationUri],
                 },
             },
             expect.objectContaining({
-                instanceCacheKey: 'pre-aggregate-query-instance',
+                resourceLimits: { memoryLimit: '512MB', threads: 2 },
+                allowedPaths: [materializationUri],
+            }),
+        );
+        expect(createForPreAggregateSpy).not.toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                instanceCacheKey: expect.anything(),
             }),
         );
     });
 
-    test('returns resolved DuckDB query/client and patches pre-aggregate sqlTable', async () => {
+    test('scopes the GCS bearer secret to the materialization instead of the bucket', () => {
+        const createForPreAggregateSpy = vi.spyOn(
+            DuckdbWarehouseClient,
+            'createForPreAggregate',
+        );
+        const client = new PreAggregationDuckDbClient({
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                    s3: {
+                        ...lightdashConfigMock.preAggregates.s3!,
+                        authMode: 'gcp_oauth',
+                    },
+                },
+            },
+            preAggregateModel: {
+                getActiveMaterialization: vi.fn(),
+            },
+            projectModel: {
+                getExploreFromCache: vi.fn(),
+            },
+        });
+        const materializationUri = 's3://mock_preagg_bucket/abc123.parquet';
+
+        client.createPreAggregateWarehouseClient({ materializationUri });
+
+        expect(createForPreAggregateSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                s3Config: expect.objectContaining({
+                    authMode: 'gcp_oauth',
+                    scope: [materializationUri],
+                }),
+            }),
+            expect.objectContaining({ allowedPaths: [materializationUri] }),
+        );
+    });
+
+    test('returns the resolved DuckDB query with its materialization and patches pre-aggregate sqlTable', async () => {
         const { client, createDuckdbWarehouseClient } = getClient();
 
         const result = await client.resolve(baseResolveArgs);
@@ -216,7 +270,7 @@ describe('PreAggregationDuckDbClient', () => {
         expect(result).toEqual({
             resolved: true,
             query: 'SELECT * FROM test',
-            warehouseClient: warehouseClientMock,
+            materializationUri: 's3://mock_preagg_bucket/abc123.jsonl',
         });
         expect(QueryComposerMock).toHaveBeenCalledWith(
             expect.anything(),
@@ -236,15 +290,11 @@ describe('PreAggregationDuckDbClient', () => {
                 }),
             }),
         );
-        expect(createDuckdbWarehouseClient).toHaveBeenCalledTimes(1);
-        expect(createDuckdbWarehouseClient).toHaveBeenCalledWith(
-            expect.objectContaining({
-                instanceCacheKey: 'pre-aggregate-query-instance',
-            }),
-        );
+        // Resolution compiles only; the locked session is built by the run
+        expect(createDuckdbWarehouseClient).not.toHaveBeenCalled();
     });
 
-    test('passes the configured shared DuckDB resource limits to the warehouse client', async () => {
+    test('gives each read session the configured memory budget', () => {
         const { client, createDuckdbWarehouseClient } = getClient({
             lightdashConfig: {
                 ...lightdashConfigMock,
@@ -256,16 +306,17 @@ describe('PreAggregationDuckDbClient', () => {
             },
         });
 
-        await client.resolve(baseResolveArgs);
+        client.createPreAggregateWarehouseClient({
+            materializationUri: 's3://mock_preagg_bucket/abc123.parquet',
+        });
 
-        expect(createDuckdbWarehouseClient).toHaveBeenCalledWith(
-            expect.objectContaining({
-                sharedResourceLimits: {
-                    memoryLimit: '3GB',
-                },
-                instanceCacheKey: 'pre-aggregate-query-instance',
+        expect(createDuckdbWarehouseClient).toHaveBeenCalledWith({
+            s3Config: expect.objectContaining({
+                scope: ['s3://mock_preagg_bucket/abc123.parquet'],
             }),
-        );
+            resourceLimits: { memoryLimit: '3GB' },
+            allowedPaths: ['s3://mock_preagg_bucket/abc123.parquet'],
+        });
     });
 
     test('logs selected materialization metadata for debugging', async () => {

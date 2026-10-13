@@ -242,36 +242,48 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
                 : {}),
         };
 
-        // External pre-aggregates compile against the project warehouse; managed ones against DuckDB
-        const resolution = preAggregationRoute.externalTable
-            ? await this.externalResolver.resolve(resolverArgs)
-            : await this.duckDbClient.resolve(resolverArgs);
+        const unresolved = (
+            reason: PreAggregationDuckDbResolveReason,
+        ): PreAggregateExecutionResolution => ({
+            resolved: false,
+            reason: PreAggregationDuckDbClient.getPreAggregationResolutionErrorMessage(
+                {
+                    route: preAggregationRoute,
+                    reason,
+                },
+            ),
+            isFatal: preAggregationRoute.mode === 'required',
+        });
 
-        if (resolution.resolved) {
-            return {
-                resolved: true,
-                query: resolution.query,
-                execution: preAggregationRoute.externalTable
-                    ? 'project_warehouse'
-                    : 'duckdb',
-            };
+        // External pre-aggregates compile against the project warehouse
+        if (preAggregationRoute.externalTable) {
+            const resolution =
+                await this.externalResolver.resolve(resolverArgs);
+            return resolution.resolved
+                ? {
+                      resolved: true,
+                      query: resolution.query,
+                      engine: 'project_warehouse',
+                  }
+                : unresolved(resolution.reason);
         }
 
-        const reason =
-            PreAggregationDuckDbClient.getPreAggregationResolutionErrorMessage({
-                route: preAggregationRoute,
-                reason: resolution.reason,
-            });
-
-        return {
-            resolved: false,
-            reason,
-            isFatal: preAggregationRoute.mode === 'required',
-        };
+        // Managed ones compile against DuckDB, locked to their materialization
+        const resolution = await this.duckDbClient.resolve(resolverArgs);
+        return resolution.resolved
+            ? {
+                  resolved: true,
+                  query: resolution.query,
+                  engine: 'duckdb',
+                  materializationUri: resolution.materializationUri,
+              }
+            : unresolved(resolution.reason);
     }
 
-    createPreAggregateWarehouseClient(): WarehouseClient {
-        return this.duckDbClient.createPreAggregateWarehouseClient();
+    createPreAggregateWarehouseClient(target: {
+        materializationUri: string;
+    }): WarehouseClient {
+        return this.duckDbClient.createPreAggregateWarehouseClient(target);
     }
 
     recordStats(params: {

@@ -169,6 +169,7 @@ export type QueryHistory = {
     originalColumns: ResultColumns | null; // columns from original SQL, before pivoting
     preAggregateCompiledSql: string | null; // DuckDB SQL for pre-aggregate execution path
     preAggregateExecution: PreAggregateExecutionEngine | null; // engine for preAggregateCompiledSql
+    preAggregateMaterializationUri: string | null; // the materialization a duckdb run reads; its session is locked to it
     preAggregateFallbackReason: PreAggregateFallbackReason | null; // non-null ⇒ matched but served from source warehouse
     processingStartedAt: Date | null; // when the NATS worker picked up the job
 };

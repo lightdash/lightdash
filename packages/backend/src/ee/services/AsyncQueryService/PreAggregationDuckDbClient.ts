@@ -29,7 +29,6 @@ import { type LightdashConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
-import { PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY } from '../../../services/AsyncQueryService/ComposeEngineClient';
 import { type PreAggregationRoute } from '../../../services/AsyncQueryService/types';
 import { traceSpan } from '../../../tracing/tracing';
 import { wrapSentryTransaction } from '../../../utils';
@@ -41,19 +40,28 @@ import { getDuckdbRuntimeConfig } from '../../../utils/duckdb/getDuckdbRuntimeCo
 import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
 import { type PreAggregateModel } from '../../models/PreAggregateModel';
 
+/** Each read gets its own instance, so the budget bounds one query */
+const PRE_AGGREGATE_READ_RESOURCE_LIMITS: DuckdbResourceLimits = {
+    memoryLimit: '512MB',
+    threads: 2,
+};
+
+type CreatePreAggregateDuckdbWarehouseClientArgs = {
+    s3Config: DuckdbS3SessionConfig;
+    resourceLimits: DuckdbResourceLimits;
+    allowedPaths: string[];
+};
+
 type PreAggregationDuckDbClientArgs = {
     lightdashConfig: LightdashConfig;
     preAggregateModel: Pick<PreAggregateModel, 'getActiveMaterialization'>;
     projectModel: Pick<ProjectModel, 'getExploreFromCache'>;
     prometheusMetrics?: PrometheusMetrics;
-    sharedResourceLimits?: DuckdbResourceLimits;
-    createDuckdbWarehouseClient?: (args: {
-        s3Config: DuckdbS3SessionConfig;
-        sharedResourceLimits?: DuckdbResourceLimits;
-        resourceLimits?: DuckdbResourceLimits;
-        instanceCacheKey?: string;
-        organizationConcurrencyLimit?: number;
-    }) => WarehouseClient;
+    /** Budget of one read session; defaults to a conservative per-query cap */
+    resourceLimits?: DuckdbResourceLimits;
+    createDuckdbWarehouseClient?: (
+        args: CreatePreAggregateDuckdbWarehouseClientArgs,
+    ) => WarehouseClient;
 };
 
 export type ResolvePreAggregationDuckDbArgs = {
@@ -79,7 +87,7 @@ export type ResolvePreAggregationDuckDbArgs = {
 
 export type PreAggregationDuckDbResolution =
     | { resolved: false; reason: PreAggregationDuckDbResolveReason }
-    | { resolved: true; query: string; warehouseClient: WarehouseClient };
+    | { resolved: true; query: string; materializationUri: string };
 
 export enum PreAggregationDuckDbResolveReason {
     PRE_AGGREGATES_DISABLED = 'pre_aggregates_disabled',
@@ -100,38 +108,29 @@ export class PreAggregationDuckDbClient {
 
     private readonly projectModel: Pick<ProjectModel, 'getExploreFromCache'>;
 
-    private readonly sharedResourceLimits?: DuckdbResourceLimits;
+    private readonly resourceLimits: DuckdbResourceLimits;
 
-    private readonly createDuckdbWarehouseClient: (args: {
-        s3Config: DuckdbS3SessionConfig;
-        sharedResourceLimits?: DuckdbResourceLimits;
-        resourceLimits?: DuckdbResourceLimits;
-        instanceCacheKey?: string;
-        organizationConcurrencyLimit?: number;
-    }) => WarehouseClient;
+    private readonly createDuckdbWarehouseClient: (
+        args: CreatePreAggregateDuckdbWarehouseClientArgs,
+    ) => WarehouseClient;
 
     private readonly prometheusMetrics?: PrometheusMetrics;
-
-    private cachedWarehouseClient: WarehouseClient | null = null;
 
     constructor(args: PreAggregationDuckDbClientArgs) {
         this.lightdashConfig = args.lightdashConfig;
         this.preAggregateModel = args.preAggregateModel;
         this.projectModel = args.projectModel;
         this.prometheusMetrics = args.prometheusMetrics;
-        this.sharedResourceLimits = args.sharedResourceLimits;
+        this.resourceLimits =
+            args.resourceLimits ?? PRE_AGGREGATE_READ_RESOURCE_LIMITS;
         this.createDuckdbWarehouseClient =
             args.createDuckdbWarehouseClient ??
             ((warehouseArgs) =>
                 DuckdbWarehouseClient.createForPreAggregate(
                     { type: 'duckdb_s3', s3Config: warehouseArgs.s3Config },
                     {
-                        sharedResourceLimits:
-                            warehouseArgs.sharedResourceLimits,
                         resourceLimits: warehouseArgs.resourceLimits,
-                        instanceCacheKey: warehouseArgs.instanceCacheKey,
-                        organizationConcurrencyLimit:
-                            warehouseArgs.organizationConcurrencyLimit,
+                        allowedPaths: warehouseArgs.allowedPaths,
                         logger: Logger,
                         enableQueryProfiling: true,
                         onQueryProfile:
@@ -140,29 +139,34 @@ export class PreAggregationDuckDbClient {
                 ));
     }
 
-    // Reads managed materializations, so its session is the pre-aggregate
-    // bucket's; composed queries run on the OSS compose engine instead
-    createPreAggregateWarehouseClient(): WarehouseClient {
-        if (!this.cachedWarehouseClient) {
-            const duckdbRuntimeConfig = getDuckdbRuntimeConfig(
-                this.lightdashConfig.preAggregates.s3,
+    /**
+     * A session for one read of one materialization, never shared or cached.
+     * The pre-aggregates bucket holds every tenant's materializations under
+     * one credential, and the SQL that runs here carries user-authored
+     * fragments (custom dimensions, metrics, table calculations), so the
+     * bucket secret is scoped to the materialization and the engine refuses
+     * every other path, remote or local.
+     */
+    createPreAggregateWarehouseClient({
+        materializationUri,
+    }: {
+        materializationUri: string;
+    }): WarehouseClient {
+        const duckdbRuntimeConfig = getDuckdbRuntimeConfig(
+            this.lightdashConfig.preAggregates.s3,
+        );
+
+        if (!duckdbRuntimeConfig) {
+            throw new MissingConfigError(
+                'Pre-aggregate DuckDB execution is unavailable: missing pre-aggregate S3 configuration',
             );
-
-            if (!duckdbRuntimeConfig) {
-                throw new MissingConfigError(
-                    'Pre-aggregate DuckDB execution is unavailable: missing pre-aggregate S3 configuration',
-                );
-            }
-
-            this.cachedWarehouseClient = this.createDuckdbWarehouseClient({
-                s3Config: duckdbRuntimeConfig,
-                sharedResourceLimits: this.sharedResourceLimits,
-                instanceCacheKey: PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY,
-            });
-
-            Logger.info('DuckDB warehouse client created and cached for reuse');
         }
-        return this.cachedWarehouseClient;
+
+        return this.createDuckdbWarehouseClient({
+            s3Config: { ...duckdbRuntimeConfig, scope: [materializationUri] },
+            resourceLimits: this.resourceLimits,
+            allowedPaths: [materializationUri],
+        });
     }
 
     static getPreAggregationResolutionErrorMessage({
@@ -414,12 +418,10 @@ export class PreAggregationDuckDbClient {
                 }),
         );
 
-        const warehouseClient = this.createPreAggregateWarehouseClient();
-
         return {
             resolved: true,
             query,
-            warehouseClient,
+            materializationUri: activeMaterialization.materializationUri,
         };
     }
 }

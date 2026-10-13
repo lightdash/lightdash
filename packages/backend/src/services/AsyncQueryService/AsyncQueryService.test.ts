@@ -4605,7 +4605,9 @@ describe('AsyncQueryService', () => {
             const mockStrategy = makeMockStrategy({
                 resolved: true,
                 query: 'SELECT * FROM duckdb_preagg',
-                execution: 'duckdb',
+                engine: 'duckdb',
+                materializationUri:
+                    's3://mock_preagg_bucket/materialization.parquet',
             });
             const service = getMockedAsyncQueryService({
                 ...lightdashConfigMock,
@@ -4686,6 +4688,8 @@ describe('AsyncQueryService', () => {
                 {
                     pre_aggregate_compiled_sql: 'SELECT * FROM duckdb_preagg',
                     pre_aggregate_execution: 'duckdb',
+                    pre_aggregate_materialization_uri:
+                        's3://mock_preagg_bucket/materialization.parquet',
                 },
                 sessionAccount,
             );
@@ -5170,7 +5174,11 @@ describe('AsyncQueryService', () => {
             originalColumns: undefined,
             preAggregateQuery: 'SELECT * FROM materialization',
             warehouseQuery: 'SELECT * FROM source',
-            preAggregateExecution: 'duckdb',
+            preAggregateExecution: {
+                engine: 'duckdb',
+                materializationUri:
+                    's3://mock_preagg_bucket/materialization.parquet',
+            },
             queryCreatedAt: new Date(),
             displayTimezone: null,
             warehouseConnectionUuid: 'materialization-connection',
@@ -6307,7 +6315,9 @@ describe('AsyncQueryService', () => {
                 ...makeMockStrategy({
                     resolved: true,
                     query: 'SELECT * FROM duckdb_preagg',
-                    execution: 'duckdb',
+                    engine: 'duckdb',
+                    materializationUri:
+                        's3://mock_preagg_bucket/materialization.parquet',
                 }),
                 getRoutingDecision: ({ explore }) => {
                     if (
@@ -7281,7 +7291,7 @@ describe('AsyncQueryService', () => {
                 ...executionArgs,
                 preAggregateQuery: executionArgs.query,
                 warehouseQuery: executionArgs.query,
-                preAggregateExecution: 'project_warehouse',
+                preAggregateExecution: { engine: 'project_warehouse' },
             });
             expect(run).toHaveBeenCalledOnce();
             expect(resolve).toHaveBeenCalledOnce();
@@ -7642,6 +7652,7 @@ describe('AsyncQueryService', () => {
             originalColumns: null,
             preAggregateCompiledSql: null,
             preAggregateExecution: null,
+            preAggregateMaterializationUri: null,
             preAggregateFallbackReason: null,
             processingStartedAt: null,
             agentIdentity: null,
@@ -7780,6 +7791,7 @@ describe('AsyncQueryService', () => {
                 originalColumns: null,
                 preAggregateCompiledSql: null,
                 preAggregateExecution: null,
+                preAggregateMaterializationUri: null,
                 preAggregateFallbackReason: null,
                 processingStartedAt: null,
                 agentIdentity: null,
@@ -8025,6 +8037,7 @@ describe('AsyncQueryService', () => {
                 originalColumns: mockOriginalColumns,
                 preAggregateCompiledSql: null,
                 preAggregateExecution: null,
+                preAggregateMaterializationUri: null,
                 preAggregateFallbackReason: null,
                 processingStartedAt: null,
                 agentIdentity: null,
@@ -8151,6 +8164,7 @@ describe('AsyncQueryService', () => {
                 originalColumns: composeColumns,
                 preAggregateCompiledSql: null,
                 preAggregateExecution: null,
+                preAggregateMaterializationUri: null,
                 preAggregateFallbackReason: null,
                 processingStartedAt: null,
                 agentIdentity: null,
@@ -8255,6 +8269,7 @@ describe('AsyncQueryService', () => {
                 originalColumns: {},
                 preAggregateCompiledSql: null,
                 preAggregateExecution: null,
+                preAggregateMaterializationUri: null,
                 preAggregateFallbackReason: null,
                 processingStartedAt: null,
                 agentIdentity: null,
@@ -8325,6 +8340,8 @@ describe('AsyncQueryService', () => {
                 originalColumns: null,
                 preAggregateCompiledSql: 'SELECT * FROM duckdb_preagg',
                 preAggregateExecution: 'duckdb',
+                preAggregateMaterializationUri:
+                    's3://mock_preagg_bucket/materialization.parquet',
                 preAggregateFallbackReason: 'duckdb_execution_error',
                 processingStartedAt: null,
                 agentIdentity: null,
@@ -8383,7 +8400,11 @@ describe('AsyncQueryService', () => {
             originalColumns: undefined,
             preAggregateQuery: 'SELECT * FROM duckdb_preagg',
             warehouseQuery: 'SELECT * FROM warehouse',
-            preAggregateExecution: 'duckdb' as const,
+            preAggregateExecution: {
+                engine: 'duckdb' as const,
+                materializationUri:
+                    's3://mock_preagg_bucket/materialization.parquet',
+            },
             queryCreatedAt: new Date(),
             displayTimezone: null,
         });
@@ -8393,7 +8414,9 @@ describe('AsyncQueryService', () => {
             const strategy = makeMockStrategy({
                 resolved: true,
                 query: 'SELECT * FROM duckdb_preagg',
-                execution: 'duckdb',
+                engine: 'duckdb',
+                materializationUri:
+                    's3://mock_preagg_bucket/materialization.parquet',
             });
             const row = {
                 queryUuid: 'test-query-uuid',
@@ -8480,7 +8503,9 @@ describe('AsyncQueryService', () => {
             const mockStrategy = makeMockStrategy({
                 resolved: true,
                 query: 'SELECT * FROM duckdb_preagg',
-                execution: 'duckdb',
+                engine: 'duckdb',
+                materializationUri:
+                    's3://mock_preagg_bucket/materialization.parquet',
             });
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             (service as AnyType).preAggregateStrategy = mockStrategy;
@@ -8513,11 +8538,78 @@ describe('AsyncQueryService', () => {
             });
         });
 
+        test('locks the DuckDB session to the materialization the run was resolved against', async () => {
+            const mockStrategy = makeMockStrategy({
+                resolved: true,
+                query: 'SELECT * FROM duckdb_preagg',
+                engine: 'duckdb',
+                materializationUri:
+                    's3://mock_preagg_bucket/materialization.parquet',
+            });
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            (service as AnyType).preAggregateStrategy = mockStrategy;
+            const runAsyncWarehouseSpy = vi
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
+
+            await service.runAsyncPreAggregateQuery(buildArgs());
+
+            expect(
+                mockStrategy.createPreAggregateWarehouseClient,
+            ).toHaveBeenCalledExactlyOnceWith({
+                materializationUri:
+                    's3://mock_preagg_bucket/materialization.parquet',
+            });
+            expect(runAsyncWarehouseSpy).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    query: 'SELECT * FROM duckdb_preagg',
+                    warehouseClientOverride: warehouseClientMock,
+                }),
+            );
+        });
+
+        test('a history row without its materialization falls back to the warehouse instead of opening a wider session', async () => {
+            const mockStrategy = makeMockStrategy({
+                resolved: true,
+                query: 'SELECT * FROM duckdb_preagg',
+                engine: 'duckdb',
+                materializationUri: null,
+            });
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            (service as AnyType).preAggregateStrategy = mockStrategy;
+            const runAsyncWarehouseSpy = vi
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
+
+            await service.runAsyncPreAggregateQuery({
+                ...buildArgs(),
+                preAggregateExecution: {
+                    engine: 'duckdb',
+                    materializationUri: null,
+                },
+            });
+
+            expect(
+                mockStrategy.createPreAggregateWarehouseClient,
+            ).not.toHaveBeenCalled();
+            expect(service.queryHistoryModel.update).toHaveBeenCalledWith(
+                'test-query-uuid',
+                projectUuid,
+                { pre_aggregate_fallback_reason: 'duckdb_execution_error' },
+                expect.anything(),
+            );
+            expect(runAsyncWarehouseSpy).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({ query: 'SELECT * FROM warehouse' }),
+            );
+        });
+
         test('does not record fallback when execution succeeds', async () => {
             const mockStrategy = makeMockStrategy({
                 resolved: true,
                 query: 'SELECT * FROM duckdb_preagg',
-                execution: 'duckdb',
+                engine: 'duckdb',
+                materializationUri:
+                    's3://mock_preagg_bucket/materialization.parquet',
             });
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             (service as AnyType).preAggregateStrategy = mockStrategy;
@@ -8543,7 +8635,9 @@ describe('AsyncQueryService', () => {
             const mockStrategy = makeMockStrategy({
                 resolved: true,
                 query: 'SELECT * FROM duckdb_preagg',
-                execution: 'duckdb',
+                engine: 'duckdb',
+                materializationUri:
+                    's3://mock_preagg_bucket/materialization.parquet',
             });
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             (service as AnyType).preAggregateStrategy = mockStrategy;
@@ -8591,7 +8685,9 @@ describe('AsyncQueryService', () => {
             const mockStrategy = makeMockStrategy({
                 resolved: true,
                 query: 'SELECT * FROM duckdb_preagg',
-                execution: 'duckdb',
+                engine: 'duckdb',
+                materializationUri:
+                    's3://mock_preagg_bucket/materialization.parquet',
             });
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             (service as AnyType).preAggregateStrategy = mockStrategy;
@@ -8616,7 +8712,9 @@ describe('AsyncQueryService', () => {
             const mockStrategy = makeMockStrategy({
                 resolved: true,
                 query: 'SELECT * FROM duckdb_preagg',
-                execution: 'duckdb',
+                engine: 'duckdb',
+                materializationUri:
+                    's3://mock_preagg_bucket/materialization.parquet',
             });
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             (service as AnyType).preAggregateStrategy = mockStrategy;
@@ -8695,6 +8793,7 @@ describe('AsyncQueryService', () => {
                 originalColumns: {},
                 preAggregateCompiledSql: null,
                 preAggregateExecution: null,
+                preAggregateMaterializationUri: null,
                 preAggregateFallbackReason: null,
                 processingStartedAt: null,
                 agentIdentity: null,
@@ -9302,6 +9401,7 @@ describe('AsyncQueryService', () => {
             originalColumns: null,
             preAggregateCompiledSql: null,
             preAggregateExecution: null,
+            preAggregateMaterializationUri: null,
             preAggregateFallbackReason: null,
             processingStartedAt: null,
             agentIdentity: null,
@@ -9480,6 +9580,7 @@ describe('AsyncQueryService', () => {
         originalColumns: null,
         preAggregateCompiledSql: null,
         preAggregateExecution: null,
+        preAggregateMaterializationUri: null,
         preAggregateFallbackReason: null,
         processingStartedAt: null,
         agentIdentity: null,
@@ -14893,6 +14994,7 @@ describe('saved chart query result access', () => {
             originalColumns: expectedColumns,
             preAggregateCompiledSql: null,
             preAggregateExecution: null,
+            preAggregateMaterializationUri: null,
             preAggregateFallbackReason: null,
             processingStartedAt: null,
             agentIdentity: null,
@@ -17430,6 +17532,7 @@ describe('executeAsyncMergeQuery over a result source', () => {
         originalColumns: null,
         preAggregateCompiledSql: null,
         preAggregateExecution: null,
+        preAggregateMaterializationUri: null,
         preAggregateFallbackReason: null,
         processingStartedAt: null,
         agentIdentity: null,
@@ -18243,6 +18346,7 @@ describe('chart embed token query history access', () => {
             originalColumns: expectedColumns,
             preAggregateCompiledSql: null,
             preAggregateExecution: null,
+            preAggregateMaterializationUri: null,
             preAggregateFallbackReason: null,
             processingStartedAt: null,
             agentIdentity: null,
@@ -18440,6 +18544,7 @@ describe('embedded AI agent result downloads', () => {
             originalColumns: expectedColumns,
             preAggregateCompiledSql: null,
             preAggregateExecution: null,
+            preAggregateMaterializationUri: null,
             preAggregateFallbackReason: null,
             processingStartedAt: null,
             agentIdentity: null,
@@ -21772,6 +21877,8 @@ describe('fresh execution producer to result reader', () => {
                     const mapping: Record<string, string> = {
                         pre_aggregate_compiled_sql: 'preAggregateCompiledSql',
                         pre_aggregate_execution: 'preAggregateExecution',
+                        pre_aggregate_materialization_uri:
+                            'preAggregateMaterializationUri',
                         results_file_name: 'resultsFileName',
                         results_expires_at: 'resultsExpiresAt',
                         total_row_count: 'totalRowCount',
@@ -24611,13 +24718,16 @@ describe('fresh execution producer to result reader', () => {
                 ).mockResolvedValue(explore);
             }
             if (entry.startsWith('pre-aggregate')) {
-                const execution = entry.endsWith('duckdb')
-                    ? 'duckdb'
-                    : 'project_warehouse';
                 const strategy = makeMockStrategy({
                     resolved: true,
                     query: 'SELECT 42 AS value',
-                    execution,
+                    ...(entry.endsWith('duckdb')
+                        ? {
+                              engine: 'duckdb' as const,
+                              materializationUri:
+                                  's3://mock_preagg_bucket/materialization.parquet',
+                          }
+                        : { engine: 'project_warehouse' as const }),
                 });
                 strategy.getRoutingDecision = () => ({
                     target: 'pre_aggregate',

@@ -1515,7 +1515,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                     models.getPreAggregateModel(),
                                 projectModel: models.getProjectModel(),
                                 prometheusMetrics,
-                                sharedResourceLimits: context.lightdashConfig
+                                resourceLimits: context.lightdashConfig
                                     .preAggregates.duckdbQueryMemoryLimit
                                     ? {
                                           memoryLimit:
