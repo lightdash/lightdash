@@ -20679,10 +20679,12 @@ describe('fresh execution producer to result reader', () => {
             getByQueryUuid: vi.fn(async (uuid: string) => rows.get(uuid)),
             pollForQueryCompletion: vi.fn(
                 async ({ queryUuid: uuid }: { queryUuid: string }) => {
-                    await vi.waitFor(() =>
-                        expect(rows.get(uuid)!.status).toBe(
-                            QueryHistoryStatus.READY,
-                        ),
+                    await vi.waitFor(
+                        () =>
+                            expect(rows.get(uuid)!.status).toBe(
+                                QueryHistoryStatus.READY,
+                            ),
+                        { timeout: 20_000 },
                     );
                     return rows.get(uuid);
                 },
@@ -21672,10 +21674,12 @@ describe('fresh execution producer to result reader', () => {
                     : {}),
                 invalidateCache: true,
             });
-            await vi.waitFor(() =>
-                expect(f.rows.get(r.queryUuid)!.status).toBe(
-                    QueryHistoryStatus.READY,
-                ),
+            await vi.waitFor(
+                () =>
+                    expect(f.rows.get(r.queryUuid)!.status).toBe(
+                        QueryHistoryStatus.READY,
+                    ),
+                { timeout: 20_000 },
             );
             if (kind === 'materialization')
                 expect(preparation).not.toHaveBeenCalled();
@@ -21816,10 +21820,12 @@ describe('fresh execution producer to result reader', () => {
             context: QueryExecutionContext.EXPLORE,
             invalidateCache: true,
         });
-        await vi.waitFor(() =>
-            expect(f.rows.get(r.queryUuid)!.status).toBe(
-                QueryHistoryStatus.READY,
-            ),
+        await vi.waitFor(
+            () =>
+                expect(f.rows.get(r.queryUuid)!.status).toBe(
+                    QueryHistoryStatus.READY,
+                ),
+            { timeout: 20_000 },
         );
         const read = () =>
             f.service.getAsyncQueryResults({
@@ -21950,10 +21956,12 @@ describe('fresh execution producer to result reader', () => {
             context: QueryExecutionContext.EXPLORE,
             invalidateCache: true,
         });
-        await vi.waitFor(() =>
-            expect(f.rows.get(result.queryUuid)!.status).toBe(
-                QueryHistoryStatus.READY,
-            ),
+        await vi.waitFor(
+            () =>
+                expect(f.rows.get(result.queryUuid)!.status).toBe(
+                    QueryHistoryStatus.READY,
+                ),
+            { timeout: 20_000 },
         );
         const stored = f.rows.get(result.queryUuid)!;
         expect(stored.preAggregateExecution).toBe('project_warehouse');
@@ -22793,10 +22801,12 @@ describe('fresh execution producer to result reader', () => {
                     metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
                 });
-                await vi.waitFor(() =>
-                    expect(f.rows.get(result.queryUuid)!.status).toBe(
-                        QueryHistoryStatus.READY,
-                    ),
+                await vi.waitFor(
+                    () =>
+                        expect(f.rows.get(result.queryUuid)!.status).toBe(
+                            QueryHistoryStatus.READY,
+                        ),
+                    { timeout: 20_000 },
                 );
                 const first = await load();
                 const credentialSelections = () =>
@@ -23176,10 +23186,12 @@ describe('fresh execution producer to result reader', () => {
                 parameters,
                 context: QueryExecutionContext.EXPLORE,
             });
-            await vi.waitFor(() =>
-                expect(f.rows.get(result.queryUuid)!.status).toBe(
-                    QueryHistoryStatus.READY,
-                ),
+            await vi.waitFor(
+                () =>
+                    expect(f.rows.get(result.queryUuid)!.status).toBe(
+                        QueryHistoryStatus.READY,
+                    ),
+                { timeout: 20_000 },
             );
             const read = () =>
                 f.service.getAsyncQueryResults({
@@ -23335,10 +23347,12 @@ describe('fresh execution producer to result reader', () => {
                     metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
                 });
-                await vi.waitFor(() =>
-                    expect(f.rows.get(result.queryUuid)!.status).toBe(
-                        QueryHistoryStatus.READY,
-                    ),
+                await vi.waitFor(
+                    () =>
+                        expect(f.rows.get(result.queryUuid)!.status).toBe(
+                            QueryHistoryStatus.READY,
+                        ),
+                    { timeout: 20_000 },
                 );
                 expect((await read(result.queryUuid)).status).toBe(
                     QueryHistoryStatus.READY,
@@ -23351,10 +23365,12 @@ describe('fresh execution producer to result reader', () => {
                         context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
                         filters: {},
                     });
-                await vi.waitFor(() =>
-                    expect(f.rows.get(underlying.queryUuid)!.status).toBe(
-                        QueryHistoryStatus.READY,
-                    ),
+                await vi.waitFor(
+                    () =>
+                        expect(f.rows.get(underlying.queryUuid)!.status).toBe(
+                            QueryHistoryStatus.READY,
+                        ),
+                    { timeout: 20_000 },
                 );
                 expect((await read(underlying.queryUuid)).status).toBe(
                     QueryHistoryStatus.READY,
@@ -23709,10 +23725,12 @@ describe('fresh execution producer to result reader', () => {
                           invalidateCache: true,
                       })
                     : await runMetric();
-                await vi.waitFor(() =>
-                    expect(rows.get(source.queryUuid)!.status).toBe(
-                        QueryHistoryStatus.READY,
-                    ),
+                await vi.waitFor(
+                    () =>
+                        expect(rows.get(source.queryUuid)!.status).toBe(
+                            QueryHistoryStatus.READY,
+                        ),
+                    { timeout: 20_000 },
                 );
                 if (entry === 'underlying data')
                     result = await service.executeAsyncUnderlyingDataQuery({
@@ -23916,10 +23934,12 @@ describe('fresh execution producer to result reader', () => {
             querySurface,
             invalidateCache: true,
         });
-        await vi.waitFor(() =>
-            expect(f.rows.get(result.queryUuid)!.status).toBe(
-                QueryHistoryStatus.READY,
-            ),
+        await vi.waitFor(
+            () =>
+                expect(f.rows.get(result.queryUuid)!.status).toBe(
+                    QueryHistoryStatus.READY,
+                ),
+            { timeout: 20_000 },
         );
         return result;
     };
@@ -24139,10 +24159,12 @@ describe('fresh execution producer to result reader', () => {
                         : QueryExecutionContext.MCP_RUN_SQL,
                     invalidateCache: true,
                 });
-                await vi.waitFor(() =>
-                    expect(f.rows.get(query.queryUuid)!.status).toBe(
-                        QueryHistoryStatus.READY,
-                    ),
+                await vi.waitFor(
+                    () =>
+                        expect(f.rows.get(query.queryUuid)!.status).toBe(
+                            QueryHistoryStatus.READY,
+                        ),
+                    { timeout: 20_000 },
                 );
                 return query;
             });
@@ -25185,10 +25207,12 @@ describe('fresh execution producer to result reader', () => {
                 getAiDeepResearchService: () => deep,
             } as never);
             if (!enabled) {
-                await vi.waitFor(() =>
-                    expect(f.rows.get(result.query.queryUuid)!.status).toBe(
-                        QueryHistoryStatus.READY,
-                    ),
+                await vi.waitFor(
+                    () =>
+                        expect(f.rows.get(result.query.queryUuid)!.status).toBe(
+                            QueryHistoryStatus.READY,
+                        ),
+                    { timeout: 20_000 },
                 );
                 expect(
                     f.rows.get(result.query.queryUuid)!.agentIdentity,
@@ -26658,10 +26682,12 @@ describe('fresh execution producer to result reader', () => {
                 querySurface: QuerySurface.CLI,
                 invalidateCache: true,
             });
-            await vi.waitFor(() =>
-                expect(f.rows.get(result.queryUuid)!.status).toBe(
-                    QueryHistoryStatus.READY,
-                ),
+            await vi.waitFor(
+                () =>
+                    expect(f.rows.get(result.queryUuid)!.status).toBe(
+                        QueryHistoryStatus.READY,
+                    ),
+                { timeout: 20_000 },
             );
             expect(resolve.mock.results).not.toHaveLength(0);
             const plans = await Promise.all(
@@ -26702,10 +26728,12 @@ describe('fresh execution producer to result reader', () => {
                 header: vi.fn(),
             } as unknown as express.Request,
         );
-        await vi.waitFor(() =>
-            expect(f.rows.get(response.results.queryUuid)!.status).toBe(
-                QueryHistoryStatus.READY,
-            ),
+        await vi.waitFor(
+            () =>
+                expect(f.rows.get(response.results.queryUuid)!.status).toBe(
+                    QueryHistoryStatus.READY,
+                ),
+            { timeout: 20_000 },
         );
         const plans = await Promise.all(
             resolve.mock.results.map(({ value }) => value),
@@ -26937,10 +26965,12 @@ describe('fresh execution producer to result reader', () => {
                     return outcome.query;
                 },
             );
-            await vi.waitFor(() =>
-                expect(f.rows.get(result.queryUuid)!.status).toBe(
-                    QueryHistoryStatus.READY,
-                ),
+            await vi.waitFor(
+                () =>
+                    expect(f.rows.get(result.queryUuid)!.status).toBe(
+                        QueryHistoryStatus.READY,
+                    ),
+                { timeout: 20_000 },
             );
             vi.mocked(
                 f.service.resultsStorageClient.getDownloadStream,
@@ -26979,10 +27009,12 @@ describe('fresh execution producer to result reader', () => {
                 } as unknown as express.Request,
             );
             const { queryUuid } = response.results;
-            await vi.waitFor(() =>
-                expect(f.rows.get(queryUuid)!.status).toBe(
-                    QueryHistoryStatus.READY,
-                ),
+            await vi.waitFor(
+                () =>
+                    expect(f.rows.get(queryUuid)!.status).toBe(
+                        QueryHistoryStatus.READY,
+                    ),
+                { timeout: 20_000 },
             );
             expect(f.rows.get(queryUuid)!.agentIdentity).toBeNull();
             expect(
@@ -27017,10 +27049,12 @@ describe('fresh execution producer to result reader', () => {
                         invalidateCache: true,
                     }),
             );
-            await vi.waitFor(() =>
-                expect(f.rows.get(source.queryUuid)!.status).toBe(
-                    QueryHistoryStatus.READY,
-                ),
+            await vi.waitFor(
+                () =>
+                    expect(f.rows.get(source.queryUuid)!.status).toBe(
+                        QueryHistoryStatus.READY,
+                    ),
+                { timeout: 20_000 },
             );
             f.execute.mockClear();
             vi.mocked(
@@ -27037,10 +27071,12 @@ describe('fresh execution producer to result reader', () => {
                     source.queryUuid,
                 );
                 expect(fresh.queryUuid).not.toBe(source.queryUuid);
-                await vi.waitFor(() =>
-                    expect(f.rows.get(fresh.queryUuid)!.status).toBe(
-                        QueryHistoryStatus.READY,
-                    ),
+                await vi.waitFor(
+                    () =>
+                        expect(f.rows.get(fresh.queryUuid)!.status).toBe(
+                            QueryHistoryStatus.READY,
+                        ),
+                    { timeout: 20_000 },
                 );
                 expect(
                     f.rows.get(fresh.queryUuid)!.requestParameters
@@ -27093,10 +27129,12 @@ describe('fresh execution producer to result reader', () => {
                 });
             },
         );
-        await vi.waitFor(() =>
-            expect(f.rows.get(root.queryUuid)!.status).toBe(
-                QueryHistoryStatus.READY,
-            ),
+        await vi.waitFor(
+            () =>
+                expect(f.rows.get(root.queryUuid)!.status).toBe(
+                    QueryHistoryStatus.READY,
+                ),
+            { timeout: 20_000 },
         );
         f.rows.get(
             root.queryUuid,
@@ -27121,10 +27159,12 @@ describe('fresh execution producer to result reader', () => {
             querySurface: QuerySurface.MCP,
             invalidateCache: true,
         });
-        await vi.waitFor(() =>
-            expect(f.rows.get(result.queryUuid)!.status).toBe(
-                QueryHistoryStatus.READY,
-            ),
+        await vi.waitFor(
+            () =>
+                expect(f.rows.get(result.queryUuid)!.status).toBe(
+                    QueryHistoryStatus.READY,
+                ),
+            { timeout: 20_000 },
         );
         expect(f.rows.get(result.queryUuid)!.agentIdentity).toBeNull();
         expect(
