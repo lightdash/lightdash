@@ -358,6 +358,15 @@ import {
 } from './composePivot';
 import { resolveDashboardDateFilters } from './dashboardDateFilters';
 import { getValidatedDashboardSorts } from './dashboardSorts';
+import {
+    DUCKDB_INPUT_DIR,
+    DUCKDB_MAX_RESULT_BYTES,
+} from './duckdb/duckdbSandboxHarness';
+import {
+    DuckdbSandboxExecutionError,
+    DuckdbSandboxRunner,
+    type DuckdbSandboxInput,
+} from './duckdb/DuckdbSandboxRunner';
 import { DuckdbQueryRefusal } from './DuckdbQueryRefusal';
 import { getPivotedColumns } from './getPivotedColumns';
 import { getUnderlyingDataAvailableTables } from './getUnderlyingDataAvailableTables';
@@ -445,6 +454,7 @@ import {
     type RunAsyncPreAggregateQueryArgs,
     type RunAsyncWarehouseQueryArgs,
     type RunDuckdbQueryArgs,
+    type RunDuckdbSandboxQueryArgs,
     type ScheduleDownloadAsyncQueryResultsArgs,
     type UnboundedRerunFromQueryHistoryResult,
 } from './types';
@@ -469,6 +479,9 @@ const isRunnableCompiledMergeQuery = (
     compiled.columns !== null;
 
 /** What a DuckDB query executes with once its columns are resolved. */
+/** Rows handed to the pivot transform per batch, as a warehouse stream would. */
+const DUCKDB_REPLAY_BATCH_SIZE = 2048;
+
 type DuckdbQueryExecution = {
     query: string;
     fieldsMap: ItemsMap;
@@ -776,6 +789,8 @@ export class AsyncQueryService extends ProjectService {
     private readonly composeEngineClient: ComposeEngineClient;
 
     private pythonSandboxRunner: PythonSandboxRunner | undefined;
+
+    private duckdbSandboxRunner: DuckdbSandboxRunner | undefined;
 
     private readonly getQuerySourceService: () => QuerySourceService;
     private readonly getDocumentService: () => DocumentService;
@@ -3624,12 +3639,8 @@ export class AsyncQueryService extends ProjectService {
         warehouseClient,
         query,
         queryTags,
-        write,
-        pivotConfiguration,
-        itemsMap,
-        usedParameters,
         dataTimezone,
-        displayTimezone,
+        ...transform
     }: {
         warehouseClient: WarehouseClient;
         query: string;
@@ -3639,6 +3650,54 @@ export class AsyncQueryService extends ProjectService {
         itemsMap: ItemsMap;
         usedParameters?: ParametersValuesMap | null;
         dataTimezone?: string;
+        displayTimezone: string | null;
+    }) {
+        if (dataTimezone && !isValidTimezone(dataTimezone)) {
+            throw new ParameterError(`Invalid data timezone: ${dataTimezone}`);
+        }
+        return AsyncQueryService.transformQueryRows({
+            ...transform,
+            execute: (onRows) =>
+                traceSpan(
+                    {
+                        op: 'db.query',
+                        name: 'warehouse.executeAsyncQuery',
+                    },
+                    () =>
+                        warehouseClient.executeAsyncQuery(
+                            {
+                                sql: query,
+                                tags: queryTags,
+                                timezone: dataTimezone,
+                            },
+                            onRows,
+                        ),
+                ),
+        });
+    }
+
+    /**
+     * Spreads pivoted rows into wide columns as they stream from `execute`,
+     * which may be a warehouse or rows already in memory.
+     */
+    static async transformQueryRows({
+        execute,
+        write,
+        pivotConfiguration,
+        itemsMap,
+        usedParameters,
+        displayTimezone,
+    }: {
+        execute: (
+            onRows: (
+                rows: WarehouseResults['rows'],
+                fields: WarehouseResults['fields'],
+            ) => Promise<void>,
+        ) => Promise<WarehouseExecuteAsyncQuery>;
+        write?: (rows: Record<string, unknown>[]) => void | Promise<void>;
+        pivotConfiguration?: PivotConfiguration;
+        itemsMap: ItemsMap;
+        usedParameters?: ParametersValuesMap | null;
         displayTimezone: string | null;
     }): Promise<{
         columns: ResultColumns;
@@ -3888,25 +3947,7 @@ export class AsyncQueryService extends ProjectService {
                   await write?.(rows);
               };
 
-        if (dataTimezone && !isValidTimezone(dataTimezone)) {
-            throw new ParameterError(`Invalid data timezone: ${dataTimezone}`);
-        }
-
-        const warehouseResults = await traceSpan(
-            {
-                op: 'db.query',
-                name: 'warehouse.executeAsyncQuery',
-            },
-            () =>
-                warehouseClient.executeAsyncQuery(
-                    {
-                        sql: query,
-                        tags: queryTags,
-                        timezone: dataTimezone,
-                    },
-                    transformRows,
-                ),
-        );
+        const warehouseResults = await execute(transformRows);
 
         const columns = pivotConfiguration?.groupByColumns?.length
             ? getPivotedColumns(
@@ -7782,7 +7823,7 @@ export class AsyncQueryService extends ProjectService {
         );
 
         // A merged result has no single metric query to collapse: its totals
-        // are aggregated over the merged rows on the compose engine
+        // are aggregated over the merged rows in a DuckDB sandbox
         if ('mergeQuery' in source.requestParameters) {
             return this.executeAsyncCalculateMergeTotal({
                 account,
@@ -7825,7 +7866,7 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
-     * Totals over a merged result, on the compose engine. Every source value
+     * Totals over a merged result, in a DuckDB sandbox. Every source value
      * appears once per key, because fan-out is refused, so a sum, count,
      * minimum or maximum over the merged rows is exact. A column with no
      * exact aggregate over the rows, such as a distinct count or a repeated
@@ -7860,6 +7901,8 @@ export class AsyncQueryService extends ProjectService {
                 'Totals over a pivoted merged result are not computed yet',
             );
         }
+        // Refused before any source total leg runs
+        this.getDuckdbSandboxRunner().assertConfigured();
         const fieldIds = source.metricQuery.metrics;
         const columnTotals = getMergeColumnTotals({
             mergeQuery,
@@ -10288,8 +10331,8 @@ export class AsyncQueryService extends ProjectService {
     /**
      * Builds one CTE per completed reference so the user SQL can select from
      * semantically-named tables: {"orders": "<queryUuid>"} exposes that
-     * query's results as `orders`. Also returns the result file each CTE
-     * reads, which is the whole of what a scoped session may reach.
+     * query's results as `orders`, read from the file the sandbox receives
+     * at /work/in/orders.jsonl. Also returns the result files to push in.
      */
     private buildQueryReferenceCtes(
         queryHistoryByTableName: Record<string, QueryHistory>,
@@ -10321,6 +10364,7 @@ export class AsyncQueryService extends ProjectService {
                     queryHistory.resultsFileName,
                 );
                 const resultFileUri = `s3://${bucket}/${key}`;
+                const sandboxPath = `${DUCKDB_INPUT_DIR}/${tableName}.jsonl`;
                 // A result with no rows recorded no columns, because they
                 // come from the first batch the warehouse sends. Its fields
                 // still say what the file's columns are; without them the
@@ -10331,11 +10375,16 @@ export class AsyncQueryService extends ProjectService {
                     queryHistory.totalRowCount === 0
                         ? getColumnsFromItemsMap(queryHistory.fields)
                         : queryHistory.columns;
-                const select = getJsonlReferenceSelect(resultFileUri, columns);
+                const select = getJsonlReferenceSelect(sandboxPath, columns);
 
                 return {
                     referenceCte: `${quoteDuckdbIdentifier(tableName)} AS (${select})`,
                     resultFileUri,
+                    input: {
+                        table: tableName,
+                        resultsFileName: queryHistory.resultsFileName,
+                        storageClient,
+                    },
                 };
             },
         );
@@ -10346,6 +10395,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             referenceCtes: bound.map(({ referenceCte }) => referenceCte),
             resultFileUris: bound.map(({ resultFileUri }) => resultFileUri),
+            inputs: bound.map(({ input }) => input),
             ...(credentialUuids.some(Boolean) ? { hasAgentResults: true } : {}),
             ...(credentialUuid &&
             credentialUuids.every((uuid) => uuid === credentialUuid)
@@ -10355,9 +10405,9 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
-     * Runs raw SQL directly on the compose engine and streams results
-     * through the standard async query pipeline, so results are polled with
-     * getAsyncQueryResults like any other async query.
+     * Runs raw DuckDB SQL over other queries' results in a one-shot sandbox
+     * and lands the result like any other async query, so results are
+     * polled with getAsyncQueryResults.
      *
      * The references map ({"orders": "<queryUuid>"}) exposes previous
      * queries' results files as named tables, gated by the exact access
@@ -10374,7 +10424,8 @@ export class AsyncQueryService extends ProjectService {
      * with DuckDB itself (extractStatements) and rejects multiple
      * statements, non-SELECT statement types, and blocked functions;
      * escaping the CTE wrapper still lands inside that same sandbox on a
-     * hardened instance (no extension autoload, no attach/install).
+     * hardened instance (no extension autoload, no attach/install) inside a
+     * sandbox that holds only the referenced result files.
      */
     async executeAsyncComposeSqlQuery({
         account,
@@ -10418,9 +10469,8 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        // User SQL runs on a session whose credentials reach only the results
-        // it references, so a query that references nothing has nothing to
-        // run on: it is refused rather than given the whole bucket
+        // User SQL runs in a sandbox holding only the results it references,
+        // so a query that references nothing has nothing to run on
         if (references === undefined || Object.keys(references).length === 0) {
             throw new ParameterError(
                 'A compose SQL query must reference at least one query result. Run SQL against the warehouse in the SQL runner instead.',
@@ -10465,6 +10515,16 @@ export class AsyncQueryService extends ProjectService {
             });
         }
         return this.pythonSandboxRunner;
+    }
+
+    private getDuckdbSandboxRunner(): DuckdbSandboxRunner {
+        if (!this.duckdbSandboxRunner) {
+            this.duckdbSandboxRunner = new DuckdbSandboxRunner({
+                lightdashConfig: this.lightdashConfig,
+                logger: this.logger,
+            });
+        }
+        return this.duckdbSandboxRunner;
     }
 
     /**
@@ -11081,15 +11141,11 @@ export class AsyncQueryService extends ProjectService {
               })
             : null;
 
-        // Throws MissingConfigError when results storage is not configured:
-        // a query without an engine is refused here, never in the background.
-        // A scoped plan still needs the dialect, and its own session is
-        // built once the referenced result files are known.
-        const warehouseClient =
-            this.composeEngineClient.createExecutionWarehouseClient({
-                storage: 'results',
-                scope: null,
-            });
+        // Throws MissingConfigError without a sandbox provider: a query that
+        // cannot run is refused here, never in the background
+        this.getDuckdbSandboxRunner().assertConfigured();
+        // The composers need the DuckDB dialect only; nothing runs on it
+        const warehouseClient = new DuckdbWarehouseClient();
 
         const queryTags: RunQueryTags = withAgentMarkerTag({
             ...this.getUserQueryTags(account),
@@ -11105,7 +11161,6 @@ export class AsyncQueryService extends ProjectService {
         // fields and columns once referenced results exist.
         const resolved = await this.resolveDuckdbQueryPlan({
             plan,
-            account,
             projectUuid,
             context,
             sql,
@@ -11114,7 +11169,6 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             pivotConfiguration,
             warehouseClient,
-            queryTags,
         });
         const resultEntitlementFingerprint = identityEnabled
             ? getQueryResultEntitlementFingerprint({
@@ -11155,7 +11209,7 @@ export class AsyncQueryService extends ProjectService {
             : sharedCacheKey;
 
         const queryCreatedAt = new Date();
-        const { queryUuid } = await this.createQueryHistory(
+        const { queryUuid, queryUsage } = await this.createQueryHistory(
             account,
             {
                 projectUuid,
@@ -11176,14 +11230,37 @@ export class AsyncQueryService extends ProjectService {
             querySurface,
             { resultEntitlementFingerprint },
         );
+        // Derived from the results it reads, so stamped like a python result:
+        // the agent reader check refuses a derived row that carries no producer
+        const reader = buildResultReader(
+            account,
+            context,
+            querySurface ?? null,
+        );
+        const resultProducer: QueryResultProducer = {
+            entitlementFingerprint: resultEntitlementFingerprint,
+            version: 1,
+            warehouseConnectionUuid: null,
+            credentialOwner: {
+                kind: normalizedReferences ? 'derived' : 'no_warehouse_data',
+            },
+            authMethod: account.authentication.type,
+            agentIdentity: reader.kind === 'agent' ? reader.claim : null,
+        };
+        await this.queryHistoryModel.recordResultProducer(
+            queryUuid,
+            projectUuid,
+            account.user.id,
+            resultProducer,
+        );
         this.prometheusMetrics?.trackQueryStateTransition(
             'new',
             QueryHistoryStatus.PENDING,
             context,
         );
 
-        // Everything the run needs beyond the row lives in the spec, so the
-        // run rebuilds itself from the row wherever it executes
+        // Lineage and merge reporting read the references, cache hit and
+        // refusal from the spec
         await this.queryHistoryModel.setDuckdbExecution(queryUuid, {
             references: normalizedReferences ?? {},
             engine: plan.engine,
@@ -11203,20 +11280,734 @@ export class AsyncQueryService extends ProjectService {
             refusal: null,
         });
 
-        if (this.lightdashConfig.natsWorker.enabled) {
-            await this.enqueueDuckdbQuery({
-                queryUuid,
-                projectUuid,
-                account,
-                queryTags,
-                queryCreatedAt,
-                context,
-            });
-        } else {
-            this.runDuckdbQueryInProcess(queryUuid, queryTags);
-        }
+        const runArgs: RunDuckdbSandboxQueryArgs = {
+            actor: {
+                userUuid: account.user.id,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
+            },
+            agentIdentity,
+            authMethod: account.authentication.type,
+            identityEnabled,
+            resultProducer,
+            invalidateCache: invalidateCache ?? false,
+            projectUuid,
+            organizationUuid,
+            isPreviewProject: await this.isExcludedFromUsage(projectUuid),
+            onboardingFlow: await this.getOnboardingFlow({
+                userUuid: account.user.id,
+                organizationUuid,
+            }),
+            queryUuid,
+            sql: resolved.sql,
+            references: {
+                kind: 'queries',
+                references: normalizedReferences ?? {},
+                guard:
+                    plan.guard === null
+                        ? null
+                        : buildMergeRowCapGuard(plan.guard),
+                labelByTable: plan.referenceLabels,
+            },
+            columns: resolved.columns,
+            queryTags,
+            queryCreatedAt,
+            queryUsage,
+            context,
+        };
+        void this.runDuckdbSandboxQuery(runArgs).catch((e) => {
+            this.logger.error(
+                `DuckDB query ${queryUuid} failed outside its error path: ${getErrorMessage(
+                    e,
+                )}`,
+            );
+        });
 
         return { queryUuid };
+    }
+
+    /**
+     * Claims the row the way a worker would, so the query moves through
+     * executing like any async query, then runs it in a sandbox with the
+     * submitting agent's connection rebound.
+     */
+    private async runDuckdbSandboxQuery(
+        args: RunDuckdbSandboxQueryArgs,
+    ): Promise<void> {
+        const canRun = await this.prepareQueuedQueryForExecution(
+            args.queryUuid,
+            'duckdb-sandbox',
+        );
+        if (!canRun) return;
+        await this.withQueryConnectionExecution(args, () =>
+            this.runDuckdbSandboxQueryInScope(args),
+        );
+    }
+
+    /**
+     * The background phase of a DuckDB query over other results: wait for
+     * the references, run the guard, look the results up by the files they
+     * read, then push those files into a one-shot sandbox, run the statement
+     * there and upload what comes back. Every phase is a span under
+     * duckdb.query.run.
+     */
+    private async runDuckdbSandboxQueryInScope({
+        actor,
+        agentIdentity,
+        authMethod,
+        identityEnabled: submittedIdentityEnabled,
+        resultProducer,
+        invalidateCache,
+        projectUuid,
+        organizationUuid,
+        isPreviewProject,
+        onboardingFlow,
+        queryUuid,
+        sql,
+        references,
+        columns,
+        queryTags,
+        queryCreatedAt,
+        queryUsage,
+        context,
+    }: RunDuckdbSandboxQueryArgs): Promise<void> {
+        const account = {
+            user: { id: actor.userUuid },
+            isRegisteredUser: () => actor.isRegisteredUser,
+        };
+        const attributes = {
+            'lightdash.queryUuid': queryUuid,
+            'lightdash.projectUuid': projectUuid,
+            'lightdash.queryContext': context,
+            'lightdash.referenceCount': Object.keys(references.references)
+                .length,
+            'lightdash.columnsMode': columns.mode,
+        };
+        await traceSpan(
+            { op: 'duckdb.query.run', name: 'duckdb.query.run', attributes },
+            async (span) => {
+                const startedAt = Date.now();
+                try {
+                    let identityEnabled = submittedIdentityEnabled;
+                    const bound = await traceSpan(
+                        {
+                            op: 'duckdb.query.wait_references',
+                            name: 'duckdb.query.wait_references',
+                            attributes,
+                        },
+                        () =>
+                            this.bindDuckdbQueryReferences({
+                                projectUuid,
+                                references,
+                                organizationUuid,
+                                actor,
+                                agentIdentity,
+                                authMethod,
+                                onIdentityResolved: (enabled) => {
+                                    identityEnabled = enabled;
+                                },
+                            }),
+                    );
+                    if (bound.aiSignInCredentialUuid) {
+                        await this.queryHistoryModel.recordAiSignInCredential(
+                            queryUuid,
+                            projectUuid,
+                            actor.userUuid,
+                            bound.aiSignInCredentialUuid,
+                        );
+                    }
+                    const runner = this.getDuckdbSandboxRunner();
+                    // Keyed on the files it reads, not the rows it referenced:
+                    // a leg served from cache mints a new row over the same
+                    // file. The sandbox version keeps results from crossing
+                    // engines or runner versions
+                    const sharedResultsKey = QueryHistoryModel.getCacheKey(
+                        projectUuid,
+                        {
+                            sql: JSON.stringify({
+                                sql,
+                                files: bound.resultFileUris,
+                                parameters:
+                                    columns.mode === 'discover'
+                                        ? columns.parameters
+                                        : (columns.usedParameters ?? {}),
+                                ...AsyncQueryService.getDiscoveredPivotCacheSalt(
+                                    columns,
+                                ),
+                                sandboxVersion: runner.version,
+                            }),
+                            userUuid: null,
+                            resultIdentity: identityEnabled
+                                ? { organizationUuid, producer: resultProducer }
+                                : null,
+                        },
+                    );
+                    const bypassResultsCache =
+                        identityEnabled ||
+                        (isAiAccessQueryContext(context)
+                            ? Boolean(bound.hasAgentResults) ||
+                              (
+                                  await this.featureFlagModel.get({
+                                      user: {
+                                          organizationUuid,
+                                          ...(actor.isRegisteredUser
+                                              ? { userUuid: actor.userUuid }
+                                              : {}),
+                                      },
+                                      featureFlagId:
+                                          FeatureFlags.AiAccessSkipResultsCache,
+                                  })
+                              ).enabled
+                            : false);
+                    const resultsKey = bypassResultsCache
+                        ? `${sharedResultsKey}.${queryUuid}`
+                        : sharedResultsKey;
+                    const cached =
+                        invalidateCache || bypassResultsCache
+                            ? null
+                            : ((await this.cacheService?.findCachedResultsFile(
+                                  projectUuid,
+                                  resultsKey,
+                                  {
+                                      userUuid: actor.userUuid,
+                                      organizationUuid,
+                                      organizationName: undefined,
+                                  },
+                              )) ?? null);
+                    this.prometheusMetrics?.incrementQueryCacheHit(
+                        cached !== null,
+                        context,
+                        false,
+                    );
+                    if (cached !== null) {
+                        await this.landDuckdbCacheHit({
+                            actor,
+                            account,
+                            projectUuid,
+                            organizationUuid,
+                            isPreviewProject,
+                            onboardingFlow,
+                            queryUuid,
+                            sql,
+                            columns,
+                            storedCompiledSql: null,
+                            resultsKey,
+                            cached,
+                            queryTags,
+                            queryCreatedAt,
+                            queryUsage,
+                            context,
+                            warehouseType: WarehouseTypes.DUCKDB,
+                        });
+                        return;
+                    }
+
+                    const inputs = await this.readDuckdbSandboxInputs(
+                        bound,
+                        attributes,
+                    );
+                    const execution = await runner.withSession(
+                        {
+                            queryUuid,
+                            projectUuid,
+                            inputs,
+                            timeoutMs:
+                                DuckdbSandboxRunner.DUCKDB_RUN_TIMEOUT_MS,
+                        },
+                        async (session) => {
+                            const statement =
+                                await this.composeDuckdbSandboxStatement({
+                                    sql,
+                                    referenceCtes: bound.referenceCtes,
+                                    columns,
+                                    probe: (probeSql) =>
+                                        session.probe(probeSql),
+                                });
+                            const limit =
+                                columns.mode === 'discover' &&
+                                !columns.pivotConfiguration &&
+                                columns.limit !== undefined
+                                    ? columns.limit
+                                    : Number.MAX_SAFE_INTEGER;
+                            return {
+                                statement,
+                                limit,
+                                output: await session.run(statement.query, {
+                                    limit,
+                                }),
+                            };
+                        },
+                    );
+                    const { statement, output } = execution;
+                    const rows = await traceSpan(
+                        {
+                            op: 'duckdb.query.validate_output',
+                            name: 'duckdb.query.validate_output',
+                            attributes: {
+                                ...attributes,
+                                'lightdash.resultBytes':
+                                    output.resultBytes.byteLength,
+                            },
+                        },
+                        async () =>
+                            AsyncQueryService.parseDuckdbSandboxOutput(
+                                output,
+                                execution.limit,
+                            ),
+                    );
+                    const pivotedLines: string[] = [];
+                    const transformed =
+                        await AsyncQueryService.transformQueryRows({
+                            execute: async (onRows) => {
+                                for (
+                                    let start = 0;
+                                    start < rows.length;
+                                    start += DUCKDB_REPLAY_BATCH_SIZE
+                                ) {
+                                    // eslint-disable-next-line no-await-in-loop
+                                    await onRows(
+                                        rows.slice(
+                                            start,
+                                            start + DUCKDB_REPLAY_BATCH_SIZE,
+                                        ),
+                                        output.fields,
+                                    );
+                                }
+                                return {
+                                    queryId: null,
+                                    queryMetadata: null,
+                                    totalRows: rows.length,
+                                    durationMs: 0,
+                                    phaseTimings: {},
+                                };
+                            },
+                            write: statement.pivotConfiguration
+                                ? (pivotedRows) => {
+                                      pivotedRows.forEach((row) =>
+                                          pivotedLines.push(
+                                              `${JSON.stringify(row)}\n`,
+                                          ),
+                                      );
+                                  }
+                                : undefined,
+                            pivotConfiguration: statement.pivotConfiguration,
+                            itemsMap: statement.fieldsMap,
+                            usedParameters: statement.usedParameters,
+                            displayTimezone: null,
+                        });
+                    const { pivotDetails } = transformed;
+                    const totalRowCount =
+                        pivotDetails?.totalRows ?? output.rowCount;
+                    span.setAttributes({
+                        'lightdash.rowCount': totalRowCount,
+                        'lightdash.truncated': false,
+                    });
+
+                    const resultsStorageClient =
+                        this.getResultsStorageClientForContext(context);
+                    if (!resultsStorageClient.isEnabled) {
+                        throw new S3Error('S3 is not enabled');
+                    }
+                    const fileName =
+                        QueryHistoryModel.createUniqueResultsFileName(
+                            resultsKey,
+                        );
+                    const createdAt = new Date();
+                    const uploadStartedAt = Date.now();
+                    await traceSpan(
+                        {
+                            op: 's3.upload',
+                            name: 'duckdb.query.upload_result',
+                            attributes: {
+                                ...attributes,
+                                'lightdash.totalRows': totalRowCount,
+                            },
+                        },
+                        async () => {
+                            const upload =
+                                resultsStorageClient.createUploadStream(
+                                    S3ResultsFileStorageClient.sanitizeFileExtension(
+                                        fileName,
+                                    ),
+                                    { contentType: 'application/jsonl' },
+                                );
+                            // A result that is not pivoted is the sandbox's
+                            // file as it is: the runner serialises rows the
+                            // way the upload stream does
+                            upload.writeStream.write(
+                                statement.pivotConfiguration
+                                    ? Buffer.from(pivotedLines.join(''))
+                                    : output.resultBytes,
+                            );
+                            await upload.close();
+                        },
+                    );
+                    this.prometheusMetrics?.observeS3ResultsUploadDuration(
+                        Date.now() - uploadStartedAt,
+                        'duckdb_sandbox',
+                    );
+                    const warehouseExecutionTimeMs = Date.now() - startedAt;
+                    this.trackDuckdbSandboxResult({
+                        actor,
+                        queryUuid,
+                        projectUuid,
+                        organizationUuid,
+                        isPreviewProject,
+                        onboardingFlow,
+                        queryTags,
+                        queryUsage,
+                        context,
+                        resultsKey,
+                        warehouseExecutionTimeMs,
+                        totalRowCount,
+                        columnsCount:
+                            pivotDetails?.totalColumnCount ??
+                            Object.keys(statement.fieldsMap).length,
+                        pivotDetails,
+                    });
+
+                    const expiresAt = await this.getCacheExpiresAt(
+                        projectUuid,
+                        createdAt,
+                    );
+                    await this.queryHistoryModel.update(
+                        queryUuid,
+                        projectUuid,
+                        {
+                            status: QueryHistoryStatus.READY,
+                            error: null,
+                            compiled_sql: statement.query,
+                            fields: statement.fieldsMap,
+                            warehouse_execution_time_ms:
+                                warehouseExecutionTimeMs,
+                            total_row_count: totalRowCount,
+                            pivot_total_column_count:
+                                pivotDetails?.totalColumnCount,
+                            pivot_values_columns: pivotDetails
+                                ? Object.fromEntries(
+                                      pivotDetails.valuesColumns.entries(),
+                                  )
+                                : null,
+                            cache_key: resultsKey,
+                            results_file_name: fileName,
+                            results_created_at: createdAt,
+                            results_updated_at: new Date(),
+                            results_expires_at: expiresAt,
+                            columns: transformed.columns,
+                            original_columns: statement.originalColumns,
+                        },
+                        account,
+                    );
+                    this.prometheusMetrics?.trackQueryStateTransition(
+                        QueryHistoryStatus.EXECUTING,
+                        QueryHistoryStatus.READY,
+                        context,
+                    );
+                    this.trackQueryTerminalStatus(
+                        QueryHistoryStatus.READY,
+                        queryCreatedAt,
+                        context,
+                    );
+                    this.logger.info(
+                        `DuckDB query ${queryUuid} ready: ${totalRowCount} rows in ${warehouseExecutionTimeMs}ms`,
+                    );
+                } catch (e) {
+                    const message =
+                        e instanceof DuckdbSandboxExecutionError
+                            ? e.message
+                            : getErrorMessage(
+                                  personaliseSharedSignInError(e, null),
+                              );
+                    span.setAttributes({ 'lightdash.error': message });
+                    this.logger.warn(
+                        `DuckDB query ${queryUuid} failed: ${message}`,
+                    );
+                    // A refusal is the feature working, and whoever reports
+                    // the outcome must tell it from a failure by reading the
+                    // row alone, so it lands with the error status in one write
+                    if (e instanceof DuckdbQueryRefusal) {
+                        await this.queryHistoryModel.recordDuckdbRefusal(
+                            queryUuid,
+                            projectUuid,
+                            e.refusal,
+                            message,
+                            account,
+                        );
+                    } else {
+                        await this.queryHistoryModel.update(
+                            queryUuid,
+                            projectUuid,
+                            {
+                                status: QueryHistoryStatus.ERROR,
+                                error: message,
+                                errored_at: new Date(),
+                            },
+                            account,
+                        );
+                    }
+                    this.prometheusMetrics?.trackQueryStateTransition(
+                        QueryHistoryStatus.EXECUTING,
+                        QueryHistoryStatus.ERROR,
+                        context,
+                    );
+                    this.trackQueryTerminalStatus(
+                        QueryHistoryStatus.ERROR,
+                        queryCreatedAt,
+                        context,
+                    );
+                }
+            },
+        );
+    }
+
+    /** Streams each referenced result file through one shared byte budget. */
+    private async readDuckdbSandboxInputs(
+        bound: BoundDuckdbQueryReferences,
+        attributes: Record<string, string | number>,
+    ): Promise<DuckdbSandboxInput[]> {
+        const { sandboxInputMaxBytes } = this.lightdashConfig.appRuntime;
+        const inputBudgetMiB = sandboxInputMaxBytes / (1024 * 1024);
+        const inputReader = new SandboxInputReader({
+            maxBytes: sandboxInputMaxBytes,
+            limitMessage: `SQL transformation inputs exceed the combined size limit of ${
+                Number.isInteger(inputBudgetMiB)
+                    ? `${inputBudgetMiB} MiB`
+                    : `${sandboxInputMaxBytes} bytes`
+            }.`,
+        });
+        return traceSpan(
+            {
+                op: 'duckdb.query.read_inputs',
+                name: 'duckdb.query.read_inputs',
+                attributes,
+            },
+            async (span) => {
+                const inputs = await Promise.all(
+                    bound.inputs.map(
+                        async ({
+                            table,
+                            resultsFileName,
+                            storageClient,
+                        }): Promise<DuckdbSandboxInput> => ({
+                            table,
+                            bytes: await inputReader.read(
+                                await storageClient.getDownloadStream(
+                                    resultsFileName,
+                                ),
+                            ),
+                        }),
+                    ),
+                ).catch((error: unknown) => {
+                    inputReader.abort(error);
+                    throw error;
+                });
+                span?.setAttributes({
+                    'lightdash.inputBytes': inputs.reduce(
+                        (total, input) => total + input.bytes.byteLength,
+                        0,
+                    ),
+                });
+                return inputs;
+            },
+        );
+    }
+
+    /**
+     * Supplied columns run the composed statement as it is. Discovered
+     * columns are probed in the sandbox with a one-row limit, then the pivot
+     * stage is composed here over what the probe found.
+     */
+    private async composeDuckdbSandboxStatement({
+        sql,
+        referenceCtes,
+        columns,
+        probe,
+    }: {
+        sql: string;
+        referenceCtes: string[];
+        columns: DuckdbQueryColumns;
+        probe: (sql: string) => Promise<{ fields: WarehouseResults['fields'] }>;
+    }): Promise<DuckdbQueryExecution> {
+        switch (columns.mode) {
+            case 'supplied':
+                return {
+                    query: AsyncQueryService.wrapSqlWithReferenceCtes(
+                        sql,
+                        referenceCtes,
+                    ),
+                    fieldsMap: columns.fieldsMap,
+                    usedParameters: columns.usedParameters,
+                    originalColumns: columns.originalColumns,
+                    pivotConfiguration: columns.pivotConfiguration,
+                };
+            case 'discover': {
+                const warehouseClient = new DuckdbWarehouseClient();
+                const { fields } = await probe(
+                    AsyncQueryService.getDuckdbColumnProbeSql({
+                        sql,
+                        referenceCtes,
+                        parameters: columns.parameters,
+                        warehouseClient,
+                    }),
+                );
+                return this.composeDiscoveredDuckdbQuery({
+                    sql,
+                    referenceCtes,
+                    columns: Object.entries(fields).map(([name, field]) => ({
+                        name,
+                        type: field.type,
+                    })),
+                    limit: columns.limit,
+                    parameters: columns.parameters,
+                    pivotConfiguration: columns.pivotConfiguration,
+                    warehouseClient,
+                });
+            }
+            default:
+                return assertUnreachable(
+                    columns,
+                    'Unknown DuckDB query columns mode',
+                );
+        }
+    }
+
+    /** The sandbox already checked the size and row count; this re-reads the lines. */
+    private static parseDuckdbSandboxOutput(
+        output: { resultBytes: Buffer; rowCount: number },
+        limit: number,
+    ): ResultRow[] {
+        if (output.resultBytes.byteLength > DUCKDB_MAX_RESULT_BYTES) {
+            throw new DuckdbSandboxExecutionError(
+                `SQL transformation result exceeds the ${
+                    DUCKDB_MAX_RESULT_BYTES / (1024 * 1024)
+                } MiB limit`,
+            );
+        }
+        if (output.rowCount > limit) {
+            throw new DuckdbSandboxExecutionError(
+                `SQL transformation returned ${output.rowCount} rows, more than the limit of ${limit}`,
+            );
+        }
+        const rows = output.resultBytes
+            .toString('utf8')
+            .split('\n')
+            .filter((line) => line.length > 0)
+            .map((line): ResultRow => {
+                try {
+                    return JSON.parse(line);
+                } catch {
+                    throw new DuckdbSandboxExecutionError(
+                        'SQL transformation result is not valid JSON lines',
+                    );
+                }
+            });
+        if (rows.length !== output.rowCount) {
+            throw new DuckdbSandboxExecutionError(
+                `SQL transformation result has ${rows.length} rows, but its metadata says ${output.rowCount}`,
+            );
+        }
+        return rows;
+    }
+
+    private trackDuckdbSandboxResult({
+        actor,
+        queryUuid,
+        projectUuid,
+        organizationUuid,
+        isPreviewProject,
+        onboardingFlow,
+        queryTags,
+        queryUsage,
+        context,
+        resultsKey,
+        warehouseExecutionTimeMs,
+        totalRowCount,
+        columnsCount,
+        pivotDetails,
+    }: {
+        actor: QueryHistoryActor;
+        queryUuid: string;
+        projectUuid: string;
+        organizationUuid: string;
+        isPreviewProject: boolean;
+        onboardingFlow: OnboardingFlow;
+        queryTags: RunQueryTags;
+        queryUsage?: QueryUsageMetadata;
+        context: QueryExecutionContext;
+        resultsKey: string;
+        warehouseExecutionTimeMs: number;
+        totalRowCount: number;
+        columnsCount: number;
+        pivotDetails: { totalColumnCount: number | undefined } | null;
+    }): void {
+        const analyticsIdentity = actor.isRegisteredUser
+            ? { userId: actor.userUuid }
+            : { anonymousId: 'embed' };
+        const externalId = actor.isRegisteredUser
+            ? undefined
+            : { externalId: actor.userUuid };
+        this.analytics.track({
+            ...analyticsIdentity,
+            event: 'query.ready',
+            properties: {
+                inheritedFromProjectUuid: null,
+                queryId: queryUuid,
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                warehouseType: WarehouseTypes.DUCKDB,
+                executionSource: 'duckdb_sandbox',
+                warehouseExecutionTimeMs,
+                columnsCount,
+                totalRowCount,
+                isPivoted: pivotDetails !== null,
+                ...externalId,
+            },
+        });
+        this.analytics.track({
+            ...analyticsIdentity,
+            event: 'results_cache.write',
+            properties: {
+                queryId: queryUuid,
+                projectId: projectUuid,
+                cacheKey: resultsKey,
+                executionSource: 'duckdb_sandbox',
+                totalRowCount,
+                pivotTotalColumnCount: pivotDetails?.totalColumnCount,
+                isPivoted: pivotDetails !== null,
+                ...externalId,
+            },
+        });
+        this.analytics.track({
+            ...analyticsIdentity,
+            event: 'query.completed',
+            properties: {
+                inheritedFromProjectUuid: null,
+                ...queryUsageProperties(queryTags, queryUsage),
+                ...this.getQueryConnectionAnalyticsProperties({
+                    warehouseConnectionUuid: null,
+                    warehouseType: null,
+                }),
+                connectionWarehouseType: null,
+                queryId: queryUuid,
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                isPreviewProject,
+                status: 'success',
+                context,
+                onboardingFlow,
+                exploreName: queryTags.explore_name ?? null,
+                chartId: queryTags.chart_uuid ?? null,
+                dashboardId: queryTags.dashboard_uuid ?? null,
+                cacheHit: false,
+                executionSource: 'duckdb_sandbox',
+                warehouseType: WarehouseTypes.DUCKDB,
+                warehouseExecutionTimeMs,
+                warehousePhaseTimings: null,
+                totalRowCount,
+                columnsCount,
+                ...externalId,
+            },
+        });
     }
 
     /** Runs a submitted DuckDB source query on this process, as a worker would. */
@@ -11455,7 +12246,6 @@ export class AsyncQueryService extends ProjectService {
      */
     private async resolveDuckdbQueryPlan({
         plan,
-        account,
         projectUuid,
         context,
         sql,
@@ -11464,10 +12254,8 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         pivotConfiguration,
         warehouseClient,
-        queryTags,
     }: {
         plan: DuckdbQueryPlan;
-        account: Account;
         projectUuid: string;
         context: QueryExecutionContext;
         sql: string;
@@ -11476,7 +12264,6 @@ export class AsyncQueryService extends ProjectService {
         parameters: ParametersValuesMap | undefined;
         pivotConfiguration: PivotConfiguration | undefined;
         warehouseClient: WarehouseClient;
-        queryTags: RunQueryTags;
     }): Promise<{
         /** The statement that runs: composed for a supplied plan, raw otherwise. */
         sql: string;
@@ -11539,16 +12326,12 @@ export class AsyncQueryService extends ProjectService {
         });
         AsyncQueryService.throwIfMissingParameterValues(placeholderComposer);
         if (pivotConfiguration) {
-            await this.preflightDiscoveredPivot({
-                account,
-                projectUuid,
+            this.preflightDiscoveredPivot({
                 sql,
                 limit,
-                references: references ?? {},
                 parameters: combinedParameters,
                 pivotConfiguration,
                 warehouseClient,
-                queryTags,
             });
         }
 
@@ -11578,105 +12361,30 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
-     * Probes a discovered-columns pivot at submission when every reference is
-     * ready; otherwise the run checks it once columns exist.
+     * Refuses a discovered-columns pivot the composer cannot build, before
+     * any row exists. Whether its columns exist is known only once the run
+     * probes the SQL, so that is checked there.
      */
-    private async preflightDiscoveredPivot({
-        account,
-        projectUuid,
+    private preflightDiscoveredPivot({
         sql,
         limit,
-        references,
         parameters,
         pivotConfiguration,
         warehouseClient,
-        queryTags,
     }: {
-        account: Account;
-        projectUuid: string;
         sql: string;
         limit: number | undefined;
-        references: Record<string, string>;
         parameters: ParametersValuesMap;
         pivotConfiguration: PivotConfiguration;
         warehouseClient: WarehouseClient;
-        queryTags: RunQueryTags;
-    }): Promise<void> {
+    }): void {
         const columnLimit = this.lightdashConfig.pivotTable.maxColumnLimit;
         assertPivotWithinColumnLimit(pivotConfiguration, columnLimit);
-
-        const referenced = await Promise.all(
-            Object.entries(references).map(
-                async ([tableName, queryUuid]) =>
-                    [
-                        tableName,
-                        await this.queryHistoryModel.get(
-                            queryUuid,
-                            projectUuid,
-                            account,
-                        ),
-                    ] as const,
-            ),
-        );
-        const allReady = referenced.every(
-            ([, queryHistory]) =>
-                queryHistory.status === QueryHistoryStatus.READY,
-        );
-        let columns: SqlQueryColumn[];
-        if (allReady) {
-            const execution =
-                agentExecutionContext.getStore()?.agentConnectionExecution;
-            if (execution)
-                await this.aiAccessService.assertActiveConnectionExecution(
-                    execution,
-                    projectUuid,
-                    [
-                        AgentCapability.ReadDiscover,
-                        AgentCapability.Query,
-                        AgentCapability.RawSql,
-                    ],
-                    true,
-                );
-            if (
-                execution ||
-                referenced.some(([, history]) =>
-                    isConnectionProducedQuery(history),
-                )
-            )
-                await this.assertCanReadStoredResultsForQueries(
-                    account,
-                    projectUuid,
-                    referenced.map(([, history]) => history),
-                    buildResultReader(account),
-                );
-
-            const bound = this.buildQueryReferenceCtes(
-                Object.fromEntries(referenced),
-            );
-            columns = await this.probeDuckdbQueryColumns({
-                sql,
-                referenceCtes: bound.referenceCtes,
-                parameters,
-                warehouseClient:
-                    this.composeEngineClient.createExecutionWarehouseClient({
-                        storage: 'results',
-                        scope: bound.resultFileUris,
-                    }),
-                queryTags,
-            });
-            assertPivotColumnsExist(
-                pivotConfiguration,
-                columns.map((column) => column.name),
-            );
-        } else {
-            columns = getPivotColumnReferences(pivotConfiguration).map(
-                (name) => ({ name, type: DimensionType.STRING }),
-            );
-        }
-
         new SqlQueryComposer({
             userSql: sql,
-            columns,
+            columns: getPivotColumnReferences(pivotConfiguration).map(
+                (name) => ({ name, type: DimensionType.STRING }),
+            ),
             warehouseClient,
             pivotConfiguration,
             limit,
@@ -12447,7 +13155,7 @@ export class AsyncQueryService extends ProjectService {
                 chartId: queryTags.chart_uuid ?? null,
                 dashboardId: queryTags.dashboard_uuid ?? null,
                 cacheHit: true,
-                executionSource: 'pre_aggregate_duckdb',
+                executionSource: 'duckdb_sandbox',
                 warehouseType,
                 warehouseExecutionTimeMs: 0,
                 // Served from cache — no warehouse phases to report.
@@ -12509,6 +13217,7 @@ export class AsyncQueryService extends ProjectService {
                 return {
                     referenceCtes: references.referenceCtes,
                     resultFileUris: [],
+                    inputs: [],
                 };
             case 'queries': {
                 const completed = await this.waitForQueryReferences({
@@ -12685,27 +13394,13 @@ export class AsyncQueryService extends ProjectService {
         warehouseClient: WarehouseClient;
         queryTags: RunQueryTags;
     }): Promise<SqlQueryColumn[]> {
-        const { replacedSql: sqlWithParameters, missingReferences } =
-            safeReplaceParametersWithSqlBuilder(
-                sql,
-                parameters,
-                warehouseClient,
-            );
-        if (missingReferences.size > 0) {
-            const missing = Array.from(missingReferences);
-            throw new ParameterError(
-                `Missing values for SQL parameter(s): ${missing.join(', ')}`,
-                { missingReferences: missing },
-            );
-        }
         const columns: SqlQueryColumn[] = [];
-        // The limit is applied to the user's statement alone: the reference
-        // CTEs name result files, and the limit strips what reads as a
-        // comment even inside a string literal
-        const columnDiscoverySql = AsyncQueryService.wrapSqlWithReferenceCtes(
-            applyLimitToSqlQuery({ sqlQuery: sqlWithParameters, limit: 1 }),
+        const columnDiscoverySql = AsyncQueryService.getDuckdbColumnProbeSql({
+            sql,
             referenceCtes,
-        );
+            parameters,
+            warehouseClient,
+        });
         try {
             await warehouseClient.streamQuery(
                 columnDiscoverySql,
@@ -12727,6 +13422,40 @@ export class AsyncQueryService extends ProjectService {
             throw new WarehouseQueryError(getErrorMessage(e));
         }
         return columns;
+    }
+
+    /** Column discovery runs the statement with a one-row limit, once its parameters resolve. */
+    private static getDuckdbColumnProbeSql({
+        sql,
+        referenceCtes,
+        parameters,
+        warehouseClient,
+    }: {
+        sql: string;
+        referenceCtes: string[];
+        parameters: ParametersValuesMap;
+        warehouseClient: WarehouseClient;
+    }): string {
+        const { replacedSql: sqlWithParameters, missingReferences } =
+            safeReplaceParametersWithSqlBuilder(
+                sql,
+                parameters,
+                warehouseClient,
+            );
+        if (missingReferences.size > 0) {
+            const missing = Array.from(missingReferences);
+            throw new ParameterError(
+                `Missing values for SQL parameter(s): ${missing.join(', ')}`,
+                { missingReferences: missing },
+            );
+        }
+        // The limit is applied to the user's statement alone: the reference
+        // CTEs name result files, and the limit strips what reads as a
+        // comment even inside a string literal
+        return AsyncQueryService.wrapSqlWithReferenceCtes(
+            applyLimitToSqlQuery({ sqlQuery: sqlWithParameters, limit: 1 }),
+            referenceCtes,
+        );
     }
 
     private async discoverDuckdbQueryColumns({
@@ -12753,6 +13482,35 @@ export class AsyncQueryService extends ProjectService {
             warehouseClient,
             queryTags,
         });
+        return this.composeDiscoveredDuckdbQuery({
+            sql,
+            referenceCtes,
+            columns,
+            limit,
+            parameters,
+            pivotConfiguration,
+            warehouseClient,
+        });
+    }
+
+    /** Composes the statement that runs, with its pivot stage, over the probed columns. */
+    private composeDiscoveredDuckdbQuery({
+        sql,
+        referenceCtes,
+        columns,
+        limit,
+        parameters,
+        pivotConfiguration,
+        warehouseClient,
+    }: {
+        sql: string;
+        referenceCtes: string[];
+        columns: SqlQueryColumn[];
+        limit: number | undefined;
+        parameters: ParametersValuesMap;
+        pivotConfiguration: PivotConfiguration | undefined;
+        warehouseClient: WarehouseClient;
+    }): DuckdbQueryExecution {
         if (pivotConfiguration) {
             assertPivotColumnsExist(
                 pivotConfiguration,
@@ -13172,14 +13930,12 @@ export class AsyncQueryService extends ProjectService {
                 warehouseClient,
                 pivotConfiguration: pivot,
             });
+        // Without a sandbox to join in, nothing runs, not even the legs
+        this.getDuckdbSandboxRunner().assertConfigured();
         // A pivot the composer refuses fails here, before any leg runs; the
         // join node composes again with the same inputs when it executes
         compose({
-            warehouseClient:
-                this.composeEngineClient.createExecutionWarehouseClient({
-                    storage: 'results',
-                    scope: null,
-                }),
+            warehouseClient: new DuckdbWarehouseClient(),
             pivotConfiguration,
         }).getSql({
             columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
@@ -13191,8 +13947,8 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns,
                 requestParameters,
             },
-            // A merge calculation is user SQL: it runs on a session that
-            // reaches only the leg files it joins
+            // A merge calculation is user SQL: it runs in a sandbox holding
+            // only the leg files it joins
             engine: 'scopedToReferencedResults',
             // Only the legs this merge ran are checked against the cap; a
             // referenced result's row count is its own query's concern

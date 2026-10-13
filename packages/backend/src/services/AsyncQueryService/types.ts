@@ -42,6 +42,7 @@ import {
     type WarehouseTypes,
 } from '@lightdash/common';
 import type { OnboardingFlow } from '../../analytics/LightdashAnalytics';
+import type { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
 import type { ConnectionRouteWithOriginal } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import type {
@@ -448,12 +449,20 @@ export type ExecuteAsyncDuckdbSourceQueryArgs = CommonAsyncQueryArgs & {
     plan: DuckdbQueryPlan;
 };
 
+/** A referenced result file, pushed into the sandbox as `/work/in/<table>.jsonl`. */
+export type DuckdbSandboxInputFile = {
+    table: string;
+    resultsFileName: string;
+    storageClient: S3ResultsFileStorageClient;
+};
+
 /** A query's references, bound: the CTEs to attach and the result files they read. */
 export type BoundDuckdbQueryReferences = {
     hasAgentResults?: boolean;
     aiSignInCredentialUuid?: string;
     referenceCtes: string[];
     resultFileUris: string[];
+    inputs: DuckdbSandboxInputFile[];
 };
 
 export type RunDuckdbQueryArgs = {
@@ -480,5 +489,30 @@ export type RunDuckdbQueryArgs = {
     queryCreatedAt: Date;
     queryUsage?: QueryUsageMetadata;
     cacheKey: string;
+    context: QueryExecutionContext;
+};
+
+/** Everything the sandbox run of a DuckDB query over other results needs, decided at submit. */
+export type RunDuckdbSandboxQueryArgs = {
+    actor: QueryHistoryActor;
+    /** The submitting agent, checked against the referenced results it reads. */
+    agentIdentity: AgentIdentityClaim | null;
+    authMethod: QueryResultProducer['authMethod'];
+    identityEnabled: boolean;
+    /** Recorded at submit; keys the results when identity is on. */
+    resultProducer: QueryResultProducer;
+    invalidateCache: boolean;
+    projectUuid: string;
+    organizationUuid: string;
+    isPreviewProject: boolean;
+    onboardingFlow: OnboardingFlow;
+    queryUuid: string;
+    /** The statement before its reference CTEs are attached. */
+    sql: string;
+    references: Extract<DuckdbQueryReferences, { kind: 'queries' }>;
+    columns: DuckdbQueryColumns;
+    queryTags: RunQueryTags;
+    queryCreatedAt: Date;
+    queryUsage?: QueryUsageMetadata;
     context: QueryExecutionContext;
 };
