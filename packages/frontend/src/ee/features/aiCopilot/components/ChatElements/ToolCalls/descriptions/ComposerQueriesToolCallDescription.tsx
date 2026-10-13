@@ -48,7 +48,7 @@ export type ComposerQueryNodeStatus =
     | { status: 'awaiting_approval' }
     | { status: 'running' }
     | { status: 'success' }
-    | { status: 'error'; errorMessage: string | null };
+    | { status: 'error' };
 
 type ComposerQueriesToolCallDescriptionProps = {
     queries: ToolComposerQueriesArgs['queries'];
@@ -78,10 +78,7 @@ const isActiveStatus = (nodeStatus: ComposerQueryNodeStatus | undefined) =>
 const NodeStatusIndicator: FC<{ nodeStatus: ComposerQueryNodeStatus }> = ({
     nodeStatus,
 }) => {
-    const label =
-        nodeStatus.status === 'error' && nodeStatus.errorMessage
-            ? `Failed: ${nodeStatus.errorMessage}`
-            : NODE_STATUS_LABELS[nodeStatus.status];
+    const label = NODE_STATUS_LABELS[nodeStatus.status];
     return (
         <Tooltip label={label} position="top">
             <Box

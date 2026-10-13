@@ -293,11 +293,6 @@ export const DuckdbOverPythonGraph: Story = {
     args: { ...DuckdbOverPython.args, defaultMode: 'graph' },
 };
 
-const PYTHON_TRACEBACK = `Traceback (most recent call last):
-  File "<node>", line 8, in run
-    totals = draws.sum(axis=1) / 0
-ZeroDivisionError: division by zero`;
-
 /** The pipeline card of a run whose python node failed; no artifact version exists. */
 export const PythonNodeFailed: StoryObj<
     typeof ComposerQueriesToolCallDescription
@@ -338,11 +333,8 @@ export const PythonNodeFailed: StoryObj<
                 ]}
                 nodeStatuses={{
                     orders: { status: 'success' },
-                    simulation: {
-                        status: 'error',
-                        errorMessage: PYTHON_TRACEBACK,
-                    },
-                    percentiles: { status: 'error', errorMessage: null },
+                    simulation: { status: 'error' },
+                    percentiles: { status: 'error' },
                 }}
             />
         </Box>
