@@ -1,3 +1,10 @@
+## [2.573.4](https://github.com/lightdash/lightdash/compare/2.573.3...2.573.4) (2026-10-13)
+
+
+### Bug Fixes
+
+* **agent-identity:** check the agent connection before each compile credential resolution ([#30951](https://github.com/lightdash/lightdash/issues/30951)) ([b2ed73f](https://github.com/lightdash/lightdash/commit/b2ed73f41c7aa7ee8bf62ce31cc3d7650b2f7857))
+
 ## [2.573.3](https://github.com/lightdash/lightdash/compare/2.573.2...2.573.3) (2026-10-13)
 
 
