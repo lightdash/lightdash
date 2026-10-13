@@ -56,13 +56,19 @@ const describeNodes = (nodes: SourceQuery[]): string =>
  * reused node from earlier versions and everything it reads, in dependency
  * order. Node ids name one definition for the whole thread.
  */
+/** A node of a built pipeline; building guarantees every node a node id. */
+export type ComposerPipelineNode = SourceQuery & { nodeId: QueryNodeId };
+
+const hasNodeId = (node: SourceQuery): node is ComposerPipelineNode =>
+    !!node.nodeId;
+
 export const buildComposerArtifactPipeline = ({
     queries,
     earlierPipelines,
 }: {
     queries: SourceQuery[];
     earlierPipelines: AiComposerChartArtifactConfig[];
-}): SourceQuery[] => {
+}): ComposerPipelineNode[] => {
     const threadNodes = new Map<QueryNodeId, SourceQuery>();
     earlierPipelines.forEach((pipeline) =>
         pipeline.queries.forEach((node) => {
@@ -98,10 +104,11 @@ export const buildComposerArtifactPipeline = ({
 
     const emitted = new Set<QueryNodeId>();
     const visiting = new Set<QueryNodeId>();
-    const pipeline: SourceQuery[] = [];
+    const pipeline: ComposerPipelineNode[] = [];
     const visit = (node: SourceQuery) => {
+        if (!hasNodeId(node)) return;
         const { nodeId } = node;
-        if (!nodeId || emitted.has(nodeId) || visiting.has(nodeId)) return;
+        if (emitted.has(nodeId) || visiting.has(nodeId)) return;
         visiting.add(nodeId);
         Object.values(getSourceQueryResultReferences(node)).forEach(
             (reference) => {

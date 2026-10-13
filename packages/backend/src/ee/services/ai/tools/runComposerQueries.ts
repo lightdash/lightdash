@@ -344,7 +344,7 @@ export const getRunComposerQueries = ({
                 }
 
                 const nodes = queries.map((node) => ({
-                    nodeId: node.nodeId ?? '',
+                    nodeId: node.nodeId,
                     title: node.title ?? null,
                     sourceType: node.sourceType,
                 }));

@@ -10742,7 +10742,7 @@ export class AsyncQueryService extends ProjectService {
                             }),
                     );
 
-                    const readable = Object.entries(histories)
+                    const inputResultFiles = Object.entries(histories)
                         .sort(([a], [b]) => (a < b ? -1 : 1))
                         .map(([name, history]) => {
                             if (
@@ -10770,7 +10770,7 @@ export class AsyncQueryService extends ProjectService {
                         {
                             sql: JSON.stringify({
                                 code,
-                                files: readable.map(
+                                files: inputResultFiles.map(
                                     ({ name, resultsFileName }) => [
                                         name,
                                         resultsFileName,
@@ -10789,7 +10789,7 @@ export class AsyncQueryService extends ProjectService {
                     const bypassResultsCache =
                         identityEnabled ||
                         (isAiAccessQueryContext(context) &&
-                            (readable.some(
+                            (inputResultFiles.some(
                                 ({ history }) =>
                                     history.requestParameters
                                         ?.aiSignInCredentialUuid,
@@ -10845,7 +10845,7 @@ export class AsyncQueryService extends ProjectService {
                         },
                         () =>
                             Promise.all(
-                                readable.map(
+                                inputResultFiles.map(
                                     async ({
                                         name,
                                         history,
