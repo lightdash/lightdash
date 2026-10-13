@@ -104,6 +104,21 @@
                     "mcp": []
                 }
             }
+        },
+        "zap-1239-composer-artifact-viz-query-runs-pipeline": {
+            "reason": "The artifact viz-query response gains a composer variant that lists each node's query id and the terminal node, and composer artifact query results are now read only when the query is bound to the artifact. The AI agent chat UI is the only caller. During a rolling update an old browser tab never requests viz-query for composer artifacts and keeps reading the node results stored on the version; with the agent-identity flag on those reads are refused, so the old tab shows its expired results state until refresh. A new tab against an old server gets the old not-supported error in the chart area until the server is updated. No stored data changes, so both states clear once every pod and tab is current.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "firstPartyOnly": "The AI agent chat UI (web app and embedded) is the only client of the artifact viz-query and query-results operations. Old tabs show an expired or error state for composer artifacts until refresh.",
+                "covers": {
+                    "rest": [
+                        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/viz-query",
+                        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/query-results"
+                    ],
+                    "mcp": []
+                }
+            }
         }
     }
 }

@@ -3920,6 +3920,9 @@ export type AiAgentArtifactVizQueryEvent = BaseTrack & {
         promptId: string | null;
         durationMs: number;
         queryId: string | null;
+        // Composer runs only: nodes in the pipeline, and how many were served from cache.
+        nodeCount: number | null;
+        cachedNodeCount: number | null;
     };
 };
 

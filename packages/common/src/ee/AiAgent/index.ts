@@ -18,6 +18,7 @@ import {
     MAX_RETENTION_WINDOW_HOURS,
     MIN_RETENTION_WINDOW_HOURS,
 } from '../../types/dataRetention';
+import { type QueryNodeId } from '../../types/querySources';
 import assertUnreachable from '../../utils/assertUnreachable';
 import { type AllVizChartConfig } from '../../visualizations/types';
 import { type AiAgentReviewItemStatus } from './aiAgentReviewClassifierTypes';
@@ -1020,13 +1021,26 @@ export type ApiAiAgentSqlArtifactVizQuery = {
     metadata: AiVizMetadata;
 };
 
+/** One run of a composer artifact's pipeline: every node's result from that run. */
+export type ApiAiAgentComposerArtifactVizQuery = {
+    source: 'composer';
+    terminalNodeId: QueryNodeId;
+    nodeQueryUuids: Record<QueryNodeId, string>;
+    metadata: AiVizMetadata;
+};
+
 export type ApiAiAgentArtifactVizQuery =
     | ApiAiAgentThreadMessageVizQuery
-    | ApiAiAgentSqlArtifactVizQuery;
+    | ApiAiAgentSqlArtifactVizQuery
+    | ApiAiAgentComposerArtifactVizQuery;
 
 export const isAiAgentSqlArtifactVizQuery = (
     query: ApiAiAgentArtifactVizQuery,
 ): query is ApiAiAgentSqlArtifactVizQuery => query.source === 'sql';
+
+export const isAiAgentComposerArtifactVizQuery = (
+    query: ApiAiAgentArtifactVizQuery,
+): query is ApiAiAgentComposerArtifactVizQuery => query.source === 'composer';
 
 export type ApiAiAgentArtifactVizQueryResponse = {
     status: 'ok';
