@@ -56,6 +56,25 @@ describe('LocalProcessSandboxProvider', () => {
         ).resolves.toEqual(Buffer.from('{"count":2}\n'));
     });
 
+    it('rewrites /work in text files it writes, leaving byte contents as given', async () => {
+        const sandbox = await createSandbox();
+        await sandbox.files.write(
+            '/work/run.sql',
+            "SELECT * FROM read_json('/work/in/orders.jsonl')",
+        );
+        await sandbox.files.write(
+            '/work/in/orders.jsonl',
+            Buffer.from('{"path":"/work/in"}\n'),
+        );
+
+        await expect(sandbox.files.read('/work/run.sql')).resolves.toBe(
+            `SELECT * FROM read_json('${sandbox.sandboxId}/in/orders.jsonl')`,
+        );
+        await expect(sandbox.files.read('/work/in/orders.jsonl')).resolves.toBe(
+            '{"path":"/work/in"}\n',
+        );
+    });
+
     it('runs commands with the sandbox work directory as cwd', async () => {
         const sandbox = await createSandbox();
         await sandbox.files.write('/work/marker.txt', 'here');

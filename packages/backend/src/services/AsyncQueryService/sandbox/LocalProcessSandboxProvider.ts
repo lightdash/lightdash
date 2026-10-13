@@ -175,7 +175,13 @@ const createHandle = (workDir: string): SandboxHandle => {
         write: async (sandboxPath, contents) => {
             const hostPath = toHostPath(workDir, sandboxPath);
             await mkdir(path.dirname(hostPath), { recursive: true });
-            await writeFile(hostPath, contents);
+            // Text such as SQL names sandbox paths; bytes (input data) are copied as given.
+            await writeFile(
+                hostPath,
+                typeof contents === 'string'
+                    ? contents.replace(WORK_DIR_IN_COMMAND, `$1${workDir}`)
+                    : contents,
+            );
         },
         remove: (sandboxPath) =>
             rm(toHostPath(workDir, sandboxPath), { force: true }),
@@ -190,7 +196,8 @@ const createHandle = (workDir: string): SandboxHandle => {
 
 /**
  * Test double for {@link SandboxProvider}: each sandbox is a host temp
- * directory standing in for `/work`, and commands run as local processes with
+ * directory standing in for `/work` (rewritten in commands and in text files
+ * written through `files.write`), and commands run as local processes with
  * `NODE_PATH` pointing at the backend's node_modules. No isolation; tests only.
  * The sandbox id is the temp directory's absolute path.
  */
