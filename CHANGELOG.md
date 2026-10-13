@@ -1,3 +1,10 @@
+## [2.575.4](https://github.com/lightdash/lightdash/compare/2.575.3...2.575.4) (2026-10-13)
+
+
+### Bug Fixes
+
+* improve share dialog role badge contrast ([#30959](https://github.com/lightdash/lightdash/issues/30959)) ([7fe0060](https://github.com/lightdash/lightdash/commit/7fe0060b31cddbc45d53ef28231c50da3d459865))
+
 ## [2.575.3](https://github.com/lightdash/lightdash/compare/2.575.2...2.575.3) (2026-10-13)
 
 
