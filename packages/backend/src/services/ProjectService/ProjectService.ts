@@ -7379,6 +7379,11 @@ export class ProjectService
         projectUuid: string,
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
     ) {
+        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.assertAgentConnectionEffect(
+                projectUuid,
+                'compileProject',
+            );
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
         if (!project.warehouseConnection) {
@@ -7644,6 +7649,11 @@ export class ProjectService
         const dbtTargetPolicy = await this.getDbtTargetPolicy(
             project.organizationUuid,
         );
+        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+            await this.assertAgentConnectionEffect(
+                projectUuid,
+                'compileProject',
+            );
         return this.warehouseClientFactory.withWarehouseClient(
             { kind: 'compile', projectUuid, credentials: warehouseCredentials },
             connectionContextFromUser(
@@ -8450,6 +8460,16 @@ export class ProjectService
                 manifestFetchAdapters.push(sourceAdapter);
                 return sourceAdapter.getDbtManifest();
             },
+            ...(agentExecutionContext.getStore()?.agentConnectionExecution
+                ? {
+                      beforeLoadExtraCredentials: async () => {
+                          await this.assertAgentConnectionEffect(
+                              projectUuid,
+                              'compileProject',
+                          );
+                      },
+                  }
+                : {}),
             loadExtraCredentials: async (warehouseConnectionUuid) => {
                 const { userWarehouseCredentialsUuid, ...credentials } =
                     await this.getExtraConnectionWarehouseCredentials({
