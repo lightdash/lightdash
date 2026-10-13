@@ -69,14 +69,17 @@ export class PythonSandboxRunner {
 
     private readonly logger: SandboxLogger;
 
-    private provider: SandboxProvider | undefined;
+    private provider: SandboxProvider | null;
 
     constructor(args: {
         lightdashConfig: LightdashConfig;
         logger: SandboxLogger;
+        /** Overrides the configured provider; null resolves it lazily from config. */
+        provider?: SandboxProvider | null;
     }) {
         this.lightdashConfig = args.lightdashConfig;
         this.logger = args.logger;
+        this.provider = args.provider ?? null;
     }
 
     private getProvider(): SandboxProvider {
