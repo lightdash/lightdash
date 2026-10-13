@@ -11,7 +11,10 @@ RUN npm install -g sfw@2.0.6
 # binding as a prebuilt platform package.
 WORKDIR /opt/lightdash
 COPY image-package.json ./package.json
-COPY lightdash-common.tgz lightdash-warehouses.tgz ./
+# One file per COPY: E2B's Dockerfile converter copies only the first source
+# of a multi-source COPY.
+COPY lightdash-common.tgz ./
+COPY lightdash-warehouses.tgz ./
 RUN sfw npm install --omit=dev --ignore-scripts --no-audit --no-fund \
     && rm lightdash-common.tgz lightdash-warehouses.tgz \
     && npm cache clean --force
