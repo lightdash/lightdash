@@ -20853,7 +20853,7 @@ Node kinds:
 
 Every node has a "nodeId" (for references) and a "title" (what users see). The terminal node is the unique sink by default, or "terminalNodeId".
 
-Reuse across calls: every call returns a queryUuid per node. Referencing a queryUuid in the map form of "references" reads the stored result without re-running it or asking for approval. The artifact always shows your latest call's terminal result, so end with the pipeline that produces the table the user should see.",
+Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id. Every call lists its nodes' ids and titles. The artifact always shows your latest call's terminal result, so end with the pipeline that produces the table the user should see.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -20870,7 +20870,7 @@ Reuse across calls: every call returns a queryUuid per node. Referencing a query
           "description": "A one-line description of what the pipeline computes.",
         },
         "queries": {
-          "description": "The pipeline: one or more source queries submitted together. Order does not matter — dependencies are resolved from duckdb references.",
+          "description": "The nodes to submit: new nodes, plus any earlier node you resubmit unchanged. Order does not matter — reads are resolved from duckdb references.",
           "items": {
             "oneOf": [
               {
@@ -20930,7 +20930,7 @@ Reuse across calls: every call returns a queryUuid per node. Referencing a query
                     "type": "array",
                   },
                   "nodeId": {
-                    "description": "Names this query so other queries in the same submission can reference its results. Also the DuckDB table name its results are exposed as.",
+                    "description": "Names this node so other nodes, in this call or later calls in the thread, can read its result. Also the DuckDB table name its result is exposed as.",
                     "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
                     "type": "string",
                   },
@@ -21007,7 +21007,7 @@ Reuse across calls: every call returns a queryUuid per node. Referencing a query
                     "type": "integer",
                   },
                   "nodeId": {
-                    "description": "Names this query so other queries in the same submission can reference its results. Also the DuckDB table name its results are exposed as.",
+                    "description": "Names this node so other nodes, in this call or later calls in the thread, can read its result. Also the DuckDB table name its result is exposed as.",
                     "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
                     "type": "string",
                   },
@@ -21055,7 +21055,7 @@ Reuse across calls: every call returns a queryUuid per node. Referencing a query
                     "type": "integer",
                   },
                   "nodeId": {
-                    "description": "Names this query so other queries in the same submission can reference its results. Also the DuckDB table name its results are exposed as.",
+                    "description": "Names this node so other nodes, in this call or later calls in the thread, can read its result. Also the DuckDB table name its result is exposed as.",
                     "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
                     "type": "string",
                   },
@@ -21063,12 +21063,14 @@ Reuse across calls: every call returns a queryUuid per node. Referencing a query
                     "anyOf": [
                       {
                         "items": {
+                          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
                           "type": "string",
                         },
                         "type": "array",
                       },
                       {
                         "additionalProperties": {
+                          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
                           "type": "string",
                         },
                         "propertyNames": {
@@ -21077,7 +21079,7 @@ Reuse across calls: every call returns a queryUuid per node. Referencing a query
                         "type": "object",
                       },
                     ],
-                    "description": "Which query results the SQL reads. Shorthand array of node ids from this submission (each exposed as a table named by its node id), or a map of {tableName: nodeIdOrQueryUuid} for aliasing or reusing stored results from earlier calls without re-running them.",
+                    "description": "Which nodes the SQL reads, by node id, from this call or an earlier call in the thread. Shorthand array of node ids (each exposed as a table named by its node id), or a map of {tableName: nodeId} to alias them.",
                   },
                   "sourceType": {
                     "const": "duckdb",
@@ -21124,7 +21126,7 @@ Reuse across calls: every call returns a queryUuid per node. Referencing a query
                     "type": "integer",
                   },
                   "nodeId": {
-                    "description": "Names this query so other queries in the same submission can reference its results. Also the DuckDB table name its results are exposed as.",
+                    "description": "Names this node so other nodes, in this call or later calls in the thread, can read its result. Also the DuckDB table name its result is exposed as.",
                     "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
                     "type": "string",
                   },
@@ -21185,7 +21187,7 @@ Reuse across calls: every call returns a queryUuid per node. Referencing a query
               "type": "null",
             },
           ],
-          "description": "Which node's result the artifact shows and this tool returns. Pass null to default to the unique sink (the one node no other node references); required when the pipeline has multiple sinks.",
+          "description": "Which node's result the artifact shows and this tool returns. Pass null to default to the unique sink among the submitted nodes (the one node no other submitted node reads); required when there are multiple sinks.",
         },
         "title": {
           "anyOf": [
@@ -21285,6 +21287,47 @@ Reuse across calls: every call returns a queryUuid per node. Referencing a query
                   },
                   "type": "array",
                 },
+                "nodes": {
+                  "description": "Every node of the pipeline that ran, including reused nodes, in dependency order. A later call can read any of them by node id.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "nodeId": {
+                        "description": "Names this node so other nodes, in this call or later calls in the thread, can read its result. Also the DuckDB table name its result is exposed as.",
+                        "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
+                        "type": "string",
+                      },
+                      "sourceType": {
+                        "enum": [
+                          "semanticLayer",
+                          "sql",
+                          "duckdb",
+                          "external",
+                          "python",
+                        ],
+                        "type": "string",
+                      },
+                      "title": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                        "description": "What users see for this node.",
+                      },
+                    },
+                    "required": [
+                      "nodeId",
+                      "title",
+                      "sourceType",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
                 "preview": {
                   "anyOf": [
                     {
@@ -21334,47 +21377,9 @@ Reuse across calls: every call returns a queryUuid per node. Referencing a query
                   "minimum": 0,
                   "type": "integer",
                 },
-                "submissions": {
-                  "description": "Every node that ran in this submission, in pipeline order.",
-                  "items": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "nodeId": {
-                        "description": "Names this query so other queries in the same submission can reference its results. Also the DuckDB table name its results are exposed as.",
-                        "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
-                        "type": "string",
-                      },
-                      "queryUuid": {
-                        "description": "Stored result of this node. A later submission can reference it via the map form of "references" without re-running the query.",
-                        "type": "string",
-                      },
-                      "sourceType": {
-                        "enum": [
-                          "semanticLayer",
-                          "sql",
-                          "duckdb",
-                          "external",
-                          "python",
-                        ],
-                        "type": "string",
-                      },
-                    },
-                    "required": [
-                      "nodeId",
-                      "sourceType",
-                      "queryUuid",
-                    ],
-                    "type": "object",
-                  },
-                  "type": "array",
-                },
                 "terminalNodeId": {
                   "description": "Node whose result the artifact shows and whose rows are returned.",
                   "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
-                  "type": "string",
-                },
-                "terminalQueryUuid": {
-                  "description": "queryUuid of the terminal node result.",
                   "type": "string",
                 },
                 "visualization": {
@@ -21390,9 +21395,8 @@ Reuse across calls: every call returns a queryUuid per node. Referencing a query
               },
               "required": [
                 "terminalNodeId",
-                "terminalQueryUuid",
                 "rowCount",
-                "submissions",
+                "nodes",
                 "columns",
                 "preview",
                 "visualization",

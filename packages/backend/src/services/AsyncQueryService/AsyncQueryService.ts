@@ -397,6 +397,7 @@ import {
 import { PythonInputReader } from './python/PythonInputReader';
 import {
     parsePythonResultMeta,
+    pythonColumnsToFields,
     pythonResultToColumns,
     pythonResultToFields,
     resultColumnsToPythonInput,
@@ -10484,6 +10485,8 @@ export class AsyncQueryService extends ProjectService {
         querySurface,
         limit,
         references,
+        parameters,
+        invalidateCache,
     }: ExecuteAsyncPythonQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         assertIsAccountWithOrg(account);
 
@@ -10554,11 +10557,13 @@ export class AsyncQueryService extends ProjectService {
             query_context: context,
         });
 
+        const effectiveParameters = parameters ?? {};
         const requestParameters: ExecuteAsyncPythonQueryRequestParams = {
             code,
             limit: effectiveLimit,
             context,
             references,
+            parameters: effectiveParameters,
         };
         const metricQuery: MetricQuery = {
             exploreName: SQL_QUERY_MOCK_EXPLORER_NAME,
@@ -10597,13 +10602,16 @@ export class AsyncQueryService extends ProjectService {
             authMethod: account.authentication.type,
             agentIdentity: reader.kind === 'agent' ? reader.claim : null,
         };
-        // No seed in the key: the same code over the same inputs is one
-        // result, and a re-run is an explicit new submission, so each
-        // submission gets its own file.
-        const cacheKey = `${QueryHistoryModel.getCacheKey(projectUuid, {
-            sql: JSON.stringify({ code, references, limit: effectiveLimit }),
+        // Replaced by the key over the result files once the references resolve
+        const cacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
+            sql: JSON.stringify({
+                code,
+                references,
+                limit: effectiveLimit,
+                parameters: effectiveParameters,
+            }),
             userUuid: null,
-        })}.${randomUUID()}`;
+        });
 
         const queryCreatedAt = new Date();
         const { queryUuid } = await this.createQueryHistory(
@@ -10643,10 +10651,14 @@ export class AsyncQueryService extends ProjectService {
             account,
             queryUuid,
             projectUuid,
+            organizationUuid,
             code,
             references,
             limit: effectiveLimit,
-            cacheKey,
+            parameters: effectiveParameters,
+            invalidateCache: invalidateCache ?? false,
+            identityEnabled,
+            resultProducer,
             context,
             queryTags,
             queryCreatedAt,
@@ -10677,10 +10689,14 @@ export class AsyncQueryService extends ProjectService {
         account,
         queryUuid,
         projectUuid,
+        organizationUuid,
         code,
         references,
         limit,
-        cacheKey,
+        parameters,
+        invalidateCache,
+        identityEnabled,
+        resultProducer,
         context,
         queryTags,
         queryCreatedAt,
@@ -10688,10 +10704,14 @@ export class AsyncQueryService extends ProjectService {
         account: Account;
         queryUuid: string;
         projectUuid: string;
+        organizationUuid: string;
         code: string;
         references: Record<string, string>;
         limit: number;
-        cacheKey: string;
+        parameters: ParametersValuesMap;
+        invalidateCache: boolean;
+        identityEnabled: boolean;
+        resultProducer: QueryResultProducer;
         context: QueryExecutionContext;
         queryTags: RunQueryTags;
         queryCreatedAt: Date;
@@ -10722,9 +10742,98 @@ export class AsyncQueryService extends ProjectService {
                             }),
                     );
 
+                    const inputResultFiles = Object.entries(histories)
+                        .sort(([a], [b]) => (a < b ? -1 : 1))
+                        .map(([name, history]) => {
+                            if (
+                                history.resultsExpiresAt &&
+                                history.resultsExpiresAt < new Date()
+                            ) {
+                                throw new ResultsExpiredError();
+                            }
+                            if (!history.resultsFileName) {
+                                throw new NotFoundError(
+                                    `Result file not found for query ${history.queryUuid}`,
+                                );
+                            }
+                            return {
+                                name,
+                                history,
+                                resultsFileName: history.resultsFileName,
+                            };
+                        });
+                    const sandbox = this.getPythonSandboxRunner();
+                    // Keyed on the files it reads, not the rows it referenced:
+                    // an input served from cache mints a new row over the same file
+                    const sharedResultsKey = QueryHistoryModel.getCacheKey(
+                        projectUuid,
+                        {
+                            sql: JSON.stringify({
+                                code,
+                                files: inputResultFiles.map(
+                                    ({ name, resultsFileName }) => [
+                                        name,
+                                        resultsFileName,
+                                    ],
+                                ),
+                                limit,
+                                parameters,
+                                sandboxVersion: sandbox.version,
+                            }),
+                            userUuid: null,
+                            resultIdentity: identityEnabled
+                                ? { organizationUuid, producer: resultProducer }
+                                : null,
+                        },
+                    );
+                    const bypassResultsCache =
+                        identityEnabled ||
+                        (isAiAccessQueryContext(context) &&
+                            (inputResultFiles.some(
+                                ({ history }) =>
+                                    history.requestParameters
+                                        ?.aiSignInCredentialUuid,
+                            ) ||
+                                (await this.isAiAccessCacheBypassEnabled(
+                                    account,
+                                    context,
+                                ))));
+                    const resultsKey = bypassResultsCache
+                        ? `${sharedResultsKey}.${queryUuid}`
+                        : sharedResultsKey;
+                    const cached =
+                        invalidateCache || bypassResultsCache
+                            ? null
+                            : ((await this.cacheService?.findCachedResultsFile(
+                                  projectUuid,
+                                  resultsKey,
+                                  {
+                                      userUuid: account.user.id,
+                                      organizationUuid,
+                                      organizationName: undefined,
+                                  },
+                              )) ?? null);
+                    this.prometheusMetrics?.incrementQueryCacheHit(
+                        cached !== null,
+                        context,
+                        false,
+                    );
+                    if (cached !== null) {
+                        await this.landPythonCacheHit({
+                            account,
+                            queryUuid,
+                            projectUuid,
+                            resultsKey,
+                            cached,
+                            context,
+                            queryCreatedAt,
+                        });
+                        return;
+                    }
+
                     const inputMeta: PythonInputMeta = {
                         inputs: {},
-                        params: {},
+                        params: parameters,
                         limit,
                     };
                     const inputReader = new PythonInputReader();
@@ -10736,23 +10845,12 @@ export class AsyncQueryService extends ProjectService {
                         },
                         () =>
                             Promise.all(
-                                Object.entries(histories).map(
-                                    async ([
+                                inputResultFiles.map(
+                                    async ({
                                         name,
                                         history,
-                                    ]): Promise<PythonSandboxInput> => {
-                                        if (
-                                            history.resultsExpiresAt &&
-                                            history.resultsExpiresAt <
-                                                new Date()
-                                        ) {
-                                            throw new ResultsExpiredError();
-                                        }
-                                        if (!history.resultsFileName) {
-                                            throw new NotFoundError(
-                                                `Result file not found for query ${history.queryUuid}`,
-                                            );
-                                        }
+                                        resultsFileName,
+                                    }): Promise<PythonSandboxInput> => {
                                         const columns =
                                             Object.keys(history.columns ?? {})
                                                 .length === 0 &&
@@ -10773,7 +10871,7 @@ export class AsyncQueryService extends ProjectService {
                                             );
                                         const stream =
                                             await storageClient.getDownloadStream(
-                                                history.resultsFileName,
+                                                resultsFileName,
                                             );
                                         return {
                                             name,
@@ -10789,7 +10887,7 @@ export class AsyncQueryService extends ProjectService {
                             }),
                     );
 
-                    const run = await this.getPythonSandboxRunner().run({
+                    const run = await sandbox.run({
                         queryUuid,
                         code,
                         inputs,
@@ -10832,7 +10930,9 @@ export class AsyncQueryService extends ProjectService {
                         throw new S3Error('S3 is not enabled');
                     }
                     const fileName =
-                        QueryHistoryModel.createUniqueResultsFileName(cacheKey);
+                        QueryHistoryModel.createUniqueResultsFileName(
+                            resultsKey,
+                        );
                     const createdAt = new Date();
                     await traceSpan(
                         {
@@ -10868,6 +10968,7 @@ export class AsyncQueryService extends ProjectService {
                             error: null,
                             warehouse_execution_time_ms: Date.now() - startedAt,
                             total_row_count: rows.length,
+                            cache_key: resultsKey,
                             results_file_name: fileName,
                             results_created_at: createdAt,
                             results_updated_at: new Date(),
@@ -12163,6 +12264,65 @@ export class AsyncQueryService extends ProjectService {
                 account,
             );
         }
+    }
+
+    /** Lands a python query on another run's results over the same files. */
+    private async landPythonCacheHit({
+        account,
+        queryUuid,
+        projectUuid,
+        resultsKey,
+        cached,
+        context,
+        queryCreatedAt,
+    }: {
+        account: Account;
+        queryUuid: string;
+        projectUuid: string;
+        resultsKey: string;
+        cached: CacheHitCacheResult;
+        context: QueryExecutionContext;
+        queryCreatedAt: Date;
+    }): Promise<void> {
+        if (cached.resultProducer)
+            await this.queryHistoryModel.recordResultProducer(
+                queryUuid,
+                projectUuid,
+                account.user.id,
+                cached.resultProducer,
+            );
+        const columns = cached.columns ?? {};
+        await this.queryHistoryModel.update(
+            queryUuid,
+            projectUuid,
+            {
+                status: QueryHistoryStatus.READY,
+                error: null,
+                cache_key: resultsKey,
+                total_row_count: cached.totalRowCount,
+                columns,
+                fields: pythonColumnsToFields(columns),
+                results_file_name: cached.fileName,
+                results_created_at: cached.createdAt,
+                results_updated_at: cached.updatedAt,
+                results_expires_at: cached.expiresAt,
+                warehouse_execution_time_ms: 0,
+            },
+            account,
+        );
+        this.prometheusMetrics?.trackQueryStateTransition(
+            QueryHistoryStatus.PENDING,
+            QueryHistoryStatus.READY,
+            context,
+        );
+        this.trackQueryTerminalStatus(
+            QueryHistoryStatus.READY,
+            queryCreatedAt,
+            context,
+        );
+        this.logger.info(
+            `Python query ${queryUuid} served from the results cache`,
+        );
     }
 
     /** Lands a DuckDB source query on another run's results over the same files. */

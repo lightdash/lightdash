@@ -269,3 +269,47 @@ describe('python composer nodes', () => {
         ]);
     });
 });
+
+describe('composer node references', () => {
+    const duckdbArgs = (references: unknown) => ({
+        title: null,
+        description: null,
+        terminalNodeId: null,
+        queries: [
+            {
+                sourceType: QuerySourceType.DUCKDB,
+                nodeId: 'summary',
+                title: 'Spend summary',
+                description: null,
+                sql: 'SELECT * FROM o',
+                references,
+            },
+        ],
+    });
+
+    it('aliases node ids in the map form', () => {
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(duckdbArgs({ o: 'orders' }))
+                .success,
+        ).toBe(true);
+    });
+
+    it.each([
+        ['map', { o: '11111111-1111-4111-8111-111111111111' }],
+        ['array', ['11111111-1111-4111-8111-111111111111']],
+    ])('rejects a query id in the %s form', (_, references) => {
+        const parsed = toolComposerQueriesArgsSchema.safeParse(
+            duckdbArgs(references),
+        );
+        expect(parsed.success).toBe(false);
+        expect(parsed.error?.issues.map((issue) => issue.message)).toEqual([
+            'References name node ids (letters, digits and underscores), not query ids',
+        ]);
+    });
+
+    it('never mentions query ids in the description', () => {
+        expect(
+            getToolComposerQueriesDescription({ enablePythonNodes: true }),
+        ).not.toMatch(/query ?uuid|query id/i);
+    });
+});

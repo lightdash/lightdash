@@ -287,7 +287,7 @@ const composerConfig: AiComposerChartArtifactConfig = {
     source: 'composer',
     schemaVersion: 1,
     terminalNodeId: 'joined',
-    lastQueryUuid: 'query',
+    vizConfig: null,
     queries: [
         {
             sourceType: QuerySourceType.SQL,
@@ -310,6 +310,44 @@ const composerConfig: AiComposerChartArtifactConfig = {
         },
     ],
 };
+
+// The run started on open: every node's result in this run.
+const composerRun = {
+    data: {
+        source: 'composer',
+        terminalNodeId: 'joined',
+        nodeQueryUuids: {
+            orders: 'orders-query',
+            amounts: 'amounts-query',
+            joined: 'query',
+        },
+        metadata: { title: 'Orders vs amounts', description: null },
+    },
+    isLoading: false,
+    error: null,
+    refetch: mocks.retry,
+};
+
+const nodeStatusesResponse = (
+    statuses: {
+        queryUuid: string;
+        status: QueryHistoryStatus;
+        error?: string;
+    }[],
+) =>
+    vi.mocked(lightdashApi).mockImplementation((async ({
+        url,
+    }: {
+        url: string;
+    }) =>
+        url.includes('/query-sources/queries/status')
+            ? {
+                  statuses: statuses.map(({ error, ...status }) => ({
+                      ...status,
+                      error: error ?? null,
+                  })),
+              }
+            : undefined) as unknown as typeof lightdashApi);
 
 const resultsOf = (
     columns: Record<string, { reference: string; type: string }>,
@@ -392,6 +430,7 @@ describe('composer artifact', () => {
             error: null,
             refetch: mocks.retry,
         });
+        mocks.query.mockReturnValue(composerRun);
         mocks.rows.mockReturnValue(results);
         return renderWithProviders(<AiArtifactPanel artifact={artifact} />);
     };
@@ -443,6 +482,7 @@ describe('composer viz config panel', () => {
             error: null,
             refetch: mocks.retry,
         });
+        mocks.query.mockReturnValue(composerRun);
         mocks.rows.mockReturnValue(results);
         return renderWithProviders(<AiArtifactPanel artifact={artifact} />);
     };
@@ -494,15 +534,15 @@ describe('composer viz config panel', () => {
         expect(
             screen.getByRole('columnheader', { name: 'status' }),
         ).toBeInTheDocument();
-        // Only the stored query is ever read: kinds are built from its rows.
+        // Only the terminal node of the run is read: kinds are built from its rows.
         const readQueryUuids = mocks.rows.mock.calls
             .map(([, queryUuid]) => queryUuid)
             .filter((queryUuid) => queryUuid !== undefined);
         expect(readQueryUuids.length).toBeGreaterThan(0);
         expect(new Set(readQueryUuids)).toEqual(new Set(['query']));
         expect(mocks.query).toHaveBeenLastCalledWith(
-            expect.anything(),
-            expect.objectContaining({ enabled: false }),
+            expect.objectContaining({ versionUuid: 'version' }),
+            expect.objectContaining({ enabled: true }),
         );
     });
 
@@ -598,41 +638,18 @@ describe('composer viz config panel', () => {
         expect(mocks.saveVizConfig).not.toHaveBeenCalled();
     });
 
-    it("shows an expired result's stored viz config with every control disabled", async () => {
-        renderComposer(
-            {
-                ...statusCounts,
-                rows: [],
-                columns: undefined,
-                error: { error: { message: 'Gone' } },
-            } as unknown as ReturnType<typeof resultsOf>,
-            {
-                ...composerConfig,
-                vizConfig: {
-                    type: ChartKind.VERTICAL_BAR,
-                    metadata: { version: 1 },
-                    fieldConfig: {
-                        x: { reference: 'status', type: VizIndexType.CATEGORY },
-                        y: [
-                            {
-                                reference: 'n',
-                                aggregation: VizAggregationOptions.SUM,
-                            },
-                        ],
-                        groupBy: [],
-                    },
-                    display: undefined,
-                },
-            },
-        );
+    it("shows the terminal node's error in the chart area", async () => {
+        renderComposer({
+            ...statusCounts,
+            rows: [],
+            columns: undefined,
+            error: { error: { message: 'Division by zero' } },
+        } as unknown as ReturnType<typeof resultsOf>);
         expect(
-            screen.getByText(/These results have expired/),
+            screen.getByText('This result could not be loaded'),
         ).toBeInTheDocument();
-        expect(chartBar()).toHaveTextContent('Bar · status × sum n');
-        await openChart();
-        expect(offeredKinds()).toEqual([]);
-        expect(selectedKind()).toBe('bar');
-        expect(xAxisSelect()).toBeDisabled();
+        expect(screen.getByText('Division by zero')).toBeInTheDocument();
+        expect(screen.queryByRole('columnheader')).not.toBeInTheDocument();
     });
 
     it('keeps only one of Chart and Queries open', async () => {
@@ -646,15 +663,6 @@ describe('composer viz config panel', () => {
         expect(screen.queryByText('Sources')).not.toBeInTheDocument();
     });
 });
-
-const composerConfigWithNodeResults: AiComposerChartArtifactConfig = {
-    ...composerConfig,
-    nodeResults: {
-        orders: { queryUuid: 'orders-query' },
-        amounts: { queryUuid: 'amounts-query' },
-        joined: { queryUuid: 'query' },
-    },
-};
 
 describe('composer displayed node', () => {
     const ordersResults = resultsOf(
@@ -674,19 +682,18 @@ describe('composer displayed node', () => {
         'amounts-query': amountsResults,
     };
 
-    const renderComposer = (
-        chartConfig: AiComposerChartArtifactConfig = composerConfigWithNodeResults,
-    ) => {
+    const renderComposer = (run: Partial<typeof composerRun> = composerRun) => {
         mocks.artifact.mockReturnValue({
             data: {
                 artifactType: 'chart',
                 title: 'Orders vs amounts',
-                chartConfig,
+                chartConfig: composerConfig,
             },
             isLoading: false,
             error: null,
             refetch: mocks.retry,
         });
+        mocks.query.mockReturnValue({ ...composerRun, ...run });
         mocks.rows.mockImplementation(
             (_project: string, queryUuid: string | undefined) =>
                 queryUuid === undefined
@@ -754,32 +761,99 @@ describe('composer displayed node', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('leaves nodes of artifacts without per-node results inert', async () => {
-        renderComposer(composerConfig);
+    it('keeps nodes inert and reads no result while the run starts', async () => {
+        renderComposer({ data: undefined, isLoading: true });
         expandPipeline();
         expect(
             screen.queryAllByRole('button', { name: /^Display / }),
         ).toHaveLength(0);
         expect(screen.getByText('Average amount')).toBeInTheDocument();
+        expect(screen.queryByRole('columnheader')).not.toBeInTheDocument();
+        expect(mocks.rows.mock.calls.every(([, queryUuid]) => !queryUuid)).toBe(
+            true,
+        );
     });
 
-    it('shows the expired empty state for an expired node result', async () => {
+    it("shows each node's status in the run", async () => {
+        nodeStatusesResponse([
+            { queryUuid: 'orders-query', status: QueryHistoryStatus.READY },
+            {
+                queryUuid: 'amounts-query',
+                status: QueryHistoryStatus.EXECUTING,
+            },
+            { queryUuid: 'query', status: QueryHistoryStatus.PENDING },
+        ]);
+        renderComposer();
+        expandPipeline();
+        const row = (nodeId: string) =>
+            within(
+                document.getElementById(`composer-pipeline-node-${nodeId}`)!,
+            );
+        expect(await row('orders').findByLabelText('Completed')).toBeVisible();
+        expect(row('amounts').getByLabelText('Running')).toBeVisible();
+        expect(row('joined').getByLabelText('Queued')).toBeVisible();
+    });
+
+    it("shows a failed node's error on its row and in the chart area", async () => {
+        nodeStatusesResponse([
+            { queryUuid: 'orders-query', status: QueryHistoryStatus.READY },
+            {
+                queryUuid: 'amounts-query',
+                status: QueryHistoryStatus.ERROR,
+                error: 'column "amount" does not exist',
+            },
+            { queryUuid: 'query', status: QueryHistoryStatus.ERROR },
+        ]);
         resultsByQuery['amounts-query'] = {
             ...amountsResults,
             rows: [],
             columns: undefined,
-            error: { error: { message: 'Gone' } },
+            error: { error: { message: 'column "amount" does not exist' } },
         } as unknown as ReturnType<typeof resultsOf>;
         renderComposer();
         expandPipeline();
+        const amountsRow = within(
+            document.getElementById('composer-pipeline-node-amounts')!,
+        );
+        expect(await amountsRow.findByLabelText('Failed')).toBeVisible();
+        expect(
+            amountsRow.getByText('column "amount" does not exist'),
+        ).toBeVisible();
         fireEvent.click(
             screen.getByRole('button', { name: 'Display Average amount' }),
         );
         expect(
-            screen.getByText(/These results have expired/),
+            screen.getByText('This result could not be loaded'),
         ).toBeInTheDocument();
         expect(
+            screen.getAllByText('column "amount" does not exist'),
+        ).toHaveLength(2);
+        expect(
             screen.getByRole('button', { name: 'Back to result' }),
+        ).toBeInTheDocument();
+    });
+
+    it('shows a refused run in the chart area', async () => {
+        renderComposer({
+            data: undefined,
+            error: {
+                status: 'error',
+                error: {
+                    name: 'ForbiddenError',
+                    statusCode: 403,
+                    message:
+                        'Pipelines with warehouse SQL are not available in embedded AI agents',
+                    data: {},
+                },
+            } as unknown as null,
+        });
+        expect(
+            screen.getByText('This result could not be loaded'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Pipelines with warehouse SQL are not available in embedded AI agents',
+            ),
         ).toBeInTheDocument();
     });
 });
@@ -816,12 +890,13 @@ describe('composer per-node viz switcher', () => {
             data: {
                 artifactType: 'chart',
                 title: 'Orders vs amounts',
-                chartConfig: composerConfigWithNodeResults,
+                chartConfig: composerConfig,
             },
             isLoading: false,
             error: null,
             refetch: mocks.retry,
         });
+        mocks.query.mockReturnValue(composerRun);
         mocks.rows.mockImplementation(
             (_project: string, queryUuid: string | undefined) =>
                 queryUuid === undefined
@@ -1006,11 +1081,12 @@ describe('alternate artifact visualization identity recovery', () => {
         ).toBeVisible();
     });
 
-    it('shows the connection prompt for composer results instead of treating them as expired', () => {
+    it('shows the connection prompt for composer results instead of an error', () => {
         renderWithProviders(
             <AiComposerArtifactVisualization
                 projectUuid="project"
                 queryUuid="query"
+                runError={null}
                 results={{ ...mocks.rows(), error }}
                 vizConfig={
                     { type: ChartKind.TABLE } as ComponentProps<
@@ -1024,7 +1100,7 @@ describe('alternate artifact visualization identity recovery', () => {
             screen.getByRole('button', { name: 'Connect agent' }),
         ).toBeVisible();
         expect(
-            screen.queryByText(/These results have expired/),
+            screen.queryByText('This result could not be loaded'),
         ).not.toBeInTheDocument();
     });
 });

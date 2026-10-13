@@ -244,6 +244,7 @@ test('in-app single-value reads carry the runtime agent UUID', async () => {
         lightdashConfig: { ai: {} },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
     vi.spyOn(service, 'getArtifactVizQuery').mockResolvedValue({
+        source: 'semantic',
         query: { queryUuid: 'query' },
     } as Awaited<ReturnType<AiAgentService['getArtifactVizQuery']>>);
     await agentExecutionContext.run(

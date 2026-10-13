@@ -84,12 +84,13 @@ const failure = (
 export const resolveTerminalNodeId = (
     queries: ToolComposerQueriesArgs['queries'],
     terminalNodeId: string | null,
+    pipeline: SourceQuery[],
 ): string => {
     const nodeIds = new Set(queries.map((query) => query.nodeId));
     if (terminalNodeId !== null) {
-        if (!nodeIds.has(terminalNodeId)) {
+        if (!pipeline.some((node) => node.nodeId === terminalNodeId)) {
             throw new Error(
-                `terminalNodeId "${terminalNodeId}" does not name a node in this submission`,
+                `terminalNodeId "${terminalNodeId}" does not name a node in this pipeline`,
             );
         }
         return terminalNodeId;
@@ -167,14 +168,23 @@ export const getRunComposerQueries = ({
                     );
                 }
 
+                const prompt = await getPrompt();
+                const earlierPipelines = await listThreadComposerPipelines(
+                    prompt.threadUuid,
+                );
+                const queries = buildComposerArtifactPipeline({
+                    queries: queryNodes.map(toolComposerQueryNodeToSourceQuery),
+                    earlierPipelines,
+                });
                 const resolvedTerminalNodeId = resolveTerminalNodeId(
                     queryNodes,
                     terminalNodeId,
+                    queries,
                 );
 
                 if (
                     !enablePythonNodes &&
-                    queryNodes.some(
+                    queries.some(
                         (node) => node.sourceType === QuerySourceType.PYTHON,
                     )
                 ) {
@@ -184,7 +194,7 @@ export const getRunComposerQueries = ({
                     );
                 }
 
-                const sqlNodes = queryNodes.filter(
+                const sqlNodes = queries.filter(
                     (node) => node.sourceType === QuerySourceType.SQL,
                 );
                 if (sqlNodes.length > 0 && !canRunSql) {
@@ -195,16 +205,13 @@ export const getRunComposerQueries = ({
                 }
                 sqlNodes.forEach((node) => validateSelectOnly(node.sql));
 
-                // Row limits are already capped at parse time — the input
-                // schema is built with maxLimit: maxQueryLimit.
-                const queries: SourceQuery[] = queryNodes.map(
-                    toolComposerQueryNodeToSourceQuery,
-                );
-
-                // Raw warehouse SQL needs the same per-thread human approval
-                // gate as runSql. Pipelines with only semanticLayer/duckdb
-                // nodes run without approval.
-                if (sqlNodes.length > 0) {
+                // Raw warehouse SQL needs the same human approval gate as
+                // runSql; sql reused from an earlier version was approved then.
+                if (
+                    queryNodes.some(
+                        (node) => node.sourceType === QuerySourceType.SQL,
+                    )
+                ) {
                     if (sqlApprovalTimedOut) {
                         return failure(
                             'A previous SQL approval timed out in this response. Do not call runComposerQueries again in this response; tell the user the SQL was not approved and ask them to retry when ready.',
@@ -229,7 +236,6 @@ export const getRunComposerQueries = ({
                         }
                         if (decision === 'timeout') {
                             sqlApprovalTimedOut = true;
-                            const prompt = await getPrompt();
                             trackSqlApprovalTimeout({
                                 toolCallId,
                                 toolName: 'runComposerQueries',
@@ -246,7 +252,7 @@ export const getRunComposerQueries = ({
 
                 await updateProgress('Running composer queries...');
 
-                const [{ submissions, terminal }, review] = await Promise.all([
+                const [{ terminal }, review] = await Promise.all([
                     runComposerQueries({
                         queries,
                         terminalNodeId: resolvedTerminalNodeId,
@@ -289,19 +295,10 @@ export const getRunComposerQueries = ({
                         : '',
                 ]);
 
-                const prompt = await getPrompt();
                 // v0 surface is web chat only; keep Slack (if ever assembled
                 // there) to the text result without an artifact.
                 let vizNote: string | null = null;
                 if (!isSlackPrompt(prompt)) {
-                    const earlierPipelines = await listThreadComposerPipelines(
-                        prompt.threadUuid,
-                    );
-                    const pipeline = buildComposerArtifactPipeline({
-                        queries,
-                        submissions,
-                        earlierPipelines,
-                    });
                     const terminalNode = queries.find(
                         (query) => query.nodeId === resolvedTerminalNodeId,
                     );
@@ -339,19 +336,23 @@ export const getRunComposerQueries = ({
                         vizConfig: {
                             source: 'composer',
                             schemaVersion: 1,
-                            queries: pipeline.queries,
+                            queries,
                             terminalNodeId: resolvedTerminalNodeId,
-                            lastQueryUuid: terminal.queryUuid,
-                            nodeResults: pipeline.nodeResults,
                             vizConfig,
                         } satisfies AiComposerChartArtifactConfig,
                     });
                 }
 
-                const nodeSummary = submissions
-                    .map(
-                        (submission) =>
-                            `- ${submission.nodeId} (${submission.sourceType}): queryUuid ${submission.queryUuid}`,
+                const nodes = queries.map((node) => ({
+                    nodeId: node.nodeId,
+                    title: node.title ?? null,
+                    sourceType: node.sourceType,
+                }));
+                const nodeSummary = nodes
+                    .map((node) =>
+                        node.title === null
+                            ? `- ${node.nodeId} (${node.sourceType})`
+                            : `- ${node.nodeId}: "${node.title}" (${node.sourceType})`,
                     )
                     .join('\n');
                 const columns = Object.values(terminal.columns).map(
@@ -375,23 +376,16 @@ export const getRunComposerQueries = ({
                           )
                         : null;
                 const resultSummary = [
-                    `Composer query complete. Terminal node "${resolvedTerminalNodeId}" returned ${terminal.rowCount} rows (queryUuid ${terminal.queryUuid}).`,
-                    `Submitted nodes (any queryUuid below can be reused by a later submission via the map form of "references", without re-running that query):\n${nodeSummary}`,
+                    `Composer query complete. Terminal node "${resolvedTerminalNodeId}" returned ${terminal.rowCount} rows.`,
+                    `Nodes in this pipeline (a later call can read any of them by node id without resubmitting it):\n${nodeSummary}`,
                     `Terminal columns: ${columnSummary}.`,
                     ...(review && terminal.rowCount !== 0 ? [review] : []),
                     ...(emptyReview !== null ? [emptyReview] : []),
                 ].join('\n');
                 const summary = {
                     terminalNodeId: resolvedTerminalNodeId,
-                    terminalQueryUuid: terminal.queryUuid,
                     rowCount: terminal.rowCount,
-                    submissions: submissions.map(
-                        ({ nodeId, sourceType, queryUuid }) => ({
-                            nodeId,
-                            sourceType,
-                            queryUuid,
-                        }),
-                    ),
+                    nodes,
                     columns,
                     visualization: vizNote,
                     review:

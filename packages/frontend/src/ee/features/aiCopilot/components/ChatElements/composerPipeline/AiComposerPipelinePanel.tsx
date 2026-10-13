@@ -62,6 +62,8 @@ import ResizableSplitter from '../../../../../../components/common/ResizableSpli
 import { useCompiledSqlFromMetricQuery } from '../../../../../../hooks/useCompiledSql';
 import { LD_FIELD_COLORS } from '../../../../../../theme/fieldColors';
 import { useCanViewAiAgentSql } from '../../../hooks/useCanViewAiAgentSql';
+import { NodeStatusIndicator } from '../ComposerNodeStatusIndicator';
+import { type ComposerRunNodeStatus } from '../useComposerRunNodeStatuses';
 import styles from './AiComposerPipelinePanel.module.css';
 import {
     groupPipeline,
@@ -278,9 +280,11 @@ const QueryDetails: FC<{ query: SourceQuery; projectUuid: string }> = ({
 
 type NodeDisplay = {
     displayedNodeId: string;
-    /** Nodes with a stored result; the rest are inert. */
+    /** Nodes with a result in the current run; the rest are inert. */
     displayableNodeIds: ReadonlySet<string>;
     onDisplayNode: (nodeId: string) => void;
+    /** By node id; a node without an entry shows no status. */
+    nodeStatuses: Readonly<Record<string, ComposerRunNodeStatus>>;
 };
 
 const PipelineNodeRow: FC<
@@ -291,16 +295,22 @@ const PipelineNodeRow: FC<
     displayedNodeId,
     displayableNodeIds,
     onDisplayNode,
+    nodeStatuses,
 }) => {
     const displayed = node.nodeId === displayedNodeId;
     const displayable = displayableNodeIds.has(node.nodeId);
+    const nodeStatus = nodeStatuses[node.nodeId];
     const head = (
         <>
-            <Box className={styles.dot} />
+            {nodeStatus ? (
+                <NodeStatusIndicator status={nodeStatus.status} />
+            ) : (
+                <Box className={styles.dot} />
+            )}
             <Text component="span" className={styles.nodeTitle}>
                 {node.title}
             </Text>
-            {node.kind === 'query' && <NodeType query={node.query} />}
+            <NodeType query={node.query} />
         </>
     );
     // The whole card is the click target; it holds other controls, so it is
@@ -344,9 +354,10 @@ const PipelineNodeRow: FC<
                     Reads {node.reads.join(', ')}
                 </Text>
             )}
-            {node.kind === 'query' && (
-                <QueryDetails query={node.query} projectUuid={projectUuid} />
+            {nodeStatus?.status === 'error' && nodeStatus.error && (
+                <Text className={styles.nodeError}>{nodeStatus.error}</Text>
             )}
+            <QueryDetails query={node.query} projectUuid={projectUuid} />
         </Box>
     );
 };
@@ -591,6 +602,7 @@ export const AiComposerPipelinePanel: FC<Props> = ({
     displayedNodeId,
     displayableNodeIds,
     onDisplayNode,
+    nodeStatuses,
     children,
     defaultExpanded = false,
     expanded: controlledExpanded,
@@ -604,6 +616,7 @@ export const AiComposerPipelinePanel: FC<Props> = ({
         displayedNodeId,
         displayableNodeIds,
         onDisplayNode,
+        nodeStatuses,
     };
     const layers = useMemo(
         () => groupPipeline(queries, terminalNodeId),

@@ -193,7 +193,11 @@ describe.each([
                         : await service.getArtifactVizQuery(user, options);
                 }
 
-                expect(result.query).toEqual(embedded ? redactedQuery : query);
+                expect(result).toEqual(
+                    expect.objectContaining({
+                        query: embedded ? redactedQuery : query,
+                    }),
+                );
                 expect(
                     asyncQueryService.executeAsyncMetricQuery,
                 ).toHaveBeenCalledWith(
@@ -249,7 +253,11 @@ describe.each([
                   )
                 : await service.getArtifactVizQuery(user, options);
 
-            expect(result.query).toEqual(embedded ? redactedQuery : query);
+            expect(result).toEqual(
+                expect.objectContaining({
+                    query: embedded ? redactedQuery : query,
+                }),
+            );
             expect(
                 asyncQueryService.executeAsyncMergeQuery,
             ).toHaveBeenCalledWith(
@@ -286,7 +294,7 @@ describe('AI artifact visualization SQL redaction', () => {
             ...artifactArgs,
         );
 
-        expect(result.query).toEqual(query);
+        expect(result).toEqual(expect.objectContaining({ query }));
     });
 });
 

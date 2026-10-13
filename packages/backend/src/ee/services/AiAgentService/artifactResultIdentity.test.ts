@@ -6,6 +6,7 @@ import {
     ForbiddenError,
     QueryExecutionContext,
     QueryHistoryStatus,
+    QuerySourceType,
     WarehouseTypes,
     type AiAgent,
     type AiArtifact,
@@ -115,19 +116,24 @@ const setup = () => {
         getSummary: vi.fn(async () => project),
         getWarehouseCredentialsForBinding: vi.fn(async () => credentials),
     };
+    const histories: Record<string, QueryHistory> = {};
     const queryHistoryModel = {
-        get: vi.fn(async () => history),
+        get: vi.fn(
+            async (queryUuid: string) => histories[queryUuid] ?? history,
+        ),
         getDuckdbExecution: vi.fn(async () => null),
         recordResultArtifact: vi.fn(
             async (
-                _queryUuid: string,
+                queryUuid: string,
                 _projectUuid: string,
                 _accountId: string,
                 binding: NonNullable<
                     QueryHistory['requestParameters']['resultArtifact']
                 >,
             ) => {
-                history.requestParameters.resultArtifact = binding;
+                (
+                    histories[queryUuid] ?? history
+                ).requestParameters.resultArtifact = binding;
             },
         ),
     };
@@ -218,6 +224,19 @@ const setup = () => {
         finished_at: null as Date | null,
         render_inputs: { version: input },
     };
+    const querySourceService = {
+        submitQueries:
+            vi.fn<
+                () => Promise<{
+                    queries: {
+                        nodeId: string;
+                        sourceType: QuerySourceType;
+                        queryUuid: string;
+                        cacheHit: boolean;
+                    }[];
+                }>
+            >(),
+    };
     const service = new AiAgentService({
         lightdashConfig: config,
         featureFlagService: { get: async () => flags },
@@ -250,6 +269,7 @@ const setup = () => {
         fileStorageClient: { isEnabled: () => true },
         userModel,
         asyncQueryService: asyncService,
+        querySourceService,
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
     vi.spyOn(service, 'getAgent').mockImplementation(async () => agent);
     vi.spyOn(
@@ -281,6 +301,8 @@ const setup = () => {
     return {
         service,
         asyncService,
+        querySourceService,
+        histories,
         user,
         history,
         producer,
@@ -326,7 +348,7 @@ describe('artifact result identity boundaries', () => {
             ...options,
             cachedQueryUuid: options.queryUuid,
         });
-        expect(viz.query.queryUuid).toBe('execution');
+        expect(viz).toMatchObject({ query: { queryUuid: 'execution' } });
         expect(getDownloadStream).not.toHaveBeenCalled();
         const firstPage = await service.getArtifactQueryResults(user, options);
         const secondPage = await service.getArtifactQueryResults(user, {
@@ -441,56 +463,180 @@ describe('artifact result identity boundaries', () => {
         },
     );
 
-    it('allows the in-app conversation owner to view only their own configured agent composer results', async () => {
+    it('binds every node of an owner composer run to the artifact and reads each node through the artifact-bound path', async () => {
         const {
             service,
+            querySourceService,
+            histories,
             user,
             options,
             artifact,
             prompt,
             producer,
-            claim,
+            history,
             getDownloadStream,
         } = setup();
         artifact.chartConfig = {
             source: 'composer',
             schemaVersion: 1,
-            queries: [],
-            terminalNodeId: 'source',
-            lastQueryUuid: 'execution',
-            nodeResults: { source: { queryUuid: 'execution' } },
+            queries: [
+                {
+                    sourceType: QuerySourceType.SQL,
+                    nodeId: 'source',
+                    sql: 'select 1',
+                },
+                {
+                    sourceType: QuerySourceType.DUCKDB,
+                    nodeId: 'joined',
+                    sql: 'select * from source',
+                    references: ['source'],
+                },
+            ],
+            terminalNodeId: 'joined',
+            vizConfig: null,
         } as typeof artifact.chartConfig;
         delete (prompt as Partial<SlackPrompt>).slackUserId;
-        producer.agentIdentity = buildAgentIdentityClaim({
-            subject: claim.subject,
-            surface: AgentActorSurface.IN_APP_AGENT,
-            clientId: AGENT_CLIENT_IDS[AgentActorSurface.IN_APP_AGENT],
-            agentUuid: 'agent',
+        const terminal = {
+            ...history,
+            queryUuid: 'terminal-execution',
+            requestParameters: { ...history.requestParameters },
+        } as QueryHistory;
+        histories['terminal-execution'] = terminal;
+        histories.unbound = {
+            ...history,
+            queryUuid: 'unbound',
+            requestParameters: { ...history.requestParameters },
+        } as QueryHistory;
+        querySourceService.submitQueries.mockImplementation(async () => {
+            const scope = agentExecutionContext.getStore();
+            expect(scope?.agentUuid).toBe('agent');
+            expect(scope?.surface).toBe(AgentActorSurface.IN_APP_AGENT);
+            producer.agentIdentity = scope!.claim;
+            history.agentIdentity = scope!.claim;
+            terminal.agentIdentity = scope!.claim;
+            return {
+                queries: [
+                    {
+                        nodeId: 'source',
+                        sourceType: QuerySourceType.SQL,
+                        queryUuid: 'execution',
+                        cacheHit: false,
+                    },
+                    {
+                        nodeId: 'joined',
+                        sourceType: QuerySourceType.DUCKDB,
+                        queryUuid: 'terminal-execution',
+                        cacheHit: false,
+                    },
+                ],
+            };
         });
-        const results = await service.getArtifactQueryResults(user, {
-            ...options,
-            cached: false,
+
+        await expect(
+            service.getArtifactVizQuery(user, options),
+        ).resolves.toMatchObject({
+            source: 'composer',
+            terminalNodeId: 'joined',
+            nodeQueryUuids: {
+                source: 'execution',
+                joined: 'terminal-execution',
+            },
         });
-        expect(results).toMatchObject({
+        expect(agentExecutionContext.getStore()).toBeUndefined();
+
+        await expect(
+            service.getArtifactQueryResults(user, {
+                ...options,
+                queryUuid: 'execution',
+                cached: false,
+            }),
+        ).resolves.toMatchObject({
             status: QueryHistoryStatus.READY,
             rows: [{}],
         });
+        await expect(
+            service.getArtifactQueryResults(user, {
+                ...options,
+                queryUuid: 'terminal-execution',
+                cached: false,
+            }),
+        ).resolves.toMatchObject({
+            status: QueryHistoryStatus.READY,
+            rows: [{}],
+        });
+        expect(getDownloadStream).toHaveBeenCalledTimes(2);
         getDownloadStream.mockClear();
         await expect(
             service.getArtifactQueryResults(user, {
                 ...options,
-                queryUuid: 'unbound-query',
-                cached: false,
-            }),
-        ).rejects.toThrow(ForbiddenError);
-        producer.agentIdentity.act.agent_uuid = 'another-agent';
-        await expect(
-            service.getArtifactQueryResults(user, {
-                ...options,
+                queryUuid: 'unbound',
                 cached: false,
             }),
         ).rejects.toThrow(/Run the query again\.$/);
+        await expect(
+            service.getArtifactQueryResults(user, {
+                ...options,
+                queryUuid: 'execution',
+                versionUuid: 'another-version',
+                cached: false,
+            }),
+        ).rejects.toThrow(ForbiddenError);
         expect(getDownloadStream).not.toHaveBeenCalled();
+    });
+
+    it('runs a shared composer artifact as the person opening it', async () => {
+        const {
+            service,
+            querySourceService,
+            user,
+            options,
+            artifact,
+            thread,
+            producer,
+            history,
+        } = setup();
+        artifact.chartConfig = {
+            source: 'composer',
+            schemaVersion: 1,
+            queries: [
+                {
+                    sourceType: QuerySourceType.SQL,
+                    nodeId: 'source',
+                    sql: 'select 1',
+                },
+            ],
+            terminalNodeId: 'source',
+            vizConfig: null,
+        } as typeof artifact.chartConfig;
+        thread.user.uuid = 'another-owner';
+        querySourceService.submitQueries.mockImplementation(async () => {
+            expect(agentExecutionContext.getStore()).toBeUndefined();
+            producer.agentIdentity = null;
+            history.agentIdentity = null;
+            return {
+                queries: [
+                    {
+                        nodeId: 'source',
+                        sourceType: QuerySourceType.SQL,
+                        queryUuid: 'execution',
+                        cacheHit: true,
+                    },
+                ],
+            };
+        });
+
+        await expect(
+            service.getArtifactVizQuery(user, options),
+        ).resolves.toMatchObject({
+            source: 'composer',
+            nodeQueryUuids: { source: 'execution' },
+        });
+        expect(querySourceService.submitQueries).toHaveBeenCalledOnce();
+        expect(history.requestParameters.resultArtifact).toEqual({
+            agentUuid: 'agent',
+            artifactUuid: 'artifact',
+            versionUuid: 'version',
+        });
     });
 
     it('keeps an agent admin viewing another conversation as a person reader', async () => {
@@ -501,7 +647,7 @@ describe('artifact result identity boundaries', () => {
             schemaVersion: 1,
             queries: [],
             terminalNodeId: 'source',
-            lastQueryUuid: 'execution',
+            vizConfig: null,
         } as typeof artifact.chartConfig;
         thread.user.uuid = 'another-user';
         await expect(

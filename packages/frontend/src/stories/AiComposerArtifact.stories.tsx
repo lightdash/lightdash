@@ -13,11 +13,13 @@ import { IconX } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import MantineIcon from '../components/common/MantineIcon';
 import panelStyles from '../ee/features/aiCopilot/components/ChatElements/AiArtifactPanel.module.css';
+import { AiComposerResultError } from '../ee/features/aiCopilot/components/ChatElements/AiComposerResultError';
 import {
     AiComposerPipelinePanel,
     type PipelineMode,
 } from '../ee/features/aiCopilot/components/ChatElements/composerPipeline/AiComposerPipelinePanel';
 import { ComposerQueriesToolCallDescription } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/descriptions/ComposerQueriesToolCallDescription';
+import { type ComposerRunNodeStatus } from '../ee/features/aiCopilot/components/ChatElements/useComposerRunNodeStatuses';
 
 /** A fan-in pipeline: three sources, one intermediate join, one final join. */
 const fanInQueries: SourceQuery[] = [
@@ -176,6 +178,9 @@ type ArtifactProps = {
     result: ResultTable;
     defaultExpanded?: boolean;
     defaultMode?: PipelineMode;
+    nodeStatuses?: Record<string, ComposerRunNodeStatus>;
+    /** The displayed node's error, shown in place of the result. */
+    resultError?: string;
 };
 
 /** The floating artifact panel at its real size, with a static results table. */
@@ -185,6 +190,8 @@ const ComposerArtifact = ({
     result,
     defaultExpanded,
     defaultMode,
+    nodeStatuses = {},
+    resultError,
 }: ArtifactProps) => (
     <Box w={760} h={900}>
         <Box className={panelStyles.floatingPanel}>
@@ -201,6 +208,7 @@ const ComposerArtifact = ({
                     displayedNodeId={terminalNodeId}
                     displayableNodeIds={new Set(queries.map((q) => q.nodeId!))}
                     onDisplayNode={() => {}}
+                    nodeStatuses={nodeStatuses}
                     defaultExpanded={defaultExpanded}
                     defaultMode={defaultMode}
                 >
@@ -225,7 +233,14 @@ const ComposerArtifact = ({
                                 </ActionIcon>
                             </Group>
                         </Box>
-                        <ResultsTable result={result} />
+                        {resultError === undefined ? (
+                            <ResultsTable result={result} />
+                        ) : (
+                            <AiComposerResultError
+                                headerContent={null}
+                                message={resultError}
+                            />
+                        )}
                     </Stack>
                 </AiComposerPipelinePanel>
             </Box>
@@ -291,6 +306,37 @@ export const DuckdbOverPython: Story = {
 
 export const DuckdbOverPythonGraph: Story = {
     args: { ...DuckdbOverPython.args, defaultMode: 'graph' },
+};
+
+/** A run on open in progress: each node's status on its row. */
+export const Running: Story = {
+    args: {
+        ...DuckdbOverPython.args,
+        nodeStatuses: {
+            orders: { status: 'success', error: null },
+            simulation: { status: 'running', error: null },
+            percentiles: { status: 'pending', error: null },
+        },
+    },
+};
+
+/** A run whose python node failed: its error on its row, the terminal node's in the chart area. */
+export const NodeFailed: Story = {
+    args: {
+        ...DuckdbOverPython.args,
+        nodeStatuses: {
+            orders: { status: 'success', error: null },
+            simulation: {
+                status: 'error',
+                error: 'ZeroDivisionError: division by zero',
+            },
+            percentiles: {
+                status: 'error',
+                error: 'A query this query reads failed',
+            },
+        },
+        resultError: 'A query this query reads failed',
+    },
 };
 
 /** The pipeline card of a run whose python node failed; no artifact version exists. */

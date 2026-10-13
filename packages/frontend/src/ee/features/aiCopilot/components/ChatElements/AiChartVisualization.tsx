@@ -1,5 +1,6 @@
 import {
     FeatureFlags,
+    isAiAgentSemanticArtifactVizQuery,
     isAiAgentSqlArtifactVizQuery,
     isAiSqlChartArtifactConfig,
     parseVizConfig,
@@ -91,7 +92,7 @@ export const AiChartVisualization: FC<Props> = ({
 
     const semanticVizQueryData =
         queryExecutionHandle.data &&
-        !isAiAgentSqlArtifactVizQuery(queryExecutionHandle.data)
+        isAiAgentSemanticArtifactVizQuery(queryExecutionHandle.data)
             ? queryExecutionHandle.data
             : undefined;
     const sqlVizQueryData =
@@ -100,7 +101,8 @@ export const AiChartVisualization: FC<Props> = ({
             ? queryExecutionHandle.data
             : undefined;
 
-    const queryUuid = queryExecutionHandle.data?.query.queryUuid;
+    const queryUuid = (semanticVizQueryData ?? sqlVizQueryData)?.query
+        .queryUuid;
     const queryResults = useInfiniteQueryResults(
         projectUuid,
         isEmbed || !identityFlag.isLoading ? queryUuid : undefined,

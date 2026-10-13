@@ -3,6 +3,8 @@ import {
     FeatureFlags,
     getGroupByDimensions,
     getWebAiChartConfig,
+    isAiAgentComposerArtifactVizQuery,
+    isAiAgentSemanticArtifactVizQuery,
     isAiAgentSqlArtifactVizQuery,
     isAiComposerChartArtifactConfig,
     isAiSqlChartArtifactConfig,
@@ -171,20 +173,30 @@ const AiArtifactPanelContent: FC<
                 artifactUuid: artifact.artifactUuid,
                 versionUuid: artifact.versionUuid,
             },
-            { enabled: (isFloatingChart && !!vizConfig) || isSqlArtifact },
+            {
+                enabled:
+                    (isFloatingChart && !!vizConfig) ||
+                    isSqlArtifact ||
+                    !!composerConfig,
+            },
         );
 
         const semanticVizQueryData =
             queryExecutionHandle.data &&
-            !isAiAgentSqlArtifactVizQuery(queryExecutionHandle.data)
+            isAiAgentSemanticArtifactVizQuery(queryExecutionHandle.data)
                 ? queryExecutionHandle.data
                 : undefined;
+        const composerRun =
+            queryExecutionHandle.data &&
+            isAiAgentComposerArtifactVizQuery(queryExecutionHandle.data)
+                ? queryExecutionHandle.data
+                : null;
         const sqlVizQueryData =
             queryExecutionHandle.data &&
             isAiAgentSqlArtifactVizQuery(queryExecutionHandle.data)
                 ? queryExecutionHandle.data
                 : undefined;
-        // Composer artifacts read their own per-node results.
+        // Composer artifacts read each node result of the run themselves.
         const queryUuid =
             !composerConfig &&
             queryExecutionHandle.data &&
@@ -371,6 +383,8 @@ const AiArtifactPanelContent: FC<
                     title={artifactData.title ?? 'Composer query results'}
                     description={artifactData.description ?? null}
                     config={composerConfig}
+                    run={composerRun}
+                    runError={queryExecutionHandle.error ?? null}
                     onClose={
                         showCloseButton ? () => dispatch(clearPreview()) : null
                     }

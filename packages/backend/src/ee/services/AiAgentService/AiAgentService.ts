@@ -124,7 +124,8 @@ import {
     InsufficientGitPermissionsError,
     InvalidUser,
     isAgentToolName,
-    isAiAgentSqlArtifactVizQuery,
+    isAiAgentComposerArtifactVizQuery,
+    isAiAgentSemanticArtifactVizQuery,
     isAiAppThreadCreatedFrom,
     isAiComposerChartArtifactConfig,
     isAiDeepResearchRunTerminal,
@@ -159,6 +160,7 @@ import {
     PullRequestProvider,
     QueryExecutionContext,
     QueryHistoryStatus,
+    QuerySourceType,
     QuerySurface,
     ReadinessScore,
     serializeDashboardFiltersForAiContext,
@@ -296,6 +298,10 @@ import { OpenIdIdentityModel } from '../../../models/OpenIdIdentitiesModel';
 import { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { PullRequestsModel } from '../../../models/PullRequestsModel';
+import {
+    isQueryHistoryCacheHit,
+    type QueryHistoryModel,
+} from '../../../models/QueryHistoryModel/QueryHistoryModel';
 import { RolesModel } from '../../../models/RolesModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { SlackUnfurlImageModel } from '../../../models/SlackUnfurlImageModel';
@@ -331,6 +337,7 @@ import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagSer
 import { GithubAppService } from '../../../services/GithubAppService/GithubAppService';
 import { PersistentDownloadFileService } from '../../../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import { type QuerySourceService } from '../../../services/QuerySourceService/QuerySourceService';
 import { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import { SearchService } from '../../../services/SearchService/SearchService';
 import { ShareService } from '../../../services/ShareService/ShareService';
@@ -721,6 +728,7 @@ type StaticToolCall = {
 
 // The fast edit reply waits this long for a one-number result before sending without it.
 const SINGLE_VALUE_TIMEOUT_MS = 3_000;
+const COMPOSER_RUN_SETTLE_TIMEOUT_MS = 3 * 60_000;
 
 type ChartIntentApplication =
     | {
@@ -896,6 +904,8 @@ type AiAgentServiceDependencies = {
     projectContextModel: ProjectContextModel;
     analytics: LightdashAnalytics;
     asyncQueryService: AsyncQueryService;
+    querySourceService: Pick<QuerySourceService, 'submitQueries'>;
+    queryHistoryModel: Pick<QueryHistoryModel, 'pollForQueryCompletion'>;
     catalogService: CatalogService;
     catalogModel: CatalogModel;
     contentVerificationModel: ContentVerificationModel;
@@ -1248,6 +1258,16 @@ export class AiAgentService extends BaseService {
     private readonly analytics: LightdashAnalytics;
 
     private readonly asyncQueryService: AsyncQueryService;
+
+    private readonly querySourceService: Pick<
+        QuerySourceService,
+        'submitQueries'
+    >;
+
+    private readonly queryHistoryModel: Pick<
+        QueryHistoryModel,
+        'pollForQueryCompletion'
+    >;
 
     private readonly catalogService: CatalogService;
 
@@ -1842,6 +1862,8 @@ export class AiAgentService extends BaseService {
         this.projectContextModel = dependencies.projectContextModel;
         this.analytics = dependencies.analytics;
         this.asyncQueryService = dependencies.asyncQueryService;
+        this.querySourceService = dependencies.querySourceService;
+        this.queryHistoryModel = dependencies.queryHistoryModel;
         this.catalogService = dependencies.catalogService;
         this.catalogModel = dependencies.catalogModel;
         this.contentVerificationModel = dependencies.contentVerificationModel;
@@ -9462,27 +9484,14 @@ export class AiAgentService extends BaseService {
                 },
                 account,
             ));
-        } else {
-            if (artifact.chartConfig?.source === 'composer') {
-                const config = artifact.chartConfig;
-                if (
-                    queryUuid !== config.lastQueryUuid &&
-                    !Object.values(config.nodeResults ?? {}).some(
-                        (result) => result.queryUuid === queryUuid,
-                    )
-                )
-                    throw new ForbiddenError(
-                        'Artifact results are unavailable',
-                    );
-            }
-            if (enabled)
-                reader = await this.getArtifactOwnerResultReader(
-                    user,
-                    projectUuid,
-                    agentUuid,
-                    artifact,
-                    account.authentication.type,
-                );
+        } else if (enabled) {
+            reader = await this.getArtifactOwnerResultReader(
+                user,
+                projectUuid,
+                agentUuid,
+                artifact,
+                account.authentication.type,
+            );
         }
         const args = {
             account,
@@ -9492,7 +9501,7 @@ export class AiAgentService extends BaseService {
             page: page ?? undefined,
             pageSize: pageSize ?? undefined,
         };
-        if (!cached && artifact.chartConfig?.source !== 'composer' && enabled)
+        if (!cached && enabled)
             return this.asyncQueryService.getArtifactBoundQueryResults(args, {
                 agentUuid,
                 artifactUuid,
@@ -9501,9 +9510,34 @@ export class AiAgentService extends BaseService {
         return this.asyncQueryService.getAsyncQueryResults(args);
     }
 
-    private async executeArtifactQueryAsOwner<
-        T extends { query: { queryUuid: string } },
-    >(
+    /** Waits (bounded) for every node row to settle and counts the ones served from cache. */
+    private async countCachedComposerRunNodes(
+        projectUuid: string,
+        queryUuids: string[],
+    ): Promise<{ settledNodeCount: number; cachedNodeCount: number }> {
+        const settled = await Promise.allSettled(
+            queryUuids.map((queryUuid) =>
+                this.queryHistoryModel.pollForQueryCompletion({
+                    queryUuid,
+                    projectUuid,
+                    account: null,
+                    timeoutMs: COMPOSER_RUN_SETTLE_TIMEOUT_MS,
+                    throwOnCancelled: false,
+                    throwOnError: false,
+                }),
+            ),
+        );
+        const rows = settled.flatMap((outcome) =>
+            outcome.status === 'fulfilled' ? [outcome.value] : [],
+        );
+        return {
+            settledNodeCount: rows.length,
+            cachedNodeCount: rows.filter(isQueryHistoryCacheHit).length,
+        };
+    }
+
+    /** Runs as the owner when the reader allows, then binds every query it produced to the artifact. */
+    private async executeArtifactQueriesAsOwner<T>(
         user: SessionUser,
         options: {
             projectUuid: string;
@@ -9512,6 +9546,7 @@ export class AiAgentService extends BaseService {
             versionUuid: string;
         },
         execute: () => Promise<T>,
+        getQueryUuids: (result: T) => string[],
     ): Promise<T> {
         const { enabled } = await this.featureFlagService.get({
             user,
@@ -9547,15 +9582,15 @@ export class AiAgentService extends BaseService {
                       execute,
                   )
                 : await execute();
-        await this.asyncQueryService.bindQueryToArtifact(
-            account,
-            projectUuid,
-            result.query.queryUuid,
-            {
-                agentUuid,
-                artifactUuid,
-                versionUuid,
-            },
+        await Promise.all(
+            getQueryUuids(result).map((queryUuid) =>
+                this.asyncQueryService.bindQueryToArtifact(
+                    account,
+                    projectUuid,
+                    queryUuid,
+                    { agentUuid, artifactUuid, versionUuid },
+                ),
+            ),
         );
         return result;
     }
@@ -9573,8 +9608,14 @@ export class AiAgentService extends BaseService {
     ): Promise<ApiAiAgentArtifactVizQuery> {
         if (options.cachedQueryUuid !== undefined || options.runtimeOptions)
             return this.executeArtifactVizQuery(user, options);
-        return this.executeArtifactQueryAsOwner(user, options, () =>
-            this.executeArtifactVizQuery(user, options),
+        return this.executeArtifactQueriesAsOwner(
+            user,
+            options,
+            () => this.executeArtifactVizQuery(user, options),
+            (vizQuery) =>
+                isAiAgentComposerArtifactVizQuery(vizQuery)
+                    ? Object.values(vizQuery.nodeQueryUuids)
+                    : [vizQuery.query.queryUuid],
         );
     }
 
@@ -9710,6 +9751,9 @@ export class AiAgentService extends BaseService {
                     promptId: artifact.promptUuid,
                     durationMs: Date.now() - vizQueryStartedAt,
                     queryId: query.queryUuid,
+                    nodeCount: null,
+                    settledNodeCount: null,
+                    cachedNodeCount: null,
                 },
             });
             return {
@@ -9724,12 +9768,84 @@ export class AiAgentService extends BaseService {
             };
         }
 
-        // v0 composer artifacts render straight from the stored terminal
-        // result id on the frontend; re-execution-as-viewer is a follow-up.
         if (isAiComposerChartArtifactConfig(artifact.chartConfig)) {
-            throw new ParameterError(
-                'Composer artifacts do not support re-execution yet',
+            const { queries, terminalNodeId } = artifact.chartConfig;
+            // Embed viewers are scoped by user attributes, which raw SQL bypasses.
+            if (
+                runtimeOptions &&
+                queries.some(
+                    (query) => query.sourceType === QuerySourceType.SQL,
+                )
+            ) {
+                throw new ForbiddenError(
+                    'Pipelines with warehouse SQL are not available in embedded AI agents',
+                );
+            }
+
+            const account = fromSession(user);
+            const { queries: submissions } =
+                await this.querySourceService.submitQueries({
+                    account,
+                    projectUuid,
+                    queries,
+                    context: QueryExecutionContext.AI,
+                    querySurface: await this.getArtifactQuerySurface(
+                        artifact.promptUuid,
+                    ),
+                    parameters: {},
+                    userAttributeOverrides:
+                        runtimeOptions?.userAttributeOverrides ?? {},
+                    invalidateCache: false,
+                    plans: {},
+                });
+            const nodeQueryUuids = Object.fromEntries(
+                submissions.map(({ nodeId, queryUuid }) => [nodeId, queryUuid]),
             );
+
+            const durationMs = Date.now() - vizQueryStartedAt;
+            // A DuckDB or Python node only learns it was cached when it runs,
+            // so the event waits for the run to settle.
+            void this.countCachedComposerRunNodes(
+                projectUuid,
+                submissions.map(({ queryUuid }) => queryUuid),
+            )
+                .then(({ settledNodeCount, cachedNodeCount }) =>
+                    this.analytics.track({
+                        event: 'ai_agent.artifact_viz_query',
+                        userId: user.userUuid,
+                        properties: {
+                            projectId: projectUuid,
+                            organizationId: organizationUuid,
+                            agentId: agent.uuid,
+                            agentName: agent.name,
+                            artifactId: artifactUuid,
+                            artifactVersionId: versionUuid,
+                            vizType: AiResultType.TABLE_RESULT,
+                            source: 'composer',
+                            promptId: artifact.promptUuid,
+                            durationMs,
+                            queryId: nodeQueryUuids[terminalNodeId] ?? null,
+                            nodeCount: submissions.length,
+                            settledNodeCount,
+                            cachedNodeCount,
+                        },
+                    }),
+                )
+                .catch((error) =>
+                    this.logger.warn(
+                        `Failed to track composer artifact run ${artifactUuid}: ${getErrorMessage(error)}`,
+                    ),
+                );
+
+            return {
+                source: 'composer',
+                terminalNodeId,
+                nodeQueryUuids,
+                metadata: {
+                    title: artifact.title,
+                    description: artifact.description,
+                },
+            };
         }
 
         if (isAiSqlChartArtifactConfig(artifact.chartConfig)) {
@@ -9767,6 +9883,9 @@ export class AiAgentService extends BaseService {
                     promptId: artifact.promptUuid,
                     durationMs: Date.now() - vizQueryStartedAt,
                     queryId: query.queryUuid,
+                    nodeCount: null,
+                    settledNodeCount: null,
+                    cachedNodeCount: null,
                 },
             });
 
@@ -9835,6 +9954,9 @@ export class AiAgentService extends BaseService {
                 promptId: artifact.promptUuid,
                 durationMs: Date.now() - vizQueryStartedAt,
                 queryId: query.queryUuid,
+                nodeCount: null,
+                settledNodeCount: null,
+                cachedNodeCount: null,
             },
         });
 
@@ -9861,7 +9983,12 @@ export class AiAgentService extends BaseService {
         const execute = () =>
             this.executeDashboardArtifactChartVizQuery(user, options);
         if (options.runtimeOptions) return execute();
-        return this.executeArtifactQueryAsOwner(user, options, execute);
+        return this.executeArtifactQueriesAsOwner(
+            user,
+            options,
+            execute,
+            (vizQuery) => [vizQuery.query.queryUuid],
+        );
     }
 
     private async executeDashboardArtifactChartVizQuery(
@@ -14573,7 +14700,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 artifactUuid: artifact.artifactUuid,
                 versionUuid: artifact.versionUuid,
             });
-            if (isAiAgentSqlArtifactVizQuery(vizQuery)) return null;
+            if (!isAiAgentSemanticArtifactVizQuery(vizQuery)) return null;
             const startedAt = Date.now();
             /* oxlint-disable no-await-in-loop */
             while (Date.now() - startedAt < SINGLE_VALUE_TIMEOUT_MS) {

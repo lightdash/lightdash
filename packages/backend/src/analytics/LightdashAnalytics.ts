@@ -3918,8 +3918,15 @@ export type AiAgentArtifactVizQueryEvent = BaseTrack & {
         source: string;
         // Null for artifacts persisted without a prompt.
         promptId: string | null;
+        // Time to submit the query (every node, for composer runs), not to results.
         durationMs: number;
         queryId: string | null;
+        // Composer runs only, tracked once the run settles or the wait caps:
+        // nodes in the pipeline, nodes that reached a terminal status, and
+        // settled nodes served from cache.
+        nodeCount: number | null;
+        settledNodeCount: number | null;
+        cachedNodeCount: number | null;
     };
 };
 
