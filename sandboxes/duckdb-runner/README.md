@@ -123,8 +123,30 @@ client {"fields":{"x":{"type":"number","numericKind":{"kind":"integer"}}},"rows"
 node-api [{"one":1,"total":"3"}]
 ```
 
+With `createForLocalFiles` (the sandbox client), no network, as `user`:
+
+```js
+// local.mjs
+import { createRequire } from 'node:module';
+import fs from 'node:fs';
+const require = createRequire(import.meta.url);
+fs.writeFileSync('/work/in/t.jsonl', '{"a":1}\n{"a":2}\n');
+const { DuckdbWarehouseClient } = require('@lightdash/warehouses/dist/warehouseClients/DuckdbWarehouseClient');
+const client = DuckdbWarehouseClient.createForLocalFiles({
+    inputDirectory: '/work/in', tempDirectory: '/work/tmp', memoryLimit: '1GB', threads: 2,
+});
+await client.streamQuery("SELECT 1 AS x, sum(a) AS total FROM read_json('/work/in/t.jsonl')", ({ fields, rows }) => {
+    console.log(JSON.stringify({ fields, rows }));
+});
+```
+
+```console
+$ docker run --rm -i --network none --entrypoint node lightdash-duckdb-runner:local --input-type=module < local.mjs
+{"fields":{"x":{"type":"number","numericKind":{"kind":"integer"}},"total":{"type":"number","numericKind":{"kind":"integer"}}},"rows":[{"x":1,"total":"3"}]}
+```
+
 The default `new DuckdbWarehouseClient()` always runs `INSTALL/LOAD httpfs` in
 session bootstrap. With `--network none` that fails with `Failed to download
 extension "httpfs"`, because the extension isn't baked into the image. Sandbox
-runs must therefore use `DuckdbWarehouseClient.createForLocalFiles(...)`, which
-never loads httpfs.
+runs use `DuckdbWarehouseClient.createForLocalFiles(...)`, which never loads
+httpfs (shown above).
