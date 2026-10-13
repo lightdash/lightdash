@@ -1,10 +1,4 @@
 import {
-    getHighestProjectRole,
-    ProjectMemberRole,
-    ProjectMemberRoleLabels,
-    ProjectRoleOrder,
-} from '@lightdash/common';
-import {
     Badge,
     Group,
     Loader,
@@ -22,20 +16,11 @@ import isEmpty from 'lodash/isEmpty';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { LightdashUserAvatar } from '../../components/Avatar';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useProjectUsersWithRoles } from '../../hooks/useProjectUsersWithRoles';
 import {
-    useProjectUsersWithRoles,
-    type ProjectUserWithRole,
-} from '../../hooks/useProjectUsersWithRoles';
-
-interface UserData {
-    userUuid: string;
-    label: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    role: ProjectMemberRole;
-    roleLabel: string;
-}
+    getAgentUserAccessOption,
+    type AgentUserAccessOption,
+} from './agentUserAccessOption';
 
 interface UserAccessMultiSelectProps extends Omit<
     MultiSelectProps,
@@ -44,35 +29,6 @@ interface UserAccessMultiSelectProps extends Omit<
     projectUuid: string;
     isGroupsEnabled?: boolean;
 }
-
-const transformUserData = (user: ProjectUserWithRole): UserData | null => {
-    const highestRole = user.inheritedRole
-        ? getHighestProjectRole(user.inheritedRole)
-        : undefined;
-
-    if (!highestRole) return null;
-
-    const canCreateAiAgents =
-        highestRole.role === ProjectMemberRole.ADMIN ||
-        highestRole.role === ProjectMemberRole.DEVELOPER;
-
-    const canInteractWithAiAgents =
-        ProjectRoleOrder[highestRole.role] >=
-            ProjectRoleOrder[ProjectMemberRole.INTERACTIVE_VIEWER] &&
-        !canCreateAiAgents;
-
-    if (!canInteractWithAiAgents) return null;
-
-    return {
-        userUuid: user.userUuid,
-        label: `${user.firstName} ${user.lastName}`.trim() || user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        role: highestRole.role,
-        roleLabel: ProjectMemberRoleLabels[highestRole.role],
-    };
-};
 
 export const UserAccessMultiSelect: FC<UserAccessMultiSelectProps> = ({
     projectUuid,
@@ -83,7 +39,7 @@ export const UserAccessMultiSelect: FC<UserAccessMultiSelectProps> = ({
 }) => {
     const [searchInput, setSearchInput] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(searchInput, 300);
-    const allUsersRef = useRef<Map<string, UserData>>(new Map());
+    const allUsersRef = useRef<Map<string, AgentUserAccessOption>>(new Map());
 
     const { usersWithProjectRole, isLoading: isLoadingUsers } =
         useProjectUsersWithRoles(projectUuid, {
@@ -98,7 +54,7 @@ export const UserAccessMultiSelect: FC<UserAccessMultiSelectProps> = ({
         const currentResults: string[] = [];
 
         for (const user of usersWithProjectRole) {
-            const userData = transformUserData(user);
+            const userData = getAgentUserAccessOption(user);
             if (!userData) continue;
 
             allUsersRef.current.set(userData.userUuid, userData);
