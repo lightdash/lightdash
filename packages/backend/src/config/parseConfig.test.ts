@@ -2975,6 +2975,49 @@ describe('SANDBOX_PROVIDER', () => {
     });
 });
 
+describe('DuckDB sandbox runtime', () => {
+    test('defaults the template, image, resources and input budget', () => {
+        expect(parseConfig().appRuntime).toMatchObject({
+            e2bDuckdbTemplateName: 'lightdash-duckdb-runner',
+            e2bDuckdbTemplateTag: VERSION,
+            sandboxDuckdbDockerImage: 'lightdash-duckdb-runner:local',
+            duckdbSandboxMemoryLimit: '1GB',
+            duckdbSandboxThreads: 2,
+            sandboxInputMaxBytes: 64 * 1024 * 1024,
+        });
+    });
+
+    test('reads every value from its environment variable', () => {
+        process.env.E2B_DUCKDB_TEMPLATE_NAME = 'custom-duckdb';
+        process.env.E2B_DUCKDB_TEMPLATE_TAG = 'v9';
+        process.env.SANDBOX_DUCKDB_DOCKER_IMAGE = 'duckdb:dev';
+        process.env.DUCKDB_SANDBOX_MEMORY_LIMIT = '4GB';
+        process.env.DUCKDB_SANDBOX_THREADS = '8';
+        process.env.SANDBOX_INPUT_MAX_BYTES = '1024';
+        expect(parseConfig().appRuntime).toMatchObject({
+            e2bDuckdbTemplateName: 'custom-duckdb',
+            e2bDuckdbTemplateTag: 'v9',
+            sandboxDuckdbDockerImage: 'duckdb:dev',
+            duckdbSandboxMemoryLimit: '4GB',
+            duckdbSandboxThreads: 8,
+            sandboxInputMaxBytes: 1024,
+        });
+    });
+
+    test('keeps an empty template tag so E2B uses its default tag', () => {
+        process.env.E2B_DUCKDB_TEMPLATE_TAG = '';
+        expect(parseConfig().appRuntime.e2bDuckdbTemplateTag).toBe('');
+    });
+
+    test('rejects a non-positive thread count or input budget', () => {
+        process.env.DUCKDB_SANDBOX_THREADS = '0';
+        expect(() => parseConfig()).toThrowError(ParseError);
+        delete process.env.DUCKDB_SANDBOX_THREADS;
+        process.env.SANDBOX_INPUT_MAX_BYTES = 'lots';
+        expect(() => parseConfig()).toThrowError(ParseError);
+    });
+});
+
 describe('APPS_CODING_AGENT', () => {
     test('defaults to claude when unset', () => {
         expect(parseConfig().appRuntime.dataAppCodingAgent).toBe('claude');

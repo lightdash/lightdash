@@ -394,7 +394,6 @@ import {
     type PreAggregateStrategy,
     type PreAggregationRoutingDecision,
 } from './PreAggregateStrategy';
-import { PythonInputReader } from './python/PythonInputReader';
 import {
     parsePythonResultMeta,
     pythonColumnsToFields,
@@ -412,6 +411,7 @@ import {
 } from './python/PythonSandboxRunner';
 import { canReuseQueryResult } from './queryResultReuse';
 import { queryUsageProperties } from './queryUsage';
+import { SandboxInputReader } from './sandbox/SandboxInputReader';
 import {
     ExecuteAsyncSqlQueryArgs,
     isExecuteAsyncDashboardSqlChartByUuid,
@@ -10836,7 +10836,17 @@ export class AsyncQueryService extends ProjectService {
                         params: parameters,
                         limit,
                     };
-                    const inputReader = new PythonInputReader();
+                    const { sandboxInputMaxBytes } =
+                        this.lightdashConfig.appRuntime;
+                    const inputBudgetMiB = sandboxInputMaxBytes / (1024 * 1024);
+                    const inputReader = new SandboxInputReader({
+                        maxBytes: sandboxInputMaxBytes,
+                        limitMessage: `Python query inputs exceed the combined size limit of ${
+                            Number.isInteger(inputBudgetMiB)
+                                ? `${inputBudgetMiB} MiB`
+                                : `${sandboxInputMaxBytes} bytes`
+                        }.`,
+                    });
                     const inputs = await traceSpan(
                         {
                             op: 'python.query.read_inputs',

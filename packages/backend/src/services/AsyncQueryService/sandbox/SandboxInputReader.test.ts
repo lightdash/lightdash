@@ -1,17 +1,22 @@
+import { ParameterError } from '@lightdash/common';
 import { PassThrough, Readable } from 'stream';
 import { describe, expect, it } from 'vitest';
-import { PythonInputReader } from './PythonInputReader';
+import { SandboxInputReader } from './SandboxInputReader';
 
-describe('PythonInputReader', () => {
+const LIMIT_MESSAGE = 'Inputs exceed the combined size limit.';
+const readerWithBudget = (maxBytes: number) =>
+    new SandboxInputReader({ maxBytes, limitMessage: LIMIT_MESSAGE });
+
+describe('SandboxInputReader', () => {
     it('accepts input exactly at the byte boundary', async () => {
-        const reader = new PythonInputReader(4);
+        const reader = readerWithBudget(4);
         await expect(
             reader.read(Readable.from([Buffer.from('ab'), Buffer.from('cd')])),
         ).resolves.toEqual(Buffer.from('abcd'));
     });
 
     it('rejects a chunk before retaining bytes beyond the budget', async () => {
-        const reader = new PythonInputReader(4);
+        const reader = readerWithBudget(4);
         const stream = Readable.from([Buffer.from('abcd'), Buffer.from('e')]);
         await expect(reader.read(stream)).rejects.toThrow(
             'combined size limit',
@@ -19,15 +24,24 @@ describe('PythonInputReader', () => {
         expect(stream.destroyed).toBe(true);
     });
 
+    it('rejects with the configured limit message as a ParameterError', async () => {
+        const reader = readerWithBudget(1);
+        const error = await reader
+            .read(Readable.from([Buffer.from('ab')]))
+            .catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(ParameterError);
+        expect((error as Error).message).toBe(LIMIT_MESSAGE);
+    });
+
     it('counts UTF-8 bytes rather than characters', async () => {
-        const reader = new PythonInputReader(1);
+        const reader = readerWithBudget(1);
         await expect(reader.read(Readable.from(['é']))).rejects.toThrow(
             'combined size limit',
         );
     });
 
     it('shares the budget across concurrent references', async () => {
-        const reader = new PythonInputReader(4);
+        const reader = readerWithBudget(4);
         const streams = Array.from({ length: 5 }, () =>
             Readable.from([Buffer.from('a')]),
         );
@@ -41,7 +55,7 @@ describe('PythonInputReader', () => {
     });
 
     it('accepts concurrent references at the combined boundary and retains their budget', async () => {
-        const reader = new PythonInputReader(4);
+        const reader = readerWithBudget(4);
         await expect(
             Promise.all([
                 reader.read(Readable.from([Buffer.from('ab')])),
@@ -54,7 +68,7 @@ describe('PythonInputReader', () => {
     });
 
     it('cancels a stalled sibling and references that finish opening after overflow', async () => {
-        const reader = new PythonInputReader(1);
+        const reader = readerWithBudget(1);
         const stalled = new PassThrough();
         const settled = Promise.allSettled([
             reader.read(stalled),
@@ -70,7 +84,7 @@ describe('PythonInputReader', () => {
     });
 
     it('cancels sibling downloads when another input fails', async () => {
-        const reader = new PythonInputReader(4);
+        const reader = readerWithBudget(4);
         const stalled = new PassThrough();
         const result = reader.read(stalled);
         const failed = new PassThrough();
