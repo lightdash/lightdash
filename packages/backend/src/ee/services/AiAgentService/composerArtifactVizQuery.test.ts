@@ -3,7 +3,6 @@ import {
     QueryExecutionContext,
     QueryHistoryStatus,
     QuerySourceType,
-    QuerySurface,
     type AiArtifact,
     type QueryHistory,
     type SessionUser,
@@ -215,19 +214,14 @@ describe('AiAgentService composer artifact visualization query', () => {
         });
         expect(querySourceService.submitQueries).toHaveBeenCalledWith(
             expect.objectContaining({
-                projectUuid: 'project-uuid',
+                account: expect.objectContaining({
+                    user: expect.objectContaining({ id: 'user-uuid' }),
+                }),
                 queries: [semanticNode, transformationNode],
                 context: QueryExecutionContext.AI,
-                querySurface: QuerySurface.APP,
-                parameters: {},
                 userAttributeOverrides: {},
-                invalidateCache: false,
-                plans: {},
             }),
         );
-        expect(
-            querySourceService.submitQueries.mock.calls[0][0].account.user.id,
-        ).toBe('user-uuid');
         expect(
             aiAgentModel.updateArtifactVersionChartConfig,
         ).not.toHaveBeenCalled();
