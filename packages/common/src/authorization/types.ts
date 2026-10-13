@@ -114,6 +114,7 @@ export type CaslSubjectNames =
     | 'Project'
     | 'ProjectHomepage'
     | 'Roadmap'
+    | 'OrganizationAdoption'
     | 'Learn'
     | 'SavedChart'
     | 'ScheduledDeliveries'

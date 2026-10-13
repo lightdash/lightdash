@@ -227,6 +227,8 @@ const BASE_ROLE_SCOPES = {
         'manage:OrganizationColorPalette',
         'view:Roadmap',
         'manage:Roadmap',
+        'view:OrganizationAdoption',
+        'manage:OrganizationAdoption',
         'impersonate:User',
 
         // System roles take token access from the deployment config; listing
@@ -421,6 +423,8 @@ export const getNonEnterpriseScopesForRole = (
         'manage:OrganizationDesign',
         'view:Roadmap',
         'manage:Roadmap',
+        'view:OrganizationAdoption',
+        'manage:OrganizationAdoption',
         'manage:PersonalAccessToken',
         'manage:PreAggregation',
     ]);

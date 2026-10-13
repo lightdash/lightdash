@@ -1,0 +1,127 @@
+import { type OrganizationMemberRole } from './organizationMemberProfile';
+
+export type DepartmentOwnerType = 'user' | 'group';
+export type DepartmentOwnerInput = { type: DepartmentOwnerType; uuid: string };
+export type DepartmentOwner = {
+    type: DepartmentOwnerType;
+    uuid: string;
+    name: string;
+};
+
+export type DepartmentLinkedGroup = { groupUuid: string; name: string };
+
+export type Department = {
+    departmentUuid: string;
+    parentDepartmentUuid: string | null;
+    name: string;
+    headcount: number | null;
+    headcountNote: string | null;
+    targetActiveUsers: number | null;
+    targetDate: string | null; // ISO date, YYYY-MM-DD
+    owners: DepartmentOwner[]; // ordered, first is the display owner
+    linkedGroups: DepartmentLinkedGroup[];
+    explicitMemberUuids: string[];
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type CreateDepartment = {
+    name: string;
+    parentDepartmentUuid: string | null;
+    headcount: number | null;
+    headcountNote: string | null;
+    targetActiveUsers: number | null;
+    targetDate: string | null;
+};
+
+// Omitted field = leave unchanged, null = clear
+export type UpdateDepartment = {
+    name?: string;
+    parentDepartmentUuid?: string | null;
+    headcount?: number | null;
+    headcountNote?: string | null;
+    targetActiveUsers?: number | null;
+    targetDate?: string | null;
+};
+
+export type SetDepartmentGroups = { groupUuids: string[] };
+export type SetDepartmentMembers = { userUuids: string[] };
+export type SetDepartmentOwners = { owners: DepartmentOwnerInput[] };
+
+export type RoleSplit = {
+    viewers: number;
+    interactiveViewers: number;
+    editors: number;
+    admins: number;
+};
+
+export type WeeklyActivePoint = { weekStart: string; activeUsers: number };
+
+export type AdoptionMetrics = {
+    memberCount: number;
+    activeCount30d: number;
+    activeCount12w: number; // any activity in the 12-week trend window
+    coveragePct: number | null;
+    activePct: number | null;
+    roleSplit: RoleSplit;
+    weeklyActive: WeeklyActivePoint[]; // 12 points, oldest first
+};
+
+export type DepartmentWithMetrics = Department & {
+    effectiveHeadcount: number | null; // own if set, else sum of children
+    headcountBelowChildren: boolean;
+    metrics: AdoptionMetrics; // rolled up: own members plus all descendants'
+    directMetrics: AdoptionMetrics; // members resolved to this department itself
+};
+
+export type OrganizationAdoptionSummary = {
+    organization: AdoptionMetrics;
+    departments: DepartmentWithMetrics[]; // flat, tree is in parentDepartmentUuid
+    attention: { conflictCount: number; unassignedCount: number };
+};
+
+export type MembershipResolution =
+    | {
+          kind: 'assigned';
+          departmentUuid: string;
+          source: 'explicit' | 'group';
+          sourceGroupName: string | null; // set when source is group
+      }
+    | { kind: 'conflict'; departmentUuids: string[] }
+    | { kind: 'unassigned' };
+
+export type DepartmentMembership = {
+    userUuid: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: OrganizationMemberRole;
+    resolution: MembershipResolution;
+};
+
+export type DepartmentGroupLink = {
+    departmentUuid: string;
+    groupUuid: string;
+    groupName: string;
+};
+
+// Raw row the model returns, one per org user
+export type ResolvedMemberRow = {
+    userUuid: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: OrganizationMemberRole;
+    explicitDepartmentUuid: string | null;
+    groupLinks: DepartmentGroupLink[];
+};
+
+export type ApiOrganizationAdoptionSummaryResponse = {
+    status: 'ok';
+    results: OrganizationAdoptionSummary;
+};
+export type ApiDepartmentResponse = { status: 'ok'; results: Department };
+export type ApiDepartmentMembershipResponse = {
+    status: 'ok';
+    results: DepartmentMembership[];
+};
