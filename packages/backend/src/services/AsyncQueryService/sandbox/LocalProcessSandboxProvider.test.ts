@@ -149,6 +149,56 @@ describe('LocalProcessSandboxProvider', () => {
         expect(existsSync(first.sandboxId)).toBe(false);
     });
 
+    it('runs commands without the host environment beyond PATH, HOME, TMPDIR and NODE_PATH', async () => {
+        const sandbox = await createSandbox();
+        process.env.LOCAL_SANDBOX_TEST_SECRET = 'host-secret';
+        try {
+            const { stdout } = await sandbox.commands.run('env', {
+                envs: { GIVEN: 'by-caller' },
+            });
+            const names = stdout
+                .split('\n')
+                .filter(Boolean)
+                .map((line) => line.slice(0, line.indexOf('=')))
+                .filter(
+                    (name) => !['PWD', 'SHLVL', '_', 'OLDPWD'].includes(name),
+                );
+
+            expect(stdout).not.toContain('host-secret');
+            expect(new Set(names)).toEqual(
+                new Set(
+                    ['PATH', 'HOME', 'TMPDIR', 'NODE_PATH', 'GIVEN'].filter(
+                        (name) => name !== 'TMPDIR' || process.env.TMPDIR,
+                    ),
+                ),
+            );
+        } finally {
+            delete process.env.LOCAL_SANDBOX_TEST_SECRET;
+        }
+    });
+
+    it.each(['/work/../escape.txt', '/work/in/../../escape.txt', '/workother'])(
+        'refuses %s, which is outside the work directory',
+        async (sandboxPath) => {
+            const sandbox = await createSandbox();
+            await expect(sandbox.files.write(sandboxPath, 'x')).rejects.toThrow(
+                /only exposes \/work/,
+            );
+            await expect(sandbox.files.read(sandboxPath)).rejects.toThrow(
+                /only exposes \/work/,
+            );
+            await expect(
+                sandbox.commands.run('true', { cwd: sandboxPath }),
+            ).rejects.toThrow(/only exposes \/work/);
+        },
+    );
+
+    it('allows a path that resolves back inside the work directory', async () => {
+        const sandbox = await createSandbox();
+        await sandbox.files.write('/work/in/../kept.txt', 'x');
+        await expect(sandbox.files.read('/work/kept.txt')).resolves.toBe('x');
+    });
+
     it('lets a script load the built DuckDB warehouse client through NODE_PATH', async () => {
         const sandbox = await createSandbox();
         await sandbox.files.write(

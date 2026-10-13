@@ -36,16 +36,35 @@ const BACKEND_NODE_MODULES = path.resolve(
 const WORK_DIR_IN_COMMAND = /(^|[^\w./-])\/work(?=$|[/\s'";:)&|<>])/g;
 
 const toHostPath = (workDir: string, sandboxPath: string): string => {
+    const outside = () =>
+        new Error(
+            `Local process sandbox only exposes ${SANDBOX_WORK_DIR}, got ${sandboxPath}`,
+        );
     if (
         sandboxPath !== SANDBOX_WORK_DIR &&
         !sandboxPath.startsWith(`${SANDBOX_WORK_DIR}/`)
     ) {
-        throw new Error(
-            `Local process sandbox only exposes ${SANDBOX_WORK_DIR}, got ${sandboxPath}`,
-        );
+        throw outside();
     }
-    return path.join(workDir, sandboxPath.slice(SANDBOX_WORK_DIR.length));
+    const hostPath = path.resolve(
+        workDir,
+        `.${sandboxPath.slice(SANDBOX_WORK_DIR.length)}`,
+    );
+    const relative = path.relative(workDir, hostPath);
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+        throw outside();
+    }
+    return hostPath;
 };
+
+/** Only what a runner needs from the host; nothing else leaks into the child. */
+const childEnv = (envs: Record<string, string> | undefined) => ({
+    PATH: process.env.PATH ?? '/usr/bin:/bin',
+    HOME: process.env.HOME ?? tmpdir(),
+    ...(process.env.TMPDIR ? { TMPDIR: process.env.TMPDIR } : {}),
+    ...envs,
+    NODE_PATH: BACKEND_NODE_MODULES,
+});
 
 const isMissingFile = (error: unknown): boolean =>
     error instanceof Error && 'code' in error && error.code === 'ENOENT';
@@ -61,11 +80,7 @@ const runCommand = (
             ['-c', command.replace(WORK_DIR_IN_COMMAND, `$1${workDir}`)],
             {
                 cwd: options.cwd ? toHostPath(workDir, options.cwd) : workDir,
-                env: {
-                    ...process.env,
-                    ...options.envs,
-                    NODE_PATH: BACKEND_NODE_MODULES,
-                },
+                env: childEnv(options.envs),
                 // Own process group so a timeout kills the whole command tree.
                 detached: true,
                 stdio: ['ignore', 'pipe', 'pipe'],
@@ -198,7 +213,8 @@ const createHandle = (workDir: string): SandboxHandle => {
  * Test double for {@link SandboxProvider}: each sandbox is a host temp
  * directory standing in for `/work` (rewritten in commands and in text files
  * written through `files.write`), and commands run as local processes with
- * `NODE_PATH` pointing at the backend's node_modules. No isolation; tests only.
+ * `NODE_PATH` pointing at the backend's node_modules and only PATH, HOME and
+ * TMPDIR from the host environment. No isolation; tests only.
  * The sandbox id is the temp directory's absolute path.
  */
 export class LocalProcessSandboxProvider implements SandboxProvider {
