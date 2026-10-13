@@ -6,6 +6,7 @@ import {
     agentConnectionApiUrl,
     createAgentConnectionFetch,
 } from '../agentConnections/apiUrl';
+import { matchesApprovedProjectProof } from '../agentConnections/approvedProjectProof';
 import {
     connectionConnectInputs,
     type ConnectionConnectOptions,
@@ -364,31 +365,14 @@ export const agentConnectionConnectHandler = async (
             )
         )
             throw new ConnectionProofError();
-        if (input.projects !== null) {
-            const requestedProjects = input.projects;
-            const projectMatches = await Promise.all(
-                verified.lastReported.approvedProjects.map(async (project) => {
-                    if (requestedProjects.includes(project.projectUuid))
-                        return project.projectUuid;
-                    const details = await proofResults(
-                        await fetch(`/api/v1/projects/${project.projectUuid}`, {
-                            headers,
-                            signal,
-                            redirect: 'error',
-                        }),
-                    );
-                    if (
-                        details.projectUuid !== project.projectUuid ||
-                        typeof details.slug !== 'string' ||
-                        !requestedProjects.includes(details.slug)
-                    )
-                        throw new ConnectionProofError();
-                    return details.slug;
-                }),
-            );
-            if (new Set(projectMatches).size !== projectMatches.length)
-                throw new ConnectionProofError();
-        }
+        if (
+            !matchesApprovedProjectProof(
+                verified.lastReported.approvedProjects,
+                exchanged.approvedProjectProof,
+                input.projects,
+            )
+        )
+            throw new ConnectionProofError();
         const subject = personIdentity(
             await proofResults(
                 await fetch('/api/v1/user', {

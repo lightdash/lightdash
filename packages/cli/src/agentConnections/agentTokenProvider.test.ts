@@ -36,6 +36,7 @@ beforeEach(async () => {
                 refresh_token: 'new-refresh',
                 token_type: 'Bearer',
                 expires_in: 3600,
+                refresh_expires_in: 3600,
                 scope: 'read write',
             });
         if (url.endsWith('/user'))
@@ -90,7 +91,7 @@ it('two providers refresh once and use the committed generation', async () => {
     expect(saved?.tokens).toMatchObject({
         generation: 2,
         refreshToken: 'new-refresh',
-        refreshTokenExpiresAt: null,
+        refreshTokenExpiresAt: expect.any(String),
     });
     expect(await fs.readdir(directory)).toEqual(['agent-connections.yaml']);
 });
@@ -136,6 +137,7 @@ it.each(['lost', 'malformed', 'scope', 'identity', 'save'])(
                         refresh_token: 'new-refresh',
                         token_type: 'Bearer',
                         expires_in: 3600,
+                        refresh_expires_in: 3600,
                         scope: 'read write admin',
                     });
                 if (failure === 'save')
@@ -226,6 +228,7 @@ it('clips a short token lifetime and uses a conservative response clock', async 
                       refresh_token: 'new-refresh',
                       token_type: 'Bearer',
                       expires_in: 10,
+                      refresh_expires_in: 3600,
                       scope: 'write read',
                   }),
                   headers: {

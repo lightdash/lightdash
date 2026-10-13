@@ -90,7 +90,8 @@ const uuid = { type: 'string', format: 'uuid' };
 const date = {
     type: 'string',
     format: 'date-time',
-    pattern: '^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$',
+    // No leap second: Date.parse cannot read ":60".
+    pattern: '^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:[0-5]\\d\\.\\d{3}Z$',
 };
 const nullable = (schema: object) => ({ anyOf: [schema, { type: 'null' }] });
 const object = (properties: Record<string, object>) => ({
