@@ -34591,6 +34591,139 @@
                                                 "allOf": [
                                                     {
                                                         "properties": {
+                                                            "artifactVersionUuid": {
+                                                                "type": "string"
+                                                            },
+                                                            "queryUuid": {
+                                                                "type": "string"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success",
+                                                                    "rejected",
+                                                                    "timeout"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "success"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "artifactVersionUuid": {
+                                                                "type": "string"
+                                                            },
+                                                            "queryUuid": {
+                                                                "type": "string"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success",
+                                                                    "rejected",
+                                                                    "timeout"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "refusal": {
+                                                                "properties": {
+                                                                    "projectUuid": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "policyVersion": {
+                                                                        "type": "number",
+                                                                        "format": "double"
+                                                                    },
+                                                                    "operation": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "policyLayer": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "capability": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "connectUrl": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "settingsUrl": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "action": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "message": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "reason": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "code": {
+                                                                        "type": "string",
+                                                                        "enum": [
+                                                                            "ai_access_refused"
+                                                                        ],
+                                                                        "nullable": false
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "connectUrl",
+                                                                    "settingsUrl",
+                                                                    "action",
+                                                                    "message",
+                                                                    "reason",
+                                                                    "code"
+                                                                ],
+                                                                "type": "object"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "rejected",
+                                                                    "timeout"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
                                                             "ranking": {
                                                                 "properties": {
                                                                     "fields": {
@@ -72729,7 +72862,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.577.2",
+        "version": "2.578.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

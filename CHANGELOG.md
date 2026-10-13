@@ -1,3 +1,10 @@
+# [2.578.0](https://github.com/lightdash/lightdash/compare/2.577.2...2.578.0) (2026-10-13)
+
+
+### Features
+
+* **ai:** Slack agents run composer queries and post the result as a table ([#30972](https://github.com/lightdash/lightdash/issues/30972)) ([0ff2c39](https://github.com/lightdash/lightdash/commit/0ff2c39c30cf011460f9cfd457cc1c56a784308e))
+
 ## [2.577.2](https://github.com/lightdash/lightdash/compare/2.577.1...2.577.2) (2026-10-13)
 
 
