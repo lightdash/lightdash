@@ -170,6 +170,8 @@ export const getSystemPromptV2 = (args: {
     // When composer queries are on, the standalone runSql tool is withheld
     // and raw SQL runs as `sql` nodes inside runComposerQueries instead.
     enableComposerQueries?: boolean;
+    // Python nodes in runComposerQueries; only meaningful with composer on.
+    enableComposerPythonNodes?: boolean;
     enableMergeQueries?: boolean;
     warehouseType?: WarehouseTypes | null;
     warehouseSchema?: string | null;
@@ -199,6 +201,7 @@ export const getSystemPromptV2 = (args: {
         slackLinksOnly = false,
         canRunSql = false,
         enableComposerQueries = false,
+        enableComposerPythonNodes = false,
         enableMergeQueries = false,
         unauthenticatedMcpServerNames = [],
         deferredSections = new Set<DeferredPromptSection>(),
@@ -223,6 +226,17 @@ export const getSystemPromptV2 = (args: {
         crossExploreJoinRule =
             '  - You can not mix fields from different explores.';
     }
+
+    // Multi-step analysis is one pipeline, not a chain of separate queries.
+    const composerPipelineRule = enableComposerQueries
+        ? `\n  - An answer that takes several queries or a computation over their results (period-over-period change, ranking across explores, cohorts, running totals${
+              enableComposerPythonNodes ? ', forecasts, statistics' : ''
+          }) is one runComposerQueries pipeline: source nodes fetch, duckdb nodes join and reshape${
+              enableComposerPythonNodes
+                  ? ', python nodes run the algorithm'
+                  : ''
+          }, and the terminal node is the table the user sees. Build the pipeline instead of running the queries one by one and combining them in prose.`
+        : '';
 
     const customSqlLimitation = canRunSql
         ? ''
@@ -408,7 +422,10 @@ export const getSystemPromptV2 = (args: {
             '{{memories_section}}',
             enableAiAgentMemory ? MEMORIES_SECTION : '',
         )
-        .replace('{{cross_explore_join_rule}}', crossExploreJoinRule)
+        .replace(
+            '{{cross_explore_join_rule}}',
+            crossExploreJoinRule + composerPipelineRule,
+        )
         .replace('{{custom_sql_limitation}}', customSqlLimitation)
         .replace('{{agent_name}}', agentName)
         .replace(
