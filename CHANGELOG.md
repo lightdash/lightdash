@@ -1,3 +1,10 @@
+# [2.574.0](https://github.com/lightdash/lightdash/compare/2.573.4...2.574.0) (2026-10-13)
+
+
+### Features
+
+* **cli:** fixed errors on agent connection commands and no deliberate credential output ([#30950](https://github.com/lightdash/lightdash/issues/30950)) ([dc7d0d6](https://github.com/lightdash/lightdash/commit/dc7d0d6d688557e3785c9a32c764195f18bd9f59))
+
 ## [2.573.4](https://github.com/lightdash/lightdash/compare/2.573.3...2.573.4) (2026-10-13)
 
 
