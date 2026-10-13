@@ -448,8 +448,15 @@ describe('Explore', () => {
 
         // Get compiled SQL query from Explore
         cy.getMonacoEditorText().then((exploreSql) => {
-            // open SQL Runner and wait for route change
+            // SQL Runner opens in a new tab; follow it in this one
+            cy.window().then((win) => {
+                cy.stub(win, 'open').as('openSqlRunner');
+            });
             cy.findByText('Open in SQL Runner').parent().click();
+            cy.get('@openSqlRunner').should('have.been.calledOnce');
+            cy.get('@openSqlRunner')
+                .its('args.0.0')
+                .then((url) => cy.visit(String(url)));
             cy.url().should('include', '/sql-runner');
             // Get compiled SQL query from SQL runner
             cy.getMonacoEditorText().then((runnerSql) => {
