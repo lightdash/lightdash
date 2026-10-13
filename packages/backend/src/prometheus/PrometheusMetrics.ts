@@ -1503,7 +1503,7 @@ export default class PrometheusMetrics {
 
     public observeS3ResultsUploadDuration(
         durationMs: number,
-        source: 'warehouse' | 'pre_aggregate_duckdb',
+        source: 'warehouse' | 'pre_aggregate_duckdb' | 'duckdb_sandbox',
     ) {
         this.s3ResultsUploadDurationHistogram?.observe(
             { source },
