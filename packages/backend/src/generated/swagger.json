@@ -36348,6 +36348,45 @@
                 ],
                 "type": "object"
             },
+            "QueryNodeId": {
+                "type": "string",
+                "description": "A name identifying one query within a multi-query submission. Other queries\nreference this query's results by this name, and by default the results are\nexposed to referencing DuckDB SQL as a table of the same name — so node ids\nshare the table-name grammar.",
+                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
+            },
+            "Record_QueryNodeId.string_": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ApiAiAgentComposerArtifactVizQuery": {
+                "properties": {
+                    "metadata": {
+                        "$ref": "#/components/schemas/AiVizMetadata"
+                    },
+                    "nodeQueryUuids": {
+                        "$ref": "#/components/schemas/Record_QueryNodeId.string_"
+                    },
+                    "terminalNodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": ["composer"],
+                        "nullable": false
+                    }
+                },
+                "required": [
+                    "metadata",
+                    "nodeQueryUuids",
+                    "terminalNodeId",
+                    "source"
+                ],
+                "type": "object",
+                "description": "One run of a composer artifact's pipeline: every node's result from that run."
+            },
             "ApiAiAgentArtifactVizQuery": {
                 "anyOf": [
                     {
@@ -36355,6 +36394,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/ApiAiAgentSqlArtifactVizQuery"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ApiAiAgentComposerArtifactVizQuery"
                     }
                 ]
             },
@@ -68778,11 +68820,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "QueryNodeId": {
-                "type": "string",
-                "description": "A name identifying one query within a multi-query submission. Other queries\nreference this query's results by this name, and by default the results are\nexposed to referencing DuckDB SQL as a table of the same name — so node ids\nshare the table-name grammar.",
-                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
-            },
             "SourceQuerySubmission": {
                 "properties": {
                     "queryUuid": {
@@ -72692,7 +72729,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.576.1",
+        "version": "2.577.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

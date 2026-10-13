@@ -1,3 +1,11 @@
+# [2.577.0](https://github.com/lightdash/lightdash/compare/2.576.1...2.577.0) (2026-10-13)
+
+
+### Features
+
+* **ai:** composer artifact is declarative, runs on open, and references nodes by node id ([#30958](https://github.com/lightdash/lightdash/issues/30958)) ([68febbd](https://github.com/lightdash/lightdash/commit/68febbd769738b24342606dc1f374aae6a5b21a1))
+* **ai:** system prompt sends multi-step analysis to one composer pipeline ([#30970](https://github.com/lightdash/lightdash/issues/30970)) ([12a5899](https://github.com/lightdash/lightdash/commit/12a589905de02c6b038a00107e794603a51b4115))
+
 ## [2.576.1](https://github.com/lightdash/lightdash/compare/2.576.0...2.576.1) (2026-10-13)
 
 

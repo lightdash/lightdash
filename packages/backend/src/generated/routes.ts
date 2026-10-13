@@ -41093,6 +41093,45 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    QueryNodeId: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'string',
+            validators: { pattern: { value: '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$' } },
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_QueryNodeId.string_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { dataType: 'string' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiAiAgentComposerArtifactVizQuery: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                metadata: { ref: 'AiVizMetadata', required: true },
+                nodeQueryUuids: {
+                    ref: 'Record_QueryNodeId.string_',
+                    required: true,
+                },
+                terminalNodeId: { ref: 'QueryNodeId', required: true },
+                source: {
+                    dataType: 'enum',
+                    enums: ['composer'],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiAiAgentArtifactVizQuery: {
         dataType: 'refAlias',
         type: {
@@ -41100,6 +41139,7 @@ const models: TsoaRoute.Models = {
             subSchemas: [
                 { ref: 'ApiAiAgentThreadMessageVizQuery' },
                 { ref: 'ApiAiAgentSqlArtifactVizQuery' },
+                { ref: 'ApiAiAgentComposerArtifactVizQuery' },
             ],
             validators: {},
         },
@@ -73869,14 +73909,6 @@ const models: TsoaRoute.Models = {
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    QueryNodeId: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'string',
-            validators: { pattern: { value: '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$' } },
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
