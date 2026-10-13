@@ -1,3 +1,10 @@
+## [2.577.2](https://github.com/lightdash/lightdash/compare/2.577.1...2.577.2) (2026-10-13)
+
+
+### Bug Fixes
+
+* **ai-agents:** offer custom-role users in the agent user access picker ([#30977](https://github.com/lightdash/lightdash/issues/30977)) ([45f155c](https://github.com/lightdash/lightdash/commit/45f155cc697369f4b032e50a1b933108183336e6)), closes [#30975](https://github.com/lightdash/lightdash/issues/30975)
+
 ## [2.577.1](https://github.com/lightdash/lightdash/compare/2.577.0...2.577.1) (2026-10-13)
 
 
