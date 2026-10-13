@@ -1,3 +1,12 @@
+# [2.575.0](https://github.com/lightdash/lightdash/compare/2.574.0...2.575.0) (2026-10-13)
+
+
+### Features
+
+* **ai:** python nodes in composer pipelines ([#30941](https://github.com/lightdash/lightdash/issues/30941)) ([69adbc5](https://github.com/lightdash/lightdash/commit/69adbc525b26c83c325162c2a199eba699569283))
+* **query:** add python query endpoint over referenced results ([#30936](https://github.com/lightdash/lightdash/issues/30936)) ([5e8fdbb](https://github.com/lightdash/lightdash/commit/5e8fdbbfc268ffdee5bed5e97c06cd5a961499cb))
+* **sandboxes:** add python-runner sandbox image and config ([#30935](https://github.com/lightdash/lightdash/issues/30935)) ([0414b7b](https://github.com/lightdash/lightdash/commit/0414b7bb817dc260de07c80e623a3f5ffe459f47))
+
 # [2.574.0](https://github.com/lightdash/lightdash/compare/2.573.4...2.574.0) (2026-10-13)
 
 

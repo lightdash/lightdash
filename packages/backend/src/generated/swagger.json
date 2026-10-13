@@ -26622,6 +26622,7 @@
                     "metricsExplorer",
                     "preAggregateMaterialization",
                     "composeSqlRunner",
+                    "pythonRunner",
                     "multiSourceQuery",
                     "dataAppSample",
                     "desktop"
@@ -27128,6 +27129,33 @@
                     }
                 ]
             },
+            "ExecuteAsyncPythonQueryRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "references": {
+                                "$ref": "#/components/schemas/Record_string.UUID_",
+                                "description": "Results of other async queries exposed to the code as DataFrames, keyed\nby input name: {\"orders\": \"<queryUuid>\"} is read as inputs[\"orders\"].\nTyped Record<string, UUID> for the same TSOA reason as compose SQL."
+                            },
+                            "limit": {
+                                "type": "number",
+                                "format": "double",
+                                "description": "Maximum rows kept from the returned DataFrame; the rest are dropped and the result marked truncated."
+                            },
+                            "code": {
+                                "type": "string",
+                                "description": "Python source defining `run(inputs: dict[str, pandas.DataFrame], params: dict) -> pandas.DataFrame`.\nEach key of `references` is exposed in `inputs` as a DataFrame."
+                            }
+                        },
+                        "required": ["references", "code"],
+                        "type": "object"
+                    }
+                ],
+                "description": "Python `run(inputs, params)` over other async queries' results, executed in a sandbox."
+            },
             "ExecuteAsyncSavedChartRequestParams": {
                 "allOf": [
                     {
@@ -27399,6 +27427,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/ExecuteAsyncComposeSqlQueryRequestParams"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExecuteAsyncPythonQueryRequestParams"
                             },
                             {
                                 "$ref": "#/components/schemas/ExecuteAsyncSavedChartRequestParams"
@@ -68618,7 +68649,13 @@
             },
             "QuerySourceType": {
                 "description": "Discriminator for every query source a project can execute queries against.\nA query source is anything that can scan a schema and run a query returning\nthe standard table format (ResultColumns + rows behind a queryUuid): the\nproject warehouse, the semantic layer, the DuckDB compose engine, and —\nlater — CSV uploads, HTTP APIs, Google Sheets, etc.\n\nDeliberately NOT WarehouseTypes: sources are not warehouses, they plug in\nabove the warehouse client layer.",
-                "enum": ["semanticLayer", "sql", "duckdb", "external"],
+                "enum": [
+                    "semanticLayer",
+                    "sql",
+                    "duckdb",
+                    "external",
+                    "python"
+                ],
                 "type": "string"
             },
             "QuerySourceDefinition": {
@@ -69059,6 +69096,58 @@
                 "type": "object",
                 "description": "DuckDB SQL over named durable external tables."
             },
+            "QuerySourceType.PYTHON": {
+                "enum": ["python"],
+                "type": "string"
+            },
+            "PythonSourceQuery": {
+                "properties": {
+                    "pivotConfiguration": {
+                        "$ref": "#/components/schemas/PivotConfiguration",
+                        "description": "Python queries refuse a pivot; pivot in a referencing duckdb query."
+                    },
+                    "references": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/QueryNodeId"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Record_QuerySourceTableName.QueryResultReference_"
+                            }
+                        ],
+                        "description": "Which query results the code reads, in the same two forms as duckdb\nreferences. Shorthand array: node ids of queries in the same\nsubmission, each exposed as inputs[nodeId]. Map form for aliasing or\nexisting results: {inputName: nodeIdOrQueryUuid}. At least one is\nrequired."
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Maximum rows kept from the returned DataFrame."
+                    },
+                    "code": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "One-line note on what this query does, shown under the title."
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
+                    },
+                    "nodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId",
+                        "description": "Names this query so other queries in the same submission can reference its results."
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType.PYTHON"
+                    }
+                },
+                "required": ["references", "code", "sourceType"],
+                "type": "object",
+                "description": "A python query as a source query: code defining\n`run(inputs: dict[str, pandas.DataFrame], params: dict) -> pandas.DataFrame`.\nReferences expose other queries' results as DataFrames in `inputs`, keyed\nlike DuckDB references expose tables. Referenced queries still running are\nwaited on; the query fails if any referenced query fails."
+            },
             "SourceQuery": {
                 "anyOf": [
                     {
@@ -69072,6 +69161,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/ExternalSourceQuery"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PythonSourceQuery"
                     }
                 ],
                 "description": "The tagged union every submit endpoint takes: one shape per source,\ndiscriminated by sourceType. New sources add a member here — this union is\nthe extension point, not new WarehouseTypes values."
@@ -72600,7 +72692,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.574.0",
+        "version": "2.575.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -80980,6 +81072,57 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ExecuteAsyncComposeSqlQueryRequestParams"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/python": {
+            "post": {
+                "operationId": "executeAsyncPythonQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncSqlQueryResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Executes python `run(inputs, params)` asynchronously in an isolated sandbox over other async queries' results. Requires run-queries access (interactive viewer and up) and the compose-sql-runner feature flag. The references map exposes other queries' results as pandas DataFrames in `inputs` ({\"orders\": \"queryUuid\"} is read as inputs[\"orders\"]); each referenced query is authorized with the same access checks as Get results and still-running references are waited on. The returned DataFrame is validated, capped at `limit` rows and stored as a regular result. The sandbox has no network access and no credentials. Returns a queryUuid to poll for results via Get results.",
+                "summary": "Execute python query",
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ExecuteAsyncPythonQueryRequestParams"
                             }
                         }
                     }

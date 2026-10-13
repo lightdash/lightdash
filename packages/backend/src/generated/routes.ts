@@ -24970,6 +24970,7 @@ const models: TsoaRoute.Models = {
             'metricsExplorer',
             'preAggregateMaterialization',
             'composeSqlRunner',
+            'pythonRunner',
             'multiSourceQuery',
             'dataAppSample',
             'desktop',
@@ -25474,6 +25475,28 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExecuteAsyncPythonQueryRequestParams: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'CommonExecuteQueryRequestParams' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        references: {
+                            ref: 'Record_string.UUID_',
+                            required: true,
+                        },
+                        limit: { dataType: 'double' },
+                        code: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExecuteAsyncSavedChartRequestParams: {
         dataType: 'refAlias',
         type: {
@@ -25699,6 +25722,7 @@ const models: TsoaRoute.Models = {
                         { ref: 'ExecuteAsyncComposeMergeQueryRequestParams' },
                         { ref: 'ExecuteAsyncSqlQueryRequestParams' },
                         { ref: 'ExecuteAsyncComposeSqlQueryRequestParams' },
+                        { ref: 'ExecuteAsyncPythonQueryRequestParams' },
                         { ref: 'ExecuteAsyncSavedChartRequestParams' },
                         { ref: 'ExecuteAsyncDashboardChartRequestParams' },
                         { ref: 'ExecuteAsyncUnderlyingDataRequestParams' },
@@ -73700,7 +73724,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     QuerySourceType: {
         dataType: 'refEnum',
-        enums: ['semanticLayer', 'sql', 'duckdb', 'external'],
+        enums: ['semanticLayer', 'sql', 'duckdb', 'external', 'python'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     QuerySourceDefinition: {
@@ -74088,6 +74112,41 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'QuerySourceType.PYTHON': {
+        dataType: 'refEnum',
+        enums: ['python'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PythonSourceQuery: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                pivotConfiguration: { ref: 'PivotConfiguration' },
+                references: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'array',
+                            array: { dataType: 'refAlias', ref: 'QueryNodeId' },
+                        },
+                        {
+                            ref: 'Record_QuerySourceTableName.QueryResultReference_',
+                        },
+                    ],
+                    required: true,
+                },
+                limit: { dataType: 'double' },
+                code: { dataType: 'string', required: true },
+                description: { dataType: 'string' },
+                title: { dataType: 'string' },
+                nodeId: { ref: 'QueryNodeId' },
+                sourceType: { ref: 'QuerySourceType.PYTHON', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SourceQuery: {
         dataType: 'refAlias',
         type: {
@@ -74097,6 +74156,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'SqlSourceQuery' },
                 { ref: 'DuckdbSourceQuery' },
                 { ref: 'ExternalSourceQuery' },
+                { ref: 'PythonSourceQuery' },
             ],
             validators: {},
         },
@@ -96612,6 +96672,71 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'executeAsyncComposeSqlQuery',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsQueryController_executeAsyncPythonQuery: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ExecuteAsyncPythonQueryRequestParams',
+        },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v2/projects/:projectUuid/query/python',
+        ...fetchMiddlewares<RequestHandler>(QueryController),
+        ...fetchMiddlewares<RequestHandler>(
+            QueryController.prototype.executeAsyncPythonQuery,
+        ),
+
+        async function QueryController_executeAsyncPythonQuery(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsQueryController_executeAsyncPythonQuery,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<QueryController>(QueryController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'executeAsyncPythonQuery',
                     controller,
                     response,
                     next,
