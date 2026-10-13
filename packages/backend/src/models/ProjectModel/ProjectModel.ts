@@ -203,6 +203,7 @@ import {
 } from '../../logging/exploreCacheReadMetrics';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
+import { type StoredPreAggregateRefresh } from '../../services/ProjectService/preAggregateRefresh';
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
 import { AwsWebIdentityResolver } from '../../utils/awsWebIdentity/AwsWebIdentityResolver';
 import {
@@ -3107,6 +3108,43 @@ export class ProjectModel {
             },
             {},
         );
+    }
+
+    async getPreAggregateRefreshSummary(
+        projectUuid: string,
+        trx?: Knex.Transaction,
+    ): Promise<StoredPreAggregateRefresh> {
+        const result = await (trx ?? this.database).raw<{
+            rows: StoredPreAggregateRefresh[];
+        }>(
+            `WITH stored AS MATERIALIZED (
+                SELECT explore -> 'preAggregates' AS definitions,
+                       jsonb_typeof(explore) AS explore_type
+                FROM cached_explore
+                WHERE project_uuid = ?
+            )
+            SELECT EXISTS (
+                SELECT 1 FROM pre_aggregate_definitions
+                WHERE project_uuid = ? AND refresh_cron IS NOT NULL
+            ) AS "hasScheduledDefinition",
+            COALESCE(bool_or(
+                definition -> 'refresh' -> 'cron' IS NOT NULL
+                AND definition -> 'refresh' -> 'cron' <> 'null'::jsonb
+            ), false) AS "hasScheduledRefresh",
+            COALESCE(bool_or(
+                explore_type NOT IN ('object', 'array')
+                OR (definitions IS NOT NULL AND definitions <> 'null'::jsonb
+                    AND jsonb_typeof(definitions) <> 'array')
+                OR jsonb_typeof(definition) = 'null'
+            ), false) AS "hasMalformedPreAggregates"
+            FROM stored
+            LEFT JOIN LATERAL jsonb_array_elements(
+                CASE WHEN jsonb_typeof(definitions) = 'array'
+                     THEN definitions ELSE '[]'::jsonb END
+            ) AS elements(definition) ON true`,
+            [projectUuid, projectUuid],
+        );
+        return result.rows[0];
     }
 
     async getAllExploresFromCache(

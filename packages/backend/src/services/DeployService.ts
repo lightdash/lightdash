@@ -21,6 +21,10 @@ import { captureAgentConnectionTask } from '../utils/agentConnectionExecution';
 import { agentExecutionContext } from './AiAccessService/agentExecutionContext';
 import { BaseService } from './BaseService';
 import { NO_CLI_DEPLOY_SELECTION, type CliDeploySelection } from './cliDeploy';
+import {
+    assertPreAggregateRefresh,
+    EMPTY_PRE_AGGREGATE_REFRESH,
+} from './ProjectService/preAggregateRefresh';
 
 export type DeployExploreEnhancer = (
     explores: (Explore | ExploreError)[],
@@ -291,8 +295,8 @@ export class DeployService extends BaseService {
             );
             const data =
                 await this.deploySessionModel.getDeployData(sessionUuid);
-            await this.projectService.assertConnectionPreAggregateRefresh(
-                projectUuid,
+            assertPreAggregateRefresh(
+                EMPTY_PRE_AGGREGATE_REFRESH,
                 data.explores,
             );
         }

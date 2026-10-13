@@ -560,6 +560,10 @@ import {
     type ReconcilePlaygroundBundlesResult,
 } from './playgroundBundle';
 import {
+    assertPreAggregateRefresh,
+    EMPTY_PRE_AGGREGATE_REFRESH,
+} from './preAggregateRefresh';
+import {
     checkGoogleRefreshTokenCached,
     getBigquerySsoCredentials,
     getPreviewOwnsBigquerySsoCredentials,
@@ -784,6 +788,10 @@ type SaveCompiledExploresArgs = {
     complete?: boolean;
     dbtModelNames?: string[];
 };
+
+const connectionCheckedExploreStreams = new WeakSet<
+    AsyncIterable<Explore | ExploreError>
+>();
 
 type PreparedExploreStream = {
     exploreStream: AsyncIterable<Explore | ExploreError>;
@@ -3751,37 +3759,9 @@ export class ProjectService
         explores: (Explore | ExploreError)[] = [],
     ): Promise<void> {
         if (!agentExecutionContext.getStore()?.agentConnectionExecution) return;
-        const definitions =
-            await this.preAggregateModel.getPreAggregateDefinitionsForProject(
-                projectUuid,
-            );
-        const cachedExplores =
-            await this.projectModel.getAllExploresFromCache(projectUuid);
-        if (
-            definitions.some((definition) => definition.refreshCron !== null) ||
-            Object.values(cachedExplores).some(
-                (explore) =>
-                    'preAggregates' in explore &&
-                    explore.preAggregates?.some(
-                        (definition) => definition.refresh?.cron != null,
-                    ),
-            )
-        )
-            throw new ForbiddenError(
-                'This agent connection cannot deploy to, refresh or change parameters of this project, because the project has pre-aggregates with a scheduled refresh. A person can do this, or use a project without scheduled pre-aggregate refreshes.',
-            );
-        if (
-            explores.some(
-                (explore) =>
-                    'preAggregates' in explore &&
-                    explore.preAggregates?.some(
-                        (definition) => definition.refresh?.cron != null,
-                    ),
-            )
-        )
-            throw new ForbiddenError(
-                'This agent connection cannot add a pre-aggregate with a scheduled refresh. A person can add it.',
-            );
+        const stored =
+            await this.projectModel.getPreAggregateRefreshSummary(projectUuid);
+        assertPreAggregateRefresh(stored, explores);
     }
 
     private async prepareConnectionExploreStream(
@@ -3789,12 +3769,15 @@ export class ProjectService
         stream: AsyncIterable<Explore | ExploreError>,
     ): Promise<AsyncIterable<Explore | ExploreError>> {
         await this.assertConnectionPreAggregateRefresh(projectUuid);
+        if (connectionCheckedExploreStreams.has(stream)) return stream;
         const explores: (Explore | ExploreError)[] = [];
         for await (const explore of stream) explores.push(explore);
-        await this.assertConnectionPreAggregateRefresh(projectUuid, explores);
-        return (async function* checkedExplores() {
+        assertPreAggregateRefresh(EMPTY_PRE_AGGREGATE_REFRESH, explores);
+        const checked = (async function* checkedExplores() {
             yield* explores;
         })();
+        connectionCheckedExploreStreams.add(checked);
+        return checked;
     }
 
     private async syncPreAggregateDefinitionsRegistry(
@@ -3973,6 +3956,8 @@ export class ProjectService
                 );
 
                 if (
+                    !agentExecutionContext.getStore()
+                        ?.agentConnectionExecution &&
                     !agentExecutionContext.getStore()?.claim?.act
                         .agent_connection_grant
                 ) {
@@ -4010,17 +3995,32 @@ export class ProjectService
         }
     }
 
-    async saveExploresToCacheAndIndexCatalog(
+    saveExploresToCacheAndIndexCatalog(
         args: SaveCompiledExploresArgs & {
             explores: (Explore | ExploreError)[];
         },
+    ) {
+        return this.saveExploresToCacheAndIndexCatalogWithRefreshCheck(
+            args,
+            true,
+        );
+    }
+
+    private async saveExploresToCacheAndIndexCatalogWithRefreshCheck(
+        args: SaveCompiledExploresArgs & {
+            explores: (Explore | ExploreError)[];
+        },
+        checkRefresh: boolean,
     ) {
         const { explores, ...metadata } = args;
         const hasDbtSources =
             args.dbtModelNames !== undefined &&
             (await this.projectDbtSourcesModel.hasSources(args.projectUuid));
         const dbtModelNames = hasDbtSources ? undefined : args.dbtModelNames;
-        if (agentExecutionContext.getStore()?.agentConnectionExecution)
+        if (
+            checkRefresh &&
+            agentExecutionContext.getStore()?.agentConnectionExecution
+        )
             await this.assertConnectionPreAggregateRefresh(
                 args.projectUuid,
                 explores,
@@ -4144,7 +4144,10 @@ export class ProjectService
                 kind: 'original',
             })) !== 'multi'
         ) {
-            return this.saveExploresToCacheAndIndexCatalog(deploy);
+            return this.saveExploresToCacheAndIndexCatalogWithRefreshCheck(
+                deploy,
+                false,
+            );
         }
         if (args.complete !== true) {
             throw new ParameterError(
