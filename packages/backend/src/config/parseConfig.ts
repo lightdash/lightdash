@@ -2197,6 +2197,15 @@ export type AppRuntimeConfig = {
      * `lightdash-ai-writeback:local`).
      */
     sandboxAiWritebackDockerImage: string;
+    /**
+     * OCI image the `docker` sandbox provider launches python query runners
+     * from. Built locally from sandboxes/python-runner (e.g.
+     * `lightdash-python-runner:local`).
+     */
+    sandboxPythonDockerImage: string;
+    /** E2B template name+tag for the python query runner sandbox. */
+    e2bPythonTemplateName: string;
+    e2bPythonTemplateTag: string;
     /** OCI image used by managed project onboarding with the Docker provider. */
     sandboxAgentOnboardingDockerImage: string;
     /**
@@ -2769,6 +2778,13 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         sandboxAiWritebackDockerImage:
             process.env.SANDBOX_AI_WRITEBACK_DOCKER_IMAGE ||
             'lightdash-ai-writeback:local',
+        sandboxPythonDockerImage:
+            process.env.SANDBOX_PYTHON_DOCKER_IMAGE ||
+            'lightdash-python-runner:local',
+        e2bPythonTemplateName:
+            process.env.E2B_PYTHON_TEMPLATE_NAME || 'lightdash-python-runner',
+        e2bPythonTemplateTag:
+            process.env.E2B_PYTHON_TEMPLATE_TAG ?? (VERSION as string),
         sandboxAgentOnboardingDockerImage:
             process.env.SANDBOX_AGENT_ONBOARDING_DOCKER_IMAGE ||
             'lightdash-agent-onboarding:local',
