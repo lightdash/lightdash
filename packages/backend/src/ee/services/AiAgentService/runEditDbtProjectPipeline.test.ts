@@ -87,7 +87,6 @@ const buildService = (overrides: {
     run?: ReturnType<typeof vi.fn>;
     getRunStatus?: ReturnType<typeof vi.fn>;
     reviewRemediation?: unknown;
-    previewDeploySetupEnabled?: boolean;
     ciStatus?: { hasPreviewDeployWorkflow: boolean } | null;
     previewUrl?: string | null;
 }) => {
@@ -179,9 +178,7 @@ const buildService = (overrides: {
     };
     const slackClient = { addReaction, postMessage };
     const featureFlagService = {
-        get: vi.fn().mockResolvedValue({
-            enabled: overrides.previewDeploySetupEnabled ?? false,
-        }),
+        get: vi.fn().mockResolvedValue({ enabled: false }),
     };
     const previewDeploySetupService = {
         getOrScanProjectCiStatus: vi
@@ -240,7 +237,7 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
             expect(
                 h.userModel.findSessionUserAndOrgByUuid,
             ).toHaveBeenCalledTimes(1);
-            expect(h.featureFlagService.get).toHaveBeenCalledTimes(1);
+            expect(h.featureFlagService.get).not.toHaveBeenCalled();
             expect(h.loadRequest).not.toHaveBeenCalled();
             expect(h.assertOperationWithRequest).not.toHaveBeenCalled();
             expect(h.aiWritebackService.run).toHaveBeenCalledTimes(1);
@@ -421,7 +418,6 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
             createPreviewForPullRequest,
             previewDeploySetupService,
         } = buildService({
-            previewDeploySetupEnabled: true,
             ciStatus: { hasPreviewDeployWorkflow: false },
             run: vi.fn().mockResolvedValue({
                 ...WRITEBACK_RESULT,

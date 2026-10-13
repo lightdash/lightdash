@@ -8,7 +8,6 @@ import type {
     ApiAiProjectMcpServerListResponse,
     ApiRenameAiMcpServerBody,
     ApiSuccessEmpty,
-    ApiConnectGithubMcpServerBody,
     ApiAiMcpServerToolListResponse,
     ApiCreateAiMcpServer,
     ApiError,
@@ -106,17 +105,6 @@ const getGithubMcpAvailability = async (
         url: `/projects/${projectUuid}/aiAgents/mcpServers/github/availability`,
         method: 'GET',
         body: undefined,
-    });
-
-const connectGithubMcpServer = async (
-    projectUuid: string,
-    body: ApiConnectGithubMcpServerBody,
-): Promise<ApiAiMcpServerResponse['results']> =>
-    lightdashApi<ApiAiMcpServerResponse['results']>({
-        version: 'v1',
-        url: `/projects/${projectUuid}/aiAgents/mcpServers/github/connect`,
-        method: 'POST',
-        body: JSON.stringify(body),
     });
 
 const connectGithubMcpServerApp = async (
@@ -517,37 +505,6 @@ export const useGithubMcpAvailability = (
         queryFn: () => getGithubMcpAvailability(projectUuid!),
         ...options,
         enabled: !isEmbed && !!projectUuid && options?.enabled !== false,
-    });
-};
-
-export const useConnectGithubMcpServerMutation = (projectUuid: string) => {
-    const queryClient = useQueryClient();
-    const { showToastApiError, showToastSuccess } = useToaster();
-
-    return useMutation<
-        ApiAiMcpServerResponse['results'],
-        ApiError,
-        ApiConnectGithubMcpServerBody
-    >({
-        mutationFn: (body) => connectGithubMcpServer(projectUuid, body),
-        onSuccess: async (result) => {
-            showToastSuccess({
-                title: 'GitHub connected',
-                subtitle: `${result.name} is ready to use with your agents.`,
-            });
-            await queryClient.invalidateQueries({
-                queryKey: [PROJECT_AI_MCP_SERVERS_KEY, projectUuid],
-            });
-            await queryClient.invalidateQueries({
-                queryKey: [GITHUB_MCP_AVAILABILITY_KEY, projectUuid],
-            });
-        },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: 'Failed to connect GitHub',
-                apiError: error,
-            });
-        },
     });
 };
 

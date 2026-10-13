@@ -8473,11 +8473,6 @@ export class ProjectService
         manifestFetchAdapters: ProjectAdapter[];
         trackingParams: TrackingParams;
     }): Promise<MultiConnectionCompilation> {
-        const { enabled: includeUnboundSources } =
-            await this.featureFlagModel.get({
-                featureFlagId: FeatureFlags.MultiDbtSources,
-                user: { userUuid, organizationUuid },
-            });
         const { manifest, selectedModelIds } =
             await primary.adapter.getDbtManifest();
         const compileContext = connectionContextFromUser(
@@ -8503,7 +8498,7 @@ export class ProjectService
             },
             context: compileContext,
             dbtVersion: resolveDbtVersion(primary.dbtVersionOption),
-            includeUnboundSources,
+            includeUnboundSources: true,
             fetchSourceManifest: async (
                 source,
                 warehouseCredentials,
@@ -8590,16 +8585,6 @@ export class ProjectService
         manifestFetchAdapters: ProjectAdapter[];
         onDbtSourceCount?: (dbtSourceCount: number) => void;
     }): Promise<ResolvedCompileAdapter> {
-        const { enabled: multiDbtSourcesEnabled } =
-            await this.featureFlagModel.get({
-                featureFlagId: FeatureFlags.MultiDbtSources,
-                user: { userUuid, organizationUuid },
-            });
-        if (!multiDbtSourcesEnabled) {
-            await this.deleteMergedManifestBestEffort(projectUuid);
-            onDbtSourceCount?.(1);
-            return { adapter: primary.adapter };
-        }
         const sources =
             await this.projectDbtSourcesModel.getSources(projectUuid);
         if (sources.length === 0) {

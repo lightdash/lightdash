@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     SEED_PROJECT,
     type ApiChartSummaryListResponse,
 } from '@lightdash/common';
@@ -8,11 +7,6 @@ describe('Dashboard chart version history', () => {
     it('keeps the freshness notice inset while a long version list scrolls', () => {
         cy.login();
         cy.viewport(1280, 720);
-        cy.intercept(
-            'GET',
-            `/api/v2/feature-flag/${FeatureFlags.InDashboardChartEditor}`,
-            { status: 'ok', results: { enabled: true } },
-        );
         cy.intercept('GET', '/api/v1/saved/*/history', (request) => {
             request.continue((response) => {
                 const currentVersion = response.body.results.history[0];

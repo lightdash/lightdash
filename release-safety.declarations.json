@@ -104,6 +104,24 @@
                     "mcp": []
                 }
             }
+        },
+        "graduated-rollout-flags-removed-2026-10": {
+            "reason": "The ChangeChartExplore, InDashboardChartEditor, MultiDbtSources, AiPreviewDeploySetup, AiMcpGithubPat and AiDeepResearch members are removed from the exported FeatureFlags enum, and the legacy CHANGE_CHART_EXPLORE_ENABLED environment variable is no longer read. TypeScript consumers referencing these rollout flags must remove them when upgrading. Changing a chart's explore, the in-dashboard chart editor, merged multi-source dbt compiles and the preview-deploy setup offer during AI writeback are now available without a flag; self-hosters who set the environment variable can drop it.",
+            "requiredStop": false
+        },
+        "github-mcp-pat-connect-endpoint-removed": {
+            "reason": "POST /api/v1/projects/{projectUuid}/aiAgents/mcpServers/github/connect is removed together with the ApiConnectGithubMcpServerBody type and the pat member of AiMcpGithubConnectMode: GitHub MCP servers connect through the Lightdash GitHub App only. The endpoint was a stopgap behind the default-off ai-mcp-github-pat flag and returned a 403 unless an operator enabled it. Only the Lightdash agent settings page called it; an old browser tab that still offers a personal access token gets a 404 until refresh, which matches the 403 it got before.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "firstPartyOnly": "The AI agent settings page and new-thread connection strip are the only clients of this operation; an old tab shows a connection error until refresh.",
+                "covers": {
+                    "rest": [
+                        "POST /api/v1/projects/{projectUuid}/aiAgents/mcpServers/github/connect"
+                    ],
+                    "mcp": []
+                }
+            }
         }
     }
 }

@@ -5789,9 +5789,6 @@ export class AiAgentService extends BaseService {
                     : server,
             );
         }
-        if (await this.isGithubMcpPatEnabled(user)) {
-            return servers;
-        }
         return servers.map((server) =>
             isGithubMcpBearerServer(server)
                 ? {
@@ -6315,7 +6312,7 @@ export class AiAgentService extends BaseService {
                 break;
             case 'bearer':
                 if (isGithubMcpServerUrl(normalizedUrl)) {
-                    await this.assertGithubMcpPatAllowed(user);
+                    throw new ForbiddenError(GITHUB_MCP_PAT_DISABLED_ERROR);
                 }
                 if (!body.credentials?.bearerToken?.trim()) {
                     throw new ParameterError(
@@ -6474,7 +6471,7 @@ export class AiAgentService extends BaseService {
             );
         }
         if (isGithubMcpServerUrl(server.url)) {
-            await this.assertGithubMcpPatAllowed(user);
+            throw new ForbiddenError(GITHUB_MCP_PAT_DISABLED_ERROR);
         }
 
         const bearerToken = body.bearerToken.trim();
@@ -6540,20 +6537,6 @@ export class AiAgentService extends BaseService {
             throw new NotFoundError('MCP server not found');
         }
         return updated;
-    }
-
-    private async isGithubMcpPatEnabled(user: SessionUser): Promise<boolean> {
-        const { enabled } = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.AiMcpGithubPat,
-        });
-        return enabled;
-    }
-
-    private async assertGithubMcpPatAllowed(user: SessionUser): Promise<void> {
-        if (!(await this.isGithubMcpPatEnabled(user))) {
-            throw new ForbiddenError(GITHUB_MCP_PAT_DISABLED_ERROR);
-        }
     }
 
     private async findGithubMcpServer(projectUuid: string, userUuid: string) {
@@ -6667,7 +6650,6 @@ export class AiAgentService extends BaseService {
                 organizationUuid,
             );
         const hasGithubAppInstallation = !!installationId;
-        const patEnabled = await this.isGithubMcpPatEnabled(user);
 
         const githubServer = await this.findGithubMcpServer(
             projectUuid,
@@ -6682,25 +6664,13 @@ export class AiAgentService extends BaseService {
         ) {
             availableModes.push('github_app');
         }
-        // Non-managers can still connect their own token to an existing server
-        if (patEnabled && (canManageMcpServers || !!githubServer)) {
-            availableModes.push('pat');
-        }
-
         if (availableModes.length === 0 && !canManageMcpServers) {
             return unavailable;
         }
 
         // With an App installation a fresh token is minted per run, so the
         // server is connected regardless of any stored credential.
-        const alreadyConnected =
-            !!githubServer &&
-            (hasGithubAppInstallation ||
-                (patEnabled &&
-                    !!(await this.aiAgentModel.resolveCredential(
-                        githubServer.uuid,
-                        user.userUuid,
-                    ))));
+        const alreadyConnected = !!githubServer && hasGithubAppInstallation;
 
         return {
             available: availableModes.length > 0,
@@ -6708,85 +6678,6 @@ export class AiAgentService extends BaseService {
             alreadyConnected,
             hasGithubAppInstallation,
         };
-    }
-
-    public async connectGithubMcpServer(
-        user: SessionUser,
-        projectUuid: string,
-        personalAccessToken: string,
-        credentialScope: AiMcpCredentialScope,
-    ) {
-        await this.assertMcpServersNotInTraining(projectUuid);
-        const { organizationUuid } = user;
-        if (!organizationUuid) {
-            throw new ForbiddenError('Organization not found');
-        }
-
-        await this.assertGithubMcpPatAllowed(user);
-
-        const bearerToken = personalAccessToken.trim();
-        if (!bearerToken) {
-            throw new ParameterError(
-                'A GitHub personal access token is required',
-            );
-        }
-        if (!/^(github_pat_|gh[pousr]_)[A-Za-z0-9_]+$/.test(bearerToken)) {
-            throw new ParameterError(
-                'That doesn\'t look like a GitHub personal access token. Expected a fine-grained token starting with "github_pat_".',
-            );
-        }
-
-        const githubServer = await this.findGithubMcpServer(
-            projectUuid,
-            user.userUuid,
-        );
-
-        if (githubServer) {
-            if (credentialScope === 'shared') {
-                await this.assertCanManageMcpServers(user, projectUuid);
-            } else {
-                await this.assertCanUsePersonalMcpCredentials(
-                    user,
-                    projectUuid,
-                );
-            }
-
-            await this.testGithubMcpConnection(
-                bearerToken,
-                "We couldn't connect to GitHub with that token. Check the token and its repository access, then try again.",
-            );
-
-            return this.reconnectGithubMcpServer({
-                user,
-                organizationUuid,
-                projectUuid,
-                server: githubServer,
-                bearerToken,
-                scope: credentialScope,
-                analyticsMethod: 'one_click_reconnect',
-            });
-        }
-
-        const server = await this.createMcpServer(user, projectUuid, {
-            name: GITHUB_MCP_SERVER_NAME,
-            url: GITHUB_MCP_SERVER_URL,
-            authType: 'bearer',
-            credentialScope,
-            credentials: { bearerToken },
-        });
-
-        this.analytics.track({
-            event: 'ai_agent.github_mcp_connected',
-            userId: user.userUuid,
-            properties: {
-                organizationId: organizationUuid,
-                projectId: projectUuid,
-                mcpServerId: server.uuid,
-                method: 'one_click',
-            },
-        });
-
-        return server;
     }
 
     // The stored installation token expires in ~1h; runtime mints a fresh one
@@ -6901,9 +6792,6 @@ export class AiAgentService extends BaseService {
                 organizationUuid,
             );
         if (!installationId) {
-            if (await this.isGithubMcpPatEnabled(user)) {
-                return servers;
-            }
             return servers.filter((server) => !isGithubMcpBearerServer(server));
         }
 
@@ -12495,12 +12383,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 result.prUrl?.startsWith('https://bitbucket.org/') === true;
             let previewDeployConfigured: boolean | null = null;
             try {
-                const { enabled: previewDeploySetupEnabled } =
-                    await this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.AiPreviewDeploySetup,
-                    });
-                if (previewDeploySetupEnabled && !isBitbucketPullRequest) {
+                if (!isBitbucketPullRequest) {
                     const ciStatus =
                         await this.previewDeploySetupService.getOrScanProjectCiStatus(
                             user,
@@ -16153,18 +16036,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
                       )
                     : [];
 
-                // Preview-deploy setup rides the writeback infra, so it requires both
-                // the writeback flag (and trusted identity, applied above) and its own
-                // ai-preview-deploy-setup flag.
-                const { enabled: aiPreviewDeploySetupFlag } =
-                    await this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.AiPreviewDeploySetup,
-                    });
+                // Preview-deploy setup rides the writeback infra, so it requires
+                // writeback (and trusted identity, applied above) plus a
+                // connection that can edit the repo.
                 const aiPreviewDeploySetupEnabled =
-                    aiWritebackEnabled &&
-                    writebackConnectionSupport.editRepo &&
-                    aiPreviewDeploySetupFlag;
+                    aiWritebackEnabled && writebackConnectionSupport.editRepo;
 
                 // exploreRepo/discoverRepos read repo source and the view:SourceCode
                 // check evaluates against the resolved user. On Slack without
