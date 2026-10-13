@@ -10,24 +10,26 @@ import {
     Group,
     Stack,
     Text,
-    Tooltip,
     UnstyledButton,
 } from '@mantine/core';
 import {
     IconBrandPython,
-    IconCheck,
     IconChevronRight,
     IconDatabase,
     IconFileSpreadsheet,
     IconGitMerge,
     IconSitemap,
-    IconX,
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useMemo, useState, type FC } from 'react';
 import CodeBlock from '../../../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
 import { useCanViewAiAgentSql } from '../../../../hooks/useCanViewAiAgentSql';
+import {
+    useComposerNodeStatusLabel,
+    type ComposerQueryNodeStatus,
+} from '../../composerNodeStatus';
+import { NodeStatusIndicator } from '../../ComposerNodeStatusIndicator';
 import {
     SqlApprovalActions,
     type SqlApprovalTarget,
@@ -38,18 +40,6 @@ import { ToolCallSqlBlock } from '../ToolCallSqlBlock';
 import sqlBlockStyles from '../ToolCallSqlBlock.module.css';
 import styles from './ComposerQueriesToolCallDescription.module.css';
 
-/**
- * Live execution status of one pipeline node, derived from the transient
- * step-progress events the composer tool emits while it runs. Undefined maps
- * (the persisted, post-run view) render the pipeline without indicators.
- */
-export type ComposerQueryNodeStatus =
-    | { status: 'pending' }
-    | { status: 'awaiting_approval' }
-    | { status: 'running' }
-    | { status: 'success' }
-    | { status: 'error' };
-
 type ComposerQueriesToolCallDescriptionProps = {
     queries: ToolComposerQueriesArgs['queries'];
     nodeStatuses?: Record<string, ComposerQueryNodeStatus>;
@@ -57,49 +47,9 @@ type ComposerQueriesToolCallDescriptionProps = {
     approval?: SqlApprovalTarget;
 };
 
-const NODE_STATUS_LABELS = {
-    pending: 'Queued',
-    awaiting_approval: 'Awaiting approval',
-    running: 'Running',
-    success: 'Completed',
-    error: 'Failed',
-} as const;
-
-// Trailing status word on the row; success reads from the check mark alone.
-const getNodeStatusText = (nodeStatus: ComposerQueryNodeStatus) =>
-    nodeStatus.status === 'success'
-        ? null
-        : NODE_STATUS_LABELS[nodeStatus.status].toLowerCase();
-
 const isActiveStatus = (nodeStatus: ComposerQueryNodeStatus | undefined) =>
     nodeStatus?.status === 'running' ||
     nodeStatus?.status === 'awaiting_approval';
-
-export const NodeStatusIndicator: FC<{
-    nodeStatus: ComposerQueryNodeStatus;
-    label: string;
-}> = ({ nodeStatus, label }) => {
-    return (
-        <Tooltip label={label} position="top">
-            <Box
-                className={styles.statusIndicator}
-                data-status={nodeStatus.status}
-                aria-label={label}
-            >
-                {nodeStatus.status === 'success' ? (
-                    <MantineIcon icon={IconCheck} size={11} stroke={2.4} />
-                ) : nodeStatus.status === 'error' ? (
-                    <MantineIcon icon={IconX} size={11} stroke={2.4} />
-                ) : (
-                    <Box
-                        className={styles.statusDot}
-                        data-status={nodeStatus.status}
-                    />
-                )}
-            </Box>
-        </Tooltip>
-    );
-};
 
 const referenceAliases = (items: string[] | Record<string, string>) =>
     Array.isArray(items) ? items : Object.keys(items);
@@ -212,7 +162,12 @@ const ComposerQueryNode: FC<{
     const setUserOpen = (value: boolean) =>
         setUserToggle({ status: nodeStatus?.status, open: value });
     const open = userOpen ?? defaultOpen;
-    const statusText = nodeStatus ? getNodeStatusText(nodeStatus) : null;
+    const statusLabel = useComposerNodeStatusLabel();
+    // Trailing status word on the row; success reads from the check mark alone.
+    const statusText =
+        nodeStatus && nodeStatus.status !== 'success'
+            ? statusLabel(nodeStatus.status).toLowerCase()
+            : null;
     const showApproval =
         approval !== undefined && nodeStatus?.status === 'awaiting_approval';
 
@@ -235,10 +190,7 @@ const ComposerQueryNode: FC<{
                     className={rowStyles.head}
                 >
                     {nodeStatus ? (
-                        <NodeStatusIndicator
-                            nodeStatus={nodeStatus}
-                            label={NODE_STATUS_LABELS[nodeStatus.status]}
-                        />
+                        <NodeStatusIndicator status={nodeStatus.status} />
                     ) : null}
                     <MantineIcon
                         icon={presentation.icon}

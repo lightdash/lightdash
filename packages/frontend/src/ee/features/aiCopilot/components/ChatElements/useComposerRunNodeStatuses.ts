@@ -7,7 +7,13 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { lightdashApi } from '../../../../../api';
-import { type ComposerRunNodeStatus } from './composerPipeline/AiComposerPipelinePanel';
+import { type ComposerNodeStatus } from './composerNodeStatus';
+
+/** A node's status in the current run; error is the failed node's message. */
+export type ComposerRunNodeStatus = {
+    status: Exclude<ComposerNodeStatus, 'awaiting_approval'>;
+    error: string | null;
+};
 
 const POLL_INTERVAL_MS = 1000;
 

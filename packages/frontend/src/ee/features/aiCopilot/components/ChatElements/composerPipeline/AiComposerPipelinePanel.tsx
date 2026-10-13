@@ -7,7 +7,6 @@ import {
     WarehouseTypes,
     type SemanticLayerSourceQuery,
     type SourceQuery,
-    type UiStringKey,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -62,9 +61,9 @@ import reactFlowStyles from '../../../../../../components/common/ReactFlow/react
 import ResizableSplitter from '../../../../../../components/common/ResizableSplitter';
 import { useCompiledSqlFromMetricQuery } from '../../../../../../hooks/useCompiledSql';
 import { LD_FIELD_COLORS } from '../../../../../../theme/fieldColors';
-import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
 import { useCanViewAiAgentSql } from '../../../hooks/useCanViewAiAgentSql';
-import { NodeStatusIndicator } from '../ToolCalls/descriptions/ComposerQueriesToolCallDescription';
+import { NodeStatusIndicator } from '../ComposerNodeStatusIndicator';
+import { type ComposerRunNodeStatus } from '../useComposerRunNodeStatuses';
 import styles from './AiComposerPipelinePanel.module.css';
 import {
     groupPipeline,
@@ -279,12 +278,6 @@ const QueryDetails: FC<{ query: SourceQuery; projectUuid: string }> = ({
     );
 };
 
-/** A node's status in the current run; error is the failed node's message. */
-export type ComposerRunNodeStatus = {
-    status: 'pending' | 'running' | 'success' | 'error';
-    error: string | null;
-};
-
 type NodeDisplay = {
     displayedNodeId: string;
     /** Nodes with a result in the current run; the rest are inert. */
@@ -293,13 +286,6 @@ type NodeDisplay = {
     /** By node id; a node without an entry shows no status. */
     nodeStatuses: Readonly<Record<string, ComposerRunNodeStatus>>;
 };
-
-const NODE_STATUS_LABEL_KEYS = {
-    pending: 'aiAgent.composer.nodeStatus.pending',
-    running: 'aiAgent.composer.nodeStatus.running',
-    success: 'aiAgent.composer.nodeStatus.success',
-    error: 'aiAgent.composer.nodeStatus.error',
-} as const satisfies Record<ComposerRunNodeStatus['status'], UiStringKey>;
 
 const PipelineNodeRow: FC<
     { node: PipelineNode; projectUuid: string } & NodeDisplay
@@ -311,17 +297,13 @@ const PipelineNodeRow: FC<
     onDisplayNode,
     nodeStatuses,
 }) => {
-    const uiStrings = useUiStrings();
     const displayed = node.nodeId === displayedNodeId;
     const displayable = displayableNodeIds.has(node.nodeId);
     const nodeStatus = nodeStatuses[node.nodeId];
     const head = (
         <>
             {nodeStatus ? (
-                <NodeStatusIndicator
-                    nodeStatus={{ status: nodeStatus.status }}
-                    label={uiStrings(NODE_STATUS_LABEL_KEYS[nodeStatus.status])}
-                />
+                <NodeStatusIndicator status={nodeStatus.status} />
             ) : (
                 <Box className={styles.dot} />
             )}

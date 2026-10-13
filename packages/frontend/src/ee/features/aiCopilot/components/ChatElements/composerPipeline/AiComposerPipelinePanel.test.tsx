@@ -7,10 +7,8 @@ import { fireEvent, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { useCompiledSqlFromMetricQuery } from '../../../../../../hooks/useCompiledSql';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
-import {
-    AiComposerPipelinePanel,
-    type ComposerRunNodeStatus,
-} from './AiComposerPipelinePanel';
+import { type ComposerRunNodeStatus } from '../useComposerRunNodeStatuses';
+import { AiComposerPipelinePanel } from './AiComposerPipelinePanel';
 
 vi.mock('../../../../../../hooks/useCompiledSql', () => ({
     useCompiledSqlFromMetricQuery: vi.fn(() => ({ data: undefined })),

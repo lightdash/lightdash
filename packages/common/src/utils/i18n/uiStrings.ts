@@ -381,6 +381,7 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.loadingResult': 'Loading results...',
     'aiAgent.composer.resultError': 'This result could not be loaded',
     'aiAgent.composer.nodeStatus.pending': 'Queued',
+    'aiAgent.composer.nodeStatus.awaitingApproval': 'Awaiting approval',
     'aiAgent.composer.nodeStatus.running': 'Running',
     'aiAgent.composer.nodeStatus.success': 'Completed',
     'aiAgent.composer.nodeStatus.error': 'Failed',

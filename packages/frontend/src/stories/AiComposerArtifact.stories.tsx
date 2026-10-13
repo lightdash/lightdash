@@ -16,10 +16,10 @@ import panelStyles from '../ee/features/aiCopilot/components/ChatElements/AiArti
 import { AiComposerResultError } from '../ee/features/aiCopilot/components/ChatElements/AiComposerResultError';
 import {
     AiComposerPipelinePanel,
-    type ComposerRunNodeStatus,
     type PipelineMode,
 } from '../ee/features/aiCopilot/components/ChatElements/composerPipeline/AiComposerPipelinePanel';
 import { ComposerQueriesToolCallDescription } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/descriptions/ComposerQueriesToolCallDescription';
+import { type ComposerRunNodeStatus } from '../ee/features/aiCopilot/components/ChatElements/useComposerRunNodeStatuses';
 
 /** A fan-in pipeline: three sources, one intermediate join, one final join. */
 const fanInQueries: SourceQuery[] = [

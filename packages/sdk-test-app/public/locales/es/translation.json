@@ -362,6 +362,7 @@
         "aiAgent.composer.loadingResult": "Cargando resultados...",
         "aiAgent.composer.resultError": "No se pudo cargar este resultado",
         "aiAgent.composer.nodeStatus.pending": "En cola",
+        "aiAgent.composer.nodeStatus.awaitingApproval": "Esperando aprobación",
         "aiAgent.composer.nodeStatus.running": "En ejecución",
         "aiAgent.composer.nodeStatus.success": "Completado",
         "aiAgent.composer.nodeStatus.error": "Falló",
