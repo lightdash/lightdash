@@ -1,3 +1,10 @@
+# [2.576.0](https://github.com/lightdash/lightdash/compare/2.575.4...2.576.0) (2026-10-13)
+
+
+### Features
+
+* **cli:** issuer contract for agent connections, as a document and a consumer test ([#30962](https://github.com/lightdash/lightdash/issues/30962)) ([05d3c30](https://github.com/lightdash/lightdash/commit/05d3c30b694394d395b829f7ecbe99ed3a014156))
+
 ## [2.575.4](https://github.com/lightdash/lightdash/compare/2.575.3...2.575.4) (2026-10-13)
 
 
