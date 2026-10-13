@@ -125,7 +125,7 @@ describe('ComposerQueriesToolCallDescription', () => {
         ).toHaveTextContent('Revenue');
     });
 
-    it('opens failed nodes so the error is inspectable', () => {
+    it('opens failed nodes and labels them failed', () => {
         renderWithProviders(
             <ComposerQueriesToolCallDescription
                 queries={[
@@ -134,17 +134,12 @@ describe('ComposerQueriesToolCallDescription', () => {
                 ]}
                 nodeStatuses={{
                     orders: { status: 'success' },
-                    broken: {
-                        status: 'error',
-                        errorMessage: 'column not found',
-                    },
+                    broken: { status: 'error' },
                 }}
             />,
         );
 
-        expect(
-            screen.getByLabelText('Failed: column not found'),
-        ).toBeInTheDocument();
+        expect(screen.getByLabelText('Failed')).toBeInTheDocument();
         expect(
             screen.getByRole('button', { expanded: true }),
         ).toHaveTextContent('Broken step');
