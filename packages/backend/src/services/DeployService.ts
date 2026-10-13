@@ -261,6 +261,30 @@ export class DeployService extends BaseService {
             );
         }
 
+        const permissionProject =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('DeployProject', {
+                    projectUuid,
+                    organizationUuid: permissionProject.organizationUuid,
+                    upstreamProjectUuid: permissionProject.upstreamProjectUuid,
+                    type: permissionProject.type,
+                    createdByUserUuid: permissionProject.createdByUserUuid,
+                    metadata: {
+                        projectUuid,
+                        projectName: permissionProject.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `User does not have permission to deploy to this project`,
+            );
+        }
+
         if (agentExecutionContext.getStore()?.agentConnectionExecution) {
             await this.projectService.assertConnectionPreAggregateRefresh(
                 projectUuid,

@@ -1,4 +1,5 @@
 import {
+    CommercialFeatureFlags,
     DeploySessionStatus,
     ProjectMemberRole,
     type Explore,
@@ -166,3 +167,57 @@ export const refused = (message: string) => ({
         error: { statusCode: 403, name: 'ForbiddenError', message, data: {} },
     },
 });
+
+export const assignDeployCustomRole = async (
+    person: DeployPerson,
+    scopes: string[],
+    projectUuid: string = person.projectUuid,
+): Promise<string> => {
+    const { database, organizationUuid, userUuid } = person;
+    await database('feature_flags')
+        .insert({
+            flag_id: CommercialFeatureFlags.CustomRoles,
+            default_enabled: false,
+        })
+        .onConflict('flag_id')
+        .ignore();
+    const flagScope = {
+        flag_id: CommercialFeatureFlags.CustomRoles,
+        organization_uuid: organizationUuid,
+    };
+    if (!(await database('feature_flag_overrides').where(flagScope).first()))
+        await database('feature_flag_overrides').insert({
+            ...flagScope,
+            enabled: true,
+        });
+    const [role] = await database('roles')
+        .insert({
+            name: `Deploy ${userUuid}`,
+            description: null,
+            level: 'project',
+            organization_uuid: organizationUuid,
+            created_by: userUuid,
+        })
+        .returning('*');
+    await database('scoped_roles').insert(
+        scopes.map((scope) => ({
+            role_uuid: role.role_uuid,
+            scope_name: scope,
+            granted_by: userUuid,
+        })),
+    );
+    const [project] = await database('projects').where(
+        'project_uuid',
+        projectUuid,
+    );
+    await database('project_memberships')
+        .insert({
+            project_id: project.project_id,
+            user_id: person.user.user_id,
+            role: ProjectMemberRole.VIEWER,
+            role_uuid: role.role_uuid,
+        })
+        .onConflict(['project_id', 'user_id'])
+        .merge();
+    return role.role_uuid;
+};
