@@ -738,6 +738,7 @@ const getMockedAsyncQueryService = (
                 error: vi.fn(),
             },
             provider: new LocalProcessSandboxProvider(),
+            runnerSource: null,
         }),
     });
     return service;
@@ -2890,7 +2891,7 @@ describe('AsyncQueryService', () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
                 featureFlagModel: composeFlags,
             } as never);
-            Object.assign(service, { duckdbSandboxRunner: undefined });
+            Object.assign(service, { duckdbSandboxRunner: null });
             vi.spyOn(service, 'compileMergeQuery').mockResolvedValue({
                 coreSql: 'SELECT 1',
                 typedColumns: [],

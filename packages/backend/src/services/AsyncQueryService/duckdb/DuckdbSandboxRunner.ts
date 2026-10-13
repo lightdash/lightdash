@@ -1,18 +1,16 @@
-import { getErrorMessage, MissingConfigError } from '@lightdash/common';
+import { getErrorMessage } from '@lightdash/common';
 import { createHash } from 'crypto';
 import { type LightdashConfig } from '../../../config/parseConfig';
 import {
-    createSandboxProvider,
-    S3SnapshotStore,
     SandboxCommandError,
     SandboxOutputLimitError,
     SandboxTimeoutError,
     type SandboxHandle,
     type SandboxLogger,
     type SandboxProvider,
-    type SandboxSpec,
 } from '../../../ee/services/SandboxRuntime';
 import { traceSpan } from '../../../tracing/tracing';
+import { OneShotSandboxProvider } from '../sandbox/OneShotSandboxProvider';
 import {
     DUCKDB_INPUT_DIR,
     DUCKDB_MAX_RESULT_BYTES,
@@ -39,12 +37,15 @@ export type DuckdbSandboxInput = {
     bytes: Buffer;
 };
 
-export type DuckdbSandboxOpenArgs = {
+export type DuckdbSandboxCreateArgs = {
     queryUuid: string;
     projectUuid: string;
-    inputs: DuckdbSandboxInput[];
     /** Per-command timeout for the probe and the run. */
     timeoutMs: number;
+};
+
+export type DuckdbSandboxOpenArgs = DuckdbSandboxCreateArgs & {
+    inputs: DuckdbSandboxInput[];
 };
 
 export type DuckdbSandboxRunResult = {
@@ -56,12 +57,18 @@ export type DuckdbSandboxRunResult = {
 
 export type DuckdbSandboxSession = {
     probe(sql: string): Promise<{ fields: DuckdbSandboxFields }>;
+    /** A null limit runs without a row cap; the result size cap always applies. */
     run(
         sql: string,
-        options: { limit: number },
+        options: { limit: number | null },
     ): Promise<DuckdbSandboxRunResult>;
     /** Destroys the sandbox; never throws. */
     close(): Promise<void>;
+};
+
+/** A created sandbox: inputs can be written once they are known. */
+export type DuckdbSandbox = DuckdbSandboxSession & {
+    writeInputs(inputs: DuckdbSandboxInput[]): Promise<void>;
 };
 
 /** Raised when the SQL fails, times out or produces too much; the message is safe to show. */
@@ -72,7 +79,6 @@ export class DuckdbSandboxExecutionError extends Error {
     }
 }
 
-const SANDBOX_IDLE_MARGIN_MS = 60_000;
 const MAX_LOG_BYTES = 1024 * 1024;
 const MAX_META_BYTES = 1024 * 1024;
 const TABLE_NAME = /^[A-Za-z0-9_-]+$/;
@@ -86,7 +92,7 @@ export const getDuckdbRunnerVersionHash = (runnerSource: string): string =>
  * and no egress; every byte crosses through the provider's file API.
  */
 export class DuckdbSandboxRunner {
-    static DUCKDB_RUN_TIMEOUT_MS = 5 * 60 * 1000;
+    static readonly DUCKDB_RUN_TIMEOUT_MS = 5 * 60 * 1000;
 
     private readonly lightdashConfig: LightdashConfig;
 
@@ -94,81 +100,41 @@ export class DuckdbSandboxRunner {
 
     private readonly runnerSource: string;
 
-    private provider: SandboxProvider | null;
+    private readonly sandboxProvider: OneShotSandboxProvider;
 
     constructor(args: {
         lightdashConfig: LightdashConfig;
         logger: SandboxLogger;
         /** Overrides the configured provider; null resolves it lazily from config. */
-        provider?: SandboxProvider | null;
-        /** Overrides the runner script; tests only. */
-        runnerSource?: string;
+        provider: SandboxProvider | null;
+        /** Overrides the runner script (tests only); null runs {@link DUCKDB_RUNNER_SOURCE}. */
+        runnerSource: string | null;
     }) {
         this.lightdashConfig = args.lightdashConfig;
         this.logger = args.logger;
-        this.provider = args.provider ?? null;
         this.runnerSource = args.runnerSource ?? DUCKDB_RUNNER_SOURCE;
+        const { appRuntime } = args.lightdashConfig;
+        this.sandboxProvider = new OneShotSandboxProvider({
+            lightdashConfig: args.lightdashConfig,
+            logger: args.logger,
+            provider: args.provider,
+            dockerImage: appRuntime.sandboxDuckdbDockerImage,
+            e2bTemplateName: appRuntime.e2bDuckdbTemplateName,
+            e2bTemplateTag: appRuntime.e2bDuckdbTemplateTag,
+            runnerLabel: 'SQL transformations and merge queries',
+        });
     }
 
     /** Resolves the provider now so a submit fails fast on missing configuration. */
     assertConfigured(): void {
-        this.getProvider();
-    }
-
-    private getProvider(): SandboxProvider {
-        if (!this.provider) {
-            const { appRuntime } = this.lightdashConfig;
-            if (
-                appRuntime.sandboxProvider !== 'e2b' &&
-                appRuntime.sandboxProvider !== 'docker'
-            ) {
-                throw new MissingConfigError(
-                    `SQL transformations and merge queries need the e2b or docker sandbox provider (SANDBOX_PROVIDER), got ${appRuntime.sandboxProvider}`,
-                );
-            }
-            this.provider = createSandboxProvider({
-                provider: appRuntime.sandboxProvider,
-                e2bApiKey: appRuntime.e2bApiKey,
-                dockerImage: appRuntime.sandboxDuckdbDockerImage,
-                lambdaMicroVm: null,
-                azureSandboxes: null,
-                gcpCloudRun: null,
-                // One-shot sandboxes are never suspended; the Docker provider
-                // still requires a store at construction.
-                snapshotStore:
-                    appRuntime.sandboxProvider === 'docker'
-                        ? new S3SnapshotStore({
-                              lightdashConfig: this.lightdashConfig,
-                          })
-                        : null,
-                logger: this.logger,
-            });
-        }
-        return this.provider;
-    }
-
-    private getTemplateRef(): string {
-        const { appRuntime } = this.lightdashConfig;
-        return appRuntime.sandboxProvider === 'e2b'
-            ? `${appRuntime.e2bDuckdbTemplateName}:${appRuntime.e2bDuckdbTemplateTag}`
-            : appRuntime.sandboxDuckdbDockerImage;
+        this.sandboxProvider.get();
     }
 
     /** What runs the SQL: the sandbox template and the runner script inside it. */
     get version(): string {
-        return `${
-            this.lightdashConfig.appRuntime.sandboxProvider
-        }:${this.getTemplateRef()}:${getDuckdbRunnerVersionHash(
-            this.runnerSource,
-        )}`;
-    }
-
-    private buildSpec(timeoutMs: number): SandboxSpec {
-        return {
-            templateRef: this.getTemplateRef(),
-            timeoutMs: timeoutMs + SANDBOX_IDLE_MARGIN_MS,
-            egress: { allow: [] },
-        };
+        return this.sandboxProvider.versionOf(
+            getDuckdbRunnerVersionHash(this.runnerSource),
+        );
     }
 
     private getSettings(): DuckdbSandboxSettings {
@@ -179,35 +145,33 @@ export class DuckdbSandboxRunner {
         };
     }
 
+    /** Creates a sandbox, writes the inputs, runs `fn` and destroys the sandbox. */
     async withSession<T>(
-        args: DuckdbSandboxOpenArgs,
+        { inputs, ...args }: DuckdbSandboxOpenArgs,
         fn: (session: DuckdbSandboxSession) => Promise<T>,
     ): Promise<T> {
-        const session = await this.open(args);
+        const sandbox = await this.create(args);
         try {
-            return await fn(session);
+            await sandbox.writeInputs(inputs);
+            return await fn(sandbox);
         } finally {
-            await session.close();
+            await sandbox.close();
         }
     }
 
-    async open(args: DuckdbSandboxOpenArgs): Promise<DuckdbSandboxSession> {
-        const { queryUuid, projectUuid, inputs, timeoutMs } = args;
-        inputs.forEach((input) => {
-            if (!TABLE_NAME.test(input.table)) {
-                throw new DuckdbSandboxExecutionError(
-                    `Invalid sandbox input name: ${input.table}`,
-                );
-            }
-        });
-        const provider = this.getProvider();
-        const spec = this.buildSpec(timeoutMs);
+    /**
+     * Creates the sandbox without inputs, so the cold start can overlap
+     * waiting for them. Callers must `close()` it.
+     */
+    async create(args: DuckdbSandboxCreateArgs): Promise<DuckdbSandbox> {
+        const { queryUuid, projectUuid, timeoutMs } = args;
+        const provider = this.sandboxProvider.get();
+        const spec = this.sandboxProvider.buildSpec(timeoutMs);
         const settings = this.getSettings();
         const attributes = {
             'lightdash.queryUuid': queryUuid,
             'lightdash.projectUuid': projectUuid,
-            'lightdash.sandboxProvider':
-                this.lightdashConfig.appRuntime.sandboxProvider,
+            'lightdash.sandboxProvider': this.sandboxProvider.providerName,
             'lightdash.templateRef': spec.templateRef,
             'lightdash.duckdbMemoryLimit': settings.memoryLimit,
             'lightdash.duckdbThreads': settings.threads,
@@ -249,7 +213,14 @@ export class DuckdbSandboxRunner {
             );
         };
 
-        try {
+        const writeInputs = async (inputs: DuckdbSandboxInput[]) => {
+            inputs.forEach((input) => {
+                if (!TABLE_NAME.test(input.table)) {
+                    throw new DuckdbSandboxExecutionError(
+                        `Invalid sandbox input name: ${input.table}`,
+                    );
+                }
+            });
             await traceSpan(
                 {
                     op: 'duckdb.sandbox.write_inputs',
@@ -263,8 +234,20 @@ export class DuckdbSandboxRunner {
                         ),
                     },
                 },
-                () => this.writeInputs(handle, inputs, settings),
+                () =>
+                    Promise.all(
+                        inputs.map((input) =>
+                            handle.files.write(
+                                `${DUCKDB_INPUT_DIR}/${input.table}.jsonl`,
+                                input.bytes,
+                            ),
+                        ),
+                    ),
             );
+        };
+
+        try {
+            await this.prepare(handle, settings);
         } catch (e) {
             await close();
             throw e;
@@ -274,6 +257,7 @@ export class DuckdbSandboxRunner {
             DuckdbSandboxRunner.execute(handle, command, timeoutMs);
 
         return {
+            writeInputs,
             probe: (sql) =>
                 traceSpan(
                     {
@@ -287,10 +271,13 @@ export class DuckdbSandboxRunner {
                     async () => {
                         await handle.files.write(DUCKDB_PROBE_SQL_PATH, sql);
                         await execute('probe');
-                        const raw = await DuckdbSandboxRunner.readOutput(() =>
-                            handle.files.read(DUCKDB_OUTPUT_PROBE_PATH, {
-                                maxBytes: MAX_META_BYTES,
-                            }),
+                        const raw = await DuckdbSandboxRunner.readOutput(
+                            'metadata',
+                            MAX_META_BYTES,
+                            () =>
+                                handle.files.read(DUCKDB_OUTPUT_PROBE_PATH, {
+                                    maxBytes: MAX_META_BYTES,
+                                }),
                         );
                         return parseDuckdbProbeOutput(raw);
                     },
@@ -318,26 +305,32 @@ export class DuckdbSandboxRunner {
                     },
                     async (span) => {
                         const meta = parseDuckdbRunMeta(
-                            await DuckdbSandboxRunner.readOutput(() =>
-                                handle.files.read(DUCKDB_OUTPUT_META_PATH, {
-                                    maxBytes: MAX_META_BYTES,
-                                }),
+                            await DuckdbSandboxRunner.readOutput(
+                                'metadata',
+                                MAX_META_BYTES,
+                                () =>
+                                    handle.files.read(DUCKDB_OUTPUT_META_PATH, {
+                                        maxBytes: MAX_META_BYTES,
+                                    }),
                             ),
                         );
                         span?.setAttributes({
                             'lightdash.rowCount': meta.rowCount,
                         });
-                        if (meta.rowCount > limit) {
+                        if (limit !== null && meta.rowCount > limit) {
                             throw new DuckdbSandboxExecutionError(
                                 `SQL transformation returned ${meta.rowCount} rows, more than the limit of ${limit}`,
                             );
                         }
                         const resultBytes =
-                            await DuckdbSandboxRunner.readOutput(() =>
-                                handle.files.readBytes(
-                                    DUCKDB_OUTPUT_RESULT_PATH,
-                                    { maxBytes: DUCKDB_MAX_RESULT_BYTES },
-                                ),
+                            await DuckdbSandboxRunner.readOutput(
+                                'result',
+                                DUCKDB_MAX_RESULT_BYTES,
+                                () =>
+                                    handle.files.readBytes(
+                                        DUCKDB_OUTPUT_RESULT_PATH,
+                                        { maxBytes: DUCKDB_MAX_RESULT_BYTES },
+                                    ),
                             );
                         return {
                             fields: meta.fields,
@@ -351,9 +344,9 @@ export class DuckdbSandboxRunner {
         };
     }
 
-    private async writeInputs(
+    /** Lays out `/work` and writes the runner and its settings; inputs come later. */
+    private async prepare(
         handle: SandboxHandle,
-        inputs: DuckdbSandboxInput[],
         settings: DuckdbSandboxSettings,
     ): Promise<void> {
         await handle.commands.run(
@@ -365,24 +358,20 @@ export class DuckdbSandboxRunner {
             DUCKDB_SETTINGS_PATH,
             JSON.stringify(settings),
         );
-        await Promise.all(
-            inputs.map((input) =>
-                handle.files.write(
-                    `${DUCKDB_INPUT_DIR}/${input.table}.jsonl`,
-                    input.bytes,
-                ),
-            ),
-        );
     }
 
-    private static async readOutput<T>(read: () => Promise<T>): Promise<T> {
+    private static async readOutput<T>(
+        output: 'result' | 'metadata',
+        maxBytes: number,
+        read: () => Promise<T>,
+    ): Promise<T> {
         try {
             return await read();
         } catch (e) {
             if (e instanceof SandboxOutputLimitError) {
                 throw new DuckdbSandboxExecutionError(
-                    `SQL transformation result exceeds the ${
-                        DUCKDB_MAX_RESULT_BYTES / (1024 * 1024)
+                    `SQL transformation ${output} exceeds the ${
+                        maxBytes / (1024 * 1024)
                     } MiB limit`,
                 );
             }

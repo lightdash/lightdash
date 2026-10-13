@@ -13,6 +13,7 @@ import {
     type QueryHistory,
     type ResultColumns,
 } from '@lightdash/common';
+import { existsSync } from 'node:fs';
 import { Readable } from 'stream';
 import type { Mock } from 'vitest';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -90,12 +91,22 @@ const readyResult = (
 class RecordingProvider extends LocalProcessSandboxProvider {
     readonly created: string[] = [];
 
+    /** Shared timeline: the provider records `create`, tests record their own events. */
+    readonly events: string[] = [];
+
     async create() {
+        this.events.push('create');
         const handle = await super.create();
         this.created.push(handle.sandboxId);
         return handle;
     }
 }
+
+const RUNNING_STATUSES = [
+    QueryHistoryStatus.PENDING,
+    QueryHistoryStatus.QUEUED,
+    QueryHistoryStatus.EXECUTING,
+];
 
 const fieldByUpdateKey: Record<string, keyof Row> = {
     status: 'status',
@@ -183,10 +194,19 @@ const buildHarness = ({
         getByQueryUuid: vi.fn(async (queryUuid: string) => rows.get(queryUuid)),
         pollForQueryCompletion: vi.fn(
             async ({ queryUuid }: { queryUuid: string }) => {
-                const row = rows.get(queryUuid);
-                if (row?.status !== QueryHistoryStatus.READY)
-                    throw new Error(`query ${queryUuid} is ${row?.status}`);
-                return row;
+                const poll = async (): Promise<Row> => {
+                    const row = rows.get(queryUuid);
+                    if (row && RUNNING_STATUSES.includes(row.status)) {
+                        await new Promise((resolve) => {
+                            setTimeout(resolve, 10);
+                        });
+                        return poll();
+                    }
+                    if (row?.status !== QueryHistoryStatus.READY)
+                        throw new Error(`query ${queryUuid} is ${row?.status}`);
+                    return row;
+                };
+                return poll();
             },
         ),
         updateStatusToExecuting: vi.fn(async (queryUuid: string) => {
@@ -329,6 +349,17 @@ const buildHarness = ({
         enqueueMaterializationQuery: vi.fn(),
     };
     const provider = new RecordingProvider();
+    const runner = new DuckdbSandboxRunner({
+        lightdashConfig: lightdashConfigMock,
+        logger: {
+            info: vi.fn(),
+            warn: vi.fn(),
+            debug: vi.fn(),
+            error: vi.fn(),
+        },
+        provider,
+        runnerSource: runnerSource ?? null,
+    });
     const service = new AsyncQueryService({
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
@@ -356,19 +387,7 @@ const buildHarness = ({
             assertCanReadResultsForQueries: vi.fn(async () => new Map()),
         },
     } as unknown as ConstructorParameters<typeof AsyncQueryService>[0]);
-    Object.assign(service, {
-        duckdbSandboxRunner: new DuckdbSandboxRunner({
-            lightdashConfig: lightdashConfigMock,
-            logger: {
-                info: vi.fn(),
-                warn: vi.fn(),
-                debug: vi.fn(),
-                error: vi.fn(),
-            },
-            provider,
-            runnerSource,
-        }),
-    });
+    Object.assign(service, { duckdbSandboxRunner: runner });
     vi.spyOn(service, 'getUserAttributes').mockResolvedValue({
         userAttributes: {},
         intrinsicUserAttributes: {},
@@ -480,6 +499,7 @@ const buildHarness = ({
         rows,
         files,
         provider,
+        runner,
         natsClient,
         composeSql,
         joinOrdersToCustomers,
@@ -727,7 +747,7 @@ describe('DuckDB queries over results run in a one-shot sandbox', () => {
 
     test('without a sandbox provider the submission fails naming the missing configuration', async () => {
         const { service, rows } = buildHarness();
-        Object.assign(service, { duckdbSandboxRunner: undefined });
+        Object.assign(service, { duckdbSandboxRunner: null });
         const rowsBefore = rows.size;
 
         await expect(
@@ -776,19 +796,18 @@ describe('DuckDB queries over results run in a one-shot sandbox', () => {
         }, 30_000);
 
         test('a run over the timeout says so', async () => {
-            const { composeSql } = buildHarness();
-            const timeoutMs = DuckdbSandboxRunner.DUCKDB_RUN_TIMEOUT_MS;
-            DuckdbSandboxRunner.DUCKDB_RUN_TIMEOUT_MS = 1000;
-            try {
-                const row = await composeSql({
-                    sql: 'SELECT count(*) AS n FROM range(100000000) a, range(100000000) b',
-                });
+            const { composeSql, runner } = buildHarness();
+            const create = runner.create.bind(runner);
+            vi.spyOn(runner, 'create').mockImplementation((args) =>
+                create({ ...args, timeoutMs: 1000 }),
+            );
 
-                expect(row.status).toBe(QueryHistoryStatus.ERROR);
-                expect(row.error).toBe('SQL transformation exceeded 1s');
-            } finally {
-                DuckdbSandboxRunner.DUCKDB_RUN_TIMEOUT_MS = timeoutMs;
-            }
+            const row = await composeSql({
+                sql: 'SELECT count(*) AS n FROM range(100000000) a, range(100000000) b',
+            });
+
+            expect(row.status).toBe(QueryHistoryStatus.ERROR);
+            expect(row.error).toBe('SQL transformation exceeded 1s');
         }, 30_000);
 
         test('a result over the output cap is refused', async () => {
@@ -803,6 +822,89 @@ describe('DuckDB queries over results run in a one-shot sandbox', () => {
                 'SQL transformation result exceeds the 64 MiB limit',
             );
         }, 60_000);
+    });
+
+    describe('the sandbox cold start overlaps waiting for references', () => {
+        const startWithOrdersRunning = (
+            rows: Map<string, Row>,
+            provider: RecordingProvider,
+        ) => {
+            const createdBefore = provider.created.length;
+            rows.set(
+                ordersUuid,
+                readyResult(ordersUuid, 'orders-file', {
+                    status: QueryHistoryStatus.EXECUTING,
+                }),
+            );
+            return async () => {
+                await vi.waitFor(
+                    () =>
+                        expect(provider.created.length).toBeGreaterThan(
+                            createdBefore,
+                        ),
+                    { timeout: 10_000, interval: 10 },
+                );
+                provider.events.push('reference ready');
+                rows.set(ordersUuid, readyResult(ordersUuid, 'orders-file'));
+            };
+        };
+
+        test('a reference still running gets its sandbox created before it finishes', async () => {
+            const { composeSql, rows, provider, resultRows } = buildHarness();
+            const finishOrders = startWithOrdersRunning(rows, provider);
+
+            const pending = composeSql();
+            await finishOrders();
+            const row = await pending;
+
+            expect(row.error ?? null).toBeNull();
+            expect(resultRows(row)).toEqual([
+                { customer: 'ann', total: 17 },
+                { customer: 'bob', total: 5 },
+            ]);
+            expect(provider.events).toEqual(['create', 'reference ready']);
+            expect(existsSync(provider.created[0])).toBe(false);
+        }, 30_000);
+
+        test('a sandbox created while waiting is destroyed when the cache serves the query', async () => {
+            const { composeSql, rows, provider } = buildHarness();
+            await composeSql();
+            provider.events.splice(0);
+            const finishOrders = startWithOrdersRunning(rows, provider);
+
+            const pending = composeSql();
+            await finishOrders();
+            const row = await pending;
+
+            expect(row.duckdbExecution?.cacheHit).toBe(true);
+            expect(provider.events).toEqual(['create', 'reference ready']);
+            expect(provider.created).toHaveLength(2);
+            expect(existsSync(provider.created[1])).toBe(false);
+        }, 30_000);
+
+        test('a sandbox created while waiting is destroyed when the guard refuses', async () => {
+            const { joinOrdersToCustomers, rows, provider } = buildHarness();
+            const finishOrders = startWithOrdersRunning(rows, provider);
+
+            const pending = joinOrdersToCustomers({ sourceRowCap: 3 });
+            await finishOrders();
+            const row = await pending;
+
+            expect(row.duckdbExecution?.refusal).toEqual({ kind: 'row_cap' });
+            expect(provider.created).toHaveLength(1);
+            expect(existsSync(provider.created[0])).toBe(false);
+        }, 30_000);
+
+        test('references already ready are looked up in the cache before any sandbox is created', async () => {
+            const { composeSql, provider } = buildHarness();
+            await composeSql();
+            provider.events.splice(0);
+
+            const row = await composeSql();
+
+            expect(row.duckdbExecution?.cacheHit).toBe(true);
+            expect(provider.events).toEqual([]);
+        }, 30_000);
     });
 
     describe('the results cache', () => {

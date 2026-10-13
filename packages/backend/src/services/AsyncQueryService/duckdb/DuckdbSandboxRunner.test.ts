@@ -30,11 +30,15 @@ class RecordingProvider extends LocalProcessSandboxProvider {
     }
 }
 
-const createRunner = (provider: SandboxProvider) =>
+const createRunner = (
+    provider: SandboxProvider,
+    runnerSource: string | null = null,
+) =>
     new DuckdbSandboxRunner({
         lightdashConfig: lightdashConfigMock,
         logger,
         provider,
+        runnerSource,
     });
 
 const ordersColumns = {
@@ -64,12 +68,13 @@ const ordersInput = {
     ),
 };
 
-const openArgs = {
+const createArgs = {
     queryUuid: 'query-uuid',
     projectUuid: 'project-uuid',
-    inputs: [ordersInput],
     timeoutMs: 30_000,
 };
+
+const openArgs = { ...createArgs, inputs: [ordersInput] };
 
 describe('DuckdbSandboxRunner over a local process sandbox', () => {
     it('probes the columns of a statement over the input files', async () => {
@@ -233,6 +238,59 @@ describe('DuckdbSandboxRunner over a local process sandbox', () => {
         expect(existsSync(provider.sandboxIds[0])).toBe(false);
     });
 
+    it('creates the sandbox before its inputs exist, then runs over inputs written later', async () => {
+        const provider = new RecordingProvider();
+        const runner = createRunner(provider);
+
+        const sandbox = await runner.create(createArgs);
+        expect(provider.sandboxIds).toHaveLength(1);
+        expect(existsSync(`${provider.sandboxIds[0]}/in/orders.jsonl`)).toBe(
+            false,
+        );
+        try {
+            await sandbox.writeInputs([ordersInput]);
+            const { rowCount } = await sandbox.run(ordersSelect, {
+                limit: null,
+            });
+            expect(rowCount).toBe(3);
+        } finally {
+            await sandbox.close();
+        }
+        expect(existsSync(provider.sandboxIds[0])).toBe(false);
+    });
+
+    it('destroys a sandbox closed before any input was written', async () => {
+        const provider = new RecordingProvider();
+        const sandbox = await createRunner(provider).create(createArgs);
+
+        await sandbox.close();
+
+        expect(existsSync(provider.sandboxIds[0])).toBe(false);
+    });
+
+    it('names the metadata cap when the run metadata is too large', async () => {
+        const oversizedMetaRunner = [
+            "import { mkdirSync, writeFileSync } from 'node:fs';",
+            'const dir = process.argv[3];',
+            "mkdirSync(dir + '/out', { recursive: true });",
+            "writeFileSync(dir + '/out/meta.json', ' '.repeat(2 * 1024 * 1024));",
+        ].join('\n');
+        const runner = createRunner(
+            new RecordingProvider(),
+            oversizedMetaRunner,
+        );
+
+        await expect(
+            runner.withSession(openArgs, async (session) =>
+                session.run(ordersSelect, { limit: null }),
+            ),
+        ).rejects.toThrow(
+            new DuckdbSandboxExecutionError(
+                'SQL transformation metadata exceeds the 1 MiB limit',
+            ),
+        );
+    });
+
     it('cannot read files outside the input directory', async () => {
         const runner = createRunner(new RecordingProvider());
 
@@ -264,6 +322,8 @@ describe('DuckdbSandboxRunner configuration', () => {
                 e2bApiKey: null,
             }),
             logger,
+            provider: null,
+            runnerSource: null,
         });
         expect(() => runner.assertConfigured()).toThrow(
             new MissingConfigError(
@@ -276,6 +336,8 @@ describe('DuckdbSandboxRunner configuration', () => {
         const runner = new DuckdbSandboxRunner({
             lightdashConfig: configWith({ sandboxProvider: 'lambda-microvm' }),
             logger,
+            provider: null,
+            runnerSource: null,
         });
         expect(() => runner.assertConfigured()).toThrow(MissingConfigError);
         expect(() => runner.assertConfigured()).toThrow(/SANDBOX_PROVIDER/);
@@ -288,6 +350,8 @@ describe('DuckdbSandboxRunner configuration', () => {
                 e2bApiKey: 'key',
             }),
             logger,
+            provider: null,
+            runnerSource: null,
         });
         expect(() => runner.assertConfigured()).not.toThrow();
     });
@@ -298,10 +362,16 @@ describe('DuckdbSandboxRunner configuration', () => {
             e2bDuckdbTemplateName: 'lightdash-duckdb-runner',
             e2bDuckdbTemplateTag: '1.2.3',
         });
-        const current = new DuckdbSandboxRunner({ lightdashConfig, logger });
+        const current = new DuckdbSandboxRunner({
+            lightdashConfig,
+            logger,
+            provider: null,
+            runnerSource: null,
+        });
         const changed = new DuckdbSandboxRunner({
             lightdashConfig,
             logger,
+            provider: null,
             runnerSource: `${DUCKDB_RUNNER_SOURCE}\n// changed`,
         });
         const docker = new DuckdbSandboxRunner({
@@ -310,6 +380,8 @@ describe('DuckdbSandboxRunner configuration', () => {
                 sandboxDuckdbDockerImage: 'lightdash-duckdb-runner:local',
             }),
             logger,
+            provider: null,
+            runnerSource: null,
         });
 
         expect(current.version).toMatch(

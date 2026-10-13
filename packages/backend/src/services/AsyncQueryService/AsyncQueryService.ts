@@ -355,13 +355,11 @@ import {
 } from './composePivot';
 import { resolveDashboardDateFilters } from './dashboardDateFilters';
 import { getValidatedDashboardSorts } from './dashboardSorts';
-import {
-    DUCKDB_INPUT_DIR,
-    DUCKDB_MAX_RESULT_BYTES,
-} from './duckdb/duckdbSandboxHarness';
+import { DUCKDB_INPUT_DIR } from './duckdb/duckdbSandboxHarness';
 import {
     DuckdbSandboxExecutionError,
     DuckdbSandboxRunner,
+    type DuckdbSandbox,
     type DuckdbSandboxInput,
 } from './duckdb/DuckdbSandboxRunner';
 import { DuckdbQueryRefusal } from './DuckdbQueryRefusal';
@@ -784,9 +782,9 @@ export class AsyncQueryService extends ProjectService {
 
     private readonly composeEngineClient: ComposeEngineClient;
 
-    private pythonSandboxRunner: PythonSandboxRunner | undefined;
+    private pythonSandboxRunner: PythonSandboxRunner | null = null;
 
-    private duckdbSandboxRunner: DuckdbSandboxRunner | undefined;
+    private duckdbSandboxRunner: DuckdbSandboxRunner | null = null;
 
     private readonly getQuerySourceService: () => QuerySourceService;
     private readonly getDocumentService: () => DocumentService;
@@ -10498,6 +10496,22 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    /** One byte budget across every input of a sandbox run, from SANDBOX_INPUT_MAX_BYTES. */
+    private createSandboxInputReader(
+        inputsOf: 'Python query' | 'SQL transformation',
+    ): SandboxInputReader {
+        const { sandboxInputMaxBytes } = this.lightdashConfig.appRuntime;
+        const inputBudgetMiB = sandboxInputMaxBytes / (1024 * 1024);
+        return new SandboxInputReader({
+            maxBytes: sandboxInputMaxBytes,
+            limitMessage: `${inputsOf} inputs exceed the combined size limit of ${
+                Number.isInteger(inputBudgetMiB)
+                    ? `${inputBudgetMiB} MiB`
+                    : `${sandboxInputMaxBytes} bytes`
+            }.`,
+        });
+    }
+
     /** Python queries run for at most this long inside the sandbox. */
     static readonly PYTHON_RUN_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -10506,6 +10520,7 @@ export class AsyncQueryService extends ProjectService {
             this.pythonSandboxRunner = new PythonSandboxRunner({
                 lightdashConfig: this.lightdashConfig,
                 logger: this.logger,
+                provider: null,
             });
         }
         return this.pythonSandboxRunner;
@@ -10516,6 +10531,8 @@ export class AsyncQueryService extends ProjectService {
             this.duckdbSandboxRunner = new DuckdbSandboxRunner({
                 lightdashConfig: this.lightdashConfig,
                 logger: this.logger,
+                provider: null,
+                runnerSource: null,
             });
         }
         return this.duckdbSandboxRunner;
@@ -10890,17 +10907,8 @@ export class AsyncQueryService extends ProjectService {
                         params: parameters,
                         limit,
                     };
-                    const { sandboxInputMaxBytes } =
-                        this.lightdashConfig.appRuntime;
-                    const inputBudgetMiB = sandboxInputMaxBytes / (1024 * 1024);
-                    const inputReader = new SandboxInputReader({
-                        maxBytes: sandboxInputMaxBytes,
-                        limitMessage: `Python query inputs exceed the combined size limit of ${
-                            Number.isInteger(inputBudgetMiB)
-                                ? `${inputBudgetMiB} MiB`
-                                : `${sandboxInputMaxBytes} bytes`
-                        }.`,
-                    });
+                    const inputReader =
+                        this.createSandboxInputReader('Python query');
                     const inputs = await traceSpan(
                         {
                             op: 'python.query.read_inputs',
@@ -11380,7 +11388,35 @@ export class AsyncQueryService extends ProjectService {
             { op: 'duckdb.query.run', name: 'duckdb.query.run', attributes },
             async (span) => {
                 const startedAt = Date.now();
+                const runner = this.getDuckdbSandboxRunner();
+                const createSandbox = () =>
+                    runner.create({
+                        queryUuid,
+                        projectUuid,
+                        timeoutMs: DuckdbSandboxRunner.DUCKDB_RUN_TIMEOUT_MS,
+                    });
+                let sandboxPromise: Promise<DuckdbSandbox> | null = null;
+                /** Destroys the sandbox if one was started; a failed create is ignored. */
+                const closeSandbox = async () => {
+                    const started = sandboxPromise;
+                    sandboxPromise = null;
+                    await started?.then(
+                        (sandbox) => sandbox.close(),
+                        () => undefined,
+                    );
+                };
                 try {
+                    // A reference still running means a wait: start the cold
+                    // start now. All ready means the cache is checked first
+                    if (
+                        await this.hasRunningDuckdbReferences(
+                            references.references,
+                        )
+                    ) {
+                        sandboxPromise = createSandbox();
+                        // Awaited after the wait; until then a failure must not go unhandled
+                        sandboxPromise.catch(() => undefined);
+                    }
                     let identityEnabled = submittedIdentityEnabled;
                     const bound = await traceSpan(
                         {
@@ -11409,7 +11445,6 @@ export class AsyncQueryService extends ProjectService {
                             bound.aiSignInCredentialUuid,
                         );
                     }
-                    const runner = this.getDuckdbSandboxRunner();
                     // Keyed on the files it reads, not the rows it referenced:
                     // a leg served from cache mints a new row over the same
                     // file. The sandbox version keeps results from crossing
@@ -11473,6 +11508,7 @@ export class AsyncQueryService extends ProjectService {
                         false,
                     );
                     if (cached !== null) {
+                        await closeSandbox();
                         await this.landDuckdbCacheHit({
                             actor,
                             account,
@@ -11499,39 +11535,26 @@ export class AsyncQueryService extends ProjectService {
                         bound,
                         attributes,
                     );
-                    const execution = await runner.withSession(
-                        {
-                            queryUuid,
-                            projectUuid,
-                            inputs,
-                            timeoutMs:
-                                DuckdbSandboxRunner.DUCKDB_RUN_TIMEOUT_MS,
-                        },
-                        async (session) => {
-                            const statement =
-                                await this.composeDuckdbSandboxStatement({
-                                    sql,
-                                    referenceCtes: bound.referenceCtes,
-                                    columns,
-                                    probe: (probeSql) =>
-                                        session.probe(probeSql),
-                                });
-                            const limit =
-                                columns.mode === 'discover' &&
-                                !columns.pivotConfiguration &&
-                                columns.limit !== undefined
-                                    ? columns.limit
-                                    : Number.MAX_SAFE_INTEGER;
-                            return {
-                                statement,
-                                limit,
-                                output: await session.run(statement.query, {
-                                    limit,
-                                }),
-                            };
-                        },
-                    );
-                    const { statement, output } = execution;
+                    sandboxPromise ??= createSandbox();
+                    const sandbox = await sandboxPromise;
+                    await sandbox.writeInputs(inputs);
+                    const statement = await this.composeDuckdbSandboxStatement({
+                        sql,
+                        referenceCtes: bound.referenceCtes,
+                        columns,
+                        probe: (probeSql) => sandbox.probe(probeSql),
+                    });
+                    // Only an unpivoted discovered query caps its rows here
+                    const limit =
+                        columns.mode === 'discover' &&
+                        !columns.pivotConfiguration &&
+                        columns.limit !== undefined
+                            ? columns.limit
+                            : null;
+                    const output = await sandbox.run(statement.query, {
+                        limit,
+                    });
+                    await closeSandbox();
                     const rows = await traceSpan(
                         {
                             op: 'duckdb.query.validate_output',
@@ -11543,10 +11566,7 @@ export class AsyncQueryService extends ProjectService {
                             },
                         },
                         async () =>
-                            AsyncQueryService.parseDuckdbSandboxOutput(
-                                output,
-                                execution.limit,
-                            ),
+                            AsyncQueryService.parseDuckdbSandboxOutput(output),
                     );
                     const pivotedLines: string[] = [];
                     const transformed =
@@ -11593,7 +11613,8 @@ export class AsyncQueryService extends ProjectService {
                         pivotDetails?.totalRows ?? output.rowCount;
                     span.setAttributes({
                         'lightdash.rowCount': totalRowCount,
-                        'lightdash.truncated': false,
+                        'lightdash.truncated':
+                            limit !== null && output.rowCount >= limit,
                     });
 
                     const resultsStorageClient =
@@ -11705,6 +11726,7 @@ export class AsyncQueryService extends ProjectService {
                         `DuckDB query ${queryUuid} ready: ${totalRowCount} rows in ${warehouseExecutionTimeMs}ms`,
                     );
                 } catch (e) {
+                    await closeSandbox();
                     const message =
                         e instanceof DuckdbSandboxExecutionError
                             ? e.message
@@ -11753,21 +11775,32 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
+    /** Whether any referenced query is still pending or executing, so the run will wait on it. */
+    private async hasRunningDuckdbReferences(
+        references: Record<string, string>,
+    ): Promise<boolean> {
+        const statuses = await Promise.all(
+            [...new Set(Object.values(references))].map(
+                async (queryUuid) =>
+                    (await this.queryHistoryModel.getByQueryUuid(queryUuid))
+                        ?.status,
+            ),
+        );
+        return statuses.some(
+            (status) =>
+                status === undefined ||
+                status === QueryHistoryStatus.PENDING ||
+                status === QueryHistoryStatus.QUEUED ||
+                status === QueryHistoryStatus.EXECUTING,
+        );
+    }
+
     /** Streams each referenced result file through one shared byte budget. */
     private async readDuckdbSandboxInputs(
         bound: BoundDuckdbQueryReferences,
         attributes: Record<string, string | number>,
     ): Promise<DuckdbSandboxInput[]> {
-        const { sandboxInputMaxBytes } = this.lightdashConfig.appRuntime;
-        const inputBudgetMiB = sandboxInputMaxBytes / (1024 * 1024);
-        const inputReader = new SandboxInputReader({
-            maxBytes: sandboxInputMaxBytes,
-            limitMessage: `SQL transformation inputs exceed the combined size limit of ${
-                Number.isInteger(inputBudgetMiB)
-                    ? `${inputBudgetMiB} MiB`
-                    : `${sandboxInputMaxBytes} bytes`
-            }.`,
-        });
+        const inputReader = this.createSandboxInputReader('SQL transformation');
         return traceSpan(
             {
                 op: 'duckdb.query.read_inputs',
@@ -11864,23 +11897,11 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
-    /** The sandbox already checked the size and row count; this re-reads the lines. */
-    private static parseDuckdbSandboxOutput(
-        output: { resultBytes: Buffer; rowCount: number },
-        limit: number,
-    ): ResultRow[] {
-        if (output.resultBytes.byteLength > DUCKDB_MAX_RESULT_BYTES) {
-            throw new DuckdbSandboxExecutionError(
-                `SQL transformation result exceeds the ${
-                    DUCKDB_MAX_RESULT_BYTES / (1024 * 1024)
-                } MiB limit`,
-            );
-        }
-        if (output.rowCount > limit) {
-            throw new DuckdbSandboxExecutionError(
-                `SQL transformation returned ${output.rowCount} rows, more than the limit of ${limit}`,
-            );
-        }
+    /** The runner already enforced the size and row limits; this parses the lines. */
+    private static parseDuckdbSandboxOutput(output: {
+        resultBytes: Buffer;
+        rowCount: number;
+    }): ResultRow[] {
         const rows = output.resultBytes
             .toString('utf8')
             .split('\n')

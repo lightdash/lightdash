@@ -320,6 +320,7 @@ const buildPipeline = () => {
                 error: vi.fn(),
             },
             provider,
+            runnerSource: null,
         }),
     });
     vi.spyOn(asyncQueryService, 'getUserAttributes').mockResolvedValue({

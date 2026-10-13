@@ -1,18 +1,16 @@
-import { getErrorMessage, MissingConfigError } from '@lightdash/common';
+import { getErrorMessage } from '@lightdash/common';
 import { createHash } from 'crypto';
 import { type LightdashConfig } from '../../../config/parseConfig';
 import {
-    createSandboxProvider,
-    S3SnapshotStore,
     SandboxCommandError,
     SandboxOutputLimitError,
     SandboxTimeoutError,
     type SandboxHandle,
     type SandboxLogger,
     type SandboxProvider,
-    type SandboxSpec,
 } from '../../../ee/services/SandboxRuntime';
 import { traceSpan } from '../../../tracing/tracing';
+import { OneShotSandboxProvider } from '../sandbox/OneShotSandboxProvider';
 import {
     PYTHON_INPUT_DIR,
     PYTHON_INPUT_META_PATH,
@@ -55,7 +53,6 @@ export class PythonExecutionError extends Error {
 }
 
 const COMPILE_TIMEOUT_MS = 30_000;
-const SANDBOX_IDLE_MARGIN_MS = 60_000;
 const MAX_LOG_BYTES = 1024 * 1024;
 const MAX_META_BYTES = 1024 * 1024;
 
@@ -65,87 +62,51 @@ const MAX_META_BYTES = 1024 * 1024;
  * and no egress; every byte crosses through the provider's file API.
  */
 export class PythonSandboxRunner {
-    private readonly lightdashConfig: LightdashConfig;
-
     private readonly logger: SandboxLogger;
 
-    private provider: SandboxProvider | null;
+    private readonly sandboxProvider: OneShotSandboxProvider;
 
     constructor(args: {
         lightdashConfig: LightdashConfig;
         logger: SandboxLogger;
         /** Overrides the configured provider; null resolves it lazily from config. */
-        provider?: SandboxProvider | null;
+        provider: SandboxProvider | null;
     }) {
-        this.lightdashConfig = args.lightdashConfig;
         this.logger = args.logger;
-        this.provider = args.provider ?? null;
+        const { appRuntime } = args.lightdashConfig;
+        this.sandboxProvider = new OneShotSandboxProvider({
+            lightdashConfig: args.lightdashConfig,
+            logger: args.logger,
+            provider: args.provider,
+            dockerImage: appRuntime.sandboxPythonDockerImage,
+            e2bTemplateName: appRuntime.e2bPythonTemplateName,
+            e2bTemplateTag: appRuntime.e2bPythonTemplateTag,
+            runnerLabel: 'Python queries',
+        });
     }
 
-    private getProvider(): SandboxProvider {
-        if (!this.provider) {
-            const { appRuntime } = this.lightdashConfig;
-            if (
-                appRuntime.sandboxProvider !== 'e2b' &&
-                appRuntime.sandboxProvider !== 'docker'
-            ) {
-                throw new MissingConfigError(
-                    `Python queries are not supported on the ${appRuntime.sandboxProvider} sandbox provider yet`,
-                );
-            }
-            this.provider = createSandboxProvider({
-                provider: appRuntime.sandboxProvider,
-                e2bApiKey: appRuntime.e2bApiKey,
-                dockerImage: appRuntime.sandboxPythonDockerImage,
-                lambdaMicroVm: null,
-                azureSandboxes: null,
-                gcpCloudRun: null,
-                // One-shot sandboxes are never suspended; the Docker provider
-                // still requires a store at construction.
-                snapshotStore:
-                    appRuntime.sandboxProvider === 'docker'
-                        ? new S3SnapshotStore({
-                              lightdashConfig: this.lightdashConfig,
-                          })
-                        : null,
-                logger: this.logger,
-            });
-        }
-        return this.provider;
-    }
-
-    private getTemplateRef(): string {
-        const { appRuntime } = this.lightdashConfig;
-        return appRuntime.sandboxProvider === 'e2b'
-            ? `${appRuntime.e2bPythonTemplateName}:${appRuntime.e2bPythonTemplateTag}`
-            : appRuntime.sandboxPythonDockerImage;
+    /** Resolves the provider now so a submit fails fast on missing configuration. */
+    assertConfigured(): void {
+        this.sandboxProvider.get();
     }
 
     /** What runs the code: the sandbox template and the harness inside it. */
     get version(): string {
-        const harness = createHash('sha256')
-            .update(PYTHON_RUNNER_SOURCE)
-            .digest('hex')
-            .slice(0, 16);
-        return `${this.lightdashConfig.appRuntime.sandboxProvider}:${this.getTemplateRef()}:${harness}`;
-    }
-
-    private buildSpec(timeoutMs: number): SandboxSpec {
-        return {
-            templateRef: this.getTemplateRef(),
-            timeoutMs: timeoutMs + SANDBOX_IDLE_MARGIN_MS,
-            egress: { allow: [] },
-        };
+        return this.sandboxProvider.versionOf(
+            createHash('sha256')
+                .update(PYTHON_RUNNER_SOURCE)
+                .digest('hex')
+                .slice(0, 16),
+        );
     }
 
     async run(args: PythonSandboxRunArgs): Promise<PythonSandboxRunResult> {
         const { queryUuid, code, inputs, inputMeta, timeoutMs } = args;
-        const provider = this.getProvider();
-        const spec = this.buildSpec(timeoutMs);
+        const provider = this.sandboxProvider.get();
+        const spec = this.sandboxProvider.buildSpec(timeoutMs);
         const attributes = {
             'lightdash.queryUuid': queryUuid,
-            'lightdash.sandboxProvider':
-                this.lightdashConfig.appRuntime.sandboxProvider,
+            'lightdash.sandboxProvider': this.sandboxProvider.providerName,
             'lightdash.templateRef': spec.templateRef,
         };
 
