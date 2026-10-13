@@ -421,6 +421,7 @@ export const buildSlackTaskUpdate = ({
 
 export const buildFeedbackContextActions = (
     promptUuid: string,
+    threadUrl: string,
 ): (Block | KnownBlock)[] => [
     {
         block_id: 'prompt_human_score',
@@ -454,6 +455,15 @@ export const buildFeedbackContextActions = (
             },
         ],
     } as unknown as Block,
+    {
+        type: 'context',
+        elements: [
+            {
+                type: 'mrkdwn',
+                text: `<${threadUrl}|Open agent thread>`,
+            },
+        ],
+    },
 ];
 
 /**

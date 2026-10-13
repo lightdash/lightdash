@@ -122,8 +122,11 @@ describe('Slack AI agent blocks', () => {
         });
     });
 
-    it('builds context-action feedback buttons', () => {
-        expect(buildFeedbackContextActions('prompt-1')).toMatchObject([
+    it('includes a thread link with feedback even without a table or artifact card', () => {
+        const threadUrl = 'https://lightdash.test/threads/thread-1';
+        expect(
+            buildFeedbackContextActions('prompt-1', threadUrl),
+        ).toMatchObject([
             {
                 block_id: 'prompt_human_score',
                 type: 'context_actions',
@@ -131,6 +134,15 @@ describe('Slack AI agent blocks', () => {
                     {
                         type: 'feedback_buttons',
                         action_id: 'prompt_human_score.feedback',
+                    },
+                ],
+            },
+            {
+                type: 'context',
+                elements: [
+                    {
+                        type: 'mrkdwn',
+                        text: `<${threadUrl}|Open agent thread>`,
                     },
                 ],
             },

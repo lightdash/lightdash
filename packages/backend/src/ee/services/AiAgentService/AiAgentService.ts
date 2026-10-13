@@ -17575,7 +17575,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
             : [];
         const feedbackBlocks =
             legacyFeedbackBlocks.length > 0
-                ? buildFeedbackContextActions(slackPrompt.promptUuid)
+                ? buildFeedbackContextActions(
+                      slackPrompt.promptUuid,
+                      this.getAgentThreadUrl(slackPrompt, agent?.uuid),
+                  )
                 : legacyFeedbackBlocks;
 
         const createShareUrl = async (
