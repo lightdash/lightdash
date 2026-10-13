@@ -1,3 +1,10 @@
+## [2.575.3](https://github.com/lightdash/lightdash/compare/2.575.2...2.575.3) (2026-10-13)
+
+
+### Bug Fixes
+
+* **agent-identity:** the scheduled-refresh check for a connection runs inside the write transaction ([#30956](https://github.com/lightdash/lightdash/issues/30956)) ([f0d9e8d](https://github.com/lightdash/lightdash/commit/f0d9e8d9bfa6b539799530b8159ca6b9efff4484))
+
 ## [2.575.2](https://github.com/lightdash/lightdash/compare/2.575.1...2.575.2) (2026-10-13)
 
 
