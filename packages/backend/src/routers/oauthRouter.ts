@@ -25,6 +25,7 @@ import {
 } from '../controllers/authentication';
 import Logger from '../logging/logger';
 import { DEFAULT_OAUTH_CLIENT_ID } from '../models/OAuth2Model';
+import { isClientIdMetadataDocumentUrl } from '../services/OAuthService/clientIdMetadataDocument';
 import { InvalidRedirectUriError } from '../services/OAuthService/InvalidRedirectUriError';
 import {
     OAuthScope,
@@ -192,7 +193,8 @@ oauthRouter.get('/authorize', async (req, res, next) => {
         }
 
         if (
-            (await getOAuthService(req).isSecurityStrict(req.user)) &&
+            ((await getOAuthService(req).isSecurityStrict(req.user)) ||
+                isClientIdMetadataDocumentUrl(String(client_id))) &&
             !(await getValidatedRedirectUrl(req, {
                 clientId: client_id,
                 redirectUri: redirect_uri,
@@ -715,8 +717,9 @@ export function oauthConfig(baseUrl: string, strict = false) {
         token_endpoint_auth_methods_supported: [
             'client_secret_basic',
             'client_secret_post',
-            ...(strict ? ['none'] : []),
+            'none',
         ],
+        client_id_metadata_document_supported: true,
         code_challenge_methods_supported: ['S256'],
         scopes_supported: [
             OAuthScope.READ,

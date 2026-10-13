@@ -176,6 +176,85 @@ describe('OAuthService edge cases', () => {
                 client,
             );
         });
+
+        it('matches document client redirects strictly without the flag', async () => {
+            const documentClient: OAuth2Server.Client = {
+                id: 'https://claude.ai/oauth/client',
+                redirectUris: ['https://claude.ai/api/mcp/auth_callback'],
+                grants: ['authorization_code'],
+            };
+            vi.mocked(mockOAuthModel.getClient).mockResolvedValue(
+                documentClient,
+            );
+            mockOAuthModel.validateRedirectUriStrict = vi
+                .fn()
+                .mockResolvedValue(true);
+
+            await expect(
+                oauthService.validateRedirectUri(
+                    documentClient.id,
+                    'https://claude.ai/api/mcp/auth_callback',
+                ),
+            ).resolves.toBe(true);
+            expect(
+                mockOAuthModel.validateRedirectUriStrict,
+            ).toHaveBeenCalledWith(
+                'https://claude.ai/api/mcp/auth_callback',
+                documentClient,
+            );
+            expect(mockOAuthModel.validateRedirectUri).not.toHaveBeenCalled();
+            expect(mockOAuthModel.isSecurityStrict).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('getAuthorizationResource for document clients', () => {
+        const user = { userId: 1, organizationUuid: 'org' };
+        const request = (query: Record<string, string>) =>
+            ({ body: {}, query }) as unknown as OAuth2Server.Request;
+
+        it('requires PKCE without the strict flag', async () => {
+            await expect(
+                oauthService.getAuthorizationResource(
+                    request({ client_id: 'https://claude.ai/oauth/client' }),
+                    user,
+                ),
+            ).rejects.toThrow('Missing parameter: `code_challenge`');
+        });
+
+        it('requires S256 without the strict flag', async () => {
+            await expect(
+                oauthService.getAuthorizationResource(
+                    request({
+                        client_id: 'https://claude.ai/oauth/client',
+                        code_challenge: 'challenge',
+                        code_challenge_method: 'plain',
+                    }),
+                    user,
+                ),
+            ).rejects.toThrow('Invalid parameter: `code_challenge_method`');
+        });
+
+        it('keeps resource binding a strict-mode concern', async () => {
+            await expect(
+                oauthService.getAuthorizationResource(
+                    request({
+                        client_id: 'https://claude.ai/oauth/client',
+                        code_challenge: 'challenge',
+                        code_challenge_method: 'S256',
+                    }),
+                    user,
+                ),
+            ).resolves.toBeNull();
+        });
+
+        it('leaves stored clients on the lenient rules', async () => {
+            await expect(
+                oauthService.getAuthorizationResource(
+                    request({ client_id: 'mcp-stored' }),
+                    user,
+                ),
+            ).resolves.toBeNull();
+        });
     });
 
     describe('revokeToken', () => {
