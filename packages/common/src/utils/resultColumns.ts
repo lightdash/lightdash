@@ -23,7 +23,7 @@ type ResultColumnMetadata = Omit<ResultColumn, 'reference' | 'type'>;
 
 /**
  * The display/format metadata a semantic item contributes to its result
- * column, resolved once at query-write time (docs/composer-viz-plan/01-design.md §3).
+ * column, resolved once at query-write time.
  *
  * An item contributes metadata only when its field id matches the column
  * reference. Unmatched columns get only a display label derived from the
