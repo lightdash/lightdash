@@ -11802,7 +11802,6 @@ export class AsyncQueryService extends ProjectService {
         );
         return statuses.some(
             (status) =>
-                status === undefined ||
                 status === QueryHistoryStatus.PENDING ||
                 status === QueryHistoryStatus.QUEUED ||
                 status === QueryHistoryStatus.EXECUTING,
