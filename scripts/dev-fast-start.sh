@@ -45,6 +45,15 @@ EE_BASE_VOLUME="ld-shared_postgres_base_ee"
 . "$REPO_ROOT/scripts/dev-instance-lib.sh"
 
 fail() { echo "FAIL: $1 -- $2" >&2; exit 1; }
+# The shell profile may export its own PG* identity (e.g. PGUSER=<login>, empty
+# PGPASSWORD). dotenv-cli never overrides existing vars, so migrate/seed would
+# connect as that user and fail with "client password must be a string".
+# Drop the shell's PG* vars so the env files and the slot's port win.
+db_env() {
+    env -u PGUSER -u PGPASSWORD -u PGDATABASE -u PGHOST -u PGPORT \
+        PGHOST=localhost PGPORT="$LD_PG_PORT" "$@"
+}
+
 step() { echo "STEP: $1"; }
 
 # One name per call: `pm2 delete a b c` aborts at the first name it cannot
@@ -458,10 +467,10 @@ else
     export PATH="$(pwd)/venv/bin:$PATH"
     export DBT_DEMO_DIR="$(pwd)/examples/full-jaffle-shop-demo"
     # shellcheck disable=SC2046
-    PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli $(dotenv_args) -- pnpm -F backend migrate \
+    db_env pnpx dotenv-cli $(dotenv_args) -- pnpm -F backend migrate \
         || fail "migrate" "backend migrate failed"
     # shellcheck disable=SC2046
-    PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli $(dotenv_args) -- pnpm -F backend seed \
+    db_env pnpx dotenv-cli $(dotenv_args) -- pnpm -F backend seed \
         || fail "seed" "backend seed failed"
     PGHOST=localhost PGPORT=$LD_PG_PORT PGUSER=postgres PGPASSWORD=password PGDATABASE=postgres \
         "$(pwd)/venv/bin/dbt" seed --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles \
@@ -491,7 +500,7 @@ fi
 if [ "$EE_MODE" != true ]; then
     step "Apply pending migrations"
     export PATH="$(pwd)/venv/bin:$PATH"
-    PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development -- pnpm -F backend migrate \
+    db_env pnpx dotenv-cli -e .env.development -- pnpm -F backend migrate \
         || fail "migrate" "applying pending migrations failed (shared base may be stale)"
     echo "OK: migrations current"
 fi
@@ -509,14 +518,14 @@ if [ "$EE_MODE" = true ]; then
         _n="$(docker exec "$DB_CONTAINER" psql -U postgres -tAc 'SELECT count(*) FROM knex_migrations' 2>/dev/null | tr -d '[:space:]')"
         [ -n "$_n" ] && echo "...EE migrate working (knex_migrations=$_n applied)"
       done ) & _HB=$!
-    PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development.local -e .env.development -- pnpm -F backend migrate
+    db_env pnpx dotenv-cli -e .env.development.local -e .env.development -- pnpm -F backend migrate
     _MIG_RC=$?
     kill "$_HB" 2>/dev/null; wait "$_HB" 2>/dev/null
     [ "$_MIG_RC" -eq 0 ] || fail "ee-migrate" "EE migrate failed"
     # The EE embed seed is already present when bootstrapped from the EE base; only
     # run it when bootstrapped from the core base (avoids duplicate-seed errors).
     if [ "$BOOTSTRAPPED" = true ] && [ "$BOOTSTRAPPED_EE_BASE" != true ]; then
-        PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development.local -e .env.development -- \
+        db_env pnpx dotenv-cli -e .env.development.local -e .env.development -- \
             pnpm -F backend exec knex seed:run --specific=01_embed.ts --knexfile src/knexfile.ts \
             || fail "ee-seed" "EE seed failed"
     fi
