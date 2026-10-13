@@ -142,44 +142,6 @@ describe('toPipelineFlow', () => {
         ]);
     });
 
-    it('draws an earlier result placeholder with an edge to its reader', () => {
-        const { nodes, edges } = toPipelineFlow(
-            groupPipeline(
-                [duckdb('final', 'Final', { prev: 'uuid-1' })],
-                'final',
-            ),
-            noDisplay,
-        );
-        const marks = { isDisplayed: false, isDisplayable: false };
-        expect(nodes.map((node) => [node.id, node.data])).toEqual([
-            [
-                'earlier:uuid-1',
-                {
-                    title: 'prev',
-                    typeLabel: 'Earlier result',
-                    isTerminal: false,
-                    ...marks,
-                },
-            ],
-            [
-                'final',
-                {
-                    title: 'Final',
-                    typeLabel: null,
-                    isTerminal: true,
-                    ...marks,
-                },
-            ],
-        ]);
-        expect(edges.map((edge) => [edge.source, edge.target])).toEqual([
-            ['earlier:uuid-1', 'final'],
-        ]);
-        const laidOut = layoutPipelineFlow(measured(nodes), edges);
-        expect(xOf(laidOut, 'earlier:uuid-1')).toBeLessThan(
-            xOf(laidOut, 'final'),
-        );
-    });
-
     it('returns empty arrays for an empty pipeline', () => {
         expect(toPipelineFlow([], noDisplay)).toEqual({ nodes: [], edges: [] });
         expect(layoutPipelineFlow([], [])).toEqual([]);

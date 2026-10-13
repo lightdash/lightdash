@@ -104,7 +104,7 @@ export const NodeStatusIndicator: FC<{
 const referenceAliases = (items: string[] | Record<string, string>) =>
     Array.isArray(items) ? items : Object.keys(items);
 
-// Map-form values are node ids or stored queryUuids; only node ids get titles
+// Reads of nodes from earlier versions have no title in this submission
 const referenceTargets = (items: string[] | Record<string, string>) =>
     Array.isArray(items) ? items : Object.values(items);
 

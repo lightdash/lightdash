@@ -185,39 +185,6 @@ describe('AiComposerPipelinePanel list mode', () => {
     });
 });
 
-describe('AiComposerPipelinePanel earlier result placeholder', () => {
-    it('lists the placeholder by alias without counting it or showing the uuid', () => {
-        const uuid = 'bcf89bb4-c964-4c1e-9a55-0d6a3f1a2b3c';
-        renderWithProviders(
-            <AiComposerPipelinePanel
-                projectUuid="project"
-                queries={[
-                    {
-                        sourceType: QuerySourceType.DUCKDB,
-                        nodeId: 'ranked',
-                        title: 'Ranked orders',
-                        sql: 'select 1',
-                        references: { prev: uuid },
-                    },
-                ]}
-                terminalNodeId="ranked"
-                displayedNodeId="ranked"
-                displayableNodeIds={new Set(['ranked'])}
-                onDisplayNode={() => {}}
-                nodeStatuses={{}}
-                defaultExpanded
-            >
-                <div>results</div>
-            </AiComposerPipelinePanel>,
-        );
-        expect(screen.getByText('1 step')).toBeInTheDocument();
-        expect(screen.getByText('prev')).toBeInTheDocument();
-        expect(screen.getByText('Earlier result')).toBeInTheDocument();
-        expect(screen.getByText('Reads prev')).toBeInTheDocument();
-        expect(document.body.textContent).not.toContain(uuid);
-    });
-});
-
 describe('AiComposerPipelinePanel query details', () => {
     it('keeps the query collapsed until View query is clicked, without displaying the node', () => {
         const onDisplayNode = vi.fn();

@@ -328,7 +328,7 @@ const PipelineNodeRow: FC<
             <Text component="span" className={styles.nodeTitle}>
                 {node.title}
             </Text>
-            {node.kind === 'query' && <NodeType query={node.query} />}
+            <NodeType query={node.query} />
         </>
     );
     // The whole card is the click target; it holds other controls, so it is
@@ -375,9 +375,7 @@ const PipelineNodeRow: FC<
             {nodeStatus?.status === 'error' && nodeStatus.error && (
                 <Text className={styles.nodeError}>{nodeStatus.error}</Text>
             )}
-            {node.kind === 'query' && (
-                <QueryDetails query={node.query} projectUuid={projectUuid} />
-            )}
+            <QueryDetails query={node.query} projectUuid={projectUuid} />
         </Box>
     );
 };
