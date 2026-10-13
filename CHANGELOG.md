@@ -1,3 +1,10 @@
+## [2.578.1](https://github.com/lightdash/lightdash/compare/2.578.0...2.578.1) (2026-10-13)
+
+
+### Bug Fixes
+
+* **dbt:** run dbt from the project directory ([#30990](https://github.com/lightdash/lightdash/issues/30990)) ([900bf7f](https://github.com/lightdash/lightdash/commit/900bf7f4ac4e245deead30344580a160c6da7e4e)), closes [#30035](https://github.com/lightdash/lightdash/issues/30035)
+
 # [2.578.0](https://github.com/lightdash/lightdash/compare/2.577.2...2.578.0) (2026-10-13)
 
 
