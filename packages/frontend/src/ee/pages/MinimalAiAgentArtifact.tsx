@@ -1,4 +1,7 @@
-import { FeatureFlags } from '@lightdash/common';
+import {
+    FeatureFlags,
+    isAiAgentSemanticArtifactVizQuery,
+} from '@lightdash/common';
 import { Center, Text } from '@mantine/core';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { useParams, useSearchParams } from 'react-router';
@@ -62,7 +65,8 @@ const MinimalAiAgentArtifact: FC = () => {
         },
     );
     const vizQueryData =
-        vizQueryHandle.data?.source === 'semantic'
+        vizQueryHandle.data &&
+        isAiAgentSemanticArtifactVizQuery(vizQueryHandle.data)
             ? vizQueryHandle.data
             : undefined;
 

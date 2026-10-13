@@ -1,5 +1,6 @@
 import {
     FeatureFlags,
+    isAiAgentSemanticArtifactVizQuery,
     isAiAgentSqlArtifactVizQuery,
     isAiSqlChartArtifactConfig,
     parseVizConfig,
@@ -90,7 +91,8 @@ export const AiChartVisualization: FC<Props> = ({
     );
 
     const semanticVizQueryData =
-        queryExecutionHandle.data?.source === 'semantic'
+        queryExecutionHandle.data &&
+        isAiAgentSemanticArtifactVizQuery(queryExecutionHandle.data)
             ? queryExecutionHandle.data
             : undefined;
     const sqlVizQueryData =

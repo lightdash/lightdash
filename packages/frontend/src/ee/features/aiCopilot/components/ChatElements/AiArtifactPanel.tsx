@@ -4,6 +4,7 @@ import {
     getGroupByDimensions,
     getWebAiChartConfig,
     isAiAgentComposerArtifactVizQuery,
+    isAiAgentSemanticArtifactVizQuery,
     isAiAgentSqlArtifactVizQuery,
     isAiComposerChartArtifactConfig,
     isAiSqlChartArtifactConfig,
@@ -181,7 +182,8 @@ const AiArtifactPanelContent: FC<
         );
 
         const semanticVizQueryData =
-            queryExecutionHandle.data?.source === 'semantic'
+            queryExecutionHandle.data &&
+            isAiAgentSemanticArtifactVizQuery(queryExecutionHandle.data)
                 ? queryExecutionHandle.data
                 : undefined;
         const composerRun =

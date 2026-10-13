@@ -1034,6 +1034,10 @@ export type ApiAiAgentArtifactVizQuery =
     | ApiAiAgentSqlArtifactVizQuery
     | ApiAiAgentComposerArtifactVizQuery;
 
+export const isAiAgentSemanticArtifactVizQuery = (
+    query: ApiAiAgentArtifactVizQuery,
+): query is ApiAiAgentThreadMessageVizQuery => query.source === 'semantic';
+
 export const isAiAgentSqlArtifactVizQuery = (
     query: ApiAiAgentArtifactVizQuery,
 ): query is ApiAiAgentSqlArtifactVizQuery => query.source === 'sql';

@@ -124,6 +124,8 @@ import {
     InsufficientGitPermissionsError,
     InvalidUser,
     isAgentToolName,
+    isAiAgentComposerArtifactVizQuery,
+    isAiAgentSemanticArtifactVizQuery,
     isAiAppThreadCreatedFrom,
     isAiComposerChartArtifactConfig,
     isAiDeepResearchRunTerminal,
@@ -9611,7 +9613,7 @@ export class AiAgentService extends BaseService {
             options,
             () => this.executeArtifactVizQuery(user, options),
             (vizQuery) =>
-                vizQuery.source === 'composer'
+                isAiAgentComposerArtifactVizQuery(vizQuery)
                     ? Object.values(vizQuery.nodeQueryUuids)
                     : [vizQuery.query.queryUuid],
         );
@@ -14698,7 +14700,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 artifactUuid: artifact.artifactUuid,
                 versionUuid: artifact.versionUuid,
             });
-            if (vizQuery.source !== 'semantic') return null;
+            if (!isAiAgentSemanticArtifactVizQuery(vizQuery)) return null;
             const startedAt = Date.now();
             /* oxlint-disable no-await-in-loop */
             while (Date.now() - startedAt < SINGLE_VALUE_TIMEOUT_MS) {
