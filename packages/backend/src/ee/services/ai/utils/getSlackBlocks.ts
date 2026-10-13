@@ -1073,6 +1073,7 @@ const ANSWER_PRODUCING_TOOLS = new Set([
     'runQuery',
     'runContentQuery',
     'runSql',
+    'runComposerQueries',
     'runSavedChart',
     'generateDashboard',
     'editDbtProject',

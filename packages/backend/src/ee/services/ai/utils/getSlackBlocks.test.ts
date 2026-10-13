@@ -9,6 +9,8 @@ import {
     MetricType,
     NotFoundError,
     parseAiArtifactChartConfig,
+    type AiAgentToolResult,
+    type SlackPrompt,
 } from '@lightdash/common';
 import type { AgentSelectOption } from './getSlackBlocks';
 import {
@@ -16,6 +18,7 @@ import {
     buildSlackTaskUpdate,
     getAgentSelectionBlocks,
     getAiAccessRefusalBlocks,
+    getFeedbackBlocks,
     getMarkdownBlocks,
     getMemoryCitationBlocks,
     getModernArtifactCardBlocks,
@@ -2277,4 +2280,62 @@ it('keeps channel refusal text and its existing button unchanged with private di
     expect(JSON.stringify(blocks)).not.toContain('Also needed');
     expect(JSON.stringify(blocks)).not.toContain('See why');
     expect(JSON.stringify(blocks)).not.toContain('myAgentConnections');
+});
+
+describe('getFeedbackBlocks', () => {
+    const slackPrompt: SlackPrompt = {
+        organizationUuid: 'org-uuid',
+        projectUuid: 'project-uuid',
+        agentUuid: 'agent-uuid',
+        promptUuid: 'prompt-uuid',
+        threadUuid: 'thread-uuid',
+        threadCreatedFrom: 'slack',
+        createdByUserUuid: 'user-uuid',
+        prompt: 'Compare two sources',
+        createdAt: new Date('2026-10-13T00:00:00Z'),
+        response: null,
+        errorMessage: null,
+        humanScore: null,
+        modelConfig: null,
+        battleProfile: null,
+        response_slack_ts: 'response-ts',
+        slackUserId: 'slack-user',
+        slackChannelId: 'slack-channel',
+        promptSlackTs: 'prompt-ts',
+        slackThreadTs: 'thread-ts',
+    };
+    const composerResult = (
+        status: 'success' | 'error',
+    ): AiAgentToolResult => ({
+        uuid: 'result-uuid',
+        promptUuid: 'prompt-uuid',
+        result: '',
+        createdAt: new Date('2026-10-13T00:00:00Z'),
+        toolCallId: 'call-1',
+        toolType: 'built-in',
+        toolName: 'runComposerQueries',
+        metadata:
+            status === 'success'
+                ? {
+                      status,
+                      queryUuid: 'query-uuid',
+                      artifactVersionUuid: 'version-uuid',
+                  }
+                : { status },
+    });
+    const feedbackRow = (results: AiAgentToolResult[]) =>
+        getFeedbackBlocks(
+            slackPrompt,
+            results,
+            'agent-uuid',
+            'https://lightdash.test',
+        );
+
+    it('offers feedback when a composer query answered the prompt', () => {
+        expect(feedbackRow([composerResult('success')])).not.toEqual([]);
+    });
+
+    it('offers no feedback row when the composer query failed', () => {
+        expect(feedbackRow([composerResult('error')])).toEqual([]);
+    });
 });

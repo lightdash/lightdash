@@ -513,6 +513,9 @@ export const toolComposerQueriesStructuredContentSchema = z.object({
 export const toolComposerQueriesOutputSchema = structuredToolOutputSchema({
     metadata: z.object({
         status: z.enum(['success', 'error', 'rejected', 'timeout']),
+        // Set on success: the terminal execution and the artifact version it saved.
+        queryUuid: z.string().optional(),
+        artifactVersionUuid: z.string().optional(),
     }),
     structuredContent: toolComposerQueriesStructuredContentSchema,
     // Rejection and timeout are failures for this tool: they carry an error,
