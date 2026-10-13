@@ -17,6 +17,12 @@
 .tableScrollableWrapper.flush {
     border: 0;
     border-radius: 0;
+    /* Matches the SQL runner's results grid */
+    font-family: var(--mantine-font-family-monospace);
+}
+
+.tableScrollableWrapper.flush .table {
+    font-size: var(--mantine-font-size-xs);
 }
 
 .tableScrollableWrapper:not(:has(thead tr)):not(:has(tbody tr)) {
