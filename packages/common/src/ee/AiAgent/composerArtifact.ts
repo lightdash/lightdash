@@ -5,6 +5,7 @@ import {
     type QueryNodeId,
     type SourceQuery,
 } from '../../types/querySources';
+import { stableJson } from '../../utils/stableJson';
 import { type AllVizChartConfig } from '../../visualizations/types';
 
 /**
@@ -34,18 +35,9 @@ export const isAiComposerChartArtifactConfig = (
     'terminalNodeId' in config &&
     typeof config.terminalNodeId === 'string';
 
-const canonicalJson = (value: unknown): string =>
-    JSON.stringify(value, (_, inner: unknown) =>
-        inner && typeof inner === 'object' && !Array.isArray(inner)
-            ? Object.fromEntries(
-                  Object.entries(inner).sort(([a], [b]) => a.localeCompare(b)),
-              )
-            : inner,
-    );
-
 // The full definition, with array references written in map form.
 const nodeDefinition = (node: SourceQuery): string =>
-    canonicalJson(
+    stableJson(
         node.sourceType === QuerySourceType.DUCKDB ||
             node.sourceType === QuerySourceType.PYTHON
             ? { ...node, references: getSourceQueryResultReferences(node) }

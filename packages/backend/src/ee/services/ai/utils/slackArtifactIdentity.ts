@@ -2,6 +2,7 @@ import {
     isAiComposerChartArtifactConfig,
     isAiSqlChartArtifactConfig,
     parseVizConfig,
+    stableJson,
     type AiArtifact,
 } from '@lightdash/common';
 import { z } from 'zod';
@@ -9,15 +10,6 @@ import { z } from 'zod';
 // Persisted tool payloads have no generated filter-rule IDs. Compare these
 // instead of parseVizConfig's transformed query, and never strip every `id`:
 // merge source IDs and parameter keys can change the meaning of a query.
-const stableJson = (value: unknown): string =>
-    JSON.stringify(value, (_key, child: unknown) =>
-        child && typeof child === 'object' && !Array.isArray(child)
-            ? Object.fromEntries(
-                  Object.entries(child).sort(([a], [b]) => a.localeCompare(b)),
-              )
-            : child,
-    );
-
 export const getSlackArtifactIdentity = (artifact: AiArtifact): string => {
     const scope = [artifact.threadUuid, artifact.promptUuid];
     if (artifact.chartConfig) {
