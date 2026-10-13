@@ -1,3 +1,10 @@
+## [2.573.2](https://github.com/lightdash/lightdash/compare/2.573.1...2.573.2) (2026-10-13)
+
+
+### Bug Fixes
+
+* **deploy:** check the deploy permission again when a deploy is finalized ([#30945](https://github.com/lightdash/lightdash/issues/30945)) ([57e5edb](https://github.com/lightdash/lightdash/commit/57e5edbf515fa8862130fe57c6b6770d3da13212))
+
 ## [2.573.1](https://github.com/lightdash/lightdash/compare/2.573.0...2.573.1) (2026-10-12)
 
 
