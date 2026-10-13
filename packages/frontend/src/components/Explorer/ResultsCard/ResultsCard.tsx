@@ -1,15 +1,7 @@
 import { subject } from '@casl/ability';
-import { ActionIcon, Group, Popover, SegmentedControl } from '@mantine/core';
+import { ActionIcon, Group, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
-import {
-    memo,
-    useCallback,
-    useEffect,
-    useMemo,
-    useState,
-    type FC,
-    type ReactNode,
-} from 'react';
+import { memo, useCallback, useMemo, type FC, type ReactNode } from 'react';
 import {
     selectColumnOrder,
     selectIsEditMode,
@@ -41,19 +33,14 @@ import SortButton from '../../SortButton';
 import ExplorerPaneLayout from '../ResultsPane/ExplorerPaneLayout';
 import { ExplorerResults } from './ExplorerResults';
 import { ResultsViewMode } from './types';
-import { useGroupedResultsAvailability } from './useGroupedResultsAvailability';
 
 type Props = {
     tabs: ReactNode;
+    viewMode: ResultsViewMode;
 };
 
-const ResultsCard: FC<Props> = memo(({ tabs }) => {
+const ResultsCard: FC<Props> = memo(({ tabs, viewMode }) => {
     const projectUuid = useProjectUuid();
-
-    // View mode state for switching between results and grouped results
-    const [viewMode, setViewMode] = useState<ResultsViewMode>(
-        ResultsViewMode.RESULTS,
-    );
 
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const tableName = useExplorerSelector(selectTableName);
@@ -62,17 +49,7 @@ const ResultsCard: FC<Props> = memo(({ tabs }) => {
     const parameters = useExplorerSelector(selectParameters);
     const columnOrder = useExplorerSelector(selectColumnOrder);
 
-    // Check if grouped view is available
-    const { isGroupedDisabled } = useGroupedResultsAvailability();
-    const isGroupedView =
-        viewMode === ResultsViewMode.GROUPED && !isGroupedDisabled;
-
-    // Reset to results view when grouped becomes unavailable
-    useEffect(() => {
-        if (isGroupedDisabled && viewMode === ResultsViewMode.GROUPED) {
-            setViewMode(ResultsViewMode.RESULTS);
-        }
-    }, [isGroupedDisabled, viewMode]);
+    const isGroupedView = viewMode === ResultsViewMode.GROUPED;
 
     const { queryResults, getDownloadQueryUuid } = useExplorerQuery();
     const merge = useMergeSafe();
@@ -164,26 +141,6 @@ const ResultsCard: FC<Props> = memo(({ tabs }) => {
                 projectUuid &&
                 tableName && (
                     <Group gap="xs" wrap="nowrap">
-                        {!isGroupedDisabled && (
-                            <SegmentedControl
-                                size="xs"
-                                data={[
-                                    {
-                                        label: 'Results',
-                                        value: ResultsViewMode.RESULTS,
-                                    },
-                                    {
-                                        label: 'Chart results',
-                                        value: ResultsViewMode.GROUPED,
-                                    },
-                                ]}
-                                value={viewMode}
-                                onChange={(value) =>
-                                    setViewMode(value as ResultsViewMode)
-                                }
-                            />
-                        )}
-
                         {/* Hide AddColumnButton when in grouped view */}
                         {!isGroupedView && (
                             <Can

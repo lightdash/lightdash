@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { Box, SegmentedControl, Title } from '@mantine/core';
-import { memo, useEffect, type FC } from 'react';
+import { memo, useEffect, useState, type FC } from 'react';
 import {
     explorerActions,
     selectIsResultsExpanded,
@@ -13,9 +13,10 @@ import { useAbilityContext } from '../../../providers/Ability/useAbilityContext'
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import ResultsCard from '../ResultsCard/ResultsCard';
+import { ResultsViewMode } from '../ResultsCard/types';
+import { useGroupedResultsAvailability } from '../ResultsCard/useGroupedResultsAvailability';
 import SqlCard from '../SqlCard/SqlCard';
 import classes from './ResultsPane.module.css';
-import { useResultsRowCount } from './useResultsRowCount';
 
 // Walkthrough markers for view:SavedChart: reading a chart means opening it
 // from Browse and unfolding the rows behind it. See scripts/scope-tours.
@@ -63,19 +64,22 @@ type Props = {
     warehouseConnectionUuid: string | null | undefined;
 };
 
+type PaneTab = ResultsViewMode | ExplorerSection.SQL;
+
 const ResultsPane: FC<Props> = memo(
     ({ projectUuid, warehouseConnectionUuid }) => {
         const dispatch = useExplorerDispatch();
         const tableName = useExplorerSelector(selectTableName);
         const isResultsExpanded = useExplorerSelector(selectIsResultsExpanded);
         const isSqlExpanded = useExplorerSelector(selectIsSqlExpanded);
-        const rowCount = useResultsRowCount();
-        const resultsLabel =
-            rowCount === null
-                ? 'Results'
-                : `Results (${rowCount.toLocaleString()} ${
-                      rowCount === 1 ? 'row' : 'rows'
-                  })`;
+
+        const [viewMode, setViewMode] = useState<ResultsViewMode>(
+            ResultsViewMode.RESULTS,
+        );
+        const { isGroupedDisabled } = useGroupedResultsAvailability();
+        const effectiveViewMode = isGroupedDisabled
+            ? ResultsViewMode.RESULTS
+            : viewMode;
 
         const { user } = useApp();
         const ability = useAbilityContext();
@@ -89,66 +93,100 @@ const ResultsPane: FC<Props> = memo(
                 }),
             );
 
-        const activeTab =
+        const activeSection =
             canViewSql && isSqlExpanded && !isResultsExpanded
                 ? ExplorerSection.SQL
                 : ExplorerSection.RESULTS;
+        const activeTab: PaneTab =
+            activeSection === ExplorerSection.SQL
+                ? ExplorerSection.SQL
+                : effectiveViewMode;
 
         // The results query only runs while its section is expanded
         useEffect(() => {
-            if (activeTab === ExplorerSection.RESULTS && !isResultsExpanded) {
+            if (
+                activeSection === ExplorerSection.RESULTS &&
+                !isResultsExpanded
+            ) {
                 dispatch(
                     explorerActions.setResultsPaneTab(ExplorerSection.RESULTS),
                 );
             }
-        }, [activeTab, isResultsExpanded, dispatch]);
+        }, [activeSection, isResultsExpanded, dispatch]);
 
-        const tabs = canViewSql ? (
-            <SegmentedControl
-                size="xs"
-                disabled={!tableName}
-                value={activeTab}
-                onChange={(value) =>
-                    dispatch(
-                        explorerActions.setResultsPaneTab(
-                            value === ExplorerSection.SQL
-                                ? ExplorerSection.SQL
-                                : ExplorerSection.RESULTS,
-                        ),
-                    )
-                }
-                data={[
-                    {
-                        value: ExplorerSection.RESULTS,
-                        label: (
-                            <Box
-                                component="span"
-                                data-testid="results-pane-tab-results"
-                                {...RESULTS_TAB_TOUR_PROPS}
-                            >
-                                {resultsLabel}
-                            </Box>
-                        ),
-                    },
-                    {
-                        value: ExplorerSection.SQL,
-                        label: (
-                            <Box
-                                component="span"
-                                data-testid="results-pane-tab-sql"
-                                {...SQL_TAB_TOUR_PROPS}
-                            >
-                                SQL
-                            </Box>
-                        ),
-                    },
-                ]}
-            />
-        ) : (
-            <Title order={6} {...RESULTS_TAB_TOUR_PROPS}>
-                {resultsLabel}
-            </Title>
-        );
+        const handleTabChange = (value: string) => {
+            if (value === ExplorerSection.SQL) {
+                dispatch(explorerActions.setResultsPaneTab(ExplorerSection.SQL));
+                return;
+            }
+            setViewMode(
+                value === ResultsViewMode.GROUPED
+                    ? ResultsViewMode.GROUPED
+                    : ResultsViewMode.RESULTS,
+            );
+            dispatch(explorerActions.setResultsPaneTab(ExplorerSection.RESULTS));
+        };
+
+        const tabData = [
+            {
+                value: ResultsViewMode.RESULTS,
+                label: (
+                    <Box
+                        component="span"
+                        data-testid="results-pane-tab-results"
+                        {...RESULTS_TAB_TOUR_PROPS}
+                    >
+                        Results
+                    </Box>
+                ),
+            },
+            ...(isGroupedDisabled
+                ? []
+                : [
+                      {
+                          value: ResultsViewMode.GROUPED,
+                          label: (
+                              <Box
+                                  component="span"
+                                  data-testid="results-pane-tab-chart-results"
+                              >
+                                  Chart results
+                              </Box>
+                          ),
+                      },
+                  ]),
+            ...(canViewSql
+                ? [
+                      {
+                          value: ExplorerSection.SQL,
+                          label: (
+                              <Box
+                                  component="span"
+                                  data-testid="results-pane-tab-sql"
+                                  {...SQL_TAB_TOUR_PROPS}
+                              >
+                                  SQL
+                              </Box>
+                          ),
+                      },
+                  ]
+                : []),
+        ];
+
+        const tabs =
+            tabData.length > 1 ? (
+                <SegmentedControl
+                    size="xs"
+                    disabled={!tableName}
+                    value={activeTab}
+                    onChange={handleTabChange}
+                    data={tabData}
+                />
+            ) : (
+                <Title order={6} {...RESULTS_TAB_TOUR_PROPS}>
+                    Results
+                </Title>
+            );
 
         return (
             <Box
@@ -162,7 +200,7 @@ const ResultsPane: FC<Props> = memo(
                         warehouseConnectionUuid={warehouseConnectionUuid}
                     />
                 ) : (
-                    <ResultsCard tabs={tabs} />
+                    <ResultsCard tabs={tabs} viewMode={effectiveViewMode} />
                 )}
             </Box>
         );
