@@ -12,8 +12,16 @@ in the Explorer.
 
 **Composer query**:
 One submission of a pipeline by the AI agent in a single tool call. Also the
-name of the tool. Each submission is one run and one artifact version.
+name of the tool. Each submission creates one artifact version and runs it
+once.
 _Avoid_: multi-source query (the API layer under it), composed query, merge
+
+**Run**:
+One execution of a version's pipeline, producing a node result for every
+node. The submission runs it once; later runs execute the same pipeline again
+and never change the version. In a run, each node executes or is served from
+the results cache.
+_Avoid_: re-plan, refresh (a UI action, not the thing), new version
 
 **Pipeline**:
 The set of nodes in a composer query, ordered by their references. Shown to
@@ -22,8 +30,8 @@ _Avoid_: DAG (in user-facing copy), graph (the visual mode, not the thing)
 
 **Node**:
 One query in a pipeline, named by a node id, with a title shown to users. Its
-result is a table other nodes can read. Node ids are internal and never reach
-the user interface.
+result is a table other nodes can read. A node id names one definition for
+the whole thread. Node ids are internal and never reach the user interface.
 _Avoid_: step (in code; "N steps" is the user-facing count only), query
 (ambiguous with the composer query), source (a node kind)
 
@@ -33,20 +41,22 @@ warehouse SQL, or external data. Grouped under "Sources" in the pipeline panel.
 _Avoid_: input, leaf, root
 
 **Transformation**:
-A DuckDB node that reads only other nodes' results. Runs on the compose engine
-and never touches the warehouse. Grouped under "Transformations".
-_Avoid_: duckdb node (in user-facing copy), join node, post-processing step
+A node that reads only other nodes' results and never touches the warehouse:
+SQL on the compose engine, or Python in a sandbox. Grouped under
+"Transformations".
+_Avoid_: duckdb node, python node (in user-facing copy), join node,
+post-processing step
 
 **Reused node**:
-A node copied into this run's pipeline from an earlier run of the thread,
-because this run read its result instead of re-running it. In the composer
-artifact and the pipeline panel it is an ordinary node, indistinguishable
-from the run's own. A read of a result no earlier run of this thread owns
-stays a placeholder named by its alias.
+A node of an earlier version of the thread that a submission reads by its
+node id instead of writing it again. It is copied, with everything it reads,
+into the new version's pipeline, where it is an ordinary node,
+indistinguishable from the version's own.
 _Avoid_: external reference, cached result, dependency, earlier result
 
 **Reads**:
-The references a node declares to other nodes' results. Shown to users by node
+The nodes whose results a node declares it reads, by node id: nodes of the
+same submission or of earlier versions of the thread. Shown to users by node
 title, never by node id.
 _Avoid_: depends on, inputs, references (in user-facing copy)
 
@@ -65,13 +75,13 @@ _Avoid_: intermediate result, step output, preview
 **Displayed node**:
 The node whose result is on screen in the composer artifact. The terminal
 node by default; picking a node in the pipeline panel displays it, and a new
-run resets it to the new terminal node.
+version resets it to the new terminal node.
 _Avoid_: selected node (selection is a graph-mode concept), active node,
 focused node
 
 **Viz config**:
 How the terminal node's result is visualized: chart kind, axes and display
-options, in the same vocabulary as a SQL runner chart. Picked for each run
+options, in the same vocabulary as a SQL runner chart. Picked for each version
 from the question and the result, stored with the composer artifact, and the
 starting point of the viz switcher and of any later configuration. Other
 node results have no viz config and start from their column types.
@@ -95,7 +105,8 @@ _Avoid_: chart settings, config sidebar, viz sidebar
 **Composer artifact**:
 The chart artifact a successful composer query creates: the displayed node's
 result plus the pipeline that produced it. One per thread, one version per
-run.
+submission. A version is declarative: its pipeline, terminal node and viz
+config. It holds no results, and a run never changes it.
 _Avoid_: composer chart, result artifact
 
 **Pipeline panel**:
@@ -104,8 +115,8 @@ lists the pipeline, with a List and a Graph mode.
 _Avoid_: footer, pipeline card (that is the live tool-call card), drawer
 
 **Pipeline card**:
-The body of the "Ran composer queries" tool-call row, shown while the run is
-in flight and when it fails. Collapses once the run's artifact exists.
+The body of the "Ran composer queries" tool-call row, shown while the submission's
+run is in flight and when it fails. Collapses once the artifact version exists.
 _Avoid_: tool-call description, pipeline panel
 
 ## Boundaries
