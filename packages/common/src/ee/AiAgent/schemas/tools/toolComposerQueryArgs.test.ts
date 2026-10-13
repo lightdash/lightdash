@@ -1,6 +1,8 @@
 import { QuerySourceType } from '../../../../types/querySources';
 import {
+    createToolComposerQueriesArgsSchema,
     DEFAULT_COMPOSER_QUERY_LIMIT,
+    getToolComposerQueriesDescription,
     parsePartialToolComposerQueriesArgs,
     toolComposerQueriesArgsSchema,
     toolComposerQueryNodeToSourceQuery,
@@ -186,6 +188,82 @@ describe('parsePartialToolComposerQueriesArgs', () => {
                 description: null,
                 sql: '',
                 references: ['revenue', 'targets'],
+                limit: DEFAULT_COMPOSER_QUERY_LIMIT,
+            },
+        ]);
+    });
+});
+
+describe('python composer nodes', () => {
+    const pythonNode = {
+        sourceType: QuerySourceType.PYTHON,
+        nodeId: 'forecast',
+        title: 'Revenue forecast',
+        description: null,
+        code: 'def run(inputs, params):\n    return inputs["revenue"]',
+        references: ['revenue'],
+    };
+    const args = {
+        title: null,
+        description: null,
+        terminalNodeId: null,
+        queries: [pythonNode],
+    };
+
+    it('offers the python node only when enabled', () => {
+        expect(toolComposerQueriesArgsSchema.safeParse(args).success).toBe(
+            false,
+        );
+        expect(
+            createToolComposerQueriesArgsSchema({
+                enablePythonNodes: true,
+            }).safeParse(args).success,
+        ).toBe(true);
+    });
+
+    it('describes python nodes only when enabled', () => {
+        expect(
+            getToolComposerQueriesDescription({ enablePythonNodes: false }),
+        ).not.toContain('"python"');
+        expect(
+            getToolComposerQueriesDescription({ enablePythonNodes: true }),
+        ).toContain('"python"');
+    });
+
+    it('converts to a python source query', () => {
+        const [node] = createToolComposerQueriesArgsSchema({
+            enablePythonNodes: true,
+        }).parse(args).queries;
+        expect(toolComposerQueryNodeToSourceQuery(node)).toEqual({
+            sourceType: QuerySourceType.PYTHON,
+            nodeId: 'forecast',
+            title: 'Revenue forecast',
+            description: undefined,
+            code: pythonNode.code,
+            references: ['revenue'],
+            limit: DEFAULT_COMPOSER_QUERY_LIMIT,
+        });
+    });
+
+    it('renders a partially streamed python node', () => {
+        const parsed = parsePartialToolComposerQueriesArgs({
+            queries: [
+                {
+                    sourceType: QuerySourceType.PYTHON,
+                    nodeId: 'forecast',
+                    code: 'def run(inp',
+                    references: { rev: 'revenue', partial: 1 },
+                },
+            ],
+        });
+        expect(parsed?.queries).toEqual([
+            {
+                sourceType: QuerySourceType.PYTHON,
+                nodeId: 'forecast',
+                title: 'forecast',
+                description: null,
+                code: 'def run(inp',
+                references: { rev: 'revenue' },
                 limit: DEFAULT_COMPOSER_QUERY_LIMIT,
             },
         ]);

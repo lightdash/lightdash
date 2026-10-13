@@ -189,6 +189,7 @@ import {
     formatWarehouseTableScopeError,
     isSqlScopeConfigured,
 } from '../ai/utils/sqlScope';
+import { truncateMiddle } from '../ai/utils/truncation';
 import { findAiDeepResearchRunDocuments } from '../AiDeepResearchService/runDocument';
 import type {
     AppGenerateService,
@@ -209,6 +210,9 @@ type ContentAsCodeType = Parameters<ValidateContentFn>[0]['type'];
 type SearchContentResult = Awaited<
     ReturnType<SearchService['findContent']>
 >['content'][number];
+
+// A failed node's error, e.g. a Python traceback, as the model sees it.
+const COMPOSER_NODE_ERROR_MAX_CHARS = 4096;
 
 const isDataAppSearchResult = (
     item: SearchContentResult,
@@ -4013,7 +4017,10 @@ export class AiAgentToolsService extends BaseService {
                                           `"${nodeId}" (${error ?? 'Unknown error'})`,
                                   )
                                   .join(', ')}`
-                            : `: ${queryResults.error ?? 'Unknown error'}`
+                            : `: ${truncateMiddle(
+                                  queryResults.error ?? 'Unknown error',
+                                  COMPOSER_NODE_ERROR_MAX_CHARS,
+                              )}`
                     }`,
                 );
             }
@@ -4066,7 +4073,13 @@ export class AiAgentToolsService extends BaseService {
                             (submission) =>
                                 submission.queryUuid === status.queryUuid,
                         )?.nodeId ?? status.queryUuid,
-                    error: status.error,
+                    error:
+                        status.error === null
+                            ? null
+                            : truncateMiddle(
+                                  status.error,
+                                  COMPOSER_NODE_ERROR_MAX_CHARS,
+                              ),
                 }));
         } catch {
             return [];

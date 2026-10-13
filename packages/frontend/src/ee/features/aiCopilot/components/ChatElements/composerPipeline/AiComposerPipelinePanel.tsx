@@ -22,6 +22,7 @@ import {
 } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
 import {
+    IconBrandPython,
     IconChevronRight,
     IconDatabase,
     IconFileSpreadsheet,
@@ -64,7 +65,7 @@ import { useCanViewAiAgentSql } from '../../../hooks/useCanViewAiAgentSql';
 import styles from './AiComposerPipelinePanel.module.css';
 import {
     groupPipeline,
-    sourceLabelOf,
+    nodeTypeLabelOf,
     type PipelineLayer,
     type PipelineNode,
 } from './groupPipeline';
@@ -75,7 +76,7 @@ import {
 } from './pipelineGraph';
 
 const TRANSFORMATIONS_HELP =
-    'Transformations run in DuckDB on top of the source results. They never touch the warehouse.';
+    'Transformations run in DuckDB or Python on top of the source results. They never touch the warehouse.';
 
 const pipelineNodeRowId = (nodeId: string) =>
     `composer-pipeline-node-${nodeId}`;
@@ -96,7 +97,7 @@ const layerLabel = (layer: PipelineLayer) => {
     }
 };
 
-const sourceIcon = (query: SourceQuery) => {
+const nodeTypeIcon = (query: SourceQuery) => {
     switch (query.sourceType) {
         case QuerySourceType.SEMANTIC_LAYER:
             return IconSitemap;
@@ -104,6 +105,8 @@ const sourceIcon = (query: SourceQuery) => {
             return IconDatabase;
         case QuerySourceType.EXTERNAL:
             return IconFileSpreadsheet;
+        case QuerySourceType.PYTHON:
+            return IconBrandPython;
         case QuerySourceType.DUCKDB:
             return null;
         default:
@@ -111,18 +114,28 @@ const sourceIcon = (query: SourceQuery) => {
     }
 };
 
-const formattedSqlOf = (
+const queryCodeOf = (
     query: Exclude<SourceQuery, SemanticLayerSourceQuery>,
-) => {
+): { code: string; language: 'sql' | 'python' } => {
     switch (query.sourceType) {
         case QuerySourceType.SQL:
-            return formatSql(query.sql);
+            return { code: formatSql(query.sql), language: 'sql' };
         case QuerySourceType.DUCKDB:
         case QuerySourceType.EXTERNAL:
-            return formatSql(query.sql, WarehouseTypes.DUCKDB);
+            return {
+                code: formatSql(query.sql, WarehouseTypes.DUCKDB),
+                language: 'sql',
+            };
+        case QuerySourceType.PYTHON:
+            return { code: query.code, language: 'python' };
         default:
             return assertUnreachable(query, 'Unknown source type');
     }
+};
+
+const queryToggleLabel = (query: SourceQuery, open: boolean) => {
+    const noun = query.sourceType === QuerySourceType.PYTHON ? 'code' : 'query';
+    return open ? `Hide ${noun}` : `View ${noun}`;
 };
 
 const SemanticFields: FC<{ query: SemanticLayerSourceQuery }> = ({ query }) => {
@@ -159,9 +172,9 @@ const SemanticFields: FC<{ query: SemanticLayerSourceQuery }> = ({ query }) => {
     );
 };
 
-const SourceType: FC<{ query: SourceQuery }> = ({ query }) => {
-    const label = sourceLabelOf(query);
-    const icon = sourceIcon(query);
+const NodeType: FC<{ query: SourceQuery }> = ({ query }) => {
+    const label = nodeTypeLabelOf(query);
+    const icon = nodeTypeIcon(query);
     if (!label || !icon) return null;
     return (
         <Text component="span" className={styles.nodeType}>
@@ -236,7 +249,7 @@ const QueryDetails: FC<{ query: SourceQuery; projectUuid: string }> = ({
                                 queryOpen && styles.chevronOpen,
                             )}
                         />
-                        {queryOpen ? 'Hide query' : 'View query'}
+                        {queryToggleLabel(query, queryOpen)}
                     </UnstyledButton>
                     <Collapse
                         expanded={queryOpen}
@@ -253,10 +266,7 @@ const QueryDetails: FC<{ query: SourceQuery; projectUuid: string }> = ({
                                     />
                                 )
                             ) : (
-                                <CodeBlock
-                                    code={formattedSqlOf(query)}
-                                    language="sql"
-                                />
+                                <CodeBlock {...queryCodeOf(query)} />
                             )}
                         </Box>
                     </Collapse>
@@ -290,7 +300,7 @@ const PipelineNodeRow: FC<
             <Text component="span" className={styles.nodeTitle}>
                 {node.title}
             </Text>
-            {node.kind === 'query' && <SourceType query={node.query} />}
+            {node.kind === 'query' && <NodeType query={node.query} />}
         </>
     );
     // The whole card is the click target; it holds other controls, so it is
@@ -404,9 +414,9 @@ const PipelineFlowNodeView: FC<NodeProps<PipelineFlowNode>> = ({ data }) => (
             <Text component="span" className={styles.graphNodeTitle} truncate>
                 {data.title}
             </Text>
-            {data.sourceLabel && (
+            {data.typeLabel && (
                 <Text component="span" className={styles.graphNodeType}>
-                    {data.sourceLabel}
+                    {data.typeLabel}
                 </Text>
             )}
         </Box>

@@ -14,6 +14,7 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import {
+    IconBrandPython,
     IconCheck,
     IconChevronRight,
     IconDatabase,
@@ -24,6 +25,7 @@ import {
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useMemo, useState, type FC } from 'react';
+import CodeBlock from '../../../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
 import { useCanViewAiAgentSql } from '../../../../hooks/useCanViewAiAgentSql';
 import {
@@ -33,6 +35,7 @@ import {
 import { ToolCallChip } from '../ToolCallChip';
 import rowStyles from '../ToolCallRow.module.css';
 import { ToolCallSqlBlock } from '../ToolCallSqlBlock';
+import sqlBlockStyles from '../ToolCallSqlBlock.module.css';
 import styles from './ComposerQueriesToolCallDescription.module.css';
 
 /**
@@ -143,6 +146,16 @@ const getNodePresentation = (
                 detail: `Reads ${references.join(', ')}`,
             } as const;
         }
+        case QuerySourceType.PYTHON: {
+            const references = referenceTargets(node.references).map(
+                (reference) => titlesByNodeId[reference] ?? reference,
+            );
+            return {
+                icon: IconBrandPython,
+                badge: 'Python',
+                detail: `Reads ${references.join(', ')}`,
+            } as const;
+        }
     }
 };
 
@@ -159,6 +172,14 @@ const NodeBody: FC<{ node: ToolComposerQueryNode }> = ({ node }) => {
                     <ToolCallChip key={fieldId}>{fieldId}</ToolCallChip>
                 ))}
             </Group>
+        );
+    }
+    if (node.sourceType === QuerySourceType.PYTHON) {
+        if (!canViewSql || !node.code) return null;
+        return (
+            <Box className={sqlBlockStyles.code}>
+                <CodeBlock code={node.code} language="python" />
+            </Box>
         );
     }
     if (!canViewSql || !node.sql) return null;

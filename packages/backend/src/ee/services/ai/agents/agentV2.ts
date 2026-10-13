@@ -2038,6 +2038,7 @@ export const getAgentTools = (
               maxQueryLimit: args.runSqlMaxLimit,
               enableDataAccess: args.enableDataAccess,
               canRunSql: args.canRunSql,
+              enablePythonNodes: args.enableComposerPythonNodes,
               autoApproveSql: args.autoApproveSql,
               autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
           })

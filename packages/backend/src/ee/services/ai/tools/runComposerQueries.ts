@@ -2,6 +2,8 @@ import {
     buildComposerArtifactPipeline,
     createToolComposerQueriesArgsSchema,
     getComposerVizPlan,
+    getSourceQueryResultReferences,
+    getToolComposerQueriesDescription,
     isSlackPrompt,
     QuerySourceType,
     runComposerQueriesToolDefinition,
@@ -52,6 +54,7 @@ type Dependencies = {
     maxQueryLimit: number;
     enableDataAccess: boolean;
     canRunSql: boolean;
+    enablePythonNodes: boolean;
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
 };
@@ -94,11 +97,11 @@ export const resolveTerminalNodeId = (
 
     const referenced = new Set<string>();
     queries.forEach((query) => {
-        if (query.sourceType !== QuerySourceType.DUCKDB) return;
-        const references = Array.isArray(query.references)
-            ? query.references
-            : Object.values(query.references);
-        references
+        Object.values(
+            getSourceQueryResultReferences(
+                toolComposerQueryNodeToSourceQuery(query),
+            ),
+        )
             .filter((reference) => nodeIds.has(reference))
             .forEach((reference) => referenced.add(reference));
     });
@@ -130,6 +133,7 @@ export const getRunComposerQueries = ({
     maxQueryLimit,
     enableDataAccess,
     canRunSql,
+    enablePythonNodes,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
 }: Dependencies) => {
@@ -137,10 +141,11 @@ export const getRunComposerQueries = ({
 
     const inputSchema = createToolComposerQueriesArgsSchema({
         maxLimit: maxQueryLimit,
+        enablePythonNodes,
     });
 
     return tool({
-        description: toolDefinition.description,
+        description: getToolComposerQueriesDescription({ enablePythonNodes }),
         inputSchema,
         outputSchema: toolDefinition.outputSchema,
         toModelOutput: toolDefinition.toModelOutput,
@@ -166,6 +171,18 @@ export const getRunComposerQueries = ({
                     queryNodes,
                     terminalNodeId,
                 );
+
+                if (
+                    !enablePythonNodes &&
+                    queryNodes.some(
+                        (node) => node.sourceType === QuerySourceType.PYTHON,
+                    )
+                ) {
+                    return failure(
+                        'This pipeline contains "python" nodes but python queries are not enabled. Rebuild the pipeline with duckdb nodes instead.',
+                        'error',
+                    );
+                }
 
                 const sqlNodes = queryNodes.filter(
                     (node) => node.sourceType === QuerySourceType.SQL,

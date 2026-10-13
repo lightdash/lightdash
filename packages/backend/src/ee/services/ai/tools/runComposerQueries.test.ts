@@ -9,10 +9,14 @@ import {
     type ToolComposerQueriesArgs,
     type ToolComposerQueriesOutput,
 } from '@lightdash/common';
+import type { ZodType } from 'zod';
 import { EMPTY_QUERY_GUIDANCE } from '../decisions/queryReview';
 import type { QueryReviewer } from '../decisions/queryReview';
 import type { PlanComposerViz } from '../decisions/vizPlanner';
-import { getRunComposerQueries } from './runComposerQueries';
+import {
+    getRunComposerQueries,
+    resolveTerminalNodeId,
+} from './runComposerQueries';
 
 type ComposerTool = ReturnType<typeof getRunComposerQueries>;
 type ComposerOutput = ToolComposerQueriesOutput;
@@ -83,6 +87,16 @@ const externalNode: ComposerNode = {
     limit: 500,
 };
 
+const pythonNode: ComposerNode = {
+    sourceType: QuerySourceType.PYTHON,
+    nodeId: 'forecast',
+    title: 'Revenue forecast',
+    description: null,
+    code: 'def run(inputs, params):\n    return inputs["revenue"]',
+    references: ['revenue'],
+    limit: 500,
+};
+
 const makeArgs = (
     overrides: Partial<ToolComposerQueriesArgs> = {},
 ): ToolComposerQueriesArgs => ({
@@ -110,6 +124,7 @@ const makeTool = ({
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
     canRunSql = true,
+    enablePythonNodes = false,
     enableDataAccess = true,
     waitForSqlApproval = vi.fn().mockResolvedValue('approved'),
 }: {
@@ -118,6 +133,7 @@ const makeTool = ({
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
     canRunSql?: boolean;
+    enablePythonNodes?: boolean;
     enableDataAccess?: boolean;
     waitForSqlApproval?: import('vitest').Mock;
 } = {}) => {
@@ -162,6 +178,7 @@ const makeTool = ({
         maxQueryLimit: 5000,
         enableDataAccess,
         canRunSql,
+        enablePythonNodes,
         autoApproveSql,
         autoApproveSqlUserUuid,
     };
@@ -914,5 +931,102 @@ describe('composer viz config', () => {
                 'Visualization: bar chart, x = month, y = signups.',
             ),
         ).toBe(true);
+    });
+});
+
+describe('python composer nodes', () => {
+    it('treats python references as edges when resolving the terminal node', () => {
+        expect(resolveTerminalNodeId([semanticNode, pythonNode], null)).toBe(
+            'forecast',
+        );
+        expect(
+            resolveTerminalNodeId(
+                [
+                    semanticNode,
+                    pythonNode,
+                    {
+                        ...duckdbNode,
+                        references: { f: 'forecast' },
+                    },
+                ],
+                null,
+            ),
+        ).toBe('joined');
+        expect(() =>
+            resolveTerminalNodeId(
+                [semanticNode, { ...pythonNode, references: [] }],
+                null,
+            ),
+        ).toThrow('2 sinks');
+    });
+
+    it('offers the python node in the input schema only when enabled', () => {
+        const args = makeArgs({ queries: [semanticNode, pythonNode] });
+        const accepts = (enablePythonNodes: boolean) =>
+            (
+                makeTool({ enablePythonNodes }).tool.inputSchema as ZodType
+            ).safeParse(args).success;
+        expect(accepts(false)).toBe(false);
+        expect(accepts(true)).toBe(true);
+        expect(makeTool().tool.description).not.toContain('"python"');
+        expect(
+            makeTool({ enablePythonNodes: true }).tool.description,
+        ).toContain('"python"');
+    });
+
+    it('runs a python pipeline without SQL approval', async () => {
+        const { tool, dependencies } = makeTool({ enablePythonNodes: true });
+
+        await executeTool(
+            tool,
+            makeArgs({ queries: [semanticNode, pythonNode] }),
+        );
+
+        expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
+        expect(dependencies.runComposerQueries).toHaveBeenCalledWith(
+            expect.objectContaining({
+                terminalNodeId: 'forecast',
+                queries: [
+                    expect.objectContaining({ nodeId: 'revenue' }),
+                    expect.objectContaining({
+                        sourceType: QuerySourceType.PYTHON,
+                        nodeId: 'forecast',
+                        code: pythonNode.code,
+                        references: ['revenue'],
+                    }),
+                ],
+            }),
+        );
+    });
+
+    it('refuses python nodes when python queries are disabled', async () => {
+        const { tool, dependencies } = makeTool();
+
+        const output = await executeTool(
+            tool,
+            makeArgs({ queries: [semanticNode, pythonNode] }),
+        );
+
+        expect(output.metadata?.status).toBe('error');
+        expect(output.result).toContain('python');
+        expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
+    });
+
+    it('returns the python traceback to the model when the node fails', async () => {
+        const { tool, dependencies } = makeTool({ enablePythonNodes: true });
+        dependencies.runComposerQueries.mockRejectedValue(
+            new Error(
+                'Composer query failed on node(s): "forecast" (run() raised:\nTraceback (most recent call last):\nKeyError: \'amount\')',
+            ),
+        );
+
+        const output = await executeTool(
+            tool,
+            makeArgs({ queries: [semanticNode, pythonNode] }),
+        );
+
+        expect(output.metadata?.status).toBe('error');
+        expect(output.result).toContain('"forecast"');
+        expect(output.result).toContain("KeyError: 'amount'");
     });
 });

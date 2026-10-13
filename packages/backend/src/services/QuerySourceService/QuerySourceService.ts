@@ -159,6 +159,42 @@ export class QuerySourceService extends BaseService {
         });
     }
 
+    private async isSourceEnabled(
+        account: Account,
+        source: QuerySourceClient,
+    ): Promise<boolean> {
+        if (source.requiredFeatureFlags.length === 0) return true;
+        assertIsAccountWithOrg(account);
+        const user = {
+            userUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid,
+        };
+        const flags = await Promise.all(
+            source.requiredFeatureFlags.map((featureFlagId) =>
+                this.featureFlagModel.get({ user, featureFlagId }),
+            ),
+        );
+        return flags.every(({ enabled }) => enabled);
+    }
+
+    private async throwIfSourcesDisabled(
+        account: Account,
+        sources: QuerySourceClient[],
+    ): Promise<void> {
+        const unique = [...new Set(sources)];
+        const enabled = await Promise.all(
+            unique.map((source) => this.isSourceEnabled(account, source)),
+        );
+        const disabled = unique.filter((_, index) => !enabled[index]);
+        if (disabled.length > 0) {
+            throw new ForbiddenError(
+                `${disabled
+                    .map((source) => source.definition.sourceType)
+                    .join(', ')} queries are not enabled`,
+            );
+        }
+    }
+
     private async throwIfMultiSourceQueryDisabled(
         account: Account,
     ): Promise<void> {
@@ -213,7 +249,15 @@ export class QuerySourceService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        return { sources: this.registry.list() };
+        const sources = this.registry.list();
+        const enabled = await Promise.all(
+            sources.map((source) => this.isSourceEnabled(account, source)),
+        );
+        return {
+            sources: sources
+                .filter((_, index) => enabled[index])
+                .map((source) => source.definition),
+        };
     }
 
     async scanSchema(
@@ -223,6 +267,7 @@ export class QuerySourceService extends BaseService {
     ): Promise<ApiScanQuerySourceSchemaResults> {
         await this.throwIfMultiSourceQueryDisabled(account);
         const source = this.registry.get(sourceType);
+        await this.throwIfSourcesDisabled(account, [source]);
         if (source.definition.sourceType === QuerySourceType.SQL) {
             await this.assertAgentSqlAccess(account, projectUuid);
         }
@@ -430,6 +475,10 @@ export class QuerySourceService extends BaseService {
     }): Promise<{ queries: InternalSourceQuerySubmission[] }> {
         const ordered = this.validateQueries(queries, plans);
         QuerySourceService.assertPlansNameDuckdbNodes(ordered, plans);
+        await this.throwIfSourcesDisabled(
+            account,
+            ordered.map(({ source }) => source),
+        );
         if (
             ordered.some(({ source }) =>
                 sourceRequiresRawSql(source.definition.sourceType),

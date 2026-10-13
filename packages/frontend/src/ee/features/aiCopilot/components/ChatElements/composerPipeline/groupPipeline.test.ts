@@ -1,6 +1,6 @@
 import { QuerySourceType, type SourceQuery } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { groupPipeline } from './groupPipeline';
+import { groupPipeline, nodeTypeLabelOf } from './groupPipeline';
 
 const sql = (nodeId: string, title?: string): SourceQuery => ({
     sourceType: QuerySourceType.SQL,
@@ -18,6 +18,18 @@ const duckdb = (
     nodeId,
     title,
     sql: 'select 1',
+    references,
+});
+
+const python = (
+    nodeId: string,
+    references: string[] | Record<string, string>,
+    title?: string,
+): SourceQuery => ({
+    sourceType: QuerySourceType.PYTHON,
+    nodeId,
+    title,
+    code: 'def run(inputs, params):\n    return inputs["a"]',
     references,
 });
 
@@ -180,5 +192,48 @@ describe('groupPipeline', () => {
             'loop_b',
             'query_1',
         ]);
+    });
+
+    it('layers python nodes as transformations that duckdb nodes can read', () => {
+        const layers = groupPipeline(
+            [
+                sql('orders', 'Orders'),
+                python('simulated', ['orders'], 'Simulated amounts'),
+                duckdb('summary', { sims: 'simulated' }, 'Summary'),
+            ],
+            'summary',
+        );
+        expect(layers.map((layer) => [layer.kind, ids(layer.nodes)])).toEqual([
+            ['sources', ['orders']],
+            ['transformations', ['simulated']],
+            ['result', ['summary']],
+        ]);
+        expect(layers[1].nodes[0]).toMatchObject({
+            reads: ['Orders'],
+            readNodeIds: ['orders'],
+        });
+        expect(layers[2].nodes[0]).toMatchObject({
+            reads: ['Simulated amounts'],
+            readNodeIds: ['simulated'],
+        });
+    });
+
+    it('turns a python read of an earlier result into a placeholder', () => {
+        const layers = groupPipeline(
+            [python('sim', { prev: 'uuid-1' }, 'Simulation')],
+            'sim',
+        );
+        expect(layers.map((layer) => [layer.kind, ids(layer.nodes)])).toEqual([
+            ['sources', ['earlier:uuid-1']],
+            ['result', ['sim']],
+        ]);
+    });
+});
+
+describe('nodeTypeLabelOf', () => {
+    it('labels sources and python nodes, not duckdb transformations', () => {
+        expect(nodeTypeLabelOf(sql('a'))).toBe('Warehouse SQL');
+        expect(nodeTypeLabelOf(python('p', ['a']))).toBe('Python');
+        expect(nodeTypeLabelOf(duckdb('d', ['a']))).toBeNull();
     });
 });

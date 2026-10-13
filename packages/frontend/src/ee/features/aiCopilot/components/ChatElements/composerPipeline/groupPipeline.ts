@@ -39,8 +39,8 @@ export type PipelineLayer = {
     nodes: PipelineNode[];
 };
 
-/** User-facing label of where a source node reads from; null for transformations. */
-export const sourceLabelOf = (query: SourceQuery): string | null => {
+/** User-facing node type: where a source reads from, or Python; null for DuckDB transformations. */
+export const nodeTypeLabelOf = (query: SourceQuery): string | null => {
     switch (query.sourceType) {
         case QuerySourceType.SEMANTIC_LAYER:
             return 'Semantic layer';
@@ -48,6 +48,8 @@ export const sourceLabelOf = (query: SourceQuery): string | null => {
             return 'Warehouse SQL';
         case QuerySourceType.EXTERNAL:
             return 'External data';
+        case QuerySourceType.PYTHON:
+            return 'Python';
         case QuerySourceType.DUCKDB:
             return null;
         default:
@@ -61,7 +63,11 @@ const nodeIdOf = (query: SourceQuery, index: number) =>
 type Reference = { alias: string | null; value: string };
 
 const referencesOf = (query: SourceQuery): Reference[] => {
-    if (query.sourceType !== QuerySourceType.DUCKDB || !query.references)
+    if (
+        (query.sourceType !== QuerySourceType.DUCKDB &&
+            query.sourceType !== QuerySourceType.PYTHON) ||
+        !query.references
+    )
         return [];
     return Array.isArray(query.references)
         ? query.references.map((value) => ({ alias: null, value }))
