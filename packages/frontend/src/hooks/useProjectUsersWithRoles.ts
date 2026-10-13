@@ -6,10 +6,13 @@ import {
     isGroupWithMembers,
     isSystemRole,
     ProjectMemberRole,
+    type Group,
     type InheritedRoles,
     type KnexPaginateArgs,
     type OrganizationMemberProfile,
     type OrganizationMemberRole,
+    type ProjectGroupAccess,
+    type ProjectMemberProfile,
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import { useProjectGroupAccessList } from '../features/projectGroupAccess/hooks/useProjectGroupAccess';
@@ -23,6 +26,61 @@ export type ProjectUserWithRole = Omit<OrganizationMemberProfile, 'role'> & {
     finalRole: OrganizationMemberRole;
     projectUuid: string;
     role: ProjectMemberRole;
+    /**
+     * True when any of the user's roles (organization, group or project) is a
+     * custom role. Custom roles can't be ranked against system roles, so
+     * `inheritedRole` says nothing about them; consumers that gate on a
+     * minimum system role should treat these users as having project access.
+     */
+    hasCustomRole: boolean;
+};
+
+/**
+ * Users who hold a custom role through any path: their organization
+ * membership, a group with a custom project role, or a direct project
+ * membership. The API reports a custom role as `roleUuid` (or
+ * `hasMultipleRoles` for role sets) next to the plain `member` base role, so
+ * looking only at `role` makes these users look like they have no access.
+ */
+export const collectCustomRoleHolders = ({
+    organizationUsers,
+    projectAccess,
+    projectGroupAccess,
+    groups,
+}: {
+    organizationUsers: Pick<
+        OrganizationMemberProfile,
+        'userUuid' | 'roleUuid' | 'hasMultipleRoles'
+    >[];
+    projectAccess: Pick<
+        ProjectMemberProfile,
+        'userUuid' | 'roleUuid' | 'hasMultipleRoles'
+    >[];
+    projectGroupAccess: Pick<ProjectGroupAccess, 'groupUuid' | 'role'>[];
+    groups: Group[];
+}): Set<string> => {
+    const holders = new Set<string>();
+
+    organizationUsers.forEach((orgUser) => {
+        if (orgUser.roleUuid !== undefined || orgUser.hasMultipleRoles) {
+            holders.add(orgUser.userUuid);
+        }
+    });
+
+    projectAccess.forEach((member) => {
+        if (member.roleUuid !== undefined || member.hasMultipleRoles) {
+            holders.add(member.userUuid);
+        }
+    });
+
+    projectGroupAccess.forEach((groupAccess) => {
+        if (isSystemRole(groupAccess.role)) return;
+        const group = groups.find((g) => g.uuid === groupAccess.groupUuid);
+        if (!group || !isGroupWithMembers(group)) return;
+        group.memberUuids.forEach((userUuid) => holders.add(userUuid));
+    });
+
+    return holders;
 };
 
 export const useProjectUsersWithRoles = (
@@ -155,6 +213,22 @@ export const useProjectUsersWithRoles = (
         }, {});
     }, [organizationUsersQuery, orgRoles, groupRoles, projectRoles]);
 
+    const customRoleHolders = useMemo(() => {
+        if (!organizationUsersQuery.isSuccess) return new Set<string>();
+
+        return collectCustomRoleHolders({
+            organizationUsers: organizationUsersQuery.data,
+            projectAccess: projectAccessQuery.data ?? [],
+            projectGroupAccess: projectGroupAccessQuery.data ?? [],
+            groups: groupsQuery.data ?? [],
+        });
+    }, [
+        organizationUsersQuery,
+        projectAccessQuery,
+        projectGroupAccessQuery,
+        groupsQuery,
+    ]);
+
     const usersWithProjectRole: ProjectUserWithRole[] = useMemo(() => {
         if (!organizationUsersQuery.isSuccess || !inheritedRoles) return [];
 
@@ -178,9 +252,16 @@ export const useProjectUsersWithRoles = (
                     : inheritedRole,
                 inheritedRole: inheritedRoles?.[orgUser.userUuid],
                 projectUuid,
+                hasCustomRole: customRoleHolders.has(orgUser.userUuid),
             };
         });
-    }, [organizationUsersQuery, projectRoles, inheritedRoles, projectUuid]);
+    }, [
+        organizationUsersQuery,
+        projectRoles,
+        inheritedRoles,
+        projectUuid,
+        customRoleHolders,
+    ]);
 
     return {
         usersWithProjectRole,
