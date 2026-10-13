@@ -466,7 +466,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                     {spaceAccess && roleTitle && (
                         <Badge
                             size="sm"
-                            color={getAccessColor(spaceAccess.role).join('.')}
+                            color={getAccessColor(spaceAccess.role)}
                             radius="xl"
                         >
                             {origin} &middot; {roleTitle}

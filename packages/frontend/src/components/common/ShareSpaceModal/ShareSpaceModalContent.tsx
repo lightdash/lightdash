@@ -102,7 +102,6 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
         <Stack gap="sm">
             {users.map((user) => {
                 const isSessionUser = user.userUuid === sessionUserUuid;
-                const [roleColor, roleShade] = getAccessColor(user.role);
 
                 return (
                     <Group
@@ -148,7 +147,7 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
 
                         <Badge
                             size="sm"
-                            color={`${roleColor}.${roleShade}`}
+                            color={getAccessColor(user.role)}
                             radius="xl"
                         >
                             {getOriginLabel(user)} &middot;{' '}
