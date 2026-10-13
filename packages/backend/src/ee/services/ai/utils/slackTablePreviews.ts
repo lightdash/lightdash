@@ -1,6 +1,7 @@
 import {
     isAiComposerChartArtifactConfig,
     isAiSqlChartArtifactConfig,
+    QuerySourceType,
     type AiAgentToolResult,
     type AiArtifact,
     type ItemsMap,
@@ -106,7 +107,13 @@ export const getSlackTablePreviews = async ({
         artifacts.map((artifact) => [artifact.versionUuid, artifact]),
     );
     const tableCalls = toolCalls.flatMap((call) => {
-        if (!['runQuery', 'generateVisualization'].includes(call.tool_name)) {
+        if (
+            ![
+                'runQuery',
+                'generateVisualization',
+                'runComposerQueries',
+            ].includes(call.tool_name)
+        ) {
             return [];
         }
         const metadata = queryResultMetadataSchema.safeParse(
@@ -117,6 +124,27 @@ export const getSlackTablePreviews = async ({
             ? artifactsByVersion.get(metadata.data.artifactVersionUuid)
             : undefined;
         const chartConfig = artifact?.chartConfig;
+        if (call.tool_name === 'runComposerQueries') {
+            if (!isAiComposerChartArtifactConfig(chartConfig)) return [];
+            return [
+                {
+                    call,
+                    title: artifact?.title || null,
+                    exploreNames: [
+                        ...new Set(
+                            chartConfig.queries.flatMap((query) =>
+                                query.sourceType ===
+                                QuerySourceType.SEMANTIC_LAYER
+                                    ? [query.exploreName]
+                                    : [],
+                            ),
+                        ),
+                    ],
+                    metadata: metadata.data,
+                    artifact,
+                },
+            ];
+        }
         if (
             chartConfig &&
             (isAiSqlChartArtifactConfig(chartConfig) ||
@@ -136,7 +164,22 @@ export const getSlackTablePreviews = async ({
         ) {
             return [];
         }
-        return [{ call, args: args.data, metadata: metadata.data, artifact }];
+        return [
+            {
+                call,
+                title: artifact?.title || args.data.title || null,
+                exploreNames: [
+                    ...new Set([
+                        args.data.queryConfig.exploreName,
+                        ...(args.data.mergeConfig?.additionalSources.map(
+                            (source) => source.queryConfig.exploreName,
+                        ) ?? []),
+                    ]),
+                ],
+                metadata: metadata.data,
+                artifact,
+            },
+        ];
     });
 
     const callsByQuery = new Map(
@@ -156,24 +199,16 @@ export const getSlackTablePreviews = async ({
     return Promise.all(
         selectedCalls
             .slice(0, 10)
-            .map(async ({ call, args, metadata, artifact }) => {
+            .map(async ({ call, title, exploreNames, metadata, artifact }) => {
                 const preview = {
                     blockId: `ai_agent_table_${call.tool_call_id}`,
-                    title: artifact?.title || args.title || 'Query results',
+                    title: title || 'Query results',
                     url,
                     ...(artifact
                         ? { artifactVersionUuid: artifact.versionUuid }
                         : {}),
                 };
                 try {
-                    const exploreNames = [
-                        ...new Set([
-                            args.queryConfig.exploreName,
-                            ...(args.mergeConfig?.additionalSources.map(
-                                (source) => source.queryConfig.exploreName,
-                            ) ?? []),
-                        ]),
-                    ];
                     await authorize({
                         queryUuid: metadata.queryUuid,
                         exploreNames,

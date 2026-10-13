@@ -1237,7 +1237,7 @@ describe('getSystemPromptV2 Slack table selection', () => {
                 '<slack-table queryUuid="<queryUuid>" />',
             );
             expect(content).toContain(
-                'exact queryUuid copied from a successful semantic table execution in the current turn',
+                'exact queryUuid copied from a successful semantic table or composer query execution in the current turn',
             );
             expect(content).toContain('The marker is hidden from visible text');
             expect(content).toContain('on its own line in your final response');

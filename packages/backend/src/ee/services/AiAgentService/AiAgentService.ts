@@ -16059,7 +16059,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     multiSourceQueryEnabled &&
                     composeSqlRunnerEnabled &&
                     agentSettings.enableDataAccess &&
-                    !isSlackPrompt(prompt) &&
                     responseExecution.mode !== 'deep_research';
                 const enableComposerPythonNodes =
                     enableComposerQueries && pythonQueryRunnerEnabled;

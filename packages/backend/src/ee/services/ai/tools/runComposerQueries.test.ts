@@ -6,6 +6,7 @@ import {
     type AiComposerChartArtifactConfig,
     type AiWebAppPrompt,
     type SemanticLayerSourceQuery,
+    type SlackPrompt,
     type SourceQuery,
     type ToolComposerQueriesArgs,
     type ToolComposerQueriesOutput,
@@ -14,6 +15,7 @@ import type { ZodType } from 'zod';
 import { EMPTY_QUERY_GUIDANCE } from '../decisions/queryReview';
 import type { QueryReviewer } from '../decisions/queryReview';
 import type { PlanComposerViz } from '../decisions/vizPlanner';
+import { AgentContext } from '../utils/AgentContext';
 import {
     getRunComposerQueries,
     resolveTerminalNodeId,
@@ -40,6 +42,15 @@ const makePrompt = (): AiWebAppPrompt => ({
     humanScore: null,
     modelConfig: null,
     battleProfile: null,
+});
+
+const makeSlackPrompt = (): SlackPrompt => ({
+    ...makePrompt(),
+    response_slack_ts: 'response-ts',
+    slackUserId: 'slack-user',
+    slackChannelId: 'slack-channel',
+    promptSlackTs: 'prompt-ts',
+    slackThreadTs: 'thread-ts',
 });
 
 type ComposerNode = ToolComposerQueriesArgs['queries'][number];
@@ -128,6 +139,8 @@ const makeTool = ({
     enablePythonNodes = false,
     enableDataAccess = true,
     waitForSqlApproval = vi.fn().mockResolvedValue('approved'),
+    prompt = makePrompt(),
+    agentContext = new AgentContext([]),
 }: {
     reviewQuery?: QueryReviewer;
     planViz?: PlanComposerViz;
@@ -137,8 +150,11 @@ const makeTool = ({
     enablePythonNodes?: boolean;
     enableDataAccess?: boolean;
     waitForSqlApproval?: import('vitest').Mock;
+    prompt?: AiWebAppPrompt | SlackPrompt;
+    agentContext?: AgentContext;
 } = {}) => {
     const dependencies = {
+        agentContext,
         reviewQuery,
         planViz,
         updateProgress: vi.fn().mockResolvedValue(undefined),
@@ -170,11 +186,13 @@ const makeTool = ({
                 rowCount: 1,
             },
         }),
-        getPrompt: vi.fn().mockResolvedValue(makePrompt()),
+        getPrompt: vi.fn().mockResolvedValue(prompt),
         waitForSqlApproval,
         recordSqlApproval: vi.fn().mockResolvedValue(true),
         trackSqlApprovalTimeout: vi.fn(),
-        createOrUpdateArtifact: vi.fn().mockResolvedValue(undefined),
+        createOrUpdateArtifact: vi
+            .fn()
+            .mockResolvedValue({ versionUuid: 'version-1' }),
         listThreadComposerPipelines: vi.fn().mockResolvedValue([]),
         maxQueryLimit: 5000,
         enableDataAccess,
@@ -191,6 +209,57 @@ const makeTool = ({
 };
 
 describe('getRunComposerQueries', () => {
+    it('in Slack, stores the pipeline without a viz and offers the terminal result as a table', async () => {
+        const planViz = vi.fn();
+        const agentContext = new AgentContext([]);
+        const { tool, dependencies } = makeTool({
+            autoApproveSql: true,
+            planViz,
+            prompt: makeSlackPrompt(),
+            agentContext,
+        });
+
+        const output = await executeTool(tool, makeArgs());
+
+        expect(planViz).not.toHaveBeenCalled();
+        expect(
+            dependencies.createOrUpdateArtifact.mock.calls[0][0].vizConfig,
+        ).toEqual(
+            expect.objectContaining({
+                source: 'composer',
+                terminalNodeId: 'joined',
+                vizConfig: null,
+            }),
+        );
+        expect(output.metadata).toEqual({
+            status: 'success',
+            queryUuid: 'query-3',
+            artifactVersionUuid: 'version-1',
+        });
+        expect(output.result).toContain(
+            "This execution's queryUuid is query-3",
+        );
+        expect(agentContext.getSlackTableResults().get('query-3')).toEqual({
+            rows: [{ month: '2026-01', signups: 12 }],
+            fields: {},
+            truncated: false,
+        });
+    });
+
+    it('in Slack without data access, keeps results out of the table handoff', async () => {
+        const agentContext = new AgentContext([]);
+        const { tool } = makeTool({
+            autoApproveSql: true,
+            enableDataAccess: false,
+            prompt: makeSlackPrompt(),
+            agentContext,
+        });
+
+        await executeTool(tool, makeArgs());
+
+        expect(agentContext.getSlackTableResults().size).toBe(0);
+    });
+
     it('runs the pipeline, stores a composer artifact and returns the terminal snapshot', async () => {
         const { tool, dependencies } = makeTool({ autoApproveSql: true });
 
@@ -749,7 +818,12 @@ describe('composer artifact with reused nodes', () => {
                 'Terminal columns: total (number).',
             ].join('\n'),
         );
-        expect(JSON.stringify(output)).not.toContain('run-query');
+        expect(
+            JSON.stringify({
+                result: output.result,
+                structuredContent: output.structuredContent,
+            }),
+        ).not.toContain('run-query');
     });
 
     it('copies a node reached directly and transitively once', async () => {

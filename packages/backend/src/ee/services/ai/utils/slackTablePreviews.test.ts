@@ -1,4 +1,8 @@
-import { parseAiArtifactChartConfig, type AiArtifact } from '@lightdash/common';
+import {
+    parseAiArtifactChartConfig,
+    QuerySourceType,
+    type AiArtifact,
+} from '@lightdash/common';
 import {
     getSlackTableBlocks,
     type SlackTableQueryResults,
@@ -113,7 +117,77 @@ const artifact = (
     };
 };
 
+const composerArtifact = (versionUuid: string): AiArtifact => {
+    const chartConfig = parseAiArtifactChartConfig({
+        source: 'composer',
+        schemaVersion: 1,
+        queries: [
+            {
+                sourceType: QuerySourceType.SEMANTIC_LAYER,
+                nodeId: 'revenue',
+                exploreName: 'payments',
+                dimensions: ['payments_month'],
+                metrics: ['payments_total_revenue'],
+            },
+            {
+                sourceType: QuerySourceType.DUCKDB,
+                nodeId: 'joined',
+                sql: 'SELECT * FROM revenue',
+                references: ['revenue'],
+            },
+        ],
+        terminalNodeId: 'joined',
+        vizConfig: null,
+    });
+    if (!chartConfig) throw new Error('Invalid fixture');
+    return {
+        ...artifact(versionUuid, 'table'),
+        title: 'Revenue pipeline',
+        chartConfig,
+    };
+};
+
 describe('getSlackTablePreviews', () => {
+    it('loads a selected composer terminal result, authorizing its semantic explores', async () => {
+        const input = {
+            ...setup(),
+            selectedQueryUuids: ['query-composer'],
+            toolCalls: [
+                {
+                    tool_call_id: 'composer',
+                    tool_name: 'runComposerQueries',
+                    tool_args: {},
+                },
+            ],
+            toolResults: [
+                {
+                    toolCallId: 'composer',
+                    toolType: 'built-in' as const,
+                    toolName: 'runComposerQueries',
+                    metadata: {
+                        status: 'success',
+                        queryUuid: 'query-composer',
+                        artifactVersionUuid: 'composer-version',
+                    },
+                },
+            ],
+            artifacts: [composerArtifact('composer-version')],
+        };
+        const previews = await getSlackTablePreviews(input);
+        expect(previews).toEqual([
+            expect.objectContaining({
+                status: 'ready',
+                title: 'Revenue pipeline',
+                url: 'https://lightdash.test/threads/thread',
+                artifactVersionUuid: 'composer-version',
+            }),
+        ]);
+        expect(input.authorize).toHaveBeenCalledWith({
+            queryUuid: 'query-composer',
+            exploreNames: ['payments'],
+        });
+    });
+
     it('omits all table results when the final answer selects none', async () => {
         const input = { ...setup(), selectedQueryUuids: [] };
         expect(await getSlackTablePreviews(input)).toEqual([]);
