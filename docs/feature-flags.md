@@ -186,19 +186,29 @@ the proper fix is to use the standard resolver across entry points.
 ## Agent identity
 
 `agent-identity` enables organisation identity rules for each warehouse type and
-their API, the agent connection section in My warehouse connections, and the
-connect gate in AI chat. The same flag gates Snowflake agent sign-in, BigQuery
-AI service account slots, AI access checks, warehouse capabilities and marker
-tests. Disabled routes return a typed `FeatureNotEnabledError` with HTTP 403.
+their API, My agent identity, and the connect gate in AI chat. My agent identity
+has Agent connections and Warehouse sign-ins tabs. With no connections and no
+list error, it shows warehouse sign-ins alone. The same flag gates Snowflake
+agent sign-in, BigQuery shared agent accounts, AI access checks, warehouse
+capabilities and marker tests. Disabled warehouse identity routes return a typed
+`FeatureNotEnabledError` with HTTP 403. Approval returns
+`AgentConnectionApprovalError` with code `agent_identity_disabled` and HTTP 403.
+The owner list and revoke APIs make no flag check.
 
-Snowflake rules select the same credentials as the user or a separate agent
-sign-in for each person. BigQuery rules select the same credentials as the user
-or the AI service account saved on each project connection. Both actor rows use
-the same rule. Service accounts cannot use a personal Snowflake agent sign-in.
+Agent connection approval requires the flag for both the person and organisation.
+Approval is review-only: it creates no connection, code or token.
+An agent connection limits requests using its credential; it does not isolate
+[local CLI programs](../packages/cli/README.md#scoped-cli-credentials).
+
+Snowflake rules select **The person**, **The person's agent sign-in** or
+**Shared agent account**.
+BigQuery rules select **The person** or the **Shared agent account** saved on
+each project connection. Both actor rows use the same rule. Service accounts
+cannot use a personal Snowflake agent sign-in.
 
 Required rules refuse queries when the selected identity is missing. Optional
 rules fall back to the user's credentials when it is missing. A saved BigQuery
-AI service account that cannot sign in always refuses the query. Its queries
+shared agent account that cannot sign in always refuses the query. Its queries
 bypass result caches and pre-aggregates, carry the agent label, and disable the
 BigQuery query cache. Replacing its credentials invalidates prior result
 provenance.

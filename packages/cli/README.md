@@ -26,7 +26,10 @@ eg: `ligthdash test` Runs `dbt test`
 
 ## Agent connection
 
-Use your saved CLI login to connect your agent to the warehouse:
+### Warehouse sign-in
+
+Bare `agent connect` and unnamed, unselected `agent status` use your saved
+personal CLI login for warehouse sign-in:
 
 ```shell
 lightdash agent connect --project my-project
@@ -42,6 +45,41 @@ Use `--oauth-port <port>` to choose the local callback port, or set
 `--timeout <seconds>` defaults to 180. After that wait, the CLI checks the
 connection every 3 seconds for up to another 120 seconds. Both commands accept
 `--verbose` and exit with code 1 if the connection is refused or incomplete.
+
+### Scoped CLI credentials
+
+An agent connection limits the projects and actions available to requests that use
+its credential. Programs the CLI starts run as your computer user and can still
+read your files, including your saved personal API key and connection tokens.
+Removing the API key from those programs' environment helps avoid accidental use
+or exposure; it does not isolate those programs from your account or files.
+
+`agent connect --connection` (or a connection option such as `--name`) requests
+an agent connection. Approval is review-only today: it creates no connection,
+code or token. The CLI's issuer contract is exercised against a test double;
+[real issuer evidence is still needed](../../docs/agent-identity/issuer-contract.md#evidence-still-needed-from-the-real-issuer).
+
+For a saved connection, `--agent-connection <slot>` or
+`LIGHTDASH_AGENT_CONNECTION` selects its credential. Selected requests do not
+fall back to the personal API key if the connection is missing or invalid.
+`agent status --name <slot>` reports that connection;
+[CLI revocation and recovery](../../docs/agent-identity/revocation.md#cli-revocation-and-recovery)
+use `agent revoke --name <slot>` and its `--human` option.
+
+When a connection is selected, the CLI removes exactly one variable from a
+program's environment: `LIGHTDASH_API_KEY`. It keeps the rest, including
+`LIGHTDASH_PROXY_AUTHORIZATION`, and passes the selected slot as
+`LIGHTDASH_AGENT_CONNECTION`. Command-specific environment overrides still
+apply. The CLI does not put the connection's saved access or refresh token into
+that environment. It does not remove credentials already present under other
+variable names or clear the parent CLI's environment.
+
+The CLI config is `~/.config/lightdash/config.yaml`; saved connections are in
+`~/.config/lightdash/agent-connections.yaml`. Both are readable YAML text,
+including the saved personal API key and connection tokens. On POSIX systems,
+the CLI uses owner-only permissions: directories `0700`, files `0600`.
+A program running as your computer user can open them. On Windows, access
+depends on the operating system's ACLs; the CLI skips POSIX permission changes.
 
 ## Project validation
 
@@ -211,7 +249,10 @@ default project and a preview are available.
 LIGHTDASH_PROJECT=<target-project-uuid> lightdash deploy --non-interactive
 ```
 
-Credentials resolve in the usual order: command flags, then environment variables, then the config file written by `lightdash login`. So a `LIGHTDASH_API_KEY` left in your shell profile is used ahead of your saved login — `lightdash login` warns when this is the case, and `unset LIGHTDASH_API_KEY` restores the saved token.
+With no agent connection selected, credentials resolve in the usual order: command flags, then environment variables, then the config file written by `lightdash login`. So a `LIGHTDASH_API_KEY` left in your shell profile is used ahead of your saved login — `lightdash login` warns when this is the case, and `unset LIGHTDASH_API_KEY` restores the saved token.
+
+For a selected connection, see [Scoped CLI credentials](#scoped-cli-credentials)
+for credential selection and local program access.
 
 ### Example Automation Scripts
 
@@ -377,3 +418,5 @@ project names in ordinary listings retain the server's characters, including
 control characters.
 
 The CLI has no general screen that rewrites its output.
+
+For local program and file access, see [Scoped CLI credentials](#scoped-cli-credentials).
