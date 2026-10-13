@@ -106,6 +106,7 @@ beforeEach(() => {
                     refresh_token: 'connect-refresh-secret',
                     token_type: 'Bearer',
                     expires_in: 300,
+                    refresh_expires_in: 3600,
                     scope: 'read write',
                     agent_connection: { grant_uuid: slot.grantUuid },
                 });

@@ -13,6 +13,7 @@ type TokenResponse = {
     token_type: string;
     expires_in: number;
     scope: string;
+    refresh_expires_in?: number;
 };
 const createResponseValidator = () =>
     new Ajv().compile<TokenResponse>({
@@ -289,6 +290,14 @@ export class AgentTokenProvider {
                         value.refresh_token === slot.tokens.refreshToken
                     )
                         throw reconnectError();
+                    const refreshLifetime = value.refresh_expires_in;
+                    if (
+                        typeof refreshLifetime !== 'number' ||
+                        !Number.isSafeInteger(refreshLifetime) ||
+                        refreshLifetime < 1 ||
+                        refreshLifetime > 2147483647
+                    )
+                        throw reconnectError();
                     const scopes = value.scope.split(' ');
                     const savedScopes = slot.tokens.scopes;
                     if (
@@ -323,6 +332,20 @@ export class AgentTokenProvider {
                                 refreshToken: value.refresh_token,
                                 accessTokenExpiresAt: new Date(
                                     expiresAt,
+                                ).toISOString(),
+                                refreshTokenExpiresAt: new Date(
+                                    Math.min(
+                                        slot.tokens.refreshTokenExpiresAt ===
+                                            null
+                                            ? Infinity
+                                            : Date.parse(
+                                                  slot.tokens
+                                                      .refreshTokenExpiresAt,
+                                              ),
+                                        startedAt + refreshLifetime * 1000,
+                                        serverTime + refreshLifetime * 1000,
+                                        Date.parse(slot.grantExpiresAt),
+                                    ),
                                 ).toISOString(),
                                 generation: slot.tokens.generation + 1,
                                 lastRefreshAttemptUuid: attemptUuid,

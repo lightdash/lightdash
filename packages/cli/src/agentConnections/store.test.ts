@@ -105,6 +105,14 @@ it.each([
             accessTokenExpiresAt: '9999-01-01T00:00:00.000Z',
         },
     }),
+    (s: RawSlot) => ({
+        ...s,
+        tokens: {
+            ...s.tokens,
+            refreshTokenExpiresAt: '2026-06-30T23:59:60.000Z',
+        },
+    }),
+    (s: RawSlot) => ({ ...s, grantExpiresAt: '2099-12-31T23:59:60.000Z' }),
     (s: RawSlot) => ({ ...s, refreshState: { kind: 'other' } }),
     (s: RawSlot) =>
         Object.fromEntries(
