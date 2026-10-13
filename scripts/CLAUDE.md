@@ -9,6 +9,13 @@ preview environments can divert from it instead of migrating + seeding from
 scratch. Run by `.github/workflows/preview-db-snapshot.yml` on merges to main
 that change migrations, seeds, or the jaffle demo project.
 
+### `preview-db-guard.sh`
+
+Circuit breaker for snapshot diverts: counts recent Deploy Preview failures
+that had diverted from a DB snapshot. Run every 30 minutes by
+`.github/workflows/preview-db-guard.yml`, which deletes the snapshots when the
+threshold trips (previews fall back to full migrate + seed) and alerts Slack.
+
 ### `okteto-ssh.sh <pr_number>`
 
 SSH into a preview environment pod.
