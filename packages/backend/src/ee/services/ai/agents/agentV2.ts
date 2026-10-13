@@ -2737,6 +2737,7 @@ export const getAgentMessages = (
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
         slackLinksOnly: args.slackLinksOnly,
         enableMergeQueries: args.enableMergeQueries,
+        enableComposerPythonNodes: args.enableComposerPythonNodes,
         unauthenticatedMcpServerNames: getUnauthenticatedMcpServerNames(
             args,
             mcpToolSetup,

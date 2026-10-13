@@ -581,6 +581,43 @@ describe('getSystemPromptV2 composer queries', () => {
         expect(content).toContain('You have access to a runSql tool');
         expect(content).not.toContain('There is NO standalone runSql tool');
     });
+
+    test('sends multi-step analysis to one composer pipeline', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableComposerQueries: true,
+        });
+
+        expect(content).toContain(
+            'is one runComposerQueries pipeline: source nodes fetch, duckdb nodes join and reshape, and the terminal node is the table the user sees.',
+        );
+        expect(content).not.toContain('python nodes run the algorithm');
+    });
+
+    test('names python nodes for algorithms when python nodes are on', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableComposerQueries: true,
+            enableComposerPythonNodes: true,
+        });
+
+        expect(content).toContain(
+            'running totals, forecasts, statistics) is one runComposerQueries pipeline',
+        );
+        expect(content).toContain(
+            'duckdb nodes join and reshape, python nodes run the algorithm, and the terminal node',
+        );
+    });
+
+    test('leaves the pipeline rule out when composer queries are off', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableComposerQueries: false,
+            enableComposerPythonNodes: true,
+        });
+
+        expect(content).not.toContain('runComposerQueries pipeline');
+    });
 });
 
 describe('getSystemPromptV2 memories', () => {
