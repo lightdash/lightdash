@@ -17,7 +17,7 @@ import { type Meta, type StoryObj } from '@storybook/react-vite';
 import { clsx } from 'clsx';
 import { useState } from 'react';
 import panelStyles from '../ee/features/aiCopilot/components/ChatElements/AiArtifactPanel.module.css';
-import { AiComposerResultsExpired } from '../ee/features/aiCopilot/components/ChatElements/AiComposerResultsExpired';
+import { AiComposerResultError } from '../ee/features/aiCopilot/components/ChatElements/AiComposerResultError';
 import { AiComposerPipelinePanel } from '../ee/features/aiCopilot/components/ChatElements/composerPipeline/AiComposerPipelinePanel';
 import {
     AiComposerVizConfigPanel,
@@ -96,7 +96,7 @@ type Args = {
     mode: AiComposerVizConfigPanelMode;
     defaultExpanded: boolean;
     fieldsDisabledReason: string | null;
-    isExpired: boolean;
+    resultError: string | null;
 };
 
 /** The composer artifact chrome with the viz config panel over a placeholder result; state in memory. */
@@ -105,7 +105,7 @@ const PanelStory = ({
     mode,
     defaultExpanded,
     fieldsDisabledReason,
-    isExpired,
+    resultError,
 }: Args) => {
     const [value, setValue] = useState(initialValue);
     const [remembered, setRemembered] = useState<AllVizChartConfig | null>(
@@ -136,6 +136,7 @@ const PanelStory = ({
                         displayedNodeId="result"
                         displayableNodeIds={new Set(['revenue', 'result'])}
                         onDisplayNode={() => {}}
+                        nodeStatuses={{}}
                         expanded={isPipelineOpen}
                         onExpandedChange={(open) => {
                             setIsPipelineOpen(open);
@@ -171,9 +172,10 @@ const PanelStory = ({
                             }}
                             fieldsDisabledReason={fieldsDisabledReason}
                         >
-                            {isExpired ? (
-                                <AiComposerResultsExpired
+                            {resultError !== null ? (
+                                <AiComposerResultError
                                     headerContent={head}
+                                    message={resultError}
                                 />
                             ) : (
                                 <Stack gap="md" h="100%">
@@ -201,7 +203,7 @@ const meta = {
         mode: 'expandable',
         defaultExpanded: true,
         fieldsDisabledReason: null,
-        isExpired: false,
+        resultError: null,
     },
 } satisfies Meta<typeof PanelStory>;
 
@@ -233,6 +235,9 @@ export const ReadOnly: Story = {
 
 export const OtherNode: Story = { args: { mode: 'switcher' } };
 
-export const Expired: Story = {
-    args: { mode: 'static', isExpired: true },
+export const ResultFailed: Story = {
+    args: {
+        mode: 'static',
+        resultError: 'Binder Error: Referenced column "region" not found',
+    },
 };

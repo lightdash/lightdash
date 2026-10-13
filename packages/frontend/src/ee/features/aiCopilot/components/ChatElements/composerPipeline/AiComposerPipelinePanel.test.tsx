@@ -7,7 +7,10 @@ import { fireEvent, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { useCompiledSqlFromMetricQuery } from '../../../../../../hooks/useCompiledSql';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
-import { AiComposerPipelinePanel } from './AiComposerPipelinePanel';
+import {
+    AiComposerPipelinePanel,
+    type ComposerRunNodeStatus,
+} from './AiComposerPipelinePanel';
 
 vi.mock('../../../../../../hooks/useCompiledSql', () => ({
     useCompiledSqlFromMetricQuery: vi.fn(() => ({ data: undefined })),
@@ -43,6 +46,7 @@ const renderPanel = (props: {
     displayedNodeId?: string;
     displayableNodeIds?: Set<string>;
     onDisplayNode?: (nodeId: string) => void;
+    nodeStatuses?: Record<string, ComposerRunNodeStatus>;
 }) =>
     renderWithProviders(
         <AiComposerPipelinePanel
@@ -52,6 +56,7 @@ const renderPanel = (props: {
             displayedNodeId="joined"
             displayableNodeIds={new Set(['orders', 'amounts', 'joined'])}
             onDisplayNode={() => {}}
+            nodeStatuses={{}}
             {...props}
         >
             <div>results</div>
@@ -119,6 +124,39 @@ describe('AiComposerPipelinePanel graph mode', () => {
 });
 
 describe('AiComposerPipelinePanel list mode', () => {
+    it("shows each node's status in the run and a failed node's error on its row", () => {
+        renderPanel({
+            defaultExpanded: true,
+            nodeStatuses: {
+                orders: { status: 'success', error: null },
+                amounts: {
+                    status: 'error',
+                    error: 'column "amount" does not exist',
+                },
+                joined: { status: 'pending', error: null },
+            },
+        });
+        const row = (nodeId: string) =>
+            within(
+                document.getElementById(`composer-pipeline-node-${nodeId}`)!,
+            );
+        expect(row('orders').getByLabelText('Completed')).toBeInTheDocument();
+        expect(row('amounts').getByLabelText('Failed')).toBeInTheDocument();
+        expect(
+            row('amounts').getByText('column "amount" does not exist'),
+        ).toBeInTheDocument();
+        expect(row('joined').getByLabelText('Queued')).toBeInTheDocument();
+        expect(
+            row('orders').queryByText('column "amount" does not exist'),
+        ).toBeNull();
+    });
+
+    it('shows no status before the run has node results', () => {
+        renderPanel({ defaultExpanded: true });
+        expect(screen.queryByLabelText('Queued')).toBeNull();
+        expect(screen.queryByLabelText('Completed')).toBeNull();
+    });
+
     it('displays a node when its title is clicked', () => {
         const onDisplayNode = vi.fn();
         renderPanel({ defaultExpanded: true, onDisplayNode });
@@ -166,6 +204,7 @@ describe('AiComposerPipelinePanel earlier result placeholder', () => {
                 displayedNodeId="ranked"
                 displayableNodeIds={new Set(['ranked'])}
                 onDisplayNode={() => {}}
+                nodeStatuses={{}}
                 defaultExpanded
             >
                 <div>results</div>
@@ -296,6 +335,7 @@ describe('AiComposerPipelinePanel python nodes', () => {
                 displayedNodeId="summary"
                 displayableNodeIds={new Set(['orders', 'simulated', 'summary'])}
                 onDisplayNode={() => {}}
+                nodeStatuses={{}}
                 defaultExpanded
             >
                 <div>results</div>
@@ -330,6 +370,7 @@ describe('AiComposerPipelinePanel python nodes', () => {
                 displayedNodeId="simulated"
                 displayableNodeIds={new Set(['simulated'])}
                 onDisplayNode={() => {}}
+                nodeStatuses={{}}
                 defaultExpanded
                 defaultMode="graph"
             >

@@ -7,6 +7,7 @@ import {
     WarehouseTypes,
     type SemanticLayerSourceQuery,
     type SourceQuery,
+    type UiStringKey,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -61,7 +62,9 @@ import reactFlowStyles from '../../../../../../components/common/ReactFlow/react
 import ResizableSplitter from '../../../../../../components/common/ResizableSplitter';
 import { useCompiledSqlFromMetricQuery } from '../../../../../../hooks/useCompiledSql';
 import { LD_FIELD_COLORS } from '../../../../../../theme/fieldColors';
+import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
 import { useCanViewAiAgentSql } from '../../../hooks/useCanViewAiAgentSql';
+import { NodeStatusIndicator } from '../ToolCalls/descriptions/ComposerQueriesToolCallDescription';
 import styles from './AiComposerPipelinePanel.module.css';
 import {
     groupPipeline,
@@ -276,12 +279,27 @@ const QueryDetails: FC<{ query: SourceQuery; projectUuid: string }> = ({
     );
 };
 
+/** A node's status in the current run; error is the failed node's message. */
+export type ComposerRunNodeStatus = {
+    status: 'pending' | 'running' | 'success' | 'error';
+    error: string | null;
+};
+
 type NodeDisplay = {
     displayedNodeId: string;
-    /** Nodes with a stored result; the rest are inert. */
+    /** Nodes with a result in the current run; the rest are inert. */
     displayableNodeIds: ReadonlySet<string>;
     onDisplayNode: (nodeId: string) => void;
+    /** By node id; a node without an entry shows no status. */
+    nodeStatuses: Readonly<Record<string, ComposerRunNodeStatus>>;
 };
+
+const NODE_STATUS_LABEL_KEYS = {
+    pending: 'aiAgent.composer.nodeStatus.pending',
+    running: 'aiAgent.composer.nodeStatus.running',
+    success: 'aiAgent.composer.nodeStatus.success',
+    error: 'aiAgent.composer.nodeStatus.error',
+} as const satisfies Record<ComposerRunNodeStatus['status'], UiStringKey>;
 
 const PipelineNodeRow: FC<
     { node: PipelineNode; projectUuid: string } & NodeDisplay
@@ -291,12 +309,22 @@ const PipelineNodeRow: FC<
     displayedNodeId,
     displayableNodeIds,
     onDisplayNode,
+    nodeStatuses,
 }) => {
+    const uiStrings = useUiStrings();
     const displayed = node.nodeId === displayedNodeId;
     const displayable = displayableNodeIds.has(node.nodeId);
+    const nodeStatus = nodeStatuses[node.nodeId];
     const head = (
         <>
-            <Box className={styles.dot} />
+            {nodeStatus ? (
+                <NodeStatusIndicator
+                    nodeStatus={{ status: nodeStatus.status }}
+                    label={uiStrings(NODE_STATUS_LABEL_KEYS[nodeStatus.status])}
+                />
+            ) : (
+                <Box className={styles.dot} />
+            )}
             <Text component="span" className={styles.nodeTitle}>
                 {node.title}
             </Text>
@@ -343,6 +371,9 @@ const PipelineNodeRow: FC<
                 <Text className={styles.nodeReads}>
                     Reads {node.reads.join(', ')}
                 </Text>
+            )}
+            {nodeStatus?.status === 'error' && nodeStatus.error && (
+                <Text className={styles.nodeError}>{nodeStatus.error}</Text>
             )}
             {node.kind === 'query' && (
                 <QueryDetails query={node.query} projectUuid={projectUuid} />
@@ -591,6 +622,7 @@ export const AiComposerPipelinePanel: FC<Props> = ({
     displayedNodeId,
     displayableNodeIds,
     onDisplayNode,
+    nodeStatuses,
     children,
     defaultExpanded = false,
     expanded: controlledExpanded,
@@ -604,6 +636,7 @@ export const AiComposerPipelinePanel: FC<Props> = ({
         displayedNodeId,
         displayableNodeIds,
         onDisplayNode,
+        nodeStatuses,
     };
     const layers = useMemo(
         () => groupPipeline(queries, terminalNodeId),

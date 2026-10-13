@@ -75,10 +75,10 @@ const isActiveStatus = (nodeStatus: ComposerQueryNodeStatus | undefined) =>
     nodeStatus?.status === 'running' ||
     nodeStatus?.status === 'awaiting_approval';
 
-const NodeStatusIndicator: FC<{ nodeStatus: ComposerQueryNodeStatus }> = ({
-    nodeStatus,
-}) => {
-    const label = NODE_STATUS_LABELS[nodeStatus.status];
+export const NodeStatusIndicator: FC<{
+    nodeStatus: ComposerQueryNodeStatus;
+    label: string;
+}> = ({ nodeStatus, label }) => {
     return (
         <Tooltip label={label} position="top">
             <Box
@@ -235,7 +235,10 @@ const ComposerQueryNode: FC<{
                     className={rowStyles.head}
                 >
                     {nodeStatus ? (
-                        <NodeStatusIndicator nodeStatus={nodeStatus} />
+                        <NodeStatusIndicator
+                            nodeStatus={nodeStatus}
+                            label={NODE_STATUS_LABELS[nodeStatus.status]}
+                        />
                     ) : null}
                     <MantineIcon
                         icon={presentation.icon}
