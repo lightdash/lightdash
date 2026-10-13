@@ -125,7 +125,7 @@ export type MergeTableCalculation = {
     /**
      * Legacy SQL expression. Kept required for API/storage compatibility;
      * formula calculations store an empty string here and compile `formula`
-     * on the compose engine instead.
+     * in DuckDB instead.
      */
     sql: string;
     /** Spreadsheet-like formula over merged field ids. */
@@ -383,8 +383,8 @@ export const resolveMergeSorts = (
 };
 
 /**
- * Where a warehouse puts nulls when a sort does not say. A merge joins on
- * the compose engine, so a sorted merge under a limit would keep different
+ * Where a warehouse puts nulls when a sort does not say. A merge joins in
+ * DuckDB, so a sorted merge under a limit would keep different
  * rows from the same query run on the warehouse unless the placement is
  * stated. Postgres, Redshift, Snowflake, Trino and Athena treat null as the
  * largest value; BigQuery, Databricks and Spark as the smallest; DuckDB and
@@ -756,7 +756,7 @@ export type MergeCompiledLeg = {
  * non-empty: a merge that would produce wrong numbers is reported, not run.
  *
  * A merge runs as a composition: each metric source runs on its own as a
- * leg, and the join runs on the compose engine over the legs' results, which
+ * leg, and the join runs in a sandbox over the legs' results, which
  * it reads as `merge_source_N` tables in source order. `legs` and `sql`
  * together are the SQL that runs.
  */
@@ -803,7 +803,7 @@ export type ApiCompiledMergeQueryResults = {
      */
     fieldIdByColumn: Record<string, FieldId>;
     /**
-     * @deprecated Always false: every merge runs on the compose engine.
+     * @deprecated Always false: every merge runs in a sandbox.
      * Nothing reads it; it stays on the response until the legacy merge
      * endpoints are retired, because removing a required response property
      * is an API break.
@@ -833,7 +833,7 @@ export const getMergeCompiledSqlText = (
     });
     return [
         ...legs,
-        `-- Merge: runs on the compose engine over the results above, read as merge_source_0, merge_source_1, ...\n${compiled.sql}`,
+        `-- Merge: runs in a sandbox over the results above, read as merge_source_0, merge_source_1, ...\n${compiled.sql}`,
     ].join('\n\n');
 };
 

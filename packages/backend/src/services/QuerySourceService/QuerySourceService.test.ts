@@ -517,7 +517,6 @@ describe('QuerySourceService', () => {
     describe('submitQueries', () => {
         const joinPlan: DuckdbQueryPlan = {
             columns: { mode: 'discover' },
-            engine: 'scopedToReferencedResults',
             guard: null,
             referenceLabels: {},
         };
@@ -958,7 +957,6 @@ describe('composer pipelines return the standard results interface', () => {
         };
         const plan: DuckdbQueryPlan = {
             columns: { mode: 'discover' },
-            engine: 'scopedToReferencedResults',
             guard: null,
             referenceLabels: {},
         };
@@ -1138,7 +1136,6 @@ describe('composer pipelines return the standard results interface', () => {
         const { service } = createService(registry);
         const plan: DuckdbQueryPlan = {
             columns: { mode: 'discover' },
-            engine: 'scopedToReferencedResults',
             guard: null,
             referenceLabels: {},
         };
@@ -1221,7 +1218,6 @@ describe('composer pipelines return the standard results interface', () => {
                     sql: 'SELECT * FROM orders',
                 },
             },
-            engine: 'scopedToReferencedResults',
             guard: null,
             referenceLabels: {},
         };
@@ -1280,7 +1276,6 @@ describe('composer pipelines return the standard results interface', () => {
                     sql: 'SELECT * FROM orders',
                 },
             },
-            engine: 'scopedToReferencedResults',
             guard: null,
             referenceLabels: {},
         };

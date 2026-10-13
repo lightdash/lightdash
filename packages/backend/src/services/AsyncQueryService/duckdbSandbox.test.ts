@@ -14,7 +14,9 @@ import {
     type ResultColumns,
 } from '@lightdash/common';
 import { Readable } from 'stream';
+import type { Mock } from 'vitest';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import type { INatsClient } from '../../clients/NatsClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { SqlQueryComposer } from '../../utils/QueryBuilder/SqlQueryComposer';
@@ -321,10 +323,10 @@ const buildHarness = ({
             };
         }),
     };
-    const natsClient = {
-        enqueueDuckdbQuery: vi.fn(),
+    const natsClient: Record<keyof INatsClient, Mock> = {
         enqueueWarehouseQuery: vi.fn(),
         enqueuePreAggregateQuery: vi.fn(),
+        enqueueMaterializationQuery: vi.fn(),
     };
     const provider = new RecordingProvider();
     const service = new AsyncQueryService({
@@ -441,7 +443,6 @@ const buildHarness = ({
                         context: QueryExecutionContext.AI,
                     } as never,
                 },
-                engine: 'scopedToReferencedResults',
                 guard: {
                     legLabelByReferenceTable: { orders: 'Orders' },
                     sourceRowCap,
@@ -461,7 +462,6 @@ const buildHarness = ({
             references: {},
             plan: {
                 columns: { mode: 'discover' },
-                engine: 'scopedToReferencedResults',
                 guard: null,
                 referenceLabels: {},
             },
@@ -751,16 +751,16 @@ describe('DuckDB queries over results run in a one-shot sandbox', () => {
         expect(rows.size).toBe(rowsBefore);
     });
 
-    test('no DuckDB job is ever handed to the worker queue', async () => {
+    test('a DuckDB query never touches the worker queue', async () => {
         const { composeSql, joinOrdersToCustomers, natsClient } =
             buildHarness();
 
         await composeSql();
         await joinOrdersToCustomers();
 
-        expect(natsClient.enqueueDuckdbQuery).not.toHaveBeenCalled();
-        expect(natsClient.enqueueWarehouseQuery).not.toHaveBeenCalled();
-        expect(natsClient.enqueuePreAggregateQuery).not.toHaveBeenCalled();
+        Object.values(natsClient).forEach((enqueue) =>
+            expect(enqueue).not.toHaveBeenCalled(),
+        );
     }, 30_000);
 
     describe('sandbox failures land on the row', () => {

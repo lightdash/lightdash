@@ -21,10 +21,10 @@ type DuckdbQuerySourceArguments = {
 };
 
 /**
- * The DuckDB compose engine as a query source. It has no schema of its own:
- * its tables are the references handed to each query, which makes it the
- * merge/transform step of a multi-source pipeline — other queries' results
- * become named tables the SQL joins and reshapes.
+ * DuckDB SQL over other results, run in a sandbox, as a query source. It
+ * has no schema of its own: its tables are the references handed to each
+ * query, which makes it the merge/transform step of a multi-source pipeline —
+ * other queries' results become named tables the SQL joins and reshapes.
  */
 export class DuckdbQuerySource implements QuerySourceClient {
     readonly definition: QuerySourceDefinition = {

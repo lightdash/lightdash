@@ -4,7 +4,6 @@ import {
     AckPolicy,
     connect,
     DebugEvents,
-    ErrorCode,
     Events,
     nanos,
     NatsError,
@@ -20,7 +19,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { type LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import {
-    getDuckdbQuerySubject,
     STREAM_CONFIGS,
     type AsyncQueryJobPayload,
     type AsyncQueryNatsEnvelope,
@@ -32,23 +30,8 @@ const ACK_WAIT_MS = 30_000;
 
 type EnqueueResult = Promise<{ jobId: string }>;
 
-/**
- * JetStream answered the publish with "no responders": no stream on this
- * server takes the subject, so no worker will ever run the job.
- */
-export class NatsNoRespondersError extends Error {
-    readonly subject: string;
-
-    constructor(subject: string) {
-        super(`No NATS stream takes subject "${subject}"`);
-        this.name = 'NatsNoRespondersError';
-        this.subject = subject;
-    }
-}
-
 export interface INatsClient {
     enqueueWarehouseQuery(payload: AsyncQueryJobPayload): EnqueueResult;
-    enqueueDuckdbQuery(payload: AsyncQueryJobPayload): EnqueueResult;
     enqueuePreAggregateQuery(payload: AsyncQueryJobPayload): EnqueueResult;
     enqueueMaterializationQuery(payload: AsyncQueryJobPayload): EnqueueResult;
 }
@@ -226,12 +209,6 @@ export class NatsClient implements INatsClient {
         return this.enqueue(STREAM_CONFIGS.warehouse.subjects.query, payload);
     }
 
-    async enqueueDuckdbQuery(
-        payload: AsyncQueryJobPayload,
-    ): Promise<{ jobId: string }> {
-        return this.enqueue(getDuckdbQuerySubject(), payload);
-    }
-
     async enqueuePreAggregateQuery(
         payload: AsyncQueryJobPayload,
     ): Promise<{ jobId: string }> {
@@ -390,12 +367,6 @@ export class NatsClient implements INatsClient {
                             error,
                         )}`,
                     );
-                    if (
-                        error instanceof NatsError &&
-                        error.code === ErrorCode.NoResponders
-                    ) {
-                        throw new NatsNoRespondersError(subject);
-                    }
                     throw error;
                 }
             },

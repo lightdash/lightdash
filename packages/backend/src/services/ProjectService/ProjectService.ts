@@ -9693,7 +9693,7 @@ export class ProjectService
             };
         }
 
-        // The join, in the compose engine's dialect over the legs' results.
+        // The join, in DuckDB's dialect over the legs' results.
         // Clamped like any other query: the merged statement is the one
         // that actually returns rows, so the instance row cap applies to it
         // rather than to the queries it was assembled from.
@@ -10147,7 +10147,7 @@ export class ProjectService
                 column,
             ]),
         );
-        // Null placement is stated per sort so the compose engine keeps the
+        // Null placement is stated per sort so the DuckDB join keeps the
         // rows the project warehouse would keep under a limit. A merge over
         // result sources alone has no explore to read the warehouse from.
         const sorts = placeMergeSortNulls(

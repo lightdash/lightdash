@@ -25,7 +25,7 @@ export type MergeSourceTotalTable = {
 const quote = (identifier: string) => `"${identifier.replaceAll('"', '""')}"`;
 
 /**
- * Totals over a merged result, on the compose engine: an aggregate over the
+ * Totals over a merged result, in DuckDB: an aggregate over the
  * merged rows where one is exact, else the column's own query's grand total
  * read from that source's one-row table. Columns with neither are left out
  * rather than approximated; null when no column has a total.

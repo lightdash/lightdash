@@ -22,7 +22,7 @@ type PythonQuerySourceArguments = {
 
 /**
  * Python over other query results as a query source. Like the DuckDB
- * compose engine it has no schema of its own: its inputs are the references
+ * source it has no schema of its own: its inputs are the references
  * handed to each query, exposed to `run(inputs, params)` as DataFrames.
  */
 export class PythonQuerySource implements QuerySourceClient {

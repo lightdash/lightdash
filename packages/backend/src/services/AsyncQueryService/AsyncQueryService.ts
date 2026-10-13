@@ -203,10 +203,7 @@ import { getEmbedActorChartSpaceUuids } from '../../auth/account';
 import { fromServiceAccount, fromSession } from '../../auth/account/account';
 import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
-import {
-    NatsNoRespondersError,
-    type INatsClient,
-} from '../../clients/NatsClient';
+import { type INatsClient } from '../../clients/NatsClient';
 import { createLocalParquetUploadStream } from '../../clients/ResultsFileStorageClients/LocalParquetUploadStream';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { type DbExternalSourceTable } from '../../database/entities/externalSources';
@@ -429,7 +426,6 @@ import {
     type CommonAsyncQueryArgs,
     type DownloadAsyncQueryResultsArgs,
     type DuckdbQueryColumns,
-    type DuckdbQueryEngine,
     type DuckdbQueryPlan,
     type DuckdbQueryPlanComposer,
     type DuckdbQueryReferences,
@@ -7946,7 +7942,6 @@ export class AsyncQueryService extends ProjectService {
         };
         const plan: DuckdbQueryPlan = {
             columns: { mode: 'discover' },
-            engine: 'scopedToReferencedResults',
             guard: null,
             referenceLabels: {
                 [MERGE_TOTALS_REFERENCE_TABLE]: 'Merged result',
@@ -10489,7 +10484,6 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
             plan: {
                 columns: { mode: 'discover' },
-                engine: 'scopedToReferencedResults',
                 guard: null,
                 referenceLabels: {},
             },
@@ -11263,7 +11257,7 @@ export class AsyncQueryService extends ProjectService {
         // refusal from the spec
         await this.queryHistoryModel.setDuckdbExecution(queryUuid, {
             references: normalizedReferences ?? {},
-            engine: plan.engine,
+            engine: 'scopedToReferencedResults',
             columns:
                 resolved.columns.mode === 'discover'
                     ? {
@@ -11301,7 +11295,6 @@ export class AsyncQueryService extends ProjectService {
             queryUuid,
             sql: resolved.sql,
             references: {
-                kind: 'queries',
                 references: normalizedReferences ?? {},
                 guard:
                     plan.guard === null
@@ -12010,232 +12003,6 @@ export class AsyncQueryService extends ProjectService {
         });
     }
 
-    /** Runs a submitted DuckDB source query on this process, as a worker would. */
-    private runDuckdbQueryInProcess(
-        queryUuid: string,
-        queryTags: RunQueryTags,
-    ): void {
-        void this.runAsyncDuckdbQueryFromHistory(
-            queryUuid,
-            'main-loop',
-            queryTags,
-        ).catch((e) => {
-            this.logger.error(
-                `Async DuckDB source query ${queryUuid} failed: ${getErrorMessage(
-                    e,
-                )}`,
-            );
-        });
-    }
-
-    /**
-     * Hands a DuckDB source query to the worker, as a warehouse query is. A
-     * deployment whose workers do not take the subject yet runs it here
-     * instead, so a merge never waits on a worker that will not come.
-     */
-    private async enqueueDuckdbQuery({
-        queryUuid,
-        projectUuid,
-        account,
-        queryTags,
-        queryCreatedAt,
-        context,
-    }: {
-        queryUuid: string;
-        projectUuid: string;
-        account: Account;
-        queryTags: RunQueryTags;
-        queryCreatedAt: Date;
-        context: QueryExecutionContext;
-    }): Promise<void> {
-        try {
-            const { jobId } = await this.natsClient.enqueueDuckdbQuery({
-                queryUuid,
-                queryTags,
-            });
-            this.logger.info(
-                `Enqueued DuckDB source query ${queryUuid} on NATS with job ${jobId}`,
-            );
-            await this.queryHistoryModel.updateStatusToQueued(queryUuid);
-            this.prometheusMetrics?.trackQueryStateTransition(
-                QueryHistoryStatus.PENDING,
-                QueryHistoryStatus.QUEUED,
-                context,
-            );
-        } catch (e) {
-            if (e instanceof NatsNoRespondersError) {
-                this.logger.warn(
-                    `No NATS worker takes DuckDB source query ${queryUuid} on ${e.subject}; running it in this process`,
-                );
-                this.runDuckdbQueryInProcess(queryUuid, queryTags);
-                return;
-            }
-            const errorMessage = getErrorMessage(e);
-            this.logger.error(
-                `Failed to enqueue DuckDB source query ${queryUuid} on NATS`,
-                e,
-            );
-            await this.queryHistoryModel.updateStatusToError(
-                queryUuid,
-                projectUuid,
-                `Failed to enqueue DuckDB query: ${errorMessage}`,
-                account,
-            );
-            this.prometheusMetrics?.trackQueryStateTransition(
-                QueryHistoryStatus.PENDING,
-                QueryHistoryStatus.ERROR,
-                context,
-            );
-            this.trackQueryTerminalStatus(
-                QueryHistoryStatus.ERROR,
-                queryCreatedAt,
-                context,
-            );
-        }
-    }
-
-    /**
-     * Runs a DuckDB source query from its history row alone: the worker's
-     * entry, and the in-process path when there is no worker, so both run
-     * exactly the same rebuild.
-     */
-    public async runAsyncDuckdbQueryFromHistory(
-        queryUuid: string,
-        workerLabel: string,
-        queryTagsOverride?: RunQueryTags,
-        onConnectionClaimed?: () => void,
-    ): Promise<boolean> {
-        // A DuckDB query may queue behind the legs it references, so it is
-        // allowed their wait on top of the ordinary queue timeout
-        let connectionClaimed = false;
-        const canRun = await this.prepareQueuedQueryForExecution(
-            queryUuid,
-            workerLabel,
-            this.lightdashConfig.natsWorker.queueTimeoutMs +
-                AsyncQueryService.REFERENCE_WAIT_TIMEOUT_MS,
-            () => {
-                connectionClaimed = true;
-                onConnectionClaimed?.();
-            },
-        );
-        if (!canRun) {
-            return false;
-        }
-        let args: RunDuckdbQueryArgs;
-        try {
-            args = await this.buildDuckdbQueryArgsFromHistory(
-                queryUuid,
-                queryTagsOverride,
-            );
-        } catch (e) {
-            // The row is already claimed: a rebuild that fails must not
-            // leave it executing forever
-            if (connectionClaimed)
-                await this.queryHistoryModel.updateClaimedQueryToError(
-                    queryUuid,
-                    getErrorMessage(e),
-                );
-            else
-                await this.markClaimedQueryAsErrored(
-                    queryUuid,
-                    getErrorMessage(personaliseSharedSignInError(e, null)),
-                );
-            throw e;
-        }
-        await this.runDuckdbQuery(args);
-        return true;
-    }
-
-    private async markClaimedQueryAsErrored(
-        queryUuid: string,
-        error: string,
-    ): Promise<void> {
-        const query = await this.queryHistoryModel.getByQueryUuid(queryUuid);
-        if (!query || !query.projectUuid) return;
-        const actor = AsyncQueryService.getQueryHistoryActor(query);
-        await this.queryHistoryModel.updateStatusToError(
-            queryUuid,
-            query.projectUuid,
-            error,
-            {
-                user: { id: actor.userUuid },
-                isRegisteredUser: () => actor.isRegisteredUser,
-            },
-        );
-    }
-
-    private async buildDuckdbQueryArgsFromHistory(
-        queryUuid: string,
-        queryTagsOverride?: RunQueryTags,
-    ): Promise<RunDuckdbQueryArgs> {
-        const query = await this.getQueryHistoryFromHistory(queryUuid);
-        const spec = await this.queryHistoryModel.getDuckdbExecution(queryUuid);
-        if (spec === null) {
-            throw new NotFoundError(
-                `DuckDB execution spec not found in query_history for ${queryUuid}`,
-            );
-        }
-        if (!query.projectUuid) {
-            throw new NotFoundError(
-                `Project not found in query_history for ${queryUuid}`,
-            );
-        }
-        const actor = AsyncQueryService.getQueryHistoryActor(query);
-        const onboardingFlow = await this.getOnboardingFlow({
-            userUuid: actor.userUuid,
-            organizationUuid: query.organizationUuid,
-        });
-
-        return {
-            actor,
-            authMethod: query.createdByActorType,
-            agentIdentity: query.agentIdentity,
-            invalidateCache: spec.invalidateCache,
-            projectUuid: query.projectUuid,
-            organizationUuid: query.organizationUuid,
-            isPreviewProject: await this.isExcludedFromUsage(query.projectUuid),
-            onboardingFlow,
-            queryUuid,
-            sql: query.compiledSql,
-            references: {
-                kind: 'queries',
-                references: spec.references,
-                guard:
-                    spec.guard === null
-                        ? null
-                        : buildMergeRowCapGuard(spec.guard),
-                labelByTable: spec.referenceLabels,
-            },
-            columns:
-                spec.columns.mode === 'discover'
-                    ? {
-                          mode: 'discover',
-                          limit: spec.columns.limit ?? undefined,
-                          parameters: spec.columns.parameters,
-                          pivotConfiguration:
-                              query.pivotConfiguration ?? undefined,
-                      }
-                    : {
-                          mode: 'supplied',
-                          fieldsMap: query.fields,
-                          usedParameters: query.usedParameters ?? null,
-                          originalColumns: query.originalColumns ?? {},
-                          pivotConfiguration:
-                              query.pivotConfiguration ?? undefined,
-                      },
-            storedCompiledSql: spec.storedCompiledSql,
-            engine: { kind: spec.engine },
-            queryTags:
-                queryTagsOverride ?? AsyncQueryService.buildQueryTags(query),
-            queryCreatedAt: query.createdAt,
-            queryUsage: query.requestParameters.queryUsage,
-            resultEntitlementFingerprint:
-                query.requestParameters.resultEntitlementFingerprint ?? null,
-            cacheKey: query.cacheKey,
-            context: query.context,
-        };
-    }
-
     /**
      * What the history row and the run need from a plan. Discovered columns
      * come from a placeholder composer over the raw SQL, which is also where
@@ -12656,8 +12423,6 @@ export class AsyncQueryService extends ProjectService {
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
             },
-            // Bound references have no results to be served from
-            invalidateCache: true,
             projectUuid,
             organizationUuid,
             isPreviewProject:
@@ -12666,7 +12431,7 @@ export class AsyncQueryService extends ProjectService {
             onboardingFlow,
             queryUuid,
             sql,
-            references: { kind: 'bound', referenceCtes },
+            referenceCtes,
             columns: {
                 mode: 'discover',
                 limit,
@@ -12675,7 +12440,7 @@ export class AsyncQueryService extends ProjectService {
             },
             // Only persist the user SQL; resolved SQL contains private URIs.
             storedCompiledSql: sql,
-            engine: { kind: 'client', warehouseClient },
+            warehouseClient,
             queryTags,
             queryCreatedAt,
             queryUsage,
@@ -12727,128 +12492,51 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
-     * The one execution tail for DuckDB queries over referenced results,
-     * whatever submitted them: bind the references, resolve the output
-     * columns, then execute through the standard async pipeline. Failures
-     * before execution mark the query history row errored so pollers see
-     * them through the standard status lifecycle.
+     * The execution tail for external SQL: attach the bound reference CTEs,
+     * resolve the output columns, then execute through the standard async
+     * pipeline on the caller's client. Failures before execution mark the
+     * query history row errored so pollers see them through the standard
+     * status lifecycle.
      */
     private async runDuckdbQueryInScope({
-        identityEnabled: requestedIdentityEnabled = null,
+        identityEnabled,
         agentIdentity,
-        authMethod = null,
-        resultEntitlementFingerprint = null,
+        authMethod,
+        resultEntitlementFingerprint,
         actor,
-        invalidateCache,
         projectUuid,
         organizationUuid,
         isPreviewProject,
         onboardingFlow,
         queryUuid,
         sql,
-        references,
+        referenceCtes,
         columns,
         storedCompiledSql,
-        engine,
+        warehouseClient,
         queryTags,
         queryCreatedAt,
         queryUsage,
         cacheKey,
         context,
     }: RunDuckdbQueryArgs): Promise<void> {
-        // The row's creator, as the model scopes writes: a worker has no
-        // session, only what the row records
         const account = {
             user: { id: actor.userUuid },
             isRegisteredUser: () => actor.isRegisteredUser,
         };
         try {
-            let resolvedIdentityEnabled: boolean | null =
-                requestedIdentityEnabled;
-            const bound = await this.bindDuckdbQueryReferences({
-                projectUuid,
-                references,
-                organizationUuid,
-                actor,
-                agentIdentity,
-                authMethod,
-                onIdentityResolved: (enabled) => {
-                    resolvedIdentityEnabled = enabled;
-                },
-            });
-            if (bound.aiSignInCredentialUuid) {
-                await this.queryHistoryModel.recordAiSignInCredential(
-                    queryUuid,
-                    projectUuid,
-                    actor.userUuid,
-                    bound.aiSignInCredentialUuid,
-                );
-            }
-            const warehouseClient = this.resolveDuckdbQueryEngine(
-                engine,
-                bound,
-            );
-            const identityEnabled =
-                resolvedIdentityEnabled ??
-                (
-                    await this.featureFlagModel.get({
-                        user: {
-                            organizationUuid,
-                            ...(actor.isRegisteredUser
-                                ? { userUuid: actor.userUuid }
-                                : {}),
-                        },
-                        featureFlagId: FeatureFlags.AgentIdentity,
-                    })
-                ).enabled;
-            let credentialOwner: QueryResultProducer['credentialOwner'] = {
-                kind: 'no_warehouse_data',
-            };
-            if (references.kind === 'queries') {
-                credentialOwner = {
-                    kind:
-                        Object.keys(references.references).length === 0
-                            ? 'no_warehouse_data'
-                            : 'derived',
-                };
-            }
             const resultProducer: QueryResultProducer = {
                 entitlementFingerprint: resultEntitlementFingerprint,
                 version: 1,
                 warehouseConnectionUuid: null,
-                credentialOwner,
+                credentialOwner: { kind: 'no_warehouse_data' },
                 authMethod,
                 agentIdentity,
             };
-            // The results a query over other results depends on are the
-            // files it reads, not the rows it referenced: a leg served from
-            // cache mints a new row over the same file, so the file-based key
-            // is what a later run finds
-            const sharedResultsKey =
-                references.kind === 'queries'
-                    ? QueryHistoryModel.getCacheKey(projectUuid, {
-                          sql: JSON.stringify({
-                              sql,
-                              files: bound.resultFileUris,
-                              parameters:
-                                  columns.mode === 'discover'
-                                      ? columns.parameters
-                                      : (columns.usedParameters ?? {}),
-                              ...AsyncQueryService.getDiscoveredPivotCacheSalt(
-                                  columns,
-                              ),
-                          }),
-                          userUuid: null,
-                          resultIdentity: identityEnabled
-                              ? { organizationUuid, producer: resultProducer }
-                              : null,
-                      })
-                    : cacheKey;
             const bypassResultsCache =
                 identityEnabled ||
                 (isAiAccessQueryContext(context)
-                    ? Boolean(bound.hasAgentResults) ||
-                      (
+                    ? (
                           await this.featureFlagModel.get({
                               user: {
                                   organizationUuid,
@@ -12862,52 +12550,11 @@ export class AsyncQueryService extends ProjectService {
                       ).enabled
                     : false);
             const resultsKey = bypassResultsCache
-                ? `${sharedResultsKey}.${queryUuid}`
-                : sharedResultsKey;
-            if (references.kind === 'queries') {
-                const cached =
-                    invalidateCache || bypassResultsCache
-                        ? null
-                        : ((await this.cacheService?.findCachedResultsFile(
-                              projectUuid,
-                              resultsKey,
-                              {
-                                  userUuid: actor.userUuid,
-                                  organizationUuid,
-                                  organizationName: undefined,
-                              },
-                          )) ?? null);
-                this.prometheusMetrics?.incrementQueryCacheHit(
-                    cached !== null,
-                    context,
-                    false,
-                );
-                if (cached !== null) {
-                    await this.landDuckdbCacheHit({
-                        actor,
-                        account,
-                        projectUuid,
-                        organizationUuid,
-                        isPreviewProject,
-                        onboardingFlow,
-                        queryUuid,
-                        sql,
-                        columns,
-                        storedCompiledSql,
-                        resultsKey,
-                        cached,
-                        queryTags,
-                        queryCreatedAt,
-                        queryUsage,
-                        context,
-                        warehouseType: warehouseClient.credentials.type,
-                    });
-                    return;
-                }
-            }
+                ? `${cacheKey}.${queryUuid}`
+                : cacheKey;
             const execution = await this.resolveDuckdbQueryColumns({
                 sql,
-                referenceCtes: bound.referenceCtes,
+                referenceCtes,
                 columns,
                 warehouseClient,
                 queryTags,
@@ -12920,8 +12567,6 @@ export class AsyncQueryService extends ProjectService {
                     compiled_sql: storedCompiledSql ?? execution.query,
                     fields: execution.fieldsMap,
                     original_columns: execution.originalColumns,
-                    // The results land under the file-based key, so the next
-                    // run over the same files finds them
                     cache_key: resultsKey,
                 },
                 account,
@@ -12956,19 +12601,6 @@ export class AsyncQueryService extends ProjectService {
                     warehouseClient.credentials.type,
             });
         } catch (e) {
-            // A refusal is the feature working, and whoever reports the
-            // outcome must tell it from a failure by reading the row alone,
-            // so the refusal lands with the error status in one write
-            if (e instanceof DuckdbQueryRefusal) {
-                await this.queryHistoryModel.recordDuckdbRefusal(
-                    queryUuid,
-                    projectUuid,
-                    e.refusal,
-                    getErrorMessage(e),
-                    account,
-                );
-                return;
-            }
             await this.queryHistoryModel.update(
                 queryUuid,
                 projectUuid,
@@ -13169,31 +12801,9 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
-     * The session a DuckDB query runs on. A scoped session is built only
-     * once the references are bound, because the result files it may reach
-     * are not known before the referenced queries complete.
-     */
-    private resolveDuckdbQueryEngine(
-        engine: DuckdbQueryEngine,
-        bound: BoundDuckdbQueryReferences,
-    ): WarehouseClient {
-        switch (engine.kind) {
-            case 'client':
-                return engine.warehouseClient;
-            case 'scopedToReferencedResults':
-                return this.composeEngineClient.createExecutionWarehouseClient({
-                    storage: 'results',
-                    scope: bound.resultFileUris,
-                });
-            default:
-                return assertUnreachable(engine, 'Unknown DuckDB query engine');
-        }
-    }
-
-    /**
-     * Resolves a query's references to the CTEs that expose them. Referenced
-     * queries are waited on, then the guard runs before anything is built,
-     * so a refusal never costs an execution.
+     * Resolves a query's references to the CTEs and sandbox inputs that
+     * expose them. Referenced queries are waited on, then the guard runs
+     * before anything is built, so a refusal never costs an execution.
      */
     private async bindDuckdbQueryReferences({
         projectUuid,
@@ -13212,124 +12822,97 @@ export class AsyncQueryService extends ProjectService {
         authMethod: QueryResultProducer['authMethod'];
         onIdentityResolved?: (enabled: boolean) => void;
     }): Promise<BoundDuckdbQueryReferences> {
-        switch (references.kind) {
-            case 'bound':
-                return {
-                    referenceCtes: references.referenceCtes,
-                    resultFileUris: [],
-                    inputs: [],
-                };
-            case 'queries': {
-                const completed = await this.waitForQueryReferences({
-                    projectUuid,
-                    references: references.references,
-                    labelByTable: references.labelByTable,
-                });
-                const { enabled: identityEnabled } =
-                    await this.featureFlagModel.get({
-                        user: {
-                            organizationUuid,
-                            ...(actor.isRegisteredUser
-                                ? { userUuid: actor.userUuid }
-                                : {}),
-                        },
-                        featureFlagId: FeatureFlags.AgentIdentity,
-                    });
-                onIdentityResolved?.(identityEnabled);
-                const execution =
-                    agentExecutionContext.getStore()?.agentConnectionExecution;
-                const freshConnection = execution
-                    ? await this.aiAccessService.assertActiveConnectionExecution(
-                          execution,
-                          projectUuid,
-                          [
-                              AgentCapability.ReadDiscover,
-                              AgentCapability.Query,
-                              AgentCapability.RawSql,
-                          ],
-                          true,
-                      )
-                    : null;
-                if (
-                    Object.keys(completed).length > 0 &&
-                    (identityEnabled ||
-                        freshConnection ||
-                        Object.values(completed).some(
-                            isConnectionProducedQuery,
-                        ))
-                ) {
-                    if (!actor.isRegisteredUser) throw new ForbiddenError();
-                    const user =
-                        await this.userModel.findSessionUserAndOrgByUuid(
-                            actor.userUuid,
-                            organizationUuid,
-                        );
-                    let account: Account;
-                    if (actor.isServiceAccount) {
-                        const serviceAccount =
-                            await this.userModel.findServiceAccountByUserUuid(
-                                actor.userUuid,
-                            );
-                        if (
-                            !serviceAccount ||
-                            serviceAccount.organizationUuid !==
-                                organizationUuid ||
-                            (serviceAccount.expiresAt &&
-                                serviceAccount.expiresAt <= new Date()) ||
-                            (agentIdentity &&
-                                (agentIdentity.subject.type !==
-                                    'service_account' ||
-                                    agentIdentity.subject.uuid !==
-                                        serviceAccount.uuid))
-                        ) {
-                            throw new ForbiddenError();
-                        }
-                        account = fromServiceAccount(
-                            { ...user, serviceAccount },
-                            '',
-                        );
-                    } else {
-                        account = freshConnection?.account ?? fromSession(user);
-                    }
-                    await this.assertCanReadStoredResultsForQueries(
-                        account,
-                        projectUuid,
-                        [
-                            ...new Map(
-                                Object.values(completed).map((reference) => [
-                                    reference.queryUuid,
-                                    reference,
-                                ]),
-                            ).values(),
-                        ],
-                        agentIdentity
-                            ? {
-                                  kind: 'agent',
-                                  claim: agentIdentity,
-                                  authMethod: authMethod ?? null,
-                              }
-                            : {
-                                  kind: 'person',
-                                  authMethod: authMethod ?? null,
-                              },
-                        identityEnabled,
-                        false,
-                        false,
-                        true,
+        const completed = await this.waitForQueryReferences({
+            projectUuid,
+            references: references.references,
+            labelByTable: references.labelByTable,
+        });
+        const { enabled: identityEnabled } = await this.featureFlagModel.get({
+            user: {
+                organizationUuid,
+                ...(actor.isRegisteredUser ? { userUuid: actor.userUuid } : {}),
+            },
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+        onIdentityResolved?.(identityEnabled);
+        const execution =
+            agentExecutionContext.getStore()?.agentConnectionExecution;
+        const freshConnection = execution
+            ? await this.aiAccessService.assertActiveConnectionExecution(
+                  execution,
+                  projectUuid,
+                  [
+                      AgentCapability.ReadDiscover,
+                      AgentCapability.Query,
+                      AgentCapability.RawSql,
+                  ],
+                  true,
+              )
+            : null;
+        if (
+            Object.keys(completed).length > 0 &&
+            (identityEnabled ||
+                freshConnection ||
+                Object.values(completed).some(isConnectionProducedQuery))
+        ) {
+            if (!actor.isRegisteredUser) throw new ForbiddenError();
+            const user = await this.userModel.findSessionUserAndOrgByUuid(
+                actor.userUuid,
+                organizationUuid,
+            );
+            let account: Account;
+            if (actor.isServiceAccount) {
+                const serviceAccount =
+                    await this.userModel.findServiceAccountByUserUuid(
+                        actor.userUuid,
                     );
+                if (
+                    !serviceAccount ||
+                    serviceAccount.organizationUuid !== organizationUuid ||
+                    (serviceAccount.expiresAt &&
+                        serviceAccount.expiresAt <= new Date()) ||
+                    (agentIdentity &&
+                        (agentIdentity.subject.type !== 'service_account' ||
+                            agentIdentity.subject.uuid !== serviceAccount.uuid))
+                ) {
+                    throw new ForbiddenError();
                 }
-                const refusal = references.guard?.(completed) ?? null;
-                if (refusal !== null) {
-                    throw new DuckdbQueryRefusal(refusal, { kind: 'row_cap' });
-                }
-                return this.buildQueryReferenceCtes(completed);
+                account = fromServiceAccount({ ...user, serviceAccount }, '');
+            } else {
+                account = freshConnection?.account ?? fromSession(user);
             }
-            default:
-                return assertUnreachable(
-                    references,
-                    'Unknown DuckDB query reference kind',
-                );
+            await this.assertCanReadStoredResultsForQueries(
+                account,
+                projectUuid,
+                [
+                    ...new Map(
+                        Object.values(completed).map((reference) => [
+                            reference.queryUuid,
+                            reference,
+                        ]),
+                    ).values(),
+                ],
+                agentIdentity
+                    ? {
+                          kind: 'agent',
+                          claim: agentIdentity,
+                          authMethod: authMethod ?? null,
+                      }
+                    : {
+                          kind: 'person',
+                          authMethod: authMethod ?? null,
+                      },
+                identityEnabled,
+                false,
+                false,
+                true,
+            );
         }
+        const refusal = references.guard?.(completed) ?? null;
+        if (refusal !== null) {
+            throw new DuckdbQueryRefusal(refusal, { kind: 'row_cap' });
+        }
+        return this.buildQueryReferenceCtes(completed);
     }
 
     /**
@@ -13947,9 +13530,6 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns,
                 requestParameters,
             },
-            // A merge calculation is user SQL: it runs in a sandbox holding
-            // only the leg files it joins
-            engine: 'scopedToReferencedResults',
             // Only the legs this merge ran are checked against the cap; a
             // referenced result's row count is its own query's concern
             guard: { legLabelByReferenceTable, sourceRowCap },

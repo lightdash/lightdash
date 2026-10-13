@@ -34,7 +34,7 @@ import { uniqueName } from '../helpers/test-isolation';
 // month. The payments explore joins orders, so both sides expose the same
 // month dimension. One flag touches merges: `merge-queries` gates the
 // Explorer entry point only. A merge runs each source as its own leg on the
-// warehouse and joins the results on the compose engine; every merged value
+// warehouse and joins the results in a DuckDB sandbox; every merged value
 // must equal what its source query returns on its own, and this suite is
 // that bar for every credentialed warehouse.
 const ordersByMonth = {
@@ -328,7 +328,7 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
     };
 
     // Raw numeric representation is driver-specific — Postgres stringifies
-    // bigints and numerics, DuckDB (the compose engine) returns JSON
+    // bigints and numerics, DuckDB (the merge sandbox) returns JSON
     // numbers — so the parity bar compares values, not spellings. Formatted
     // values are engine-independent and asserted elsewhere.
     const numeric = (raw: unknown) => (raw === null ? null : Number(raw));
@@ -678,7 +678,7 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
         );
     }, 60_000);
 
-    // The join runs on the compose engine, whose default null order is not
+    // The join runs in DuckDB, whose default null order is not
     // every warehouse's. Under a limit that decides which rows survive, so
     // the merge states the project warehouse's placement on every sort. The
     // expectation is read from the same merge run unlimited, because each

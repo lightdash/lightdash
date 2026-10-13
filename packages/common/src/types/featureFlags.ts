@@ -363,7 +363,7 @@ export enum FeatureFlags {
      * External data sources: upload CSV files or connect Google Sheets as
      * project tables. Tables are ingested to typed parquet in object storage,
      * generated as explores (ExploreType.EXTERNAL_SOURCE), and queried on the
-     * DuckDB compose engine — so this requires the enterprise pre-aggregates
+     * in-process DuckDB engine — so this requires the enterprise pre-aggregates
      * engine and its S3 configuration. Off by default.
      */
     ExternalSources = 'external-sources',

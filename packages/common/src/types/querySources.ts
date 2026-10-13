@@ -23,7 +23,7 @@ import { type QueryHistoryStatus } from './queryHistory';
  * Discriminator for every query source a project can execute queries against.
  * A query source is anything that can scan a schema and run a query returning
  * the standard table format (ResultColumns + rows behind a queryUuid): the
- * project warehouse, the semantic layer, the DuckDB compose engine, and —
+ * project warehouse, the semantic layer, DuckDB over previous results, and —
  * later — CSV uploads, HTTP APIs, Google Sheets, etc.
  *
  * Deliberately NOT WarehouseTypes: sources are not warehouses, they plug in
@@ -35,7 +35,7 @@ export enum QuerySourceType {
     /** Raw SQL against the project's data warehouse (SQL runner). */
     SQL = 'sql',
     /**
-     * DuckDB SQL over previous results (compose engine). References expose
+     * DuckDB SQL over previous results, run in a sandbox. References expose
      * other queries' results as named tables, so this is the merge/transform
      * step of a multi-source pipeline.
      */
