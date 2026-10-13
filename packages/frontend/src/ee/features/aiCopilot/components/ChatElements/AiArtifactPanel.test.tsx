@@ -287,7 +287,7 @@ const composerConfig: AiComposerChartArtifactConfig = {
     source: 'composer',
     schemaVersion: 1,
     terminalNodeId: 'joined',
-    lastQueryUuid: 'query',
+    vizConfig: null,
     queries: [
         {
             sourceType: QuerySourceType.SQL,

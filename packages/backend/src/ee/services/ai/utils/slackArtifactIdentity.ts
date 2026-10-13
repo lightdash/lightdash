@@ -80,7 +80,8 @@ const getLegacySlackArtifactIdentity = (
                 return `chart:${vizType}:${artifact.chartConfig.sql}`;
             }
             if (isAiComposerChartArtifactConfig(artifact.chartConfig)) {
-                return `chart:${vizType}:${artifact.chartConfig.lastQueryUuid}`;
+                const { terminalNodeId, queries } = artifact.chartConfig;
+                return `chart:${vizType}:${stableJson({ terminalNodeId, queries })}`;
             }
             const viz = parseVizConfig(
                 artifact.chartConfig.config,

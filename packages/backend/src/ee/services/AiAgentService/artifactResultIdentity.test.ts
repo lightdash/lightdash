@@ -493,7 +493,7 @@ describe('artifact result identity boundaries', () => {
                 },
             ],
             terminalNodeId: 'joined',
-            lastQueryUuid: 'stale-query',
+            vizConfig: null,
         } as typeof artifact.chartConfig;
         delete (prompt as Partial<SlackPrompt>).slackUserId;
         const terminal = {
@@ -606,7 +606,7 @@ describe('artifact result identity boundaries', () => {
                 },
             ],
             terminalNodeId: 'source',
-            lastQueryUuid: 'stale-query',
+            vizConfig: null,
         } as typeof artifact.chartConfig;
         thread.user.uuid = 'another-owner';
         querySourceService.submitQueries.mockImplementation(async () => {
@@ -647,7 +647,7 @@ describe('artifact result identity boundaries', () => {
             schemaVersion: 1,
             queries: [],
             terminalNodeId: 'source',
-            lastQueryUuid: 'execution',
+            vizConfig: null,
         } as typeof artifact.chartConfig;
         thread.user.uuid = 'another-user';
         await expect(

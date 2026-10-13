@@ -33,7 +33,6 @@ const composerChartConfig = {
     schemaVersion: 1,
     queries: [],
     terminalNodeId: 'n1',
-    lastQueryUuid: 'query-uuid',
     vizConfig: null,
 };
 

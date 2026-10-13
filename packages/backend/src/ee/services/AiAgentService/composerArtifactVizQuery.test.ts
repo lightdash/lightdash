@@ -67,11 +67,6 @@ const setup = ({ queries }: { queries: SourceQuery[] }) => {
         schemaVersion: 1,
         queries,
         terminalNodeId: 'orders_vs_target',
-        lastQueryUuid: 'stale-terminal-query',
-        nodeResults: {
-            orders: { queryUuid: 'stale-orders-query' },
-            orders_vs_target: { queryUuid: 'stale-terminal-query' },
-        },
         vizConfig: null,
     } as const;
     const artifact: AiArtifact = {
