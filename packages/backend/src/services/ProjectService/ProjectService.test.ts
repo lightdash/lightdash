@@ -19007,11 +19007,15 @@ describe('ProjectService.getExploreResponse', () => {
 
 describe('homepage popularity', () => {
     it('ranks apps with charts and dashboards before the shared limit, without changing recently updated', async () => {
-        const chart = { uuid: 'chart', views: 20, updatedAt: new Date() };
+        const chart = {
+            uuid: 'chart',
+            views: 20,
+            updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+        };
         const dashboard = {
             uuid: 'dashboard',
             views: 10,
-            updatedAt: new Date(),
+            updatedAt: new Date('2026-01-01T00:00:00.000Z'),
         };
         const app = { uuid: 'app', contentType: 'data_app', views: 15 };
         const getMostPopularApps = vi.fn().mockResolvedValue([app]);
