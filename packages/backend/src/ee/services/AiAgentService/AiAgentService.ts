@@ -9508,26 +9508,6 @@ export class AiAgentService extends BaseService {
         return this.asyncQueryService.getAsyncQueryResults(args);
     }
 
-    private async executeArtifactQueryAsOwner<
-        T extends { query: { queryUuid: string } },
-    >(
-        user: SessionUser,
-        options: {
-            projectUuid: string;
-            agentUuid: string;
-            artifactUuid: string;
-            versionUuid: string;
-        },
-        execute: () => Promise<T>,
-    ): Promise<T> {
-        return this.executeArtifactQueriesAsOwner(
-            user,
-            options,
-            execute,
-            (r) => [r.query.queryUuid],
-        );
-    }
-
     /** Waits (bounded) for every node row to settle and counts the ones served from cache. */
     private async countCachedComposerRunNodes(
         projectUuid: string,
@@ -10001,7 +9981,12 @@ export class AiAgentService extends BaseService {
         const execute = () =>
             this.executeDashboardArtifactChartVizQuery(user, options);
         if (options.runtimeOptions) return execute();
-        return this.executeArtifactQueryAsOwner(user, options, execute);
+        return this.executeArtifactQueriesAsOwner(
+            user,
+            options,
+            execute,
+            (vizQuery) => [vizQuery.query.queryUuid],
+        );
     }
 
     private async executeDashboardArtifactChartVizQuery(
