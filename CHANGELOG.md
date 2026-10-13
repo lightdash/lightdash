@@ -1,3 +1,11 @@
+## [2.575.2](https://github.com/lightdash/lightdash/compare/2.575.1...2.575.2) (2026-10-13)
+
+
+### Bug Fixes
+
+* **ai:** drop the node error text from the pipeline card tooltip ([#30954](https://github.com/lightdash/lightdash/issues/30954)) ([2648350](https://github.com/lightdash/lightdash/commit/264835038df4cb88dc04e3f08421d548d3491ece))
+* **query:** stamp python query results with a derived result producer ([#30955](https://github.com/lightdash/lightdash/issues/30955)) ([ef3eb81](https://github.com/lightdash/lightdash/commit/ef3eb813cb694f39c1d7db05655012bfd61f8518))
+
 ## [2.575.1](https://github.com/lightdash/lightdash/compare/2.575.0...2.575.1) (2026-10-13)
 
 
