@@ -1,3 +1,10 @@
+## [2.573.3](https://github.com/lightdash/lightdash/compare/2.573.2...2.573.3) (2026-10-13)
+
+
+### Performance Improvements
+
+* **agent-identity:** connection status makes one bulk permission check and records no refusals ([#30949](https://github.com/lightdash/lightdash/issues/30949)) ([046b7d7](https://github.com/lightdash/lightdash/commit/046b7d77612d329114fd4e807f2638f06281815c))
+
 ## [2.573.2](https://github.com/lightdash/lightdash/compare/2.573.1...2.573.2) (2026-10-13)
 
 
