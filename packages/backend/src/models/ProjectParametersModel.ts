@@ -12,6 +12,7 @@ import {
 } from '../database/entities/projectParameters';
 import { CachedExploreTableName } from '../database/entities/projects';
 import KnexPaginate from '../database/pagination';
+import { ProjectModel } from './ProjectModel/ProjectModel';
 
 export class ProjectParametersModel {
     private database: Knex;
@@ -139,8 +140,17 @@ export class ProjectParametersModel {
     async replace(
         projectUuid: string,
         parameters: Required<LightdashProjectConfig>['parameters'],
+        // Use only statements on the given transaction; no other I/O or connection.
+        beforeWrite?: (trx: Knex.Transaction) => Promise<void>,
     ) {
         return this.database.transaction(async (trx) => {
+            if (beforeWrite) {
+                await ProjectModel.lockAndEnsureCachedExplores(
+                    trx,
+                    projectUuid,
+                );
+                await beforeWrite(trx);
+            }
             // remove all
             await trx(ProjectParametersTableName)
                 .where('project_uuid', projectUuid)

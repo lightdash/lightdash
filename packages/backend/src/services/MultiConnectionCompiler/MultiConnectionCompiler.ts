@@ -22,6 +22,7 @@ import {
     type BoundExplore,
     type MultiConnectionCarry,
     type ProjectModel,
+    type StagedExploreWriteCheck,
 } from '../../models/ProjectModel/ProjectModel';
 import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import {
@@ -539,6 +540,7 @@ export class MultiConnectionCompiler {
     async save(
         projectUuid: string,
         compilation: MultiConnectionSave,
+        beforeWrite?: StagedExploreWriteCheck,
     ): Promise<{ cachedExploreUuids: string[] }> {
         const saved = await this.projectModel.saveMultiConnectionExplores(
             projectUuid,
@@ -553,6 +555,7 @@ export class MultiConnectionCompiler {
                 }
             })(),
             compilation.carry,
+            ...(beforeWrite ? [beforeWrite] : []),
         );
         await compilation.persistArtifacts();
         return saved;
