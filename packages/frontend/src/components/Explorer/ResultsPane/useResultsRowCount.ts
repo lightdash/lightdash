@@ -5,8 +5,12 @@ import { useGroupedResultsAvailability } from '../ResultsCard/useGroupedResultsA
 /** Total rows of the results table, mirroring the source ExplorerResults reads. */
 export const useResultsRowCount = (): number | null => {
     const merge = useMergeSafe();
-    const { queryResults, unpivotedQuery, unpivotedQueryResults, unpivotedEnabled } =
-        useExplorerQuery();
+    const {
+        queryResults,
+        unpivotedQuery,
+        unpivotedQueryResults,
+        unpivotedEnabled,
+    } = useExplorerQuery();
     const { hasPivotColumns } = useGroupedResultsAvailability();
 
     const mergeResults = merge?.mergeResults;
