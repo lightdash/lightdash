@@ -1100,6 +1100,22 @@ export type DbQueryHistoryListRow = DbQueryHistory & {
 };
 
 /**
+ * A run served from cache reuses a results file created by an earlier
+ * execution, so the file predates the run itself.
+ */
+export function isQueryHistoryCacheHit({
+    createdAt,
+    resultsCreatedAt,
+}: {
+    createdAt: Date;
+    resultsCreatedAt: Date | null;
+}): boolean {
+    return Boolean(
+        resultsCreatedAt && new Date(resultsCreatedAt) < new Date(createdAt),
+    );
+}
+
+/**
  * Derives the list-row anatomy from the persisted query, per the design spec:
  * semantic rows are titled by explore with a metric/dimension subline; SQL
  * rows by saved chart or first CTE/table with the first line of SQL; failed
@@ -1134,12 +1150,10 @@ export function mapQueryHistoryRowToListItem(
         subline = row.error;
     }
 
-    // A run served from cache reuses a results file created by an earlier
-    // execution, so the file predates the run itself.
-    const cacheHit = Boolean(
-        row.results_created_at &&
-        new Date(row.results_created_at) < new Date(row.created_at),
-    );
+    const cacheHit = isQueryHistoryCacheHit({
+        createdAt: row.created_at,
+        resultsCreatedAt: row.results_created_at,
+    });
 
     return {
         queryUuid: row.query_uuid,

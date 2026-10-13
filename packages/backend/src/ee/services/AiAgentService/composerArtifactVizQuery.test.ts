@@ -1,9 +1,11 @@
 import {
     ForbiddenError,
     QueryExecutionContext,
+    QueryHistoryStatus,
     QuerySourceType,
     QuerySurface,
     type AiArtifact,
+    type QueryHistory,
     type SessionUser,
     type SourceQuery,
 } from '@lightdash/common';
@@ -61,6 +63,44 @@ const transformationNode: SourceQuery = {
     references: ['orders'],
 } as SourceQuery;
 
+const runCreatedAt = new Date('2026-10-13T10:00:00Z');
+const earlierRunAt = new Date('2026-10-13T09:00:00Z');
+
+const settledRow = (
+    queryUuid: string,
+    { servedFromCache }: { servedFromCache: boolean },
+) =>
+    ({
+        queryUuid,
+        status: QueryHistoryStatus.READY,
+        createdAt: runCreatedAt,
+        resultsCreatedAt: servedFromCache ? earlierRunAt : runCreatedAt,
+    }) as QueryHistory;
+
+/** Each node row settles when the test resolves it, as the worker would at run time. */
+const createNodeRuns = () => {
+    const runs = new Map<
+        string,
+        {
+            resolve: (row: QueryHistory) => void;
+            reject: (error: Error) => void;
+        }
+    >();
+    const pollForQueryCompletion = vi.fn(
+        ({ queryUuid }: { queryUuid: string }) =>
+            new Promise<QueryHistory>((resolve, reject) => {
+                runs.set(queryUuid, { resolve, reject });
+            }),
+    );
+    const settle = (queryUuid: string, servedFromCache: boolean) =>
+        runs
+            .get(queryUuid)!
+            .resolve(settledRow(queryUuid, { servedFromCache }));
+    const timeOut = (queryUuid: string) =>
+        runs.get(queryUuid)!.reject(new Error('Query polling timed out'));
+    return { pollForQueryCompletion, settle, timeOut };
+};
+
 const setup = ({ queries }: { queries: SourceQuery[] }) => {
     const chartConfig = {
         source: 'composer',
@@ -90,15 +130,17 @@ const setup = ({ queries }: { queries: SourceQuery[] }) => {
     } as AiArtifact;
     const querySourceService = {
         submitQueries: vi.fn(async ({ queries: submitted }) => ({
-            queries: (submitted as SourceQuery[]).map((query, index) => ({
+            queries: (submitted as SourceQuery[]).map((query) => ({
                 nodeId: query.nodeId,
                 sourceType: query.sourceType,
                 queryUuid: `run-${query.nodeId}`,
-                cacheHit: index === 0,
+                // Only a semantic node knows at submit time; the others learn when they run.
+                cacheHit: false,
             })),
         })),
     };
     const analytics = { track: vi.fn() };
+    const nodeRuns = createNodeRuns();
     const aiAgentModel = {
         findSlackPrompt: vi.fn().mockResolvedValue(undefined),
         findWebAppPrompt: vi
@@ -117,6 +159,9 @@ const setup = ({ queries }: { queries: SourceQuery[] }) => {
             get: vi.fn().mockResolvedValue({ enabled: false }),
         },
         querySourceService,
+        queryHistoryModel: {
+            pollForQueryCompletion: nodeRuns.pollForQueryCompletion,
+        },
         analytics,
         lightdashConfig: { ai: { copilot: { maxQueryLimit: 5000 } } },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -139,7 +184,7 @@ const setup = ({ queries }: { queries: SourceQuery[] }) => {
         },
         'assertEmbedThreadInSpace',
     ).mockResolvedValue(undefined);
-    return { service, querySourceService, analytics, aiAgentModel };
+    return { service, querySourceService, analytics, aiAgentModel, nodeRuns };
 };
 
 const options = {
@@ -153,7 +198,7 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('AiAgentService composer artifact visualization query', () => {
     it('opening a composer artifact runs its whole pipeline as the viewer and returns every node result', async () => {
-        const { service, querySourceService, analytics, aiAgentModel } = setup({
+        const { service, querySourceService, aiAgentModel } = setup({
             queries: [semanticNode, transformationNode],
         });
 
@@ -183,24 +228,63 @@ describe('AiAgentService composer artifact visualization query', () => {
         expect(
             querySourceService.submitQueries.mock.calls[0][0].account.user.id,
         ).toBe('user-uuid');
-        expect(analytics.track).toHaveBeenCalledWith(
-            expect.objectContaining({
-                event: 'ai_agent.artifact_viz_query',
-                userId: 'user-uuid',
-                properties: expect.objectContaining({
-                    source: 'composer',
-                    artifactVersionId: 'version-uuid',
-                    promptId: 'prompt-uuid',
-                    queryId: 'run-orders_vs_target',
-                    nodeCount: 2,
-                    cachedNodeCount: 1,
-                    durationMs: expect.any(Number),
-                }),
-            }),
-        );
         expect(
             aiAgentModel.updateArtifactVersionChartConfig,
         ).not.toHaveBeenCalled();
+    });
+
+    it('tracks the run once every node settles, counting a DuckDB node served from cache at run time', async () => {
+        const { service, analytics, nodeRuns } = setup({
+            queries: [semanticNode, transformationNode],
+        });
+
+        await service.getArtifactVizQuery(user, options);
+        nodeRuns.settle('run-orders', false);
+
+        expect(analytics.track).not.toHaveBeenCalled();
+
+        nodeRuns.settle('run-orders_vs_target', true);
+
+        await vi.waitFor(() =>
+            expect(analytics.track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'ai_agent.artifact_viz_query',
+                    userId: 'user-uuid',
+                    properties: expect.objectContaining({
+                        source: 'composer',
+                        artifactVersionId: 'version-uuid',
+                        promptId: 'prompt-uuid',
+                        queryId: 'run-orders_vs_target',
+                        nodeCount: 2,
+                        settledNodeCount: 2,
+                        cachedNodeCount: 1,
+                        durationMs: expect.any(Number),
+                    }),
+                }),
+            ),
+        );
+    });
+
+    it('tracks the run with the settled nodes when a node outlasts the wait', async () => {
+        const { service, analytics, nodeRuns } = setup({
+            queries: [semanticNode, transformationNode],
+        });
+
+        await service.getArtifactVizQuery(user, options);
+        nodeRuns.settle('run-orders', true);
+        nodeRuns.timeOut('run-orders_vs_target');
+
+        await vi.waitFor(() =>
+            expect(analytics.track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    properties: expect.objectContaining({
+                        nodeCount: 2,
+                        settledNodeCount: 1,
+                        cachedNodeCount: 1,
+                    }),
+                }),
+            ),
+        );
     });
 
     it('runs an embedded composer artifact with the embed user attributes', async () => {

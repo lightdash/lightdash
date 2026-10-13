@@ -296,6 +296,10 @@ import { OpenIdIdentityModel } from '../../../models/OpenIdIdentitiesModel';
 import { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { PullRequestsModel } from '../../../models/PullRequestsModel';
+import {
+    isQueryHistoryCacheHit,
+    type QueryHistoryModel,
+} from '../../../models/QueryHistoryModel/QueryHistoryModel';
 import { RolesModel } from '../../../models/RolesModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { SlackUnfurlImageModel } from '../../../models/SlackUnfurlImageModel';
@@ -722,6 +726,7 @@ type StaticToolCall = {
 
 // The fast edit reply waits this long for a one-number result before sending without it.
 const SINGLE_VALUE_TIMEOUT_MS = 3_000;
+const COMPOSER_RUN_SETTLE_TIMEOUT_MS = 3 * 60_000;
 
 type ChartIntentApplication =
     | {
@@ -898,6 +903,7 @@ type AiAgentServiceDependencies = {
     analytics: LightdashAnalytics;
     asyncQueryService: AsyncQueryService;
     querySourceService: Pick<QuerySourceService, 'submitQueries'>;
+    queryHistoryModel: Pick<QueryHistoryModel, 'pollForQueryCompletion'>;
     catalogService: CatalogService;
     catalogModel: CatalogModel;
     contentVerificationModel: ContentVerificationModel;
@@ -1254,6 +1260,11 @@ export class AiAgentService extends BaseService {
     private readonly querySourceService: Pick<
         QuerySourceService,
         'submitQueries'
+    >;
+
+    private readonly queryHistoryModel: Pick<
+        QueryHistoryModel,
+        'pollForQueryCompletion'
     >;
 
     private readonly catalogService: CatalogService;
@@ -1850,6 +1861,7 @@ export class AiAgentService extends BaseService {
         this.analytics = dependencies.analytics;
         this.asyncQueryService = dependencies.asyncQueryService;
         this.querySourceService = dependencies.querySourceService;
+        this.queryHistoryModel = dependencies.queryHistoryModel;
         this.catalogService = dependencies.catalogService;
         this.catalogModel = dependencies.catalogModel;
         this.contentVerificationModel = dependencies.contentVerificationModel;
@@ -9516,6 +9528,32 @@ export class AiAgentService extends BaseService {
         );
     }
 
+    /** Waits (bounded) for every node row to settle and counts the ones served from cache. */
+    private async countCachedComposerRunNodes(
+        projectUuid: string,
+        queryUuids: string[],
+    ): Promise<{ settledNodeCount: number; cachedNodeCount: number }> {
+        const settled = await Promise.allSettled(
+            queryUuids.map((queryUuid) =>
+                this.queryHistoryModel.pollForQueryCompletion({
+                    queryUuid,
+                    projectUuid,
+                    account: null,
+                    timeoutMs: COMPOSER_RUN_SETTLE_TIMEOUT_MS,
+                    throwOnCancelled: false,
+                    throwOnError: false,
+                }),
+            ),
+        );
+        const rows = settled.flatMap((outcome) =>
+            outcome.status === 'fulfilled' ? [outcome.value] : [],
+        );
+        return {
+            settledNodeCount: rows.length,
+            cachedNodeCount: rows.filter(isQueryHistoryCacheHit).length,
+        };
+    }
+
     /** Runs as the owner when the reader allows, then binds every query it produced to the artifact. */
     private async executeArtifactQueriesAsOwner<T>(
         user: SessionUser,
@@ -9732,6 +9770,7 @@ export class AiAgentService extends BaseService {
                     durationMs: Date.now() - vizQueryStartedAt,
                     queryId: query.queryUuid,
                     nodeCount: null,
+                    settledNodeCount: null,
                     cachedNodeCount: null,
                 },
             });
@@ -9761,9 +9800,10 @@ export class AiAgentService extends BaseService {
                 );
             }
 
+            const account = fromSession(user);
             const { queries: submissions } =
                 await this.querySourceService.submitQueries({
-                    account: fromSession(user),
+                    account,
                     projectUuid,
                     queries,
                     context: QueryExecutionContext.AI,
@@ -9780,27 +9820,40 @@ export class AiAgentService extends BaseService {
                 submissions.map(({ nodeId, queryUuid }) => [nodeId, queryUuid]),
             );
 
-            this.analytics.track({
-                event: 'ai_agent.artifact_viz_query',
-                userId: user.userUuid,
-                properties: {
-                    projectId: projectUuid,
-                    organizationId: organizationUuid,
-                    agentId: agent.uuid,
-                    agentName: agent.name,
-                    artifactId: artifactUuid,
-                    artifactVersionId: versionUuid,
-                    vizType: AiResultType.TABLE_RESULT,
-                    source: 'composer',
-                    promptId: artifact.promptUuid,
-                    durationMs: Date.now() - vizQueryStartedAt,
-                    queryId: nodeQueryUuids[terminalNodeId] ?? null,
-                    nodeCount: submissions.length,
-                    cachedNodeCount: submissions.filter(
-                        ({ cacheHit }) => cacheHit,
-                    ).length,
-                },
-            });
+            const durationMs = Date.now() - vizQueryStartedAt;
+            // A DuckDB or Python node only learns it was cached when it runs,
+            // so the event waits for the run to settle.
+            void this.countCachedComposerRunNodes(
+                projectUuid,
+                submissions.map(({ queryUuid }) => queryUuid),
+            )
+                .then(({ settledNodeCount, cachedNodeCount }) =>
+                    this.analytics.track({
+                        event: 'ai_agent.artifact_viz_query',
+                        userId: user.userUuid,
+                        properties: {
+                            projectId: projectUuid,
+                            organizationId: organizationUuid,
+                            agentId: agent.uuid,
+                            agentName: agent.name,
+                            artifactId: artifactUuid,
+                            artifactVersionId: versionUuid,
+                            vizType: AiResultType.TABLE_RESULT,
+                            source: 'composer',
+                            promptId: artifact.promptUuid,
+                            durationMs,
+                            queryId: nodeQueryUuids[terminalNodeId] ?? null,
+                            nodeCount: submissions.length,
+                            settledNodeCount,
+                            cachedNodeCount,
+                        },
+                    }),
+                )
+                .catch((error) =>
+                    this.logger.warn(
+                        `Failed to track composer artifact run ${artifactUuid}: ${getErrorMessage(error)}`,
+                    ),
+                );
 
             return {
                 source: 'composer',
@@ -9849,6 +9902,7 @@ export class AiAgentService extends BaseService {
                     durationMs: Date.now() - vizQueryStartedAt,
                     queryId: query.queryUuid,
                     nodeCount: null,
+                    settledNodeCount: null,
                     cachedNodeCount: null,
                 },
             });
@@ -9919,6 +9973,7 @@ export class AiAgentService extends BaseService {
                 durationMs: Date.now() - vizQueryStartedAt,
                 queryId: query.queryUuid,
                 nodeCount: null,
+                settledNodeCount: null,
                 cachedNodeCount: null,
             },
         });
