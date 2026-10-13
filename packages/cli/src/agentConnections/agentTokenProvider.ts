@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import { type Response } from 'node-fetch';
 import { createAgentConnectionFetch } from './apiUrl';
 import { validateSlot, type AgentConnectionSlot, type SlotKey } from './schema';
+import { publicConnectionReport } from './statusResponse';
 import { AgentConnectionStore, type LockedStore } from './store';
 
 type TokenResponse = {
@@ -24,14 +25,14 @@ const createResponseValidator = () =>
             'scope',
         ],
         properties: {
-            access_token: { type: 'string', minLength: 1 },
-            refresh_token: { type: 'string', minLength: 1 },
+            access_token: { type: 'string', minLength: 1, maxLength: 16384 },
+            refresh_token: { type: 'string', minLength: 1, maxLength: 16384 },
             token_type: {
                 type: 'string',
                 pattern: '^[Bb][Ee][Aa][Rr][Ee][Rr]$',
             },
             expires_in: { type: 'integer', minimum: 1, maximum: 2_147_483_647 },
-            scope: { type: 'string', minLength: 1 },
+            scope: { type: 'string', minLength: 1, maxLength: 16384 },
         },
     });
 let responseValidator: ReturnType<typeof createResponseValidator> | null = null;
@@ -170,7 +171,7 @@ export class AgentTokenProvider {
             slot,
         );
         assertUsableSlot(checked, Date.now());
-        return checked;
+        return { ...checked, lastReported: publicConnectionReport(checked) };
     }
 
     private async reconnect(

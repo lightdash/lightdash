@@ -69,6 +69,10 @@ import * as path from 'path';
 import { validate as isUuid } from 'uuid';
 import { assertAgentCommandAllowed } from '../agentConnections/commandPolicy';
 import {
+    assertConnectionResponse,
+    isResponseCount,
+} from '../agentConnections/responseValidation';
+import {
     LightdashAnalytics,
     type ProjectContentAsCodeCounts,
 } from '../analytics/analytics';
@@ -978,6 +982,9 @@ export const downloadContent = async (
             body: undefined,
         });
 
+        assertConnectionResponse(
+            isResponseCount(results?.offset) && isResponseCount(results?.total),
+        );
         onProgress?.(
             `${results.offset} of ${results.total} ${config.displayName} downloaded`,
         );
@@ -986,7 +993,9 @@ export const downloadContent = async (
         // so we are going to get more false positives here, so we keep it on the debug log
         results.missingIds.forEach((missingId) => {
             GlobalState.debug(
-                `\nNo ${config.displayName} with id "${missingId}"`,
+                getAgentConnectionSelection() !== null
+                    ? 'Some requested items were not found.'
+                    : `\nNo ${config.displayName} with id "${missingId}"`,
             );
         });
 
@@ -1141,11 +1150,21 @@ const downloadVirtualViews = async (
     });
     results.skipped.forEach(({ slug, reason }) =>
         GlobalState.log(
-            styles.warning(`Skipped virtual view "${slug}": ${reason}`),
+            styles.warning(
+                getAgentConnectionSelection() !== null
+                    ? 'A virtual view was skipped.'
+                    : `Skipped virtual view "${slug}": ${reason}`,
+            ),
         ),
     );
     results.missingSlugs.forEach((slug) =>
-        GlobalState.log(styles.warning(`Virtual view "${slug}" was not found`)),
+        GlobalState.log(
+            styles.warning(
+                getAgentConnectionSelection() !== null
+                    ? 'A virtual view was not found.'
+                    : `Virtual view "${slug}" was not found`,
+            ),
+        ),
     );
     return results.virtualViews.length;
 };
@@ -1198,7 +1217,11 @@ const downloadLinkedVirtualViews = async (
     }
     results.skipped.forEach(({ slug, reason }) =>
         GlobalState.log(
-            styles.warning(`Skipped virtual view "${slug}": ${reason}`),
+            styles.warning(
+                getAgentConnectionSelection() !== null
+                    ? 'A virtual view was skipped.'
+                    : `Skipped virtual view "${slug}": ${reason}`,
+            ),
         ),
     );
     return results.virtualViews.length;
@@ -1348,6 +1371,10 @@ const downloadExternalConnections = async (
 
             connections.push(...results.externalConnections);
             missingSlugs = results.missingSlugs;
+            assertConnectionResponse(
+                isResponseCount(results?.offset) &&
+                    isResponseCount(results?.total),
+            );
             offset = results.offset;
             total = results.total;
         } while (offset < total);
@@ -1368,7 +1395,11 @@ const downloadExternalConnections = async (
 
     missingSlugs.forEach((slug) =>
         GlobalState.log(
-            styles.warning(`External connection "${slug}" was not found`),
+            styles.warning(
+                getAgentConnectionSelection() !== null
+                    ? 'An external connection was not found.'
+                    : `External connection "${slug}" was not found`,
+            ),
         ),
     );
 
@@ -1529,6 +1560,9 @@ const downloadDocuments = async (
             const page = await fetchPage(offset);
             documents.push(...page.documents);
             missingSlugs = page.missingSlugs;
+            assertConnectionResponse(
+                page.nextOffset === null || isResponseCount(page.nextOffset),
+            );
             offset = page.nextOffset;
         }
     } catch (error) {
@@ -1542,7 +1576,13 @@ const downloadDocuments = async (
     }
 
     missingSlugs.forEach((slug) =>
-        GlobalState.log(styles.warning(`Document "${slug}" was not found`)),
+        GlobalState.log(
+            styles.warning(
+                getAgentConnectionSelection() !== null
+                    ? 'A document was not found.'
+                    : `Document "${slug}" was not found`,
+            ),
+        ),
     );
     await writeCodeResourceDocuments({
         definition: DOCUMENT_CODE_RESOURCE,
@@ -1682,9 +1722,17 @@ const downloadAiAgents = async (
             agents.push(...results.agents);
 
             results.missingIds.forEach((id) =>
-                GlobalState.debug(`No AI agent with id "${id}"`),
+                GlobalState.debug(
+                    getAgentConnectionSelection() !== null
+                        ? 'An AI agent was not found.'
+                        : `No AI agent with id "${id}"`,
+                ),
             );
             downloaded += results.agents.length;
+            assertConnectionResponse(
+                isResponseCount(results?.offset) &&
+                    isResponseCount(results?.total),
+            );
             offset = results.offset;
             total = results.total;
         } while (offset < total);
@@ -1848,7 +1896,9 @@ const downloadScheduledContent = async (
 
     results.skipped.forEach((item) =>
         GlobalState.debug(
-            `Skipped ${config.singular} "${item.name}": ${item.reason}`,
+            getAgentConnectionSelection() !== null
+                ? 'A scheduled item was skipped.'
+                : `Skipped ${config.singular} "${item.name}": ${item.reason}`,
         ),
     );
 

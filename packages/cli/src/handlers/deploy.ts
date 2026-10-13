@@ -20,8 +20,12 @@ import {
 import inquirer from 'inquirer';
 import path from 'path';
 import { URL } from 'url';
-import { v4 as uuidv4 } from 'uuid';
+import { validate as isUuid, v4 as uuidv4 } from 'uuid';
 import { assertAgentCommandAllowed } from '../agentConnections/commandPolicy';
+import {
+    assertConnectionResponse,
+    isResponseCount,
+} from '../agentConnections/responseValidation';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig, setProject } from '../config';
 import { getAgentConnectionSelection } from '../credentials';
@@ -153,6 +157,13 @@ const logDeployWarnings = (
         warningResults.warningCount === 0 ||
         !warningResults.exploresWithWarnings?.length
     ) {
+        return;
+    }
+
+    if (getAgentConnectionSelection() !== null) {
+        console.error(
+            'The server reported compilation warnings. Review the project in the app.',
+        );
         return;
     }
 
@@ -320,6 +331,10 @@ const deployBatched = async (
             url: `/api/v2/projects/${options.projectUuid}/deploy`,
             body: JSON.stringify({}),
         })) as { deploySessionUuid: string };
+        assertConnectionResponse(
+            typeof startSessionResponse?.deploySessionUuid === 'string' &&
+                isUuid(startSessionResponse.deploySessionUuid),
+        );
         sessionUuid = startSessionResponse.deploySessionUuid;
     } catch (error) {
         if (getAgentConnectionSelection() !== null) throw error;
@@ -368,6 +383,10 @@ const deployBatched = async (
             batchIndex + 1,
         );
 
+        assertConnectionResponse(
+            isResponseCount(response?.exploreCount) &&
+                isResponseCount(response?.batchNumber),
+        );
         GlobalState.log(
             styles.success(
                 `  ✓ Batch ${batchIndex + 1} uploaded (${response.exploreCount} explores)`,
@@ -417,6 +436,7 @@ const deployBatched = async (
         }),
     });
 
+    assertConnectionResponse(isResponseCount(finalizeResponse?.exploreCount));
     GlobalState.log(
         styles.success(
             `Deploy completed! ${finalizeResponse.exploreCount} explores deployed.`,

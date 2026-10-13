@@ -5,6 +5,7 @@ import {
     type Explore,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/analytics';
+import { runWithAgentConnectionSelection } from '../credentials';
 import GlobalState from '../globalState';
 import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
 import { lightdashApi } from './dbt/apiClient';
@@ -398,7 +399,9 @@ describe('selected deploy writes', () => {
         const failure = new Error('Connection failed');
         vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
             if (url.endsWith('/deploy'))
-                return { deploySessionUuid: 'session' } as never;
+                return {
+                    deploySessionUuid: '55555555-5555-4555-8555-555555555555',
+                } as never;
             if (url.endsWith('/batch')) {
                 attempts += 1;
                 if (attempts === 1) throw failure;
@@ -467,5 +470,39 @@ it('does not fall back to another deploy write after a selected legacy 404', asy
         ).toBe(false);
     } finally {
         vi.unstubAllEnvs();
+    }
+});
+
+it('prints fixed guidance for server deploy warnings on connection requests', async () => {
+    vi.mocked(readAndLoadLightdashProjectConfig).mockResolvedValue({
+        spotlight: { default_visibility: 'show' },
+    });
+    vi.mocked(lightdashApi).mockResolvedValue({
+        warnings: {
+            warningCount: 1,
+            exploresWithWarnings: [
+                {
+                    name: 'unseen server marker!',
+                    warnings: [{ message: 'unseen server marker!' }],
+                },
+            ],
+        },
+    } as never);
+    const output = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+        await runWithAgentConnectionSelection('default', () =>
+            deploy([compiledExplore], {
+                ...deployOptions,
+                batchedDeploy: false,
+            }),
+        );
+        expect(output.mock.calls.flat().join('\n')).not.toContain(
+            'unseen server marker!',
+        );
+        expect(output.mock.calls.flat().join('\n')).toContain(
+            'The server reported compilation warnings. Review the project in the app.',
+        );
+    } finally {
+        output.mockRestore();
     }
 });

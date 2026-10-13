@@ -59,7 +59,7 @@ it('keeps whole config and credential serializers in the audited inventory', asy
             )
             .map(({ name }) => name)
             .sort(),
-    ).toEqual(['handlers/dbt/getWarehouseClient.ts', 'handlers/getProject.ts']);
+    ).toEqual(['handlers/dbt/getWarehouseClient.ts']);
 });
 it.each([
     'handlers/apps/createApp.ts',

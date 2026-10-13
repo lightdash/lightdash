@@ -494,8 +494,10 @@ it.each(['warehouse-catalog', 'sql', 'download'] as const)(
                 results = { projectUuid, name: 'Approved', slug: 'approved' };
             else if (req.url?.endsWith('/sqlRunner/tables')) results = {};
             else if (req.url?.endsWith('/query/sql'))
-                results = { queryUuid: 'query' };
-            else if (req.url?.includes('/query/query'))
+                results = { queryUuid: '55555555-5555-4555-8555-555555555555' };
+            else if (
+                req.url?.includes('/query/55555555-5555-4555-8555-555555555555')
+            )
                 results = { status: 'ready', columns: {}, rows: [] };
             else {
                 res.writeHead(500);

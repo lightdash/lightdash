@@ -1,4 +1,5 @@
 import { assertUnreachable } from '@lightdash/common';
+import { stripVTControlCharacters } from 'util';
 import {
     validateSlot,
     type AgentConnectionSlot,
@@ -53,19 +54,30 @@ export const publicConnectionReport = (
     limitsStatus: slot.lastReported.limitsStatus,
     lastUsedAt: slot.lastReported.lastUsedAt,
     revokedAt: slot.lastReported.revokedAt,
-    approvedProjects: slot.lastReported.approvedProjects.map((project) => ({
-        projectUuid: project.projectUuid,
-        name:
-            project.name !== null &&
-            !publicTextIsSafe(project.name, [
-                slot.tokens.accessToken,
-                slot.tokens.refreshToken,
-                ...extraSecrets,
-            ])
+    approvedProjects: slot.lastReported.approvedProjects.map((project) => {
+        const name =
+            project.name === null
                 ? null
-                : project.name,
-        approvedCapabilities: project.approvedCapabilities,
-    })),
+                : stripVTControlCharacters(project.name).replace(
+                      /[\u0000-\u001f\u007f-\u009f]/g,
+                      '',
+                  );
+        const secrets = [
+            slot.tokens.accessToken,
+            slot.tokens.refreshToken,
+            ...extraSecrets,
+        ];
+        return {
+            projectUuid: project.projectUuid,
+            name:
+                name === null ||
+                !publicTextIsSafe(project.name!, secrets) ||
+                !publicTextIsSafe(name, secrets)
+                    ? null
+                    : name,
+            approvedCapabilities: [...project.approvedCapabilities],
+        };
+    }),
     effectiveProjects: slot.lastReported.effectiveProjects.map((project) => ({
         projectUuid: project.projectUuid,
         capabilities: project.capabilities.map((action) => ({

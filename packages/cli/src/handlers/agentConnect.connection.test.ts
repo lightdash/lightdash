@@ -202,7 +202,7 @@ beforeEach(async () => {
                     requestReply ?? {
                         status: 'ok',
                         results: {
-                            authorizationUrl: `${instance}/api/v1/oauth/authorize?approval_request=test`,
+                            authorizationUrl: `${instance}/api/v1/oauth/authorize?agent_request=44444444-4444-4444-8444-444444444444`,
                             issuer: instance,
                             resource: instance,
                             expiresAt: new Date(
@@ -710,7 +710,7 @@ it.each([
         expect(process.exitCode).toBe(1);
         expect(vi.mocked(console.error).mock.calls).toEqual([
             [
-                `Open this page to approve the agent connection:\n${instance}/api/v1/oauth/authorize?approval_request=test`,
+                `Open this page to approve the agent connection:\n${instance}/api/v1/oauth/authorize?agent_request=44444444-4444-4444-8444-444444444444`,
             ],
             ['Waiting for browser approval and warehouse setup...'],
             [message],

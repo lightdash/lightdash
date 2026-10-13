@@ -65,7 +65,7 @@ afterEach(async () => {
 });
 
 it.each(['saved', 'unset', 'missing-identity'])(
-    'pins ordinary get-project %s including verbose secrets and persistence',
+    'pins ordinary get-project %s with masked verbose credentials and unchanged persistence',
     async (mode) => {
         if (mode === 'unset') delete config.context!.project;
         if (mode === 'missing-identity') delete config.user!.anonymousUuid;
@@ -87,7 +87,7 @@ it.each(['saved', 'unset', 'missing-identity'])(
             },
         };
         const lines = [
-            `> Config: ${JSON.stringify(expected)}`,
+            `> Config: ${JSON.stringify({ ...expected, context: { ...expected.context, apiKey: '[redacted]' } })}`,
             ...(mode === 'unset'
                 ? [
                       'No project set. Use `lightdash config set-project` to select a project.',
