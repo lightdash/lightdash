@@ -6,3 +6,7 @@
     height: 100%;
     overflow: auto;
 }
+
+.rowCount {
+    white-space: nowrap;
+}

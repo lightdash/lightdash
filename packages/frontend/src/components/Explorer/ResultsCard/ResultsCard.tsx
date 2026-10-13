@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { ActionIcon, Group, Popover } from '@mantine/core';
+import { ActionIcon, Group, Popover, Text } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC, type ReactNode } from 'react';
 import {
@@ -31,8 +31,10 @@ import MantineIcon from '../../common/MantineIcon';
 import ExportSelector from '../../ExportSelector';
 import SortButton from '../../SortButton';
 import ExplorerPaneLayout from '../ResultsPane/ExplorerPaneLayout';
+import classes from './ExplorerResults.module.css';
 import { ExplorerResults } from './ExplorerResults';
 import { ResultsViewMode } from './types';
+import { useResultsRowCount } from './useResultsRowCount';
 
 type Props = {
     tabs: ReactNode;
@@ -50,6 +52,7 @@ const ResultsCard: FC<Props> = memo(({ tabs, viewMode }) => {
     const columnOrder = useExplorerSelector(selectColumnOrder);
 
     const isGroupedView = viewMode === ResultsViewMode.GROUPED;
+    const rowCount = useResultsRowCount();
 
     const { queryResults, getDownloadQueryUuid } = useExplorerQuery();
     const merge = useMergeSafe();
@@ -133,6 +136,12 @@ const ResultsCard: FC<Props> = memo(({ tabs, viewMode }) => {
                     <Group wrap="nowrap" gap="xs">
                         {tableName && sorts.length > 0 && (
                             <SortButton isEditMode={isEditMode} sorts={sorts} />
+                        )}
+                        {tableName && rowCount !== null && (
+                            <Text fz="xs" c="dimmed" className={classes.rowCount}>
+                                {rowCount.toLocaleString()}{' '}
+                                {rowCount === 1 ? 'row' : 'rows'}
+                            </Text>
                         )}
                     </Group>
                 )
