@@ -50,6 +50,11 @@ import { useProjectUuid } from '../hooks/useProjectUuid';
 import useSearchParams from '../hooks/useSearchParams';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
+import {
+    clearSqlRunnerHandoff,
+    readSqlRunnerHandoff,
+    SQL_RUNNER_HANDOFF_PARAM,
+} from '../features/sqlRunner/utils/sqlRunnerHandoff';
 import { EventName } from '../types/Events';
 
 const SqlRunner = ({
@@ -73,8 +78,14 @@ const SqlRunner = ({
 
     const location = useLocation();
     const navigate = useNavigate();
+    const handoffId = useSearchParams(SQL_RUNNER_HANDOFF_PARAM);
+    const [handoff] = useState(() =>
+        handoffId ? readSqlRunnerHandoff(handoffId) : null,
+    );
     const [connectionHint] = useState<string | null | undefined>(() => {
-        const hint = location.state?.warehouseConnectionUuid;
+        const hint = handoff
+            ? handoff.warehouseConnectionUuid
+            : location.state?.warehouseConnectionUuid;
         return typeof hint === 'string' || hint === null ? hint : undefined;
     });
 
@@ -221,6 +232,19 @@ const SqlRunner = ({
             void navigate({ ...location }, { replace: true, state: undefined });
         }
     }, [dispatch, location, navigate]);
+
+    // SQL handed over from another tab; drop the id so a refresh starts clean
+    useEffect(() => {
+        if (!handoffId) return;
+        if (handoff) dispatch(setSql(handoff.sql));
+        clearSqlRunnerHandoff(handoffId);
+        const search = new URLSearchParams(location.search);
+        search.delete(SQL_RUNNER_HANDOFF_PARAM);
+        void navigate(
+            { ...location, search: search.toString() },
+            { replace: true },
+        );
+    }, [dispatch, handoff, handoffId, location, navigate]);
 
     const { data, error: chartError } = useSavedSqlChart({
         projectUuid,

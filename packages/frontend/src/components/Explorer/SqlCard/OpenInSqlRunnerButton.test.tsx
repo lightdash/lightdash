@@ -5,7 +5,8 @@ import {
 } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, useLocation } from 'react-router';
+import { MemoryRouter } from 'react-router';
+import { readSqlRunnerHandoff } from '../../../features/sqlRunner/utils/sqlRunnerHandoff';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { EventName } from '../../../types/Events';
 import OpenInSqlRunnerButton from './OpenInSqlRunnerButton';
@@ -22,13 +23,13 @@ vi.mock('../../../providers/App/useApp', () => ({
     }),
 }));
 
-const LocationState = () => {
-    const location = useLocation();
-    return (
-        <output data-testid="location-state">
-            {JSON.stringify(location.state)}
-        </output>
-    );
+const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+
+// The handoff the click wrote, read back from the URL it opened
+const openedHandoff = () => {
+    const url = openSpy.mock.calls[0][0] as string;
+    const id = new URLSearchParams(url.split('?')[1]).get('handoff');
+    return id ? readSqlRunnerHandoff(id) : null;
 };
 
 const renderButton = (
@@ -49,13 +50,28 @@ const renderButton = (
                     } as Project['warehouseConnection'],
                 }}
             />
-            <LocationState />
         </MemoryRouter>,
     );
 
 describe('OpenInSqlRunnerButton', () => {
     beforeEach(() => {
         track.mockClear();
+        openSpy.mockClear();
+        window.localStorage.clear();
+    });
+
+    it('opens the runner in a new tab with the SQL', async () => {
+        renderButton(null, 'single');
+
+        await userEvent
+            .setup()
+            .click(screen.getByRole('link', { name: 'Open in SQL Runner' }));
+
+        expect(openSpy).toHaveBeenCalledTimes(1);
+        const [url, target] = openSpy.mock.calls[0];
+        expect(url).toMatch(/^\/projects\/project-uuid\/sql-runner\?handoff=/);
+        expect(target).toBe('_blank');
+        expect(openedHandoff()).toEqual({ sql: 'select 1' });
     });
 
     it.each([
@@ -130,17 +146,15 @@ describe('OpenInSqlRunnerButton', () => {
                     screen.getByRole('link', { name: 'Open in SQL Runner' }),
                 );
 
-            expect(screen.getByTestId('location-state')).toHaveTextContent(
-                JSON.stringify({
-                    sql: 'select 1',
-                    warehouseConnectionUuid: expected,
-                }),
-            );
+            expect(openedHandoff()).toEqual({
+                sql: 'select 1',
+                warehouseConnectionUuid: expected,
+            });
         },
     );
 
     it.each([undefined, null])(
-        'keeps the single-project location state at SQL only for binding %s',
+        'keeps the single-project handoff at SQL only for binding %s',
         async (connection) => {
             renderButton(connection, 'single');
 
@@ -150,9 +164,7 @@ describe('OpenInSqlRunnerButton', () => {
                     screen.getByRole('link', { name: 'Open in SQL Runner' }),
                 );
 
-            expect(screen.getByTestId('location-state').textContent).toBe(
-                JSON.stringify({ sql: 'select 1' }),
-            );
+            expect(openedHandoff()).toEqual({ sql: 'select 1' });
         },
     );
 

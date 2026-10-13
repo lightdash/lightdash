@@ -1,8 +1,12 @@
 import { type ConnectionRoute, type Project } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { IconTerminal2 } from '@tabler/icons-react';
-import { memo, type FC } from 'react';
-import { Link } from 'react-router';
+import { memo, type FC, type MouseEvent } from 'react';
+import { useHref } from 'react-router';
+import {
+    SQL_RUNNER_HANDOFF_PARAM,
+    writeSqlRunnerHandoff,
+} from '../../../features/sqlRunner/utils/sqlRunnerHandoff';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -36,8 +40,22 @@ const OpenInSqlRunnerButton: FC<OpenInSqlRunnerButtonProps> = memo(
         const isExtraConnection =
             carriesConnection && typeof warehouseConnectionUuid === 'string';
 
-        const handleClick = () => {
-            if (connectionRoute === undefined) return;
+        const sqlRunnerHref = useHref(`/projects/${projectUuid}/sql-runner`);
+
+        const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
+            event.preventDefault();
+            if (connectionRoute === undefined || !sql) return;
+            const handoffId = writeSqlRunnerHandoff({
+                sql,
+                ...(carriesConnection ? { warehouseConnectionUuid } : {}),
+            });
+            window.open(
+                handoffId
+                    ? `${sqlRunnerHref}?${SQL_RUNNER_HANDOFF_PARAM}=${handoffId}`
+                    : sqlRunnerHref,
+                '_blank',
+                'noopener',
+            );
             track({
                 name: EventName.OPEN_IN_SQL_RUNNER_CLICKED,
                 properties: {
@@ -65,14 +83,10 @@ const OpenInSqlRunnerButton: FC<OpenInSqlRunnerButtonProps> = memo(
             <Button
                 variant="default"
                 size="xs"
-                component={Link}
-                to={{
-                    pathname: `/projects/${projectUuid}/sql-runner`,
-                }}
-                state={{
-                    sql,
-                    ...(carriesConnection ? { warehouseConnectionUuid } : {}),
-                }}
+                component="a"
+                href={sqlRunnerHref}
+                target="_blank"
+                rel="noopener noreferrer"
                 onClick={handleClick}
                 leftSection={
                     <MantineIcon icon={IconTerminal2} color="ldGray.7" />
