@@ -144,3 +144,19 @@ it('caps approval URLs before launch and screens secrets at any depth', async ()
         }
     }
 });
+
+it('cleans names before screening so repeated writes keep the same report', () => {
+    const slot = slotFixture();
+    slot.lastReported.approvedProjects = [
+        {
+            projectUuid: 'project',
+            name: 'private-\naccess',
+            approvedCapabilities: [],
+        },
+    ];
+    const report = publicConnectionReport(slot);
+    expect(report.approvedProjects[0].name).toBeNull();
+    expect(publicConnectionReport({ ...slot, lastReported: report })).toEqual(
+        report,
+    );
+});

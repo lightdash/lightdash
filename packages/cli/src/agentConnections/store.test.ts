@@ -48,7 +48,7 @@ it('reads absence without creating a file and round trips a private slot', async
     expect((await fs.stat(store.filePath)).mode % 0o1000).toBe(0o600);
     expect((await fs.stat(directory)).mode % 0o1000).toBe(0o700);
 });
-it('preserves unknown fields and malformed unrelated slots across mutations', async () => {
+it('drops unknown slot fields while preserving unrelated slots across mutations', async () => {
     const slot = slotFixture();
     await store.saveSlot(slot);
     const raw = parseStore(await fs.readFile(store.filePath, 'utf8'));
@@ -79,10 +79,11 @@ it('preserves unknown fields and malformed unrelated slots across mutations', as
     ).toMatchObject({
         broken: { secret: 'recover-me' },
         default: {
-            future: { keep: true },
-            tokens: { future: 'keep', accessToken: 'rotated' },
+            tokens: { accessToken: 'rotated' },
         },
     });
+    expect(slotsFor(saved, slot).default).not.toHaveProperty('future');
+    expect(slotsFor(saved, slot).default.tokens).not.toHaveProperty('future');
     await expect(store.readSlot({ ...slot, name: 'broken' })).rejects.toThrow(
         'Invalid agent connection',
     );
@@ -150,7 +151,7 @@ it('serializes independent slot saves without losing either', async () => {
     expect(await store.readSlot({ ...slot, name: 'second' })).not.toBeNull();
 });
 
-it('preserves future fields inside refresh and revoke states through transitions', async () => {
+it('drops unknown state fields through transitions', async () => {
     const slot = slotFixture();
     await store.saveSlot(slot);
     const raw = parseStore(await fs.readFile(store.filePath, 'utf8'));
@@ -177,14 +178,8 @@ it('preserves future fields inside refresh and revoke states through transitions
         parseStore(await fs.readFile(store.filePath, 'utf8')),
         slot,
     ).default;
-    expect(saved.refreshState).toMatchObject({
-        kind: 'idle',
-        futureRefresh: { keep: true },
-    });
-    expect(saved.revokeState).toMatchObject({
-        kind: 'none',
-        futureRevoke: 'keep',
-    });
+    expect(saved.refreshState).toEqual({ kind: 'idle' });
+    expect(saved.revokeState).toEqual({ kind: 'none' });
 });
 
 it('checks a save precondition after preparing the file and before rename', async () => {
@@ -245,4 +240,51 @@ it('keeps the old refresh journal if the replacement rename fails', async () => 
     } finally {
         vi.restoreAllMocks();
     }
+});
+
+it('writes byte-identical YAML after reading a canonical slot', async () => {
+    await store.saveSlot(slotFixture());
+    const first = await fs.readFile(store.filePath);
+    const slot = await store.readSlot(slotFixture());
+    expect(slot).not.toBeNull();
+    await store.saveSlot(slot!);
+    expect(await fs.readFile(store.filePath)).toEqual(first);
+});
+
+it('saves only known fields at every level of the selected slot', async () => {
+    const slot = slotFixture();
+    const unknown = 'X3 leak!';
+    const raw = {
+        ...slot,
+        future: unknown,
+        tokens: { ...slot.tokens, future: unknown },
+        refreshState: { ...slot.refreshState, future: unknown },
+        revokeState: { ...slot.revokeState, future: unknown },
+        lastReported: {
+            ...slot.lastReported,
+            future: unknown,
+            approvedProjects: [
+                {
+                    projectUuid: slot.personUuid,
+                    name: 'Project',
+                    approvedCapabilities: [],
+                    future: unknown,
+                },
+            ],
+            effectiveProjects: [
+                {
+                    projectUuid: slot.personUuid,
+                    capabilities: [],
+                    future: unknown,
+                },
+            ],
+        },
+    };
+    await store.saveSlot(raw);
+    expect(await fs.readFile(store.filePath, 'utf8')).not.toContain(unknown);
+    const saved = await store.readSlot(slot);
+    expect(saved?.lastReported.approvedProjects[0].name).toBe('Project');
+    const first = await fs.readFile(store.filePath);
+    await store.saveSlot(saved!);
+    expect(await fs.readFile(store.filePath)).toEqual(first);
 });

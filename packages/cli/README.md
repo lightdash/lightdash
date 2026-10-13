@@ -310,3 +310,34 @@ The CLI supports these environment variables for authentication:
 | ------------------------ | ---------------------------------------------- |
 | `LIGHTDASH_CLI_EMAIL`    | Email for login (alternative to `--email`)     |
 | `LIGHTDASH_CLI_PASSWORD` | Password for email login (used with `--email`) |
+
+### Connection errors and credential output
+
+On the agent connection commands, and when a request made with a connection fails,
+the CLI prints fixed messages and no server-written text. The CLI never prints a
+credential on purpose. Data that a command exists to show is shown as received.
+
+The connection forms are `agent connect`, `agent status` and `agent revoke`.
+Failures include an error status, an error envelope on HTTP 200, an unreadable or
+aborted body, and a redirect. Known error codes select fixed messages; unknown
+codes are omitted. Links use the configured instance and fixed paths and query
+fields. The approval link contains a validated request UUID.
+
+An error the CLI raises while using data from a successful answer can quote that
+data (for example a slug or a file path). Two known cases with a connection:
+`download --spaces-only` names a space slug the server returned twice, and
+`download` names the file path built from a chart slug when that file cannot be
+written.
+
+Connection success reports show the person's project names, UUIDs, approved and
+effective actions, connection states and timestamps, and warehouse readiness.
+In these connection reports, project names have ANSI escapes and C0/C1 control
+characters removed; other server-supplied report fields are validated UUIDs,
+timestamps, booleans or fixed enums. Report fields the CLI does not know are
+not saved.
+
+Successful catalogue names and types, query results, downloaded content and
+project names in ordinary listings retain the server's characters, including
+control characters.
+
+The CLI has no general screen that rewrites its output.

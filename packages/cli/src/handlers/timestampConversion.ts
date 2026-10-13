@@ -4,6 +4,8 @@ import {
     WarehouseTypes,
     type ConnectionRoute,
 } from '@lightdash/common';
+import { assertConnectionResponse } from '../agentConnections/responseValidation';
+import { getAgentConnectionSelection } from '../credentials';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { lightdashApi } from './dbt/apiClient';
@@ -39,6 +41,10 @@ export const getProjectDeploySettings = async (
             getDisableTimestampConversionFromProject(
                 project.warehouseConnection,
             );
+        assertConnectionResponse(
+            disableTimestampConversion === undefined ||
+                typeof disableTimestampConversion === 'boolean',
+        );
         GlobalState.debug(
             `> Using disable-timestamp-conversion=${String(
                 disableTimestampConversion ?? false,
@@ -49,6 +55,7 @@ export const getProjectDeploySettings = async (
             connectionRoute: project.connectionRoute,
         };
     } catch (e) {
+        if (getAgentConnectionSelection() !== null) throw e;
         GlobalState.debug(
             `> Could not fetch project settings for timestamp conversion: ${getErrorMessage(
                 e,

@@ -21,6 +21,7 @@ import {
     PersonalRecoveryError,
 } from '../agentConnections/personalRecovery';
 import { validateSlot } from '../agentConnections/schema';
+import { connectionServerError } from '../agentConnections/serverError';
 import {
     connectionResponse,
     publicTextIsSafe,
@@ -75,7 +76,7 @@ const requestResults = async (
     } catch {
         throw new ApprovalStartError(couldNotStart);
     }
-    if (!response.ok) {
+    if (!response.ok || envelope.status !== 'ok') {
         const error =
             typeof envelope.error === 'object' && envelope.error !== null
                 ? responseRecord(envelope.error)
@@ -86,9 +87,10 @@ const requestResults = async (
             throw new ApprovalStartError(
                 'The server refused agent connection approval. Check your permissions with an administrator.',
             );
-        throw new ApprovalStartError(couldNotStart);
+        throw new ApprovalStartError(
+            `${couldNotStart} ${connectionServerError(response.status, envelope).message}`,
+        );
     }
-    if (envelope.status !== 'ok') throw new ApprovalStartError(couldNotStart);
     return responseRecord(envelope.results);
 };
 const personIdentity = (person: Record<string, unknown>) => {
@@ -169,6 +171,7 @@ export const agentConnectionConnectHandler = async (
             );
         const state = randomBytes(32).toString('base64url');
         const verifier = randomBytes(32).toString('base64url');
+        secrets.push(verifier);
         const codeChallenge = createHash('sha256')
             .update(verifier)
             .digest('base64url');
@@ -199,7 +202,9 @@ export const agentConnectionConnectHandler = async (
         );
         if (
             typeof approval.authorizationUrl !== 'string' ||
-            !bootstrap.publicTextIsSafe(approval.authorizationUrl) ||
+            !bootstrap.publicTextIsSafe(approval.authorizationUrl, [
+                verifier,
+            ]) ||
             !/^https?:\/\//.test(approval.authorizationUrl) ||
             approval.issuer !== instance ||
             approval.resource !== instance ||
@@ -212,18 +217,30 @@ export const agentConnectionConnectHandler = async (
         )
             throw new ApprovalStartError(couldNotStart);
         const approvalDeadline = Date.parse(approval.expiresAt);
-        const authorizationUrl = agentConnectionApiUrl(
+        const suppliedAuthorizationUrl = agentConnectionApiUrl(
             instance,
             approval.authorizationUrl,
         );
-        const destination = new URL(authorizationUrl);
+        const destination = new URL(suppliedAuthorizationUrl);
         if (
-            !bootstrap.publicTextIsSafe(authorizationUrl) ||
+            !bootstrap.publicTextIsSafe(suppliedAuthorizationUrl, [verifier]) ||
             destination.pathname !==
                 new URL(`${instance}/api/v1/oauth/authorize`).pathname ||
             destination.hash
         )
             throw new ApprovalStartError(couldNotStart);
+        const requestUuid = destination.searchParams.get('agent_request');
+        if (
+            !requestUuid ||
+            !isUuid(requestUuid) ||
+            destination.searchParams.getAll('agent_request').length !== 1
+        )
+            throw new ApprovalStartError(couldNotStart);
+        const localAuthorizationUrl = new URL(
+            `${instance}/api/v1/oauth/authorize`,
+        );
+        localAuthorizationUrl.searchParams.set('agent_request', requestUuid);
+        const authorizationUrl = localAuthorizationUrl.href;
         console.error(
             `Open this page to approve the agent connection:\n${authorizationUrl}`,
         );
