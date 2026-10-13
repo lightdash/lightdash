@@ -51,6 +51,7 @@ vi.mock('../../../../config/lightdashConfig', async () => {
 const sizes = (name: string, fallback: string) =>
     (process.env[name] ?? fallback)
         .split(',')
+        .filter(Boolean)
         .map(Number)
         .sort((a, b) => a - b);
 const output = process.env.MEASUREMENT_JSON!;
@@ -74,6 +75,7 @@ export type Results = {
     }[];
     C: {
         explores: number;
+        explain?: unknown;
         sourceJsonBytes: number;
         databaseTextBytes: number;
         load: Measurement;
@@ -228,6 +230,7 @@ it('runs the manual launch measurements', async () => {
         overLimit: [],
     };
     try {
+        if (process.env.MEASURE_STORED_ONLY) await f.grow(1);
         for await (const count of sizes(
             'MEASURE_PROJECT_SIZES',
             '1,50,200,500,1000',
@@ -288,7 +291,7 @@ it('runs the manual launch measurements', async () => {
                 if (count <= 500) {
                     for await (const [credential, headers] of [
                         ['session', {}],
-                        ['pat', { authorization: `ApiKey ${f.pat.token}` }],
+                        ['pat', { authorization: `ApiKey ${f.pat!.token}` }],
                         [
                             'connection',
                             { authorization: `Bearer ${connection.token}` },
@@ -586,9 +589,13 @@ it('runs the manual launch measurements', async () => {
                     const before = process.memoryUsage().heapUsed;
                     const values = await f.models
                         .getProjectModel()
-                        .getAllExploresFromCache(projectUuid);
+                        .getPreAggregateRefreshSummary(projectUuid);
                     heap.push(process.memoryUsage().heapUsed - before);
-                    assert.equal(Object.keys(values).length, count);
+                    assert.deepEqual(values, {
+                        hasScheduledDefinition: false,
+                        hasScheduledRefresh: false,
+                        hasMalformedPreAggregates: false,
+                    });
                     return null;
                 });
                 if (run >= 2) loads.push(captured.sample);
@@ -597,9 +604,12 @@ it('runs the manual launch measurements', async () => {
             let calls = 0;
             const original = f.models
                 .getProjectModel()
-                .getAllExploresFromCache.bind(f.models.getProjectModel());
+                .getPreAggregateRefreshSummary.bind(f.models.getProjectModel());
             const spy = vi
-                .spyOn(f.models.getProjectModel(), 'getAllExploresFromCache')
+                .spyOn(
+                    f.models.getProjectModel(),
+                    'getPreAggregateRefreshSummary',
+                )
                 .mockImplementation(async (id) => {
                     calls += 1;
                     return original(id);
@@ -815,8 +825,21 @@ it('runs the manual launch measurements', async () => {
             );
             find.mockRestore();
             spy.mockRestore();
+            const sql = Object.keys(load.sql).find((statement) =>
+                statement.includes('"hasMalformedPreAggregates"'),
+            )!;
+            const explain =
+                count === 2000
+                    ? (
+                          await database.raw(
+                              `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${sql}`,
+                              [projectUuid, projectUuid],
+                          )
+                      ).rows
+                    : undefined;
             results.C.push({
                 explores: count,
+                ...(explain ? { explain } : {}),
                 sourceJsonBytes: Array.from({ length: count }, (_, i) =>
                     byteSize(explore(i)),
                 ).reduce((a, b) => a + b, 0),
@@ -850,7 +873,9 @@ it('runs the manual launch measurements', async () => {
         results.environment.databasePhaseSeconds =
             (performance.now() - start) / 1000;
         await writeFile(output, JSON.stringify(results, null, 2));
-        const markdown = renderReport(results);
+        const markdown = process.env.MEASURE_STORED_ONLY
+            ? JSON.stringify(results.C, null, 2)
+            : renderReport(results);
         await writeFile(process.env.MEASUREMENT_MARKDOWN!, markdown);
         console.log(markdown);
     } finally {

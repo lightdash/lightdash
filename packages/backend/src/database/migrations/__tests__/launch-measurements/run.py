@@ -10,6 +10,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--json', required=True)
 parser.add_argument('--markdown', required=True)
 parser.add_argument('--compare', help='Previous clean run JSON; assert matching statement and row counts')
+parser.add_argument('--stored-only', action='store_true', help='Measure only stored refresh reads, without creating tokens')
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[7]
 backend = root / 'packages/backend'
@@ -29,9 +30,11 @@ output = Path(args.json).resolve()
 output.parent.mkdir(parents=True, exist_ok=True)
 Path(args.markdown).resolve().parent.mkdir(parents=True, exist_ok=True)
 env.update(MEASUREMENT_JSON=str(output), MEASUREMENT_MARKDOWN=str(Path(args.markdown).resolve()))
-command = ['pnpm', 'exec', 'vitest', 'run', '--config', str(folder / 'measurement.config.ts'), '--maxWorkers=1']
+if args.stored_only:
+    env.update(MEASURE_STORED_ONLY='true', MEASURE_PROJECT_SIZES='', MEASURE_COMPILE_SIZES='')
+command = ['pnpm', 'exec', 'vitest', 'run', '--config', str(folder / 'measurement.config.ts'), 'src/database/migrations/__tests__/launch-measurements/launch.measurement.ts', '--maxWorkers=2']
 start = time.monotonic()
-for count in env.get('MEASURE_COMPILE_SIZES', '100,500,2000').split(','):
+for count in filter(None, env.get('MEASURE_COMPILE_SIZES', '100,500,2000').split(',')):
     for mode in ['streaming', 'buffered']:
         subprocess.run(command, cwd=backend, env={**env, 'MEASURE_MEMORY': mode, 'MEASURE_MEMORY_SIZE': count}, check=True)
 subprocess.run(command, cwd=backend, env=env, check=True)
@@ -50,7 +53,7 @@ if args.compare:
                     'sql': {sql: {key: group[key] for key in ['count', 'rows']} for sql, group in value['sql'].items()}
                 }
             return {key: counts(item) for key, item in value.items()
-                    if key not in ['environment', 'D', 'grantBytes', 'pendingBytes', 'heapGrowth', 'aboveLimit']}
+                    if key not in ['environment', 'D', 'grantBytes', 'pendingBytes', 'heapGrowth', 'aboveLimit', 'explain']}
         return value
 
     if counts(previous) != counts(current):

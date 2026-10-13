@@ -153,59 +153,65 @@ The bearer path reads the OAuth token, loads the person without the session cach
 
 ## C. Stored-explore reads for the scheduled-refresh guard
 
-| Explores | Source JSON bytes total / mean | Postgres text bytes per load | Load statements / returned rows | Load ms median (min–max) | Heap growth bytes median (min–max) |
-| -------- | ------------------------------ | ---------------------------- | ------------------------------- | ------------------------ | ---------------------------------- |
-| 10       | 192000 / 19200                 | 204130                       | 1 / 10                          | 3.37 (2.95–6.67)         | 822352 (816312–826952)             |
-| 100      | 1920180 / 19202                | 2041480                      | 1 / 100                         | 17.04 (8.85–28.99)       | 7012432 (6895504–7027664)          |
-| 500      | 9601780 / 19204                | 10208280                     | 1 / 500                         | 46.50 (42.98–56.49)      | 34002088 (33962880–34185880)       |
-| 2000     | 38409780 / 19205               | 40835780                     | 1 / 2000                        | 179.15 (167.20–196.08)   | 90552708 (87240632–91348912)       |
+VERIFIED on 2026-10-13: this arm was rerun before and after the load reduction at the same four sizes. The other arms retain their earlier measurements. The fixture contains synthetic explores, not production data. Run only this arm with `run.py --stored-only --json <path> --markdown <path>`; this mode skips token fixtures and the other arms.
 
-The load calls ProjectModel.getAllExploresFromCache against real cached_explore rows. PostgreSQL text bytes sum the UTF-8 explore JSONB text and UUID text; this excludes protocol framing. General read-byte measurements serialize decoded Knex rows as compact JSON and therefore differ from PostgreSQL's JSONB text representation. Returned rows count result rows, not rows scanned by the query planner. Heap growth is measured before and after the load with GC before each sample; the load timings exclude that GC but include the count assertion. Heap is an allocation snapshot, not a per-load peak.
+| Explores | Stored JSONB + UUID text bytes | Old full-cache load rows / decoded bytes | New summary rows / decoded bytes | Old load ms median (min–max) | New summary ms median (min–max) |
+| -------- | ------------------------------ | ---------------------------------------- | -------------------------------- | ---------------------------- | ------------------------------- |
+| 10       | 204130                         | 10 / 192741                              | 1 / 96                           | 3.82 (2.72–6.07)             | 1.89 (1.40–2.41)                |
+| 100      | 2041480                        | 100 / 1927581                            | 1 / 96                           | 20.64 (17.27–25.55)          | 2.87 (2.06–4.55)                |
+| 500      | 10208280                       | 500 / 9638781                            | 1 / 96                           | 45.55 (44.18–48.96)          | 4.77 (3.21–10.47)               |
+| 2000     | 40835780                       | 2000 / 38557781                          | 1 / 96                           | 187.00 (184.95–188.46)       | 9.41 (9.18–10.31)               |
 
-| Explores | Operation driven                                              | Stored-explore loads | All SQL / reads | Returned read rows | ms (one trace) |
-| -------- | ------------------------------------------------------------- | -------------------- | --------------- | ------------------ | -------------- |
-| 10       | scheduled-refresh guard                                       | 1                    | 2 / 2           | 10                 | 3.90           |
-| 10       | stream preparation helper                                     | 2                    | 4 / 4           | 20                 | 9.28           |
-| 10       | default deploy guard chain (save sink stubbed)                | 2                    | 5 / 5           | 21                 | 10.69          |
-| 10       | parameter replacement                                         | 1                    | 6 / 3           | 11                 | 9.92           |
-| 10       | refresh stream flow (synthetic adapter)                       | 2                    | 6 / 6           | 22                 | 18.82          |
-| 10       | compile scheduling (queue sink stubbed)                       | 1                    | 3 / 3           | 11                 | 3.86           |
-| 10       | compile execution (synthetic adapter, save/job sinks stubbed) | 6                    | 24 / 18         | 66                 | 29.90          |
-| 10       | virtual-view create entry (stops after guard)                 | 1                    | 2 / 2           | 10                 | 4.01           |
-| 10       | virtual-view update entry (stops after guard)                 | 1                    | 2 / 2           | 10                 | 2.09           |
-| 100      | scheduled-refresh guard                                       | 1                    | 2 / 2           | 100                | 20.88          |
-| 100      | stream preparation helper                                     | 2                    | 4 / 4           | 200                | 26.14          |
-| 100      | default deploy guard chain (save sink stubbed)                | 2                    | 5 / 5           | 201                | 22.58          |
-| 100      | parameter replacement                                         | 1                    | 6 / 3           | 101                | 12.61          |
-| 100      | refresh stream flow (synthetic adapter)                       | 2                    | 6 / 6           | 202                | 26.35          |
-| 100      | compile scheduling (queue sink stubbed)                       | 1                    | 3 / 3           | 101                | 11.10          |
-| 100      | compile execution (synthetic adapter, save/job sinks stubbed) | 6                    | 24 / 18         | 606                | 77.04          |
-| 100      | virtual-view create entry (stops after guard)                 | 1                    | 2 / 2           | 100                | 11.67          |
-| 100      | virtual-view update entry (stops after guard)                 | 1                    | 2 / 2           | 100                | 14.75          |
-| 500      | scheduled-refresh guard                                       | 1                    | 2 / 2           | 500                | 46.68          |
-| 500      | stream preparation helper                                     | 2                    | 4 / 4           | 1000               | 96.69          |
-| 500      | default deploy guard chain (save sink stubbed)                | 2                    | 5 / 5           | 1001               | 92.60          |
-| 500      | parameter replacement                                         | 1                    | 6 / 3           | 501                | 53.40          |
-| 500      | refresh stream flow (synthetic adapter)                       | 2                    | 6 / 6           | 1002               | 102.07         |
-| 500      | compile scheduling (queue sink stubbed)                       | 1                    | 3 / 3           | 501                | 50.80          |
-| 500      | compile execution (synthetic adapter, save/job sinks stubbed) | 6                    | 24 / 18         | 3006               | 283.97         |
-| 500      | virtual-view create entry (stops after guard)                 | 1                    | 2 / 2           | 500                | 47.63          |
-| 500      | virtual-view update entry (stops after guard)                 | 1                    | 2 / 2           | 500                | 45.70          |
-| 2000     | scheduled-refresh guard                                       | 1                    | 2 / 2           | 2000               | 173.03         |
-| 2000     | stream preparation helper                                     | 2                    | 4 / 4           | 4000               | 355.61         |
-| 2000     | default deploy guard chain (save sink stubbed)                | 2                    | 5 / 5           | 4001               | 354.83         |
-| 2000     | parameter replacement                                         | 1                    | 6 / 3           | 2001               | 178.88         |
-| 2000     | refresh stream flow (synthetic adapter)                       | 2                    | 6 / 6           | 4002               | 383.99         |
-| 2000     | compile scheduling (queue sink stubbed)                       | 1                    | 3 / 3           | 2001               | 170.31         |
-| 2000     | compile execution (synthetic adapter, save/job sinks stubbed) | 6                    | 24 / 18         | 12006              | 1064.14        |
-| 2000     | virtual-view create entry (stops after guard)                 | 1                    | 2 / 2           | 2000               | 187.20         |
-| 2000     | virtual-view update entry (stops after guard)                 | 1                    | 2 / 2           | 2000               | 172.01         |
+VERIFIED: the old load calls `getAllExploresFromCache`. The new load calls `getPreAggregateRefreshSummary`, which returns three booleans in one statement. Each has two warm-ups and ten measured samples. The times include the harness serializing each result to count its bytes, which costs more for the larger old result; read them as a comparison on one machine, not as a production speed-up. Decoded bytes are the compact JSON serialization of the returned Knex rows, not PostgreSQL wire bytes. Stored text bytes describe the fixture, not the new response. Returned rows are not scanned rows. Timings include database round trips, decoding and the result assertion.
 
-A single guard call reads the pre-aggregate definition registry and all stored explores. The real stream preparation helper calls it twice. Default deploy drives saveDeployExplores and its nested saveExploresToCacheAndIndexCatalog with the later save/index sink stubbed; both guards run. Parameter replacement completes with its real model. The refresh flow uses a synthetic adapter producing one explore and executes the real stream wrapper.
+| Explores | Operation                                                     | Guard statements before → after | Guard rows before → after | Guard decoded bytes before → after | Operation ms before → after |
+| -------- | ------------------------------------------------------------- | ------------------------------- | ------------------------- | ---------------------------------- | --------------------------- |
+| 10       | scheduled-refresh guard                                       | 2 → 1                           | 10 → 1                    | 192743 → 96                        | 2.83 → 1.82                 |
+| 10       | stream preparation helper                                     | 4 → 1                           | 20 → 1                    | 385486 → 96                        | 5.09 → 1.65                 |
+| 10       | default deploy guard chain (save sink stubbed)                | 4 → 1                           | 20 → 1                    | 385486 → 96                        | 5.39 → 2.53                 |
+| 10       | parameter replacement                                         | 2 → 1                           | 10 → 1                    | 192743 → 96                        | 15.49 → 15.37               |
+| 10       | refresh stream flow (synthetic adapter)                       | 4 → 1                           | 20 → 1                    | 385486 → 96                        | 8.61 → 4.14                 |
+| 10       | compile scheduling (queue sink stubbed)                       | 2 → 1                           | 10 → 1                    | 192743 → 96                        | 4.55 → 5.63                 |
+| 10       | compile execution (synthetic adapter, save/job sinks stubbed) | 12 → 4                          | 60 → 4                    | 1156458 → 384                      | 35.28 → 33.24               |
+| 10       | virtual-view create entry (stops after guard)                 | 2 → 1                           | 10 → 1                    | 192743 → 96                        | 4.14 → 1.56                 |
+| 10       | virtual-view update entry (stops after guard)                 | 2 → 1                           | 10 → 1                    | 192743 → 96                        | 5.14 → 1.09                 |
+| 100      | scheduled-refresh guard                                       | 2 → 1                           | 100 → 1                   | 1927583 → 96                       | 15.03 → 1.61                |
+| 100      | stream preparation helper                                     | 4 → 1                           | 200 → 1                   | 3855166 → 96                       | 21.09 → 1.62                |
+| 100      | default deploy guard chain (save sink stubbed)                | 4 → 1                           | 200 → 1                   | 3855166 → 96                       | 23.87 → 1.89                |
+| 100      | parameter replacement                                         | 2 → 1                           | 100 → 1                   | 1927583 → 96                       | 12.21 → 4.05                |
+| 100      | refresh stream flow (synthetic adapter)                       | 4 → 1                           | 200 → 1                   | 3855166 → 96                       | 24.38 → 4.54                |
+| 100      | compile scheduling (queue sink stubbed)                       | 2 → 1                           | 100 → 1                   | 1927583 → 96                       | 11.57 → 4.71                |
+| 100      | compile execution (synthetic adapter, save/job sinks stubbed) | 12 → 4                          | 600 → 4                   | 11565498 → 384                     | 72.36 → 26.99               |
+| 100      | virtual-view create entry (stops after guard)                 | 2 → 1                           | 100 → 1                   | 1927583 → 96                       | 12.82 → 1.79                |
+| 100      | virtual-view update entry (stops after guard)                 | 2 → 1                           | 100 → 1                   | 1927583 → 96                       | 10.67 → 2.68                |
+| 500      | scheduled-refresh guard                                       | 2 → 1                           | 500 → 1                   | 9638783 → 96                       | 45.42 → 5.87                |
+| 500      | stream preparation helper                                     | 4 → 1                           | 1000 → 1                  | 19277566 → 96                      | 92.95 → 5.54                |
+| 500      | default deploy guard chain (save sink stubbed)                | 4 → 1                           | 1000 → 1                  | 19277566 → 96                      | 88.43 → 6.02                |
+| 500      | parameter replacement                                         | 2 → 1                           | 500 → 1                   | 9638783 → 96                       | 53.27 → 8.32                |
+| 500      | refresh stream flow (synthetic adapter)                       | 4 → 1                           | 1000 → 1                  | 19277566 → 96                      | 91.74 → 8.65                |
+| 500      | compile scheduling (queue sink stubbed)                       | 2 → 1                           | 500 → 1                   | 9638783 → 96                       | 46.48 → 7.77                |
+| 500      | compile execution (synthetic adapter, save/job sinks stubbed) | 12 → 4                          | 3000 → 4                  | 57832698 → 384                     | 303.97 → 26.36              |
+| 500      | virtual-view create entry (stops after guard)                 | 2 → 1                           | 500 → 1                   | 9638783 → 96                       | 54.45 → 2.76                |
+| 500      | virtual-view update entry (stops after guard)                 | 2 → 1                           | 500 → 1                   | 9638783 → 96                       | 45.77 → 5.21                |
+| 2000     | scheduled-refresh guard                                       | 2 → 1                           | 2000 → 1                  | 38557783 → 96                      | 183.36 → 10.53              |
+| 2000     | stream preparation helper                                     | 4 → 1                           | 4000 → 1                  | 77115566 → 96                      | 359.21 → 12.12              |
+| 2000     | default deploy guard chain (save sink stubbed)                | 4 → 1                           | 4000 → 1                  | 77115566 → 96                      | 386.23 → 11.32              |
+| 2000     | parameter replacement                                         | 2 → 1                           | 2000 → 1                  | 38557783 → 96                      | 175.42 → 13.26              |
+| 2000     | refresh stream flow (synthetic adapter)                       | 4 → 1                           | 4000 → 1                  | 77115566 → 96                      | 371.91 → 11.16              |
+| 2000     | compile scheduling (queue sink stubbed)                       | 2 → 1                           | 2000 → 1                  | 38557783 → 96                      | 193.33 → 10.28              |
+| 2000     | compile execution (synthetic adapter, save/job sinks stubbed) | 12 → 4                          | 12000 → 4                 | 231346698 → 384                    | 1125.76 → 42.97             |
+| 2000     | virtual-view create entry (stops after guard)                 | 2 → 1                           | 2000 → 1                  | 38557783 → 96                      | 186.76 → 8.84               |
+| 2000     | virtual-view update entry (stops after guard)                 | 2 → 1                           | 2000 → 1                  | 38557783 → 96                      | 184.06 → 8.49               |
 
-Compile scheduling pays one guard load. Compile execution pays six: one at entry, two around the refresh stream, one during parameter replacement, and two around the save stream. The harness drives the real scheduleCompileProject, compileProject, refreshTablesAndProjectConfig and saveExploreStreamToCacheAndIndexCatalog methods. The project lock, parameter writes and table-group writes use the database. Compiler preparation, job records, queue delivery, YAML tags, manifest persistence, connection-effect authorization and the downstream save/index sink are stubbed. Their costs are excluded; no dbt process or external scheduler runs. The measured schedule plus compile guard total is seven loads. Registry synchronization at the downstream save sink is excluded and would add a separate cached-explore read; that read is not the scheduled-refresh guard.
+VERIFIED: each operation timing is one trace. Guard rows and bytes exclude unrelated project/config reads and writes. The guard itself is one statement. Stream preparation, default deploy, parameter replacement and each virtual-view entry each use one stored summary. Incoming stream content is checked in memory. A stream already checked by the refresh wrapper is reused at save without a second buffer.
 
-Virtual-view create/update entries each run one guard, then stop at a throwing downstream stub. These are measured prefixes, not completed writes. From the call sites: source-specific deploy has one entry guard; the measured default-project deploy delegates to a second guarded method. These measurements do not cover every multi-connection, preview, failure or parameter configuration.
+VERIFIED: service compile execution uses four summaries: entry, before consuming the compile stream, parameter replacement, and final explore save. Scheduling uses one more. The scheduler wrapper is outside this harness; it keeps its separate check before the STARTED log. The earlier seven-load count therefore represented eight guard loads in production. The new production path uses six statements: one scheduling plus five worker execution. The real-database operation tests verify the worker count and refusal before STARTED.
+
+VERIFIED: this harness drives real service methods, the existing project lock, parameter writes and table-group writes. Compiler preparation, job records, queue delivery, YAML tags, manifest persistence, connection-effect authorization and the downstream save/index sink are stubbed. No dbt process or external scheduler runs. Registry synchronization is excluded and still needs its separate effective-cache read; that is not a guard read. Virtual-view rows measure prefixes that stop after the guard, not completed writes. The new operation tests separately complete ordinary virtual-view writes.
+
+VERIFIED: one `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` at 2,000 explores reports **7.985 ms execution**, **0.066 ms planning**, **2,000 cached rows inspected**, and **657 shared buffer hits**. PostgreSQL still reads and inspects every stored explore’s JSON. The materialized CTE keeps only the pre-aggregate projection and root type inside the database; no explore JSON reaches the application. The registry subquery uses its existing partial index. No index or lock change was made.
+
+INFERRED: these local warm-cache timings do not establish production latency or a need for a new index. The remaining cost scales with stored JSON inspection. This change does not close the existing check/write race.
 
 ## D. Incoming compile stream memory
 
@@ -227,7 +233,7 @@ Each row runs in a fresh Vitest fork with explicit GC. A lazy generator creates 
 - B status: 1209 reads at 50 and 12009 at 500. Status repeats policy checks for each approved project and capability; its read count grows linearly for this fixed three-capability shape. Returned rows grow from 11654 to 791504: every repeated role lookup returns all of the person's project memberships. This is quadratic in N when both the selection and the person's memberships grow to N; more generally the repeated membership rows grow with selected projects times person memberships times capabilities.
 - B storage: constraints text grows from 4289 bytes at 50 to 42539 at 500. Logical size is linear in project selection; PostgreSQL compression changes stored datum growth.
 - B list: at 500 projects, one connection returns 71834 response bytes with 9 reads; 50 connections return 3589299 bytes with 9 reads. Response bytes grow with projects times connections while read count stays fixed. request project resolution and list project naming both search an array for each selected project, giving a quadratic comparison bound when organization size grows with selection. The timings alone do not establish a quadratic runtime curve.
-- C: each stored-explore load returns 10 rows / 204130 text bytes at 10 explores and 2000 rows / 40835780 bytes at 2000; rows and bytes are linear in explores.
+- C: each summary query returns one row / 96 decoded bytes at all four sizes. PostgreSQL still inspects all stored explores; operation guard counts are constant in project size.
 - D: buffered retained heap grows from 2328496 bytes at 100 explores to 43861408 at 2000. The helper retains the whole input array; the ordinary consumer receives its first explore after one production step, independent of total input size.
 
 ## What the numbers do not show
@@ -252,4 +258,4 @@ The harness uses a dedicated measurement.config.ts and launch.measurement.ts und
 
 ## Repeatability
 
-Two full runs each used a new temporary database. All SQL statement counts, returned-row counts and per-statement counts matched across A, B and C. Times, response dates, nonce values, PostgreSQL compressed datum sizes and heap/RSS samples can differ. The first raw run is retained beside the final results.
+Two full runs each used a new temporary database. All SQL statement counts, returned-row counts and per-statement counts matched across A, B and C. Times, response dates, nonce values, PostgreSQL compressed datum sizes and heap/RSS samples can differ. The first raw run is retained beside the final results. The stored-explore arm (C) was rerun on its own on 2026-10-13, before and after the load reduction; that rerun is not part of this two-run comparison.

@@ -457,6 +457,8 @@ const projectModel = {
     })),
     findExploreByTableName: vi.fn(async () => validExplore),
     getAllExploresFromCache: vi.fn(async () => ({})),
+    getPreAggregateRefreshSummary:
+        vi.fn<ProjectModel['getPreAggregateRefreshSummary']>(),
     getTableGroups: vi.fn(async () => ({})),
     getCachedExploreNames: vi.fn(async () => []),
     getWarehouseFromCache: vi.fn(async () => undefined),
@@ -508,6 +510,29 @@ const preAggregateModel = {
     getPreAggregateDefinitionByDefinitionName: vi.fn(async () => undefined),
     getActiveMaterialization: vi.fn(async () => undefined),
 };
+projectModel.getPreAggregateRefreshSummary.mockImplementation(async () => {
+    const definitions =
+        (await preAggregateModel.getPreAggregateDefinitionsForProject()) as {
+            refreshCron: string | null;
+        }[];
+    const explores = (await projectModel.getAllExploresFromCache()) as Record<
+        string,
+        Explore | ExploreError
+    >;
+    return {
+        hasScheduledDefinition: definitions.some(
+            (definition) => definition.refreshCron !== null,
+        ),
+        hasScheduledRefresh: Object.values(explores).some(
+            (explore) =>
+                'preAggregates' in explore &&
+                !!explore.preAggregates?.some(
+                    (definition) => definition.refresh?.cron != null,
+                ),
+        ),
+        hasMalformedPreAggregates: false,
+    };
+});
 const onboardingModel = {
     getByOrganizationUuid: vi.fn(async () => ({
         ranQueryAt: new Date(),
