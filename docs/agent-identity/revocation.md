@@ -13,16 +13,23 @@ Two words that this page uses:
   family that are bound to it. The code calls it `AgentConnectionGrant`.
 - A **plain OAuth token** is an OAuth token that is bound to no grant.
 
-The agent permission checks need the `agent-identity` feature flag. The
-checks in queued work start when the flag is on. The two caches, the
-`/oauth/revoke` route and the clean-up of the agent sign-in on deactivation
-do not depend on it.
+An agent connection limits requests that use its credential. Programs the CLI
+starts still run as the person's computer user and can read saved credentials;
+see [Scoped CLI credentials](../../packages/cli/README.md#scoped-cli-credentials).
+
+Agent permission checks resolve `agent-identity` for the organisation.
+Connections require it for both the person and organisation. Queued work with a
+person marker and work with a connection execution record have different flag
+checks, described in section 3. The two caches, the `/oauth/revoke` route and
+the clean-up of the agent sign-in on deactivation do not depend on the flag;
+strict handling of unbound refresh families does, as the revoke table explains.
 
 ## The rule
 
 Access for agents is read from the database when a request or a job step
-checks it. It is not copied into the token. A token holds its OAuth scopes
-and the identifier of its grant, and nothing else that this page is about.
+checks it. The access token is an opaque credential that refers to stored OAuth
+scopes and grant data. Approval, policy and roles are checked from the database,
+not from a role snapshot embedded in the token.
 
 So the promise has one shape everywhere: **a change takes effect at the next
 check that reads the database after the change is committed.** This is a
@@ -42,7 +49,8 @@ statement about the next check, not about elapsed time:
 | A person's role, project access or place in **Who can use agents** changes; a capability is removed; agents are turned off | Next agent permission check | No cache for the agent permission check. With the cache on, the person's ordinary role on a plain OAuth token, a personal access token or a browser session can be up to one cache entry old (30 seconds after its lookup finished). |
 | A person is deactivated | Next request | No cache for a grant-bound token and for queued work. With the cache on, a plain OAuth token, a personal access token or a browser session can be up to one cache entry old. |
 | Queued or scheduled agent work | At the start of the job and at the points in the table in section 3 | A step that has passed its check can finish. |
-| A person is deactivated or removed: the stored agent sign-in | Deleted in the same transaction as the deactivation | None |
+| A person is deactivated: the stored agent sign-in | Deleted in the same transaction as the deactivation | None |
+| A person is removed: the stored agent sign-in | Deleted by the foreign-key cascade when the user row is deleted | None |
 | **Permissions** are widened | A grant never gets a capability or a project that the person did not approve | Not applicable |
 
 ## 1. Revoking a grant
@@ -84,10 +92,57 @@ Ways to revoke:
 | `POST /api/v1/oauth/revoke` with the grant's **access** token | Expires that access token only. The grant and its refresh token keep working. |
 | `POST /api/v1/oauth/revoke` with a refresh token that is bound to no grant | Deletes every unbound access and refresh token of its family, when the token has a family and strict refresh handling applies to it (the flag is on). Otherwise deletes that refresh token only. |
 
-Limits to know:
+### The personal settings screen
 
-- No screen calls the owner API. **My agent identity** shows the warehouse
-  sign-in, not grants.
+**My agent identity** calls the owner API. Its **Agent connections** tab lists
+connections, approved projects and actions, expiry, last use and state. Expanding
+an active connection with valid limits shows its restrictions from a status
+response. The screen keeps that response and does not read it again when the row
+is reopened. The allowed actions shown are an overview, not a promise that a
+request succeeds: a request can still be refused by private-space access, a
+protected branch, a second required action, or scheduled pre-aggregate refreshes
+in the project. The person can revoke that connection from the tab. **Warehouse sign-ins** has a separate
+tab. With no connections and no list error, the page shows warehouse sign-ins alone.
+
+| Screen action | Owner endpoint |
+| --- | --- |
+| List | `GET /api/v2/user/agent-connections` |
+| Read status | `GET /api/v2/user/agent-connections/{grantUuid}/status` |
+| Revoke | `DELETE /api/v2/user/agent-connections/{grantUuid}` |
+
+### CLI revocation and recovery
+
+`agent revoke --name <slot>` calls the owner DELETE endpoint with the saved
+connection's existing access token. It does not refresh that token or fall back
+to the personal API key. An expired connection or an expired or rejected access
+token needs recovery with `agent revoke --name <slot> --human`.
+
+`--human` uses a matching personal CLI login. It rejects a global connection
+selection and a service account credential. It checks the instance and calls
+`GET /api/v1/user` to verify the connection's person and organisation before
+sending DELETE. An admin's login cannot revoke another person's connection.
+
+Before sending DELETE, the CLI marks the local attempt unconfirmed. It validates
+the matching revoked state returned by the server, then removes the saved slot
+only if its grant and token generation have not changed. An unconfirmed revoke
+keeps the local credential. A confirmed server revoke can still exit 1 if local
+cleanup fails or the slot changed. Confirmation and local removal together exit 0.
+
+Connection API requests keep the instance path prefix, stay inside
+`<instance>/api/` and refuse redirects, including during personal recovery;
+see [Instance URLs and proxies for agent connections](../../packages/cli/README.md#instance-urls-and-proxies-for-agent-connections).
+
+### Limits
+
+- Revoking on the server does not remove the person's personal API key, files on
+  their computer, or warehouse credentials already issued. A confirmed CLI revoke
+  removes only this connection's unchanged saved slot and its refresh journal.
+- Revoking does not stop a program the CLI has already started. The CLI checks
+  the connection before it starts the program, not while the program runs. That
+  program keeps the access it has as the person's computer user.
+- Expiring an access token on its own does not refuse queued work that was
+  already started with it. The job checks the grant, not the access token. Revoke
+  the grant for the next job check to refuse it.
 - An admin cannot revoke another person's grant. There is no endpoint.
 - `/oauth/revoke` answers `200` also when the database call fails. A `200`
   alone does not prove that the token is gone.
@@ -99,7 +154,8 @@ Limits to know:
   refresh token are kept.
 - Deactivating a person does not revoke the person's grants. They are
   refused while the person is inactive. If the person is reactivated before
-  a grant expires, that grant works again.
+  a grant expires, that grant can work again. A deleted warehouse agent sign-in
+  is not restored and may need sign-in again.
 
 ## 2. Narrower permissions
 
@@ -148,8 +204,8 @@ Who is under **Permissions**:
 
 ## 3. Queued and scheduled work
 
-A job that does agent work checks the person when it starts and at fixed
-points before it delivers or publishes. A check loads the person again for
+The person-marker jobs in the table below check the person when they start and
+at fixed points before they deliver or publish. A check loads the person again for
 the exact organisation and refuses an inactive person; most jobs also check
 **Permissions** (see below). When a check refuses, the points after it do
 not happen. What the job has already published stays.
@@ -191,24 +247,184 @@ What each check covers:
   ("Create PR" and "Retest") are not under **Permissions**; the agent turns
   that it starts are.
 
-These checks carry the person, not a grant. Work that was queued through a
-grant-bound token is also checked against the grant
-(`SchedulerTask.runConnectionTask`), and that is where a revoked grant is
-seen.
+These checks carry the person, not a grant. The separate connection checks below
+use a connection execution record.
 
 A refusal for an inactive person writes an audit record. In the review
 remediation jobs, a person who is no longer in the organisation and a
 malformed marker are recorded on the remediation, with no audit record.
 
-Not covered yet:
+### Connection jobs
 
-| Work | Ticket |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- |
-| Agent turns over HTTP: the turn is admitted at its start and each tool call is checked, but nothing checks the person again while a long turn runs or before the runtime stores its answer | SPK-2752 |
-| Review automation and its exports | SPK-2753 |
-| Long-running agent pipelines (data apps, deep research, onboarding), and the compile job that a writeback preview queues | SPK-2754 |
-| Agent memory jobs and the background jobs that generate artifacts (the delivery of chart images to Slack is covered) | SPK-2755 |
-| Queries and exports that an agent starts, where they are not already checked against a grant | SPK-2756 |
+`SchedulerTask.runConnectionTask` checks compile, validation, custom-field
+replacement and pre-aggregate materialization jobs at entry. It reloads the
+grant, the person, stored approval and current **Permissions**. It checks the
+execution binding and token scopes. A connection job refuses a disabled flag,
+even if it was queued while the flag was on. Later effect checks run before
+publishing, validation writes, custom-field writes and materialization effects.
+Validation, custom-field replacement and compile-triggered materialization jobs
+inherit the connection execution record. Catalog indexing does not.
+
+On an entry refusal, the task body does not run. With successful failure
+bookkeeping, the refusal is logged and the job is consumed; a compile's older
+job record is marked in error. Failure bookkeeping can itself fail, as described
+under [Queue evidence and limits](#queue-evidence-and-limits).
+
+### Compile credential checks
+
+A connection's compile has four credential checks, using the `compileProject`
+effect:
+
+| Check | What it comes before |
+| --- | --- |
+| Start of compile credential setup | Resolving the project's credentials, which can refresh and store a warehouse token |
+| After setup | Acquiring the primary warehouse client, including SSH tunnel credentials |
+| Before each extra warehouse connection | Loading its credentials, which can refresh and store a token |
+| After each extra credential load | Acquiring that connection's client |
+
+The checks run when those steps are reached. A preview that copies explores from
+its upstream project does no credential setup and reaches none of these four.
+A refusal at an extra connection check fails the whole job; it is not turned
+into a warning for that connection.
+
+Limits:
+
+- **A refresh already started can finish.** There is one check at the start of
+  each credential resolution, not inside it. If the connection is revoked while
+  a token refresh is in flight, the refresh can finish and store the rotated
+  warehouse token. The job is refused at its next check, acquires no client for
+  that connection, and does not reach publishing. Source tests cover a Snowflake
+  refresh on the primary and an extra connection with a stubbed token exchange.
+- **Not bounded by time, only by the step.** A job revoked mid-run keeps going
+  until its next check: the next credential setup, client acquisition or existing
+  check. A stretch between two checks can include acquiring a client, fetching
+  the dbt manifest, reading the warehouse catalogue and compiling. After the last
+  extra connection it also includes the remaining package, config and context
+  reads and working through the primary connection's explores before the existing
+  check at the start of publishing. No longest duration can be stated; it depends
+  on the project and the warehouse.
+- **Reading stored settings is not checked.** A running connection job can still
+  load the project record, which decrypts the stored credentials in memory and
+  drops them. Nothing is exchanged, written or connected by that read.
+- **A client already open stays in use.** Inside an open client the job builds
+  further client objects from the credentials that client already holds.
+  Building them makes no exchange, token write or acquisition.
+- **An open client keeps authenticating itself.** A warehouse client that is
+  already open keeps authenticating itself to its provider while the job uses it.
+  That happens inside the warehouse client, outside these connection checks.
+  These refreshes store no token in the application database. A refusal at the
+  job's next check stops further work, and a refusal at or before the start of
+  publishing prevents publishing.
+- **Publishing is checked before the write, not during it.** A revocation that
+  commits after the check at the start of publishing does not undo the write,
+  so a job can end in error with its explores saved and indexing queued. The same
+  holds for the catalogue cache and for project tags, parameters and table
+  groups: each is its own write and is not rolled back by a later refusal.
+- **Any failure of a check fails the job.** If the check itself fails, for example
+  on a database error, the job fails. It does not carry on.
+- **Queries started by a pre-aggregate materialization are separate.** They use
+  the query path, which has its own checks and gaps on retry. These compile
+  credential checks do not cover them.
+
+### Scheduled pre-aggregate refreshes
+
+A connection cannot add a pre-aggregate with a scheduled refresh, or deploy to,
+refresh or change parameters of a project that has one. The check also runs
+inside the write transaction, after the project's `cached_explores` row lock,
+on the same database connection.
+
+| Write | Checked under the lock |
+| --- | --- |
+| Array explore save | Stored state and the exact array being saved, before deletion |
+| Stream and multi-connection explore saves | Stored state and staged rows, including kept rows, before promotion |
+| Virtual view create and update | Stored state and the view being written |
+| Parameter replacement | Stored state, before parameter deletion |
+
+A refusal rolls back that write transaction. This is a check for scheduled
+refreshes; it does not put grant revocation and all publication in one transaction.
+Connections do not create cron jobs. Compile-triggered materialization jobs are
+separate from cron schedules.
+
+Limits:
+
+- The registry of pre-aggregate definitions is still synced after the save
+  commits. A connection's sync pass can write registry rows for a schedule a
+  person saved a moment later. Creating scheduled jobs for it is suppressed
+  for connections.
+- Project and organisation delete and the rescue script remove state without
+  taking this lock; they cannot add a schedule. Preview content copy does not
+  take the lock either: it copies virtual views and external source explores as
+  stored. Those are built without schedules, so in normal use it adds none;
+  a stored row of that kind that already carried a schedule would be copied with it.
+- Jobs already queued for a schedule that was later removed are not cancelled
+  by this check.
+- During a rolling update, a pod without the in-transaction check still checks
+  outside the lock. No connection credential can be issued yet.
+- A deploy session batch that arrives after finalize has read the batches
+  answers success and is not published. This applies to ordinary deploys too.
+- A refusal inside the transaction undoes that write only. In a compile,
+  parameters and project settings written earlier in the same job are separate
+  commits and stay. In a session finalize the session is marked failed, where
+  a refusal by the earlier check leaves it uploading.
+- A connection's parameter write takes the `cached_explores` row, then parameter
+  rows. Project and organisation delete remove parameter rows by cascade; the
+  order of rows inside a cascade cannot be shown by reading source. The overlap
+  test covers an ordinary parameter replacement and a connection's write, with
+  both completing.
+
+### Queue evidence and limits
+
+The real-queue source tests use a migrated database, the scheduler client, the
+queue runner and production task bodies and checks. Git fetch and dbt use fixture
+manifests; analytics is replaced. This is evidence of current behaviour, not of
+credential issuance or a live warehouse token exchange.
+
+The following cases are marked as likely defects, awaiting a decision:
+
+- **A compile refused after it has published.** New explores and a new search
+  catalog for them (the catalog job queued before the refusal still runs), with
+  old or absent compile manifests; the job is in error. Catalog indexing is not
+  bound to the connection and makes no connection check, even after revocation.
+- **A finalize refused after it has published.** A published project with
+  indexing queued, a session marked failed, and no validation job; the service
+  caller gets an error with status 403. Finalize is driven at the service in this
+  evidence, not over HTTP.
+- **Catalog indexing that fails part-way.** A partly restored catalog (what was
+  written before the failure stays, the rest is missing) and a used-up job the
+  queue will not run again. A forced replay restores it in the covered cases.
+- **A failure while recording a failure, or a replay.** A failed status write
+  hides the first error and leaves the job's bookkeeping half written; a replay
+  publishes the explores again and queues the index and validation jobs a second
+  time. A compile is logged as completed before its validation and replacement
+  jobs are queued: if queuing them then fails, the log says completed and then
+  error, while the older job record says done. A failed scheduler error-log
+  insert can leave an exhausted queue row. A failed write to the older compile
+  job record can leave it started with a skipped step.
+
+**What the repair of the manifests was and was not shown for.** Shown in the
+multi-connection cases: after the refused compile, a successful ordinary full
+compile of the project rewrites all three manifest stores, starting both from
+older manifests and from none. Not shown: repair when one warehouse connection
+fails during that compile, repair by a deploy that uploads explores without
+compiling, or recovery of catalog display data that was lost.
+
+These jobs are given one attempt and are not retried. "Forced replay" means the
+test made the job runnable again. The evidence does not cover a worker killed
+mid-job, a real NATS broker, or a materialization refused after its query finishes.
+
+### Not covered yet
+
+- Agent turns over HTTP: the turn is admitted at its start and each tool call is
+  checked, but nothing checks the person again while a long turn runs or before
+  the runtime stores its answer.
+- Review automation and its exports.
+- Long-running agent pipelines (data apps, deep research, onboarding), and the
+  compile job that a person-marker writeback preview queues. The connection
+  compile checks above do not establish coverage for that person-marker path.
+- Agent memory jobs and the background jobs that generate artifacts (the delivery
+  of chart images to Slack is covered).
+- Queries and exports that an agent starts, where they are not already checked
+  against a grant.
 
 Known behaviour that is not changed:
 
@@ -253,6 +469,13 @@ Both include the original state and instance issuer. Neither includes a code.
 A reviewed request cannot later become a grant. A new connection needs a new
 request and review.
 
+Expired approval requests are cleaned up every hour at minute 53 on workers
+enabled for that cleanup task. It deletes requests expired at least one hour ago
+in batches of up to 1,000, at most 50 batches per run, and skips locked rows.
+It allows three attempts and two hours of backfill. Creating a pending request
+also purges up to 100 expired rows. This deletes approval requests, not grants
+or tokens; expiry already prevents review or completion before deletion.
+
 ## 5. Wider permissions
 
 A grant stores what the person approved: capabilities, projects and resource
@@ -264,7 +487,8 @@ wider **Permissions** changes the policy rows and no grant.
 So a wider policy can give back something that the person approved and that
 was narrowed in between. It cannot give a grant a capability or a project
 that the person did not approve. That needs a new grant. A new grant does
-not revoke an older one.
+not revoke an older one. The model's explicit `replace` operation does revoke
+the old grant in the same transaction that creates its replacement.
 
 ## Caches
 
@@ -293,7 +517,8 @@ queued and scheduled work.
 
 ### Measured
 
-These numbers are for main as measured on 2026-10-11.
+These are historical numbers for main, from one local set-up, measured on
+2026-10-11. They are not a timing guarantee for any deployment.
 
 Set-up: two API processes from one build, one Postgres database,
 `EXPERIMENTAL_CACHE=true` on both, the scheduler off. Four probes, polled
@@ -335,6 +560,10 @@ compatibility" job):
 | `oauth_refresh_rotation.migration.integration.ts` | With strict refresh handling, revoking a refresh token that is bound to no grant deletes its whole family; a refresh that is in flight cannot bring it back. |
 | `agent_connection_grants.migration.integration.ts` | The rows that a grant revoke changes and keeps. |
 | `agent_sign_in_deactivation.migration.integration.ts` | Deactivation and a new agent sign-in cannot both win, in either order. |
+| `agent_connection_two_processes.migration.integration.ts` | Next-request connection refusal in two independent processes and ordinary-session cache expiry. |
+| `agent_compile_credential_gate.migration.integration.ts` | Credential and client checks; an in-flight stubbed refresh can store a rotated token before the next check refuses. |
+| `pre_aggregate_refresh_transaction.migration.integration.ts`, `pre_aggregate_refresh_finalize_race.migration.integration.ts` | Checks under the write lock, overlapping ordinary writes and late finalize batches. |
+| `agent_queue_entry.migration.integration.ts`, `agent_queue_publication.migration.integration.ts` | Entry refusal, partial publication, manifest repair, catalog indexing, one-attempt jobs and failed bookkeeping. |
 
 Unit tests, next to the code that they test:
 `agentWorkAuthority.test.ts` pins the 30-second rule with a controlled clock
@@ -344,9 +573,16 @@ and the rule that the first failure is kept. `slackAccessRefusals.test.ts`,
 `AiAgentAdminService.test.ts` pin what each job does when a check refuses at
 each of its points.
 
-Not pinned by a test: the two-process measurement above (it needs two
-running processes), and anything that the warehouse does with a token it has
-already issued.
+Separate two-process source tests assert next-request connection refusal on
+both processes after role, project, group or policy access is removed, the person
+is deactivated or deleted, or the connection is revoked or expired. They query
+the second process first and include still-warm ordinary session caches. They
+also cover ordinary-session cache expiry with a five-second tolerance and no
+response-time upper bound.
+
+The historical four-probe timing measurement above is not automated. These
+separate tests do not rerun it or prove real credential issuance. Warehouse-issued
+token behaviour is outside these tests.
 
 ## Where it is in code
 
@@ -365,4 +601,18 @@ already issued.
 | Agent sign-in clean-up | `UserModel.updateUser`, `UserWarehouseCredentialsModel.upsertAiSnowflakeCredential` |
 | Caches | `sessionUserCache` in `models/UserModel.ts`, `models/caches/PatSessionCache.ts` |
 
-Paths are under `packages/backend/src/`.
+Paths in the table above are under `packages/backend/src/`.
+
+Additional locations:
+
+- Screen and owner API calls: `packages/frontend/src/features/agentConnections/`
+  and `packages/frontend/src/components/UserSettings/MyAgentConnectionsPanel/`.
+- CLI revoke and personal recovery: `packages/cli/src/handlers/agentRevoke.ts`
+  and `packages/cli/src/agentConnections/personalRecovery.ts`.
+- Compile credential checks: `packages/backend/src/services/ProjectService/ProjectService.ts`
+  and `packages/backend/src/services/MultiConnectionCompiler/MultiConnectionCompiler.ts`.
+- Write-transaction refresh checks: `packages/backend/src/services/ProjectService/preAggregateRefresh.ts`,
+  `packages/backend/src/models/ProjectModel/ProjectModel.ts` and
+  `packages/backend/src/models/ProjectParametersModel.ts`.
+- Approval cleanup: `packages/backend/src/scheduler/SchedulerWorker.ts` and
+  `packages/backend/src/models/AgentConnectionApprovalRequestModel.ts`.

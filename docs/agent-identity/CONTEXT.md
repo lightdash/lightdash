@@ -1,8 +1,8 @@
 # Agent identity
 
-How agents reach the warehouse. An agent is any client that queries on a
-person's behalf: the AI agent, an MCP client, the Slack bot, the CLI. Every
-agent screen answers one question, and "agent" is always the subject.
+Who agents act for, what their requests may do, and who their queries run as
+in the warehouse. An agent is any client that acts on a person's behalf:
+the AI agent, an MCP client, the Slack bot, the CLI. Every agent screen answers one question, and "agent" is always the subject.
 
 ## Language
 
@@ -15,8 +15,8 @@ _Avoid_: AI principal, agent connections, execution identity (in copy)
 **Permissions**:
 What agents may do, whoever they run as. The second section of the org
 **Agents** page. The organization capability list limits every role, including
-custom roles. The next page offers Same as the person, Read and query, and
-Custom; the current page uses a temporary API adapter. The capability
+custom roles. The page offers Same as the person, Read and query, and
+Custom, and uses the capability-policy API. The capability
 contract is in [agent-permissions.md](./agent-permissions.md).
 _Avoid_: ceiling, managed mode (in copy)
 
@@ -48,8 +48,11 @@ _Avoid_: AI service account. Do not confuse with Lightdash **service
 accounts**, which are API tokens for automation, not warehouse accounts.
 
 **My agent identity**:
-The personal settings page where a person sees who their agents run as and
-signs in where a warehouse needs it.
+The personal settings page with Agent connections and Warehouse sign-ins tabs.
+A person can list connections, inspect their status and revoke active valid
+connections. Warehouse sign-ins show who agents run as and let the person sign
+in where needed. With no connections and no list error, the page shows warehouse
+sign-ins alone.
 _Avoid_: My agent connections
 
 ## Rules for copy

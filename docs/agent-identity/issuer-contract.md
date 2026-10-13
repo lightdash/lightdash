@@ -51,6 +51,12 @@ The current server is `AgentConnectionApprovalService` and its approval request 
 
 Tests below use short names that appear in the consumer suite. A passing consumer test proves local behaviour with its fixture responses. It does not prove a real approval made those responses true.
 
+## Local process boundary
+
+These contract tests establish no isolation on the person's computer. For what
+programs started by the CLI can read, see
+[Scoped CLI credentials](../../packages/cli/README.md#scoped-cli-credentials).
+
 ## Request and approval response
 
 All outgoing request properties below are required. The CLI sends no extra properties; today's server rejects unknown request properties. The request uses the captured personal credential, never a new connection token.
