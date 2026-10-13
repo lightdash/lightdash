@@ -10496,6 +10496,20 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    /** Throws MissingConfigError when queries of this runtime could not get a sandbox. */
+    assertSandboxConfigured(runtime: 'duckdb' | 'python'): void {
+        switch (runtime) {
+            case 'duckdb':
+                this.getDuckdbSandboxRunner().assertConfigured();
+                return;
+            case 'python':
+                this.getPythonSandboxRunner().assertConfigured();
+                return;
+            default:
+                assertUnreachable(runtime, 'Unknown sandbox runtime');
+        }
+    }
+
     /** One byte budget across every input of a sandbox run, from SANDBOX_INPUT_MAX_BYTES. */
     private createSandboxInputReader(
         inputsOf: 'Python query' | 'SQL transformation',

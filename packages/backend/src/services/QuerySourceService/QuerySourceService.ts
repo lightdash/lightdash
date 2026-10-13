@@ -43,9 +43,9 @@ export type InternalSourceQuerySubmission = SourceQuerySubmission &
     Pick<SourceQuerySubmissionResult, 'cacheHit'>;
 
 type QuerySourceServiceArguments = {
-    getAsyncQueryService?: () => Pick<
+    getAsyncQueryService: () => Pick<
         AsyncQueryService,
-        'assertCanReadStoredResults'
+        'assertCanReadStoredResults' | 'assertSandboxConfigured'
     >;
     getAgentPermissionService: () => Pick<
         AgentPermissionService,
@@ -494,6 +494,23 @@ export class QuerySourceService extends BaseService {
         ) {
             await this.assertAgentSqlAccess(account, projectUuid);
         }
+        // A node that cannot run is refused before any node is submitted
+        if (
+            ordered.some(
+                ({ source }) =>
+                    source.definition.sourceType === QuerySourceType.DUCKDB,
+            )
+        ) {
+            this.getAsyncQueryService().assertSandboxConfigured('duckdb');
+        }
+        if (
+            ordered.some(
+                ({ source }) =>
+                    source.definition.sourceType === QuerySourceType.PYTHON,
+            )
+        ) {
+            this.getAsyncQueryService().assertSandboxConfigured('python');
+        }
 
         // nodeId -> queryUuid, grown as submissions happen so later queries'
         // node-id references resolve
@@ -576,7 +593,7 @@ export class QuerySourceService extends BaseService {
                 );
                 const connection =
                     connectionReader || isConnectionProducedQuery(queryHistory);
-                const check = connection ? this.getAsyncQueryService?.() : null;
+                const check = connection ? this.getAsyncQueryService() : null;
                 if (connection && !check) throw new ForbiddenError();
                 if (check) {
                     await check.assertCanReadStoredResults(

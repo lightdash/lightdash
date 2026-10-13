@@ -135,6 +135,7 @@ const setup = (
     const service = new QuerySourceService({
         getAsyncQueryService: () => ({
             assertCanReadStoredResults: vi.fn(async () => {}),
+            assertSandboxConfigured: vi.fn(),
         }),
         featureFlagModel,
         projectModel,

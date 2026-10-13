@@ -113,7 +113,10 @@ const createService = (registry: QuerySourceRegistry) => {
 
     const assertCanReadStoredResults = vi.fn().mockResolvedValue(undefined);
     const service = new QuerySourceService({
-        getAsyncQueryService: () => ({ assertCanReadStoredResults }),
+        getAsyncQueryService: () => ({
+            assertCanReadStoredResults,
+            assertSandboxConfigured: vi.fn(),
+        }),
         getAgentPermissionService: () => mocks.permissions,
         projectModel: mocks.projectModel as unknown as ProjectModel,
         queryHistoryModel:

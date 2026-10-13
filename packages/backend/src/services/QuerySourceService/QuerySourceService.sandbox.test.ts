@@ -1,6 +1,7 @@
 import {
     DimensionType,
     FeatureFlags,
+    MissingConfigError,
     QueryExecutionContext,
     QueryHistoryStatus,
     QuerySourceType,
@@ -387,6 +388,7 @@ const buildPipeline = () => {
         });
 
     return {
+        asyncQueryService,
         querySourceService,
         rows,
         provider,
@@ -567,4 +569,43 @@ describe('a query-source pipeline runs its DuckDB nodes in one-shot sandboxes', 
         ]);
         expect(provider.created).toHaveLength(2);
     }, 60_000);
+
+    describe('without a sandbox provider', () => {
+        const ordersSource: SourceQuery = {
+            sourceType: QuerySourceType.SEMANTIC_LAYER,
+            nodeId: 'orders',
+            exploreName: 'orders',
+            dimensions: ['orders_customer'],
+            metrics: ['orders_total_amount'],
+        };
+        const fromOrders: SourceQuery = {
+            sourceType: QuerySourceType.DUCKDB,
+            nodeId: 'by_customer',
+            sql: 'SELECT customer, SUM(amount) AS total FROM orders GROUP BY customer',
+            references: ['orders'],
+        };
+
+        test.each([
+            ['submitQueries', 'submit'],
+            ['executeSourceQueries', 'execute'],
+        ] as const)(
+            '%s refuses a pipeline with a SQL transformation before submitting any node',
+            async (_name, method) => {
+                const pipeline = buildPipeline();
+                Object.assign(pipeline.asyncQueryService, {
+                    duckdbSandboxRunner: null,
+                });
+                const rowsBefore = pipeline.rows.size;
+
+                const error = await pipeline[method]([
+                    ordersSource,
+                    fromOrders,
+                ]).catch((e: unknown) => e);
+
+                expect(error).toBeInstanceOf(MissingConfigError);
+                expect((error as Error).message).toMatch(/E2B_API_KEY/);
+                expect(pipeline.rows.size).toBe(rowsBefore);
+            },
+        );
+    });
 });
