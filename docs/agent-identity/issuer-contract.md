@@ -14,6 +14,27 @@ These requirements distinguish the issuer's obligations from the CLI's current c
 5. OAuth scopes are an envelope, not approved actions: initial scopes must have valid syntax; refresh must keep exactly the saved scope set. The server must intersect that envelope with the stored per-project connection limits. `projects: null` means a finite approval-time snapshot, never a future-project wildcard.
 6. Code reuse, token-family binding and separation from approval-URL values are issuer invariants. The double models refusals for invalid exchange bindings and reused codes. The CLI cannot independently prove the server's persistence or whether a different connection's token is misreported by all server endpoints. It also cannot retract an approval URL already printed before a token exists. Test these against the real issuer and database before claiming the gate is closed.
 
+## External instance identity and proxies
+
+The issuer and resource are the canonical external instance URL, including its
+public path prefix. For `https://example.com/tools/lightdash`, both values are
+`https://example.com/tools/lightdash`. The saved resource must equal the saved
+instance exactly. The approval request, callback issuer and token exchange bind
+to this external identity.
+
+A proxy can strip the prefix before forwarding internally. The CLI still sends
+all connection API requests to the external `<instance>/api/` paths. The internal
+upstream address is not the issuer or resource. Approval and settings links use
+the external instance and locally built paths. Without a usable saved connection,
+a settings link is the configured URL as written with the path added.
+
+The token endpoint must not redirect. The CLI also refuses redirects during
+bootstrap, proof, refresh, status and revocation, including personal recovery.
+This includes same-origin redirects and redirects that only add a slash. Serve
+the final API endpoints directly. Browser sign-in navigation and the local
+callback listener are separate from this API transport rule. Public asset and
+external manifest downloads carry no connection credential and use their own URLs.
+
 ## Temporary CLI fallbacks
 
 Remove these temporary fallbacks when the issuer is built. Paths below are relative to `packages/cli/src/`.
