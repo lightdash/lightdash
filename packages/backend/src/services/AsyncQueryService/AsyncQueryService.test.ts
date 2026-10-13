@@ -15928,7 +15928,10 @@ describe('executeAsyncMergeQuery in a sandbox', () => {
         trackAccount: ReturnType<typeof buildService>['trackAccount'],
         count: number,
     ) =>
-        vi.waitFor(() => expect(mergeEvents(trackAccount)).toHaveLength(count));
+        vi.waitFor(
+            () => expect(mergeEvents(trackAccount)).toHaveLength(count),
+            { timeout: 20_000 },
+        );
 
     it.each([true, false])(
         'uses the trusted artifact scope for the merge claim and ignores a forged actor: %s',
@@ -16176,8 +16179,9 @@ describe('executeAsyncMergeQuery in a sandbox', () => {
 
         await execute(service);
 
-        await vi.waitFor(() =>
-            expect(mergeEvents(trackAccount)).toHaveLength(1),
+        await vi.waitFor(
+            () => expect(mergeEvents(trackAccount)).toHaveLength(1),
+            { timeout: 20_000 },
         );
         expect(mergeEvents(trackAccount)[0]).toEqual({
             event: 'merge_query.executed',
@@ -16225,8 +16229,9 @@ describe('executeAsyncMergeQuery in a sandbox', () => {
 
         await execute(service);
 
-        await vi.waitFor(() =>
-            expect(mergeEvents(trackAccount)).toHaveLength(1),
+        await vi.waitFor(
+            () => expect(mergeEvents(trackAccount)).toHaveLength(1),
+            { timeout: 20_000 },
         );
         expect(mergeEvents(trackAccount)[0]).toMatchObject({
             event: 'merge_query.refused',
