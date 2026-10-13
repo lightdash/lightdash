@@ -311,13 +311,49 @@ The CLI supports these environment variables for authentication:
 | `LIGHTDASH_CLI_EMAIL`    | Email for login (alternative to `--email`)     |
 | `LIGHTDASH_CLI_PASSWORD` | Password for email login (used with `--email`) |
 
+### Instance URLs and proxies for agent connections
+
+Configure the final public HTTPS URL, including the deployment path prefix.
+For example, use `https://example.com/tools/lightdash` if that is the public
+address. For local development, HTTP is accepted on `localhost`, `127.0.0.1` or
+`[::1]`. For the connection's identity and its API requests, one trailing slash
+is the same as none.
+
+Every instance API request made with a connection keeps the prefix and stays
+inside `<instance>/api/`. This also applies to credential-bearing steps during
+approval, token exchange, verification, refresh, status checks and revocation,
+including personal recovery with `agent revoke --name <slot> --human`.
+The CLI refuses all HTTP redirects on these requests, including redirects to
+the same origin or to add a trailing slash. Configure the final address directly;
+the proxy must serve the API paths without a redirect. A proxy can rewrite the
+prefix internally while the CLI continues to use the public address.
+
+The CLI builds approval and settings links from the configured instance URL.
+Without a usable saved connection, a settings link is the configured URL as
+written with the path added.
+This API rule does not cover public asset downloads (`install-skills`,
+`upgrade-check` or an explicit external manifest), browser sign-in navigation,
+or the local callback listener. Public downloads carry no connection credential;
+the CLI does not supply its credential or proxy authorization header to the
+browser.
+
+`lightdash login <url>` removes a path from the URL. Set `LIGHTDASH_URL` or the
+saved config to preserve a deployment prefix for connections. Ordinary instance
+API requests still use root `/api/...` paths, even with a prefix in the environment
+or config. A proxy must also make the root API paths work for ordinary commands.
+Some displayed links keep the prefix. The connection rule does not change
+ordinary command behaviour.
+
 ### Connection errors and credential output
 
 On the agent connection commands, and when a request made with a connection fails,
 the CLI prints fixed messages and no server-written text. The CLI never prints a
 credential on purpose. Data that a command exists to show is shown as received.
 
-The connection forms are `agent connect`, `agent status` and `agent revoke`.
+The connection forms are `agent connect --connection` (or a connection option
+such as `--name`), `agent status --name <slot>` (or a selected connection), and
+`agent revoke --name <slot>`. Bare `agent connect` and unnamed, unselected
+`agent status` use the older personal flow.
 Failures include an error status, an error envelope on HTTP 200, an unreadable or
 aborted body, and a redirect. Known error codes select fixed messages; unknown
 codes are omitted. Links use the configured instance and fixed paths and query

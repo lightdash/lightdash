@@ -1,9 +1,9 @@
 // Passing against this double validates the design only; run this suite against the real issuer before launch.
 // Real approval/code creation, token-family persistence/rotation, crash recovery, pod gating and URL/token separation remain unproved.
-import { AgentCapability } from '@lightdash/common';
+import { AgentCapability, AiAccessRefusalReason } from '@lightdash/common';
 import { createHash, randomUUID } from 'crypto';
 import { promises as fs } from 'fs';
-import { createServer, type Server } from 'http';
+import { createServer, request as httpRequest, type Server } from 'http';
 import * as yaml from 'js-yaml';
 import fetch from 'node-fetch';
 import { tmpdir } from 'os';
@@ -19,11 +19,31 @@ const personUuid = '22222222-2222-4222-8222-222222222222';
 const organizationUuid = '11111111-1111-4111-8111-111111111111';
 const projectUuid = '44444444-4444-4444-8444-444444444444';
 const secondProject = '55555555-5555-4555-8555-555555555555';
+const originalCi = process.env.CI;
 const privateAccess = 'fixture-access-opaque';
 const privateRefresh = 'fixture-refresh-opaque';
 let home: string;
 let instance: string;
 let server: Server;
+let proxy: Server | null;
+let sink: Server;
+let sinkOrigin: string;
+let sinkCalls: string[];
+let mount: string;
+let publicPrefix: string;
+let publicCalls: {
+    method: string;
+    url: string;
+    auth?: string;
+    proxy?: string;
+}[];
+let redirectAt: number;
+let redirectCode: number;
+let redirectLocation: string;
+let deliverApproval: boolean;
+let warehouseRefusal: boolean;
+const proxyMarker = 'fixture-proxy-opaque';
+const personalMarker = 'fixture-personal';
 let request: Record<string, unknown>;
 let grantUuid: string;
 let code: string;
@@ -43,6 +63,7 @@ let calls: {
     method: string;
     url: string;
     auth?: string;
+    proxy?: string;
     body: string;
     saved: boolean;
 }[];
@@ -118,6 +139,126 @@ const refused = async () => {
     for (const secret of [privateAccess, privateRefresh, code])
         expect(output).not.toContain(secret);
 };
+const listen = async (target: Server): Promise<string> => {
+    await new Promise<void>((resolve) => {
+        target.listen(0, '127.0.0.1', resolve);
+    });
+    const address = target.address();
+    if (!address || typeof address === 'string') throw new Error('No address');
+    return `http://127.0.0.1:${address.port}`;
+};
+const configureMount = async (prefix: string, rewrite: boolean) => {
+    publicPrefix = prefix.replace(/\/$/, '');
+    mount = rewrite ? '' : publicPrefix;
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('No address');
+    let origin = `http://127.0.0.1:${address.port}`;
+    if (rewrite) {
+        const upstream = origin;
+        proxy = createServer((req, res) => {
+            publicCalls.push({
+                method: req.method!,
+                url: req.url!,
+                auth: req.headers.authorization,
+                proxy: req.headers['proxy-authorization'] as string | undefined,
+            });
+            if (!req.url!.startsWith(`${publicPrefix}/api/`)) {
+                res.writeHead(404);
+                res.end();
+                return;
+            }
+            const forwarded = httpRequest(
+                `${upstream}${req.url!.slice(publicPrefix.length)}`,
+                {
+                    method: req.method,
+                    headers: req.headers,
+                },
+                (response) => {
+                    res.writeHead(response.statusCode!, response.headers);
+                    response.pipe(res);
+                },
+            );
+            forwarded.on('error', (error) => {
+                errors.push(String(error));
+                res.destroy();
+            });
+            req.pipe(forwarded);
+        });
+        origin = await listen(proxy);
+    }
+    instance = `${origin}${publicPrefix}`;
+    await config.writeConfigToFile(config.configFilePath, {
+        context: {
+            serverUrl: `${origin}${prefix}`,
+            apiKey: personalMarker,
+            proxyAuthorization: proxyMarker,
+        },
+        user: { userUuid: personUuid, organizationUuid },
+    });
+    configBytes = await fs.readFile(config.configFilePath, 'utf8');
+    approved[0].approvedCapabilities = Object.values(AgentCapability);
+};
+const statusPath = () => `/api/v2/user/agent-connections/${grantUuid}/status`;
+const warehousePath = `/api/v2/projects/${projectUuid}/ai-access/me`;
+type ExpectedRequest = [method: string, path: string, auth: string | undefined];
+const personalAuth = `ApiKey ${personalMarker}`;
+const connectionAuth = `Bearer ${privateAccess}`;
+const connectRequests = (): ExpectedRequest[] => [
+    ['GET', '/api/v1/user', personalAuth],
+    ['POST', '/api/v2/user/agent-connections/requests', personalAuth],
+    ['POST', '/api/v1/oauth/token', undefined],
+    ['GET', statusPath(), connectionAuth],
+    ['GET', '/api/v1/user', connectionAuth],
+    ['GET', warehousePath, connectionAuth],
+];
+const proofRequests = (auth = connectionAuth): ExpectedRequest[] => [
+    ['GET', '/api/v1/user', auth],
+    ['GET', statusPath(), auth],
+];
+const assertRequests = (expected: ExpectedRequest[]) => {
+    expect(sinkCalls, 'STOP: a redirect target received a request').toEqual([]);
+    expect(publicCalls).toHaveLength(expected.length);
+    expect(
+        publicCalls.map(({ method, url, auth, proxy: marker }) => ({
+            method,
+            url,
+            auth,
+            marker,
+        })),
+    ).toEqual(
+        expected.map(([method, url, auth]) => ({
+            method,
+            url: `${publicPrefix}${url}`,
+            auth,
+            marker: proxyMarker,
+        })),
+    );
+    expect(calls).toHaveLength(expected.length);
+    expect(
+        calls.map(({ method, url, auth, proxy: marker }) => ({
+            method,
+            url,
+            auth,
+            marker,
+        })),
+    ).toEqual(
+        expected.map(([method, url, auth]) => ({
+            method,
+            url: `${mount}${url}`,
+            auth,
+            marker: proxyMarker,
+        })),
+    );
+    expect(errors).toEqual([]);
+};
+const clearRequests = () => {
+    calls = [];
+    publicCalls = [];
+};
+const selected = async (action: () => Promise<void>) => {
+    const { runWithAgentConnectionSelection } = await import('../credentials');
+    await runWithAgentConnectionSelection('default', action);
+};
 beforeAll(async () => {
     home = await fs.mkdtemp(path.join(tmpdir(), 'issuer-contract-'));
     vi.stubEnv('HOME', home);
@@ -134,8 +275,10 @@ afterAll(async () => {
     await fs.rm(home, { recursive: true, force: true });
 });
 beforeEach(async () => {
+    vi.stubEnv('CI', originalCi);
     process.exitCode = undefined;
     for (const name of [
+        'LIGHTDASH_PROJECT',
         'LIGHTDASH_URL',
         'LIGHTDASH_API_KEY',
         'LIGHTDASH_AGENT_CONNECTION',
@@ -145,11 +288,27 @@ beforeEach(async () => {
         vi.stubEnv(name, undefined);
     globalState.default.setNonInteractive(true);
     vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'log').mockImplementation(() => {});
     grantUuid = randomUUID();
     code = 'fixture-code-opaque';
     used = false;
     revokedAtExchange = false;
     request = {};
+    proxy = null;
+    mount = '/lightdash';
+    publicPrefix = mount;
+    publicCalls = [];
+    sinkCalls = [];
+    redirectAt = -1;
+    redirectCode = 302;
+    redirectLocation = '';
+    deliverApproval = false;
+    warehouseRefusal = false;
+    sink = createServer((req, res) => {
+        sinkCalls.push(JSON.stringify({ url: req.url, headers: req.headers }));
+        res.end();
+    });
+    sinkOrigin = await listen(sink);
     approved = [
         {
             projectUuid,
@@ -194,16 +353,24 @@ beforeEach(async () => {
                 method: req.method!,
                 url: req.url!,
                 auth: req.headers.authorization,
+                proxy: req.headers['proxy-authorization'] as string | undefined,
                 body,
                 saved: (await store().readSlot(key())) !== null,
             });
+            if (proxy === null) publicCalls.push(calls.at(-1)!);
+            if (calls.length === redirectAt) {
+                res.writeHead(redirectCode, { Location: redirectLocation });
+                res.end();
+                return;
+            }
+            const route = req.url!.slice(mount.length);
             const reply = (value: unknown, codeValue = 200) => {
                 res.writeHead(codeValue, {
                     'Content-Type': 'application/json',
                 });
                 res.end(JSON.stringify(value));
             };
-            if (req.url === '/lightdash/api/v1/user') {
+            if (route === '/api/v1/user') {
                 reply(
                     envelope({
                         userUuid: req.headers.authorization?.startsWith(
@@ -214,9 +381,7 @@ beforeEach(async () => {
                         organizationUuid,
                     }),
                 );
-            } else if (
-                req.url === '/lightdash/api/v2/user/agent-connections/requests'
-            ) {
+            } else if (route === '/api/v2/user/agent-connections/requests') {
                 request = JSON.parse(body) as Record<string, unknown>;
                 reply(
                     envelope({
@@ -227,8 +392,9 @@ beforeEach(async () => {
                         ...approval,
                     }),
                 );
-                if (!Object.keys(approval).length) callbackDone = deliver();
-            } else if (req.url === '/lightdash/api/v1/oauth/token') {
+                if (!Object.keys(approval).length || deliverApproval)
+                    callbackDone = deliver();
+            } else if (route === '/api/v1/oauth/token') {
                 if (responseDate !== undefined)
                     res.setHeader('Date', responseDate);
                 const form = new URLSearchParams(body);
@@ -278,10 +444,47 @@ beforeEach(async () => {
                         ...token,
                     });
             } else if (
-                req.url ===
-                `/lightdash/api/v2/user/agent-connections/${grantUuid}/status`
+                route === `/api/v2/user/agent-connections/${grantUuid}/status`
             )
                 reply(envelope({ ...projectStatus(approved), ...status }));
+            else if (
+                route === `/api/v2/user/agent-connections/${grantUuid}` &&
+                req.method === 'DELETE'
+            )
+                reply(
+                    envelope({
+                        ...projectStatus(approved),
+                        ...status,
+                        status: 'revoked',
+                        revokedAt: new Date().toISOString(),
+                    }),
+                );
+            else if (route === `/api/v2/projects/${projectUuid}/ai-access/me`)
+                reply(
+                    envelope({
+                        projectUuid,
+                        warehouseConnectionUuid: null,
+                        identity: 'connected_person',
+                        requirementSource: null,
+                        expiresAt: null,
+                        refusal: warehouseRefusal
+                            ? {
+                                  reason: AiAccessRefusalReason.NEEDS_SIGN_IN,
+                                  settingsUrl: `${sinkOrigin}/settings`,
+                                  connectUrl: `${sinkOrigin}/connect`,
+                              }
+                            : null,
+                    }),
+                );
+            else if (route === '/api/v1/health?skipMigrationCheck=true')
+                reply(envelope({ version: '2.0.0' }));
+            else if (
+                route.startsWith(`/api/v1/projects/${projectUuid}/`) ||
+                route.startsWith(`/api/v2/projects/${projectUuid}/`) ||
+                route.startsWith(`/api/v1/ee/projects/${projectUuid}/`) ||
+                route.startsWith('/api/v2/content?')
+            )
+                reply(envelope({ fixture: true }));
             else
                 reply(
                     { error: 'No project read is permitted by this double' },
@@ -306,6 +509,16 @@ beforeEach(async () => {
     configBytes = await fs.readFile(config.configFilePath, 'utf8');
 });
 afterEach(async () => {
+    await Promise.all(
+        [proxy, sink].map(async (extra) => {
+            if (extra) {
+                extra.closeAllConnections();
+                await new Promise<void>((resolve) => {
+                    extra.close(() => resolve());
+                });
+            }
+        }),
+    );
     server.closeAllConnections();
     await new Promise<void>((resolve) => {
         server.close(() => resolve());
@@ -1053,3 +1266,642 @@ it.each(['previous', 'legacy', 'past-server'])(
         expect((await store().readSlot(key()))?.tokens).toEqual(result.tokens);
     },
 );
+
+describe.each([false, true])(
+    'public instance transport, proxy rewrite=%s',
+    (rewrite) => {
+        it.each(['', '/lightdash', '/lightdash/', '/tools/lightdash'])(
+            'keeps %s through connect, first use, refresh, API calls, status and both revocations',
+            async (prefix) => {
+                await configureMount(prefix, rewrite);
+                await run();
+                assertRequests(connectRequests());
+                expect(request.resource).toBe(instance);
+                const saved = (await store().readSlot(key()))!;
+                expect(saved.resource).toBe(instance);
+                expect(saved.instanceUrl).toBe(instance);
+                expect(new URLSearchParams(calls[2].body).get('resource')).toBe(
+                    instance,
+                );
+                expect(
+                    vi.mocked(console.error).mock.calls.flat().join('\n'),
+                ).toContain(
+                    `${instance}/api/v1/oauth/authorize?agent_request=${projectUuid}`,
+                );
+                clearRequests();
+                await new providerModule.AgentTokenProvider(store()).getToken(
+                    key(),
+                    null,
+                    proxyMarker,
+                );
+                assertRequests(proofRequests());
+                clearRequests();
+                token.access_token = 'fixture-rotated-access';
+                token.refresh_token = 'fixture-rotated-refresh';
+                const refreshed = await new providerModule.AgentTokenProvider(
+                    store(),
+                ).getToken(key(), 1, proxyMarker);
+                assertRequests([
+                    ['POST', '/api/v1/oauth/token', undefined],
+                    ...proofRequests('Bearer fixture-rotated-access'),
+                ]);
+                expect(new URLSearchParams(calls[0].body).get('resource')).toBe(
+                    instance,
+                );
+                expect(
+                    new URLSearchParams(calls[0].body).get('refresh_token'),
+                ).toBe(privateRefresh);
+                clearRequests();
+                const { lightdashRawApi, lightdashApi, checkLightdashVersion } =
+                    await import('../handlers/dbt/apiClient');
+                const routes: ['GET' | 'POST', string][] = [
+                    ['POST', `/api/v2/projects/${projectUuid}/deploy`],
+                    [
+                        'POST',
+                        `/api/v2/projects/${projectUuid}/deploy/${secondProject}/batch`,
+                    ],
+                    [
+                        'POST',
+                        `/api/v2/projects/${projectUuid}/deploy/${secondProject}/finalize`,
+                    ],
+                    [
+                        'GET',
+                        `/api/v1/ee/projects/${projectUuid}/apps/${secondProject}/download`,
+                    ],
+                    [
+                        'GET',
+                        `/api/v2/content?projectUuids=${projectUuid}&contentTypes=data_app&page=1&pageSize=100`,
+                    ],
+                    ['POST', `/api/v2/projects/${projectUuid}/query/sql`],
+                    [
+                        'GET',
+                        `/api/v2/projects/${projectUuid}/query/${secondProject}?pageSize=25`,
+                    ],
+                    ['GET', `/api/v1/projects/${projectUuid}/dbt/manifest`],
+                ];
+                await selected(async () => {
+                    expect(
+                        (
+                            await lightdashRawApi({
+                                method: 'GET',
+                                url: `${instance}/api/v1/user`,
+                                body: undefined,
+                            })
+                        ).status,
+                    ).toBe(200);
+                    await routes.reduce(async (previous, [method, url]) => {
+                        await previous;
+                        expect(
+                            await lightdashApi({
+                                method,
+                                url,
+                                body: undefined,
+                            }),
+                        ).toEqual({ fixture: true });
+                    }, Promise.resolve());
+                    await checkLightdashVersion();
+                });
+                const auth = 'Bearer fixture-rotated-access';
+                assertRequests([
+                    ...proofRequests(auth),
+                    ['GET', '/api/v1/user', auth],
+                    ...routes.map(
+                        ([method, url]): ExpectedRequest => [method, url, auth],
+                    ),
+                    ['GET', '/api/v1/health?skipMigrationCheck=true', auth],
+                ]);
+                clearRequests();
+                const { agentConnectionStatusHandler } =
+                    await import('../handlers/agentConnectionStatus');
+                await agentConnectionStatusHandler({
+                    name: 'default',
+                    json: true,
+                    verbose: false,
+                });
+                assertRequests([
+                    ['GET', statusPath(), auth],
+                    ['GET', warehousePath, auth],
+                ]);
+                expect(process.exitCode).toBe(0);
+                clearRequests();
+                const { agentRevokeHandler } =
+                    await import('../handlers/agentRevoke');
+                await agentRevokeHandler({ name: 'default', json: true });
+                assertRequests([
+                    [
+                        'DELETE',
+                        `/api/v2/user/agent-connections/${grantUuid}`,
+                        auth,
+                    ],
+                ]);
+                expect(await store().readSlot(key())).toBeNull();
+                await store().saveSlot(refreshed);
+                clearRequests();
+                await agentRevokeHandler({
+                    name: 'default',
+                    json: true,
+                    human: true,
+                });
+                assertRequests([
+                    ['GET', '/api/v1/user', personalAuth],
+                    [
+                        'DELETE',
+                        `/api/v2/user/agent-connections/${grantUuid}`,
+                        personalAuth,
+                    ],
+                ]);
+                expect(await store().readSlot(key())).toBeNull();
+                if (publicPrefix) {
+                    clearRequests();
+                    expect(
+                        (await fetch(`${new URL(instance).origin}/api/v1/user`))
+                            .status,
+                    ).toBeGreaterThanOrEqual(400);
+                    expect(publicCalls).toHaveLength(1);
+                }
+            },
+        );
+    },
+);
+
+type RedirectFlow =
+    | 'connect'
+    | 'first use'
+    | 'refresh'
+    | 'raw API'
+    | 'JSON API'
+    | 'health'
+    | 'status'
+    | 'revoke'
+    | 'human revoke';
+const redirectStages: [RedirectFlow, string, number][] = [
+    ['connect', 'bootstrap user', 1],
+    ['connect', 'approval request', 2],
+    ['connect', 'initial exchange', 3],
+    ['connect', 'status proof', 4],
+    ['connect', 'user proof', 5],
+    ['connect', 'post-save readiness', 6],
+    ['first use', 'user proof', 1],
+    ['first use', 'status proof', 2],
+    ['refresh', 'token exchange', 1],
+    ['refresh', 'user proof', 2],
+    ['refresh', 'status proof', 3],
+    ['raw API', 'selected request', 3],
+    ['JSON API', 'selected request', 3],
+    ['health', 'version request', 3],
+    ['status', 'connection status', 1],
+    ['status', 'readiness', 2],
+    ['revoke', 'connection revoke', 1],
+    ['human revoke', 'personal user', 1],
+    ['human revoke', 'personal revoke', 2],
+];
+const redirectFlow = async (flow: RedirectFlow): Promise<string> => {
+    const { lightdashRawApi, lightdashApi, checkLightdashVersion } =
+        await import('../handlers/dbt/apiClient');
+    try {
+        if (flow === 'connect') await run();
+        else if (flow === 'first use' || flow === 'refresh')
+            await new providerModule.AgentTokenProvider(store()).getToken(
+                key(),
+                flow === 'refresh' ? 1 : null,
+                proxyMarker,
+            );
+        else if (flow === 'status') {
+            const { agentConnectionStatusHandler } =
+                await import('../handlers/agentConnectionStatus');
+            await agentConnectionStatusHandler({
+                name: 'default',
+                json: true,
+                verbose: false,
+            });
+        } else if (flow === 'revoke' || flow === 'human revoke') {
+            const { agentRevokeHandler } =
+                await import('../handlers/agentRevoke');
+            await agentRevokeHandler({
+                name: 'default',
+                json: true,
+                human: flow === 'human revoke',
+            });
+        } else
+            await selected(async () => {
+                if (flow === 'health') await checkLightdashVersion();
+                else if (flow === 'raw API')
+                    await lightdashRawApi({
+                        method: 'GET',
+                        url: '/api/v1/user',
+                        body: undefined,
+                        safeToRetry: true,
+                    });
+                else
+                    await lightdashApi({
+                        method: 'GET',
+                        url: '/api/v1/user',
+                        body: undefined,
+                        safeToRetry: true,
+                    });
+            });
+    } catch (error) {
+        return (error as Error).message;
+    }
+    return [
+        ...vi.mocked(console.error).mock.calls,
+        ...vi.mocked(console.log).mock.calls,
+    ]
+        .flat()
+        .join('\n');
+};
+const expectedFlow = (flow: RedirectFlow): ExpectedRequest[] => {
+    if (flow === 'connect') return connectRequests();
+    if (flow === 'first use') return proofRequests();
+    if (flow === 'refresh')
+        return [
+            ['POST', '/api/v1/oauth/token', undefined],
+            ...proofRequests('Bearer fixture-rotated-access'),
+        ];
+    if (flow === 'status')
+        return [
+            ['GET', statusPath(), connectionAuth],
+            ['GET', warehousePath, connectionAuth],
+        ];
+    if (flow === 'revoke')
+        return [
+            [
+                'DELETE',
+                `/api/v2/user/agent-connections/${grantUuid}`,
+                connectionAuth,
+            ],
+        ];
+    if (flow === 'human revoke')
+        return [
+            ['GET', '/api/v1/user', personalAuth],
+            [
+                'DELETE',
+                `/api/v2/user/agent-connections/${grantUuid}`,
+                personalAuth,
+            ],
+        ];
+    return [
+        ...proofRequests(),
+        [
+            'GET',
+            flow === 'health'
+                ? '/api/v1/health?skipMigrationCheck=true'
+                : '/api/v1/user',
+            connectionAuth,
+        ],
+    ];
+};
+
+const redirectMessage = (flow: RedirectFlow, index: number): string => {
+    if (flow === 'connect') {
+        if (index < 3)
+            return 'Could not start agent connection approval. No credential was saved. Try again when the server is available.';
+        if (index === 6)
+            return 'Warehouse sign-ins: unknown; review them in the app.';
+        return 'The server returned a token that is not bound to this agent connection. No credential was saved.';
+    }
+    if (flow === 'first use')
+        return 'The server could not verify this agent connection. Reconnect or check its status in the app.';
+    if (flow === 'refresh')
+        return 'Reconnect before using this agent connection. Its refresh outcome is uncertain.';
+    if (flow === 'status')
+        return index === 1
+            ? 'Could not reach the server. Connection status is unconfirmed.'
+            : 'Could not check warehouse readiness.';
+    if (flow === 'revoke' || flow === 'human revoke')
+        return 'Revocation was not confirmed. The local slot was kept.';
+    return 'The agent connection request failed. No request was retried.';
+};
+describe.each([301, 302, 303, 307, 308])('redirect status %s', (codeValue) => {
+    it.each(redirectStages)(
+        'refuses a second origin during %s: %s',
+        async (flow, _stage, index) => {
+            await configureMount('/lightdash', true);
+            if (flow !== 'connect') {
+                await run();
+                assertRequests(connectRequests());
+            }
+            clearRequests();
+            vi.mocked(console.error).mockClear();
+            vi.mocked(console.log).mockClear();
+            redirectAt = index;
+            redirectCode = codeValue;
+            redirectLocation = `${sinkOrigin}/capture`;
+            token.access_token =
+                flow === 'refresh' ? 'fixture-rotated-access' : privateAccess;
+            token.refresh_token = 'fixture-rotated-refresh';
+            const output = await redirectFlow(flow);
+            assertRequests(expectedFlow(flow).slice(0, index));
+            expect(output).not.toContain(sinkOrigin);
+            expect(output).toContain(redirectMessage(flow, index));
+            if (flow === 'connect' && index === 3)
+                expect(
+                    new URLSearchParams(calls.at(-1)!.body).get('code'),
+                ).toBe(code);
+            if (flow === 'refresh' && index === 1)
+                expect(
+                    new URLSearchParams(calls[0].body).get('refresh_token'),
+                ).toBe(privateRefresh);
+            if (flow === 'refresh') {
+                await expect(
+                    new providerModule.AgentTokenProvider(store()).getToken(
+                        key(),
+                        null,
+                        proxyMarker,
+                    ),
+                ).rejects.toThrow('Its refresh outcome is uncertain.');
+                assertRequests(expectedFlow(flow).slice(0, index));
+            }
+        },
+    );
+});
+
+describe.each([
+    '/lightdash/api/v1/redirect-target',
+    '/api/v1/user',
+    '/login',
+    '/lightdash/api/v1/user/',
+])('same-origin destination %s', (destination) => {
+    it.each(redirectStages)(
+        'refuses %s: %s without a second request',
+        async (flow, _stage, index) => {
+            await configureMount('/lightdash', false);
+            if (flow !== 'connect') {
+                await run();
+                assertRequests(connectRequests());
+            }
+            clearRequests();
+            vi.mocked(console.error).mockClear();
+            vi.mocked(console.log).mockClear();
+            redirectAt = index;
+            redirectLocation = `${new URL(instance).origin}${destination}`;
+            token.access_token =
+                flow === 'refresh' ? 'fixture-rotated-access' : privateAccess;
+            token.refresh_token = 'fixture-rotated-refresh';
+            const output = await redirectFlow(flow);
+            assertRequests(expectedFlow(flow).slice(0, index));
+            expect(output).not.toContain(destination);
+            expect(output).toContain(redirectMessage(flow, index));
+        },
+    );
+});
+
+it.each([
+    'foreign port',
+    'foreign hostname',
+    'wrong prefix',
+    'wrong path',
+    'fragment',
+    'duplicate request id',
+])('refuses an approval URL with %s before browser launch', async (kind) => {
+    await configureMount('/lightdash', true);
+    const url = new URL(
+        `${instance}/api/v1/oauth/authorize?agent_request=${projectUuid}`,
+    );
+    if (kind === 'foreign port') url.port = new URL(sinkOrigin).port;
+    if (kind === 'foreign hostname') url.hostname = 'localhost';
+    if (kind === 'wrong prefix') url.pathname = '/api/v1/oauth/authorize';
+    if (kind === 'wrong path') url.pathname = '/lightdash/api/v1/user';
+    if (kind === 'fragment') url.hash = 'fragment';
+    if (kind === 'duplicate request id')
+        url.searchParams.append('agent_request', projectUuid);
+    approval.authorizationUrl = url.href;
+    vi.stubEnv('CI', undefined);
+    globalState.default.setNonInteractive(false);
+    const launchBrowser = vi.fn(async () => true);
+    await connect.agentConnectionConnectHandler(
+        { verbose: false, timeout: 3 },
+        { launchBrowser },
+    );
+    assertRequests(connectRequests().slice(0, 2));
+    expect(launchBrowser).not.toHaveBeenCalled();
+    await refused();
+});
+it('prints only the locally built approval query and ignores returned settings and connect links', async () => {
+    await configureMount('/lightdash', true);
+    approval.authorizationUrl = `${instance}/api/v1/oauth/authorize?agent_request=${projectUuid}&extra=drop-me`;
+    approval.settingsUrl = `${sinkOrigin}/settings`;
+    approval.connectUrl = `${sinkOrigin}/connect`;
+    deliverApproval = true;
+    warehouseRefusal = true;
+    await run();
+    assertRequests(connectRequests());
+    const output = vi.mocked(console.error).mock.calls.flat().join('\n');
+    expect(output).toContain(
+        `${instance}/api/v1/oauth/authorize?agent_request=${projectUuid}\n`,
+    );
+    expect(output).toContain(`${instance}/generalSettings/myAgentConnections`);
+    expect(output).not.toContain('drop-me');
+    expect(output).not.toContain(sinkOrigin);
+    clearRequests();
+    const { agentConnectionStatusHandler } =
+        await import('../handlers/agentConnectionStatus');
+    await agentConnectionStatusHandler({
+        name: 'default',
+        json: true,
+        verbose: false,
+    });
+    assertRequests([
+        ['GET', statusPath(), connectionAuth],
+        ['GET', warehousePath, connectionAuth],
+    ]);
+    const report = JSON.parse(
+        String(vi.mocked(console.log).mock.calls.at(-1)![0]),
+    ) as {
+        settingsUrl: string;
+        warehouse: { projects: { settingsUrl: string }[] };
+    };
+    expect(report.settingsUrl).toBe(
+        `${instance}/generalSettings/myAgentConnections`,
+    );
+    expect(report.warehouse.projects[0].settingsUrl).toBe(report.settingsUrl);
+    expect(JSON.stringify(report)).not.toContain(sinkOrigin);
+});
+it.each(['foreign', 'missing prefix', 'credentials'])(
+    'refuses an absolute API URL with %s before resolving credentials or making requests',
+    async (kind) => {
+        await configureMount('/lightdash', true);
+        const url = new URL(`${instance}/api/v1/user`);
+        if (kind === 'foreign') url.port = new URL(sinkOrigin).port;
+        if (kind === 'missing prefix') url.pathname = '/api/v1/user';
+        if (kind === 'credentials') url.username = 'fixture-user';
+        const credentials = await import('../credentials');
+        const resolve = vi.spyOn(credentials, 'resolveCredential');
+        const { lightdashRawApi } = await import('../handlers/dbt/apiClient');
+        await expect(
+            selected(async () => {
+                await lightdashRawApi({
+                    method: 'GET',
+                    url: url.href,
+                    body: undefined,
+                });
+            }),
+        ).rejects.toThrow('must stay within the selected instance API');
+        expect(resolve).not.toHaveBeenCalled();
+        assertRequests([]);
+    },
+);
+it('uses only the UUID from an external app reference for a selected API download', async () => {
+    await configureMount('/lightdash', true);
+    await run();
+    assertRequests(connectRequests());
+    clearRequests();
+    const { getDataAppReference } =
+        await import('../handlers/apps/appsDownload');
+    const reference = getDataAppReference(
+        `${sinkOrigin}/projects/${projectUuid}/apps/${secondProject}`,
+    );
+    expect(reference).toBe(secondProject);
+    const { lightdashApi } = await import('../handlers/dbt/apiClient');
+    const url = `/api/v1/ee/projects/${projectUuid}/apps/${reference}/download`;
+    await selected(async () => {
+        expect(
+            await lightdashApi({ method: 'GET', url, body: undefined }),
+        ).toEqual({ fixture: true });
+    });
+    assertRequests([...proofRequests(), ['GET', url, connectionAuth]]);
+});
+it('accepts multiple trailing instance slashes but refuses the selected request before HTTP', async () => {
+    // LIKELY DEFECT: Canonicalisation removes all trailing slashes but selected route slicing removes only one.
+    await configureMount('/lightdash', true);
+    const { canonicalInstanceUrl } = await import('./schema');
+    vi.stubEnv('LIGHTDASH_URL', `${instance}//`);
+    expect(canonicalInstanceUrl(`${instance}//`)).toBe(instance);
+    const { lightdashRawApi } = await import('../handlers/dbt/apiClient');
+    await expect(
+        selected(async () => {
+            await lightdashRawApi({
+                method: 'GET',
+                url: '/api/v1/user',
+                body: undefined,
+            });
+        }),
+    ).rejects.toThrow(
+        'This request is not available with an agent connection. No request was sent.',
+    );
+    assertRequests([]);
+});
+// Pins today's ordinary behaviour; it does not rule out a later fix for ordinary commands.
+it.each(['', '/lightdash', '/lightdash/', '/tools/lightdash'])(
+    'keeps ordinary API paths at the origin root for configured prefix %s',
+    async (prefix) => {
+        await configureMount('', false);
+        vi.stubEnv('LIGHTDASH_URL', `${instance}${prefix}`);
+        const { lightdashRawApi } = await import('../handlers/dbt/apiClient');
+        expect(
+            (
+                await lightdashRawApi({
+                    method: 'GET',
+                    url: '/api/v1/user',
+                    body: undefined,
+                })
+            ).status,
+        ).toBe(200);
+        expect(calls).toHaveLength(1);
+        expect(calls[0]).toMatchObject({
+            method: 'GET',
+            url: '/api/v1/user',
+            auth: personalAuth,
+            proxy: undefined,
+        });
+        expect(sinkCalls).toEqual([]);
+    },
+);
+// Pins today's ordinary behaviour; it does not rule out a later fix for ordinary commands.
+it.each([301, 302, 303, 307, 308])(
+    'keeps ordinary same-origin redirect following for %s',
+    async (codeValue) => {
+        await configureMount('', false);
+        vi.stubEnv('LIGHTDASH_URL', `${instance}/lightdash`);
+        vi.stubEnv('LIGHTDASH_PROXY_AUTHORIZATION', proxyMarker);
+        redirectAt = 1;
+        redirectCode = codeValue;
+        redirectLocation = `${instance}/api/v1/user`;
+        const { lightdashRawApi } = await import('../handlers/dbt/apiClient');
+        expect(
+            (
+                await lightdashRawApi({
+                    method: 'GET',
+                    url: '/api/v1/user',
+                    body: undefined,
+                })
+            ).status,
+        ).toBe(200);
+        assertRequests([
+            ['GET', '/api/v1/user', personalAuth],
+            ['GET', '/api/v1/user', personalAuth],
+        ]);
+    },
+);
+// Pins today's ordinary behaviour; it does not rule out a later fix for ordinary commands.
+it.each(['connect', 'status'])(
+    'keeps bare agent %s on the personal root transport',
+    async (command) => {
+        await configureMount('', false);
+        vi.stubEnv('LIGHTDASH_URL', `${instance}/lightdash`);
+        vi.stubEnv('LIGHTDASH_PROJECT', projectUuid);
+        if (command === 'status') {
+            const { agentStatusHandler } =
+                await import('../handlers/agentStatus');
+            await agentStatusHandler({ verbose: false });
+        } else {
+            const { Command } = await import('commander');
+            const { registerAgentConnectionConnect } =
+                await import('../agentConnectionConnectOption');
+            const { agentConnectHandler } =
+                await import('../handlers/agentConnect');
+            const program = new Command();
+            registerAgentConnectionConnect(
+                program.command('connect'),
+                agentConnectHandler,
+            );
+            await program.parseAsync(['connect'], { from: 'user' });
+        }
+        expect(calls).toHaveLength(1);
+        expect(calls[0]).toMatchObject({
+            method: 'GET',
+            url: warehousePath,
+            auth: personalAuth,
+            proxy: undefined,
+        });
+        expect(sinkCalls).toEqual([]);
+    },
+);
+// Pins today's ordinary behaviour; it does not rule out a later fix for ordinary commands.
+it('saves ordinary token login without its input path', async () => {
+    await configureMount('', false);
+    const { LightdashAnalytics } = await import('../analytics/analytics');
+    vi.spyOn(LightdashAnalytics, 'track').mockResolvedValue();
+    vi.spyOn(LightdashAnalytics, 'identify').mockResolvedValue();
+    const { login } = await import('../handlers/login');
+    await login(`${instance}/lightdash`, {
+        token: personalMarker,
+        verbose: false,
+    });
+    expect((await config.getConfig()).context?.serverUrl).toBe(instance);
+    expect(calls.map(({ url, auth }) => ({ url, auth }))).toEqual([
+        { url: '/api/v1/health?skipMigrationCheck=true', auth: personalAuth },
+        { url: '/api/v1/user', auth: personalAuth },
+        { url: '/api/v1/org/projects', auth: personalAuth },
+    ]);
+    expect(sinkCalls).toEqual([]);
+});
+
+it('opens the locally rebuilt approval URL when browser launch is enabled', async () => {
+    await configureMount('/lightdash', true);
+    approval.authorizationUrl = `${instance}/api/v1/oauth/authorize?agent_request=${projectUuid}&extra=drop-me`;
+    deliverApproval = true;
+    vi.stubEnv('CI', undefined);
+    globalState.default.setNonInteractive(false);
+    const launchBrowser = vi.fn(async () => true);
+    await connect.agentConnectionConnectHandler(
+        { verbose: false, timeout: 3 },
+        { launchBrowser },
+    );
+    await callbackDone;
+    assertRequests(connectRequests());
+    expect(launchBrowser).toHaveBeenCalledExactlyOnceWith(
+        `${instance}/api/v1/oauth/authorize?agent_request=${projectUuid}`,
+    );
+    expect(process.exitCode).toBe(0);
+});
