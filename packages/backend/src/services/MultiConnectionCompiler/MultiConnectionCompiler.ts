@@ -126,6 +126,12 @@ const withErrorSource = (
         : explore;
 };
 
+class ExtraConnectionCheckError extends Error {
+    constructor(readonly refusal: unknown) {
+        super('Extra connection check failed');
+    }
+}
+
 export class MultiConnectionCompiler {
     private readonly projectModel: ProjectModel;
 
@@ -206,6 +212,7 @@ export class MultiConnectionCompiler {
         dbtVersion,
         fetchSourceManifest,
         loadExtraCredentials,
+        beforeAcquireClient,
         trackingParams,
         warnings,
     }: {
@@ -215,12 +222,20 @@ export class MultiConnectionCompiler {
         dbtVersion: SupportedDbtVersions;
         fetchSourceManifest: FetchSourceManifest;
         loadExtraCredentials: LoadExtraConnectionCredentials;
+        beforeAcquireClient?: () => Promise<void>;
         trackingParams: TrackingParams | undefined;
         warnings: string[];
     }): Promise<CompiledExtraGroup> {
         const credentials = await loadExtraCredentials(
             plan.warehouseConnectionUuid,
         );
+        if (beforeAcquireClient) {
+            try {
+                await beforeAcquireClient();
+            } catch (error) {
+                throw new ExtraConnectionCheckError(error);
+            }
+        }
         return this.warehouseClientFactory.withWarehouseClient(
             {
                 kind: 'compile',
@@ -323,6 +338,7 @@ export class MultiConnectionCompiler {
         includeUnboundSources,
         fetchSourceManifest,
         loadExtraCredentials,
+        beforeLoadExtraCredentials,
         trackingParams,
         analytics,
     }: {
@@ -333,6 +349,7 @@ export class MultiConnectionCompiler {
         includeUnboundSources: boolean;
         fetchSourceManifest: FetchSourceManifest;
         loadExtraCredentials: LoadExtraConnectionCredentials;
+        beforeLoadExtraCredentials?: () => Promise<void>;
         trackingParams?: TrackingParams;
         analytics?: LightdashAnalytics;
     }): Promise<MultiConnectionCompilation> {
@@ -394,6 +411,7 @@ export class MultiConnectionCompiler {
             const extraPlan = plan as CompileGroupPlan & {
                 warehouseConnectionUuid: string;
             };
+            if (beforeLoadExtraCredentials) await beforeLoadExtraCredentials();
             try {
                 compiledExtraGroups.push(
                     await this.compileExtraGroup({
@@ -403,11 +421,14 @@ export class MultiConnectionCompiler {
                         dbtVersion,
                         fetchSourceManifest,
                         loadExtraCredentials,
+                        beforeAcquireClient: beforeLoadExtraCredentials,
                         trackingParams,
                         warnings,
                     }),
                 );
             } catch (error) {
+                if (error instanceof ExtraConnectionCheckError)
+                    throw error.refusal;
                 if (error instanceof ManifestCollisionError) throw error;
                 failedConnectionUuids.push(extraPlan.warehouseConnectionUuid);
                 if (analytics) {
