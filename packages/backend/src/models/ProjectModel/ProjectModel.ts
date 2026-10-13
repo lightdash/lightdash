@@ -4431,9 +4431,17 @@ export class ProjectModel {
                 .select<
                     Pick<
                         DbProject,
-                        'project_id' | 'project_uuid' | 'organization_id'
+                        | 'project_id'
+                        | 'project_uuid'
+                        | 'organization_id'
+                        | 'created_by_user_uuid'
                     >[]
-                >('project_id', 'project_uuid', 'organization_id')
+                >(
+                    'project_id',
+                    'project_uuid',
+                    'organization_id',
+                    'created_by_user_uuid',
+                )
                 .whereIn('project_uuid', [
                     upstreamProjectUuid,
                     previewProjectUuid,
@@ -4463,6 +4471,7 @@ export class ProjectModel {
                 DbProjectMembership,
                 'user_id' | 'role' | 'role_uuid'
             > & {
+                user_uuid: string;
                 is_internal: boolean;
                 organization_id: number | null;
             };
@@ -4489,6 +4498,7 @@ export class ProjectModel {
                     user_id: `${ProjectMembershipsTableName}.user_id`,
                     role: `${ProjectMembershipsTableName}.role`,
                     role_uuid: `${ProjectMembershipsTableName}.role_uuid`,
+                    user_uuid: `${UserTableName}.user_uuid`,
                     is_internal: `${UserTableName}.is_internal`,
                     organization_id: `${OrganizationMembershipsTableName}.organization_id`,
                 })
@@ -4496,9 +4506,11 @@ export class ProjectModel {
                     `${ProjectMembershipsTableName}.project_id`,
                     upstreamProject.project_id,
                 );
+            // Service accounts only follow their access into previews they created.
             const eligibleProjectAccesses = projectAccesses.filter(
-                ({ is_internal, organization_id }) =>
-                    !is_internal &&
+                ({ user_uuid, is_internal, organization_id }) =>
+                    (!is_internal ||
+                        user_uuid === previewProject.created_by_user_uuid) &&
                     organization_id === previewProject.organization_id,
             );
             const groupAccesses = await trx(ProjectGroupAccessTableName)
