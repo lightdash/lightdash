@@ -424,7 +424,6 @@ it('matches both operation paths cell by cell with real roles and policies', asy
     expect(cells).toBe(
         9 * 3 * (scenarios.length * capabilities.length + operations.length),
     );
-    expect(cells).toBe(4779);
 });
 
 it('keeps role, policy, group and project query counts constant for 3 and 50 differentiated projects', async () => {

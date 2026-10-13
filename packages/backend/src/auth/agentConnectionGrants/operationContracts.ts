@@ -155,6 +155,7 @@ const operationContracts = {
     'QueryController.executeAsyncMetricQuery': pathProject,
     'QueryController.executeAsyncSqlQuery': pathProject,
     'QueryController.executeAsyncComposeSqlQuery': pathProject,
+    'QueryController.executeAsyncPythonQuery': pathProject,
     'QueryController.getAsyncQueryResults': {
         kind: 'resource',
         resourceType: 'query',

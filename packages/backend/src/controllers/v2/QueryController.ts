@@ -40,6 +40,7 @@ import {
     type ExecuteAsyncDashboardSqlChartRequestParams,
     type ExecuteAsyncFieldValueSearchRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
+    type ExecuteAsyncPythonQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncSqlChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
@@ -676,6 +677,40 @@ export class QueryController extends BaseController {
                 limit: body.limit,
                 references: body.references,
                 context: context ?? QueryExecutionContext.COMPOSE_SQL_RUNNER,
+            });
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Executes python `run(inputs, params)` asynchronously in an isolated sandbox over other async queries' results. Requires run-queries access (interactive viewer and up) and the compose-sql-runner feature flag. The references map exposes other queries' results as pandas DataFrames in `inputs` ({"orders": "queryUuid"} is read as inputs["orders"]); each referenced query is authorized with the same access checks as Get results and still-running references are waited on. The returned DataFrame is validated, capped at `limit` rows and stored as a regular result. The sandbox has no network access and no credentials. Returns a queryUuid to poll for results via Get results.
+     * @summary Execute python query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/python')
+    @OperationId('executeAsyncPythonQuery')
+    async executeAsyncPythonQuery(
+        @Body()
+        body: ExecuteAsyncPythonQueryRequestParams,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<ApiExecuteAsyncSqlQueryResults>> {
+        this.setStatus(200);
+        const context = body.context ?? getContextFromHeader(req);
+
+        const results = await this.services
+            .getAsyncQueryService()
+            .executeAsyncPythonQuery({
+                account: req.account!,
+                projectUuid,
+                code: body.code,
+                limit: body.limit,
+                references: body.references,
+                context: context ?? QueryExecutionContext.PYTHON_RUNNER,
             });
 
         return {
