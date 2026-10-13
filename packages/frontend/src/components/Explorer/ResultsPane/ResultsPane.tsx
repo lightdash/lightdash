@@ -15,6 +15,7 @@ import { ExplorerSection } from '../../../providers/Explorer/types';
 import ResultsCard from '../ResultsCard/ResultsCard';
 import SqlCard from '../SqlCard/SqlCard';
 import classes from './ResultsPane.module.css';
+import { useResultsRowCount } from './useResultsRowCount';
 
 // Walkthrough markers for view:SavedChart: reading a chart means opening it
 // from Browse and unfolding the rows behind it. See scripts/scope-tours.
@@ -68,6 +69,13 @@ const ResultsPane: FC<Props> = memo(
         const tableName = useExplorerSelector(selectTableName);
         const isResultsExpanded = useExplorerSelector(selectIsResultsExpanded);
         const isSqlExpanded = useExplorerSelector(selectIsSqlExpanded);
+        const rowCount = useResultsRowCount();
+        const resultsLabel =
+            rowCount === null
+                ? 'Results'
+                : `Results (${rowCount.toLocaleString()} ${
+                      rowCount === 1 ? 'row' : 'rows'
+                  })`;
 
         const { user } = useApp();
         const ability = useAbilityContext();
@@ -118,7 +126,7 @@ const ResultsPane: FC<Props> = memo(
                                 data-testid="results-pane-tab-results"
                                 {...RESULTS_TAB_TOUR_PROPS}
                             >
-                                Results
+                                {resultsLabel}
                             </Box>
                         ),
                     },
@@ -138,7 +146,7 @@ const ResultsPane: FC<Props> = memo(
             />
         ) : (
             <Title order={6} {...RESULTS_TAB_TOUR_PROPS}>
-                Results
+                {resultsLabel}
             </Title>
         );
 
