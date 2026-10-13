@@ -1,26 +1,11 @@
 import './tracing/bootstrap'; // Must run before modules that can load Knex
-import { z } from 'zod';
 import { lightdashConfig } from './config/lightdashConfig';
 import { getEnterpriseAppArguments } from './ee';
 import knexConfig from './knexfile';
 import Logger from './logging/logger';
-import {
-    getRegisteredStreams,
-    natsWorkerStreamSchema,
-    type NatsWorkerStream,
-} from './nats/natsConfig';
+import { getRegisteredStreams } from './nats/natsConfig';
+import { parseNatsWorkerStreams } from './nats/parseNatsWorkerStreams';
 import NatsWorkerApp from './NatsWorkerApp';
-
-const parseStreams = (): NatsWorkerStream[] => {
-    const streams: NatsWorkerStream[] = [];
-    const args = process.argv.slice(2);
-    args.forEach((arg, i) => {
-        if (arg === '--stream' && args[i + 1]) {
-            streams.push(natsWorkerStreamSchema.parse(args[i + 1]));
-        }
-    });
-    return streams.length > 0 ? streams : getRegisteredStreams();
-};
 
 // Winston (handleExceptions/handleRejections in winston.ts) owns structured logging
 // for both events. Logger uses exitOnError: false so rejections are tolerated.
@@ -32,7 +17,20 @@ process.on('uncaughtException', () => {
 (async () => {
     if (process.env.CI !== 'true') {
         const eeArgs = await getEnterpriseAppArguments();
-        const streams = parseStreams();
+        const { streams, retiredStreams } = parseNatsWorkerStreams(
+            process.argv.slice(2),
+            getRegisteredStreams(),
+        );
+        if (retiredStreams.includes('duckdb')) {
+            // Idle rather than crash-loop: the HTTP health server keeps the process up.
+            Logger.warn(
+                `NATS worker stream "duckdb" no longer exists: SQL transformations and merge queries now run in a sandbox started by the backend. Remove "--stream duckdb" from this worker.${
+                    streams.length === 0
+                        ? ' No other stream was requested, so this worker stays idle.'
+                        : ''
+                }`,
+            );
+        }
         const natsWorkerApp = new NatsWorkerApp({
             lightdashConfig,
             port: process.env.NATS_WORKER_PORT || process.env.PORT || 8082,
