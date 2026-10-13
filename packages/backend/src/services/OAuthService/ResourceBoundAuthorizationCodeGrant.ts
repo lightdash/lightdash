@@ -6,6 +6,7 @@ import {
     OAuthTokenBinding,
     withOAuthTokenBinding,
 } from '../../auth/oauthScopes/oauthTokenBinding';
+import { isClientIdMetadataDocumentUrl } from './clientIdMetadataDocument';
 
 export const createResourceBoundAuthorizationCodeGrant = (
     resolveStrict: (user: OAuth2Server.User) => Promise<boolean>,
@@ -15,6 +16,8 @@ export const createResourceBoundAuthorizationCodeGrant = (
         private binding: OAuthTokenBinding;
 
         private strict = false;
+
+        private publicDocumentClient = false;
 
         constructor(
             options: OAuth2Server.TokenOptions & {
@@ -40,6 +43,9 @@ export const createResourceBoundAuthorizationCodeGrant = (
             client: OAuth2Server.Client,
         ): Promise<OAuth2Server.AuthorizationCode> {
             const code = await super.getAuthorizationCode(request, client);
+            this.publicDocumentClient = isClientIdMetadataDocumentUrl(
+                client.id,
+            );
             this.binding.agentConnectionGrantUuid =
                 code.agentConnectionGrantUuid ?? null;
             this.strict =
@@ -60,7 +66,10 @@ export const createResourceBoundAuthorizationCodeGrant = (
             request: OAuth2Server.Request,
             code: OAuth2Server.AuthorizationCode,
         ): void {
-            if (this.strict && !code.codeChallenge)
+            if (
+                (this.strict || this.publicDocumentClient) &&
+                !code.codeChallenge
+            )
                 throw new OAuth2Server.InvalidGrantError(
                     'Authorization code requires PKCE',
                 );

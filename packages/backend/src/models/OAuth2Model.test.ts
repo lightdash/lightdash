@@ -1234,3 +1234,93 @@ describe('OAuth2Model explicit security methods', () => {
         ).resolves.toBe(true);
     });
 });
+
+describe('OAuth2Model.getClient client id metadata documents', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const clientId = 'https://claude.ai/oauth/claude-code-client-metadata';
+    const document = {
+        clientId,
+        clientName: 'Claude Code',
+        redirectUris: ['http://localhost/callback'],
+        grantTypes: ['authorization_code', 'refresh_token'],
+    };
+    const resolver = { resolve: vi.fn() };
+    const model = new OAuth2Model(
+        database as unknown as Knex,
+        lightdashConfig,
+        featureFlagModel,
+        resolver,
+    );
+    let tracker: Tracker;
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+
+    beforeEach(() => {
+        resolver.resolve.mockResolvedValue(document);
+        featureFlagModel.get.mockClear();
+    });
+
+    afterEach(() => {
+        tracker.reset();
+        resolver.resolve.mockReset();
+    });
+
+    it('materialises the document as a public client', async () => {
+        tracker.on.insert('oauth2_clients').responseOnce([]);
+
+        const client = await model.getClient(clientId);
+
+        expect(client).toEqual({
+            clientId,
+            id: clientId,
+            scopes: [],
+            redirectUris: ['http://localhost/callback'],
+            grants: ['authorization_code', 'refresh_token'],
+            refreshTokenLifetime: undefined,
+        });
+        expect(resolver.resolve).toHaveBeenCalledExactlyOnceWith(clientId);
+        expect(tracker.history.select).toHaveLength(0);
+        const [upsert] = tracker.history.insert;
+        expect(upsert.sql).toContain('on conflict ("client_id") do update');
+        expect(upsert.bindings).toContain(clientId);
+        expect(upsert.bindings).toContain('Claude Code');
+    });
+
+    it('refuses a client secret for a document client', async () => {
+        await expect(model.getClient(clientId, 'secret')).resolves.toBe(false);
+        expect(resolver.resolve).not.toHaveBeenCalled();
+        expect(tracker.history.insert).toHaveLength(0);
+    });
+
+    it('resolves document clients without the strict security flag', async () => {
+        featureFlagModel.get.mockResolvedValue({ enabled: false } as Awaited<
+            ReturnType<FeatureFlagModel['get']>
+        >);
+        tracker.on.insert('oauth2_clients').responseOnce([]);
+        const client = await model.getClient(clientId);
+        expect(client && client.id).toBe(clientId);
+        expect(featureFlagModel.get).not.toHaveBeenCalled();
+    });
+
+    it('refuses unresolvable documents without touching the database', async () => {
+        resolver.resolve.mockResolvedValue(null);
+        await expect(model.getClient(clientId)).resolves.toBe(false);
+        expect(tracker.history.insert).toHaveLength(0);
+    });
+
+    it('keeps looking up stored clients by id', async () => {
+        tracker.on.select('oauth2_clients').responseOnce({
+            client_id: 'mcp-stored',
+            client_secret: null,
+            redirect_uris: [cliRedirectUri],
+            grants: ['authorization_code'],
+            scopes: [],
+            client_name: 'Stored',
+        });
+        const client = await model.getClient('mcp-stored');
+        expect(client && client.id).toBe('mcp-stored');
+        expect(resolver.resolve).not.toHaveBeenCalled();
+    });
+});
