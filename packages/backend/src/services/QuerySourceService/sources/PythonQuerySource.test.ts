@@ -74,8 +74,8 @@ describe('PythonQuerySource', () => {
     it('submits the code with node references resolved to queryUuids', async () => {
         const { source, executeAsyncPythonQuery } = createSource();
 
-        const result = await source.submitQuery(
-            submitArgs(
+        const result = await source.submitQuery({
+            ...submitArgs(
                 {
                     sourceType: QuerySourceType.PYTHON,
                     nodeId: 'forecast',
@@ -85,7 +85,9 @@ describe('PythonQuerySource', () => {
                 },
                 { orders: 'orders-query-uuid' },
             ),
-        );
+            parameters: { region: 'EMEA' },
+            invalidateCache: true,
+        });
 
         expect(result).toEqual({
             queryUuid: 'python-query-uuid',
@@ -97,6 +99,8 @@ describe('PythonQuerySource', () => {
             code,
             limit: 100,
             references: { orders: 'orders-query-uuid', prev: storedUuid },
+            parameters: { region: 'EMEA' },
+            invalidateCache: true,
             context: QueryExecutionContext.AI,
             querySurface: undefined,
         });

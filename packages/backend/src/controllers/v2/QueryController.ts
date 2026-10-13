@@ -710,6 +710,8 @@ export class QueryController extends BaseController {
                 code: body.code,
                 limit: body.limit,
                 references: body.references,
+                parameters: body.parameters,
+                invalidateCache: body.invalidateCache,
                 context: context ?? QueryExecutionContext.PYTHON_RUNNER,
             });
 

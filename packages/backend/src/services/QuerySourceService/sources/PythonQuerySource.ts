@@ -72,10 +72,9 @@ export class PythonQuerySource implements QuerySourceClient {
     }
 
     /**
-     * Every submission runs: the result file is keyed per submission, so
-     * there is never a cache hit to report. Parameters and user attribute
-     * overrides have nothing to apply to; the referenced results were
-     * produced under them.
+     * A cache hit is only known once the references resolve, so submission
+     * never reports one. User attribute overrides have nothing to apply to;
+     * the referenced results were produced under them.
      */
     async submitQuery({
         account,
@@ -84,6 +83,8 @@ export class PythonQuerySource implements QuerySourceClient {
         querySurface,
         query,
         resolvedReferences,
+        parameters,
+        invalidateCache,
     }: SubmitSourceQueryArgs): Promise<SourceQuerySubmissionResult> {
         const sourceQuery = PythonQuerySource.assertSourceQuery(query);
         const references = Object.fromEntries(
@@ -101,6 +102,8 @@ export class PythonQuerySource implements QuerySourceClient {
                 code: sourceQuery.code,
                 limit: sourceQuery.limit,
                 references,
+                parameters,
+                invalidateCache,
                 context,
                 querySurface,
             });
