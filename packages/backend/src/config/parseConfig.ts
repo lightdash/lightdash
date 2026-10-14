@@ -1647,6 +1647,15 @@ export type LightdashConfig = {
     lightdashSecrets: LightdashSecrets;
     secureCookies: boolean;
     cookieSameSite?: 'lax' | 'none';
+    /**
+     * The API server polls Docker Hub for the newest published tag so the UI
+     * can show an "update available" badge. `LIGHTDASH_DISABLE_UPDATE_CHECK=true`
+     * stops every call to hub.docker.com, for deployments with an egress
+     * allowlist.
+     */
+    updateCheck: {
+        enabled: boolean;
+    };
     security: {
         contentSecurityPolicy: {
             reportOnly: boolean;
@@ -3417,6 +3426,9 @@ export const parseConfig = (): LightdashConfig => {
         lightdashSecret,
         lightdashSecrets,
         secureCookies,
+        updateCheck: {
+            enabled: process.env.LIGHTDASH_DISABLE_UPDATE_CHECK !== 'true',
+        },
         cookiesMaxAgeHours: getIntegerFromEnvironmentVariable(
             'COOKIES_MAX_AGE_HOURS',
         ),

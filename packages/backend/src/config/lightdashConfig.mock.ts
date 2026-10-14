@@ -238,6 +238,7 @@ export const lightdashConfigMock: LightdashConfig = {
         },
     },
     secureCookies: false,
+    updateCheck: { enabled: true },
     sentry: {
         backend: {
             dsn: '',
