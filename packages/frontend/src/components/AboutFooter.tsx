@@ -29,6 +29,11 @@ import {
     FOOTER_MARGIN,
     PAGE_CONTENT_WIDTH,
 } from './common/Page/constants';
+import {
+    getChangesSinceVersionUrl,
+    RELEASE_NOTES_URL,
+    UPDATE_LIGHTDASH_DOCS_URL,
+} from './upgradeNoticeLinks';
 
 const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
     minimal,
@@ -36,9 +41,11 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const { health: healthState } = useApp();
+    const currentVersion = healthState.data?.version;
+    const latestVersion = healthState.data?.latest.version;
     const showUpdateBadge =
-        healthState.data?.latest.version &&
-        healthState.data.version !== healthState.data.latest.version &&
+        !!latestVersion &&
+        currentVersion !== latestVersion &&
         healthState.data?.mode === LightdashMode.DEFAULT;
     // Cloud plans are per organization; the instance license says nothing about them
     const isCloud = healthState.data?.mode === LightdashMode.CLOUD_BETA;
@@ -193,27 +200,52 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                             </Stack>
                         </Paper>
 
-                        {showUpdateBadge && (
+                        {showUpdateBadge && currentVersion && latestVersion && (
                             <Alert
                                 title="New version available!"
                                 color="blue"
                                 icon={<IconInfoCircle size={17} />}
                             >
-                                <Text>
-                                    The version v
-                                    {healthState.data?.latest.version} is now
-                                    available. Please follow the instructions in
-                                    the{' '}
-                                    <Anchor
-                                        href="https://docs.lightdash.com/self-host/update-lightdash"
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        underline="always"
-                                    >
-                                        How to update version
-                                    </Anchor>{' '}
-                                    documentation.
-                                </Text>
+                                <Stack gap="xs">
+                                    <Text>
+                                        The version v{latestVersion} is now
+                                        available. Please follow the
+                                        instructions in the{' '}
+                                        <Anchor
+                                            href={UPDATE_LIGHTDASH_DOCS_URL}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            underline="always"
+                                        >
+                                            How to update version
+                                        </Anchor>{' '}
+                                        documentation.
+                                    </Text>
+                                    <Group gap="md">
+                                        <Anchor
+                                            href={getChangesSinceVersionUrl(
+                                                currentVersion,
+                                                latestVersion,
+                                            )}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            underline="always"
+                                            fz="sm"
+                                        >
+                                            See what's changed since v
+                                            {currentVersion}
+                                        </Anchor>
+                                        <Anchor
+                                            href={RELEASE_NOTES_URL}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            underline="always"
+                                            fz="sm"
+                                        >
+                                            Release notes
+                                        </Anchor>
+                                    </Group>
+                                </Stack>
                             </Alert>
                         )}
 
