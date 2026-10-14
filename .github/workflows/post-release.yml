@@ -767,10 +767,8 @@ jobs:
             tag_env: E2B_DUCKDB_TEMPLATE_TAG
             extra_tags_env: E2B_DUCKDB_TEMPLATE_EXTRA_TAGS
             source_tag_env: E2B_DUCKDB_TEMPLATE_SOURCE_TAG
-            additional_watch_paths: |
-              packages/common
-              packages/warehouses
-            install_root_deps: true
+            additional_watch_paths: ''
+            install_root_deps: false
           - display_name: agent onboarding E2B template
             directory: sandboxes/agent-onboarding
             name: lightdash-agent-onboarding

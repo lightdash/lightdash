@@ -3,19 +3,17 @@
  * Builds and uploads the e2b sandbox template for Lightdash DuckDB (composer
  * and merge) queries.
  *
- * The template pre-installs the workspace's @lightdash/common and
- * @lightdash/warehouses packages (packed by pack-packages.sh before the build);
- * the runner script is written in per run by the backend.
+ * The template is python:3.12-slim plus the duckdb wheel pinned in
+ * requirements.txt; the runner script is written in per run by the backend.
  *
  * Prerequisites:
- *   pnpm install      # here, and in the repo root (pack step builds workspace packages)
+ *   pnpm install      # here
  *   Add E2B_API_KEY to .env
  *
  * Usage:
  *   npx tsx build-sandbox.ts
  */
 import { Template } from 'e2b';
-import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -27,10 +25,6 @@ if (fs.existsSync('.env')) {
         }
     }
 }
-
-execFileSync('bash', [path.resolve('pack-packages.sh')], {
-    stdio: 'inherit',
-});
 
 const dockerfile = fs.readFileSync('e2b.Dockerfile', 'utf-8');
 

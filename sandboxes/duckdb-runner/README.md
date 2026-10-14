@@ -1,21 +1,36 @@
 # duckdb-runner sandbox
 
-Image for composer and merge DuckDB queries. Per run the backend writes the
-referenced result files into `/work/in/<table>.jsonl`, a runner script to
-`/work/runner.mjs` plus `probe.sql` / `run.sql` / `settings.json`, then runs
-`node /work/runner.mjs probe|run` and reads `/work/out/probe.json`,
-`/work/out/result.jsonl` and `/work/out/meta.json` back. DuckDB spills to
-`/work/tmp`. The sandbox has no egress and no credentials.
+Image for composer and merge DuckDB queries: `python:3.12-slim` plus the
+`duckdb` wheel pinned in `requirements.txt`, and nothing else. No Lightdash
+code is installed; the sandbox has no egress and no credentials.
 
-The runner loads the same DuckDB warehouse client the server uses:
+Per run the backend (`DuckdbSandboxRunner`) writes into `/work`:
 
-```js
-createRequire(import.meta.url)(
-    '@lightdash/warehouses/dist/warehouseClients/DuckdbWarehouseClient',
-);
-```
+| Path | Contents |
+|---|---|
+| `runner.py` | the runner (`DUCKDB_RUNNER_SOURCE` in `duckdbSandboxHarness.ts`); its hash is part of the results cache key |
+| `settings.json` | `{ "memoryLimit": "1GB", "threads": 2 }` |
+| `probe.sql`, `run.sql` | one SELECT each; `probe.sql` only for discovered columns |
+| `in/<table>.jsonl` | referenced results |
+| `tmp/` | DuckDB spill |
 
-It resolves through `NODE_PATH=/opt/lightdash/node_modules`.
+and runs `python3 -I /work/runner.py probe|run /work`, then reads back
+`out/probe.json` (`{ fields }`), `out/result.jsonl` and `out/meta.json`
+(`{ fields, rowCount }`). A failure exits 1 with the DuckDB message on stderr.
+
+The runner opens an in-memory DuckDB and, before any user SQL, sets
+`allowed_directories=['/work/in']`, `temp_directory`, `memory_limit`,
+`threads`, the server client's hardening settings, `TimeZone='UTC'`,
+`enable_external_access=false` and `lock_configuration=true`. It refuses
+anything but a single SELECT. Rows are written exactly as the server's DuckDB
+client (`@duckdb/node-api` JSON values, `JSON.stringify` bytes) wrote them:
+BIGINT/HUGEINT/DECIMAL as strings, dates and times as DuckDB prints them,
+intervals as `{months, days, micros}`. Zero-row results still report fields.
+`duckdbRunnerParity.test.ts` pins that against node-api for every DuckDB type.
+
+Keep `requirements.txt` on the same minor as `@duckdb/node-api` in
+`packages/backend/package.json`; `DuckdbSandboxRunner.test.ts` fails when they
+disagree.
 
 - Production: `SANDBOX_PROVIDER=e2b`, template `E2B_DUCKDB_TEMPLATE_NAME` at tag
   `E2B_DUCKDB_TEMPLATE_TAG`. Sized at 2 vCPU / 2 GB (`build-sandbox.ts`).
@@ -37,33 +52,28 @@ Build-time variables: `E2B_DUCKDB_TEMPLATE_NAME`, `E2B_DUCKDB_TEMPLATE_TAG`,
 `E2B_DUCKDB_TEMPLATE_EXTRA_TAGS` (`build-sandbox.ts`) and
 `E2B_DUCKDB_TEMPLATE_SOURCE_TAG` (`assign-tag.ts`).
 
-## Packaging
+## Tests
 
-`pack-packages.sh` builds `packages/common` and `packages/warehouses` from the
-workspace and `pnpm pack`s them here as `lightdash-common.tgz` and
-`lightdash-warehouses.tgz` (gitignored). `build-sandbox.ts` and
-`build-local-image.sh` both run it first, so the repo root needs `pnpm install`.
-The image installs both tarballs together from `image-package.json`, whose
-`overrides` pins `@lightdash/common` to the local tarball. Warehouses never
-resolves common from the registry (`package-lock.json` in the image shows
-`"resolved": "file:lightdash-common.tgz"`). Dependency install scripts are
-skipped (`--ignore-scripts`); DuckDB's native binding is a prebuilt platform
-package.
+Backend tests run the real `runner.py` as a local process
+(`LocalProcessSandboxProvider`), so the host needs a `python3` that can
+`import duckdb` at the pinned version. The provider puts the repo's
+`venv/bin` first on `PATH`:
 
-Chosen: the full warehouses install (every warehouse driver), not an esbuild
-bundle of the DuckDB client. Measured on arm64 (Docker 29.4): image 748 MB
-(`/opt/lightdash/node_modules` 445 MB; node:24-slim base ~250 MB). Image build
-takes ~55 s after the packages are built. That is well under the 1.5 GB
-threshold, so the bundle fallback was not needed.
+```bash
+venv/bin/pip install -r sandboxes/duckdb-runner/requirements.txt
+```
+
+CI installs the same file with `actions/setup-python` (Python 3.12) before
+`pnpm test` in the `build-and-test` job of `.github/workflows/pr.yml`.
 
 ## Publishing
 
 Every release publishes the template to both E2B regions through the
 `e2b-templates` matrix in `.github/workflows/post-release.yml`. It builds
-`lightdash-duckdb-runner:<version>` (and moves `:latest`) when this directory,
-`packages/common` or `packages/warehouses` changed since the previous release.
-Otherwise it retags `:latest` with the release version. Builds install root deps
-first (`install_root_deps: true`) for the pack step. Manual build:
+`lightdash-duckdb-runner:<version>` (and moves `:latest`) when this directory
+changed since the previous release, otherwise it retags `:latest` with the
+release version. The runner script ships with the backend, so a runner change
+needs no new template. Manual build:
 
 ```bash
 sfw pnpm install --frozen-lockfile
@@ -72,81 +82,41 @@ E2B_API_KEY=... E2B_DUCKDB_TEMPLATE_TAG=<tag> pnpm run build   # add --no-cache 
 
 ## Verifying locally
 
+Build the image, write the real runner and a JSONL fixture into a directory,
+and run a probe and a run as the image's `user` with no network:
+
 ```bash
 ./build-local-image.sh            # -> lightdash-duckdb-runner:local
+
+mkdir -p /tmp/duckdb-proof/in && cd /tmp/duckdb-proof
+pnpm -s -F backend exec tsx -e "process.stdout.write(require('./src/services/AsyncQueryService/duckdb/duckdbSandboxHarness').DUCKDB_RUNNER_SOURCE)" > runner.py   # from the repo root
+printf '{"customer":"ann","amount":"10"}\n{"customer":"bob","amount":"5"}\n{"customer":"ann","amount":"7"}\n' > in/orders.jsonl
+echo '{"memoryLimit":"1GB","threads":2}' > settings.json
+cat > probe.sql <<'SQL'
+WITH orders AS (SELECT * FROM read_json('/work/in/orders.jsonl', columns={"customer": 'VARCHAR', "amount": 'BIGINT'}, format='newline_delimited')) SELECT customer, SUM(amount) AS total, AVG(amount) AS mean FROM orders GROUP BY customer LIMIT 1
+SQL
+sed 's/ LIMIT 1$/ ORDER BY customer/' probe.sql > run.sql
+echo "SELECT * FROM read_text('/etc/hosts')" > escape.sql
+
+docker run --rm --network none -v /tmp/duckdb-proof:/fixture:ro lightdash-duckdb-runner:local sh -c '
+  id && python3 -c "import duckdb; print(duckdb.__version__)" &&
+  cp -r /fixture/. /work/ &&
+  python3 -I /work/runner.py probe /work && cat /work/out/probe.json && echo &&
+  python3 -I /work/runner.py run /work && cat /work/out/result.jsonl /work/out/meta.json && echo &&
+  cp /work/escape.sql /work/run.sql && python3 -I /work/runner.py run /work; echo "exit $?"'
 ```
 
-`proof.mjs` (fed through stdin, run as the image's `user`):
-
-```js
-import { createRequire } from 'node:module';
-import fs from 'node:fs';
-
-const require = createRequire(import.meta.url);
-fs.writeFileSync('/work/in/t.jsonl', '{"a":1}\n{"a":2}\n');
-
-const { DuckdbWarehouseClient } = require('@lightdash/warehouses/dist/warehouseClients/DuckdbWarehouseClient');
-const client = process.env.SKIP_CLIENT ? null : new DuckdbWarehouseClient();
-if (client && process.env.NO_HTTPFS) client.loadExtension = async () => {};
-if (client) await client.streamQuery('SELECT 1 AS x', ({ fields, rows }) => {
-    console.log('client', JSON.stringify({ fields, rows }));
-});
-
-const { DuckDBInstance } = require('@duckdb/node-api');
-const conn = await (await DuckDBInstance.create(':memory:')).connect();
-const reader = await conn.runAndReadAll(
-    "SELECT 1 AS one, sum(a) AS total FROM read_json('/work/in/t.jsonl')",
-);
-console.log('node-api', JSON.stringify(reader.getRowObjectsJson()));
-```
+Expected: `id` shows `user`, the version matches `requirements.txt`, then the
+output below. It was recorded with the same runner and fixture on the host
+(`venv/bin/python3 -I runner.py`, network denied with `sandbox-exec`, paths
+pointed at the fixture directory) because the Docker engine was unavailable
+when this image was rebuilt; re-record it from the container.
 
 ```console
-$ docker run --rm --network none --entrypoint sh lightdash-duckdb-runner:local -c \
-    'id; node -e "require(\"@lightdash/warehouses/dist/warehouseClients/DuckdbWarehouseClient\"); console.log(\"require ok\")"'
-uid=1001(user) gid=1001(user) groups=1001(user)
-require ok
-
-# No network: native binding loads and reads a JSONL input
-$ docker run --rm -i --network none -e SKIP_CLIENT=1 --entrypoint node \
-    lightdash-duckdb-runner:local --input-type=module < proof.mjs
-node-api [{"one":1,"total":"3"}]
-
-# No network: the warehouse client's streamQuery, with httpfs loading skipped
-$ docker run --rm -i --network none -e NO_HTTPFS=1 --entrypoint node \
-    lightdash-duckdb-runner:local --input-type=module < proof.mjs
-client {"fields":{"x":{"type":"number","numericKind":{"kind":"integer"}}},"rows":[{"x":1}]}
-node-api [{"one":1,"total":"3"}]
-
-# With network: the default constructor, unmodified
-$ docker run --rm -i --entrypoint node lightdash-duckdb-runner:local --input-type=module < proof.mjs
-client {"fields":{"x":{"type":"number","numericKind":{"kind":"integer"}}},"rows":[{"x":1}]}
-node-api [{"one":1,"total":"3"}]
+{"fields":{"customer":{"type":"string"},"total":{"type":"number","numericKind":{"kind":"integer"}},"mean":{"type":"number","numericKind":{"kind":"float"}}}}
+{"customer":"ann","total":"17","mean":8.5}
+{"customer":"bob","total":"5","mean":5}
+{"fields":{"customer":{"type":"string"},"total":{"type":"number","numericKind":{"kind":"integer"}},"mean":{"type":"number","numericKind":{"kind":"float"}}},"rowCount":2}
+Permission Error: Cannot access file "/etc/hosts" - file system operations are disabled by configuration
+exit 1
 ```
-
-With `createForLocalFiles` (the sandbox client), no network, as `user`:
-
-```js
-// local.mjs
-import { createRequire } from 'node:module';
-import fs from 'node:fs';
-const require = createRequire(import.meta.url);
-fs.writeFileSync('/work/in/t.jsonl', '{"a":1}\n{"a":2}\n');
-const { DuckdbWarehouseClient } = require('@lightdash/warehouses/dist/warehouseClients/DuckdbWarehouseClient');
-const client = DuckdbWarehouseClient.createForLocalFiles({
-    inputDirectory: '/work/in', tempDirectory: '/work/tmp', memoryLimit: '1GB', threads: 2,
-});
-await client.streamQuery("SELECT 1 AS x, sum(a) AS total FROM read_json('/work/in/t.jsonl')", ({ fields, rows }) => {
-    console.log(JSON.stringify({ fields, rows }));
-});
-```
-
-```console
-$ docker run --rm -i --network none --entrypoint node lightdash-duckdb-runner:local --input-type=module < local.mjs
-{"fields":{"x":{"type":"number","numericKind":{"kind":"integer"}},"total":{"type":"number","numericKind":{"kind":"integer"}}},"rows":[{"x":1,"total":"3"}]}
-```
-
-The default `new DuckdbWarehouseClient()` always runs `INSTALL/LOAD httpfs` in
-session bootstrap. With `--network none` that fails with `Failed to download
-extension "httpfs"`, because the extension isn't baked into the image. Sandbox
-runs use `DuckdbWarehouseClient.createForLocalFiles(...)`, which never loads
-httpfs (shown above).

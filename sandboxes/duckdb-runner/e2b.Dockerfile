@@ -1,24 +1,11 @@
-FROM node:24-slim
+FROM python:3.12-slim
 
-# Runtime for composer/merge DuckDB queries. The backend writes runner.mjs and
-# the inputs into /work per run; the image only carries the DuckDB warehouse
-# client from the workspace's common + warehouses packages (pack-packages.sh).
-RUN npm install -g sfw@2.0.6
-
-# Both tarballs are installed together and @lightdash/common is overridden to
-# the local tarball, so warehouses never resolves common from the registry.
-# --ignore-scripts: no dependency lifecycle scripts; DuckDB ships its native
-# binding as a prebuilt platform package.
-WORKDIR /opt/lightdash
-COPY image-package.json ./package.json
-# One file per COPY: E2B's Dockerfile converter copies only the first source
-# of a multi-source COPY.
-COPY lightdash-common.tgz ./
-COPY lightdash-warehouses.tgz ./
-RUN sfw npm install --omit=dev --ignore-scripts --no-audit --no-fund \
-    && rm lightdash-common.tgz lightdash-warehouses.tgz \
-    && npm cache clean --force
-ENV NODE_PATH=/opt/lightdash/node_modules
+# Runtime for composer/merge DuckDB queries. The backend writes runner.py, the
+# SQL and the inputs into /work per run; the image only carries the pinned
+# duckdb wheel. Keep it on the same minor as @duckdb/node-api in
+# packages/backend/package.json (a backend test checks this).
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt && rm /tmp/requirements.txt
 
 # Runtime workdir the backend writes to: inputs, outputs, DuckDB spill.
 RUN mkdir -p /work/in /work/out /work/tmp

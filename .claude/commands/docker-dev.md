@@ -298,9 +298,9 @@ template, so Docker is the working local path anyway. Public docs:
 1. **Build the local images** (heavy — `lightdash-sandbox:local` ~2.3GB for data apps,
    `lightdash-ai-writeback:local` ~5GB for writeback, `lightdash-agent-onboarding:local`
    ~2.2GB for managed onboarding runs; lighter `lightdash-python-runner:local` for python
-   query nodes and `lightdash-duckdb-runner:local` ~750MB for composer/merge DuckDB queries.
-   Rebuild when the toolchain changes; rebuild the DuckDB runner when `packages/common` or
-   `packages/warehouses` change, since it bakes them in).
+   query nodes and `lightdash-duckdb-runner:local` (python:3.12-slim + the pinned duckdb wheel)
+   for composer/merge DuckDB queries. Rebuild when the toolchain changes; rebuild the DuckDB
+   runner when `sandboxes/duckdb-runner/requirements.txt` changes).
    `dev-fast-start.sh` builds any that are missing whenever the env file has
    `SANDBOX_PROVIDER=docker`, so normally there is nothing to do by hand:
    ```bash
