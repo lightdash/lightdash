@@ -506,7 +506,6 @@ export const lightdashConfigMock: LightdashConfig = {
         s3: null,
     },
     appRuntime: {
-        enabled: false,
         dataAppCodingAgent: 'claude',
         dataAppGatewayBaseUrls: {
             anthropic: null,
