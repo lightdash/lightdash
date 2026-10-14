@@ -22,6 +22,7 @@ import { OAuth2Model } from '../../models/OAuth2Model';
 import { isAllowedStrictRedirectUri } from '../../models/oauthStrictRedirectUri';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
+import { isClientIdMetadataDocumentUrl } from './clientIdMetadataDocument';
 import { InvalidClientMetadataError } from './InvalidClientMetadataError';
 import { InvalidRedirectUriError } from './InvalidRedirectUriError';
 import type { ManagedSignInService } from './managedSignIn/ManagedSignInService';
@@ -147,7 +148,10 @@ export class OAuthService extends BaseService {
         const model: OAuth2Server.AuthorizationCodeModel = Object.create(
             this.oauthModel,
         ) as OAuth2Server.AuthorizationCodeModel;
-        if (await this.isSecurityStrictForOAuthUser(user))
+        if (
+            OAuthService.isPublicDocumentClientRequest(request) ||
+            (await this.isSecurityStrictForOAuthUser(user))
+        )
             model.validateRedirectUri = (redirectUri, client) =>
                 this.oauthModel.validateRedirectUriStrict(redirectUri, client);
         model.saveAuthorizationCode = (code, client, savedUser) =>
@@ -165,13 +169,26 @@ export class OAuthService extends BaseService {
         return this.oauthServer.authorize(request, response, options);
     }
 
+    // CIMD clients are public, so PKCE and exact redirect matching apply in every mode
+    private static isPublicDocumentClientRequest(
+        request: OAuth2Server.Request,
+    ): boolean {
+        const clientId = request.body?.client_id ?? request.query?.client_id;
+        return (
+            typeof clientId === 'string' &&
+            isClientIdMetadataDocumentUrl(clientId)
+        );
+    }
+
     public async getAuthorizationResource(
         request: OAuth2Server.Request,
         user: UserWithOrganizationUuid,
     ): Promise<string | null> {
         const strict = await this.isSecurityStrictForOAuthUser(user);
+        const requirePkce =
+            strict || OAuthService.isPublicDocumentClientRequest(request);
         if (
-            strict &&
+            requirePkce &&
             !(request.body.code_challenge || request.query?.code_challenge)
         ) {
             throw new OAuth2Server.InvalidRequestError(
@@ -181,7 +198,7 @@ export class OAuthService extends BaseService {
         const method =
             request.body?.code_challenge_method ||
             request.query?.code_challenge_method;
-        if (strict && method && method !== 'S256')
+        if (requirePkce && method && method !== 'S256')
             throw new OAuth2Server.InvalidRequestError(
                 'Invalid parameter: `code_challenge_method`',
             );
@@ -213,9 +230,10 @@ export class OAuthService extends BaseService {
         const client = await this.oauthModel.getClient(clientId);
         if (client === false) return false;
         const strict =
-            user === null
+            isClientIdMetadataDocumentUrl(clientId) ||
+            (user === null
                 ? await this.isSecurityStrict(null)
-                : await this.isSecurityStrictForOAuthUser(user);
+                : await this.isSecurityStrictForOAuthUser(user));
         if (strict)
             return this.oauthModel.validateRedirectUriStrict(
                 redirectUri,

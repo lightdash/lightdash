@@ -35,6 +35,10 @@ import {
 } from '../auth/oauthScopes/security';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
+import {
+    ClientIdMetadataDocumentResolver,
+    isClientIdMetadataDocumentUrl,
+} from '../services/OAuthService/clientIdMetadataDocument';
 import { getStoredTokenCandidates } from '../utils/oauthTokenDigest';
 import { AgentConnectionGrantModel } from './AgentConnectionGrantModel';
 import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
@@ -60,6 +64,10 @@ export class OAuth2Model implements AuthorizationCodeModel {
         private database: Knex,
         private lightdashConfig: LightdashConfig,
         private featureFlagModel: Pick<FeatureFlagModel, 'get'>,
+        private clientIdMetadataDocumentResolver: Pick<
+            ClientIdMetadataDocumentResolver,
+            'resolve'
+        > = new ClientIdMetadataDocumentResolver(),
     ) {}
 
     private getRefreshTokenLifetime(
@@ -95,6 +103,11 @@ export class OAuth2Model implements AuthorizationCodeModel {
         clientId: string,
         clientSecret?: string | null,
     ): Promise<Client | false> {
+        if (isClientIdMetadataDocumentUrl(clientId)) {
+            return clientSecret
+                ? false
+                : this.getClientIdMetadataDocumentClient(clientId);
+        }
         const query = this.database('oauth2_clients')
             .select('*')
             .where('client_id', clientId);
@@ -121,6 +134,42 @@ export class OAuth2Model implements AuthorizationCodeModel {
             refreshTokenLifetime: this.getRefreshTokenLifetime(
                 client.redirect_uris,
             ),
+        };
+    }
+
+    // CIMD clients are public clients described by the document at their client_id URL.
+    // The document is materialised as an oauth2_clients row so token foreign keys resolve.
+    private async getClientIdMetadataDocumentClient(
+        clientId: string,
+    ): Promise<Client | false> {
+        const document =
+            await this.clientIdMetadataDocumentResolver.resolve(clientId);
+        if (document === null) return false;
+        await this.database('oauth2_clients')
+            .insert({
+                client_id: document.clientId,
+                client_secret: null,
+                redirect_uris: document.redirectUris,
+                grants: document.grantTypes,
+                scopes: [],
+                client_name: document.clientName,
+                organization_uuid: null,
+                created_by_user_uuid: null,
+            })
+            .onConflict('client_id')
+            .merge({
+                redirect_uris: document.redirectUris,
+                grants: document.grantTypes,
+                client_name: document.clientName,
+                updated_at: this.database.fn.now(),
+            });
+        return {
+            clientId: document.clientId,
+            scopes: [],
+            id: document.clientId,
+            redirectUris: document.redirectUris,
+            grants: document.grantTypes,
+            refreshTokenLifetime: undefined,
         };
     }
 

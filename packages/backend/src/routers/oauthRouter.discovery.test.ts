@@ -99,6 +99,15 @@ it.each([
     },
 );
 
+it('advertises client id metadata documents and public clients in every mode', async () => {
+    const metadata = await callHandler(oauthAuthorizationServerHandler, {});
+    expect(metadata).toMatchObject({
+        client_id_metadata_document_supported: true,
+        pkce_required: false,
+    });
+    expect(metadata.token_endpoint_auth_methods_supported).toContain('none');
+});
+
 it('advertises strict security from the instance flag', async () => {
     vi.spyOn(oauthService, 'isSecurityStrict').mockResolvedValueOnce(true);
     const metadata = await callHandler(oauthAuthorizationServerHandler, {});
@@ -181,7 +190,9 @@ it.each([siteUrl, `${siteUrl}/`])(
                 token_endpoint_auth_methods_supported: [
                     'client_secret_basic',
                     'client_secret_post',
+                    'none',
                 ],
+                client_id_metadata_document_supported: true,
                 code_challenge_methods_supported: ['S256'],
                 scopes_supported: ['read', 'write', 'mcp:read', 'mcp:write'],
                 pkce_required: false,
