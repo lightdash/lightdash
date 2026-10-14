@@ -11,17 +11,14 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
-import {
-    allowApiKeyAuthentication,
-    isAuthenticated,
-} from '../../controllers/authentication';
+import { isAuthenticated } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
 import { ReleaseHighlightsService } from '../services/ReleaseHighlightsService/ReleaseHighlightsService';
 
 @Route('/api/v1/ai/release-highlights')
 @Hidden()
 export class ReleaseHighlightsController extends BaseController {
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/')
     async getReleaseHighlights(
