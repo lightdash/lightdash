@@ -1,0 +1,2 @@
+# Must stay on the same minor as @duckdb/node-api in packages/backend/package.json.
+duckdb==1.5.2

@@ -29,10 +29,8 @@ import {
 
 const SANDBOX_WORK_DIR = '/work';
 const SANDBOX_DIR_PREFIX = 'lightdash-sandbox-';
-const BACKEND_NODE_MODULES = path.resolve(
-    __dirname,
-    '../../../../node_modules',
-);
+// The repo's Python venv, where `pip install -r sandboxes/duckdb-runner/requirements.txt` puts duckdb.
+const REPO_VENV_BIN = path.resolve(__dirname, '../../../../../../venv/bin');
 const WORK_DIR_IN_COMMAND = /(^|[^\w./-])\/work(?=$|[/\s'";:)&|<>])/g;
 
 const toHostPath = (workDir: string, sandboxPath: string): string => {
@@ -59,11 +57,12 @@ const toHostPath = (workDir: string, sandboxPath: string): string => {
 
 /** Only what a runner needs from the host; nothing else leaks into the child. */
 const childEnv = (envs: Record<string, string> | undefined) => ({
-    PATH: process.env.PATH ?? '/usr/bin:/bin',
+    PATH: [REPO_VENV_BIN, process.env.PATH ?? '/usr/bin:/bin'].join(
+        path.delimiter,
+    ),
     HOME: process.env.HOME ?? tmpdir(),
     ...(process.env.TMPDIR ? { TMPDIR: process.env.TMPDIR } : {}),
     ...envs,
-    NODE_PATH: BACKEND_NODE_MODULES,
 });
 
 const isMissingFile = (error: unknown): boolean =>
@@ -213,8 +212,8 @@ const createHandle = (workDir: string): SandboxHandle => {
  * Test double for {@link SandboxProvider}: each sandbox is a host temp
  * directory standing in for `/work` (rewritten in commands and in text files
  * written through `files.write`), and commands run as local processes with
- * `NODE_PATH` pointing at the backend's node_modules and only PATH, HOME and
- * TMPDIR from the host environment. No isolation; tests only.
+ * only PATH (the repo's `venv/bin` first, so `python3` finds the pinned
+ * duckdb), HOME and TMPDIR from the host environment. No isolation; tests only.
  * The sandbox id is the temp directory's absolute path.
  */
 export class LocalProcessSandboxProvider implements SandboxProvider {

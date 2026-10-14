@@ -3,7 +3,8 @@ import {
     MissingConfigError,
     type ResultColumns,
 } from '@lightdash/common';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import {
     type SandboxProvider,
@@ -152,7 +153,7 @@ describe('DuckdbSandboxRunner over a local process sandbox', () => {
         expect(provider.sandboxIds).toHaveLength(1);
     });
 
-    it('reports no fields and no lines for a result without rows', async () => {
+    it('reports the fields and no lines for a result without rows', async () => {
         const runner = createRunner(new RecordingProvider());
 
         const { probed, ran } = await runner.withSession(
@@ -165,9 +166,16 @@ describe('DuckdbSandboxRunner over a local process sandbox', () => {
             }),
         );
 
-        expect(probed).toEqual({ fields: {} });
+        const fields = {
+            customer: { type: DimensionType.STRING },
+            amount: {
+                type: DimensionType.NUMBER,
+                numericKind: { kind: 'integer' },
+            },
+        };
+        expect(probed).toEqual({ fields });
         expect(ran).toEqual({
-            fields: {},
+            fields,
             rowCount: 0,
             resultBytes: Buffer.alloc(0),
         });
@@ -320,10 +328,10 @@ describe('DuckdbSandboxRunner over a local process sandbox', () => {
 
     it('names the metadata cap when the run metadata is too large', async () => {
         const oversizedMetaRunner = [
-            "import { mkdirSync, writeFileSync } from 'node:fs';",
-            'const dir = process.argv[3];',
-            "mkdirSync(dir + '/out', { recursive: true });",
-            "writeFileSync(dir + '/out/meta.json', ' '.repeat(2 * 1024 * 1024));",
+            'import os, sys',
+            "out = os.path.join(sys.argv[2], 'out')",
+            'os.makedirs(out, exist_ok=True)',
+            "open(os.path.join(out, 'meta.json'), 'w').write(' ' * 2 * 1024 * 1024)",
         ].join('\n');
         const runner = createRunner(
             new RecordingProvider(),
@@ -358,6 +366,23 @@ describe('DuckdbSandboxRunner over a local process sandbox', () => {
 });
 
 describe('DuckdbSandboxRunner configuration', () => {
+    it('pins the image duckdb to the minor version of the server client', () => {
+        const repoRoot = path.resolve(__dirname, '../../../../../..');
+        const pinned = readFileSync(
+            path.join(repoRoot, 'sandboxes/duckdb-runner/requirements.txt'),
+            'utf8',
+        ).match(/^duckdb==(\d+\.\d+)\.\d+$/m)?.[1];
+        const server = JSON.parse(
+            readFileSync(
+                path.join(repoRoot, 'packages/backend/package.json'),
+                'utf8',
+            ),
+        ).dependencies['@duckdb/node-api'].match(/^(\d+\.\d+)\./)?.[1];
+
+        expect(pinned).toBeDefined();
+        expect(pinned).toBe(server);
+    });
+
     const configWith = (
         appRuntime: Partial<typeof lightdashConfigMock.appRuntime>,
     ) => ({

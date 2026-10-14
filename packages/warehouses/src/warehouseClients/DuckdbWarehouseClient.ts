@@ -257,7 +257,9 @@ export const mapFieldTypeFromTypeId = (typeId: number): DimensionType => {
     }
 };
 
-const getNumericKindFromType = (type: DuckDBType): ResultNumericKind | null => {
+export const getNumericKindFromType = (
+    type: DuckDBType,
+): ResultNumericKind | null => {
     switch (type.typeId) {
         case DuckDBTypeId.TINYINT:
         case DuckDBTypeId.SMALLINT:

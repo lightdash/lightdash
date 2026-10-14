@@ -416,7 +416,7 @@ export class DuckdbSandboxRunner {
     ): Promise<void> {
         try {
             await handle.commands.run(
-                `node ${DUCKDB_RUNNER_PATH} ${command} ${DUCKDB_WORK_DIR}`,
+                `python3 -I ${DUCKDB_RUNNER_PATH} ${command} ${DUCKDB_WORK_DIR}`,
                 { timeoutMs, maxOutputBytes: MAX_LOG_BYTES },
             );
         } catch (e) {

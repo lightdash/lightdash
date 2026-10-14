@@ -1,4 +1,5 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
     SandboxCommandError,
@@ -149,7 +150,7 @@ describe('LocalProcessSandboxProvider', () => {
         expect(existsSync(first.sandboxId)).toBe(false);
     });
 
-    it('runs commands without the host environment beyond PATH, HOME, TMPDIR and NODE_PATH', async () => {
+    it('runs commands without the host environment beyond PATH, HOME and TMPDIR', async () => {
         const sandbox = await createSandbox();
         process.env.LOCAL_SANDBOX_TEST_SECRET = 'host-secret';
         try {
@@ -167,7 +168,7 @@ describe('LocalProcessSandboxProvider', () => {
             expect(stdout).not.toContain('host-secret');
             expect(new Set(names)).toEqual(
                 new Set(
-                    ['PATH', 'HOME', 'TMPDIR', 'NODE_PATH', 'GIVEN'].filter(
+                    ['PATH', 'HOME', 'TMPDIR', 'GIVEN'].filter(
                         (name) => name !== 'TMPDIR' || process.env.TMPDIR,
                     ),
                 ),
@@ -199,20 +200,19 @@ describe('LocalProcessSandboxProvider', () => {
         await expect(sandbox.files.read('/work/kept.txt')).resolves.toBe('x');
     });
 
-    it('lets a script load the built DuckDB warehouse client through NODE_PATH', async () => {
+    it('finds a python3 that can import the pinned duckdb package', async () => {
         const sandbox = await createSandbox();
-        await sandbox.files.write(
-            '/work/load.mjs',
-            [
-                "import { createRequire } from 'node:module';",
-                'const { DuckdbWarehouseClient } = createRequire(import.meta.url)(',
-                "    '@lightdash/warehouses/dist/warehouseClients/DuckdbWarehouseClient',",
-                ');',
-                'console.log(typeof DuckdbWarehouseClient);',
-            ].join('\n'),
+        const { stdout } = await sandbox.commands.run(
+            'python3 -I -c "import duckdb; print(duckdb.__version__)"',
+            { timeoutMs: 30_000 },
         );
-        await expect(
-            sandbox.commands.run('node /work/load.mjs', { timeoutMs: 30_000 }),
-        ).resolves.toMatchObject({ stdout: 'function\n' });
+        const pinned = readFileSync(
+            path.resolve(
+                __dirname,
+                '../../../../../../sandboxes/duckdb-runner/requirements.txt',
+            ),
+            'utf8',
+        ).match(/^duckdb==(\S+)$/m)?.[1];
+        expect(stdout.trim()).toBe(pinned);
     });
 });
