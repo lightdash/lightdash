@@ -17,6 +17,10 @@ import {
     type NodeMap,
 } from './types';
 
+// Hidden fields are not rendered in the tree, so they must not match search either
+const isVisibleInTree = (item: NodeItem): boolean =>
+    isCustomDimension(item) ? true : !item.hidden;
+
 export const getSearchResults = (
     itemsMap: Record<string, NodeItem>,
     searchQuery?: string,
@@ -25,7 +29,11 @@ export const getSearchResults = (
         return [];
     }
 
-    return new Fuse(Object.entries(itemsMap), {
+    const visibleItems = Object.entries(itemsMap).filter(([, item]) =>
+        isVisibleInTree(item),
+    );
+
+    return new Fuse(visibleItems, {
         keys: ['1.label', '1.groupLabel'],
         ignoreLocation: true,
         threshold: 0.3,
@@ -136,9 +144,8 @@ export const getNodeMapFromItemsMap = (
     groupDetails: Record<string, GroupType> = {},
     orderFieldsBy: OrderFieldsByStrategy = OrderFieldsByStrategy.LABEL,
 ): NodeMap => {
-    // Filter items: only include non-hidden items and all custom dimensions
-    const filteredItems = Object.entries(itemsMap).filter(([_itemId, item]) =>
-        isCustomDimension(item) ? true : !item.hidden,
+    const filteredItems = Object.entries(itemsMap).filter(([, item]) =>
+        isVisibleInTree(item),
     );
 
     // Use reduce to build the node map without mutations
