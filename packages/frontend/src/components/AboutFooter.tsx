@@ -1,7 +1,6 @@
-import { LightdashMode } from '@lightdash/common';
+import { LightdashMode, type HealthState } from '@lightdash/common';
 import {
     ActionIcon,
-    Alert,
     Anchor,
     Badge,
     Box,
@@ -11,10 +10,19 @@ import {
     Paper,
     Stack,
     Text,
+    Title,
+    VisuallyHidden,
 } from '@mantine/core';
-import { IconBook, IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
+import {
+    IconArrowUpRight,
+    IconBook,
+    IconBrandGithub,
+    IconExternalLink,
+    IconInfoCircle,
+} from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import { ReleaseHighlightsPanel } from '../ee/features/releaseHighlights/ReleaseHighlightsPanel';
+import { useAmbientAiEnabled } from '../ee/features/ambientAi/hooks/useAmbientAiEnabled';
+import { useReleaseHighlights } from '../ee/features/releaseHighlights/useReleaseHighlights';
 import useApp from '../providers/App/useApp';
 import {
     TrackPage,
@@ -36,21 +44,97 @@ import {
     UPDATE_LIGHTDASH_DOCS_URL,
 } from './upgradeNoticeLinks';
 
-const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
-    minimal,
-    maxWidth = PAGE_CONTENT_WIDTH,
-}) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const { health: healthState } = useApp();
-    const currentVersion = healthState.data?.version;
-    const latestVersion = healthState.data?.latest.version;
-    const showUpdateBadge =
-        !!latestVersion &&
-        currentVersion !== latestVersion &&
-        healthState.data?.mode === LightdashMode.DEFAULT;
+const AboutUpdateNotice: FC<{
+    currentVersion: string;
+    latestVersion: string;
+}> = ({ currentVersion, latestVersion }) => {
+    const ambientAiEnabled = !!useAmbientAiEnabled();
+    const query = useReleaseHighlights({ enabled: ambientAiEnabled });
+    const requestedCount =
+        ambientAiEnabled && !query.isError && query.data?.status === 'ready'
+            ? query.data.highlights.filter(
+                  (highlight) => highlight.requestedByYourOrganization,
+              ).length
+            : 0;
+
+    return (
+        <Paper p="md">
+            <Stack gap="sm">
+                <Title order={5}>v{latestVersion} is available</Title>
+                <Text size="sm" c="dimmed">
+                    {requestedCount > 0
+                        ? `Includes ${requestedCount} ${requestedCount === 1 ? 'feature' : 'features'} your organization requested.`
+                        : `See what changed since v${currentVersion} before you update.`}
+                </Text>
+                <Group gap="xs" wrap="wrap">
+                    <Button
+                        component="a"
+                        href={UPDATE_LIGHTDASH_DOCS_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        rightSection={<MantineIcon icon={IconExternalLink} />}
+                    >
+                        How to update
+                        <VisuallyHidden> (opens in a new tab)</VisuallyHidden>
+                    </Button>
+                    {ambientAiEnabled && (
+                        <Button
+                            component="a"
+                            href="/whats-new"
+                            target="_blank"
+                            rel="noreferrer"
+                            variant="default"
+                            rightSection={
+                                <MantineIcon icon={IconArrowUpRight} />
+                            }
+                        >
+                            See what's new
+                            <VisuallyHidden>
+                                {' '}
+                                (opens in a new tab)
+                            </VisuallyHidden>
+                        </Button>
+                    )}
+                    <Button
+                        component="a"
+                        href={getChangesSinceVersionUrl(
+                            currentVersion,
+                            latestVersion,
+                        )}
+                        target="_blank"
+                        rel="noreferrer"
+                        variant="subtle"
+                        size="compact-sm"
+                        rightSection={<MantineIcon icon={IconExternalLink} />}
+                    >
+                        Changes since v{currentVersion}
+                        <VisuallyHidden> (opens in a new tab)</VisuallyHidden>
+                    </Button>
+                    <Button
+                        component="a"
+                        href={RELEASE_NOTES_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        variant="subtle"
+                        size="compact-sm"
+                        rightSection={<MantineIcon icon={IconExternalLink} />}
+                    >
+                        Release notes
+                        <VisuallyHidden> (opens in a new tab)</VisuallyHidden>
+                    </Button>
+                </Group>
+            </Stack>
+        </Paper>
+    );
+};
+
+const AboutInstanceDetails: FC<{
+    health: HealthState | undefined;
+    showUpdateBadge: boolean;
+}> = ({ health, showUpdateBadge }) => {
     // Cloud plans are per organization; the instance license says nothing about them
-    const isCloud = healthState.data?.mode === LightdashMode.CLOUD_BETA;
-    const licenseStatus = healthState.data?.license;
+    const isCloud = health?.mode === LightdashMode.CLOUD_BETA;
+    const licenseStatus = health?.license;
     const licenseDisplay = licenseStatus?.valid
         ? {
               badge: 'Valid',
@@ -68,6 +152,74 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                 color: 'gray',
                 description: 'No enterprise license key is configured.',
             };
+
+    return (
+        <>
+            <Text fz="sm" c="dimmed">
+                {isCloud
+                    ? 'Instance details.'
+                    : 'Instance details and licensing status.'}
+            </Text>
+
+            <Paper p="md">
+                <Stack gap="md">
+                    <Group justify="space-between" wrap="nowrap">
+                        <Text fz="sm" c="dimmed">
+                            Version
+                        </Text>
+                        <Group gap="xs">
+                            <Text fz="sm" fw={600}>
+                                {health ? `v${health.version}` : 'n/a'}
+                            </Text>
+                            {showUpdateBadge && (
+                                <Badge size="xs" color="blue" variant="light">
+                                    Update available
+                                </Badge>
+                            )}
+                        </Group>
+                    </Group>
+
+                    {!isCloud && (
+                        <>
+                            <Divider />
+
+                            <Group
+                                justify="space-between"
+                                align="center"
+                                wrap="nowrap"
+                            >
+                                <Box>
+                                    <Text fz="sm" fw={500}>
+                                        Enterprise license
+                                    </Text>
+                                    <Text fz="xs" c="dimmed">
+                                        {licenseDisplay.description}
+                                    </Text>
+                                </Box>
+                                <Badge color={licenseDisplay.color} flex="none">
+                                    {licenseDisplay.badge}
+                                </Badge>
+                            </Group>
+                        </>
+                    )}
+                </Stack>
+            </Paper>
+        </>
+    );
+};
+
+const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
+    minimal,
+    maxWidth = PAGE_CONTENT_WIDTH,
+}) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const { health: healthState } = useApp();
+    const currentVersion = healthState.data?.version;
+    const latestVersion = healthState.data?.latest.version;
+    const showUpdateBadge =
+        !!latestVersion &&
+        currentVersion !== latestVersion &&
+        healthState.data?.mode === LightdashMode.DEFAULT;
 
     return (
         <TrackSection name={SectionName.PAGE_FOOTER}>
@@ -100,7 +252,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                         {healthState.data && `v${healthState.data.version}`}
                         {showUpdateBadge && (
                             <Badge ml="xs" radius="xs" size="xs">
-                                New version available!
+                                Update available
                             </Badge>
                         )}
                     </Button>
@@ -153,102 +305,16 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                     type={PageType.MODAL}
                 >
                     <Stack gap="md">
-                        <Text fz="sm" c="dimmed">
-                            {isCloud
-                                ? 'Instance details.'
-                                : 'Instance details and licensing status.'}
-                        </Text>
-
-                        <Paper radius="md" p="md">
-                            <Stack gap="md">
-                                <Group justify="space-between" wrap="nowrap">
-                                    <Text fz="sm" c="dimmed">
-                                        Version
-                                    </Text>
-                                    <Text fz="sm" fw={600}>
-                                        {healthState.data
-                                            ? `v${healthState.data.version}`
-                                            : 'n/a'}
-                                    </Text>
-                                </Group>
-
-                                {!isCloud && (
-                                    <>
-                                        <Divider />
-
-                                        <Group
-                                            justify="space-between"
-                                            align="center"
-                                            wrap="nowrap"
-                                        >
-                                            <Box>
-                                                <Text fz="sm" fw={500}>
-                                                    Enterprise license
-                                                </Text>
-                                                <Text fz="xs" c="dimmed">
-                                                    {licenseDisplay.description}
-                                                </Text>
-                                            </Box>
-                                            <Badge
-                                                color={licenseDisplay.color}
-                                                flex="none"
-                                            >
-                                                {licenseDisplay.badge}
-                                            </Badge>
-                                        </Group>
-                                    </>
-                                )}
-                            </Stack>
-                        </Paper>
+                        <AboutInstanceDetails
+                            health={healthState.data}
+                            showUpdateBadge={showUpdateBadge}
+                        />
 
                         {showUpdateBadge && currentVersion && latestVersion && (
-                            <Alert
-                                title="New version available!"
-                                color="blue"
-                                icon={<IconInfoCircle size={17} />}
-                            >
-                                <Stack gap="xs">
-                                    <Text>
-                                        The version v{latestVersion} is now
-                                        available. Please follow the
-                                        instructions in the{' '}
-                                        <Anchor
-                                            href={UPDATE_LIGHTDASH_DOCS_URL}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            underline="always"
-                                        >
-                                            How to update version
-                                        </Anchor>{' '}
-                                        documentation.
-                                    </Text>
-                                    <ReleaseHighlightsPanel />
-                                    <Stack gap={4}>
-                                        <Anchor
-                                            href={getChangesSinceVersionUrl(
-                                                currentVersion,
-                                                latestVersion,
-                                            )}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            underline="always"
-                                            fz="sm"
-                                        >
-                                            See what's changed since v
-                                            {currentVersion}
-                                        </Anchor>
-                                        <Anchor
-                                            href={RELEASE_NOTES_URL}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            underline="always"
-                                            fz="sm"
-                                        >
-                                            Release notes
-                                        </Anchor>
-                                    </Stack>
-                                </Stack>
-                            </Alert>
+                            <AboutUpdateNotice
+                                currentVersion={currentVersion}
+                                latestVersion={latestVersion}
+                            />
                         )}
 
                         <Group gap="xs">

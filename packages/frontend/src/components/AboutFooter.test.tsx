@@ -3,7 +3,7 @@ import {
     type HealthState,
     type ReleaseHighlightsResult,
 } from '@lightdash/common';
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { renderWithProviders } from '../testing/testUtils';
 import AboutFooter from './AboutFooter';
@@ -42,93 +42,100 @@ const behindHealth: Partial<HealthState> = {
     version: '2.500.0',
     latest: { version: '2.580.0' },
 };
-const expectFallbackLinks = () => {
-    expect(
-        screen.getByRole('link', { name: 'How to update version' }),
-    ).toBeInTheDocument();
-    expect(
-        screen.getByRole('link', { name: "See what's changed since v2.500.0" }),
-    ).toBeInTheDocument();
-    expect(
-        screen.getByRole('link', { name: 'Release notes' }),
-    ).toBeInTheDocument();
-};
-
-const renderFooter = (health: Partial<HealthState>) =>
+const renderFooter = (health: Partial<HealthState> = behindHealth) =>
     renderWithProviders(
         <MemoryRouter>
             <AboutFooter />
         </MemoryRouter>,
         { health },
     );
-
 const openAboutModal = async () => {
     fireEvent.click(await screen.findByRole('button', { name: /v2\.500\.0/ }));
+    return screen.findByRole('dialog');
 };
-
-describe('AboutFooter upgrade notice', () => {
-    it('links to the update docs, the changes since the running version and the release notes', async () => {
-        renderFooter({
-            mode: LightdashMode.DEFAULT,
-            version: '2.500.0',
-            latest: { version: '2.580.0' },
-        });
-
-        await openAboutModal();
-
-        expect(
-            await screen.findByRole('link', { name: 'How to update version' }),
-        ).toHaveAttribute('href', UPDATE_LIGHTDASH_DOCS_URL);
-        expect(
-            screen.getByRole('link', {
-                name: "See what's changed since v2.500.0",
-            }),
-        ).toHaveAttribute(
-            'href',
-            'https://github.com/lightdash/lightdash/compare/2.500.0...2.580.0',
-        );
-        expect(
-            screen.getByRole('link', { name: 'Release notes' }),
-        ).toHaveAttribute('href', RELEASE_NOTES_URL);
-    });
-
-    it('does not show the upgrade notice on the latest version', async () => {
-        renderFooter({
-            mode: LightdashMode.DEFAULT,
-            version: '2.500.0',
-            latest: { version: '2.500.0' },
-        });
-
-        await openAboutModal();
-
-        expect(await screen.findByText('About Lightdash')).toBeInTheDocument();
-        expect(
-            screen.queryByRole('link', { name: 'Release notes' }),
-        ).not.toBeInTheDocument();
-    });
-
-    it('does not show the upgrade notice on cloud', async () => {
-        renderFooter({
-            mode: LightdashMode.CLOUD_BETA,
-            version: '2.500.0',
-            latest: { version: '2.580.0' },
-        });
-
-        await openAboutModal();
-
-        expect(await screen.findByText('About Lightdash')).toBeInTheDocument();
-        expect(
-            screen.queryByText('New version available!'),
-        ).not.toBeInTheDocument();
-    });
+const readyHighlights = (requestedCount: number): ReleaseHighlightsResult => ({
+    status: 'ready',
+    fromVersion: '2.500.0',
+    toVersion: '2.580.0',
+    generatedAt: new Date(),
+    highlights: Array.from({ length: 3 }, (_, index) => ({
+        title: `Feature ${index}`,
+        benefit: `Benefit ${index}`,
+        url: `https://github.com/lightdash/lightdash/pull/${31000 + index}`,
+        version: '2.580.0',
+        requestedByYourOrganization: index < requestedCount,
+    })),
 });
 
-describe('AboutFooter release highlights', () => {
-    it('requests highlights only once the modal with the update notice is open', async () => {
-        renderFooter(behindHealth);
+describe('AboutFooter upgrade notice', () => {
+    it('shows the footer and version badges with a quiet notice and update action first', async () => {
+        renderFooter();
+        const footerButton = await screen.findByRole('button', {
+            name: /v2\.500\.0/,
+        });
         expect(
-            await screen.findByRole('button', { name: /v2\.500\.0/ }),
+            within(footerButton).getByText('Update available'),
         ).toBeInTheDocument();
+        const dialog = await openAboutModal();
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(
+            within(dialog).getByRole('heading', {
+                name: 'v2.580.0 is available',
+            }),
+        ).toBeInTheDocument();
+        const badge = within(dialog)
+            .getByText('Update available')
+            .closest('.mantine-Badge-root')!;
+        expect(badge).toHaveAttribute('data-variant', 'light');
+        expect(badge.parentElement).toContainElement(
+            within(dialog).getByText('v2.500.0'),
+        );
+        expect(
+            within(dialog).getByText(
+                'See what changed since v2.500.0 before you update.',
+            ),
+        ).toBeInTheDocument();
+        const links = within(dialog).getAllByRole('link');
+        expect(links.slice(0, 4).map((link) => link.textContent)).toEqual([
+            'How to update (opens in a new tab)',
+            "See what's new (opens in a new tab)",
+            'Changes since v2.500.0 (opens in a new tab)',
+            'Release notes (opens in a new tab)',
+        ]);
+        expect(links[0]).toHaveAttribute('href', UPDATE_LIGHTDASH_DOCS_URL);
+        expect(links[1]).toHaveAttribute('href', '/whats-new');
+        expect(links[2]).toHaveAttribute(
+            'href',
+            getChangesSinceVersionUrl('2.500.0', '2.580.0'),
+        );
+        expect(links[3]).toHaveAttribute('href', RELEASE_NOTES_URL);
+        links.slice(0, 4).forEach((link) => {
+            expect(link).toHaveAttribute('target', '_blank');
+            expect(link).toHaveAttribute('rel', 'noreferrer');
+            expect(
+                within(link).getByText('(opens in a new tab)'),
+            ).toBeInTheDocument();
+            expect(link.querySelector('svg')).not.toBeNull();
+        });
+    });
+
+    it.each([
+        { ...behindHealth, latest: { version: '2.500.0' } },
+        { ...behindHealth, mode: LightdashMode.CLOUD_BETA },
+        { ...behindHealth, latest: { version: '' } },
+    ])('omits the notice when no update applies: %j', async (health) => {
+        renderFooter(health);
+        await openAboutModal();
+        expect(screen.queryByText('Update available')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('link', { name: /Release notes/ }),
+        ).not.toBeInTheDocument();
+        expect(mocks.highlightsHook).not.toHaveBeenCalled();
+    });
+
+    it('requests highlights only after opening the modal with an update', async () => {
+        renderFooter();
+        await screen.findByRole('button', { name: /v2\.500\.0/ });
         expect(mocks.ambientAiEnabled).not.toHaveBeenCalled();
         expect(mocks.highlightsHook).not.toHaveBeenCalled();
         await openAboutModal();
@@ -137,143 +144,73 @@ describe('AboutFooter release highlights', () => {
         });
     });
 
-    it('shows a small loading state and keeps all fallback links', async () => {
-        mocks.query.isInitialLoading = true;
-        renderFooter(behindHealth);
-        await openAboutModal();
-        expect(
-            await screen.findByText('Finding release highlights…'),
-        ).toBeInTheDocument();
-        expectFallbackLinks();
-    });
-
-    it('renders titles as links and benefits as plain text and keeps fallback links', async () => {
-        mocks.query.data = {
-            status: 'ready',
-            fromVersion: '2.500.0',
-            toVersion: '2.580.0',
-            generatedAt: new Date(),
-            highlights: [
-                {
-                    title: 'New chart options',
-                    benefit: 'Create charts for more questions',
-                    url: 'https://github.com/lightdash/lightdash/pull/31000',
-                    version: '2.580.0',
-                    requestedByYourOrganization: false,
-                },
-                {
-                    title: 'Share charts',
-                    benefit: '<b>Untrusted text</b>',
-                    url: 'https://github.com/lightdash/lightdash/releases/tag/2.579.0',
-                    version: '2.579.0',
-                    requestedByYourOrganization: false,
-                },
-            ],
-        };
-        renderFooter(behindHealth);
-        await openAboutModal();
-        expect(
-            await screen.findByText('Highlights since v2.500.0'),
-        ).toBeInTheDocument();
-        const link = screen.getByRole('link', { name: 'New chart options' });
-        expect(link).toHaveAttribute(
-            'href',
-            'https://github.com/lightdash/lightdash/pull/31000',
-        );
-        expect(link).toHaveAttribute('target', '_blank');
-        expect(link).toHaveAttribute('rel', 'noreferrer');
-        expect(
-            screen.getByRole('link', { name: 'Share charts' }),
-        ).toHaveAttribute(
-            'href',
-            'https://github.com/lightdash/lightdash/releases/tag/2.579.0',
-        );
-        expect(
-            screen.getByText('Create charts for more questions'),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByText('<b>Untrusted text</b>').querySelector('b'),
-        ).toBeNull();
-        expect(
-            screen.getByText('AI-generated from release notes'),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByText('You asked for this'),
-        ).not.toBeInTheDocument();
-        expectFallbackLinks();
-    });
-
-    it('shows the organization badge only for flagged items and caps the panel at five', async () => {
-        mocks.query.data = {
-            status: 'ready',
-            fromVersion: '2.500.0',
-            toVersion: '2.580.0',
-            generatedAt: new Date(),
-            highlights: Array.from({ length: 6 }, (_, index) => ({
-                title: `Feature ${index}`,
-                benefit: `Benefit ${index}`,
-                url: `https://github.com/lightdash/lightdash/pull/${31000 + index}`,
-                version: '2.580.0',
-                requestedByYourOrganization: index === 2,
-            })),
-        };
-        renderFooter(behindHealth);
-        await openAboutModal();
-        expect(
-            await screen.findByText('Highlights since v2.500.0'),
-        ).toBeInTheDocument();
-        expect(screen.getAllByText('You asked for this')).toHaveLength(1);
-        expect(
-            screen.getByRole('link', { name: 'Feature 2' }).parentElement,
-        ).toContainElement(screen.getByText('You asked for this'));
-        expect(screen.getAllByRole('link', { name: /^Feature / })).toHaveLength(
-            5,
-        );
-        expect(screen.queryByText('Feature 5')).not.toBeInTheDocument();
-        expectFallbackLinks();
-    });
-
-    it('shows only the links when the highlights are unavailable', async () => {
-        mocks.query.data = {
-            status: 'unavailable',
-            reason: 'source_unavailable',
-        };
-        renderFooter(behindHealth);
-        await openAboutModal();
-        expect(await screen.findByText('About Lightdash')).toBeInTheDocument();
-        expect(
-            screen.queryByText('Highlights since v2.500.0'),
-        ).not.toBeInTheDocument();
-        expectFallbackLinks();
-    });
-
-    it('shows only the links on a request error', async () => {
-        mocks.query.isError = true;
-        renderFooter(behindHealth);
-        await openAboutModal();
-        expect(await screen.findByText('About Lightdash')).toBeInTheDocument();
-        expect(
-            screen.queryByText('Highlights since v2.500.0'),
-        ).not.toBeInTheDocument();
-        expect(
-            screen.queryByText('Finding release highlights…'),
-        ).not.toBeInTheDocument();
-        expectFallbackLinks();
-    });
-
-    it('does not enable the hook or show loading when ambient AI is disabled', async () => {
+    it('hides the new page link and disables the query when ambient AI is disabled', async () => {
         mocks.ambientAiEnabled.mockReturnValue(false);
-        mocks.query.isInitialLoading = true;
-        renderFooter(behindHealth);
+        mocks.query.data = readyHighlights(2);
+        renderFooter();
         await openAboutModal();
         expect(mocks.highlightsHook).toHaveBeenLastCalledWith({
             enabled: false,
         });
         expect(
-            screen.queryByText('Finding release highlights…'),
+            screen.queryByRole('link', { name: /See what's new/ }),
         ).not.toBeInTheDocument();
-        expectFallbackLinks();
+        expect(
+            screen.getByText(
+                'See what changed since v2.500.0 before you update.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: /How to update/ }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: /Changes since/ }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: /Release notes/ }),
+        ).toBeInTheDocument();
     });
+
+    it.each([1, 2])(
+        'shows the requested count with correct grammar for %i items',
+        async (count) => {
+            mocks.query.data = readyHighlights(count);
+            renderFooter();
+            await openAboutModal();
+            expect(
+                screen.getByText(
+                    `Includes ${count} ${count === 1 ? 'feature' : 'features'} your organization requested.`,
+                ),
+            ).toBeInTheDocument();
+            expect(screen.queryByText('Feature 0')).not.toBeInTheDocument();
+            expect(screen.queryByText('Highlights')).not.toBeInTheDocument();
+        },
+    );
+
+    it.each(['loading', 'empty', 'unavailable', 'error'])(
+        'keeps the default line without a loader for %s',
+        async (state) => {
+            mocks.query.isInitialLoading = state === 'loading';
+            mocks.query.isError = state === 'error';
+            mocks.query.data =
+                state === 'unavailable'
+                    ? { status: 'unavailable', reason: 'generation_failed' }
+                    : state === 'empty'
+                      ? readyHighlights(0)
+                      : undefined;
+            renderFooter();
+            await openAboutModal();
+            expect(
+                screen.getByText(
+                    'See what changed since v2.500.0 before you update.',
+                ),
+            ).toBeInTheDocument();
+            expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+            expect(
+                screen.queryByText('Finding release highlights…'),
+            ).not.toBeInTheDocument();
+        },
+    );
 });
 
 describe('getChangesSinceVersionUrl', () => {
