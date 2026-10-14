@@ -564,6 +564,27 @@ describe('BigqueryWarehouseClient.sanitizeLabelsWithValues', () => {
         );
         expect(Object.keys(result ?? {})).toHaveLength(64);
     });
+
+    it('keeps attribution labels when other labels exceed the BigQuery maximum', () => {
+        const result = BigqueryWarehouseClient.sanitizeLabelsWithValues({
+            ...Object.fromEntries(
+                Array.from({ length: 70 }, (_, index) => [
+                    `tag_${index}`,
+                    'value',
+                ]),
+            ),
+            user_uuid: 'user-uuid',
+            agent_uuid: 'agent-uuid',
+        });
+
+        expect(result).toEqual(
+            expect.objectContaining({
+                user_uuid: 'user-uuid',
+                agent_uuid: 'agent-uuid',
+            }),
+        );
+        expect(Object.keys(result ?? {})).toHaveLength(64);
+    });
 });
 
 describe('BigquerySqlBuilder escaping', () => {
@@ -913,6 +934,18 @@ describe('BigQuery agent job options', () => {
             agent_surface: 'mcp',
             agent_client: 'client-id',
         },
+        {
+            ...Object.fromEntries(
+                Array.from({ length: 80 }, (_, index) => [
+                    `tag_${index}`,
+                    'value',
+                ]),
+            ),
+            agent_surface: 'mcp',
+            agent_client: 'client-id',
+            agent_uuid: 'agent-uuid',
+            user_uuid: 'user-uuid',
+        },
     ];
     test.each(
         [false, true].flatMap((agentSession) =>
@@ -958,6 +991,12 @@ describe('BigQuery agent job options', () => {
                     expect(options.labels).toMatchObject({
                         agent_surface: 'mcp',
                         agent_client: 'client-id',
+                    });
+                }
+                if (tags?.agent_uuid) {
+                    expect(options.labels).toMatchObject({
+                        agent_uuid: 'agent-uuid',
+                        user_uuid: 'user-uuid',
                     });
                 }
                 expect(
