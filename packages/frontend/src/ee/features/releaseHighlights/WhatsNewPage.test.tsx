@@ -10,6 +10,7 @@ import {
     UPDATE_LIGHTDASH_DOCS_URL,
 } from '../../../components/upgradeNoticeLinks';
 import { renderWithProviders } from '../../../testing/testUtils';
+import { WhatsNewContent } from './WhatsNewContent';
 import WhatsNewPage from './WhatsNewPage';
 
 const mocks = vi.hoisted(() => ({
@@ -269,6 +270,112 @@ describe('WhatsNewPage', () => {
                 enabled: false,
             });
             expect(screen.queryByText(summaryNote)).not.toBeInTheDocument();
+        },
+    );
+});
+
+const renderDrawerContent = async () => {
+    const result = renderWithProviders(<WhatsNewContent layout="drawer" />, {
+        health: behindHealth,
+    });
+    await screen.findByRole('heading', { level: 4 });
+    return result;
+};
+
+describe('WhatsNewContent drawer layout', () => {
+    it('uses a compact heading and links to the full page with a new-tab hint', async () => {
+        await renderDrawerContent();
+        expect(
+            screen.getByRole('heading', {
+                level: 4,
+                name: "What's new since v2.500.0",
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText("You're on v2.500.0 · latest is v2.580.0"),
+        ).toBeInTheDocument();
+        const link = screen.getByRole('link', { name: /Open full page/ });
+        expect(link).toHaveAttribute('href', '/whats-new');
+        expect(link).toHaveAttribute('target', '_blank');
+        expect(link).toHaveAttribute('rel', 'noreferrer');
+        expect(within(link).getByText('(opens in a new tab)')).toHaveClass(
+            'mantine-VisuallyHidden-root',
+        );
+        expect(link.querySelector('svg')).not.toBeNull();
+    });
+
+    it('keeps requested and AI badges, versions and source links', async () => {
+        mocks.query.data = readyHighlights;
+        await renderDrawerContent();
+        expect(
+            screen.getByRole('heading', {
+                name: 'Requested by your organization',
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText('Requested').closest('.mantine-Badge-root'),
+        ).toHaveStyle({
+            '--badge-color': 'var(--mantine-color-green-light-color)',
+        });
+        expect(
+            screen.getByText('AI summary').closest('.mantine-Badge-root'),
+        ).toHaveStyle({
+            '--badge-color': 'var(--mantine-color-indigo-light-color)',
+        });
+        expect(screen.getByText(summaryNote)).toBeInTheDocument();
+        expect(screen.getByText('Added in v2.579.0')).toBeInTheDocument();
+        expect(screen.getByText('Added in v2.580.0')).toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: /View pull request/ }),
+        ).toHaveAttribute('href', readyHighlights.highlights[0].url);
+        expect(
+            screen.getByRole('link', { name: /View release/ }),
+        ).toHaveAttribute('href', readyHighlights.highlights[1].url);
+    });
+
+    it('keeps the actions while loading three skeleton cards', async () => {
+        mocks.query.isInitialLoading = true;
+        await renderDrawerContent();
+        expect(
+            screen.getByLabelText('Loading release highlights').children,
+        ).toHaveLength(3);
+        expect(screen.getAllByRole('link')).toHaveLength(4);
+    });
+
+    it('shows the AI setting hint with update actions when AI is disabled', async () => {
+        mocks.ambientAiEnabled.mockReturnValue(false);
+        mocks.query.data = readyHighlights;
+        await renderDrawerContent();
+        expect(
+            screen.getByText(
+                'Turn on AI to see a summary of new features here.',
+            ),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('AI summary')).not.toBeInTheDocument();
+        expect(screen.queryByText('Requested')).not.toBeInTheDocument();
+        expect(screen.getAllByRole('link')).toHaveLength(4);
+        expect(mocks.highlightsHook).toHaveBeenLastCalledWith({
+            enabled: false,
+        });
+    });
+
+    it.each(['unavailable', 'empty', 'error'] as const)(
+        'keeps the actions for %s results',
+        async (state) => {
+            mocks.query.isError = state === 'error';
+            mocks.query.data =
+                state === 'unavailable'
+                    ? { status: 'unavailable', reason: 'generation_failed' }
+                    : { ...readyHighlights, highlights: [] };
+            await renderDrawerContent();
+            expect(
+                screen.getByText(
+                    state === 'unavailable'
+                        ? "Highlights aren't available right now."
+                        : 'No feature highlights for this range.',
+                ),
+            ).toBeInTheDocument();
+            expect(screen.getAllByRole('link')).toHaveLength(4);
         },
     );
 });
