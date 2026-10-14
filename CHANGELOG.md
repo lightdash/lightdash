@@ -1,3 +1,10 @@
+# [2.582.0](https://github.com/lightdash/lightdash/compare/2.581.2...2.582.0) (2026-10-14)
+
+
+### Features
+
+* release highlights in a What's new drawer from the footer badge ([#31008](https://github.com/lightdash/lightdash/issues/31008)) ([73cb5a4](https://github.com/lightdash/lightdash/commit/73cb5a47e364db1282c9b05d2c91742ad41df34e))
+
 ## [2.581.2](https://github.com/lightdash/lightdash/compare/2.581.1...2.581.2) (2026-10-14)
 
 

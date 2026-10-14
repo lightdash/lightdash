@@ -253,6 +253,8 @@ import { ProjectAnnouncementsController } from './../ee/controllers/projectAnnou
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ProjectHomepageController } from './../ee/controllers/projectHomepageController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { ReleaseHighlightsController } from './../ee/controllers/releaseHighlightsController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { SchedulerAiAugmentationController } from './../ee/controllers/schedulerAiAugmentationController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ScimGroupController } from './../ee/controllers/scimGroupController';
@@ -12484,6 +12486,106 @@ const models: TsoaRoute.Models = {
                     value: '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}',
                 },
             },
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ReleaseHighlight: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                requestedByYourOrganization: {
+                    dataType: 'boolean',
+                    required: true,
+                },
+                version: { dataType: 'string', required: true },
+                url: { dataType: 'string', required: true },
+                benefit: { dataType: 'string', required: true },
+                title: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ReleaseHighlightsResult: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        generatedAt: { dataType: 'datetime', required: true },
+                        highlights: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'ReleaseHighlight',
+                            },
+                            required: true,
+                        },
+                        toVersion: { dataType: 'string', required: true },
+                        fromVersion: { dataType: 'string', required: true },
+                        status: {
+                            dataType: 'enum',
+                            enums: ['ready'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        reason: {
+                            dataType: 'union',
+                            subSchemas: [
+                                {
+                                    dataType: 'enum',
+                                    enums: ['not_self_hosted'],
+                                },
+                                {
+                                    dataType: 'enum',
+                                    enums: ['update_check_disabled'],
+                                },
+                                { dataType: 'enum', enums: ['up_to_date'] },
+                                {
+                                    dataType: 'enum',
+                                    enums: ['ai_not_configured'],
+                                },
+                                {
+                                    dataType: 'enum',
+                                    enums: ['source_unavailable'],
+                                },
+                                { dataType: 'enum', enums: ['no_features'] },
+                                {
+                                    dataType: 'enum',
+                                    enums: ['generation_failed'],
+                                },
+                                { dataType: 'enum', enums: ['rate_limited'] },
+                            ],
+                            required: true,
+                        },
+                        status: {
+                            dataType: 'enum',
+                            enums: ['unavailable'],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiReleaseHighlights: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'ReleaseHighlightsResult', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -83847,6 +83949,61 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'deleteAugmentation',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsReleaseHighlightsController_getReleaseHighlights: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.get(
+        '/api/v1/ai/release-highlights',
+        ...fetchMiddlewares<RequestHandler>(ReleaseHighlightsController),
+        ...fetchMiddlewares<RequestHandler>(
+            ReleaseHighlightsController.prototype.getReleaseHighlights,
+        ),
+
+        async function ReleaseHighlightsController_getReleaseHighlights(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsReleaseHighlightsController_getReleaseHighlights,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ReleaseHighlightsController>(
+                        ReleaseHighlightsController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getReleaseHighlights',
                     controller,
                     response,
                     next,
