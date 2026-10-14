@@ -2973,10 +2973,7 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
         'organization-warehouse-credentials',
     ],
     ['METRIC_DASHBOARD_FILTERS_ENABLED', 'metric-dashboard-filters'],
-    // APPS_RUNTIME_ENABLED used to be read by a dedicated handler in
-    // FeatureFlagModel that forced the flag on. Translating it into the
-    // allowlist keeps that behaviour for self-hosted deployments while
-    // letting the flag resolve like any other DB-backed flag elsewhere.
+    // Self-hosted switch for data apps; forces the flag on.
     ['APPS_RUNTIME_ENABLED', 'enable-data-apps'],
 ];
 
