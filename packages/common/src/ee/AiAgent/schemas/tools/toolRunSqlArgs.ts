@@ -7,7 +7,10 @@ import {
     MCP_QUERY_ERROR_NOTE,
     MCP_QUERY_RESULT_USAGE_NOTE,
 } from './toolMcpQueryResultDescription';
-import { mcpSqlQueryRowsColumnsSchema } from './toolQueryResultSchemas';
+import {
+    executionStatsContentSchema,
+    mcpSqlQueryRowsColumnsSchema,
+} from './toolQueryResultSchemas';
 
 export const DEFAULT_RUN_SQL_LIMIT = 500;
 export const DEFAULT_RUN_SQL_MAX_LIMIT = 5000;
@@ -83,6 +86,7 @@ export const toolRunSqlStructuredContentSchema = z.object({
             'True when `rows` holds only the first rows of a larger result; `rowCount` is the full count.',
         ),
     review: z.string().nullable(),
+    executionStats: executionStatsContentSchema,
 });
 
 export const toolRunSqlOutputSchema = structuredToolOutputSchema({

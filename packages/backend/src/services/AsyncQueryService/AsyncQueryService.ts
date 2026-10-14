@@ -183,6 +183,7 @@ import {
     type SpaceSummaryBase,
     type UserAttributeValueMap,
     type WarehouseExecuteAsyncQuery,
+    type WarehouseExecutionStats,
     type WarehousePhaseTimings,
     type WarehouseResults,
     type WarehouseSqlBuilder,
@@ -5119,6 +5120,7 @@ export class AsyncQueryService extends ProjectService {
                         queryMetadata,
                         queryId,
                         phaseTimings,
+                        executionStats,
                     },
                     pivotDetails,
                     columns,
@@ -5244,6 +5246,7 @@ export class AsyncQueryService extends ProjectService {
                     {
                         warehouse_query_id: queryId,
                         warehouse_query_metadata: queryMetadata,
+                        warehouse_execution_stats: executionStats ?? null,
                         status: QueryHistoryStatus.READY,
                         error: null,
                         warehouse_execution_time_ms: Math.round(durationMs),
@@ -12828,6 +12831,7 @@ export class AsyncQueryService extends ProjectService {
         fields: ItemsMap;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         displayTimezone: string | null;
+        executionStats: WarehouseExecutionStats | null;
         metricQuery: MetricQuery;
     }> {
         const { account, projectUuid } = args;
@@ -14099,6 +14103,7 @@ export class AsyncQueryService extends ProjectService {
         fields: ItemsMap;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         displayTimezone: string | null;
+        executionStats: WarehouseExecutionStats | null;
     }> {
         const { account, projectUuid } = args;
         const abortSignal = pollingOptions?.abortSignal;
@@ -14171,6 +14176,23 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
+    async getQueryExecutionStats({
+        account,
+        projectUuid,
+        queryUuid,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+    }): Promise<WarehouseExecutionStats | null> {
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            account,
+        );
+        return queryHistory.warehouseExecutionStats;
+    }
+
     async extendQueryResultsExpiration({
         account,
         projectUuid,
@@ -14224,6 +14246,7 @@ export class AsyncQueryService extends ProjectService {
         fields: ItemsMap;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         displayTimezone: string | null;
+        executionStats: WarehouseExecutionStats | null;
     }> {
         const { account, projectUuid } = args;
 
@@ -14269,6 +14292,7 @@ export class AsyncQueryService extends ProjectService {
         fields: ItemsMap;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         displayTimezone: string | null;
+        executionStats: WarehouseExecutionStats | null;
     }> {
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
@@ -14316,6 +14340,7 @@ export class AsyncQueryService extends ProjectService {
             pivotDetails:
                 AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory),
             displayTimezone,
+            executionStats: queryHistory.warehouseExecutionStats,
         };
     }
 
@@ -14576,6 +14601,7 @@ export class AsyncQueryService extends ProjectService {
         fields: ItemsMap;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         displayTimezone: string | null;
+        executionStats: WarehouseExecutionStats | null;
     }> {
         const { account, projectUuid } = args;
 
@@ -14703,6 +14729,7 @@ export class AsyncQueryService extends ProjectService {
         fields: ItemsMap;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         displayTimezone: string | null;
+        executionStats: WarehouseExecutionStats | null;
     }> {
         const { account, projectUuid } = args;
 

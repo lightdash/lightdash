@@ -985,3 +985,78 @@ describe('BigQuery agent job options', () => {
         },
     );
 });
+
+describe('BigQuery execution stats', () => {
+    const completedJob = (statistics: Record<string, unknown> | undefined) => ({
+        id: 'job-123',
+        location: 'US',
+        metadata: { statistics },
+        on: vi.fn((event: string, callback: () => void) => {
+            if (event === 'complete') callback();
+        }),
+        getQueryResults: vi.fn(() => [
+            [],
+            undefined,
+            { totalRows: '2', schema: { fields: [] } },
+        ]),
+        getQueryResultsStream: vi.fn(),
+    });
+
+    const runWithJob = async (job: ReturnType<typeof completedJob>) => {
+        const warehouse = new BigqueryWarehouseClient(credentials);
+        warehouse.client.createQueryJob = vi.fn(async () => [
+            job,
+        ]) as unknown as BigQuery['createQueryJob'];
+        return warehouse.executeAsyncQuery({ sql: 'SELECT 1', tags: {} });
+    };
+
+    it('returns bytes, duration, cache hit and job id from the completed job', async () => {
+        const result = await runWithJob(
+            completedJob({
+                startTime: '1700000000000',
+                endTime: '1700000001250',
+                totalBytesProcessed: '2048',
+                query: {
+                    totalBytesProcessed: '1048576',
+                    totalBytesBilled: '10485760',
+                    cacheHit: false,
+                },
+            }),
+        );
+
+        expect(result.executionStats).toStrictEqual({
+            jobId: 'job-123',
+            bytesProcessed: 1048576,
+            bytesBilled: 10485760,
+            executionTimeMs: 1250,
+            cacheHit: false,
+        });
+    });
+
+    it('returns nulls for statistics the job did not report', async () => {
+        const result = await runWithJob(completedJob(undefined));
+
+        expect(result.executionStats).toStrictEqual({
+            jobId: 'job-123',
+            bytesProcessed: null,
+            bytesBilled: null,
+            executionTimeMs: null,
+            cacheHit: null,
+        });
+    });
+
+    it('falls back to the job-level bytes processed', () => {
+        expect(
+            BigqueryWarehouseClient.getExecutionStats('job-1', {
+                totalBytesProcessed: '512',
+                query: { cacheHit: true },
+            }),
+        ).toStrictEqual({
+            jobId: 'job-1',
+            bytesProcessed: 512,
+            bytesBilled: null,
+            executionTimeMs: null,
+            cacheHit: true,
+        });
+    });
+});
