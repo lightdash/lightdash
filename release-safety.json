@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.581.1",
-  "previousVersion": "2.581.0",
-  "releaseDate": "2026-10-14T13:44:04.179Z",
+  "version": "2.581.2",
+  "previousVersion": "2.581.1",
+  "releaseDate": "2026-10-14T15:07:06.035Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -11,8 +11,8 @@
     "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": false,
-    "recommendedStrategy": "Recreate"
+    "rollingUpdateSafe": true,
+    "recommendedStrategy": "RollingUpdate"
   },
   "api": {
     "rest": {
@@ -34,14 +34,8 @@
   },
   "config": {
     "checked": true,
-    "breaking": true,
-    "changes": [
-      {
-        "type": "removed",
-        "name": "APPS_RUNTIME_ENABLED",
-        "previousDefault": null
-      }
-    ]
+    "breaking": false,
+    "changes": []
   },
   "upgrade": {
     "minPreviousVersion": "2.497.1",

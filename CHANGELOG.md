@@ -1,3 +1,10 @@
+## [2.581.2](https://github.com/lightdash/lightdash/compare/2.581.1...2.581.2) (2026-10-14)
+
+
+### Bug Fixes
+
+* search organization users by complete role names ([#31017](https://github.com/lightdash/lightdash/issues/31017)) ([e03ccdd](https://github.com/lightdash/lightdash/commit/e03ccdd1af59d181867f3ca12f8edd607059994c))
+
 ## [2.581.1](https://github.com/lightdash/lightdash/compare/2.581.0...2.581.1) (2026-10-14)
 
 
