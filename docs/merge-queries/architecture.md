@@ -237,7 +237,7 @@ uses, plus a fields map, and the API process reads them back and uploads the
 file. Inside the sandbox the DuckDB session is locked to its input directory
 with external access disabled and the configuration locked before any user
 SQL runs, so even SQL that passed validation can read nothing else. The
-sandbox runs no Lightdash code: a runner script the backend writes per run
+sandbox runs no Lightdash code: a runner script the backend writes per node
 executes the SQL with the image's pinned `duckdb` Python package and mirrors
 the server DuckDB client's session hardening, field types and value
 serialisation, which a backend parity test pins against `@duckdb/node-api`. An instance without results storage is refused with a

@@ -14,7 +14,7 @@ results are fetched with the standard results endpoint and carry the universal
   `packages/common/src/types/querySources.ts`): anything that can scan a
   schema and run a query returning the standard table format. Built-ins:
   `semanticLayer` (metric queries), `sql` (SQL runner), `duckdb` (DuckDB
-  over other results, run in a one-shot sandbox). Sources are deliberately not `WarehouseTypes` —
+  over other results, run in a sandbox). Sources are deliberately not `WarehouseTypes` —
   they plug in above the warehouse client layer, so non-SQL sources (HTTP
   APIs, Google Sheets, CSV uploads) fit the same contract.
 - **Source query** (`SourceQuery`): the tagged union the submit endpoint
@@ -92,7 +92,8 @@ validated and authorized at submit time with the exact access checks of
 fetching results by uuid, then read from results storage once the referenced
 queries complete. A duckdb query that references nothing is refused at
 submit, since it would have nothing to run on. The statement then runs in a
-one-shot sandbox created through the configured sandbox provider: the
+sandbox created through the configured sandbox provider and shared by the
+DuckDB nodes of the same submission, each in its own directory: the
 referenced result files are written into it, DuckDB reads only those files,
 and the result is read back, validated and uploaded. The sandbox has no
 credentials and no egress, so user SQL cannot reach the rest of the results

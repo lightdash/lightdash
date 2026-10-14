@@ -255,22 +255,27 @@ Unit tests drive a fake `SandboxProvider`/`SandboxRegistryStore` (see
 
 The Python and DuckDB runners (`services/AsyncQueryService/python/` and
 `services/AsyncQueryService/duckdb/`) use the provider directly, not the
-Manager: a sandbox lives for exactly one query and is never registered,
-suspended or resumed. Each run creates a sandbox from the runner's template,
-writes the referenced result files into it, runs the runner command, reads
-the result back and destroys the sandbox, whatever the outcome. The sandbox
-gets no credentials and an empty egress allowlist; every byte crosses through
-`handle.files`. Inputs share one byte budget (`SANDBOX_INPUT_MAX_BYTES`), a
+Manager: a sandbox is never registered, suspended or resumed. The Python
+runner creates a sandbox per query. The DuckDB runner leases one sandbox per
+submission (`DuckdbSandboxLease`): the nodes of a pipeline share it, each in
+its own `/work/<queryUuid>` directory, the first node to need it creates it
+and the last node to release it destroys it, whatever the outcome. Per node
+the runner, settings, inputs and SQL go in one batched write
+(`handle.files.writeMany`; one request on E2B), one command runs the runner,
+and only the rows are read back. The sandbox gets no credentials and an empty
+egress allowlist; every byte crosses through `handle.files`. Inputs share one byte budget (`SANDBOX_INPUT_MAX_BYTES`), a
 run that exceeds its timeout fails with a timeout message, and a non-zero
 exit becomes an error safe to show on the query.
 
 The DuckDB runner's image (`sandboxes/duckdb-runner/`) is `python:3.12-slim`
 plus the `duckdb` wheel pinned in `requirements.txt` (same minor as the
 server's `@duckdb/node-api`); no Lightdash code is installed. The backend
-writes `runner.py` per run and invokes `python3 -I /work/runner.py probe|run`.
-The runner locks an in-memory DuckDB to `/work/in` (external access off,
-configuration locked) before any user SQL, runs one SELECT and writes rows and
-fields in the shape the server's DuckDB client produced. The runner's version
+writes `runner.py` per node and invokes
+`python3 -I /work/<queryUuid>/runner.py probe|run /work/<queryUuid>`. The
+runner locks an in-memory DuckDB to that node's `in/` directory (external
+access off, configuration locked) before any user SQL, runs one SELECT, prints
+the fields and row count to stdout and writes rows in the shape the server's
+DuckDB client produced. The runner's version
 (provider, template ref and runner script hash) is part of the results cache
 key, so a result never crosses between image or runner versions.
 

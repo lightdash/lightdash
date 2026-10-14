@@ -70,3 +70,13 @@ DuckDB in a server process; this decision does not cover them.
   runner.
 - A pre-aggregate worker is no longer needed for composer or merge queries,
   and its capacity serves pre-aggregates only.
+
+## Amendment (2026-10-14)
+
+The sandbox is leased per submission rather than per node: the DuckDB nodes
+of one pipeline share it, each in its own `/work/<queryUuid>` directory, and
+it is destroyed when the last node releases it. The trust boundary is
+unchanged (one actor, one project, inputs that actor already reads). Per node
+the transfer is one batched write, one command whose stdout carries the
+fields and row count, and one read of the rows. On E2B this took the two-node
+reference pipeline from 16.3 s to 7.4 s.

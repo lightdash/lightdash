@@ -4,22 +4,26 @@ Image for composer and merge DuckDB queries: `python:3.12-slim` plus the
 `duckdb` wheel pinned in `requirements.txt`, and nothing else. No Lightdash
 code is installed; the sandbox has no egress and no credentials.
 
-Per run the backend (`DuckdbSandboxRunner`) writes into `/work`:
+The DuckDB nodes of one submission share a sandbox (`DuckdbSandboxLease`);
+each node gets its own directory `/work/<queryUuid>`, and the sandbox is
+destroyed when the last node releases it. Per node the backend
+(`DuckdbSandboxRunner`) writes, in one batched upload:
 
-| Path | Contents |
+| Path under `/work/<queryUuid>` | Contents |
 |---|---|
 | `runner.py` | the runner (`DUCKDB_RUNNER_SOURCE` in `duckdbSandboxHarness.ts`); its hash is part of the results cache key |
 | `settings.json` | `{ "memoryLimit": "1GB", "threads": 2 }` |
 | `probe.sql`, `run.sql` | one SELECT each; `probe.sql` only for discovered columns |
 | `in/<table>.jsonl` | referenced results |
-| `tmp/` | DuckDB spill |
+| `tmp/` | DuckDB spill (created by the runner) |
 
-and runs `python3 -I /work/runner.py probe|run /work`, then reads back
-`out/probe.json` (`{ fields }`), `out/result.jsonl` and `out/meta.json`
-(`{ fields, rowCount }`). A failure exits 1 with the DuckDB message on stderr.
+and runs `python3 -I /work/<queryUuid>/runner.py probe|run /work/<queryUuid>`.
+The runner prints `{ fields }` (probe) or `{ fields, rowCount }` (run) to
+stdout, so the command result carries the metadata; only `out/result.jsonl`
+is read back. A failure exits 1 with the DuckDB message on stderr.
 
 The runner opens an in-memory DuckDB and, before any user SQL, sets
-`allowed_directories=['/work/in']`, `temp_directory`, `memory_limit`,
+`allowed_directories=['<workDir>/in']`, `temp_directory`, `memory_limit`,
 `threads`, the server client's hardening settings, `TimeZone='UTC'`,
 `enable_external_access=false` and `lock_configuration=true`. It refuses
 anything but a single SELECT. Rows are written exactly as the server's DuckDB
@@ -88,7 +92,7 @@ and run a probe and a run as the image's `user` with no network:
 ```bash
 ./build-local-image.sh            # -> lightdash-duckdb-runner:local
 
-mkdir -p /tmp/duckdb-proof/in && cd /tmp/duckdb-proof
+mkdir -p /tmp/duckdb-proof/in && cd /tmp/duckdb-proof   # stands in for /work/<queryUuid>
 pnpm -s -F backend exec tsx -e "process.stdout.write(require('./src/services/AsyncQueryService/duckdb/duckdbSandboxHarness').DUCKDB_RUNNER_SOURCE)" > runner.py   # from the repo root
 printf '{"customer":"ann","amount":"10"}\n{"customer":"bob","amount":"5"}\n{"customer":"ann","amount":"7"}\n' > in/orders.jsonl
 echo '{"memoryLimit":"1GB","threads":2}' > settings.json
@@ -101,8 +105,8 @@ echo "SELECT * FROM read_text('/etc/hosts')" > escape.sql
 docker run --rm --network none -v /tmp/duckdb-proof:/fixture:ro lightdash-duckdb-runner:local sh -c '
   id && python3 -c "import duckdb; print(duckdb.__version__)" &&
   cp -r /fixture/. /work/ &&
-  python3 -I /work/runner.py probe /work && cat /work/out/probe.json && echo &&
-  python3 -I /work/runner.py run /work && cat /work/out/result.jsonl /work/out/meta.json && echo &&
+  python3 -I /work/runner.py probe /work && echo &&
+  python3 -I /work/runner.py run /work && cat /work/out/result.jsonl && echo &&
   cp /work/escape.sql /work/run.sql && python3 -I /work/runner.py run /work; echo "exit $?"'
 ```
 
