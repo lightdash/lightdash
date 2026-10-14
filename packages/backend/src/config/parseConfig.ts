@@ -2134,7 +2134,6 @@ export type S3Config = {
     useCredentialsFrom?: string[];
 };
 export type AppRuntimeConfig = {
-    enabled: boolean;
     /** Coding agent invoked by the data-app generation pipeline. */
     dataAppCodingAgent: 'claude' | 'codex';
     dataAppGatewayBaseUrls: {
@@ -2681,7 +2680,6 @@ const parseChartRegistryAllowInsecure = (): boolean => {
 };
 
 const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
-    const enabled = process.env.APPS_RUNTIME_ENABLED === 'true';
     const dataAppCodingAgent = (() => {
         const value = process.env.APPS_CODING_AGENT?.trim().toLowerCase();
         if (!value || value === 'claude') return 'claude' as const;
@@ -2738,7 +2736,6 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         process.env.LAMBDA_MICROVM_REGION || 'eu-west-1';
 
     return {
-        enabled,
         dataAppCodingAgent,
         dataAppGatewayBaseUrls: {
             anthropic: process.env.DATA_APPS_ANTHROPIC_BASE_URL
@@ -2985,6 +2982,8 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
         'organization-warehouse-credentials',
     ],
     ['METRIC_DASHBOARD_FILTERS_ENABLED', 'metric-dashboard-filters'],
+    // Self-hosted switch for data apps; forces the flag on.
+    ['APPS_RUNTIME_ENABLED', 'enable-data-apps'],
 ];
 
 const LEGACY_DISABLE_ENV_VARS: ReadonlyArray<

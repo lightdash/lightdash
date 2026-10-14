@@ -99,9 +99,9 @@ export enum FeatureFlags {
     MetricDashboardFilters = 'metric-dashboard-filters',
 
     /**
-     * Enable data apps feature. Works alongside the APPS_RUNTIME_ENABLED
-     * env var — data apps are enabled if either this flag or the env var
-     * is true. Disabled by default.
+     * Enable data apps feature. Disabled by default. Self-hosted
+     * deployments can force it on with APPS_RUNTIME_ENABLED=true, which
+     * the config parser translates into the enable allowlist.
      */
     EnableDataApps = 'enable-data-apps',
     // Enable the Learn library, walkthroughs and training project per org.

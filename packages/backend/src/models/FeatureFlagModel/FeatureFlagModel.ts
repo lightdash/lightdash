@@ -59,8 +59,6 @@ export class FeatureFlagModel {
             [FeatureFlags.EditYamlInUi]: this.getEditYamlInUiEnabled.bind(this),
             [FeatureFlags.EnableTimezoneSupport]:
                 this.getEnableTimezoneSupportEnabled.bind(this),
-            [FeatureFlags.EnableDataApps]:
-                this.getEnableDataAppsEnabled.bind(this),
             [FeatureFlags.ResultsCacheEnabled]: (flagArgs, options) =>
                 this.getWithEnvFallback(
                     flagArgs,
@@ -190,17 +188,6 @@ export class FeatureFlagModel {
             };
         }
         return this.getWithEnvFallback(args, true, options);
-    }
-
-    private async getEnableDataAppsEnabled(
-        args: FeatureFlagLogicArgs,
-        options: FeatureFlagQueryOptions = {},
-    ): Promise<FeatureFlag> {
-        if (this.lightdashConfig.appRuntime.enabled) {
-            return { id: args.featureFlagId, enabled: true };
-        }
-        const dbResult = await this.tryGetFromDatabase(args, options);
-        return dbResult ?? { id: args.featureFlagId, enabled: false };
     }
 
     // DB value (user override → org override → flag default) wins. Falls
