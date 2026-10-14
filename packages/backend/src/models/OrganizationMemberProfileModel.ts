@@ -26,6 +26,7 @@ import {
     DbOrganization,
     OrganizationTableName,
 } from '../database/entities/organizations';
+import { RolesTableName } from '../database/entities/roles';
 import { UserAvatarsTableName } from '../database/entities/userAvatars';
 import { UserOAuthGrantsTableName } from '../database/entities/userOAuthGrants';
 import { DbUser, UserTableName } from '../database/entities/users';
@@ -34,7 +35,6 @@ import {
     assertAdminDemotionAllowed,
     clearOrganizationExtraRoles,
 } from './roleSetUtils';
-import { getColumnMatchRegexQuery } from './SearchModel/utils/search';
 import { UserModel } from './UserModel';
 
 type DbOrganizationMemberProfile = {
@@ -157,6 +157,60 @@ export class OrganizationMemberProfileModel {
         };
     }
 
+    private applyUserSearch(query: Knex.QueryBuilder, searchQuery: string) {
+        const normalizedQuery = searchQuery.trim().replace(/\s+/g, ' ');
+        if (!normalizedQuery) return query;
+
+        const pattern = `%${normalizedQuery.replace(/[\\%_]/g, '\\$&')}%`;
+        return query.where((builder) => {
+            builder
+                .whereRaw(
+                    "concat_ws(' ', ??.first_name, ??.last_name) ILIKE ?",
+                    [UserTableName, UserTableName, pattern],
+                )
+                .orWhere(`${EmailTableName}.email`, 'ILIKE', pattern)
+                .orWhere(
+                    `${OrganizationMembershipsTableName}.role`,
+                    'ILIKE',
+                    pattern,
+                )
+                .orWhereExists(
+                    this.database(RolesTableName)
+                        .select(this.database.raw('1'))
+                        .where(`${RolesTableName}.name`, 'ILIKE', pattern)
+                        .whereRaw('?? = ??', [
+                            `${RolesTableName}.organization_uuid`,
+                            `${OrganizationTableName}.organization_uuid`,
+                        ])
+                        .where((roles) => {
+                            roles
+                                .whereRaw('?? = ??', [
+                                    `${RolesTableName}.role_uuid`,
+                                    `${OrganizationMembershipsTableName}.role_uuid`,
+                                ])
+                                .orWhereExists(
+                                    this.database(
+                                        OrganizationMembershipCustomRolesTableName,
+                                    )
+                                        .select(this.database.raw('1'))
+                                        .whereRaw('?? = ??', [
+                                            `${OrganizationMembershipCustomRolesTableName}.role_uuid`,
+                                            `${RolesTableName}.role_uuid`,
+                                        ])
+                                        .whereRaw('?? = ??', [
+                                            `${OrganizationMembershipCustomRolesTableName}.user_id`,
+                                            `${OrganizationMembershipsTableName}.user_id`,
+                                        ])
+                                        .whereRaw('?? = ??', [
+                                            `${OrganizationMembershipCustomRolesTableName}.organization_id`,
+                                            `${OrganizationMembershipsTableName}.organization_id`,
+                                        ]),
+                                );
+                        }),
+                );
+        });
+    }
+
     async getOrganizationMembers({
         organizationUuid,
         paginateArgs,
@@ -191,12 +245,7 @@ export class OrganizationMemberProfileModel {
 
         // Apply search query if present
         if (searchQuery) {
-            query = getColumnMatchRegexQuery(query, searchQuery, [
-                'first_name',
-                'last_name',
-                'email',
-                'role',
-            ]);
+            query = this.applyUserSearch(query, searchQuery);
         }
 
         // Filter by users with Google Drive refresh token (using subquery to avoid duplicates)
@@ -454,10 +503,9 @@ export class OrganizationMemberProfileModel {
         }
 
         if (searchQuery) {
-            orgMembersAndGroupsQuery = getColumnMatchRegexQuery(
+            orgMembersAndGroupsQuery = this.applyUserSearch(
                 orgMembersAndGroupsQuery,
                 searchQuery,
-                ['first_name', 'last_name', 'email', 'role'],
             );
         }
 

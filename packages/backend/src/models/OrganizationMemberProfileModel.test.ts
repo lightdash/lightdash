@@ -19,6 +19,58 @@ describe('OrganizationMemberProfileModel', () => {
         tracker.reset();
     });
 
+    describe.each([false, true])(
+        'user search with groups=%s',
+        (includeGroups) => {
+            const search = (searchQuery: string) =>
+                includeGroups
+                    ? model.getOrganizationMembersAndGroups(
+                          'organization-uuid',
+                          100,
+                          undefined,
+                          searchQuery,
+                      )
+                    : model.getOrganizationMembers({
+                          organizationUuid: 'organization-uuid',
+                          searchQuery,
+                      });
+
+            beforeEach(() => {
+                tracker.on.select(/.*/).response([]);
+            });
+
+            it('matches the whole phrase and searches primary and additional custom roles', async () => {
+                await search('  Search   Analyst  ');
+                const query = tracker.history.select[0];
+                expect(query.bindings).toContain('%Search Analyst%');
+                expect(query.bindings).not.toContain('Search|Analyst');
+                expect(query.sql).toContain('concat_ws');
+                expect(query.sql).toContain('"roles"."name" ilike');
+                expect(query.sql).toContain(
+                    '"roles"."role_uuid" = "organization_memberships"."role_uuid"',
+                );
+                expect(query.sql).toContain(
+                    '"organization_membership_custom_roles"."user_id" = "organization_memberships"."user_id"',
+                );
+                expect(query.sql).toContain(
+                    '"roles"."organization_uuid" = "organizations"."organization_uuid"',
+                );
+            });
+
+            it('treats SQL wildcards and backslashes literally', async () => {
+                await search('Role_%\\test');
+                expect(tracker.history.select[0].bindings).toContain(
+                    '%Role\\_\\%\\\\test%',
+                );
+            });
+
+            it('ignores whitespace-only queries', async () => {
+                await search('   ');
+                expect(tracker.history.select[0].sql).not.toContain('ilike');
+            });
+        },
+    );
+
     describe('findOrganizationMembersByEmails', () => {
         it('does not query for an empty email list', async () => {
             await expect(
