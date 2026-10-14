@@ -1,3 +1,10 @@
+## [2.581.1](https://github.com/lightdash/lightdash/compare/2.581.0...2.581.1) (2026-10-14)
+
+
+### Bug Fixes
+
+* split pasted spreadsheet cells in number filters ([#31012](https://github.com/lightdash/lightdash/issues/31012)) ([fb21f6e](https://github.com/lightdash/lightdash/commit/fb21f6ee65704717f72f0093f531433c5cefa86c))
+
 # [2.581.0](https://github.com/lightdash/lightdash/compare/2.580.0...2.581.0) (2026-10-14)
 
 
