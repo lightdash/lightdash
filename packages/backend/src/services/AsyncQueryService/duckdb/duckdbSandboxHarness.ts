@@ -93,9 +93,23 @@ import { once } from 'node:events';
 
 const [command, workDir = '/work'] = process.argv.slice(2);
 
-const { DuckdbWarehouseClient } = createRequire(import.meta.url)(
-    '@lightdash/warehouses/dist/warehouseClients/DuckdbWarehouseClient',
-);
+// The packed packages live under /opt/lightdash in the runner image. Sandbox
+// providers do not carry the image's ENV into commands, so resolve from that
+// directory after NODE_PATH (which the local-process provider sets in tests).
+const CLIENT_MODULE =
+    '@lightdash/warehouses/dist/warehouseClients/DuckdbWarehouseClient';
+const IMAGE_PACKAGES_DIR = '/opt/lightdash';
+const loadClientModule = () => {
+    try {
+        return createRequire(import.meta.url)(CLIENT_MODULE);
+    } catch (error) {
+        if (error?.code !== 'MODULE_NOT_FOUND') throw error;
+        return createRequire(path.join(IMAGE_PACKAGES_DIR, 'runner.cjs'))(
+            CLIENT_MODULE,
+        );
+    }
+};
+const { DuckdbWarehouseClient } = loadClientModule();
 
 const outDir = path.join(workDir, 'out');
 
