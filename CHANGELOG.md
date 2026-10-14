@@ -1,3 +1,10 @@
+# [2.581.0](https://github.com/lightdash/lightdash/compare/2.580.0...2.581.0) (2026-10-14)
+
+
+### Features
+
+* add LIGHTDASH_DISABLE_UPDATE_CHECK to opt out of the Docker Hub version poll ([#31006](https://github.com/lightdash/lightdash/issues/31006)) ([5333af4](https://github.com/lightdash/lightdash/commit/5333af4a9ac8bfc86b6bc9e2e5c9b7623fcdd7f1)), closes [#31005](https://github.com/lightdash/lightdash/issues/31005)
+
 # [2.580.0](https://github.com/lightdash/lightdash/compare/2.579.0...2.580.0) (2026-10-14)
 
 
