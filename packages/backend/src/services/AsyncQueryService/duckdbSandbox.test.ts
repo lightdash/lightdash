@@ -572,6 +572,29 @@ describe('DuckDB queries over results run in a one-shot sandbox', () => {
         expect(provider.created).toHaveLength(1);
     }, 30_000);
 
+    test('a SQL transformation without rows still records its columns', async () => {
+        const { composeSql, resultRows } = buildHarness();
+
+        const row = await composeSql({
+            sql: 'SELECT customer, SUM(amount) AS total FROM orders WHERE amount > 1000 GROUP BY customer',
+        });
+
+        expect(row.error ?? null).toBeNull();
+        expect(row.status).toBe(QueryHistoryStatus.READY);
+        expect(resultRows(row)).toEqual([]);
+        expect(row.totalRowCount).toBe(0);
+        expect(row.columns).toEqual({
+            customer: expect.objectContaining({
+                reference: 'customer',
+                type: DimensionType.STRING,
+            }),
+            total: expect.objectContaining({
+                reference: 'total',
+                type: DimensionType.NUMBER,
+            }),
+        });
+    }, 30_000);
+
     test('a pivoted transformation spreads its values into one column per group', async () => {
         const { composeSql, resultRows } = buildHarness();
         const pivotConfiguration: PivotConfiguration = {

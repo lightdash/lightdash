@@ -11590,6 +11590,10 @@ export class AsyncQueryService extends ProjectService {
                     const transformed =
                         await AsyncQueryService.transformQueryRows({
                             execute: async (onRows) => {
+                                // A result without rows still reports its fields
+                                if (rows.length === 0) {
+                                    await onRows([], output.fields);
+                                }
                                 for (
                                     let start = 0;
                                     start < rows.length;
