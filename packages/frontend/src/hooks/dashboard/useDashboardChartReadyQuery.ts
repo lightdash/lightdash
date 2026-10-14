@@ -281,9 +281,10 @@ export const useDashboardChartReadyQuery = (
             invalidateCache,
             chartParameterValues,
             sessionTimezone,
+            chartQuery.data,
+            includeUnpublishedDraft,
         ],
         [
-            chartQuery.data?.projectUuid,
             chartUuid,
             dashboardUuid,
             timezoneFixFilters,
@@ -297,6 +298,8 @@ export const useDashboardChartReadyQuery = (
             invalidateCache,
             chartParameterValues,
             sessionTimezone,
+            chartQuery.data,
+            includeUnpublishedDraft,
         ],
     );
 
@@ -359,7 +362,11 @@ export const useDashboardChartReadyQuery = (
             };
         },
         enabled: Boolean(
-            chartUuid && dashboardUuid && chartQuery.data && explore,
+            chartUuid &&
+            dashboardUuid &&
+            chartQuery.data &&
+            !chartQuery.isFetching &&
+            explore,
         ),
         ...retryConfig,
         refetchOnMount: false,
