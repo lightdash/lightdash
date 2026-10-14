@@ -13,6 +13,7 @@ import {
     DucklakeDataPathType,
     FeatureFlags,
     getAgentClientLabel,
+    ProjectMemberRole,
     QueryExecutionContext,
     QuerySurface,
     RedshiftAuthenticationType,
@@ -253,6 +254,9 @@ const buildFixture = (
         getSummary: vi.fn<ProjectModel['getSummary']>(),
         getWarehouseClientIdentityOptions:
             vi.fn<ProjectModel['getWarehouseClientIdentityOptions']>(),
+        getHighestSystemProjectRole: vi
+            .fn<ProjectModel['getHighestSystemProjectRole']>()
+            .mockResolvedValue(null),
     };
     const analytics = { track: vi.fn() };
     const trackingService = new AiAccessService({
@@ -5971,6 +5975,119 @@ describe('trusted execution warehouse tags', () => {
             expect(tags.agent_surface).toBe('forged');
         },
     );
+});
+
+describe('BigQuery maximum bytes billed per role and agent', () => {
+    const bigqueryCredentials: CreateWarehouseCredentials = {
+        type: WarehouseTypes.BIGQUERY,
+        project: 'project',
+        dataset: 'dataset',
+        timeoutSeconds: 300,
+        priority: 'interactive',
+        authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+        keyfileContents: { client_email: 'sa@example.com' },
+        retries: 3,
+        location: 'US',
+        maximumBytesBilled: 1000,
+        maximumBytesBilledByRole: {
+            [ProjectMemberRole.DEVELOPER]: 50000,
+            [ProjectMemberRole.ADMIN]: 0,
+        },
+        agentMaximumBytesBilled: 200,
+    };
+    const resolvedRef = (
+        creds: CreateWarehouseCredentials,
+    ): Extract<WarehouseClientRef, { kind: 'resolved' }> => ({
+        kind: 'resolved',
+        projectUuid: 'project-uuid',
+        cachePolicy: 'disabled',
+        credentials: creds,
+        aiPlan: null,
+        warehouseConnectionUuid: null,
+        connectionRoute: null,
+    });
+
+    test.each([
+        {
+            name: 'role mapping applies to app queries',
+            role: ProjectMemberRole.DEVELOPER,
+            queryContext: QueryExecutionContext.EXPLORE,
+            expected: 50000,
+        },
+        {
+            name: 'a 0 role limit removes the limit',
+            role: ProjectMemberRole.ADMIN,
+            queryContext: QueryExecutionContext.EXPLORE,
+            expected: 0,
+        },
+        {
+            name: 'unmapped roles use the connection limit',
+            role: ProjectMemberRole.VIEWER,
+            queryContext: QueryExecutionContext.EXPLORE,
+            expected: undefined,
+        },
+        {
+            name: 'agent override wins over the role mapping',
+            role: ProjectMemberRole.DEVELOPER,
+            queryContext: QueryExecutionContext.MCP_RUN_SQL,
+            expected: 200,
+        },
+    ])('$name', async ({ role, queryContext, expected }) => {
+        const { factory, projectModel } = buildFixture();
+        projectModel.getHighestSystemProjectRole.mockResolvedValue(role);
+        const run = vi.fn().mockResolvedValue(undefined);
+        const execute = vi.fn().mockResolvedValue({ totalRows: 0 });
+        projectModel.getWarehouseClientFromCredentials.mockImplementation(
+            (creds) => ({
+                ...warehouseClientMock,
+                credentials: creds,
+                streamQuery: run,
+                executeAsyncQuery: execute,
+            }),
+        );
+        await factory.withWarehouseClient(
+            resolvedRef(bigqueryCredentials),
+            contextFor(queryContext),
+            async ({ warehouseClient }) => {
+                await warehouseClient.streamQuery('SELECT 1', vi.fn(), {
+                    tags: {},
+                });
+                await warehouseClient.executeAsyncQuery({
+                    sql: 'SELECT 1',
+                    tags: {},
+                });
+            },
+        );
+        expect(run.mock.calls[0][2].maximumBytesBilled).toBe(expected);
+        expect(execute.mock.calls[0][0].maximumBytesBilled).toBe(expected);
+    });
+
+    test('skips the role lookup when no role mapping is configured', async () => {
+        const { factory, projectModel } = buildFixture();
+        const run = vi.fn().mockResolvedValue(undefined);
+        projectModel.getWarehouseClientFromCredentials.mockImplementation(
+            (creds) => ({
+                ...warehouseClientMock,
+                credentials: creds,
+                streamQuery: run,
+            }),
+        );
+        await factory.withWarehouseClient(
+            resolvedRef({
+                ...bigqueryCredentials,
+                maximumBytesBilledByRole: undefined,
+                agentMaximumBytesBilled: undefined,
+            }),
+            contextFor(QueryExecutionContext.EXPLORE),
+            async ({ warehouseClient }) => {
+                await warehouseClient.streamQuery('SELECT 1', vi.fn(), {
+                    tags: {},
+                });
+            },
+        );
+        expect(projectModel.getHighestSystemProjectRole).not.toHaveBeenCalled();
+        expect(run.mock.calls[0][2]).not.toHaveProperty('maximumBytesBilled');
+    });
 });
 
 const sessionMarkerCases = [

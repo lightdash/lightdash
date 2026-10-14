@@ -29,6 +29,8 @@ export const aiServiceAccountFieldClassification = {
         retries: 'routing',
         location: 'routing',
         maximumBytesBilled: 'routing',
+        maximumBytesBilledByRole: 'routing',
+        agentMaximumBytesBilled: 'routing',
         executionProject: 'routing',
         accessUrl: 'routing',
         startOfWeek: 'routing',

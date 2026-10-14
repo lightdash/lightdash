@@ -84,6 +84,11 @@ import {
     type PreparedCredentials,
 } from './CredentialResolver';
 import { CredentialResolverRegistry } from './CredentialResolverRegistry';
+import {
+    hasRoleMaximumBytesBilled,
+    resolveMaximumBytesBilled,
+    withMaximumBytesBilled,
+} from './maximumBytesBilled';
 import { resolvePersonalCredentialPolicy } from './personalCredentialPolicy';
 import type {
     ResolvedWarehouseCredentials,
@@ -847,13 +852,28 @@ export class WarehouseClientFactory {
                 await materialization?.dispose();
                 throw error;
             });
-        const withExecutionTags = (client: WarehouseClient) =>
-            agentIdentityEnabled
+        const maximumBytesBilled = await this.resolveMaximumBytesBilled(
+            ref,
+            context,
+            warehouseCredentials,
+            !!aiPlan || (overrides?.agentSession ?? false),
+        ).catch(async (error: unknown) => {
+            await sshTunnel.disconnect();
+            await materialization?.dispose();
+            throw error;
+        });
+        const withExecutionTags = (client: WarehouseClient) => {
+            const limitedClient = withMaximumBytesBilled(
+                client,
+                maximumBytesBilled,
+            );
+            return agentIdentityEnabled
                 ? withTrustedAgentQueryTags(
-                      client,
+                      limitedClient,
                       context.agentIdentity ?? null,
                   )
-                : client;
+                : limitedClient;
+        };
         const connectionCredentials = sshTunnel.overrideCredentials;
         const clientOptions = this.clientOptions.get(warehouseClient) ?? {};
         let releasePromise: Promise<void> | null = null;
@@ -913,6 +933,30 @@ export class WarehouseClientFactory {
                 return releasePromise;
             },
         };
+    }
+
+    private async resolveMaximumBytesBilled(
+        ref: WarehouseClientRef,
+        context: ConnectionContext,
+        credentials: CreateWarehouseCredentials,
+        isAgent: boolean,
+    ): Promise<number | null> {
+        if (
+            context.purpose !== 'query' ||
+            (ref.kind !== 'binding' && ref.kind !== 'resolved')
+        )
+            return null;
+        const { person } = context.actor;
+        const role =
+            person !== null &&
+            ref.projectUuid !== null &&
+            hasRoleMaximumBytesBilled(credentials)
+                ? await this.projectModel.getHighestSystemProjectRole(
+                      ref.projectUuid,
+                      person.userUuid,
+                  )
+                : null;
+        return resolveMaximumBytesBilled(credentials, { isAgent, role });
     }
 
     private buildClient(

@@ -1,6 +1,8 @@
 import {
     BigqueryAuthenticationType,
     FeatureFlags,
+    ProjectMemberRole,
+    ProjectMemberRoleLabels,
     WarehouseTypes,
 } from '@lightdash/common';
 import {
@@ -970,6 +972,66 @@ const BigQueryForm: FC<{
                                             . Leaving this field empty or with a
                                             0 value means no limit.
                                         </p>
+                                    }
+                                    disabled={disabled}
+                                />
+
+                                <Stack gap="xs">
+                                    <Text size="sm" fw={500}>
+                                        Maximum bytes billed by role
+                                    </Text>
+                                    <Text size="xs" c="dimmed">
+                                        Overrides the limit above for queries
+                                        run in the app, using each person's
+                                        highest project role. Leave a role empty
+                                        to use the limit above; 0 means no
+                                        limit. Custom roles use the limit above.
+                                    </Text>
+                                    {Object.values(ProjectMemberRole).map(
+                                        (role) => {
+                                            const path = `warehouse.maximumBytesBilledByRole.${role}`;
+                                            return (
+                                                <NumberInput
+                                                    key={role}
+                                                    name={path}
+                                                    label={
+                                                        ProjectMemberRoleLabels[
+                                                            role
+                                                        ]
+                                                    }
+                                                    min={0}
+                                                    value={
+                                                        form.getInputProps(path)
+                                                            .value ?? ''
+                                                    }
+                                                    onNumberChange={(value) =>
+                                                        form.setFieldValue(
+                                                            path,
+                                                            value,
+                                                        )
+                                                    }
+                                                    disabled={disabled}
+                                                />
+                                            );
+                                        },
+                                    )}
+                                </Stack>
+
+                                <NumberInput
+                                    name="warehouse.agentMaximumBytesBilled"
+                                    label="AI agent maximum bytes billed"
+                                    description="Applies to queries run by AI agents and agent service accounts, before any role limit. Leave empty to use the role or connection limit; 0 means no limit."
+                                    min={0}
+                                    value={
+                                        form.getInputProps(
+                                            'warehouse.agentMaximumBytesBilled',
+                                        ).value ?? ''
+                                    }
+                                    onNumberChange={(value) =>
+                                        form.setFieldValue(
+                                            'warehouse.agentMaximumBytesBilled',
+                                            value,
+                                        )
                                     }
                                     disabled={disabled}
                                 />

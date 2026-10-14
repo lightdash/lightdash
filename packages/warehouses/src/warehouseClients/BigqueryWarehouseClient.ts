@@ -577,8 +577,11 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             values?: AnyType[];
             tags?: Record<string, string>;
             timezone?: string;
+            maximumBytesBilled?: number;
         },
     ) {
+        const maximumBytesBilled =
+            options.maximumBytesBilled ?? this.credentials.maximumBytesBilled;
         const tags = options?.tags;
         const labels = BigqueryWarehouseClient.sanitizeLabelsWithValues(tags);
         const identityLabels =
@@ -602,8 +605,8 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             connectionProperties: options?.timezone
                 ? [{ key: 'time_zone', value: options.timezone }]
                 : undefined,
-            maximumBytesBilled: this.credentials.maximumBytesBilled
-                ? `${this.credentials.maximumBytesBilled}`
+            maximumBytesBilled: maximumBytesBilled
+                ? `${maximumBytesBilled}`
                 : undefined,
             priority: this.credentials.priority,
             jobTimeoutMs:
@@ -696,6 +699,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             values?: AnyType[];
             tags?: Record<string, string>;
             timezone?: string;
+            maximumBytesBilled?: number;
         },
     ): Promise<void> {
         try {
@@ -1013,7 +1017,13 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     }
 
     async executeAsyncQuery(
-        { sql, values, tags, timezone }: WarehouseExecuteAsyncQueryArgs,
+        {
+            sql,
+            values,
+            tags,
+            timezone,
+            maximumBytesBilled,
+        }: WarehouseExecuteAsyncQueryArgs,
         resultsStreamCallback?: (
             rows: WarehouseResults['rows'],
             fields: WarehouseResults['fields'],
@@ -1024,6 +1034,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             const [job] = await this.createJob(sql, {
                 tags,
                 timezone,
+                maximumBytesBilled,
             });
 
             if (!job.id) {

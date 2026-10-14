@@ -42,6 +42,8 @@ export const personalCredentialFieldClassification = {
         retries: 'connection',
         location: 'connection',
         maximumBytesBilled: 'connection',
+        maximumBytesBilledByRole: 'connection',
+        agentMaximumBytesBilled: 'connection',
         executionProject: 'connection',
         accessUrl: 'connection',
         startOfWeek: 'connection',
