@@ -25,6 +25,8 @@ import { BEDROCK_GEOGRAPHY_LABELS } from './bedrockGeographyLabels';
 const REGION_LABELS: Record<(typeof BEDROCK_REGIONS)[number], string> = {
     'ap-northeast-1': 'Asia Pacific (Tokyo)',
     'ap-northeast-3': 'Asia Pacific (Osaka)',
+    'eu-central-1': 'Europe (Frankfurt)',
+    'eu-west-1': 'Europe (Ireland)',
     'us-east-1': 'US East (N. Virginia)',
     'us-west-2': 'US West (Oregon)',
 };

@@ -421,6 +421,8 @@ export type AiProviderApiKeyHints = Record<ByoAiProvider, string | null>;
 export const BEDROCK_REGIONS = [
     'ap-northeast-1',
     'ap-northeast-3',
+    'eu-central-1',
+    'eu-west-1',
     'us-east-1',
     'us-west-2',
 ] as const;
