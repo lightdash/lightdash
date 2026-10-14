@@ -14,6 +14,7 @@ import {
 } from '@mantine/core';
 import { IconBook, IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { ReleaseHighlightsPanel } from '../ee/features/releaseHighlights/ReleaseHighlightsPanel';
 import useApp from '../providers/App/useApp';
 import {
     TrackPage,
@@ -74,7 +75,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                 mt={FOOTER_MARGIN}
                 h={FOOTER_HEIGHT}
                 component="footer"
-                style={{ flexShrink: 0 }}
+                flex="0 0 auto"
             >
                 <Divider color="ldGray.2" w="100%" mb="-1px" />
 
@@ -221,7 +222,8 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                                         </Anchor>{' '}
                                         documentation.
                                     </Text>
-                                    <Group gap="md">
+                                    <ReleaseHighlightsPanel />
+                                    <Stack gap={4}>
                                         <Anchor
                                             href={getChangesSinceVersionUrl(
                                                 currentVersion,
@@ -244,7 +246,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                                         >
                                             Release notes
                                         </Anchor>
-                                    </Group>
+                                    </Stack>
                                 </Stack>
                             </Alert>
                         )}

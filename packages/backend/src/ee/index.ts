@@ -35,6 +35,7 @@ import {
     AppThumbnailClient,
 } from './clients/AppThumbnailClient';
 import { ChartRegistryClient } from './clients/ChartRegistryClient';
+import { GithubReleaseNotesClient } from './clients/GithubReleaseNotes/GithubReleaseNotesClient';
 import LicenseClient from './clients/License/LicenseClient';
 import OpenAi from './clients/OpenAi';
 import { CommercialSlackClient } from './clients/Slack/SlackClient';
@@ -70,6 +71,7 @@ import { MobilePushNotificationModel } from './models/MobilePushNotificationMode
 import { ProjectCiStatusModel } from './models/ProjectCiStatusModel';
 import { ProjectContextModel } from './models/ProjectContextModel';
 import { ProjectHomepageModel } from './models/ProjectHomepageModel';
+import { ReleaseHighlightsModel } from './models/ReleaseHighlightsModel';
 import { SandboxRegistryModel } from './models/SandboxRegistryModel';
 import { SchedulerAiAugmentationModel } from './models/SchedulerAiAugmentationModel';
 import { ScimRequestLogModel } from './models/ScimRequestLogModel';
@@ -137,6 +139,7 @@ import { provisionPlaygroundProject } from './services/ProjectService/provisionP
 import { seedTrainingCopyAgentDocuments } from './services/ProjectService/seedPlaygroundAgentDocuments';
 import { seedPlaygroundContent } from './services/ProjectService/seedPlaygroundContent';
 import { seedPlaygroundMetricsTrees } from './services/ProjectService/seedPlaygroundMetricsTrees';
+import { ReleaseHighlightsService } from './services/ReleaseHighlightsService/ReleaseHighlightsService';
 import { RoadmapService } from './services/RoadmapService/RoadmapService';
 import { SchedulerAiAugmentationService } from './services/SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 import { ScimService } from './services/ScimService/ScimService';
@@ -1147,6 +1150,14 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     slackClient: clients.getSlackClient(),
                     aiAgentModel: models.getAiAgentModel(),
                 }),
+            releaseHighlightsService: ({ models, context, repository }) =>
+                new ReleaseHighlightsService({
+                    lightdashConfig: context.lightdashConfig,
+                    model: models.getReleaseHighlightsModel<ReleaseHighlightsModel>(),
+                    githubClient: new GithubReleaseNotesClient(),
+                    now: null,
+                    aiService: repository.getAiService<AiService>(),
+                }),
             supportService: ({ models, context, repository, clients }) =>
                 new SupportService({
                     analytics: context.lightdashAnalytics,
@@ -1649,6 +1660,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
         },
         modelProviders: {
+            releaseHighlightsModel: ({ database }) =>
+                new ReleaseHighlightsModel({ database }),
             externalSourceModel: ({ database, utils }) =>
                 new ExternalSourceModel({
                     database,
