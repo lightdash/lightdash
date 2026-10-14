@@ -12,6 +12,7 @@ const candidates = [
         scope: null,
         text: 'A feature',
         number: 1,
+        relatedNumbers: [1],
         url: 'https://github.com/lightdash/lightdash/pull/1',
     },
 ];
@@ -60,4 +61,28 @@ it('uses conflict ignore for range writes', async () => {
         JSON.stringify(ranked),
         '2.2.0',
     ]);
+});
+
+it('backfills related numbers for old persisted candidates with and without a primary number', async () => {
+    tracker.on.select(ReleaseHighlightsTableName).responseOnce([
+        {
+            from_version: '2.1.0',
+            to_version: '2.2.0',
+            ranked,
+            candidates: [
+                { ...candidates[0], relatedNumbers: undefined },
+                {
+                    ...candidates[0],
+                    id: 'no-number',
+                    number: null,
+                    relatedNumbers: undefined,
+                },
+            ],
+            created_at: new Date('2026-10-14'),
+        },
+    ]);
+    const result = await model.get('2.1.0', '2.2.0');
+    expect(
+        result?.candidates.map((candidate) => candidate.relatedNumbers),
+    ).toEqual([[1], []]);
 });

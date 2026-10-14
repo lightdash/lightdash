@@ -11,7 +11,6 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
-import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -33,7 +32,7 @@ export class ReleaseHighlightsController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getReleaseHighlightsService<ReleaseHighlightsService>()
-                .getHighlights(toSessionUser(req.account)),
+                .getHighlights(req.account),
         };
     }
 }

@@ -27,6 +27,7 @@ it('takes only bullets under Features headings and strips scope, links and bold'
                 scope: 'charts',
                 text: 'add chart options',
                 number: 31000,
+                relatedNumbers: [31000],
                 url: 'https://github.com/lightdash/lightdash/pull/31000',
             },
             {
@@ -35,6 +36,7 @@ it('takes only bullets under Features headings and strips scope, links and bold'
                 scope: null,
                 text: 'Add sharing and exports',
                 number: null,
+                relatedNumbers: [],
                 url: 'https://github.com/lightdash/lightdash/releases/tag/2.2.0',
             },
         ],
@@ -130,4 +132,37 @@ it('uses only feat first lines and trailing pull numbers for compare fallback', 
     expect(candidates[1].url).toBe(
         'https://github.com/lightdash/lightdash/pull/7',
     );
+});
+
+it('collects repository links and closing references and strips trailing closing text', () => {
+    const [candidate] = parseReleaseFeatureCandidates([
+        {
+            version: '2.2.0',
+            body: '## Features\n* add chart exports , closes #31005, fixes #31007, resolves #31008 ([#31006](https://github.com/lightdash/lightdash/issues/31006)) ([#31009](https://github.com/lightdash/lightdash/pull/31009)) ([#31006](https://github.com/lightdash/lightdash/issues/31006))',
+        },
+    ]);
+    expect(candidate.relatedNumbers).toEqual([
+        31006, 31009, 31005, 31007, 31008,
+    ]);
+    expect(candidate.text).toBe('add chart exports');
+    expect(candidate.number).toBe(31006);
+});
+
+it('includes closing references and the compare fallback pull number', () => {
+    const [candidate] = parseCommitFeatureCandidates(
+        ['feat: add exports, closes #40 (#41)'],
+        '2.2.0',
+    );
+    expect(candidate.relatedNumbers).toEqual([41, 40]);
+    expect(candidate.text).toBe('add exports');
+});
+
+it('rejects foreign links and unsafe or zero related numbers', () => {
+    const [candidate] = parseReleaseFeatureCandidates([
+        {
+            version: '2.2.0',
+            body: '## Features\n* add exports, closes #0, fixes #9007199254740992 [foreign](https://github.com/other/repo/issues/5) [fake](https://github.com.evil.test/lightdash/lightdash/issues/6)',
+        },
+    ]);
+    expect(candidate.relatedNumbers).toEqual([]);
 });

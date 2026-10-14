@@ -6,10 +6,12 @@ export type ReleaseFeatureCandidate = {
     scope: string | null;
     text: string;
     number: number | null;
+    relatedNumbers: number[];
     url: string;
 };
 
-const getPullNumber = (text: string): number | null => {
+const getLinkedNumbers = (text: string): number[] => {
+    const numbers = new Set<number>();
     for (const match of text.matchAll(/https?:\/\/[^\s)<>\]]+/g)) {
         if (URL.canParse(match[0])) {
             const url = new URL(match[0]);
@@ -18,11 +20,25 @@ const getPullNumber = (text: string): number | null => {
             );
             if (url.hostname === 'github.com' && path) {
                 const number = Number(path[1]);
-                if (Number.isSafeInteger(number) && number > 0) return number;
+                if (Number.isSafeInteger(number) && number > 0)
+                    numbers.add(number);
             }
         }
     }
-    return null;
+    return [...numbers];
+};
+
+const getRelatedNumbers = (text: string, number: number | null): number[] => {
+    const numbers = new Set(getLinkedNumbers(text));
+    if (number !== null) numbers.add(number);
+    for (const match of text.matchAll(
+        /\b(?:closes?|fix(?:es)?|resolves?)\s+#(\d+)\b/gi,
+    )) {
+        const relatedNumber = Number(match[1]);
+        if (Number.isSafeInteger(relatedNumber) && relatedNumber > 0)
+            numbers.add(relatedNumber);
+    }
+    return [...numbers];
 };
 
 const stripMarkdown = (text: string): string =>
@@ -31,6 +47,10 @@ const stripMarkdown = (text: string): string =>
         .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
         .replace(/\*\*|__|`/g, '')
         .replace(/\s+/g, ' ')
+        .replace(
+            /(?:\s*,?\s*\b(?:closes?|fix(?:es)?|resolves?)\s+#\d+\b)+\s*$/gi,
+            '',
+        )
         .trim();
 
 const candidate = (
@@ -45,6 +65,7 @@ const candidate = (
     scope,
     text: stripMarkdown(text),
     number,
+    relatedNumbers: getRelatedNumbers(text, number),
     url:
         number === null
             ? `https://github.com/lightdash/lightdash/releases/tag/${version}`
@@ -94,7 +115,7 @@ export const parseReleaseFeatureCandidates = (
                     index,
                     scope ? stripMarkdown(scope[1]) : null,
                     scope ? bullet[1].slice(scope[0].length) : bullet[1],
-                    getPullNumber(bullet[1]),
+                    getLinkedNumbers(bullet[1])[0] ?? null,
                 ),
             );
         });

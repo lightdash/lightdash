@@ -1,8 +1,11 @@
 import {
+    Account,
+    assertRegisteredAccount,
     LightdashMode,
     ReleaseHighlightsResult,
     SessionUser,
 } from '@lightdash/common';
+import { toSessionUser } from '../../../auth/account';
 import { getDockerHubVersion } from '../../../clients/DockerHub/DockerHub';
 import { LightdashConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
@@ -17,6 +20,7 @@ import {
     type CachedReleaseHighlights,
 } from '../../models/ReleaseHighlightsModel';
 import { AiService } from '../AiService/AiService';
+import { RoadmapService } from '../RoadmapService/RoadmapService';
 import { buildHighlights } from './buildHighlights';
 
 type Dependencies = {
@@ -27,6 +31,7 @@ type Dependencies = {
         AiService,
         'isAmbientAiEnabled' | 'generateReleaseHighlights'
     >;
+    roadmapService: Pick<RoadmapService, 'getShippedRequestedItems'> | null;
     now: (() => number) | null;
 };
 
@@ -50,7 +55,7 @@ export class ReleaseHighlightsService {
         this.now = dependencies.now ?? Date.now;
     }
 
-    async getHighlights(user: SessionUser): Promise<ReleaseHighlightsResult> {
+    async getHighlights(account: Account): Promise<ReleaseHighlightsResult> {
         const { lightdashConfig, aiService } = this.dependencies;
         if (lightdashConfig.mode !== LightdashMode.DEFAULT)
             return { status: 'unavailable', reason: 'not_self_hosted' };
@@ -67,6 +72,8 @@ export class ReleaseHighlightsService {
             return { status: 'unavailable', reason: 'up_to_date' };
         }
         try {
+            assertRegisteredAccount(account);
+            const user = toSessionUser(account);
             if (!(await aiService.isAmbientAiEnabled(user)))
                 return { status: 'unavailable', reason: 'ai_not_configured' };
             const key = `${fromVersion}:${toVersion}`;
@@ -83,16 +90,41 @@ export class ReleaseHighlightsService {
             const result = await operation;
             if (result.status === 'unavailable') return result;
             const { cached } = result;
+            const matches = await this.getRoadmapMatches(account);
             return {
                 status: 'ready',
                 fromVersion: cached.fromVersion,
                 toVersion: cached.toVersion,
-                highlights: buildHighlights(cached, new Set()),
+                highlights: buildHighlights(cached, matches),
                 generatedAt: cached.generatedAt,
             };
         } catch (error) {
             Logger.warn('Unable to load release highlights', error);
             return { status: 'unavailable', reason: 'generation_failed' };
+        }
+    }
+
+    private async getRoadmapMatches(
+        account: Account,
+    ): Promise<{ title: string; numbers: number[] }[]> {
+        const { roadmapService } = this.dependencies;
+        if (roadmapService === null) return [];
+        let timer: ReturnType<typeof setTimeout> | null = null;
+        try {
+            const result = await Promise.race([
+                roadmapService.getShippedRequestedItems(account),
+                new Promise<{ status: 'unavailable' }>((resolve) => {
+                    timer = setTimeout(
+                        () => resolve({ status: 'unavailable' }),
+                        3_000,
+                    );
+                }),
+            ]);
+            return result.status === 'ok' ? result.items : [];
+        } catch {
+            return [];
+        } finally {
+            if (timer !== null) clearTimeout(timer);
         }
     }
 

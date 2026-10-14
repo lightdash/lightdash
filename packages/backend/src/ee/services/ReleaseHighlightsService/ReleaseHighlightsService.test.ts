@@ -1,9 +1,12 @@
 import {
     LightdashMode,
+    type Account,
     type ReleaseHighlightsResult,
     type SessionUser,
 } from '@lightdash/common';
+import { toSessionUser } from '../../../auth/account';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { type RoadmapService } from '../RoadmapService/RoadmapService';
 import { ReleaseHighlightsService } from './ReleaseHighlightsService';
 
 const versions = vi.hoisted(() => ({
@@ -19,7 +22,19 @@ vi.mock('../../../clients/DockerHub/DockerHub', () => ({
     getDockerHubVersion: () => versions.to,
 }));
 
-const user = { userUuid: 'user', organizationUuid: 'org' } as SessionUser;
+const account = {
+    authentication: { type: 'session', source: 'session-cookie' },
+    user: { userUuid: 'user', type: 'registered' },
+    organization: {
+        organizationUuid: 'org',
+        name: 'Example org',
+        createdAt: new Date('2026-10-14'),
+    },
+    isRegisteredUser: () => true,
+} as Account;
+const user: SessionUser = toSessionUser(
+    account as Parameters<typeof toSessionUser>[0],
+);
 const candidates = [
     {
         id: 'pr-31000',
@@ -27,6 +42,7 @@ const candidates = [
         scope: 'charts',
         text: 'A feature',
         number: 31000,
+        relatedNumbers: [31000],
         url: 'https://github.com/lightdash/lightdash/pull/31000',
     },
 ];
@@ -59,7 +75,12 @@ const ready: Extract<ReleaseHighlightsResult, { status: 'ready' }> = {
         },
     ],
 };
-const setup = () => {
+const setup = (
+    roadmapService: Pick<
+        RoadmapService,
+        'getShippedRequestedItems'
+    > | null = null,
+) => {
     const model = {
         get: vi.fn().mockResolvedValue(null),
         insert: vi.fn().mockImplementation(async () => {
@@ -86,6 +107,7 @@ const setup = () => {
         aiService,
         lightdashConfig,
         now: null,
+        roadmapService,
     });
     return { service, model, githubClient, aiService, lightdashConfig };
 };
@@ -105,7 +127,7 @@ it('gates cloud before cache, AI or GitHub calls', async () => {
     const { service, lightdashConfig, model, githubClient, aiService } =
         setup();
     lightdashConfig.mode = LightdashMode.CLOUD_BETA;
-    expect(await service.getHighlights(user)).toEqual({
+    expect(await service.getHighlights(account)).toEqual({
         status: 'unavailable',
         reason: 'not_self_hosted',
     });
@@ -120,7 +142,7 @@ it('disabled update checks make zero fetches and skip all dependencies', async (
     const { service, lightdashConfig, model, githubClient, aiService } =
         setup();
     lightdashConfig.updateCheck.enabled = false;
-    expect(await service.getHighlights(user)).toEqual({
+    expect(await service.getHighlights(account)).toEqual({
         status: 'unavailable',
         reason: 'update_check_disabled',
     });
@@ -135,7 +157,7 @@ it.each([undefined, '2.1.0', '2.0.9', 'v2.2.0', '2.2.0-beta', 'bad'])(
     async (version) => {
         versions.to = version;
         const { service, githubClient, aiService } = setup();
-        expect(await service.getHighlights(user)).toEqual({
+        expect(await service.getHighlights(account)).toEqual({
             status: 'unavailable',
             reason: 'up_to_date',
         });
@@ -147,13 +169,13 @@ it.each([undefined, '2.1.0', '2.0.9', 'v2.2.0', '2.2.0-beta', 'bad'])(
 it('rejects invalid running versions and compares numeric segments', async () => {
     const { service, aiService } = setup();
     versions.from = '2.1.0-dev';
-    expect(await service.getHighlights(user)).toEqual({
+    expect(await service.getHighlights(account)).toEqual({
         status: 'unavailable',
         reason: 'up_to_date',
     });
     versions.from = '2.10.0';
     versions.to = '2.9.0';
-    expect(await service.getHighlights(user)).toEqual({
+    expect(await service.getHighlights(account)).toEqual({
         status: 'unavailable',
         reason: 'up_to_date',
     });
@@ -164,7 +186,7 @@ it('checks AI availability even when there is a cached highlights', async () => 
     const { service, model, aiService, githubClient } = setup();
     model.get.mockResolvedValue(cached);
     aiService.isAmbientAiEnabled.mockResolvedValue(false);
-    expect(await service.getHighlights(user)).toEqual({
+    expect(await service.getHighlights(account)).toEqual({
         status: 'unavailable',
         reason: 'ai_not_configured',
     });
@@ -175,14 +197,14 @@ it('checks AI availability even when there is a cached highlights', async () => 
 it('serves a cache hit without GitHub or generation', async () => {
     const { service, model, aiService, githubClient } = setup();
     model.get.mockResolvedValue(cached);
-    expect(await service.getHighlights(user)).toEqual(ready);
+    expect(await service.getHighlights(account)).toEqual(ready);
     expect(githubClient.getFeatureCandidates).not.toHaveBeenCalled();
     expect(aiService.generateReleaseHighlights).not.toHaveBeenCalled();
 });
 
 it('generates and saves a cache miss and returns the persisted winner', async () => {
     const { service, model, aiService, githubClient } = setup();
-    expect(await service.getHighlights(user)).toEqual(ready);
+    expect(await service.getHighlights(account)).toEqual(ready);
     expect(githubClient.getFeatureCandidates).toHaveBeenCalledWith(
         '2.1.0',
         '2.2.0',
@@ -205,18 +227,18 @@ it('cools down failed generations and retries after fifteen minutes', async () =
     aiService.generateReleaseHighlights.mockRejectedValueOnce(
         new Error('Provider unavailable'),
     );
-    expect(await service.getHighlights(user)).toEqual({
+    expect(await service.getHighlights(account)).toEqual({
         status: 'unavailable',
         reason: 'generation_failed',
     });
-    expect(await service.getHighlights(user)).toEqual({
+    expect(await service.getHighlights(account)).toEqual({
         status: 'unavailable',
         reason: 'rate_limited',
     });
     expect(githubClient.getFeatureCandidates).toHaveBeenCalledTimes(1);
     expect(model.insert).not.toHaveBeenCalled();
     vi.advanceTimersByTime(15 * 60 * 1000);
-    expect(await service.getHighlights(user)).toEqual(ready);
+    expect(await service.getHighlights(account)).toEqual(ready);
     expect(aiService.generateReleaseHighlights).toHaveBeenCalledTimes(2);
 });
 
@@ -225,11 +247,11 @@ it('cools down an unavailable source without generating', async () => {
     githubClient.getFeatureCandidates.mockResolvedValue({
         status: 'unavailable',
     });
-    expect(await service.getHighlights(user)).toEqual({
+    expect(await service.getHighlights(account)).toEqual({
         status: 'unavailable',
         reason: 'source_unavailable',
     });
-    expect(await service.getHighlights(user)).toEqual({
+    expect(await service.getHighlights(account)).toEqual({
         status: 'unavailable',
         reason: 'rate_limited',
     });
@@ -240,7 +262,7 @@ it('cools down an unavailable source without generating', async () => {
 it('deduplicates concurrent requests, including cache reads', async () => {
     const { service, githubClient, aiService, model } = setup();
     const results = await Promise.all(
-        Array.from({ length: 8 }, () => service.getHighlights(user)),
+        Array.from({ length: 8 }, () => service.getHighlights(account)),
     );
     expect(results).toEqual(Array.from({ length: 8 }, () => ready));
     expect(githubClient.getFeatureCandidates).toHaveBeenCalledTimes(1);
@@ -257,7 +279,7 @@ it('caps attempts across ranges at ten per rolling hour and still serves cache h
     const results = await Promise.all(
         Array.from({ length: 10 }, (_, patch) => {
             versions.to = `2.2.${patch}`;
-            return service.getHighlights(user);
+            return service.getHighlights(account);
         }),
     );
     expect(results).toEqual(
@@ -267,15 +289,15 @@ it('caps attempts across ranges at ten per rolling hour and still serves cache h
         })),
     );
     versions.to = '2.3.0';
-    expect(await service.getHighlights(user)).toEqual({
+    expect(await service.getHighlights(account)).toEqual({
         status: 'unavailable',
         reason: 'rate_limited',
     });
     expect(githubClient.getFeatureCandidates).toHaveBeenCalledTimes(10);
     model.get.mockResolvedValueOnce(cached);
-    expect(await service.getHighlights(user)).toEqual(ready);
+    expect(await service.getHighlights(account)).toEqual(ready);
     vi.advanceTimersByTime(60 * 60 * 1000);
-    expect(await service.getHighlights(user)).toEqual({
+    expect(await service.getHighlights(account)).toEqual({
         status: 'unavailable',
         reason: 'source_unavailable',
     });
@@ -285,7 +307,7 @@ it('caps attempts across ranges at ten per rolling hour and still serves cache h
 it('returns unavailable if the cache cannot be read', async () => {
     const { service, model, githubClient } = setup();
     model.get.mockRejectedValue(new Error('Database unavailable'));
-    expect(await service.getHighlights(user)).toEqual({
+    expect(await service.getHighlights(account)).toEqual({
         status: 'unavailable',
         reason: 'generation_failed',
     });
@@ -298,13 +320,13 @@ it('returns no_features without AI generation and cools down the empty range', a
         status: 'ready',
         candidates: [],
     });
-    expect(await service.getHighlights(user)).toEqual({
+    expect(await service.getHighlights(account)).toEqual({
         status: 'unavailable',
         reason: 'no_features',
     });
     expect(aiService.generateReleaseHighlights).not.toHaveBeenCalled();
     expect(model.insert).not.toHaveBeenCalled();
-    expect(await service.getHighlights(user)).toEqual({
+    expect(await service.getHighlights(account)).toEqual({
         status: 'unavailable',
         reason: 'rate_limited',
     });
@@ -314,7 +336,7 @@ it('returns no_features without AI generation and cools down the empty range', a
 it('returns no_features when AI finds no user-facing features', async () => {
     const { service, aiService, model } = setup();
     aiService.generateReleaseHighlights.mockResolvedValue([]);
-    expect(await service.getHighlights(user)).toEqual({
+    expect(await service.getHighlights(account)).toEqual({
         status: 'unavailable',
         reason: 'no_features',
     });
@@ -323,13 +345,123 @@ it('returns no_features when AI finds no user-facing features', async () => {
 
 it('shares global generation across users and builds unflagged responses per request', async () => {
     const { service, aiService } = setup();
-    const other = { ...user, userUuid: 'other', organizationUuid: 'other-org' };
+    const other = {
+        ...account,
+        user: { ...account.user, userUuid: 'other' },
+        organization: {
+            ...account.organization,
+            organizationUuid: 'other-org',
+        },
+    } as Account;
     const results = await Promise.all([
-        service.getHighlights(user),
+        service.getHighlights(account),
         service.getHighlights(other),
     ]);
     expect(results).toEqual([ready, ready]);
     expect(aiService.generateReleaseHighlights).toHaveBeenCalledTimes(1);
     expect(await service.getHighlights(other)).toEqual(ready);
     expect(aiService.generateReleaseHighlights).toHaveBeenCalledTimes(1);
+});
+
+it('applies roadmap matches per organization without generating again on cache hits', async () => {
+    const roadmapService = {
+        getShippedRequestedItems: vi
+            .fn()
+            .mockResolvedValueOnce({
+                status: 'ok',
+                items: [{ title: 'Requested charts', numbers: [31000] }],
+            })
+            .mockResolvedValue({ status: 'ok', items: [] }),
+    };
+    const { service, model, aiService, githubClient } = setup(roadmapService);
+    model.get.mockResolvedValue(cached);
+    const other = {
+        ...account,
+        organization: {
+            ...account.organization,
+            organizationUuid: 'other-org',
+        },
+    } as Account;
+    expect(await service.getHighlights(account)).toEqual({
+        ...ready,
+        highlights: [
+            { ...ready.highlights[0], requestedByYourOrganization: true },
+        ],
+    });
+    expect(await service.getHighlights(other)).toEqual(ready);
+    expect(roadmapService.getShippedRequestedItems.mock.calls).toEqual([
+        [account],
+        [other],
+    ]);
+    expect(aiService.generateReleaseHighlights).not.toHaveBeenCalled();
+    expect(githubClient.getFeatureCandidates).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+});
+
+it.each(['unavailable', 'throw', 'reject'] as const)(
+    'uses generic highlights when roadmap is %s',
+    async (failure) => {
+        const getShippedRequestedItems = vi.fn();
+        if (failure === 'unavailable')
+            getShippedRequestedItems.mockResolvedValue({
+                status: 'unavailable',
+            });
+        else if (failure === 'throw')
+            getShippedRequestedItems.mockImplementation(() => {
+                throw new Error('Unavailable');
+            });
+        else
+            getShippedRequestedItems.mockRejectedValue(
+                new Error('Unavailable'),
+            );
+        const { service, model, aiService } = setup({
+            getShippedRequestedItems,
+        });
+        model.get.mockResolvedValue(cached);
+        expect(await service.getHighlights(account)).toEqual(ready);
+        expect(aiService.generateReleaseHighlights).not.toHaveBeenCalled();
+        expect(vi.getTimerCount()).toBe(0);
+    },
+);
+
+it('limits roadmap waiting to three seconds and clears the timer', async () => {
+    let resolveRoadmap: (value: {
+        status: 'ok';
+        items: { title: string; numbers: number[] }[];
+    }) => void = () => {};
+    const roadmapService = {
+        getShippedRequestedItems: vi.fn().mockReturnValue(
+            new Promise((resolve) => {
+                resolveRoadmap = resolve;
+            }),
+        ),
+    };
+    const { service, model, aiService } = setup(roadmapService);
+    model.get.mockResolvedValue(cached);
+    const operation = service.getHighlights(account);
+    await vi.advanceTimersByTimeAsync(2_999);
+    let completed = false;
+    void operation.then(() => {
+        completed = true;
+    });
+    expect(completed).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(await operation).toEqual(ready);
+    expect(vi.getTimerCount()).toBe(0);
+    resolveRoadmap({
+        status: 'ok',
+        items: [{ title: 'Late charts', numbers: [31000] }],
+    });
+    expect(aiService.generateReleaseHighlights).not.toHaveBeenCalled();
+});
+
+it('does not request roadmap matches on an unavailable highlights path', async () => {
+    const roadmapService = { getShippedRequestedItems: vi.fn() };
+    const { service, aiService } = setup(roadmapService);
+    aiService.isAmbientAiEnabled.mockResolvedValue(false);
+    expect(await service.getHighlights(account)).toEqual({
+        status: 'unavailable',
+        reason: 'ai_not_configured',
+    });
+    expect(roadmapService.getShippedRequestedItems).not.toHaveBeenCalled();
 });

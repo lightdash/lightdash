@@ -31,7 +31,12 @@ export class ReleaseHighlightsModel {
             ? {
                   fromVersion: row.from_version,
                   toVersion: row.to_version,
-                  candidates: row.candidates,
+                  candidates: row.candidates.map((candidate) => ({
+                      ...candidate,
+                      relatedNumbers:
+                          candidate.relatedNumbers ??
+                          (candidate.number === null ? [] : [candidate.number]),
+                  })),
                   ranked: row.ranked,
                   generatedAt: row.created_at,
               }

@@ -1155,6 +1155,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     model: models.getReleaseHighlightsModel<ReleaseHighlightsModel>(),
                     githubClient: new GithubReleaseNotesClient(),
+                    roadmapService:
+                        repository.getRoadmapService<RoadmapService>(),
                     now: null,
                     aiService: repository.getAiService<AiService>(),
                 }),
