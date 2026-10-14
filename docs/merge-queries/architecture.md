@@ -234,12 +234,13 @@ and no network egress. The API process reads each referenced result file from
 results storage and writes it into the sandbox's input directory; the sandbox
 writes one JSON line per row, with the same serialisation the results upload
 uses, plus a fields map, and the API process reads them back and uploads the
-file. Inside the sandbox the DuckDB session is locked to its input and temp
-directories with external access disabled before any input loads, so even
-SQL that passed validation can read nothing else. The sandbox runs the same
-DuckDB warehouse client the server uses, built from the same commit, so
-session hardening, type mapping and row serialisation have one
-implementation. An instance without results storage is refused with a
+file. Inside the sandbox the DuckDB session is locked to its input directory
+with external access disabled and the configuration locked before any user
+SQL runs, so even SQL that passed validation can read nothing else. The
+sandbox runs no Lightdash code: a runner script the backend writes per run
+executes the SQL with the image's pinned `duckdb` Python package and mirrors
+the server DuckDB client's session hardening, field types and value
+serialisation, which a backend parity test pins against `@duckdb/node-api`. An instance without results storage is refused with a
 `MissingConfigError` naming the variables, as is one without a sandbox
 provider; nothing silently falls back to running DuckDB in a server process.
 

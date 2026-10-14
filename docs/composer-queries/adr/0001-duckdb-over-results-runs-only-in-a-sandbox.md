@@ -11,16 +11,28 @@ size a worker pod for them or accept DuckDB competing with the API.
 We decided every DuckDB-over-results query runs in a one-shot sandbox created
 through the sandbox provider, the way a Python transformation already does.
 The API process submits the row, waits for the referenced results, writes
-their result files into the sandbox, runs the statement there with the same
-DuckDB warehouse client the server uses, reads the result back, validates it
-and uploads it. The sandbox gets no credentials and no egress, and its DuckDB
-session is locked to its input directory before any input loads. The worker
+their result files into the sandbox, runs the composed SQL there, reads the
+result back, validates it and uploads it. Inside the sandbox the raw SQL is
+executed by the pinned `duckdb` Python package (`python:3.12-slim` plus that
+wheel, nothing else) through a small runner script the backend writes per
+run; the runner reports fields and writes rows in the shape the server's
+DuckDB client produced. The sandbox gets no credentials and no egress, and
+its DuckDB session is locked to its input directory before any user SQL runs. The worker
 path, its NATS job subjects and the in-process fallback are removed. Managed
 pre-aggregates and external sources read their own parquet and keep their
 DuckDB in a server process; this decision does not cover them.
 
 ## Considered options
 
+- **Run the server's own DuckDB warehouse client in the sandbox** (a Node
+  image with the workspace's `@lightdash/common` and `@lightdash/warehouses`
+  installed) — rejected after measuring it on E2B: every node spent 7-10 s
+  cold-loading 448 MB of `node_modules` before DuckDB did anything
+  (`require('@lightdash/common')` alone took 4.7 s on a fresh microVM). One
+  client implementation was the appeal; the price was paid on every
+  transformation and merge. The Python runner mirrors the client's session
+  hardening, field types and value serialisation instead, and backend tests
+  pin that parity against the node client.
 - **Keep the worker path behind a flag** — rejected; two execution paths for
   the same query double the surface to test and secure, and the flag would
   keep a credentialed process running user SQL for whoever left it on.
@@ -47,7 +59,14 @@ DuckDB in a server process; this decision does not cover them.
   complete lands before any sandbox exists.
 - The results cache key includes the sandbox version (provider, template and
   runner script), so results never cross between engines or image versions.
-- The sandbox image is published with every release and must be built from
-  the same commit as the server, because it runs the server's DuckDB client.
+- The sandbox runs no Lightdash JavaScript. The image is only rebuilt when its
+  Dockerfile or pinned `duckdb` version changes; the runner script ships with
+  the backend and its hash is part of the sandbox version.
+- DuckDB versions can drift between the server (`@duckdb/node-api`) and the
+  image (`duckdb` wheel). Both are pinned to the same minor, a backend test
+  fails when they disagree, and the sandbox version in the cache key keeps a
+  result from one image away from another. Field types and value formats are
+  pinned by a parity test that runs the same SQL through node-api and the
+  runner.
 - A pre-aggregate worker is no longer needed for composer or merge queries,
   and its capacity serves pre-aggregates only.

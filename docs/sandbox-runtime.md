@@ -264,11 +264,15 @@ gets no credentials and an empty egress allowlist; every byte crosses through
 run that exceeds its timeout fails with a timeout message, and a non-zero
 exit becomes an error safe to show on the query.
 
-The DuckDB runner runs the server's own DuckDB warehouse client, packed into
-the `sandboxes/duckdb-runner/` image from the same commit; the session inside
-is locked to its input and temp directories before any input loads. The
-runner's version (provider, template ref and runner script hash) is part of
-the results cache key, so a result never crosses between image versions.
+The DuckDB runner's image (`sandboxes/duckdb-runner/`) is `python:3.12-slim`
+plus the `duckdb` wheel pinned in `requirements.txt` (same minor as the
+server's `@duckdb/node-api`); no Lightdash code is installed. The backend
+writes `runner.py` per run and invokes `python3 -I /work/runner.py probe|run`.
+The runner locks an in-memory DuckDB to `/work/in` (external access off,
+configuration locked) before any user SQL, runs one SELECT and writes rows and
+fields in the shape the server's DuckDB client produced. The runner's version
+(provider, template ref and runner script hash) is part of the results cache
+key, so a result never crosses between image or runner versions.
 
 Both runners support only the `e2b` and `docker` providers. The DuckDB runner
 resolves its provider when a query is submitted, so a missing provider fails
