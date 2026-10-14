@@ -107,10 +107,7 @@ docker run --rm --network none -v /tmp/duckdb-proof:/fixture:ro lightdash-duckdb
 ```
 
 Expected: `id` shows `user`, the version matches `requirements.txt`, then the
-output below. It was recorded with the same runner and fixture on the host
-(`venv/bin/python3 -I runner.py`, network denied with `sandbox-exec`, paths
-pointed at the fixture directory) because the Docker engine was unavailable
-when this image was rebuilt; re-record it from the container.
+output below, recorded from the container (image size 198 MB on arm64).
 
 ```console
 {"fields":{"customer":{"type":"string"},"total":{"type":"number","numericKind":{"kind":"integer"}},"mean":{"type":"number","numericKind":{"kind":"float"}}}}
