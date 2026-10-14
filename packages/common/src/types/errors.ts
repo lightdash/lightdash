@@ -485,6 +485,20 @@ export class WarehouseQueryError extends LightdashError {
     }
 }
 
+export class QueryCostEstimateExceededError extends LightdashError {
+    constructor(
+        message: string,
+        data: { estimatedBytes: number; limitBytes: number },
+    ) {
+        super({
+            message,
+            name: 'QueryCostEstimateExceededError',
+            statusCode: 422,
+            data,
+        });
+    }
+}
+
 export class SmptError extends LightdashError {
     constructor(message: string, data: { [key: string]: AnyType } = {}) {
         super({

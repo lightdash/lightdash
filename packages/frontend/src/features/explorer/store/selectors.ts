@@ -226,6 +226,11 @@ export const selectPendingFetch = createSelector(
     (queryExecution) => queryExecution.pendingFetch,
 );
 
+export const selectPendingCostConfirmation = createSelector(
+    [selectQueryExecution],
+    (queryExecution) => queryExecution.pendingCostConfirmation,
+);
+
 // TODO: REDUX-MIGRATION - Add missingRequiredParameters as a computed selector once all dependencies are in Redux
 // Currently missingRequiredParameters is computed state in Context, not stored in Redux
 

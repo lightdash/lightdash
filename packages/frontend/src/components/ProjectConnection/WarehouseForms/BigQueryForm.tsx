@@ -974,6 +974,45 @@ const BigQueryForm: FC<{
                                     disabled={disabled}
                                 />
 
+                                <Switch
+                                    name="warehouse.estimateQueryBytes"
+                                    {...form.getInputProps(
+                                        'warehouse.estimateQueryBytes',
+                                        { type: 'checkbox' },
+                                    )}
+                                    label="Show query cost estimates"
+                                    description="Runs a free BigQuery dry run before queries in the explorer and SQL runner and shows the estimated bytes processed."
+                                    disabled={disabled}
+                                />
+
+                                <NumberInput
+                                    name="warehouse.confirmEstimatedBytesAbove"
+                                    {...form.getInputProps(
+                                        'warehouse.confirmEstimatedBytesAbove',
+                                    )}
+                                    label="Confirm queries estimated above (bytes)"
+                                    description="Users must confirm before running a query whose estimate is above this. Requires query cost estimates. Leave empty for no confirmation."
+                                    disabled={
+                                        disabled ||
+                                        !(
+                                            form.values.warehouse.type ===
+                                                WarehouseTypes.BIGQUERY &&
+                                            form.values.warehouse
+                                                .estimateQueryBytes
+                                        )
+                                    }
+                                />
+
+                                <NumberInput
+                                    name="warehouse.agentMaximumEstimatedBytes"
+                                    {...form.getInputProps(
+                                        'warehouse.agentMaximumEstimatedBytes',
+                                    )}
+                                    label="AI agent query limit (estimated bytes)"
+                                    description="AI agent queries whose dry run estimate is above this are refused, and the agent is told the estimate so it can narrow the query. Dry runs can underreport, so keep maximum bytes billed as the hard limit. Leave empty for no limit."
+                                    disabled={disabled}
+                                />
+
                                 <DataTimezoneField disabled={disabled} />
                                 <StartOfWeekSelect disabled={disabled} />
                             </Stack>

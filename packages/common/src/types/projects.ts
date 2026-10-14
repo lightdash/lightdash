@@ -97,6 +97,12 @@ export type CreateBigqueryCredentials = {
     retries: number | undefined;
     location: string | undefined;
     maximumBytesBilled: number | undefined;
+    /** Show a dry-run bytes estimate in the explorer and SQL runner. */
+    estimateQueryBytes?: boolean;
+    /** Ask users to confirm before running a query estimated above this. */
+    confirmEstimatedBytesAbove?: number;
+    /** Refuse AI agent queries whose dry-run estimate is above this. */
+    agentMaximumEstimatedBytes?: number;
     startOfWeek?: WeekDay | null;
     dataTimezone?: string;
     executionProject?: string;

@@ -45,6 +45,7 @@ import {
     type ResultNumericKind,
     type TimestampDomain,
     type WarehouseNestedColumnShape,
+    type WarehouseQueryEstimate,
 } from '@lightdash/common';
 import { pipeline, Transform } from 'stream';
 import {
@@ -577,6 +578,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             values?: AnyType[];
             tags?: Record<string, string>;
             timezone?: string;
+            dryRun?: boolean;
         },
     ) {
         const tags = options?.tags;
@@ -595,7 +597,10 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             query,
             params: options?.values,
             useLegacySql: false,
-            ...(this.agentJobControls ? { useQueryCache: false } : {}),
+            ...(this.agentJobControls || options.dryRun
+                ? { useQueryCache: false }
+                : {}),
+            ...(options.dryRun ? { dryRun: true } : {}),
             // BigQuery has no session timezone; the `time_zone` connection
             // property is the per-job equivalent — naive DATETIME coercions
             // and offset-less literals are read in this zone.
@@ -1010,6 +1015,40 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 error?.message ? ` - ${error.message}` : ''
             }`,
         );
+    }
+
+    async estimateQuery({
+        sql,
+        values,
+        tags,
+        timezone,
+    }: WarehouseExecuteAsyncQueryArgs): Promise<WarehouseQueryEstimate> {
+        try {
+            const [job] = await this.createJob(sql, {
+                values,
+                tags,
+                timezone,
+                dryRun: true,
+            });
+            const totalBytesProcessed = Number(
+                job.metadata?.statistics?.totalBytesProcessed ?? 0,
+            );
+            return {
+                totalBytesProcessed: Number.isFinite(totalBytesProcessed)
+                    ? totalBytesProcessed
+                    : 0,
+            };
+        } catch (e: unknown) {
+            this.throwIfGoogleOauthTokenError(e);
+            if (BigqueryWarehouseClient.isBigqueryError(e)) {
+                const responseError: bigquery.IErrorProto | undefined =
+                    e?.errors[0];
+                if (responseError) {
+                    throw this.parseError(responseError, sql);
+                }
+            }
+            throw e;
+        }
     }
 
     async executeAsyncQuery(
