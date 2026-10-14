@@ -1,3 +1,10 @@
+# [2.579.0](https://github.com/lightdash/lightdash/compare/2.578.1...2.579.0) (2026-10-14)
+
+
+### Features
+
+* **ai:** offer Frankfurt and Ireland for organization Bedrock credentials ([#31000](https://github.com/lightdash/lightdash/issues/31000)) ([f559434](https://github.com/lightdash/lightdash/commit/f55943408183186fde52f81e6d0c15d9770caa27))
+
 ## [2.578.1](https://github.com/lightdash/lightdash/compare/2.578.0...2.578.1) (2026-10-13)
 
 
