@@ -45,7 +45,7 @@ type MemberChipProps = {
 
 const MemberChip: FC<MemberChipProps> = ({ item, label, onRemove }) => (
     <Group gap={4} wrap="nowrap" className={classes.memberChip}>
-        {item && <FieldIcon item={item} size="sm" />}
+        {item && <FieldIcon item={item} size="sm" color="yellow.7" />}
         <Text size="xs" truncate>
             {label}
         </Text>
