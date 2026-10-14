@@ -22,6 +22,7 @@ import prometheus from 'prom-client';
 import { z } from 'zod';
 import { AI_WRITEBACK_STAGES } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
+import { onTransactionEnd } from '../database/transactionObservability';
 import { PreAggregateMaterializationsTableName } from '../ee/database/entities/preAggregates';
 import Logger from '../logging/logger';
 import { SchedulerClient } from '../scheduler/SchedulerClient';
@@ -1317,6 +1318,40 @@ export default class PrometheusMetrics {
                 1800000, // 30 min
             ],
             ...rest,
+        });
+
+        const pgTransactionRollbacksCounter = new prometheus.Counter({
+            name: 'pg_transaction_rollbacks_total',
+            help: 'Rolled-back PG transactions by caller (active span name)',
+            labelNames: ['caller'],
+            ...rest,
+        });
+
+        const pgTransactionDurationHistogram = new prometheus.Histogram({
+            name: 'pg_transaction_duration',
+            help: 'Histogram of PG transaction duration from begin to settle (ms)',
+            labelNames: ['outcome'],
+            buckets: [
+                10,
+                100,
+                1000, // 1 second
+                10000, // 10 second
+                60000, // 1 min
+                300000, // 5 min
+                900000, // 15 min
+                1800000, // 30 min
+            ],
+            ...rest,
+        });
+
+        // Only fires when transaction observability is enabled via env.
+        onTransactionEnd(knex, ({ caller, durationMs, outcome }) => {
+            pgTransactionDurationHistogram.observe({ outcome }, durationMs);
+            if (outcome === 'rollback') {
+                pgTransactionRollbacksCounter.inc({
+                    caller: caller ?? 'unknown',
+                });
+            }
         });
 
         const pgQueryDurationHistogram = new prometheus.Histogram({

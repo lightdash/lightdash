@@ -3127,3 +3127,17 @@ describe('database transaction rollback logging', () => {
         expect(parseConfig().database.logTransactionRollbacks).toBe(false);
     });
 });
+
+describe('database slow transaction threshold', () => {
+    it('is disabled by default', () => {
+        expect(parseConfig().database.slowTransactionThresholdMs).toBeNull();
+    });
+    it('treats 0 as disabled', () => {
+        process.env.PG_SLOW_TRANSACTION_THRESHOLD_MS = '0';
+        expect(parseConfig().database.slowTransactionThresholdMs).toBeNull();
+    });
+    it('reads a positive threshold in milliseconds', () => {
+        process.env.PG_SLOW_TRANSACTION_THRESHOLD_MS = '60000';
+        expect(parseConfig().database.slowTransactionThresholdMs).toBe(60000);
+    });
+});

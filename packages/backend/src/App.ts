@@ -307,6 +307,8 @@ export default class App {
             {
                 logRollbacks:
                     this.lightdashConfig.database.logTransactionRollbacks,
+                slowTransactionThresholdMs:
+                    this.lightdashConfig.database.slowTransactionThresholdMs,
             },
         );
         this.utils = new UtilRepository({

@@ -217,6 +217,8 @@ export default class SchedulerApp {
             {
                 logRollbacks:
                     this.lightdashConfig.database.logTransactionRollbacks,
+                slowTransactionThresholdMs:
+                    this.lightdashConfig.database.slowTransactionThresholdMs,
             },
         );
 

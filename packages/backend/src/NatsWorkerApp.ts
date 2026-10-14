@@ -150,6 +150,8 @@ export default class NatsWorkerApp {
             {
                 logRollbacks:
                     this.lightdashConfig.database.logTransactionRollbacks,
+                slowTransactionThresholdMs:
+                    this.lightdashConfig.database.slowTransactionThresholdMs,
             },
         );
 

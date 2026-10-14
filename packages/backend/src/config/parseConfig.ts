@@ -1733,6 +1733,7 @@ export type LightdashConfig = {
         readinessProbeTtlMs: number;
         allowMissingMigrations: boolean;
         logTransactionRollbacks: boolean;
+        slowTransactionThresholdMs: number | null;
     };
     allowMultiOrgs: boolean;
     maxPayloadSize: string;
@@ -3449,6 +3450,10 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.ALLOW_MISSING_MIGRATIONS === 'true',
             logTransactionRollbacks:
                 process.env.PG_LOG_TRANSACTION_ROLLBACKS === 'true',
+            slowTransactionThresholdMs:
+                getIntegerFromEnvironmentVariable(
+                    'PG_SLOW_TRANSACTION_THRESHOLD_MS',
+                ) || null,
         },
         auth: {
             mobileLogin: {

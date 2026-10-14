@@ -73,3 +73,34 @@ route as `caller`.
 
 Short `duration` rollbacks with application errors are ordinary failed writes
 and are already reported through the calling code's own error logging.
+
+## Warn about slow transactions: `PG_SLOW_TRANSACTION_THRESHOLD_MS`
+
+```bash
+PG_SLOW_TRANSACTION_THRESHOLD_MS=60000
+```
+
+Default unset (disabled). `0` also disables it. When set, any callback-style
+transaction that takes at least this many milliseconds to settle, whether it
+commits or rolls back, logs one line at `warn` level:
+
+```
+Knex.slowTransaction - slow transaction settled after 184233.12ms - Context: {"source":"knex","caller":"POST /api/v1/projects/:projectUuid/refresh","outcome":"commit","thresholdMs":60000,"serverVersion":"2.581.0"}
+```
+
+This is the setting that catches a transaction held open for a long time and
+then committed, which rollback logging alone cannot see. On a busy instance it
+fires once per compile of a large project, so pick a threshold above the
+compile times you consider normal.
+
+## Prometheus metrics
+
+When either setting above is enabled and `LIGHTDASH_PROMETHEUS_ENABLED=true`,
+two metrics are recorded next to the existing `pg_*` pool and query metrics:
+
+- `pg_transaction_rollbacks_total{caller}` counts rollbacks by active span
+  name (HTTP route or scheduler task, `unknown` when none is active).
+- `pg_transaction_duration{outcome}` is a histogram of transaction duration in
+  milliseconds, labelled `commit` or `rollback`.
+
+With both settings off, no transaction is observed and neither metric moves.

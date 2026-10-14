@@ -1,7 +1,10 @@
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { attachTransactionObservability } from './transactionObservability';
+import {
+    attachTransactionObservability,
+    onTransactionEnd,
+} from './transactionObservability';
 
 const createDatabase = () => knex({ client: MockClient, dialect: 'pg' });
 
@@ -10,11 +13,14 @@ describe('attachTransactionObservability', () => {
         getTracker().reset();
     });
 
-    it('leaves database.transaction untouched when rollback logging is disabled', () => {
+    it('leaves database.transaction untouched when nothing is enabled', () => {
         const database = createDatabase();
         const originalTransaction = database.transaction;
 
-        attachTransactionObservability(database, { logRollbacks: false });
+        attachTransactionObservability(database, {
+            logRollbacks: false,
+            slowTransactionThresholdMs: null,
+        });
 
         expect(database.transaction).toBe(originalTransaction);
     });
@@ -24,7 +30,7 @@ describe('attachTransactionObservability', () => {
         const log = vi.fn();
         attachTransactionObservability(
             database,
-            { logRollbacks: true },
+            { logRollbacks: true, slowTransactionThresholdMs: null },
             { log },
         );
         getTracker()
@@ -47,7 +53,7 @@ describe('attachTransactionObservability', () => {
         let clock = 1_000;
         attachTransactionObservability(
             database,
-            { logRollbacks: true },
+            { logRollbacks: true, slowTransactionThresholdMs: null },
             {
                 log,
                 getCaller: () => 'POST /api/v1/projects/:projectUuid/compile',
@@ -87,7 +93,7 @@ describe('attachTransactionObservability', () => {
         const log = vi.fn();
         attachTransactionObservability(
             database,
-            { logRollbacks: true },
+            { logRollbacks: true, slowTransactionThresholdMs: null },
             { log, getCaller: () => undefined },
         );
 
@@ -107,7 +113,7 @@ describe('attachTransactionObservability', () => {
         });
         attachTransactionObservability(
             database,
-            { logRollbacks: true },
+            { logRollbacks: true, slowTransactionThresholdMs: null },
             { log },
         );
         const error = new Error('boom');
@@ -124,7 +130,7 @@ describe('attachTransactionObservability', () => {
         const log = vi.fn();
         attachTransactionObservability(
             database,
-            { logRollbacks: true },
+            { logRollbacks: true, slowTransactionThresholdMs: null },
             { log },
         );
 
@@ -133,5 +139,115 @@ describe('attachTransactionObservability', () => {
 
         expect(trx.isCompleted()).toBe(true);
         expect(log).not.toHaveBeenCalled();
+    });
+
+    it('warns about a committed transaction that ran past the slow threshold', async () => {
+        const database = createDatabase();
+        const log = vi.fn();
+        let clock = 0;
+        attachTransactionObservability(
+            database,
+            { logRollbacks: false, slowTransactionThresholdMs: 1_000 },
+            {
+                log,
+                getCaller: () => 'scheduler:compileProject',
+                now: () => {
+                    clock += 1_500;
+                    return clock;
+                },
+            },
+        );
+
+        await expect(database.transaction(async () => 'done')).resolves.toBe(
+            'done',
+        );
+
+        expect(log).toHaveBeenCalledTimes(1);
+        const [message, metadata] = log.mock.calls[0];
+        expect(message).toContain('Knex.slowTransaction');
+        expect(metadata).toMatchObject({
+            name: 'Knex.slowTransaction',
+            duration: 1_500,
+            context: {
+                source: 'knex',
+                caller: 'scheduler:compileProject',
+                outcome: 'commit',
+                thresholdMs: 1_000,
+            },
+        });
+    });
+
+    it('stays quiet for a committed transaction under the slow threshold', async () => {
+        const database = createDatabase();
+        const log = vi.fn();
+        let clock = 0;
+        attachTransactionObservability(
+            database,
+            { logRollbacks: true, slowTransactionThresholdMs: 1_000 },
+            {
+                log,
+                now: () => {
+                    clock += 10;
+                    return clock;
+                },
+            },
+        );
+
+        await database.transaction(async () => undefined);
+
+        expect(log).not.toHaveBeenCalled();
+    });
+
+    it('does not log a rollback line when only the slow threshold is enabled', async () => {
+        const database = createDatabase();
+        const log = vi.fn();
+        attachTransactionObservability(
+            database,
+            { logRollbacks: false, slowTransactionThresholdMs: 60_000 },
+            { log },
+        );
+
+        await expect(
+            database.transaction(async () => {
+                throw new Error('boom');
+            }),
+        ).rejects.toThrow('boom');
+
+        expect(log).not.toHaveBeenCalled();
+    });
+
+    it('notifies transaction-end listeners for commits and rollbacks', async () => {
+        const database = createDatabase();
+        const events: unknown[] = [];
+        let clock = 0;
+        attachTransactionObservability(
+            database,
+            { logRollbacks: true, slowTransactionThresholdMs: null },
+            {
+                log: vi.fn(),
+                getCaller: () => 'GET /api/v1/org',
+                now: () => {
+                    clock += 5;
+                    return clock;
+                },
+            },
+        );
+        const unsubscribe = onTransactionEnd(database, (event) =>
+            events.push(event),
+        );
+
+        await database.transaction(async () => undefined);
+        await expect(
+            database.transaction(async () => {
+                throw new Error('boom');
+            }),
+        ).rejects.toThrow('boom');
+        unsubscribe();
+        await database.transaction(async () => undefined);
+
+        expect(events).toEqual([
+            { caller: 'GET /api/v1/org', durationMs: 5, outcome: 'commit' },
+            { caller: 'GET /api/v1/org', durationMs: 5, outcome: 'rollback' },
+        ]);
     });
 });

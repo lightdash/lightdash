@@ -141,6 +141,7 @@ export const lightdashConfigMock: LightdashConfig = {
         readinessProbeTtlMs: 10_000,
         allowMissingMigrations: false,
         logTransactionRollbacks: false,
+        slowTransactionThresholdMs: null,
     },
     intercom: {
         appId: '',
