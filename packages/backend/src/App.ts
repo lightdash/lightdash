@@ -48,6 +48,10 @@ import {
     ClientProviderMap,
     ClientRepository,
 } from './clients/ClientRepository';
+import {
+    startDockerHubVersionPolling,
+    stopDockerHubVersionPolling,
+} from './clients/DockerHub/DockerHub';
 import { setGithubRateLimitObserver } from './clients/github/Github';
 import { SlackClient } from './clients/Slack/SlackClient';
 import { createStaticAssetsFallbackHandler } from './clients/StaticAssets/staticAssetsFallbackMiddleware';
@@ -362,6 +366,9 @@ export default class App {
         this.featureFlagCheckFlushInterval.unref();
 
         this.prometheusMetrics.start();
+        if (this.lightdashConfig.updateCheck.enabled) {
+            startDockerHubVersionPolling();
+        }
         MotherduckInstanceCache.configure(
             this.lightdashConfig.motherduckInstanceCache,
         );
@@ -1180,6 +1187,7 @@ export default class App {
             clearInterval(this.featureFlagCheckFlushInterval);
             this.featureFlagCheckFlushInterval = undefined;
         }
+        stopDockerHubVersionPolling();
         try {
             this.analytics.trackFeatureFlagChecks(
                 flushFeatureFlagChecks(),
