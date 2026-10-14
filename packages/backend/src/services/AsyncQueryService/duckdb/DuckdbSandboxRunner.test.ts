@@ -12,7 +12,10 @@ import {
 } from '../../../ee/services/SandboxRuntime/types';
 import { getJsonlReferenceSelect } from '../../../utils/duckdb/duckdbSqlTables';
 import { LocalProcessSandboxProvider } from '../sandbox/LocalProcessSandboxProvider';
-import { DUCKDB_RUNNER_SOURCE } from './duckdbSandboxHarness';
+import {
+    DUCKDB_RUNNER_SOURCE,
+    getDuckdbNodeWorkPaths,
+} from './duckdbSandboxHarness';
 import {
     DuckdbSandboxExecutionError,
     DuckdbSandboxRunner,
@@ -57,8 +60,9 @@ const ordersColumns = {
     },
 } as unknown as ResultColumns;
 
+const nodePaths = getDuckdbNodeWorkPaths('query-uuid');
 const ordersSelect = getJsonlReferenceSelect(
-    '/work/in/orders.jsonl',
+    `${nodePaths.inputDir}/orders.jsonl`,
     ordersColumns,
 );
 
@@ -259,11 +263,11 @@ describe('DuckdbSandboxRunner over a local process sandbox', () => {
 
         const sandbox = await runner.create(createArgs);
         expect(provider.sandboxIds).toHaveLength(1);
-        expect(existsSync(`${provider.sandboxIds[0]}/in/orders.jsonl`)).toBe(
-            false,
-        );
+        expect(
+            existsSync(`${provider.sandboxIds[0]}/query-uuid/in/orders.jsonl`),
+        ).toBe(false);
         try {
-            await sandbox.writeInputs([ordersInput]);
+            sandbox.stageInputs([ordersInput]);
             const { rowCount } = await sandbox.run(ordersSelect, {
                 limit: null,
             });
@@ -327,11 +331,10 @@ describe('DuckdbSandboxRunner over a local process sandbox', () => {
     });
 
     it('names the metadata cap when the run metadata is too large', async () => {
+        // Metadata is the command's stdout; 1.5 MiB is over its cap but under the log cap
         const oversizedMetaRunner = [
-            'import os, sys',
-            "out = os.path.join(sys.argv[2], 'out')",
-            'os.makedirs(out, exist_ok=True)',
-            "open(os.path.join(out, 'meta.json'), 'w').write(' ' * 2 * 1024 * 1024)",
+            'import sys',
+            "sys.stdout.write(' ' * (1024 * 1024 + 512 * 1024))",
         ].join('\n');
         const runner = createRunner(
             new RecordingProvider(),
@@ -355,7 +358,7 @@ describe('DuckdbSandboxRunner over a local process sandbox', () => {
         await expect(
             runner.withSession(openArgs, async (session) =>
                 session.run(
-                    "SELECT * FROM read_json_auto('/work/settings.json')",
+                    `SELECT * FROM read_json_auto('${nodePaths.settingsPath}')`,
                     {
                         limit: 10,
                     },

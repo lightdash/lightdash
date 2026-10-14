@@ -134,6 +134,7 @@ export class DuckdbQuerySource implements QuerySourceClient {
         invalidateCache,
         pivotConfiguration,
         plan,
+        sandboxLease,
     }: SubmitSourceQueryArgs): Promise<SourceQuerySubmissionResult> {
         const sourceQuery = DuckdbQuerySource.assertSourceQuery(query);
 
@@ -163,13 +164,17 @@ export class DuckdbQuerySource implements QuerySourceClient {
         };
         const { queryUuid } =
             plan === null
-                ? await this.asyncQueryService.executeAsyncComposeSqlQuery(args)
+                ? await this.asyncQueryService.executeAsyncComposeSqlQuery(
+                      args,
+                      { sandboxLease },
+                  )
                 : await this.asyncQueryService.executeAsyncDuckdbSourceQuery({
                       ...args,
                       plan: DuckdbQuerySource.resolvePlanReferences(
                           plan,
                           resolvedReferences,
                       ),
+                      sandboxLease,
                   });
 
         // Whether the run is served from an earlier one over the same result

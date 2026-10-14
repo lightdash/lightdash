@@ -197,6 +197,13 @@ const createHandle = (workDir: string): SandboxHandle => {
                     : contents,
             );
         },
+        writeMany: async (entries) => {
+            await Promise.all(
+                entries.map(({ path: sandboxPath, contents }) =>
+                    files.write(sandboxPath, contents),
+                ),
+            );
+        },
         remove: (sandboxPath) =>
             rm(toHostPath(workDir, sandboxPath), { force: true }),
     };

@@ -50,6 +50,7 @@ import type {
     TotalConfiguration,
 } from '../../utils/QueryBuilder/QueryComposer';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
+import type { DuckdbSandboxLease } from './duckdb/DuckdbSandboxRunner';
 
 export type CommonAsyncQueryArgs = {
     querySurface?: QuerySurface;
@@ -429,6 +430,8 @@ export type ExecuteAsyncDuckdbSourceQueryArgs = CommonAsyncQueryArgs & {
     /** The node's own pivot stage, composed by a supplied plan or over discovered columns. */
     pivotConfiguration?: PivotConfiguration;
     plan: DuckdbQueryPlan;
+    /** The submission's shared sandbox; null leases one for this node alone. */
+    sandboxLease: DuckdbSandboxLease | null;
 };
 
 /** A referenced result file, pushed into the sandbox as `/work/in/<table>.jsonl`. */
@@ -496,4 +499,5 @@ export type RunDuckdbSandboxQueryArgs = {
     queryCreatedAt: Date;
     queryUsage?: QueryUsageMetadata;
     context: QueryExecutionContext;
+    sandboxLease: DuckdbSandboxLease | null;
 };

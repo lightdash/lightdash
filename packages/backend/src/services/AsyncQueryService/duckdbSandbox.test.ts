@@ -469,6 +469,7 @@ const buildHarness = ({
             projectUuid,
             context: QueryExecutionContext.AI,
             sql,
+            sandboxLease: null,
             references: { orders: ordersUuid, customers: customersUuid },
             plan: {
                 columns: {
@@ -514,6 +515,7 @@ const buildHarness = ({
             projectUuid,
             context: QueryExecutionContext.CALCULATE_TOTAL,
             sql,
+            sandboxLease: null,
             references: {},
             plan: {
                 columns: { mode: 'discover' },
@@ -900,9 +902,9 @@ describe('DuckDB queries over results run in a one-shot sandbox', () => {
 
         test('a run over the timeout says so', async () => {
             const { composeSql, runner } = buildHarness();
-            const create = runner.create.bind(runner);
-            vi.spyOn(runner, 'create').mockImplementation((args) =>
-                create({ ...args, commandTimeoutMs: 1000 }),
+            const createLease = runner.createLease.bind(runner);
+            vi.spyOn(runner, 'createLease').mockImplementation((args) =>
+                createLease({ ...args, commandTimeoutMs: 1000 }),
             );
 
             const row = await composeSql({

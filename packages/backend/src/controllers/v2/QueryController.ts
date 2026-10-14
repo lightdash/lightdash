@@ -670,14 +670,18 @@ export class QueryController extends BaseController {
 
         const results = await this.services
             .getAsyncQueryService()
-            .executeAsyncComposeSqlQuery({
-                account: req.account!,
-                projectUuid,
-                sql: body.sql,
-                limit: body.limit,
-                references: body.references,
-                context: context ?? QueryExecutionContext.COMPOSE_SQL_RUNNER,
-            });
+            .executeAsyncComposeSqlQuery(
+                {
+                    account: req.account!,
+                    projectUuid,
+                    sql: body.sql,
+                    limit: body.limit,
+                    references: body.references,
+                    context:
+                        context ?? QueryExecutionContext.COMPOSE_SQL_RUNNER,
+                },
+                { sandboxLease: null },
+            );
 
         return {
             status: 'ok',

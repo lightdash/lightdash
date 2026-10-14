@@ -2,11 +2,14 @@ import { DimensionType } from '@lightdash/common';
 import { existsSync } from 'node:fs';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { LocalProcessSandboxProvider } from '../sandbox/LocalProcessSandboxProvider';
+import { getDuckdbNodeWorkPaths } from './duckdbSandboxHarness';
 import {
     DuckdbSandboxExecutionError,
     DuckdbSandboxRunner,
     type DuckdbSandboxSession,
 } from './DuckdbSandboxRunner';
+
+const nodePaths = getDuckdbNodeWorkPaths('query-uuid');
 
 vi.mock('../../../tracing/tracing', () => ({
     traceSpan: async (_options: unknown, fn: () => Promise<unknown>) => fn(),
@@ -74,7 +77,7 @@ const rowsOf = (resultBytes: Buffer) =>
 describe('DuckDB sandbox runner isolation', () => {
     it('reads a JSONL file inside the input directory', async () => {
         const result = await run(
-            `SELECT * FROM read_json('/work/in/orders.jsonl', columns={"id": 'INTEGER', "status": 'VARCHAR'}, format='newline_delimited') ORDER BY id`,
+            `SELECT * FROM read_json('${nodePaths.inputDir}/orders.jsonl', columns={"id": 'INTEGER', "status": 'VARCHAR'}, format='newline_delimited') ORDER BY id`,
         );
 
         expect(rowsOf(result.resultBytes)).toEqual([
@@ -91,10 +94,10 @@ describe('DuckDB sandbox runner isolation', () => {
     });
 
     it.each([
-        ['a file outside the input directory', '/work/settings.json'],
+        ['a file outside the input directory', nodePaths.settingsPath],
         [
             'a path that traverses out of the input directory',
-            '/work/in/../run.sql',
+            `${nodePaths.inputDir}/../run.sql`,
         ],
         ['a system file', '/etc/hosts'],
     ])('refuses to read %s', async (_label, filePath) => {
@@ -110,9 +113,21 @@ describe('DuckDB sandbox runner isolation', () => {
     });
 
     it.each([
-        ['the input directory', '/work/in/copy.csv', 'in/copy.csv'],
-        ['the temp directory', '/work/tmp/copy.csv', 'tmp/copy.csv'],
-        ['the work directory', '/work/copy.csv', 'copy.csv'],
+        [
+            'the input directory',
+            `${nodePaths.inputDir}/copy.csv`,
+            'query-uuid/in/copy.csv',
+        ],
+        [
+            'the temp directory',
+            `${nodePaths.workDir}/tmp/copy.csv`,
+            'query-uuid/tmp/copy.csv',
+        ],
+        [
+            'the work directory',
+            `${nodePaths.workDir}/copy.csv`,
+            'query-uuid/copy.csv',
+        ],
     ])(
         'refuses to write a file into %s',
         async (_label, sandboxPath, relativePath) => {

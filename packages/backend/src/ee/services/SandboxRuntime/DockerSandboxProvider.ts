@@ -16,6 +16,7 @@ import {
     type PersistOptions,
     type RunOptions,
     type SandboxCapabilities,
+    type SandboxFileEntry,
     type SandboxGit,
     type SandboxHandle,
     type SandboxLogger,
@@ -23,6 +24,7 @@ import {
     type SandboxSpec,
     type SnapshotRef,
 } from './types';
+import { writeFilesOneByOne } from './writeFilesOneByOne';
 
 const SANDBOX_LABEL = 'com.lightdash.sandbox';
 
@@ -251,6 +253,8 @@ class DockerSandboxHandle implements SandboxHandle {
                 );
             }
         },
+        writeMany: (entries: SandboxFileEntry[]): Promise<void> =>
+            writeFilesOneByOne(this.files.write, entries),
         remove: async (path: string): Promise<void> => {
             await this.execCollect(['rm', '-f', path], {});
         },

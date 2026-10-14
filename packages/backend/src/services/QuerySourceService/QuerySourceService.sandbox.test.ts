@@ -420,8 +420,8 @@ const valuesOf = (rows: Record<string, { value: { raw: unknown } }>[]) =>
         ),
     );
 
-describe('a query-source pipeline runs its DuckDB nodes in one-shot sandboxes', () => {
-    test('chained SQL transformations run in dependency order, each over the last', async () => {
+describe('a query-source pipeline runs its DuckDB nodes in one sandbox per submission', () => {
+    test('chained SQL transformations run in dependency order, each over the last, in one sandbox', async () => {
         const { execute, waitForTerminal, fetchResults, provider } =
             buildPipeline();
 
@@ -456,7 +456,7 @@ describe('a query-source pipeline runs its DuckDB nodes in one-shot sandboxes', 
             reference: 'total',
             type: DimensionType.NUMBER,
         });
-        expect(provider.created).toHaveLength(2);
+        expect(provider.created).toHaveLength(1);
     }, 60_000);
 
     test('resubmitting the same pipeline is served from the earlier results without a sandbox', async () => {
@@ -474,7 +474,7 @@ describe('a query-source pipeline runs its DuckDB nodes in one-shot sandboxes', 
             true,
             true,
         ]);
-        expect(provider.created).toHaveLength(2);
+        expect(provider.created).toHaveLength(1);
         const results = await fetchResults(queries[1].queryUuid);
         if (results.status !== QueryHistoryStatus.READY)
             throw new Error(`results are ${results.status}`);

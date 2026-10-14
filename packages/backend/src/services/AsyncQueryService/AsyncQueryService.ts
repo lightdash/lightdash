@@ -355,12 +355,13 @@ import {
 } from './composePivot';
 import { resolveDashboardDateFilters } from './dashboardDateFilters';
 import { getValidatedDashboardSorts } from './dashboardSorts';
-import { DUCKDB_INPUT_DIR } from './duckdb/duckdbSandboxHarness';
+import { getDuckdbNodeWorkPaths } from './duckdb/duckdbSandboxHarness';
 import {
     DuckdbSandboxExecutionError,
     DuckdbSandboxRunner,
-    type DuckdbSandbox,
+    type DuckdbSandboxClaim,
     type DuckdbSandboxInput,
+    type DuckdbSandboxLease,
 } from './duckdb/DuckdbSandboxRunner';
 import { DuckdbQueryRefusal } from './DuckdbQueryRefusal';
 import { getPivotedColumns } from './getPivotedColumns';
@@ -10329,6 +10330,7 @@ export class AsyncQueryService extends ProjectService {
      */
     private buildQueryReferenceCtes(
         queryHistoryByTableName: Record<string, QueryHistory>,
+        inputDir: string,
     ): BoundDuckdbQueryReferences {
         const bound = Object.entries(queryHistoryByTableName).map(
             ([tableName, queryHistory]) => {
@@ -10357,7 +10359,7 @@ export class AsyncQueryService extends ProjectService {
                     queryHistory.resultsFileName,
                 );
                 const resultFileUri = `s3://${bucket}/${key}`;
-                const sandboxPath = `${DUCKDB_INPUT_DIR}/${tableName}.jsonl`;
+                const sandboxPath = `${inputDir}/${tableName}.jsonl`;
                 // A result with no rows recorded no columns, because they
                 // come from the first batch the warehouse sends. Its fields
                 // still say what the file's columns are; without them the
@@ -10420,17 +10422,22 @@ export class AsyncQueryService extends ProjectService {
      * hardened instance (no extension autoload, no attach/install) inside a
      * sandbox that holds only the referenced result files.
      */
-    async executeAsyncComposeSqlQuery({
-        account,
-        projectUuid,
-        sql,
-        context,
-        querySurface,
-        limit,
-        references,
-        parameters,
-        pivotConfiguration,
-    }: ExecuteAsyncComposeSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
+    async executeAsyncComposeSqlQuery(
+        {
+            account,
+            projectUuid,
+            sql,
+            context,
+            querySurface,
+            limit,
+            references,
+            parameters,
+            pivotConfiguration,
+        }: ExecuteAsyncComposeSqlQueryArgs,
+        { sandboxLease }: { sandboxLease: DuckdbSandboxLease | null } = {
+            sandboxLease: null,
+        },
+    ): Promise<ApiExecuteAsyncSqlQueryResults> {
         assertIsAccountWithOrg(account);
 
         const { enabled: isEndpointEnabled } = await this.featureFlagModel.get({
@@ -10485,6 +10492,7 @@ export class AsyncQueryService extends ProjectService {
                 guard: null,
                 referenceLabels: {},
             },
+            sandboxLease,
         });
 
         return {
@@ -10497,6 +10505,14 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /** Throws MissingConfigError when queries of this runtime could not get a sandbox. */
+    /** A sandbox for every DuckDB node of one submission to share. */
+    createDuckdbSandboxLease(args: {
+        projectUuid: string;
+        nodeCount: number;
+    }): DuckdbSandboxLease {
+        return this.getDuckdbSandboxRunner().createLease(args);
+    }
+
     assertSandboxConfigured(runtime: 'duckdb' | 'python'): void {
         switch (runtime) {
             case 'duckdb':
@@ -11128,6 +11144,7 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration,
         plan,
         invalidateCache,
+        sandboxLease,
     }: ExecuteAsyncDuckdbSourceQueryArgs): Promise<{ queryUuid: string }> {
         assertIsAccountWithOrg(account);
 
@@ -11329,6 +11346,7 @@ export class AsyncQueryService extends ProjectService {
             queryCreatedAt,
             queryUsage,
             context,
+            sandboxLease,
         };
         void this.runDuckdbSandboxQuery(runArgs).catch((e) => {
             this.logger.error(
@@ -11349,14 +11367,26 @@ export class AsyncQueryService extends ProjectService {
     private async runDuckdbSandboxQuery(
         args: RunDuckdbSandboxQueryArgs,
     ): Promise<void> {
-        const canRun = await this.prepareQueuedQueryForExecution(
-            args.queryUuid,
-            'duckdb-sandbox',
-        );
-        if (!canRun) return;
-        await this.withQueryConnectionExecution(args, () =>
-            this.runDuckdbSandboxQueryInScope(args),
-        );
+        // A node submitted alone leases a sandbox of its own
+        const lease =
+            args.sandboxLease ??
+            this.getDuckdbSandboxRunner().createLease({
+                projectUuid: args.projectUuid,
+                nodeCount: 1,
+            });
+        const claim = lease.claim(args.queryUuid);
+        try {
+            const canRun = await this.prepareQueuedQueryForExecution(
+                args.queryUuid,
+                'duckdb-sandbox',
+            );
+            if (!canRun) return;
+            await this.withQueryConnectionExecution(args, () =>
+                this.runDuckdbSandboxQueryInScope(args, claim),
+            );
+        } finally {
+            await claim.release();
+        }
     }
 
     /**
@@ -11366,26 +11396,29 @@ export class AsyncQueryService extends ProjectService {
      * there and upload what comes back. Every phase is a span under
      * duckdb.query.run.
      */
-    private async runDuckdbSandboxQueryInScope({
-        actor,
-        agentIdentity,
-        authMethod,
-        identityEnabled: submittedIdentityEnabled,
-        resultProducer,
-        invalidateCache,
-        projectUuid,
-        organizationUuid,
-        isPreviewProject,
-        onboardingFlow,
-        queryUuid,
-        sql,
-        references,
-        columns,
-        queryTags,
-        queryCreatedAt,
-        queryUsage,
-        context,
-    }: RunDuckdbSandboxQueryArgs): Promise<void> {
+    private async runDuckdbSandboxQueryInScope(
+        {
+            actor,
+            agentIdentity,
+            authMethod,
+            identityEnabled: submittedIdentityEnabled,
+            resultProducer,
+            invalidateCache,
+            projectUuid,
+            organizationUuid,
+            isPreviewProject,
+            onboardingFlow,
+            queryUuid,
+            sql,
+            references,
+            columns,
+            queryTags,
+            queryCreatedAt,
+            queryUsage,
+            context,
+        }: RunDuckdbSandboxQueryArgs,
+        claim: DuckdbSandboxClaim,
+    ): Promise<void> {
         const account = {
             user: { id: actor.userUuid },
             isRegisteredUser: () => actor.isRegisteredUser,
@@ -11403,24 +11436,8 @@ export class AsyncQueryService extends ProjectService {
             async (span) => {
                 const startedAt = Date.now();
                 const runner = this.getDuckdbSandboxRunner();
-                const createSandbox = (referenceWaitMs: number) =>
-                    runner.create({
-                        queryUuid,
-                        projectUuid,
-                        commandTimeoutMs:
-                            DuckdbSandboxRunner.DUCKDB_RUN_TIMEOUT_MS,
-                        referenceWaitMs,
-                    });
-                let sandboxPromise: Promise<DuckdbSandbox> | null = null;
-                /** Destroys the sandbox if one was started; a failed create is ignored. */
-                const closeSandbox = async () => {
-                    const started = sandboxPromise;
-                    sandboxPromise = null;
-                    await started?.then(
-                        (sandbox) => sandbox.close(),
-                        () => undefined,
-                    );
-                };
+                /** Releases this node's claim; the sandbox goes with the last one. */
+                const closeSandbox = () => claim.release();
                 try {
                     // A reference still running means a wait: start the cold
                     // start now. All ready means the cache is checked first
@@ -11429,11 +11446,9 @@ export class AsyncQueryService extends ProjectService {
                             references.references,
                         )
                     ) {
-                        sandboxPromise = createSandbox(
+                        claim.start(
                             AsyncQueryService.REFERENCE_WAIT_TIMEOUT_MS,
                         );
-                        // Awaited after the wait; until then a failure must not go unhandled
-                        sandboxPromise.catch(() => undefined);
                     }
                     let identityEnabled = submittedIdentityEnabled;
                     const bound = await traceSpan(
@@ -11445,6 +11460,7 @@ export class AsyncQueryService extends ProjectService {
                         () =>
                             this.bindDuckdbQueryReferences({
                                 projectUuid,
+                                queryUuid,
                                 references,
                                 organizationUuid,
                                 actor,
@@ -11553,9 +11569,8 @@ export class AsyncQueryService extends ProjectService {
                         bound,
                         attributes,
                     );
-                    sandboxPromise ??= createSandbox(0);
-                    const sandbox = await sandboxPromise;
-                    await sandbox.writeInputs(inputs);
+                    const sandbox = await claim.open(0);
+                    sandbox.stageInputs(inputs);
                     const statement = await this.composeDuckdbSandboxStatement({
                         sql,
                         referenceCtes: bound.referenceCtes,
@@ -12849,6 +12864,7 @@ export class AsyncQueryService extends ProjectService {
      */
     private async bindDuckdbQueryReferences({
         projectUuid,
+        queryUuid,
         references,
         organizationUuid,
         actor,
@@ -12857,6 +12873,8 @@ export class AsyncQueryService extends ProjectService {
         onIdentityResolved,
     }: {
         projectUuid: string;
+        /** The node whose work directory the reference files land in. */
+        queryUuid: string;
         references: DuckdbQueryReferences;
         organizationUuid: string;
         actor: QueryHistoryActor;
@@ -12954,7 +12972,10 @@ export class AsyncQueryService extends ProjectService {
         if (refusal !== null) {
             throw new DuckdbQueryRefusal(refusal, { kind: 'row_cap' });
         }
-        return this.buildQueryReferenceCtes(completed);
+        return this.buildQueryReferenceCtes(
+            completed,
+            getDuckdbNodeWorkPaths(queryUuid).inputDir,
+        );
     }
 
     /**

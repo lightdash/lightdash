@@ -45,7 +45,9 @@ export type InternalSourceQuerySubmission = SourceQuerySubmission &
 type QuerySourceServiceArguments = {
     getAsyncQueryService: () => Pick<
         AsyncQueryService,
-        'assertCanReadStoredResults' | 'assertSandboxConfigured'
+        | 'assertCanReadStoredResults'
+        | 'assertSandboxConfigured'
+        | 'createDuckdbSandboxLease'
     >;
     getAgentPermissionService: () => Pick<
         AgentPermissionService,
@@ -512,33 +514,53 @@ export class QuerySourceService extends BaseService {
             this.getAsyncQueryService().assertSandboxConfigured('python');
         }
 
+        // The DuckDB nodes of a submission share one sandbox, each in its
+        // own directory; nodes never dispatched hand their claims back
+        const isDuckdbNode = (entry: (typeof ordered)[number]) =>
+            entry.source.definition.sourceType === QuerySourceType.DUCKDB;
+        const duckdbNodeCount = ordered.filter(isDuckdbNode).length;
+        const sandboxLease =
+            duckdbNodeCount > 0
+                ? this.getAsyncQueryService().createDuckdbSandboxLease({
+                      projectUuid,
+                      nodeCount: duckdbNodeCount,
+                  })
+                : null;
+        let duckdbNodesSubmitted = 0;
+
         // nodeId -> queryUuid, grown as submissions happen so later queries'
         // node-id references resolve
         const resolvedReferences: Record<string, string> = {};
         const submissions: InternalSourceQuerySubmission[] = [];
-        for (const entry of ordered) {
-            // eslint-disable-next-line no-await-in-loop -- dependency order: later submits need earlier queryUuids
-            const { queryUuid, cacheHit } = await entry.source.submitQuery({
-                ...(documentQueryContext ? { documentQueryContext } : {}),
-                account,
-                projectUuid,
-                context,
-                querySurface,
-                query: entry.query,
-                resolvedReferences: { ...resolvedReferences },
-                parameters,
-                userAttributeOverrides,
-                invalidateCache,
-                pivotConfiguration: entry.query.pivotConfiguration ?? null,
-                plan: plans[entry.nodeId] ?? null,
-            });
-            resolvedReferences[entry.nodeId] = queryUuid;
-            submissions.push({
-                nodeId: entry.nodeId,
-                sourceType: entry.query.sourceType,
-                queryUuid,
-                cacheHit,
-            });
+        try {
+            for (const entry of ordered) {
+                // eslint-disable-next-line no-await-in-loop -- dependency order: later submits need earlier queryUuids
+                const { queryUuid, cacheHit } = await entry.source.submitQuery({
+                    ...(documentQueryContext ? { documentQueryContext } : {}),
+                    account,
+                    projectUuid,
+                    context,
+                    querySurface,
+                    query: entry.query,
+                    resolvedReferences: { ...resolvedReferences },
+                    parameters,
+                    userAttributeOverrides,
+                    invalidateCache,
+                    pivotConfiguration: entry.query.pivotConfiguration ?? null,
+                    plan: plans[entry.nodeId] ?? null,
+                    sandboxLease,
+                });
+                if (isDuckdbNode(entry)) duckdbNodesSubmitted += 1;
+                resolvedReferences[entry.nodeId] = queryUuid;
+                submissions.push({
+                    nodeId: entry.nodeId,
+                    sourceType: entry.query.sourceType,
+                    queryUuid,
+                    cacheHit,
+                });
+            }
+        } finally {
+            await sandboxLease?.forfeit(duckdbNodeCount - duckdbNodesSubmitted);
         }
 
         return { queries: submissions };

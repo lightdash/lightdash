@@ -2462,6 +2462,7 @@ describe('AsyncQueryService', () => {
                 sql: 'SELECT * FROM orders',
                 references: { orders: referencedQueryHistory.queryUuid },
                 pivotConfiguration,
+                sandboxLease: null,
                 plan: {
                     columns: {
                         mode: 'supplied',
@@ -2556,6 +2557,7 @@ describe('AsyncQueryService', () => {
                 context: QueryExecutionContext.EXPLORE,
                 sql: 'SELECT * FROM orders',
                 references: { orders: referencedQueryHistory.queryUuid },
+                sandboxLease: null,
                 plan: {
                     columns: {
                         mode: 'supplied',
@@ -5958,6 +5960,7 @@ describe('AsyncQueryService', () => {
                               resolvedReferences: {},
                               pivotConfiguration: null,
                               plan: null,
+                              sandboxLease: null,
                           });
                 await expect(result).rejects.toThrow('Raw SQL');
                 expect(run).not.toHaveBeenCalled();
@@ -16391,6 +16394,7 @@ describe('query sources carry the execution context', () => {
         invalidateCache: false,
         pivotConfiguration: null,
         plan: null,
+        sandboxLease: null,
     };
 
     const createSemanticLayerHarness = () => {
@@ -19553,6 +19557,7 @@ describe('fresh stored result read boundary', () => {
         vi.mocked(f.service.getUserAttributes).mockClear();
         await f.service['bindDuckdbQueryReferences']({
             projectUuid,
+            queryUuid: f.history.queryUuid,
             organizationUuid: projectSummary.organizationUuid,
             actor: {
                 userUuid: f.account.user.id,
@@ -19832,6 +19837,7 @@ describe('fresh stored result read boundary', () => {
                 .spyOn(f.service as AnyType, 'readDuckdbSandboxInputs')
                 .mockRejectedValue(new Error('inputs read'));
             const args: RunDuckdbSandboxQueryArgs = {
+                sandboxLease: null,
                 authMethod: 'session',
                 agentIdentity: change === 'agent rule' ? reader.claim : null,
                 identityEnabled: enabled,
@@ -19871,7 +19877,10 @@ describe('fresh stored result read boundary', () => {
                 queryCreatedAt: new Date(),
                 context: QueryExecutionContext.EXPLORE,
             };
-            const run = f.service['runDuckdbSandboxQueryInScope'](args);
+            const claim = f.service
+                .createDuckdbSandboxLease({ projectUuid, nodeCount: 1 })
+                .claim(args.queryUuid);
+            const run = f.service['runDuckdbSandboxQueryInScope'](args, claim);
             await vi.waitFor(() => expect(poll).toHaveBeenCalledOnce());
             expect(bind).not.toHaveBeenCalled();
             if (change === 'access') {

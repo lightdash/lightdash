@@ -6,18 +6,42 @@ import {
 import { z } from 'zod';
 import { DUCKDB_SANDBOX_FIELD_TYPES } from './duckdbSandboxFieldTypes';
 
-/** Where the runner, its inputs, spill space and outputs live inside the sandbox. */
+/** The sandbox directory every node's work directory lives under. */
 export const DUCKDB_WORK_DIR = '/work';
-export const DUCKDB_RUNNER_PATH = `${DUCKDB_WORK_DIR}/runner.py`;
-export const DUCKDB_INPUT_DIR = `${DUCKDB_WORK_DIR}/in`;
-export const DUCKDB_TEMP_DIR = `${DUCKDB_WORK_DIR}/tmp`;
-export const DUCKDB_OUTPUT_DIR = `${DUCKDB_WORK_DIR}/out`;
-export const DUCKDB_PROBE_SQL_PATH = `${DUCKDB_WORK_DIR}/probe.sql`;
-export const DUCKDB_RUN_SQL_PATH = `${DUCKDB_WORK_DIR}/run.sql`;
-export const DUCKDB_SETTINGS_PATH = `${DUCKDB_WORK_DIR}/settings.json`;
-export const DUCKDB_OUTPUT_PROBE_PATH = `${DUCKDB_OUTPUT_DIR}/probe.json`;
-export const DUCKDB_OUTPUT_RESULT_PATH = `${DUCKDB_OUTPUT_DIR}/result.jsonl`;
-export const DUCKDB_OUTPUT_META_PATH = `${DUCKDB_OUTPUT_DIR}/meta.json`;
+
+/**
+ * Where one node's runner, inputs, spill space and output live. Nodes of one
+ * submission share a sandbox, so each gets its own directory under /work.
+ */
+export type DuckdbNodeWorkPaths = {
+    workDir: string;
+    runnerPath: string;
+    settingsPath: string;
+    inputDir: string;
+    probeSqlPath: string;
+    runSqlPath: string;
+    resultPath: string;
+};
+
+const NODE_DIR_NAME = /^[A-Za-z0-9_-]+$/;
+
+export const getDuckdbNodeWorkPaths = (
+    queryUuid: string,
+): DuckdbNodeWorkPaths => {
+    if (!NODE_DIR_NAME.test(queryUuid)) {
+        throw new Error(`Invalid sandbox node name: ${queryUuid}`);
+    }
+    const workDir = `${DUCKDB_WORK_DIR}/${queryUuid}`;
+    return {
+        workDir,
+        runnerPath: `${workDir}/runner.py`,
+        settingsPath: `${workDir}/settings.json`,
+        inputDir: `${workDir}/in`,
+        probeSqlPath: `${workDir}/probe.sql`,
+        runSqlPath: `${workDir}/run.sql`,
+        resultPath: `${workDir}/out/result.jsonl`,
+    };
+};
 
 /** Largest result file read back from the sandbox, in bytes. */
 export const DUCKDB_MAX_RESULT_BYTES = 64 * 1024 * 1024;
@@ -82,10 +106,12 @@ export const parseDuckdbRunMeta = (raw: string): DuckdbRunMeta =>
 
 /**
  * Runner executed inside the sandbox as
- * `python3 -I runner.py <probe|run> [workDir]` by the pinned `duckdb` Python
+ * `python3 -I runner.py <probe|run> <workDir>` by the pinned `duckdb` Python
  * package in the image. It locks an in-memory DuckDB to `<workDir>/in`, runs
  * one SELECT and writes rows exactly as the server's DuckDB client
- * serialised them (`JSON.stringify` of node-api's JSON row objects).
+ * serialised them (`JSON.stringify` of node-api's JSON row objects). The
+ * fields (and the row count of a run) go to stdout, so the command result
+ * carries them and only the rows need a read back.
  */
 export const DUCKDB_RUNNER_SOURCE = String.raw`import json
 import math
@@ -386,15 +412,10 @@ def read_sql(work_dir, name):
         return file.read()
 
 
-def write_json(path, value):
-    with open(path, "w", encoding="utf-8") as file:
-        file.write(dump(value))
-
-
 def probe(work_dir, connection):
     _, _, fields, projected = prepare(connection, read_sql(work_dir, "probe.sql"))
     projected.fetchmany(1)
-    write_json(os.path.join(work_dir, "out", "probe.json"), {"fields": fields})
+    return {"fields": fields}
 
 
 def run(work_dir, connection):
@@ -408,19 +429,22 @@ def run(work_dir, connection):
                 break
             row_count += len(rows)
             out.write("".join(write(row) for row in rows))
-    write_json(os.path.join(work_dir, "out", "meta.json"), {"fields": fields, "rowCount": row_count})
+    return {"fields": fields, "rowCount": row_count}
 
 
 def main(argv):
-    if len(argv) < 1 or argv[0] not in ("probe", "run"):
-        raise RunnerError("Usage: runner.py <probe|run> [workDir]")
-    work_dir = argv[1] if len(argv) > 1 else "/work"
+    if len(argv) != 2 or argv[0] not in ("probe", "run"):
+        raise RunnerError("Usage: runner.py <probe|run> <workDir>")
+    work_dir = argv[1]
     os.makedirs(os.path.join(work_dir, "out"), exist_ok=True)
+    os.makedirs(os.path.join(work_dir, "tmp"), exist_ok=True)
     connection = open_session(work_dir)
     if argv[0] == "probe":
-        probe(work_dir, connection)
+        output = probe(work_dir, connection)
     else:
-        run(work_dir, connection)
+        output = run(work_dir, connection)
+    sys.stdout.write(dump(output))
+    sys.stdout.write("\n")
 
 
 if __name__ == "__main__":
