@@ -1,3 +1,10 @@
+# [2.580.0](https://github.com/lightdash/lightdash/compare/2.579.0...2.580.0) (2026-10-14)
+
+
+### Features
+
+* **oauth:** accept client ID metadata documents as public MCP clients ([#30981](https://github.com/lightdash/lightdash/issues/30981)) ([e838494](https://github.com/lightdash/lightdash/commit/e8384949aa56cfa7c4a7d7731a33853ca8397441))
+
 # [2.579.0](https://github.com/lightdash/lightdash/compare/2.578.1...2.579.0) (2026-10-14)
 
 
