@@ -128,7 +128,9 @@ credentials. The instance is therefore never shared across projects — one per
 project, keyed `pre-aggregate-query-instance:{projectUuid}` — and its S3
 secret is scoped to exactly that project's materialization URIs (read from
 `pre_aggregate_materializations` when the serve client is built, widened in
-place as new materializations appear, never narrowed). This is a per-project,
+place as new materializations appear, never narrowed). The instance itself is
+confined to the storage bucket and a private temp directory for spill
+(`objectStorageOnly`); it has no other use for local disk. This is a per-project,
 cross-tenant boundary only: one project's serve instance cannot read another
 project's or organization's files. It does not enforce per-user access within
 the project — see access policy. See

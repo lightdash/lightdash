@@ -22,6 +22,9 @@ export const COMPOSE_ENGINE_INSTANCE_CACHE_KEY = 'compose-engine-instance';
 export const EXTERNAL_SOURCES_QUERY_INSTANCE_CACHE_KEY =
     'external-sources-query-instance';
 
+// Key prefix of every ingested external-source file in the pre-aggregates bucket
+export const EXTERNAL_SOURCES_OBJECT_PREFIX = 'external-sources/';
+
 export const COMPOSE_ENGINE_MISSING_RESULTS_STORAGE_MESSAGE =
     'The compose engine needs results storage to read referenced query results. Set S3_ENDPOINT, S3_BUCKET and S3_REGION, or the RESULTS_S3_* overrides.';
 
@@ -151,15 +154,21 @@ export class ComposeEngineClient {
                 return this.withCaCertFile(sessionConfig);
             }
             case 'externalSources': {
-                const sessionConfig = getDuckdbRuntimeConfig(
-                    this.lightdashConfig.preAggregates.s3,
-                );
-                if (!sessionConfig) {
+                const { s3 } = this.lightdashConfig.preAggregates;
+                const sessionConfig = getDuckdbRuntimeConfig(s3);
+                if (!s3 || !sessionConfig) {
                     throw new MissingConfigError(
                         COMPOSE_ENGINE_MISSING_EXTERNAL_SOURCES_STORAGE_MESSAGE,
                     );
                 }
-                return this.withCaCertFile(sessionConfig);
+                // The shared session only reads ingested files, which all
+                // live under one prefix of the bucket
+                return this.withCaCertFile({
+                    ...sessionConfig,
+                    scope: [
+                        `s3://${s3.bucket}/${EXTERNAL_SOURCES_OBJECT_PREFIX}`,
+                    ],
+                });
             }
             default:
                 return assertUnreachable(

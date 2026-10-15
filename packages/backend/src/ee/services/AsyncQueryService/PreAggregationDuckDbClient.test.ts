@@ -238,6 +238,7 @@ describe('PreAggregationDuckDbClient', () => {
             },
             expect.objectContaining({
                 instanceCacheKey: 'pre-aggregate-query-instance:project-a',
+                objectStorageOnly: true,
             }),
         );
     });

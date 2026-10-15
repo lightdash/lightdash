@@ -48,6 +48,7 @@ import Logger from '../../../logging/logger';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type UserOAuthGrantsModel } from '../../../models/UserOAuthGrantsModel';
+import { EXTERNAL_SOURCES_OBJECT_PREFIX } from '../../../services/AsyncQueryService/ComposeEngineClient';
 import { BaseService } from '../../../services/BaseService';
 import {
     getPreAggregateDuckdbLocator,
@@ -156,7 +157,7 @@ export class ExternalSourceService extends BaseService {
         executionUuid?: UUID,
     ): string {
         const executionSuffix = executionUuid ? `-${executionUuid}` : '';
-        return `external-sources/${projectUuid}/${sourceUuid}/raw/v${version}${executionSuffix}.csv`;
+        return `${EXTERNAL_SOURCES_OBJECT_PREFIX}${projectUuid}/${sourceUuid}/raw/v${version}${executionSuffix}.csv`;
     }
 
     private static parquetKey(
@@ -166,7 +167,7 @@ export class ExternalSourceService extends BaseService {
         version: number,
         executionUuid: UUID,
     ): string {
-        return `external-sources/${projectUuid}/${sourceUuid}/${tableUuid}/v${version}-${executionUuid}.parquet`;
+        return `${EXTERNAL_SOURCES_OBJECT_PREFIX}${projectUuid}/${sourceUuid}/${tableUuid}/v${version}-${executionUuid}.parquet`;
     }
 
     private getBucket(): string {
