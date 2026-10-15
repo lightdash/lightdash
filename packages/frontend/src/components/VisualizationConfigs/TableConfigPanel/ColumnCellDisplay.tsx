@@ -8,6 +8,7 @@ import {
 import { ActionIcon, Box, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { IconEye, IconEyeOff, IconInfoCircle } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../common/MantineIcon';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -15,6 +16,7 @@ import ColorSelector from '../ColorSelector';
 import { Config } from '../common/Config';
 
 export const ColumnCellDisplay: FC = () => {
+    const { t } = useTranslation('vizConfig');
     const { itemsMap, resultsData, visualizationConfig, colorPalette } =
         useVisualizationContext();
 
@@ -48,7 +50,7 @@ export const ColumnCellDisplay: FC = () => {
     if (numericFields.length === 0) {
         return (
             <Text c="dimmed" size="sm">
-                No numeric columns available for bar chart display
+                {t('table.cellDisplay.noNumericColumns')}
             </Text>
         );
     }
@@ -57,9 +59,11 @@ export const ColumnCellDisplay: FC = () => {
         <Config>
             <Config.Section>
                 <Group gap="two">
-                    <Config.Heading>Bars in cells</Config.Heading>
+                    <Config.Heading>
+                        {t('table.cellDisplay.barsInCells')}
+                    </Config.Heading>
                     <Tooltip
-                        label="Display numeric values as bars in cells"
+                        label={t('table.cellDisplay.barsInCellsTooltip')}
                         position="right"
                     >
                         <MantineIcon icon={IconInfoCircle} color="dimmed" />
@@ -84,7 +88,9 @@ export const ColumnCellDisplay: FC = () => {
                             <ColorSelector
                                 color={barColor}
                                 swatches={colorPalette}
-                                ariaLabel="Select positive bar color"
+                                ariaLabel={t(
+                                    'table.cellDisplay.selectPositiveBarColor',
+                                )}
                                 onColorChange={(color) => {
                                     chartConfig.updateColumnProperty(fieldId, {
                                         color,
@@ -103,7 +109,9 @@ export const ColumnCellDisplay: FC = () => {
                                     {isBarChart ? (
                                         <>
                                             <Tooltip
-                                                label="Positive values"
+                                                label={t(
+                                                    'table.cellDisplay.positiveValues',
+                                                )}
                                                 variant="xs"
                                                 position="top"
                                             >
@@ -112,7 +120,9 @@ export const ColumnCellDisplay: FC = () => {
                                                 </Box>
                                             </Tooltip>
                                             <Tooltip
-                                                label="Negative values"
+                                                label={t(
+                                                    'table.cellDisplay.negativeValues',
+                                                )}
                                                 variant="xs"
                                                 position="top"
                                             >
@@ -120,7 +130,9 @@ export const ColumnCellDisplay: FC = () => {
                                                     <ColorSelector
                                                         color={negativeBarColor}
                                                         swatches={colorPalette}
-                                                        ariaLabel="Select negative bar color"
+                                                        ariaLabel={t(
+                                                            'table.cellDisplay.selectNegativeBarColor',
+                                                        )}
                                                         onColorChange={(
                                                             newColor,
                                                         ) => {
@@ -145,7 +157,9 @@ export const ColumnCellDisplay: FC = () => {
                                                                   }
                                                                 : undefined
                                                         }
-                                                        resetLabel="Match positive color"
+                                                        resetLabel={t(
+                                                            'table.cellDisplay.matchPositiveColor',
+                                                        )}
                                                     />
                                                 </Box>
                                             </Tooltip>

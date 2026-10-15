@@ -22,6 +22,7 @@ import {
 } from '@mantine/core';
 import { IconTool } from '@tabler/icons-react';
 import { useMemo, useState, type FC, type FormEvent } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useExplores } from '../../../hooks/useExplores';
 import Callout from '../../common/Callout';
 import MantineModal from '../../common/MantineModal';
@@ -42,6 +43,7 @@ export const FixDashboardFilterModal: FC<Props> = ({
     allValidationErrors,
     onClose,
 }) => {
+    const { t } = useTranslation('projectSettings');
     const { mutate: renameDashboard } = useRenameDashboard();
 
     const dashboardUuid = validationError?.dashboardUuid;
@@ -158,7 +160,7 @@ export const FixDashboardFilterModal: FC<Props> = ({
     return (
         <MantineModal
             size="lg"
-            title="Fix dashboard filter error"
+            title={t('validatorFix.dashboardModal.title')}
             icon={IconTool}
             opened={!!validationError}
             onClose={handleClose}
@@ -168,33 +170,33 @@ export const FixDashboardFilterModal: FC<Props> = ({
                     form={FIX_DASHBOARD_FORM_ID}
                     disabled={newName === ''}
                 >
-                    Rename
+                    {t('validatorFix.common.rename')}
                 </Button>
             }
         >
             <Text fz="sm">
-                Fix{' '}
-                <Text span fz="sm">
-                    {validationError.source}
-                </Text>{' '}
-                filter error:{' '}
-                <Anchor
-                    href={getLinkToResource(
-                        validationError,
-                        validationError.projectUuid,
-                    )}
-                    target="_blank"
-                >
-                    <Text span fz="sm">
-                        {' '}
-                        {validationError.name}
-                    </Text>
-                </Anchor>
+                <Trans
+                    t={t}
+                    i18nKey="validatorFix.dashboardModal.fixError"
+                    values={{ name: validationError.name }}
+                    components={{
+                        link: (
+                            <Anchor
+                                href={getLinkToResource(
+                                    validationError,
+                                    validationError.projectUuid,
+                                )}
+                                target="_blank"
+                                fz="sm"
+                            />
+                        ),
+                    }}
+                />
             </Text>
 
             <Callout
                 variant="info"
-                title="You can fix the broken filter by renaming the affected field or model using the drop down below."
+                title={t('validatorFix.dashboardModal.info')}
             />
 
             <form id={FIX_DASHBOARD_FORM_ID} onSubmit={handleConfirm}>
@@ -223,21 +225,32 @@ export const FixDashboardFilterModal: FC<Props> = ({
                         }}
                     >
                         <Group>
-                            <Radio value={RenameType.FIELD} label="Field" />
-                            <Radio value={RenameType.MODEL} label="Model" />
+                            <Radio
+                                value={RenameType.FIELD}
+                                label={t('validatorFix.common.field')}
+                            />
+                            <Radio
+                                value={RenameType.MODEL}
+                                label={t('validatorFix.common.model')}
+                            />
                         </Group>
                     </Radio.Group>
                     {renameType === RenameType.FIELD ? (
                         <Stack>
                             <TextInput
                                 disabled
-                                label="Old field"
+                                label={t('validatorFix.common.oldField')}
                                 defaultValue={fieldName}
                                 value={oldName ?? fieldName}
                             />
                             <Tooltip
                                 disabled={!isFieldsError}
-                                label={`Could not find any fields on explore ${tableName}. Perhaps you want to replace the model instead?`}
+                                label={t(
+                                    'validatorFix.common.noFieldsOnExplore',
+                                    {
+                                        table: tableName,
+                                    },
+                                )}
                             >
                                 <Box>
                                     <Select
@@ -256,8 +269,12 @@ export const FixDashboardFilterModal: FC<Props> = ({
                                         required
                                         disabled={isFieldsError}
                                         searchable
-                                        label="New field"
-                                        placeholder="Select a field to rename to"
+                                        label={t(
+                                            'validatorFix.common.newField',
+                                        )}
+                                        placeholder={t(
+                                            'validatorFix.common.selectFieldPlaceholder',
+                                        )}
                                         onChange={(value) => {
                                             if (value) setNewName(value);
                                         }}
@@ -269,15 +286,17 @@ export const FixDashboardFilterModal: FC<Props> = ({
                         <Stack>
                             <TextInput
                                 disabled
-                                label="Old model"
+                                label={t('validatorFix.common.oldModel')}
                                 value={oldName ?? tableName ?? ''}
                             />
                             <Select
                                 data={explores?.map((e) => e.name) || []}
                                 required
                                 searchable
-                                label="New model"
-                                placeholder="Select a model to rename to"
+                                label={t('validatorFix.common.newModel')}
+                                placeholder={t(
+                                    'validatorFix.common.selectModelPlaceholder',
+                                )}
                                 onChange={(value) => {
                                     if (value) setNewName(value);
                                 }}
@@ -292,12 +311,17 @@ export const FixDashboardFilterModal: FC<Props> = ({
                     {totalOccurrences > 1 ? (
                         <Tooltip
                             position="left"
-                            label="Check this to rename all occurrences of this field in other charts and dashboards."
+                            label={t('validatorFix.common.fixAllTooltip')}
                         >
                             <Box>
                                 <Checkbox
                                     size="xs"
-                                    label={`Fix all occurrences (${totalOccurrences})`}
+                                    label={t(
+                                        'validatorFix.common.fixAllOccurrences',
+                                        {
+                                            count: totalOccurrences,
+                                        },
+                                    )}
                                     checked={fixAll}
                                     onChange={(e) =>
                                         setFixAll(e.currentTarget.checked)
@@ -307,8 +331,9 @@ export const FixDashboardFilterModal: FC<Props> = ({
                         </Tooltip>
                     ) : (
                         <Text fz="xs" c="ldGray.7">
-                            This {renameType} is not used in any other
-                            dashboards or charts.
+                            {t('validatorFix.dashboardModal.notUsedElsewhere', {
+                                context: renameType,
+                            })}
                         </Text>
                     )}
                 </Stack>

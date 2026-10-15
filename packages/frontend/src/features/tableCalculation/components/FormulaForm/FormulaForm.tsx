@@ -13,6 +13,7 @@ import {
     useRef,
     useState,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useAmbientAiEnabled } from '../../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
 import { useGenerateFormulaTableCalculation } from '../../../../hooks/useGenerateFormulaTableCalculation';
@@ -45,9 +46,6 @@ export type FormulaFormHandle = {
     validateNow: () => Promise<string | null>;
 };
 
-const AI_GENERIC_ERROR =
-    "Couldn't generate a formula — try rephrasing or write it yourself.";
-
 const PREVIEW_DEBOUNCE_MS = 800;
 const PREVIEW_MIN_LENGTH = 5;
 
@@ -65,6 +63,7 @@ export const FormulaForm = forwardRef<FormulaFormHandle, Props>(
         },
         ref,
     ) {
+        const { t } = useTranslation('tableCalculation');
         const projectUuid = useProjectUuid();
         const { data: project } = useProject(projectUuid);
         const { user } = useApp();
@@ -164,10 +163,10 @@ export const FormulaForm = forwardRef<FormulaFormHandle, Props>(
 
         useEffect(() => {
             if (generationError) {
-                setAiError(AI_GENERIC_ERROR);
+                setAiError(t('formula.aiGenericError'));
                 setPendingPrompt(null);
             }
-        }, [generationError]);
+        }, [generationError, t]);
 
         useEffect(() => {
             if (!aiEnabled) {
@@ -299,7 +298,9 @@ export const FormulaForm = forwardRef<FormulaFormHandle, Props>(
                     <Group gap={6} wrap="nowrap" className={classes.generating}>
                         <Loader size="xs" color="indigo.4" />
                         <Text span inherit>
-                            Generating from &ldquo;{pendingPrompt}&rdquo;…
+                            {t('formula.generatingFrom', {
+                                prompt: pendingPrompt,
+                            })}
                         </Text>
                     </Group>
                 )}
@@ -307,7 +308,9 @@ export const FormulaForm = forwardRef<FormulaFormHandle, Props>(
                     <Group gap={6} wrap="nowrap" className={classes.provenance}>
                         <MantineIcon icon={IconSparkles} size="xs" />
                         <Text span inherit>
-                            Generated from &ldquo;{provenancePrompt}&rdquo;
+                            {t('formula.generatedFrom', {
+                                prompt: provenancePrompt,
+                            })}
                         </Text>
                     </Group>
                 )}

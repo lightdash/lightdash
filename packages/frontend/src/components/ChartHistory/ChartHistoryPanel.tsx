@@ -19,6 +19,7 @@ import {
 } from '@mantine/core';
 import { IconDots, IconFileAnalytics, IconHistory } from '@tabler/icons-react';
 import { memo, useEffect, useState, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Provider } from 'react-redux';
 import ChartVersionPreviewProvider from '../../features/apps/ChartVersionPreview/ChartVersionPreviewProvider';
 import {
@@ -70,6 +71,7 @@ type ChartHistoryExplorerProps = {
 
 const ChartHistoryExplorer = memo<ChartHistoryExplorerProps>(
     ({ chartUuid, selectedVersionUuid }) => {
+        const { t } = useTranslation('app');
         const { health } = useApp();
         const chartVersionQuery = useChartVersion(
             chartUuid,
@@ -99,7 +101,10 @@ const ChartHistoryExplorer = memo<ChartHistoryExplorerProps>(
         if (chartVersionQuery.isInitialLoading) {
             return (
                 <Box mt="md">
-                    <SuboptimalState title="Loading version..." loading />
+                    <SuboptimalState
+                        title={t('versionHistory.loadingVersion')}
+                        loading
+                    />
                 </Box>
             );
         }
@@ -107,7 +112,7 @@ const ChartHistoryExplorer = memo<ChartHistoryExplorerProps>(
         if (chartVersionQuery.error) {
             return (
                 <InlineErrorState
-                    message="Could not load this version."
+                    message={t('versionHistory.loadVersionError')}
                     onRetry={() => void chartVersionQuery.refetch()}
                 />
             );
@@ -157,6 +162,7 @@ const ChartHistoryPanel: FC<Props> = ({
     withContainerHeight,
     withSidebarFooter,
 }) => {
+    const { t } = useTranslation('app');
     const agentIdentityEnabled =
         useServerFeatureFlag(FeatureFlags.AgentIdentity).data?.enabled === true;
     const authoringEnabled = useContentAuthoringEnabled();
@@ -176,7 +182,7 @@ const ChartHistoryPanel: FC<Props> = ({
     if (historyQuery.isInitialLoading) {
         return (
             <Box mt="md">
-                <SuboptimalState title="Loading..." loading />
+                <SuboptimalState title={t('versionHistory.loading')} loading />
             </Box>
         );
     }
@@ -186,7 +192,7 @@ const ChartHistoryPanel: FC<Props> = ({
 
     return (
         <Page
-            sidebarTitle="Versions"
+            sidebarTitle={t('versionHistory.versions')}
             withSidebarFooter={withSidebarFooter}
             withFullHeight
             withPaddedContent
@@ -199,7 +205,7 @@ const ChartHistoryPanel: FC<Props> = ({
                         flex="1 1 auto"
                         className={classes.versionList}
                         role="group"
-                        aria-label="Chart versions"
+                        aria-label={t('chartHistory.chartVersions')}
                     >
                         {historyQuery.data?.history.map((version, index) => {
                             const isSelected =
@@ -220,7 +226,10 @@ const ChartHistoryPanel: FC<Props> = ({
                                         type="button"
                                         className={classes.versionLink}
                                         active={isSelected}
-                                        aria-label={`Preview version from ${formattedTimestamp}`}
+                                        aria-label={t(
+                                            'versionHistory.previewVersionFrom',
+                                            { timestamp: formattedTimestamp },
+                                        )}
                                         aria-pressed={isSelected}
                                         leftSection={
                                             <MantineIcon
@@ -241,26 +250,29 @@ const ChartHistoryPanel: FC<Props> = ({
                                                 />
                                             ) : (
                                                 <Text component="span">
-                                                    Updated by:{' '}
-                                                    {
-                                                        version.createdBy
-                                                            ?.firstName
-                                                    }{' '}
-                                                    {
-                                                        version.createdBy
-                                                            ?.lastName
-                                                    }
+                                                    {t(
+                                                        'versionHistory.updatedBy',
+                                                        {
+                                                            name: `${version.createdBy?.firstName ?? ''} ${version.createdBy?.lastName ?? ''}`,
+                                                        },
+                                                    )}
                                                 </Text>
                                             )
                                         }
                                         rightSection={
                                             index === 0 ? (
-                                                <Tooltip label="This is the current version.">
+                                                <Tooltip
+                                                    label={t(
+                                                        'versionHistory.currentTooltip',
+                                                    )}
+                                                >
                                                     <Badge
                                                         size="xs"
                                                         color="green"
                                                     >
-                                                        current
+                                                        {t(
+                                                            'versionHistory.current',
+                                                        )}
                                                     </Badge>
                                                 </Tooltip>
                                             ) : undefined
@@ -293,7 +305,9 @@ const ChartHistoryPanel: FC<Props> = ({
                                                                 ? undefined
                                                                 : 'none'
                                                         }
-                                                        aria-label="Version actions"
+                                                        aria-label={t(
+                                                            'versionHistory.versionActions',
+                                                        )}
                                                     >
                                                         <MantineIcon
                                                             icon={IconDots}
@@ -318,7 +332,9 @@ const ChartHistoryPanel: FC<Props> = ({
                                                             );
                                                         }}
                                                     >
-                                                        Restore this version
+                                                        {t(
+                                                            'versionHistory.restoreThisVersion',
+                                                        )}
                                                     </Menu.Item>
                                                 </Menu.Dropdown>
                                             </Menu>
@@ -330,12 +346,10 @@ const ChartHistoryPanel: FC<Props> = ({
                     </Stack>
                     <Callout
                         variant="info"
-                        title="Data freshness"
+                        title={t('chartHistory.dataFreshness')}
                         flex="0 0 auto"
                     >
-                        Version history preview changes chart configuration and
-                        setup, but always queries the latest version of the data
-                        itself
+                        {t('chartHistory.dataFreshnessDescription')}
                     </Callout>
                 </Stack>
             }
@@ -344,7 +358,7 @@ const ChartHistoryPanel: FC<Props> = ({
                 <EmptyState
                     maw={500}
                     icon={<NoTableIcon />}
-                    title="Select a version"
+                    title={t('versionHistory.selectVersion')}
                 />
             )}
             {selectedVersionUuid && (
@@ -358,7 +372,7 @@ const ChartHistoryPanel: FC<Props> = ({
             <MantineModal
                 opened={isRollbackModalOpen}
                 onClose={() => setIsRollbackModalOpen(false)}
-                title="Restore chart version"
+                title={t('chartHistory.restoreTitle')}
                 icon={IconHistory}
                 cancelDisabled={rollbackMutation.isLoading}
                 actions={
@@ -370,19 +384,14 @@ const ChartHistoryPanel: FC<Props> = ({
                         }
                         color="red"
                     >
-                        Restore
+                        {t('versionHistory.restore')}
                     </Button>
                 }
             >
-                <Text>
-                    By restoring to this chart version, a new version will be
-                    generated and saved. All previous versions are still safely
-                    stored and can be restored at any time.
-                </Text>
+                <Text>{t('chartHistory.restoreDescription')}</Text>
                 {hasUnsavedEdits && (
                     <Text mt="sm" fw={500}>
-                        Your unsaved edits in the chart editor will be
-                        discarded.
+                        {t('chartHistory.unsavedEditsDiscarded')}
                     </Text>
                 )}
             </MantineModal>

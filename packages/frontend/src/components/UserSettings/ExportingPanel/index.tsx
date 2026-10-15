@@ -15,6 +15,7 @@ import {
 import { useForm } from '@mantine/form';
 import { IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useHealth from '../../../hooks/health/useHealth';
 import {
     useOrganizationSettings,
@@ -33,10 +34,10 @@ const MAX_DAYS = 365;
 type DaysValue = number | '';
 
 const CHANNELS = [
-    { key: 'email', label: 'Email' },
-    { key: 'slack', label: 'Slack' },
-    { key: 'msteams', label: 'Microsoft Teams' },
-    { key: 'googlechat', label: 'Google Chat' },
+    { key: 'email', labelKey: 'exportingPanel.channels.email' },
+    { key: 'slack', labelKey: 'exportingPanel.channels.slack' },
+    { key: 'msteams', labelKey: 'exportingPanel.channels.msteams' },
+    { key: 'googlechat', labelKey: 'exportingPanel.channels.googlechat' },
 ] as const;
 
 type ChannelKey = (typeof CHANNELS)[number]['key'];
@@ -61,6 +62,7 @@ const ExportingForm: FC<{
     settings: OrganizationSettings;
     availableChannels: ReadonlyArray<(typeof CHANNELS)[number]>;
 }> = ({ settings, availableChannels }) => {
+    const { t } = useTranslation('userSettings');
     const update = useUpdateOrganizationSettings();
 
     // Base is an effective number (resolved against the env); per-channel
@@ -123,9 +125,9 @@ const ExportingForm: FC<{
         <form onSubmit={handleSubmit}>
             <Stack gap="lg">
                 <NumberInput
-                    label="Download link expiry"
-                    description="How long a scheduled delivery's download links stay valid before they expire."
-                    suffix=" days"
+                    label={t('exportingPanel.linkExpiry.label')}
+                    description={t('exportingPanel.linkExpiry.description')}
+                    suffix={t('exportingPanel.daysSuffix')}
                     min={1}
                     max={MAX_DAYS}
                     clampBehavior="strict"
@@ -137,8 +139,10 @@ const ExportingForm: FC<{
                 {availableChannels.length > 0 && (
                     <>
                         <Checkbox
-                            label="Set a different expiry for specific channels"
-                            description="When off, every channel uses the expiry above."
+                            label={t('exportingPanel.perChannel.label')}
+                            description={t(
+                                'exportingPanel.perChannel.description',
+                            )}
                             {...form.getInputProps('perChannelEnabled', {
                                 type: 'checkbox',
                             })}
@@ -149,6 +153,7 @@ const ExportingForm: FC<{
                                 {availableChannels.map((channel) => {
                                     const isOverridden =
                                         form.values[channel.key] !== '';
+                                    const channelLabel = t(channel.labelKey);
                                     return (
                                         <Group
                                             key={channel.key}
@@ -156,12 +161,20 @@ const ExportingForm: FC<{
                                             wrap="nowrap"
                                         >
                                             <Text w={120} fz="sm">
-                                                {channel.label}
+                                                {channelLabel}
                                             </Text>
                                             <NumberInput
-                                                aria-label={`${channel.label} link expiry`}
-                                                placeholder={`Inherits ${baseDays} days`}
-                                                suffix=" days"
+                                                aria-label={t(
+                                                    'exportingPanel.perChannel.inputAriaLabel',
+                                                    { channel: channelLabel },
+                                                )}
+                                                placeholder={t(
+                                                    'exportingPanel.perChannel.inheritsPlaceholder',
+                                                    { count: baseDays },
+                                                )}
+                                                suffix={t(
+                                                    'exportingPanel.daysSuffix',
+                                                )}
                                                 min={1}
                                                 max={MAX_DAYS}
                                                 clampBehavior="strict"
@@ -171,7 +184,11 @@ const ExportingForm: FC<{
                                                 flex={1}
                                                 rightSection={
                                                     isOverridden ? (
-                                                        <Tooltip label="Clear — inherit the expiry above">
+                                                        <Tooltip
+                                                            label={t(
+                                                                'exportingPanel.perChannel.clearTooltip',
+                                                            )}
+                                                        >
                                                             <ActionIcon
                                                                 size="sm"
                                                                 onClick={() =>
@@ -211,7 +228,7 @@ const ExportingForm: FC<{
                         loading={update.isLoading}
                         disabled={isUnchanged}
                     >
-                        Save
+                        {t('actions.save', { ns: 'common' })}
                     </Button>
                 </Group>
             </Stack>

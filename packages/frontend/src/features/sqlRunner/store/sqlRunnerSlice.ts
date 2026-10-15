@@ -16,6 +16,7 @@ import {
 import type { PayloadAction, SerializedError } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { createSelector } from 'reselect';
+import i18n from '../../../i18n/i18n';
 import { type MonacoHighlightChar } from '../components/SqlEditor';
 import { SqlRunnerResultsRunnerFrontend } from '../runners/SqlRunnerResultsRunnerFrontend';
 import { resolveSqlErrorPosition } from '../utils/sqlErrorPosition';
@@ -470,7 +471,11 @@ export const sqlRunnerSlice = createSlice({
                 state.queryError =
                     action.payload ??
                     action.error ??
-                    new Error('Unexpected query error');
+                    new Error(
+                        i18n.t('errors.unexpectedQueryError', {
+                            ns: 'sqlRunner',
+                        }),
+                    );
 
                 state.editorHighlightError =
                     action.payload?.data &&

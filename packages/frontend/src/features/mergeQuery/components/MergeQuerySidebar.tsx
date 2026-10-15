@@ -17,6 +17,7 @@ import {
     type FC,
     type SetStateAction,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import ExploreTree from '../../../components/Explorer/ExploreTree';
 import SelectedFieldsSection, {
@@ -44,39 +45,42 @@ const DatasetHeader: FC<{
     open: boolean;
     onClick: () => void;
     onRemove?: () => void;
-}> = ({ sourceRole, label, count, open, onClick, onRemove }) => (
-    <Box className={styles.header} data-open={open}>
-        <UnstyledButton className={styles.headerButton} onClick={onClick}>
-            <Box className={styles.headerCopy}>
-                <Text size="sm" fw={600} truncate title={label}>
-                    {label}
-                </Text>
-                <Text size="xs" c="dimmed">
-                    {count === 0
-                        ? sourceRole === 'additional'
-                            ? 'Select data and fields'
-                            : 'Choose fields'
-                        : `${count} selected`}
-                </Text>
-            </Box>
-            <MantineIcon
-                icon={open ? IconChevronDown : IconChevronRight}
-                size={15}
-                color="gray.6"
-            />
-        </UnstyledButton>
-        {onRemove && (
-            <ActionIcon
-                className={styles.remove}
-                size="sm"
-                aria-label="Remove combined data"
-                onClick={onRemove}
-            >
-                <MantineIcon icon={IconX} size={14} />
-            </ActionIcon>
-        )}
-    </Box>
-);
+}> = ({ sourceRole, label, count, open, onClick, onRemove }) => {
+    const { t } = useTranslation('mergeQuery');
+    return (
+        <Box className={styles.header} data-open={open}>
+            <UnstyledButton className={styles.headerButton} onClick={onClick}>
+                <Box className={styles.headerCopy}>
+                    <Text size="sm" fw={600} truncate title={label}>
+                        {label}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                        {count === 0
+                            ? sourceRole === 'additional'
+                                ? t('sidebar.selectDataAndFields')
+                                : t('sidebar.chooseFields')
+                            : t('sidebar.selectedCount', { count })}
+                    </Text>
+                </Box>
+                <MantineIcon
+                    icon={open ? IconChevronDown : IconChevronRight}
+                    size={15}
+                    color="gray.6"
+                />
+            </UnstyledButton>
+            {onRemove && (
+                <ActionIcon
+                    className={styles.remove}
+                    size="sm"
+                    aria-label={t('sidebar.removeCombinedData')}
+                    onClick={onRemove}
+                >
+                    <MantineIcon icon={IconX} size={14} />
+                </ActionIcon>
+            )}
+        </Box>
+    );
+};
 
 /** One continuous field builder: shared output, then one expandable dataset at a time. */
 export const MergeQuerySidebar: FC<{
@@ -90,6 +94,7 @@ export const MergeQuerySidebar: FC<{
     isChoosingAdditionalExplore,
     setIsChoosingAdditionalExplore,
 }) => {
+    const { t } = useTranslation('mergeQuery');
     const merge = useMerge();
     const additionalSource = merge.additionalSources[0];
     const additionalSourceId = additionalSource?.id;
@@ -119,8 +124,8 @@ export const MergeQuerySidebar: FC<{
         (additionalSource?.dimensions.length ?? 0) +
         (additionalSource?.metrics.length ?? 0);
     const additionalLabel = additionalSource?.exploreName
-        ? (mergeSetup.additionalExploreLabel ?? 'Combined data')
-        : 'Choose data to combine';
+        ? (mergeSetup.additionalExploreLabel ?? t('labels.combinedData'))
+        : t('labels.chooseDataToCombine');
     const filteredFieldIds = useMemo<Record<string, Set<string>>>(
         () => ({
             [PRIMARY_SOURCE_ID]: new Set(
@@ -145,9 +150,10 @@ export const MergeQuerySidebar: FC<{
         [additionalSource?.filters, additionalSourceId, primaryFilters],
     );
     const selectedFields = useMemo<SelectedField[]>(() => {
-        const primaryLabel = mergeSetup.primaryExploreLabel ?? 'First data';
+        const primaryLabel =
+            mergeSetup.primaryExploreLabel ?? t('labels.firstData');
         const additionalSourceLabel =
-            mergeSetup.additionalExploreLabel ?? 'Combined data';
+            mergeSetup.additionalExploreLabel ?? t('labels.combinedData');
         const sameLabel = primaryLabel === additionalSourceLabel;
         const selectedPrimary = [
             ...metricQuery.dimensions,
@@ -169,7 +175,7 @@ export const MergeQuerySidebar: FC<{
                     selectionKey: `${PRIMARY_SOURCE_ID}:${fieldId}`,
                     item,
                     tableLabel: sameLabel
-                        ? `${primaryLabel} · First`
+                        ? t('sidebar.firstSuffix', { label: primaryLabel })
                         : primaryLabel,
                     isDimension: metricQuery.dimensions.includes(fieldId),
                     onDeselect: onPrimaryFieldChange,
@@ -202,7 +208,9 @@ export const MergeQuerySidebar: FC<{
                     selectionKey: `${additionalSourceId}:${fieldId}`,
                     item,
                     tableLabel: sameLabel
-                        ? `${additionalSourceLabel} · Second`
+                        ? t('sidebar.secondSuffix', {
+                              label: additionalSourceLabel,
+                          })
                         : additionalSourceLabel,
                     isDimension:
                         additionalSource?.dimensions.includes(fieldId) ?? false,
@@ -235,6 +243,7 @@ export const MergeQuerySidebar: FC<{
         mergeSetup,
         metricQuery,
         onPrimaryFieldChange,
+        t,
     ]);
 
     return (
@@ -242,12 +251,16 @@ export const MergeQuerySidebar: FC<{
             <SelectedFieldsSection
                 fields={selectedFields}
                 onDeselect={onPrimaryFieldChange}
-                heading={`Selected for result · ${selectedFields.length}`}
+                heading={t('sidebar.selectedForResult', {
+                    count: selectedFields.length,
+                })}
                 showAllFieldsDivider={false}
             />
 
             <Box className={styles.datasets}>
-                <Text className={styles.sourcesLabel}>Data sources</Text>
+                <Text className={styles.sourcesLabel}>
+                    {t('sidebar.dataSources')}
+                </Text>
                 <Box className={styles.sourceList}>
                     <DatasetHeader
                         sourceRole="primary"

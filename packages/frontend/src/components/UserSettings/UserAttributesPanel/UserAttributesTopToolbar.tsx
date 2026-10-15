@@ -6,6 +6,7 @@ import {
 } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../common/MantineIcon';
 
 type UserAttributesTopToolbarProps = GroupProps & {
@@ -15,6 +16,7 @@ type UserAttributesTopToolbarProps = GroupProps & {
 
 export const UserAttributesTopToolbar: FC<UserAttributesTopToolbarProps> = memo(
     ({ searchQuery, onSearchChange, ...props }) => {
+        const { t } = useTranslation('userSettings');
         const theme = useMantineTheme();
 
         return (
@@ -25,7 +27,9 @@ export const UserAttributesTopToolbar: FC<UserAttributesTopToolbarProps> = memo(
                 {...props}
             >
                 <TextInput
-                    placeholder="Search attributes..."
+                    placeholder={t(
+                        'userAttributesPanel.topToolbar.searchPlaceholder',
+                    )}
                     leftSection={<MantineIcon icon={IconSearch} />}
                     value={searchQuery}
                     onChange={(e) => onSearchChange(e.currentTarget.value)}

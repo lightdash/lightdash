@@ -1,6 +1,7 @@
 import { Anchor } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import {
     IconBox,
@@ -33,8 +34,9 @@ type OmnibarItemIconWithIndicatorProps = Props & {
 
 export const OmnibarItemIconWithIndicator: FC<
     OmnibarItemIconWithIndicatorProps
-> = ({ item, boxSize, projectUuid, canUserManageValidation }) =>
-    item.item && 'validationErrors' in item.item ? (
+> = ({ item, boxSize, projectUuid, canUserManageValidation }) => {
+    const { t } = useTranslation('omnibar');
+    return item.item && 'validationErrors' in item.item ? (
         <ResourceIndicator
             iconProps={{
                 color: 'red',
@@ -49,33 +51,35 @@ export const OmnibarItemIconWithIndicator: FC<
             }}
             tooltipLabel={
                 canUserManageValidation ? (
-                    <>
-                        This content is broken. Learn more about the validation
-                        error(s){' '}
-                        <Anchor
-                            component={Link}
-                            fw={600}
-                            onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
-                                e.stopPropagation()
-                            }
-                            to={{
-                                pathname: `/generalSettings/projectManagement/${projectUuid}/validator`,
-                                search: `?validationUuid=${item.item.validationErrors[0].validationUuid}`,
-                            }}
-                            c="blue.4"
-                            fz="xs"
-                        >
-                            here
-                        </Anchor>
-                        .
-                    </>
+                    <Trans
+                        t={t}
+                        i18nKey="item.brokenContent"
+                        components={{
+                            anchor: (
+                                <Anchor
+                                    component={Link}
+                                    fw={600}
+                                    onClick={(
+                                        e: React.MouseEvent<HTMLAnchorElement>,
+                                    ) => e.stopPropagation()}
+                                    to={{
+                                        pathname: `/generalSettings/projectManagement/${projectUuid}/validator`,
+                                        search: `?validationUuid=${item.item.validationErrors[0].validationUuid}`,
+                                    }}
+                                    c="blue.4"
+                                    fz="xs"
+                                />
+                            ),
+                        }}
+                    />
                 ) : (
-                    `There's an error with this ${getSearchItemErrorLabel(
-                        item.type,
-                    )}`
+                    t('item.itemError', {
+                        type: getSearchItemErrorLabel(item.type),
+                    })
                 )
             }
         >
             <OmnibarItemIcon item={item} boxSize={boxSize} />
         </ResourceIndicator>
     ) : null;
+};

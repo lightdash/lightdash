@@ -30,6 +30,7 @@ import {
     IconPlus,
 } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import Callout from '../../../../components/common/Callout';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
@@ -37,19 +38,44 @@ import {
     useCreateMutation,
     useSpaceSummaries,
 } from '../../../../hooks/useSpaces';
+import i18n from '../../../../i18n/i18n';
 import { useCustomRoles } from '../../customRoles/useCustomRoles';
 import { useServiceAccounts } from '../../serviceAccounts/useServiceAccounts';
 import styles from './EmbedWriteActionsForm.module.css';
 
+const roleLabel = (key: string) => i18n.t(`roles.${key}`, { ns: 'embed' });
+
 const SYSTEM_ROLE_OPTIONS = [
-    { value: ServiceAccountScope.SYSTEM_ADMIN, label: 'Admin' },
-    { value: ServiceAccountScope.SYSTEM_DEVELOPER, label: 'Developer' },
-    { value: ServiceAccountScope.SYSTEM_EDITOR, label: 'Editor' },
+    {
+        value: ServiceAccountScope.SYSTEM_ADMIN,
+        get label() {
+            return roleLabel('admin');
+        },
+    },
+    {
+        value: ServiceAccountScope.SYSTEM_DEVELOPER,
+        get label() {
+            return roleLabel('developer');
+        },
+    },
+    {
+        value: ServiceAccountScope.SYSTEM_EDITOR,
+        get label() {
+            return roleLabel('editor');
+        },
+    },
     {
         value: ServiceAccountScope.SYSTEM_INTERACTIVE_VIEWER,
-        label: 'Interactive viewer',
+        get label() {
+            return roleLabel('interactiveViewer');
+        },
     },
-    { value: ServiceAccountScope.SYSTEM_VIEWER, label: 'Viewer' },
+    {
+        value: ServiceAccountScope.SYSTEM_VIEWER,
+        get label() {
+            return roleLabel('viewer');
+        },
+    },
 ];
 
 const AI_AGENT_SYSTEM_ROLE_OPTIONS = SYSTEM_ROLE_OPTIONS.filter(
@@ -60,17 +86,17 @@ const AI_AGENT_SYSTEM_ROLE_OPTIONS = SYSTEM_ROLE_OPTIONS.filter(
         ].includes(option.value),
 );
 
-const SCOPE_LABEL: Partial<Record<ServiceAccountScope, string>> = {
-    [ServiceAccountScope.SYSTEM_ADMIN]: 'Admin',
-    [ServiceAccountScope.SYSTEM_DEVELOPER]: 'Developer',
-    [ServiceAccountScope.SYSTEM_EDITOR]: 'Editor',
-    [ServiceAccountScope.SYSTEM_INTERACTIVE_VIEWER]: 'Interactive viewer',
-    [ServiceAccountScope.SYSTEM_VIEWER]: 'Viewer',
-    [ServiceAccountScope.SYSTEM_MEMBER]: 'Member',
-    [ServiceAccountScope.ORG_ADMIN]: 'Admin',
-    [ServiceAccountScope.ORG_EDIT]: 'Editor',
-    [ServiceAccountScope.ORG_READ]: 'Viewer',
-    [ServiceAccountScope.SCIM_MANAGE]: 'SCIM',
+const SCOPE_LABEL_KEY: Partial<Record<ServiceAccountScope, string>> = {
+    [ServiceAccountScope.SYSTEM_ADMIN]: 'admin',
+    [ServiceAccountScope.SYSTEM_DEVELOPER]: 'developer',
+    [ServiceAccountScope.SYSTEM_EDITOR]: 'editor',
+    [ServiceAccountScope.SYSTEM_INTERACTIVE_VIEWER]: 'interactiveViewer',
+    [ServiceAccountScope.SYSTEM_VIEWER]: 'viewer',
+    [ServiceAccountScope.SYSTEM_MEMBER]: 'member',
+    [ServiceAccountScope.ORG_ADMIN]: 'admin',
+    [ServiceAccountScope.ORG_EDIT]: 'editor',
+    [ServiceAccountScope.ORG_READ]: 'viewer',
+    [ServiceAccountScope.SCIM_MANAGE]: 'scim',
 };
 
 const WRITABLE_SERVICE_ACCOUNT_SCOPES = [
@@ -107,6 +133,7 @@ const EmbedWriteActionsForm: FC<Props> = ({
     fixedWriteSpaceUuid,
     allowSourceSpaces = false,
 }) => {
+    const { t } = useTranslation('embed');
     const { listAccounts, createAccount } = useServiceAccounts();
     const { listRoles } = useCustomRoles();
     const createSpaceMutation = useCreateMutation(projectUuid);
@@ -124,9 +151,9 @@ const EmbedWriteActionsForm: FC<Props> = ({
         value?.sourceSpaceUuids ?? [],
     );
     const [newServiceAccountDescription, setNewServiceAccountDescription] =
-        useState('Embedded customer actions');
+        useState(t('writeActions.defaultServiceAccountName'));
     const [newSpaceName, setNewSpaceName] = useState(
-        'Embedded customer content',
+        t('writeActions.defaultSpaceName'),
     );
     const [roleType, setRoleType] = useState<'system' | 'custom'>('system');
     const [systemRole, setSystemRole] = useState(
@@ -301,20 +328,22 @@ const EmbedWriteActionsForm: FC<Props> = ({
 
     const getServiceAccountRoleLabel = (account: ServiceAccount) => {
         if (account.roleUuid) {
-            return rolesByUuid.get(account.roleUuid) ?? 'Custom role';
+            return rolesByUuid.get(account.roleUuid) ?? t('roles.customRole');
         }
         if (account.scopes.length === 1) {
-            return SCOPE_LABEL[account.scopes[0]] ?? account.scopes[0];
+            const key = SCOPE_LABEL_KEY[account.scopes[0]];
+            return key ? t(`roles.${key}`) : account.scopes[0];
         }
         if (account.scopes.length === 0) {
-            return 'Custom role';
+            return t('roles.customRole');
         }
-        return `${account.scopes.length} permissions`;
+        return t('roles.permissionCount', { count: account.scopes.length });
     };
 
     const handleCreateServiceAccount = async () => {
         const label =
-            newServiceAccountDescription.trim() || 'Embedded customer actions';
+            newServiceAccountDescription.trim() ||
+            t('writeActions.defaultServiceAccountName');
         const projectRole =
             roleType === 'system'
                 ? SERVICE_ACCOUNT_SCOPE_PROJECT_ROLE_MAP[
@@ -350,7 +379,7 @@ const EmbedWriteActionsForm: FC<Props> = ({
     };
 
     const handleCreateSpace = async () => {
-        const label = newSpaceName.trim() || 'Embedded customer content';
+        const label = newSpaceName.trim() || t('writeActions.defaultSpaceName');
         const newSpace = await createSpaceMutation.mutateAsync({
             name: label,
         });
@@ -367,8 +396,8 @@ const EmbedWriteActionsForm: FC<Props> = ({
                     onChange={(event) =>
                         setIsEnabled(event.currentTarget.checked)
                     }
-                    label="Enable write actions"
-                    description="Allow embedded users to perform actions that create or update Lightdash resources."
+                    label={t('writeActions.enable')}
+                    description={t('writeActions.enableDescription')}
                 />
             )}
 
@@ -377,16 +406,15 @@ const EmbedWriteActionsForm: FC<Props> = ({
                     {!required && <Divider />}
 
                     <Stack gap="xs">
-                        <Title order={6}>Run actions as</Title>
+                        <Title order={6}>{t('writeActions.runAs')}</Title>
                         <Text c="dimmed" fz="sm">
-                            Select the service account Lightdash should use when
-                            an embed action needs read or write permissions.
+                            {t('writeActions.runAsDescription')}
                         </Text>
                     </Stack>
 
                     <Stack gap="xs">
                         <Text size="sm" fw={500}>
-                            Service account
+                            {t('writeActions.serviceAccount')}
                         </Text>
                         <Menu
                             width="target"
@@ -405,7 +433,9 @@ const EmbedWriteActionsForm: FC<Props> = ({
                                 >
                                     {selectedServiceAccount
                                         ? `${selectedServiceAccount.description} - ${getServiceAccountRoleLabel(selectedServiceAccount)}`
-                                        : 'Select service account'}
+                                        : t(
+                                              'writeActions.selectServiceAccount',
+                                          )}
                                 </Button>
                             </Menu.Target>
                             <Menu.Dropdown>
@@ -438,7 +468,7 @@ const EmbedWriteActionsForm: FC<Props> = ({
                                     )}
                                     {selectableServiceAccounts.length === 0 && (
                                         <Menu.Label>
-                                            No compatible service accounts
+                                            {t('writeActions.noCompatible')}
                                         </Menu.Label>
                                     )}
                                 </ScrollArea.Autosize>
@@ -449,12 +479,12 @@ const EmbedWriteActionsForm: FC<Props> = ({
                                     }
                                     onClick={() => setIsCreateModalOpen(true)}
                                 >
-                                    Create new service account
+                                    {t('writeActions.createServiceAccount')}
                                 </Menu.Item>
                             </Menu.Dropdown>
                         </Menu>
                         <Text c="dimmed" fz="xs">
-                            Required before write actions can be enabled.
+                            {t('writeActions.requiredNote')}
                         </Text>
                     </Stack>
 
@@ -466,15 +496,21 @@ const EmbedWriteActionsForm: FC<Props> = ({
                                 )}
                             </Badge>
                             <Text c="dimmed" fz="xs">
-                                Service account user:{' '}
-                                <Code>{selectedServiceAccount.userUuid}</Code>
+                                <Trans
+                                    t={t}
+                                    i18nKey="writeActions.serviceAccountUser"
+                                    values={{
+                                        uuid: selectedServiceAccount.userUuid,
+                                    }}
+                                    components={{ code: <Code /> }}
+                                />
                             </Text>
                         </Group>
                     )}
 
                     <Stack gap="xs">
                         <Text size="sm" fw={500}>
-                            Space for created content
+                            {t('writeActions.spaceForContent')}
                         </Text>
                         <Menu
                             width="target"
@@ -494,7 +530,7 @@ const EmbedWriteActionsForm: FC<Props> = ({
                                 >
                                     {selectedSpace
                                         ? selectedSpace.name
-                                        : 'Select space'}
+                                        : t('writeActions.selectSpace')}
                                 </Button>
                             </Menu.Target>
                             <Menu.Dropdown>
@@ -515,8 +551,12 @@ const EmbedWriteActionsForm: FC<Props> = ({
                                                 </Text>
                                                 <Text fz="xs" c="dimmed">
                                                     {space.parentSpaceUuid
-                                                        ? 'Nested space'
-                                                        : 'Top-level space'}
+                                                        ? t(
+                                                              'writeActions.nestedSpace',
+                                                          )
+                                                        : t(
+                                                              'writeActions.topLevelSpace',
+                                                          )}
                                                 </Text>
                                             </Stack>
                                         </Menu.Item>
@@ -531,14 +571,14 @@ const EmbedWriteActionsForm: FC<Props> = ({
                                         setIsCreateSpaceModalOpen(true)
                                     }
                                 >
-                                    Create new space
+                                    {t('writeActions.createSpace')}
                                 </Menu.Item>
                             </Menu.Dropdown>
                         </Menu>
                         <Text c="dimmed" fz="xs">
                             {fixedWriteSpaceUuid
-                                ? "This is the selected dashboard's space. Embedded dashboard editing requires created content to use the same space."
-                                : 'Charts and other created content from this embed token are written to this space.'}
+                                ? t('writeActions.dashboardSpaceNote')
+                                : t('writeActions.spaceNote')}
                         </Text>
                     </Stack>
 
@@ -547,21 +587,28 @@ const EmbedWriteActionsForm: FC<Props> = ({
                             <Badge
                                 leftSection={<MantineIcon icon={IconFolder} />}
                             >
-                                Target space
+                                {t('writeActions.targetSpace')}
                             </Badge>
                             <Text c="dimmed" fz="xs">
-                                Space UUID: <Code>{selectedSpace.uuid}</Code>
+                                <Trans
+                                    t={t}
+                                    i18nKey="writeActions.spaceUuid"
+                                    values={{ uuid: selectedSpace.uuid }}
+                                    components={{ code: <Code /> }}
+                                />
                             </Text>
                         </Group>
                     )}
 
                     {allowSourceSpaces && (
                         <MultiSelect
-                            label="Spaces to add charts from"
-                            description="Dashboard editors can add existing charts from these spaces. Charts stay in their space and can't be edited from the dashboard. The service account must be able to view them."
+                            label={t('writeActions.sourceSpaces')}
+                            description={t(
+                                'writeActions.sourceSpacesDescription',
+                            )}
                             placeholder={
                                 selectedSourceSpaceUuids.length === 0
-                                    ? 'Only the space for created content'
+                                    ? t('writeActions.sourceSpacesPlaceholder')
                                     : undefined
                             }
                             data={sourceSpaceOptions}
@@ -574,17 +621,24 @@ const EmbedWriteActionsForm: FC<Props> = ({
                         />
                     )}
 
-                    <Callout variant="info" title="JWT user override">
+                    <Callout
+                        variant="info"
+                        title={t('writeActions.jwtOverride')}
+                    >
                         <Text fz="sm">
-                            By default, write actions run as the selected
-                            service account user. To run them as a specific
-                            Lightdash user instead, include a proposed{' '}
-                            <Code>userUuid</Code> claim in the embed JWT. You
-                            can find user UUIDs from{' '}
-                            <Anchor href="/api/v1/org/users" target="_blank">
-                                <Code>/api/v1/org/users</Code>
-                            </Anchor>
-                            .
+                            <Trans
+                                t={t}
+                                i18nKey="writeActions.jwtOverrideDescription"
+                                components={{
+                                    code: <Code />,
+                                    anchor: (
+                                        <Anchor
+                                            href="/api/v1/org/users"
+                                            target="_blank"
+                                        />
+                                    ),
+                                }}
+                            />
                         </Text>
                     </Callout>
                 </Stack>
@@ -593,7 +647,7 @@ const EmbedWriteActionsForm: FC<Props> = ({
             <MantineModal
                 opened={isCreateModalOpen}
                 onClose={() => setIsCreateModalOpen(false)}
-                title="Create service account"
+                title={t('writeActions.createServiceAccountTitle')}
                 icon={IconKey}
                 size="md"
                 actions={
@@ -603,14 +657,14 @@ const EmbedWriteActionsForm: FC<Props> = ({
                         loading={createAccount.isLoading}
                         disabled={!canCreateServiceAccount}
                     >
-                        Create and use
+                        {t('writeActions.createAndUse')}
                     </Button>
                 }
             >
                 <Stack gap="md">
                     <TextInput
-                        label="Description"
-                        description="Service accounts created here do not expire."
+                        label={t('writeActions.description')}
+                        description={t('writeActions.descriptionNote')}
                         value={newServiceAccountDescription}
                         onChange={(event) =>
                             setNewServiceAccountDescription(
@@ -620,13 +674,19 @@ const EmbedWriteActionsForm: FC<Props> = ({
                     />
                     <Stack gap="xs">
                         <Text size="sm" fw={500}>
-                            Role type
+                            {t('writeActions.roleType')}
                         </Text>
                         <SegmentedControl
                             fullWidth
                             data={[
-                                { label: 'System role', value: 'system' },
-                                { label: 'Custom role', value: 'custom' },
+                                {
+                                    label: t('writeActions.systemRole'),
+                                    value: 'system',
+                                },
+                                {
+                                    label: t('roles.customRole'),
+                                    value: 'custom',
+                                },
                             ]}
                             value={roleType}
                             onChange={(value) =>
@@ -635,11 +695,15 @@ const EmbedWriteActionsForm: FC<Props> = ({
                         />
                     </Stack>
                     <Select
-                        label={roleType === 'system' ? 'System role' : 'Role'}
+                        label={
+                            roleType === 'system'
+                                ? t('writeActions.systemRole')
+                                : t('writeActions.role')
+                        }
                         description={
                             roleType === 'system'
-                                ? 'Use an existing Lightdash system role for this service account.'
-                                : 'Use one of the existing custom roles for this service account.'
+                                ? t('writeActions.systemRoleDescription')
+                                : t('writeActions.customRoleDescription')
                         }
                         data={
                             roleType === 'system'
@@ -665,7 +729,7 @@ const EmbedWriteActionsForm: FC<Props> = ({
             <MantineModal
                 opened={isCreateSpaceModalOpen}
                 onClose={() => setIsCreateSpaceModalOpen(false)}
-                title="Create space"
+                title={t('writeActions.createSpaceTitle')}
                 icon={IconFolder}
                 size="md"
                 actions={
@@ -674,13 +738,13 @@ const EmbedWriteActionsForm: FC<Props> = ({
                         onClick={handleCreateSpace}
                         loading={createSpaceMutation.isLoading}
                     >
-                        Create and use
+                        {t('writeActions.createAndUse')}
                     </Button>
                 }
             >
                 <Stack gap="md">
                     <TextInput
-                        label="Space name"
+                        label={t('writeActions.spaceName')}
                         value={newSpaceName}
                         onChange={(event) =>
                             setNewSpaceName(event.currentTarget.value)

@@ -1,0 +1,93 @@
+{
+    "contentPanel": {
+        "mostPopular": "Más populares",
+        "recentlyUpdated": "Actualizados recientemente",
+        "verified": "Verificados",
+        "noVerifiedContent": "Aún no hay contenido verificado",
+        "chartsAndDashboards": "Gráficos y paneles",
+        "learn": "Aprender",
+        "emptyTitle": "Esto se ve un poco vacío",
+        "noItems": "Aún no se han añadido elementos",
+        "emptyDescription": "empieza creando algunos gráficos",
+        "createChart": "Crear gráfico"
+    },
+    "landing": {
+        "welcome": "¡Bienvenido a Lightdash!",
+        "welcomeUser": "¡Bienvenido, {{name}}!",
+        "subtitle": "Ejecuta una consulta para responder una pregunta de negocio o explora tus datos a continuación:",
+        "runQuery": "Ejecutar una consulta"
+    },
+    "onboarding": {
+        "subtitle": "Ya puedes empezar a explorar. Esto es lo que puedes hacer con Lightdash:",
+        "runFirstQuery": "¡Ejecuta tu primera consulta!",
+        "steps": {
+            "runQueries": {
+                "title": "1. Ejecuta consultas",
+                "description": "para explorar tus datos"
+            },
+            "createCharts": {
+                "title": "2. Crea gráficos",
+                "description": "con los resultados de tus consultas"
+            },
+            "buildDashboards": {
+                "title": "3. Construye paneles",
+                "description": "para compartir tus conclusiones"
+            }
+        }
+    },
+    "pinned": {
+        "titleManager": "Elementos fijados",
+        "titleViewer": "Fijados para ti",
+        "descriptionManager": "Fija espacios, paneles, gráficos y apps de datos en la parte superior de la página de inicio para guiar a tus usuarios al contenido adecuado.",
+        "descriptionViewer": "¡Tu equipo de datos ha fijado estos elementos para guiarte hacia el contenido más relevante!",
+        "emptyTitle": "No hay elementos fijados.",
+        "emptyTitleShort": "No hay elementos fijados",
+        "emptyDescription": "Fija elementos en la parte superior de la página de inicio para guiar a los usuarios al contenido relevante.",
+        "emptyDescriptionViewer": "Tu equipo de datos aún no ha fijado ningún elemento.",
+        "viewDocs": "Ver documentación"
+    },
+    "favorites": {
+        "title": "Mis favoritos",
+        "description": "Tus espacios, paneles, gráficos, apps de datos y documentos favoritos.",
+        "emptyTitle": "Aún no hay favoritos.",
+        "emptyTitleShort": "Aún no hay favoritos",
+        "emptyDescription": "Marca elementos con una estrella para añadirlos a tus favoritos."
+    },
+    "addToDashboard": {
+        "otherSpace": "Otro",
+        "title": "Añadir gráfico al panel",
+        "submit": "Añadir al panel",
+        "selectDashboard": "Selecciona un panel",
+        "noMatchingDashboards": "No se encontraron paneles",
+        "createNewDashboard": "Crear nuevo panel",
+        "dashboardName": "Nombra tu panel",
+        "dashboardNamePlaceholder": "p. ej. Panel de KPI",
+        "dashboardDescription": "Descripción del panel",
+        "dashboardDescriptionPlaceholder": "Unas palabras para dar contexto a tu equipo",
+        "selectSpace": "Selecciona un espacio",
+        "createNewSpace": "Crear nuevo espacio",
+        "spaceName": "Nombra tu nuevo espacio",
+        "spaceNamePlaceholder": "p. ej. KPI",
+        "saveToExistingSpace": "Guardar en un espacio existente"
+    },
+    "verifiedContent": {
+        "types": {
+            "chart": "Gráfico",
+            "dashboard": "Panel",
+            "dataApp": "App de datos",
+            "document": "Documento"
+        },
+        "columns": {
+            "name": "Nombre",
+            "space": "Espacio",
+            "verifiedBy": "Verificado por",
+            "verifiedAt": "Verificado el"
+        },
+        "openActions": "Abrir acciones",
+        "removeVerification": "Quitar verificación",
+        "emptyTitle": "No hay contenido verificado",
+        "emptyDescription": "Los gráficos, paneles, apps de datos y documentos verificados aparecerán aquí.",
+        "removeTitle": "¿Quitar verificación?",
+        "removeDescription": "Se quitará la insignia de verificado de este contenido. Puedes volver a verificarlo más tarde."
+    }
+}

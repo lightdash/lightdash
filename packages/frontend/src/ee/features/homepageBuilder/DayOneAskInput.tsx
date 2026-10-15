@@ -7,6 +7,7 @@ import {
 import { Anchor, Skeleton, Text } from '@mantine/core';
 import { IconArrowUpRight } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { type TFunction } from 'i18next';
 import {
     useCallback,
     useEffect,
@@ -15,6 +16,7 @@ import {
     type ComponentProps,
     type FC,
 } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useApp from '../../../providers/App/useApp';
@@ -283,10 +285,13 @@ const useHomepageSuggestionChips = ({
 const inputHoldClass = (projectUuid: string | null) =>
     projectUuid ? classes.inputHold : classes.inputHoldMinimal;
 
-const composerPlaceholder = (selection: ComposerSelection): string =>
+const composerPlaceholder = (
+    t: TFunction,
+    selection: ComposerSelection,
+): string =>
     selection && selection !== 'auto'
-        ? `Ask ${selection.name}…`
-        : 'Ask anything about your data…';
+        ? t('askInput.askAgent', { name: selection.name })
+        : t('askInput.askAnything');
 
 // The composer's footprint on a surface that is still deciding whether it can
 // show a composer at all. Lives here so the reserved height is stated once,
@@ -347,6 +352,7 @@ const DayOneAskInputInner: FC<Props> = ({
     preview = false,
     hideSuggestions,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const navigate = useNavigate();
     const { track } = useTracking();
     const { user } = useApp();
@@ -463,11 +469,18 @@ const DayOneAskInputInner: FC<Props> = ({
     if (hasNoAgents) {
         return (
             <div className={blockClasses.dashedEmpty}>
-                Set up an AI agent to enable Ask AI here —{' '}
-                <Anchor size="xs" href="/generalSettings/ai/agents">
-                    go to settings
-                </Anchor>
-                .
+                <Trans
+                    t={t}
+                    i18nKey="askInput.noAgents"
+                    components={{
+                        anchor: (
+                            <Anchor
+                                size="xs"
+                                href="/generalSettings/ai/agents"
+                            />
+                        ),
+                    }}
+                />
             </div>
         );
     }
@@ -488,7 +501,7 @@ const DayOneAskInputInner: FC<Props> = ({
                     agentUuid={selectedAgent?.uuid}
                     agents={agents}
                     selectedAgent={composerSelection}
-                    placeholder={composerPlaceholder(activeSelection)}
+                    placeholder={composerPlaceholder(t, activeSelection)}
                     onSubmit={handleSubmit}
                     onStartDeepResearch={onStartDeepResearch}
                     {...composerSqlModeProps}
@@ -500,7 +513,7 @@ const DayOneAskInputInner: FC<Props> = ({
                     disabled={!projectUuid || !canCreateThread}
                     disabledReason={
                         projectUuid && !canCreateThread
-                            ? "Your role can view AI agents but can't start conversations. Ask a workspace admin for access."
+                            ? t('askInput.cannotStartConversations')
                             : undefined
                     }
                 />
@@ -508,8 +521,8 @@ const DayOneAskInputInner: FC<Props> = ({
             {!projectUuid && (
                 <Text size="xs" c="dimmed" ta="center" mt={10}>
                     {canManageProject
-                        ? 'Connect your data to start asking questions'
-                        : 'An organisation admin will need to connect to the data warehouse before you can ask questions'}
+                        ? t('askInput.connectData')
+                        : t('askInput.adminMustConnect')}
                 </Text>
             )}
             {!hideSuggestions && (canCreateThread || preview) && (

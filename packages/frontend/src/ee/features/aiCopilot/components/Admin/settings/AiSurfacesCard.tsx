@@ -17,6 +17,7 @@ import {
     type Icon,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
@@ -70,6 +71,7 @@ export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
     onUpdateAiAgentsVisible,
     onUpdateSlackAgentsEnabled,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const hasSlack = !!slackInstallation?.organizationUuid;
 
     return (
@@ -77,7 +79,9 @@ export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
             <Stack gap="md">
                 <Box>
                     <Group gap="xs">
-                        <Title order={5}>Visibility</Title>
+                        <Title order={5}>
+                            {t('settings.surfaces.visibility')}
+                        </Title>
                         {isTrial && (
                             <Badge
                                 leftSection={
@@ -88,19 +92,18 @@ export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
                                 }
                                 size="sm"
                             >
-                                Free trial
+                                {t('settings.surfaces.freeTrial')}
                             </Badge>
                         )}
                     </Group>
                     <Text c="dimmed" fz="xs">
-                        Where agents can be reached. Per-agent access still
-                        applies on every surface.
+                        {t('settings.surfaces.description')}
                     </Text>
                 </Box>
                 <SurfaceRow
                     icon={IconLayoutDashboard}
-                    name="Lightdash UI"
-                    description="Homepage card, navbar action, and agent chat."
+                    name={t('settings.surfaces.lightdashUi')}
+                    description={t('settings.surfaces.lightdashUiDescription')}
                     checked={aiAgentsVisible}
                     disabled={disabled}
                     onChange={onUpdateAiAgentsVisible}
@@ -115,19 +118,24 @@ export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
                                 color="ldGray.7"
                             />
                             <Stack gap={2} flex={1}>
-                                <Title order={6}>Data apps</Title>
+                                <Title order={6}>
+                                    {t('settings.surfaces.dataApps')}
+                                </Title>
                                 <Text c="dimmed" fz="xs">
-                                    AI analysis inside data apps is configured
-                                    under{' '}
-                                    <Text
-                                        span
-                                        component={Link}
-                                        to="/generalSettings/dataApps/aiAnalysis"
-                                        td="underline"
-                                    >
-                                        Data apps · AI analysis
-                                    </Text>
-                                    .
+                                    <Trans
+                                        t={t}
+                                        i18nKey="settings.surfaces.dataAppsDescription"
+                                        components={{
+                                            anchor: (
+                                                <Text
+                                                    span
+                                                    component={Link}
+                                                    to="/generalSettings/dataApps/aiAnalysis"
+                                                    td="underline"
+                                                />
+                                            ),
+                                        }}
+                                    />
                                 </Text>
                             </Stack>
                         </Group>
@@ -136,11 +144,11 @@ export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
                 <Divider />
                 <SurfaceRow
                     icon={IconBrandSlack}
-                    name="Slack"
+                    name={t('settings.surfaces.slack')}
                     description={
                         hasSlack
-                            ? '@mentions and the multi-agent channel.'
-                            : "Slack isn't connected. Add the integration in Integrations → Slack first."
+                            ? t('settings.surfaces.slackConnected')
+                            : t('settings.surfaces.slackDisconnected')
                     }
                     checked={slackAgentsEnabled}
                     disabled={!hasSlack || isUpdatingSlack}

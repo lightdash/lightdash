@@ -18,6 +18,7 @@ import {
     IconUsersGroup,
 } from '@tabler/icons-react';
 import { useEffect, useRef, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useLocalStorage } from 'react-use';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -25,7 +26,7 @@ import MantineModal from '../../../components/common/MantineModal';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
-import { DEFAULT_GREETING_SUBTITLE, getGreeting } from './greeting';
+import { getDefaultGreetingSubtitle, getGreeting } from './greeting';
 import { useHomepageAiState } from './hooks/useHomepageAiState';
 import { useUpdateOrgHomepageSettings } from './hooks/useOrgHomepageSettings';
 import classes from './TryNewHomepagePromo.module.css';
@@ -40,113 +41,96 @@ const PresetCard: FC<{
     selectable: boolean;
     selected: boolean;
     onSelect: () => void;
-}> = ({ opening, greeting, selectable, selected, onSelect }) => (
-    <button
-        type="button"
-        className={classes.presetCard}
-        data-selected={selectable && selected}
-        data-static={!selectable}
-        onClick={selectable ? onSelect : undefined}
-        aria-pressed={selectable ? selected : undefined}
-    >
-        <div className={classes.presetMock}>
-            <span className={classes.mockGreeting}>{greeting}</span>
-            {opening === 'ask-first' ? (
-                <>
-                    <span className={classes.mockSub}>
-                        What do you want to know?
-                    </span>
-                    <span className={classes.mockComposer}>
-                        Ask anything about your data…
-                        <span className={classes.mockComposerArrow}>↑</span>
-                    </span>
-                </>
-            ) : (
-                <>
-                    <span className={classes.mockSub}>
-                        {DEFAULT_GREETING_SUBTITLE}
-                    </span>
-                    <span className={classes.mockChips}>
-                        <span className={classes.mockChip}>
-                            <span className={classes.mockChipDot} />
-                            Run a query
+}> = ({ opening, greeting, selectable, selected, onSelect }) => {
+    const { t } = useTranslation('homepageBuilder');
+    return (
+        <button
+            type="button"
+            className={classes.presetCard}
+            data-selected={selectable && selected}
+            data-static={!selectable}
+            onClick={selectable ? onSelect : undefined}
+            aria-pressed={selectable ? selected : undefined}
+        >
+            <div className={classes.presetMock}>
+                <span className={classes.mockGreeting}>{greeting}</span>
+                {opening === 'ask-first' ? (
+                    <>
+                        <span className={classes.mockSub}>
+                            {t('promo.mock.askSubtitle')}
                         </span>
-                        <span className={classes.mockChip}>
-                            <span className={classes.mockChipDot} />
-                            Dashboards
+                        <span className={classes.mockComposer}>
+                            {t('promo.mock.composerPlaceholder')}
+                            <span className={classes.mockComposerArrow}>↑</span>
                         </span>
-                        <span className={classes.mockChip}>
-                            <span className={classes.mockChipDot} />
-                            Spaces
+                    </>
+                ) : (
+                    <>
+                        <span className={classes.mockSub}>
+                            {getDefaultGreetingSubtitle()}
                         </span>
-                    </span>
-                </>
-            )}
-            <span className={classes.mockCards}>
-                {[0, 1, 2].map((i) => (
-                    <span key={i} className={classes.mockCard}>
-                        <span className={classes.mockCardIcon} />
-                        <span className={classes.mockCardLine} />
-                        <span
-                            className={classes.mockCardLine}
-                            data-short="true"
-                        />
-                    </span>
-                ))}
-            </span>
-        </div>
-        <div className={classes.presetMeta}>
-            <Box>
-                <Text size="sm" fw={600}>
-                    {opening === 'ask-first'
-                        ? 'Ask first'
-                        : selectable
-                          ? 'Content first'
-                          : 'Your homepage'}
-                </Text>
-                <Text size="xs" c="dimmed">
-                    {opening === 'ask-first'
-                        ? 'Opens on the Ask AI composer, curated content below.'
-                        : selectable
-                          ? 'Opens on your content; Ask AI stays a quick action.'
-                          : 'Opens on your content: quick actions, spaces, and recent items.'}
-                </Text>
-            </Box>
-            {selectable && (
-                <span className={classes.presetCheck}>
-                    <MantineIcon icon={IconCheck} size={12} />
+                        <span className={classes.mockChips}>
+                            <span className={classes.mockChip}>
+                                <span className={classes.mockChipDot} />
+                                {t('promo.mock.runQuery')}
+                            </span>
+                            <span className={classes.mockChip}>
+                                <span className={classes.mockChipDot} />
+                                {t('promo.mock.dashboards')}
+                            </span>
+                            <span className={classes.mockChip}>
+                                <span className={classes.mockChipDot} />
+                                {t('promo.mock.spaces')}
+                            </span>
+                        </span>
+                    </>
+                )}
+                <span className={classes.mockCards}>
+                    {[0, 1, 2].map((i) => (
+                        <span key={i} className={classes.mockCard}>
+                            <span className={classes.mockCardIcon} />
+                            <span className={classes.mockCardLine} />
+                            <span
+                                className={classes.mockCardLine}
+                                data-short="true"
+                            />
+                        </span>
+                    ))}
                 </span>
-            )}
-        </div>
-    </button>
-);
+            </div>
+            <div className={classes.presetMeta}>
+                <Box>
+                    <Text size="sm" fw={600}>
+                        {opening === 'ask-first'
+                            ? t('promo.presets.askFirst.title')
+                            : selectable
+                              ? t('promo.presets.contentFirst.title')
+                              : t('promo.presets.yourHomepage.title')}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                        {opening === 'ask-first'
+                            ? t('promo.presets.askFirst.description')
+                            : selectable
+                              ? t('promo.presets.contentFirst.description')
+                              : t('promo.presets.yourHomepage.description')}
+                    </Text>
+                </Box>
+                {selectable && (
+                    <span className={classes.presetCheck}>
+                        <MantineIcon icon={IconCheck} size={12} />
+                    </span>
+                )}
+            </div>
+        </button>
+    );
+};
 
 // The sell: what admins can actually build, not just how the page opens.
 const FEATURE_HIGHLIGHTS = [
-    {
-        icon: IconLayoutGrid,
-        label: 'Collections',
-        description:
-            'Curate charts, dashboards, and spaces, or keep them live from most viewed and pinned.',
-    },
-    {
-        icon: IconSpeakerphone,
-        label: 'Data announcements',
-        description:
-            'Post releases, incidents, and schema changes right on the front page.',
-    },
-    {
-        icon: IconLink,
-        label: 'Resources',
-        description:
-            'Link runbooks, videos, docs, and tools from anywhere on the web.',
-    },
-    {
-        icon: IconUsersGroup,
-        label: 'Audiences',
-        description:
-            'Publish different homepages to different groups and roles.',
-    },
+    { key: 'collections', icon: IconLayoutGrid },
+    { key: 'announcements', icon: IconSpeakerphone },
+    { key: 'resources', icon: IconLink },
+    { key: 'audiences', icon: IconUsersGroup },
 ];
 
 export const TryNewHomepageModal: FC<{
@@ -154,6 +138,7 @@ export const TryNewHomepageModal: FC<{
     onClose: () => void;
     projectUuid: string;
 }> = ({ opened, onClose, projectUuid }) => {
+    const { t } = useTranslation('homepageBuilder');
     const navigate = useNavigate();
     const { user } = useApp();
     const { canAskAi } = useHomepageAiState(projectUuid);
@@ -196,18 +181,20 @@ export const TryNewHomepageModal: FC<{
             opened={opened}
             onClose={onClose}
             size={720}
-            title={
-                isLive ? 'Your new homepage is live' : 'Meet the new Homepage'
-            }
+            title={isLive ? t('promo.modal.liveTitle') : t('promo.modal.title')}
             subtitle={
                 isLive
-                    ? 'Everyone in your organization now lands on it.'
-                    : 'Composable blocks, curated collections, and announcements, published to your whole team.'
+                    ? t('promo.modal.liveSubtitle')
+                    : t('promo.modal.subtitle')
             }
             icon={IconHome}
             modalBodyProps={{ px: 0, py: 0 }}
-            cancelLabel={isLive ? 'Done' : 'Not now'}
-            confirmLabel={isLive ? 'Customize it' : 'Turn on for all projects'}
+            cancelLabel={
+                isLive ? t('promo.modal.done') : t('promo.modal.notNow')
+            }
+            confirmLabel={
+                isLive ? t('promo.modal.customize') : t('promo.modal.turnOn')
+            }
             confirmLoading={updateSettings.isLoading}
             onConfirm={
                 isLive
@@ -219,7 +206,7 @@ export const TryNewHomepageModal: FC<{
             <div className={classes.hero}>
                 {isLive ? (
                     <Stack align="center" gap={14}>
-                        <Text fw={600}>This is what your team sees now.</Text>
+                        <Text fw={600}>{t('promo.modal.whatTeamSees')}</Text>
                         <div className={classes.heroCards}>
                             <PresetCard
                                 opening={showChoice ? opening : 'content-first'}
@@ -230,20 +217,17 @@ export const TryNewHomepageModal: FC<{
                             />
                         </div>
                         <Text size="sm" c="dimmed" ta="center" maw={420}>
-                            Every project now opens{' '}
                             {opening === 'ask-first' && showChoice
-                                ? 'on the Ask AI composer'
-                                : 'on its content'}
-                            . You can customize each project's homepage, or swap
-                            its opening, from the builder.
+                                ? t('promo.modal.opensOnAsk')
+                                : t('promo.modal.opensOnContent')}
                         </Text>
                     </Stack>
                 ) : (
                     <Stack gap={14}>
                         <Text size="sm" fw={500} ta="center">
                             {showChoice
-                                ? 'Pick how it opens. This is what it could look like'
-                                : 'This is what it could look like'}
+                                ? t('promo.modal.pickHowItOpens')
+                                : t('promo.modal.couldLookLike')}
                         </Text>
                         <div className={classes.heroCards}>
                             {showChoice && (
@@ -264,11 +248,13 @@ export const TryNewHomepageModal: FC<{
                             />
                         </div>
                         <Text size="xs" c="dimmed" ta="center">
-                            Turns on the new homepage for{' '}
-                            <Text span size="xs" fw={600}>
-                                all projects in your organization
-                            </Text>
-                            . You can switch back any time.
+                            <Trans
+                                t={t}
+                                i18nKey="promo.modal.turnsOnFor"
+                                components={{
+                                    strong: <Text span size="xs" fw={600} />,
+                                }}
+                            />
                         </Text>
                     </Stack>
                 )}
@@ -276,19 +262,18 @@ export const TryNewHomepageModal: FC<{
             {!isLive && (
                 <div className={classes.features}>
                     {FEATURE_HIGHLIGHTS.map((feature) => (
-                        <div
-                            key={feature.label}
-                            className={classes.featureItem}
-                        >
+                        <div key={feature.key} className={classes.featureItem}>
                             <span className={classes.featureIcon}>
                                 <MantineIcon icon={feature.icon} size={15} />
                             </span>
                             <Box>
                                 <Text size="sm" fw={600}>
-                                    {feature.label}
+                                    {t(`promo.features.${feature.key}.label`)}
                                 </Text>
                                 <Text size="xs" c="dimmed">
-                                    {feature.description}
+                                    {t(
+                                        `promo.features.${feature.key}.description`,
+                                    )}
                                 </Text>
                             </Box>
                         </div>
@@ -307,6 +292,7 @@ export const TryNewHomepageCard: FC<{
     organizationUuid: string | undefined;
     onTryNow: () => void;
 }> = ({ organizationUuid, onTryNow }) => {
+    const { t } = useTranslation('homepageBuilder');
     const { user, health } = useApp();
     const { track } = useTracking();
     const [dismissed, setDismissed] = useLocalStorage(
@@ -351,23 +337,22 @@ export const TryNewHomepageCard: FC<{
                 <div className={classes.promoCopy}>
                     <Group gap={6}>
                         <Text size="sm" fw={600}>
-                            A new Homepage is here
+                            {t('promo.card.title')}
                         </Text>
                         <Badge size="xs" variant="filled" color="dark">
-                            New
+                            {t('promo.card.new')}
                         </Badge>
                     </Group>
                     <Text size="xs" c="dimmed">
-                        A curated start page for your whole team, with blocks,
-                        collections, and announcements you compose.
+                        {t('promo.card.description')}
                     </Text>
                 </div>
                 <Button variant="default" size="xs" onClick={onTryNow}>
-                    Try it now!
+                    {t('promo.card.tryNow')}
                 </Button>
                 <CloseButton
                     size="sm"
-                    aria-label="Dismiss"
+                    aria-label={t('promo.card.dismiss')}
                     onClick={() => {
                         setDismissed(true);
                         if (organizationUuid) {

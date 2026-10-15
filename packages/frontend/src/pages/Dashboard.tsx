@@ -31,6 +31,7 @@ import { IconAlertCircle, IconCircleCheckFilled } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type Layout } from 'react-grid-layout';
+import { useTranslation } from 'react-i18next';
 import {
     useBlocker,
     useNavigate,
@@ -96,6 +97,7 @@ import '../styles/react-grid.css';
 const EDIT_CHART_SEARCH_PARAM = 'editChart';
 
 const Dashboard: FC = () => {
+    const { t } = useTranslation('pages');
     const authoringEnabled = useContentAuthoringEnabled();
     const navigate = useNavigate();
     const projectUuid = useProjectUuid();
@@ -406,8 +408,8 @@ const Dashboard: FC = () => {
                 setHaveTilesChanged(!!unsavedDashboardTiles);
             } catch {
                 showToastError({
-                    title: 'Error parsing chart',
-                    subtitle: 'Unable to save chart in dashboard',
+                    title: t('dashboard.parseChartError'),
+                    subtitle: t('dashboard.parseChartErrorSubtitle'),
                 });
                 captureException(
                     `Error parsing chart in dashboard. Attempted to parse: ${unsavedDashboardTilesRaw} `,
@@ -429,8 +431,8 @@ const Dashboard: FC = () => {
                 setHaveTabsChanged(!!unsavedDashboardTabs);
             } catch {
                 showToastError({
-                    title: 'Error parsing tabs',
-                    subtitle: 'Unable to save tabs in dashboard',
+                    title: t('dashboard.parseTabsError'),
+                    subtitle: t('dashboard.parseTabsErrorSubtitle'),
                 });
                 captureException(
                     `Error parsing tabs in dashboard. Attempted to parse: ${unsavedDashboardTabsRaw} `,
@@ -448,6 +450,7 @@ const Dashboard: FC = () => {
         setHaveTabsChanged,
         clearIsEditingDashboardChart,
         showToastError,
+        t,
     ]);
 
     const [gridWidth, setGridWidth] = useState(0);
@@ -782,8 +785,7 @@ const Dashboard: FC = () => {
                     haveFiltersChanged ||
                     haveCustomMetricsChanged)
             ) {
-                const message =
-                    'You have unsaved changes to your dashboard! Are you sure you want to leave without saving?';
+                const message = t('dashboard.unsavedChangesMessage');
                 event.returnValue = message;
                 return message;
             }
@@ -795,6 +797,7 @@ const Dashboard: FC = () => {
         haveFiltersChanged,
         haveCustomMetricsChanged,
         isEditMode,
+        t,
     ]);
 
     const hasDashboardChanged =
@@ -1236,7 +1239,7 @@ const Dashboard: FC = () => {
                 error={{
                     name: 'NotExistsError',
                     statusCode: 404,
-                    message: 'Dashboard not found',
+                    message: t('dashboard.notFound'),
                     data: {},
                 }}
             />
@@ -1380,9 +1383,9 @@ const Dashboard: FC = () => {
                         blocker.reset();
                     }}
                     role="alertdialog"
-                    title="Unsaved changes"
+                    title={t('dashboard.unsavedChanges')}
                     icon={IconAlertCircle}
-                    cancelLabel="Stay"
+                    cancelLabel={t('dashboard.stay')}
                     actions={
                         <Button
                             color="red"
@@ -1391,14 +1394,11 @@ const Dashboard: FC = () => {
                                 blocker.proceed();
                             }}
                         >
-                            Leave
+                            {t('dashboard.leave')}
                         </Button>
                     }
                 >
-                    <Text fw={500}>
-                        You have unsaved changes to your dashboard! Are you sure
-                        you want to leave without saving?
-                    </Text>
+                    <Text fw={500}>{t('dashboard.unsavedChangesMessage')}</Text>
                 </MantineModal>
             )}
 
@@ -1409,9 +1409,9 @@ const Dashboard: FC = () => {
                         if (!isSaving) blocker.reset();
                     }}
                     role="alertdialog"
-                    title="Save dashboard before editing chart?"
-                    description="You have unsaved dashboard changes. These will be saved before opening the chart editor."
-                    confirmLabel="Save and edit chart"
+                    title={t('dashboard.saveBeforeEditTitle')}
+                    description={t('dashboard.saveBeforeEditDescription')}
+                    confirmLabel={t('dashboard.saveAndEditChart')}
                     confirmLoading={isSaving}
                     cancelDisabled={isSaving}
                     withCloseButton={!isSaving}
@@ -1428,20 +1428,18 @@ const Dashboard: FC = () => {
             <MantineModal
                 opened={isSaveVerificationModalOpen}
                 onClose={closeVerifiedSaveModal}
-                title="Save verified dashboard"
+                title={t('dashboard.saveVerifiedTitle')}
             >
                 {canPreserveVerification ? (
                     <>
-                        <Text mb="md">
-                            Keep this dashboard verified after saving?
-                        </Text>
+                        <Text mb="md">{t('dashboard.keepVerified')}</Text>
                         <Group justify="flex-end">
                             <Button
                                 variant="default"
                                 loading={isSavingVerified}
                                 onClick={() => confirmVerifiedSave(false)}
                             >
-                                Save
+                                {t('actions.save', { ns: 'common' })}
                             </Button>
                             <Button
                                 leftSection={
@@ -1453,29 +1451,27 @@ const Dashboard: FC = () => {
                                 loading={isSavingVerified}
                                 onClick={() => confirmVerifiedSave(true)}
                             >
-                                Save & verify
+                                {t('dashboard.saveAndVerify')}
                             </Button>
                         </Group>
                     </>
                 ) : (
                     <>
                         <Text mb="md">
-                            This dashboard is verified. Saving your changes will
-                            remove its verified status until someone verifies it
-                            again.
+                            {t('dashboard.verifiedSaveWarning')}
                         </Text>
                         <Group justify="flex-end">
                             <Button
                                 variant="default"
                                 onClick={closeVerifiedSaveModal}
                             >
-                                Cancel
+                                {t('actions.cancel', { ns: 'common' })}
                             </Button>
                             <Button
                                 loading={isSavingVerified}
                                 onClick={() => confirmVerifiedSave(false)}
                             >
-                                Save anyway
+                                {t('dashboard.saveAnyway')}
                             </Button>
                         </Group>
                     </>

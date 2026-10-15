@@ -20,6 +20,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { SettingsCard } from '../../../components/common/Settings/SettingsCard';
@@ -42,77 +43,82 @@ const DesignRow: FC<{
     onSetDefault: () => void;
     onDelete: () => void;
     settingDefault: boolean;
-}> = ({ design, onOpenDetail, onSetDefault, onDelete, settingDefault }) => (
-    <Table.Tr>
-        <Table.Td>
-            <Stack gap="xxs" align="flex-start">
-                <Group gap="xs" wrap="nowrap">
-                    <Text fw={600} fz="sm">
-                        {design.name}
-                    </Text>
-                    {design.isDefault && (
-                        <Badge
-                            color="blue"
-                            leftSection={
-                                <MantineIcon icon={IconCheck} size={12} />
-                            }
-                        >
-                            Default
-                        </Badge>
+}> = ({ design, onOpenDetail, onSetDefault, onDelete, settingDefault }) => {
+    const { t } = useTranslation('settings');
+    return (
+        <Table.Tr>
+            <Table.Td>
+                <Stack gap="xxs" align="flex-start">
+                    <Group gap="xs" wrap="nowrap">
+                        <Text fw={600} fz="sm">
+                            {design.name}
+                        </Text>
+                        {design.isDefault && (
+                            <Badge
+                                color="blue"
+                                leftSection={
+                                    <MantineIcon icon={IconCheck} size={12} />
+                                }
+                            >
+                                {t('designs.row.default')}
+                            </Badge>
+                        )}
+                    </Group>
+                    {design.description && (
+                        <Text size="xs" c="dimmed" lineClamp={2}>
+                            {design.description}
+                        </Text>
                     )}
-                </Group>
-                {design.description && (
-                    <Text size="xs" c="dimmed" lineClamp={2}>
-                        {design.description}
-                    </Text>
-                )}
-            </Stack>
-        </Table.Td>
-        <Table.Td>
-            <Text fz="sm" c="dimmed">
-                {design.files.length}{' '}
-                {design.files.length === 1 ? 'file' : 'files'}
-            </Text>
-        </Table.Td>
-        <Table.Td w="1%">
-            <Menu position="bottom-end">
-                <Menu.Target>
-                    <ActionIcon
-                        variant="transparent"
-                        size="sm"
-                        aria-label="More actions"
-                    >
-                        <MantineIcon icon={IconDots} />
-                    </ActionIcon>
-                </Menu.Target>
-                <Menu.Dropdown>
-                    <Menu.Item
-                        leftSection={<MantineIcon icon={IconPencil} />}
-                        onClick={onOpenDetail}
-                    >
-                        Edit
-                    </Menu.Item>
-                    <Menu.Item
-                        disabled={design.isDefault || settingDefault}
-                        leftSection={<MantineIcon icon={IconCheck} />}
-                        onClick={onSetDefault}
-                    >
-                        Set as default
-                    </Menu.Item>
-                    <Menu.Item
-                        color="red"
-                        leftSection={<MantineIcon icon={IconTrash} />}
-                        onClick={onDelete}
-                    >
-                        Delete
-                    </Menu.Item>
-                </Menu.Dropdown>
-            </Menu>
-        </Table.Td>
-    </Table.Tr>
-);
+                </Stack>
+            </Table.Td>
+            <Table.Td>
+                <Text fz="sm" c="dimmed">
+                    {t('designs.row.fileCount', {
+                        count: design.files.length,
+                    })}
+                </Text>
+            </Table.Td>
+            <Table.Td w="1%">
+                <Menu position="bottom-end">
+                    <Menu.Target>
+                        <ActionIcon
+                            variant="transparent"
+                            size="sm"
+                            aria-label={t('designs.row.moreActions')}
+                        >
+                            <MantineIcon icon={IconDots} />
+                        </ActionIcon>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconPencil} />}
+                            onClick={onOpenDetail}
+                        >
+                            {t('designs.row.edit')}
+                        </Menu.Item>
+                        <Menu.Item
+                            disabled={design.isDefault || settingDefault}
+                            leftSection={<MantineIcon icon={IconCheck} />}
+                            onClick={onSetDefault}
+                        >
+                            {t('designs.row.setAsDefault')}
+                        </Menu.Item>
+                        <Menu.Item
+                            color="red"
+                            leftSection={<MantineIcon icon={IconTrash} />}
+                            onClick={onDelete}
+                        >
+                            {t('designs.row.delete')}
+                        </Menu.Item>
+                    </Menu.Dropdown>
+                </Menu>
+            </Table.Td>
+        </Table.Tr>
+    );
+};
 
 const DesignListPage: FC = () => {
+    const { t } = useTranslation('settings');
     const {
         user: { data: user },
     } = useApp();
@@ -132,8 +138,8 @@ const DesignListPage: FC = () => {
 
     return (
         <SettingsPage
-            title="Themes"
-            description="Manage shared brand assets and instructions used when building data apps."
+            title={t('designs.list.title')}
+            description={t('designs.list.description')}
             actions={
                 canManage ? (
                     <Button
@@ -142,7 +148,7 @@ const DesignListPage: FC = () => {
                         variant="default"
                         onClick={() => setCreateOpen(true)}
                     >
-                        New theme
+                        {t('designs.list.newTheme')}
                     </Button>
                 ) : null
             }
@@ -157,8 +163,8 @@ const DesignListPage: FC = () => {
             ) : designs.length === 0 ? (
                 <SettingsEmptyState
                     icon={IconPalette}
-                    title="No themes"
-                    description="Create a theme to share brand assets and instructions across data apps."
+                    title={t('designs.list.emptyTitle')}
+                    description={t('designs.list.emptyDescription')}
                 />
             ) : (
                 <SettingsCard>
@@ -168,8 +174,12 @@ const DesignListPage: FC = () => {
                         >
                             <Table.Thead>
                                 <Table.Tr>
-                                    <Table.Th w={500}>Theme</Table.Th>
-                                    <Table.Th>Files</Table.Th>
+                                    <Table.Th w={500}>
+                                        {t('designs.list.columnTheme')}
+                                    </Table.Th>
+                                    <Table.Th>
+                                        {t('designs.list.columnFiles')}
+                                    </Table.Th>
                                     <Table.Th />
                                 </Table.Tr>
                             </Table.Thead>
@@ -223,11 +233,11 @@ const DesignListPage: FC = () => {
             <MantineModal
                 opened={activeDetailUuid !== null}
                 onClose={() => setActiveDetailUuid(null)}
-                title="Edit theme"
+                title={t('designs.list.editTheme')}
                 size="xl"
                 cancelLabel={false}
                 onConfirm={() => setActiveDetailUuid(null)}
-                confirmLabel="Done"
+                confirmLabel={t('designs.list.done')}
             >
                 {activeDetailUuid !== null && (
                     <DesignDetailPanel designUuid={activeDetailUuid} />

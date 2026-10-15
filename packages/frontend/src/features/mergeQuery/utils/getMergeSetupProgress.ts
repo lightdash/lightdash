@@ -1,3 +1,7 @@
+import i18n from '../../../i18n/i18n';
+
+const ns = 'mergeQuery';
+
 export type MergeSetupProgress = {
     step: 1 | 2 | 3 | 4;
     title: string;
@@ -18,32 +22,38 @@ export const getMergeSetupProgress = ({
     if (!hasExplore) {
         return {
             step: 1,
-            title: 'Choose a table',
-            description: 'Pick the data you want to combine with this query.',
+            title: i18n.t('setupProgress.chooseTable.title', { ns }),
+            description: i18n.t('setupProgress.chooseTable.description', {
+                ns,
+            }),
         };
     }
     if (dimensionCount === 0 || metricCount === 0) {
         return {
             step: 2,
-            title: 'Select fields',
+            title: i18n.t('setupProgress.selectFields.title', { ns }),
             description:
                 dimensionCount === 0 && metricCount === 0
-                    ? 'Add a metric and a dimension to match on.'
+                    ? i18n.t('setupProgress.selectFields.metricAndDimension', {
+                          ns,
+                      })
                     : dimensionCount === 0
-                      ? 'Add a dimension to match on.'
-                      : 'Add at least one metric.',
+                      ? i18n.t('setupProgress.selectFields.dimension', { ns })
+                      : i18n.t('setupProgress.selectFields.metric', { ns }),
         };
     }
     if (!hasJoin) {
         return {
             step: 3,
-            title: 'Match the queries',
-            description: 'Choose corresponding fields in the relationship.',
+            title: i18n.t('setupProgress.matchQueries.title', { ns }),
+            description: i18n.t('setupProgress.matchQueries.description', {
+                ns,
+            }),
         };
     }
     return {
         step: 4,
-        title: 'Review the relationship',
-        description: 'Check what to keep, then run the merged query.',
+        title: i18n.t('setupProgress.review.title', { ns }),
+        description: i18n.t('setupProgress.review.description', { ns }),
     };
 };

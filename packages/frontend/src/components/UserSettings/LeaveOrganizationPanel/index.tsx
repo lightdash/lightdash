@@ -2,6 +2,7 @@ import { OrganizationMemberRole } from '@lightdash/common';
 import { Button, Stack, Text } from '@mantine/core';
 import { IconLogout } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import useApp from '../../../providers/App/useApp';
@@ -12,6 +13,7 @@ import { LeaveOrganizationModal } from './LeaveOrganizationModal';
 export const LeaveOrganizationPanel: FC<{ showDeleteAction?: boolean }> = ({
     showDeleteAction = true,
 }) => {
+    const { t } = useTranslation('userSettings');
     const { user } = useApp();
     const { isInitialLoading: isOrganizationLoading, data: organization } =
         useOrganization();
@@ -45,7 +47,11 @@ export const LeaveOrganizationPanel: FC<{ showDeleteAction?: boolean }> = ({
             onClick={() => setShowModal(true)}
             disabled={isOnlyAdmin}
         >
-            Leave '{organization.name.trim() || 'Unnamed organization'}'
+            {t('leaveOrganizationPanel.leaveButton', {
+                name:
+                    organization.name.trim() ||
+                    t('leaveOrganizationPanel.unnamedOrganization'),
+            })}
         </Button>
     );
 
@@ -56,8 +62,8 @@ export const LeaveOrganizationPanel: FC<{ showDeleteAction?: boolean }> = ({
                 <>
                     <Text fz="sm" c="dimmed" maw={360} ta="right">
                         {orgUsers?.length === 1
-                            ? 'You are the only member. To leave, permanently delete this organization and its content.'
-                            : 'You are the only admin. Add or promote another admin before leaving. To remove this workspace instead, delete the organization.'}
+                            ? t('leaveOrganizationPanel.onlyMemberHint')
+                            : t('leaveOrganizationPanel.onlyAdminHint')}
                     </Text>
                     {showDeleteAction &&
                         user.data.ability.can('delete', 'Organization') && (

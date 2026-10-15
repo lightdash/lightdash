@@ -1,5 +1,6 @@
 import { Badge, type DefaultMantineColor } from '@mantine/core';
-import { SOURCE_LABELS } from './types';
+import { useTranslation } from 'react-i18next';
+import { getSourceLabel, isCompilationSource } from './types';
 
 const SOURCE_COLORS: Record<string, DefaultMantineColor> = {
     refresh_dbt: 'indigo',
@@ -15,6 +16,7 @@ type CompilationSourceBadgeProps = {
 export const CompilationSourceBadge = ({
     source,
 }: CompilationSourceBadgeProps) => {
+    const { t } = useTranslation('projectConnection');
     const color = SOURCE_COLORS[source] ?? 'gray';
 
     return (
@@ -30,9 +32,7 @@ export const CompilationSourceBadge = ({
                 boxShadow: '0px -1px 0px 0px rgba(4, 4, 4, 0.04) inset',
             })}
         >
-            {source in SOURCE_LABELS
-                ? SOURCE_LABELS[source as keyof typeof SOURCE_LABELS]
-                : source}
+            {isCompilationSource(source) ? getSourceLabel(t, source) : source}
         </Badge>
     );
 };

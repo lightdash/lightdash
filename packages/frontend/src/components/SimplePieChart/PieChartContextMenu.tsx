@@ -10,6 +10,7 @@ import { Box, Menu, Portal, type MenuProps } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -44,6 +45,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
     const location = useLocation();
     const isDashboardPage = location.pathname.includes('/dashboards');
 
+    const { t } = useTranslation('visualization');
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
     const metricQueryData = useMetricQueryDataContext(true);
@@ -63,7 +65,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
         if (value) {
             clipboard.copy(value.formatted);
             showToastSuccess({
-                title: 'Copied to clipboard!',
+                title: t('contextMenu.copiedToClipboard'),
             });
         }
     };
@@ -139,7 +141,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
                     leftSection={<MantineIcon icon={IconCopy} />}
                     onClick={handleCopy}
                 >
-                    Copy value
+                    {t('contextMenu.copyValue')}
                 </Menu.Item>
 
                 {metricQuery && canViewUnderlyingData && (

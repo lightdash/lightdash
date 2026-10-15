@@ -1,0 +1,738 @@
+{
+    "blockLibrary": {
+        "askAiHero": {
+            "label": "Ask AI",
+            "description": "AI chat composer with live suggestions, and a greeting."
+        },
+        "greeting": {
+            "label": "Greeting",
+            "description": "A time-of-day welcome, personalised per viewer."
+        },
+        "quickActions": {
+            "label": "Quick actions",
+            "description": "Primary CTA cards — tailor the main action per audience."
+        },
+        "cta": {
+            "label": "Call to action",
+            "description": "One brand-themed banner with a single button."
+        },
+        "metrics": {
+            "label": "Metrics",
+            "description": "KPI cards from the metrics catalog, with deltas."
+        },
+        "collection": {
+            "label": "Collection",
+            "description": "A curated set of dashboards, charts, spaces, and data apps."
+        },
+        "resources": {
+            "label": "Resources",
+            "description": "Rich cards — data apps, Claude artifacts, YouTube, docs, links."
+        },
+        "announcements": {
+            "label": "Announcements",
+            "description": "Updates from the data team, newest first."
+        },
+        "favorites": {
+            "label": "Favorites",
+            "description": "Each viewer’s starred content, only visible to them."
+        },
+        "recent": {
+            "label": "Recently viewed",
+            "description": "Each viewer’s recently opened charts and dashboards."
+        },
+        "markdown": {
+            "label": "Text / banner",
+            "description": "Markdown text, notes or a welcome banner."
+        }
+    },
+    "blockDefaults": {
+        "ctaButtonLabel": "Run a query",
+        "metricsTitle": "This month",
+        "collectionTitle": "Key dashboards",
+        "resourcesTitle": "Getting started",
+        "announcementsTitle": "From the data team",
+        "favoritesTitle": "My favorites",
+        "recentTitle": "Recently viewed",
+        "markdownContent": "## New section\n\nEdit me."
+    },
+    "starter": {
+        "startHere": "Start here",
+        "mostPopular": "Most popular",
+        "verified": "Verified",
+        "pinned": "Pinned"
+    },
+    "greeting": {
+        "defaultSubtitle": "Pick up where you left off, or start something new.",
+        "morning": "Good morning",
+        "afternoon": "Good afternoon",
+        "evening": "Good evening",
+        "morningWithName": "Good morning, {{name}}",
+        "afternoonWithName": "Good afternoon, {{name}}",
+        "eveningWithName": "Good evening, {{name}}"
+    },
+    "resolution": {
+        "steps": {
+            "groupPriority": "Group priority",
+            "role": "Role",
+            "projectDefault": "Project default"
+        },
+        "reason": {
+            "group": "via group {{group}} (priority {{priority}})",
+            "unknownGroup": "unknown",
+            "role": "via role {{role}}",
+            "default": "project default"
+        }
+    },
+    "published": {
+        "personalPlaceholder": "Personal to each viewer — the target user sees their own content here."
+    },
+    "editor": {
+        "addBlock": "Add block",
+        "endZoneEmpty": "No blocks yet — click or drag one from the library.",
+        "endZone": "Drag a block here, or click one in the library.",
+        "addColumn": "Add column",
+        "blockCard": {
+            "drag": "Drag {{block}} block",
+            "moveUp": "Move up",
+            "moveDown": "Move down",
+            "duplicate": "Duplicate",
+            "remove": "Remove"
+        },
+        "toolbar": {
+            "exit": "Exit",
+            "editingLive": "Editing: <strong>{{name}} (live)</strong>",
+            "editingDraft": "Editing: <strong>{{name}} (draft)</strong>",
+            "projectHomepages": "Project homepages",
+            "liveItem": "{{name}} · live",
+            "newHomepage": "New homepage…",
+            "deleteHomepage": "Delete this homepage",
+            "saving": "Saving…",
+            "draftSaved": "Draft saved",
+            "revertToPublished": "Revert to published",
+            "backToEditing": "Back to editing",
+            "preview": "Preview",
+            "publish": "Publish"
+        },
+        "conflict": {
+            "message": "This homepage was changed somewhere else — your latest edits here can’t be saved.",
+            "reload": "Reload homepage"
+        },
+        "rail": {
+            "title": "Blocks",
+            "hint": "Click to add, or drag a block onto the page."
+        },
+        "revertModal": {
+            "title": "Revert to published",
+            "description": "This discards your unpublished changes and restores the last published version of this homepage. This can't be undone.",
+            "confirm": "Revert draft"
+        },
+        "deleteModal": {
+            "title": "Delete homepage"
+        }
+    },
+    "publish": {
+        "title": "Publish homepage",
+        "roleDescriptions": {
+            "viewer": "Read-only consumers of dashboards",
+            "interactiveViewer": "Can explore data behind the dashboards",
+            "editor": "Builds charts and dashboards",
+            "developer": "Works on the data model itself",
+            "admin": "Full control of the project"
+        },
+        "confirm": {
+            "everyone": "Publish to everyone",
+            "groups_one": "Publish to {{count}} group",
+            "groups_other": "Publish to {{count}} groups",
+            "roles_one": "Publish to {{count}} role",
+            "roles_other": "Publish to {{count}} roles",
+            "publish": "Publish"
+        },
+        "draftAnnouncements_one": "Publishing will also make {{count}} draft announcement live.",
+        "draftAnnouncements_other": "Publishing will also make {{count}} draft announcements live.",
+        "draftAnnouncementsWithSlack_one": "Publishing will also make {{count}} draft announcement live and send queued Slack notifications.",
+        "draftAnnouncementsWithSlack_other": "Publishing will also make {{count}} draft announcements live and send queued Slack notifications.",
+        "nowOn": "now on {{name}}",
+        "chooseWho": "Choose who lands on <name>{{name}}</name> when they open this project.",
+        "modes": {
+            "everyone": "Everyone",
+            "groups": "By group",
+            "roles": "By role"
+        },
+        "everyoneInfo": "This becomes the <strong>starting point</strong> everyone lands on — unless a group they’re in has its own homepage.",
+        "noGroups": "No groups in this organization yet.",
+        "priority": {
+            "title": "If someone’s in more than one group",
+            "description": "The higher-ranked group’s homepage wins.",
+            "target": "→ {{name}}",
+            "moveUp": "Move {{name}} up",
+            "moveDown": "Move {{name}} down"
+        },
+        "groupWinsOverRole": "A group assignment always wins over a role.",
+        "resolves": "Resolves:"
+    },
+    "adminControls": {
+        "switchBack": {
+            "ariaLabel": "Switch back to classic homepage",
+            "label": "Classic homepage",
+            "title": "Switch back to the classic homepage?",
+            "confirm": "Switch back",
+            "description": "This turns the new homepage off for every project in your organization. Published homepages are kept, and everything comes back exactly as it was if you turn it on again."
+        },
+        "newHomepage": "New homepage",
+        "customize": "Customize homepage"
+    },
+    "preview": {
+        "viewingAs": "Viewing as",
+        "viewTypes": {
+            "everyone": "Everyone",
+            "user": "User",
+            "group": "Group",
+            "role": "Role"
+        },
+        "pickUser": "Pick a user",
+        "pickGroup": "Pick a group",
+        "pickRole": "Pick a role",
+        "resolvedWithReason": "{{name}} · {{reason}}",
+        "noHomepageApplies": "No published homepage applies — this viewer lands on the day-one default."
+    },
+    "create": {
+        "title": "Create a homepage",
+        "confirm": "Create homepage",
+        "description": "Curate a landing page for this project. Publishing makes it what everyone sees when they land in Lightdash.",
+        "name": "Name",
+        "namePlaceholder": "e.g. Team homepage",
+        "startFrom": "Start from",
+        "blank": "Blank",
+        "duplicate": "Duplicate “{{name}}”"
+    },
+    "promo": {
+        "mock": {
+            "askSubtitle": "What do you want to know?",
+            "composerPlaceholder": "Ask anything about your data…",
+            "runQuery": "Run a query",
+            "dashboards": "Dashboards",
+            "spaces": "Spaces"
+        },
+        "presets": {
+            "askFirst": {
+                "title": "Ask first",
+                "description": "Opens on the Ask AI composer, curated content below."
+            },
+            "contentFirst": {
+                "title": "Content first",
+                "description": "Opens on your content; Ask AI stays a quick action."
+            },
+            "yourHomepage": {
+                "title": "Your homepage",
+                "description": "Opens on your content: quick actions, spaces, and recent items."
+            }
+        },
+        "features": {
+            "collections": {
+                "label": "Collections",
+                "description": "Curate charts, dashboards, and spaces, or keep them live from most viewed and pinned."
+            },
+            "announcements": {
+                "label": "Data announcements",
+                "description": "Post releases, incidents, and schema changes right on the front page."
+            },
+            "resources": {
+                "label": "Resources",
+                "description": "Link runbooks, videos, docs, and tools from anywhere on the web."
+            },
+            "audiences": {
+                "label": "Audiences",
+                "description": "Publish different homepages to different groups and roles."
+            }
+        },
+        "modal": {
+            "liveTitle": "Your new homepage is live",
+            "title": "Meet the new Homepage",
+            "liveSubtitle": "Everyone in your organization now lands on it.",
+            "subtitle": "Composable blocks, curated collections, and announcements, published to your whole team.",
+            "done": "Done",
+            "notNow": "Not now",
+            "customize": "Customize it",
+            "turnOn": "Turn on for all projects",
+            "whatTeamSees": "This is what your team sees now.",
+            "opensOnAsk": "Every project now opens on the Ask AI composer. You can customize each project's homepage, or swap its opening, from the builder.",
+            "opensOnContent": "Every project now opens on its content. You can customize each project's homepage, or swap its opening, from the builder.",
+            "pickHowItOpens": "Pick how it opens. This is what it could look like",
+            "couldLookLike": "This is what it could look like",
+            "turnsOnFor": "Turns on the new homepage for <strong>all projects in your organization</strong>. You can switch back any time."
+        },
+        "card": {
+            "title": "A new Homepage is here",
+            "new": "New",
+            "description": "A curated start page for your whole team, with blocks, collections, and announcements you compose.",
+            "tryNow": "Try it now!",
+            "dismiss": "Dismiss"
+        }
+    },
+    "noProject": {
+        "title": "Let's get started",
+        "connectDescription": "Connect your data warehouse to start exploring and building dashboards.",
+        "connectWarehouse": "Connect a data warehouse"
+    },
+    "stars": {
+        "charts": {
+            "mrr": "Monthly recurring revenue",
+            "signupsByChannel": "Signups by channel",
+            "ordersPerWeek": "Orders per week",
+            "activeWorkspaces": "Active workspaces",
+            "revenueBySegment": "Revenue by segment",
+            "churnRateOverTime": "Churn rate over time"
+        },
+        "dashboards": {
+            "companyKpis": "Company KPIs",
+            "growthOverview": "Growth overview"
+        },
+        "kpis": {
+            "totalRevenue": "Total revenue",
+            "weeklyActiveUsers": "Weekly active users",
+            "conversionRate": "Conversion rate",
+            "avgOrderValue": "Avg. order value",
+            "newSignups": "New signups",
+            "churnRate": "Churn rate"
+        },
+        "chips": {
+            "askAi": "Ask AI",
+            "runQuery": "Run a query",
+            "browseDashboards": "Browse dashboards",
+            "browseSpaces": "Browse spaces"
+        },
+        "media": {
+            "dataAppsVideo": {
+                "title": "What can you build with Lightdash Data Apps? 3 real examples",
+                "subtitle": "Oliver shows us how we can build data apps!"
+            },
+            "biAsCode": {
+                "title": "BI-as-code",
+                "subtitle": "Building content with code"
+            }
+        },
+        "chartMeta": "Chart · {{views}} views",
+        "dashboardMeta": "Dashboard · {{views}} views"
+    },
+    "builder": {
+        "defaultName": "Homepage"
+    },
+    "askInput": {
+        "askAgent": "Ask {{name}}…",
+        "askAnything": "Ask anything about your data…",
+        "noAgents": "Set up an AI agent to enable Ask AI here — <anchor>go to settings</anchor>.",
+        "cannotStartConversations": "Your role can view AI agents but can't start conversations. Ask a workspace admin for access.",
+        "connectData": "Connect your data to start asking questions",
+        "adminMustConnect": "An organisation admin will need to connect to the data warehouse before you can ask questions"
+    },
+    "askAiHero": {
+        "greetingQuestion": "{{greeting}}. What do you want to know?",
+        "showGreeting": "Show greeting"
+    },
+    "heroDensity": {
+        "label": "Opening size",
+        "auto": "Auto",
+        "compact": "Compact",
+        "full": "Full screen",
+        "fullDescription": "Fills the opening view — content below starts under the fold.",
+        "autoDescription": "Sized to its own content, so what you add below stays visible."
+    },
+    "greetingBlock": {
+        "subtitleLabel": "Line under the greeting"
+    },
+    "contentLayout": {
+        "cards": "Cards",
+        "compact": "Compact"
+    },
+    "keySpaces": {
+        "title": "Spaces",
+        "itemCount_one": "{{count}} item",
+        "itemCount_other": "{{count}} items"
+    },
+    "contentCard": {
+        "verified": "Verified by the data team",
+        "updated": "updated {{timeAgo}}",
+        "inSpace": "in {{space}}",
+        "kinds": {
+            "chart": "Chart",
+            "dashboard": "Dashboard",
+            "space": "Space",
+            "dataApp": "Data app",
+            "document": "Document"
+        },
+        "removeFromCollection": "Remove {{name}} from collection"
+    },
+    "favorites": {
+        "remove": "Remove {{name}} from favorites",
+        "showLess": "Show less",
+        "more_one": "+{{count}} more",
+        "more_other": "+{{count}} more",
+        "onlyYou": "Only you see this",
+        "empty": "Star content to keep it here — each person sees their own favorites.",
+        "personalPerViewer": "Personal per viewer",
+        "buildEmpty": "Empty until this viewer stars something — each person sees their own favorites here.",
+        "buildHint": "Showing your favorites as a sample — every viewer sees their own."
+    },
+    "recent": {
+        "empty": "Charts, dashboards and data apps you open will show up here.",
+        "buildHint": "Showing your recent activity as a sample — every viewer sees their own."
+    },
+    "dataAppPicker": {
+        "added": "Added",
+        "search": "Search data apps...",
+        "empty": "No data apps found.",
+        "loadMore": "Load more",
+        "title": "Add data apps"
+    },
+    "blockBuild": {
+        "title": "Title"
+    },
+    "metrics": {
+        "loadFailed": "Couldn’t load this metric",
+        "vsPreviousPeriod": "vs previous period",
+        "picker": {
+            "title": "Choose metrics",
+            "search": "Search metrics…",
+            "limit": "You can show up to {{max}} metrics. Remove one to add another.",
+            "empty": "No matching metrics."
+        },
+        "remove": "Remove metric {{label}}",
+        "limitReached": "Metric limit reached ({{max}})",
+        "chooseFromCatalog": "Choose metrics from catalog…"
+    },
+    "quickActions": {
+        "static": {
+            "askAi": {
+                "title": "Ask AI",
+                "description": "Ask a question in plain English."
+            },
+            "runQuery": {
+                "title": "Run a query",
+                "description": "Explore your data and answer a business question."
+            },
+            "browseDashboards": {
+                "title": "Browse dashboards",
+                "description": "See what your team has already built."
+            },
+            "browseSpaces": {
+                "title": "Browse spaces",
+                "description": "Content organized by team and topic."
+            },
+            "mySpace": {
+                "title": "My space",
+                "description": "Your personal space."
+            }
+        },
+        "hints": {
+            "askAi": "Hidden automatically for viewers without AI access.",
+            "mySpace": "Only shown to viewers who have a personal space."
+        },
+        "openDashboard": "Open this dashboard.",
+        "openSpace": "Open this space.",
+        "mySpacePlaceholder": "Resolves to each viewer's own personal space.",
+        "picker": {
+            "dashboardTitle": "Pick a dashboard",
+            "dashboardSearch": "Search dashboards…",
+            "spaceTitle": "Pick a space",
+            "spaceSearch": "Search spaces…"
+        },
+        "primaryAction": "Primary action",
+        "makePrimary": "Make primary",
+        "makePrimaryAria": "Make {{title}} the primary action",
+        "moveEarlier": "Move {{title}} earlier",
+        "moveLater": "Move {{title}} later",
+        "remove": "Remove {{title}}",
+        "addAction": "Add action",
+        "specificDashboard": "A specific dashboard…",
+        "specificSpace": "A specific space…"
+    },
+    "cta": {
+        "themes": {
+            "brand": "Brand",
+            "accent": "Accent",
+            "dark": "Dark",
+            "neutral": "Neutral"
+        },
+        "themeAria": "{{theme}} theme",
+        "customColor": "Custom",
+        "customLink": "Custom link",
+        "titlePlaceholder": "Optional — leave empty for a button-only banner",
+        "supportingLine": "Supporting line",
+        "optional": "Optional",
+        "buttonLabel": "Button label",
+        "buttonLeadsTo": "Button leads to",
+        "url": "URL",
+        "theme": "Theme",
+        "background": "Background",
+        "backgrounds": {
+            "none": "None",
+            "card": "Card",
+            "themed": "Themed"
+        },
+        "align": "Align",
+        "alignments": {
+            "left": "Left",
+            "middle": "Middle",
+            "right": "Right"
+        },
+        "brandHint": "Brand, Accent, and the gradients use your organization's brand colors from Settings → Appearance."
+    },
+    "toasts": {
+        "homepageDeleted": "Homepage deleted",
+        "deleteFailed": "Failed to delete homepage",
+        "createFailed": "Failed to create homepage",
+        "saveDraftFailed": "Failed to save draft",
+        "reorderFailed": "Failed to reorder group priority",
+        "draftReverted": "Draft reverted to published",
+        "revertFailed": "Failed to revert draft",
+        "published": "Homepage published",
+        "publishFailed": "Failed to publish homepage",
+        "postAnnouncementFailed": "Failed to post announcement",
+        "updateAnnouncementFailed": "Failed to update announcement",
+        "deleteAnnouncementFailed": "Failed to delete announcement",
+        "uploadImageFailed": "Failed to upload image",
+        "updateSettingsFailed": "Failed to update homepage settings",
+        "updateChecklistFailed": "Failed to update setup checklist"
+    },
+    "checklist": {
+        "setUp": "Set up",
+        "resume": "Resume",
+        "connected": "Connected",
+        "title": "Finish setting up",
+        "skipped": "Skipped",
+        "restoreStep": "Restore this step",
+        "restoreAria": "Restore {{title}}",
+        "skipStep": "Skip this step",
+        "skipAria": "Skip {{title}}",
+        "previousStep": "Previous step",
+        "nextStep": "Next step",
+        "actions": {
+            "connectWarehouse": {
+                "title": "Connect a data warehouse",
+                "subtitle": "Query your data directly"
+            },
+            "addSemanticLayer": {
+                "title": "Add a semantic layer",
+                "subtitle": "Answers grounded in your business definitions"
+            },
+            "connectSourceControl": {
+                "title": "Set up your dbt",
+                "subtitle": "Deploy with the CLI or connect your repo"
+            },
+            "connectSlack": {
+                "title": "Connect Slack",
+                "subtitle": "Ask Aurora from your channels"
+            }
+        }
+    },
+    "resources": {
+        "kinds": {
+            "video": "Video",
+            "doc": "Doc",
+            "link": "Link",
+            "claude": "Claude",
+            "youtube": "YouTube",
+            "dataApp": "Data app"
+        },
+        "kindAria": "Resource kind",
+        "remove": "Remove {{title}}",
+        "titlePlaceholder": "Title",
+        "descriptionPlaceholder": "Description",
+        "showDescriptions": "Show descriptions",
+        "pastePlaceholder": "Paste a Claude artifact, YouTube, or any link…",
+        "addDataApp": "Add data app",
+        "addLink": "Add link",
+        "addResource": "Add resource",
+        "buildHint": "Paste multiple links (one per line) to add them all at once, or add a data app with the app button."
+    },
+    "collection": {
+        "addContent": "Add content",
+        "items": "Items",
+        "showAtMost": "Show at most",
+        "verifiedOnly": "Verified only",
+        "noMatches": "Nothing matches this rule yet. The block won't render until it does.",
+        "personalHint": "Showing your own items as a sample — every viewer sees their own.",
+        "dynamicHint": "Updates on its own as the project changes.",
+        "importPinned": "Import pinned items",
+        "sources": {
+            "manual": {
+                "label": "Hand-picked",
+                "hint": "Exactly the items you choose."
+            },
+            "mostViewed": {
+                "label": "Most viewed",
+                "hint": "What people in this project actually open."
+            },
+            "pinned": {
+                "label": "Pinned",
+                "hint": "Follows the project's pin list — new pins appear here."
+            },
+            "favorites": {
+                "label": "Favourites",
+                "hint": "Each viewer's own favourites."
+            },
+            "recentlyViewed": {
+                "label": "Recently viewed",
+                "hint": "Each viewer's own history."
+            },
+            "recentlyUpdated": {
+                "label": "Recently updated",
+                "hint": "Recently changed content. Surfaces churn, not importance."
+            },
+            "verified": {
+                "label": "Verified",
+                "hint": "This project's admin-verified charts and dashboards."
+            }
+        },
+        "contentTypes": {
+            "dashboards": "Dashboards",
+            "charts": "Charts",
+            "apps": "Apps",
+            "spaces": "Spaces",
+            "documents": "Documents"
+        },
+        "picker": {
+            "addSpaceItself": "Add the space itself",
+            "emptySpace": "This space has no charts or dashboards.",
+            "selectAll": "Select all ({{count}})",
+            "tabs": {
+                "content": "Charts & dashboards",
+                "apps": "Data apps",
+                "documents": "Documents"
+            },
+            "selectedCount": "{{count}} selected",
+            "pickSpace": "Pick a space on the left to add it, or to see its charts and dashboards.",
+            "searchDocuments": "Search documents...",
+            "noDocuments": "No documents found.",
+            "apply": "Apply"
+        }
+    },
+    "announcements": {
+        "categories": {
+            "launch": "Launch",
+            "update": "Update",
+            "heads_up": "Heads up"
+        },
+        "timestampBy": "{{timeAgo}} by {{author}}",
+        "readMore": "Read more",
+        "scheduledAt": "Scheduled · {{date}}",
+        "draft": "Draft",
+        "showFewer": "Show fewer",
+        "showEarlier_one": "Show {{count}} earlier announcement",
+        "showEarlier_other": "Show {{count}} earlier announcements",
+        "loadFailed": "Couldn’t load announcements. Try refreshing the page.",
+        "actions": {
+            "publishNow": "Publish now",
+            "publishNowAria": "Publish announcement now",
+            "unpin": "Unpin",
+            "pinToTop": "Pin to top",
+            "pin": "Pin",
+            "editAria": "Edit announcement",
+            "deleteAria": "Delete announcement"
+        },
+        "publishModal": {
+            "title": "Publish announcement",
+            "noSlack": "“{{title}}” goes live on the homepage immediately.",
+            "withSlack": "“{{title}}” goes live on the homepage immediately and notifies Slack.",
+            "noSlackReplacingSchedule": "“{{title}}” goes live on the homepage immediately, replacing its schedule.",
+            "withSlackReplacingSchedule": "“{{title}}” goes live on the homepage immediately and notifies Slack, replacing its schedule."
+        },
+        "deleteModal": {
+            "title": "Delete announcement"
+        },
+        "new": "New announcement",
+        "edit": "Edit announcement",
+        "emptyView": "No announcements yet — share your first update. Viewers don’t see this block while it’s empty.",
+        "emptyBuild": "No announcements yet — share your first update. The block stays hidden on the homepage until there is something to show.",
+        "collapseAfterFirst": "Collapse all but the first announcement",
+        "schedule": {
+            "label": "Schedule publish",
+            "date": "Date",
+            "time": "Time"
+        },
+        "save": {
+            "scheduleWithSlack": "Schedule & queue Slack",
+            "schedule": "Schedule",
+            "postWithSlack": "Post & send to Slack",
+            "post": "Post",
+            "draftWithSlack": "Create draft & queue Slack",
+            "draft": "Create draft"
+        },
+        "hints": {
+            "pastTime": "Pick a publish time in the future.",
+            "scheduled": "Publishes automatically on {{date}} (your local time).",
+            "scheduledWithSlack": "Publishes automatically on {{date}} (your local time) and notifies Slack then.",
+            "live": "Goes live on the homepage immediately.",
+            "liveWithSlack": "Goes live on the homepage immediately and notifies Slack.",
+            "draft": "Saved as a draft. It goes live when you publish the homepage.",
+            "draftWithSlack": "Saved as a draft. It and its Slack notification goes live when you publish the homepage."
+        },
+        "form": {
+            "titlePlaceholder": "Announcement title",
+            "category": "Category",
+            "noCategory": "None",
+            "notifySlack": "Notify Slack",
+            "noNotification": "No notification",
+            "bodyTooLong": "Body is {{length}} characters — trim it to {{max}} or fewer."
+        }
+    },
+    "slashCommands": {
+        "text": {
+            "label": "Text",
+            "description": "Plain paragraph"
+        },
+        "heading1": {
+            "label": "Heading 1",
+            "description": "Big section heading"
+        },
+        "heading2": {
+            "label": "Heading 2",
+            "description": "Medium section heading"
+        },
+        "heading3": {
+            "label": "Heading 3",
+            "description": "Small section heading"
+        },
+        "bulletList": {
+            "label": "Bulleted list",
+            "description": "Simple unordered list"
+        },
+        "orderedList": {
+            "label": "Numbered list",
+            "description": "Ordered list with numbers"
+        },
+        "blockquote": {
+            "label": "Quote",
+            "description": "Indented callout text"
+        },
+        "codeBlock": {
+            "label": "Code block",
+            "description": "Monospaced code snippet"
+        },
+        "divider": {
+            "label": "Divider",
+            "description": "Horizontal rule"
+        },
+        "image": {
+            "label": "Image",
+            "description": "Upload an image"
+        },
+        "noMatches": "No matching block type"
+    },
+    "markdownEditor": {
+        "imagePreview": "Image preview",
+        "closeImagePreview": "Close image preview",
+        "placeholder": "Write something, or type '/' for commands…",
+        "openMention": "Open {{name}}",
+        "previewImage": "Preview image {{alt}}",
+        "unsupportedImage": {
+            "title": "Unsupported image type",
+            "subtitle": "Please upload a PNG, JPEG, GIF, or WEBP image."
+        },
+        "imageTooLarge": {
+            "title": "Image too large",
+            "subtitle": "Images must be 5MB or smaller."
+        },
+        "insertImage": "Insert image"
+    }
+}

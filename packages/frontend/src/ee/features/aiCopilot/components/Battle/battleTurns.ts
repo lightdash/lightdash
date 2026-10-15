@@ -1,4 +1,5 @@
 import { type AiAgentThread } from '@lightdash/common';
+import i18n from '../../../../../i18n/i18n';
 import { getResponseTimingMetrics } from '../../utils/responseTiming';
 
 type BattleTurn = {
@@ -77,10 +78,22 @@ export const formatTokenCount = (
     decisionName = 'JEV',
 ) => {
     const parts = [
-        agent > 0 ? `${compactFormat.format(agent)} agent` : null,
+        agent > 0
+            ? i18n.t('battle.tokens.agent', {
+                  ns: 'aiCopilotAdmin',
+                  count: compactFormat.format(agent),
+              })
+            : null,
         decisions > 0
-            ? `${compactFormat.format(decisions)} ${decisionName}`
+            ? i18n.t('battle.tokens.decision', {
+                  ns: 'aiCopilotAdmin',
+                  count: compactFormat.format(decisions),
+                  name: decisionName,
+              })
             : null,
     ].filter(Boolean);
-    return `${parts.length > 0 ? parts.join(' + ') : '0'} tokens`;
+    return i18n.t('battle.tokens.total', {
+        ns: 'aiCopilotAdmin',
+        parts: parts.length > 0 ? parts.join(' + ') : '0',
+    });
 };

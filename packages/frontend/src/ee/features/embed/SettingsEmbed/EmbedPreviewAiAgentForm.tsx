@@ -26,12 +26,14 @@ import { useForm } from '@mantine/form';
 import { IconEye, IconLink, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import { useCallback, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { v4 as uuidv4 } from 'uuid';
 import { lightdashApi } from '../../../../api';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useAsyncClipboard } from '../../../../hooks/useAsyncClipboard';
 import useUser from '../../../../hooks/user/useUser';
+import i18n from '../../../../i18n/i18n';
 import EmbedCodeSnippet from './EmbedCodeSnippet';
 
 const useEmbedUrlCreateMutation = (projectUuid: string) => {
@@ -47,7 +49,9 @@ const useEmbedUrlCreateMutation = (projectUuid: string) => {
             mutationKey: ['create-embed-url'],
             onError: (error) => {
                 showToastError({
-                    title: `We couldn't create your embed url.`,
+                    title: i18n.t('preview.toasts.urlCreateFailed', {
+                        ns: 'embed',
+                    }),
                     subtitle: error.error.message,
                 });
             },
@@ -75,6 +79,7 @@ const EmbedPreviewAiAgentForm: FC<{
     writeActions?: CreateEmbedJwt['writeActions'];
     writeActionsPanel?: ReactNode;
 }> = ({ projectUuid, siteUrl, agents, writeActions, writeActionsPanel }) => {
+    const { t } = useTranslation('embed');
     const { showToastError } = useToaster();
     const { mutateAsync: createEmbedUrl } =
         useEmbedUrlCreateMutation(projectUuid);
@@ -150,9 +155,13 @@ const EmbedPreviewAiAgentForm: FC<{
         }
 
         showToastError({
-            title: 'Service account required',
-            subtitle:
-                'Select a service account and target space before generating an AI agent embed.',
+            title: i18n.t('preview.toasts.serviceAccountRequired', {
+                ns: 'embed',
+            }),
+            subtitle: i18n.t(
+                'preview.toasts.serviceAccountRequiredDescription',
+                { ns: 'embed' },
+            ),
         });
         return false;
     }, [hasRequiredWriteActions, showToastError]);
@@ -205,15 +214,15 @@ const EmbedPreviewAiAgentForm: FC<{
             <Stack gap="md" mb="md">
                 <Select
                     required
-                    label="AI agent"
+                    label={t('preview.aiAgent')}
                     data={agents.map((agent) => ({
                         value: agent.uuid,
                         label: agent.name,
                     }))}
                     placeholder={
                         agents.length === 0
-                            ? 'No AI agents available to embed'
-                            : 'Select an AI agent...'
+                            ? t('preview.noAgents')
+                            : t('preview.selectAgent')
                     }
                     disabled={agents.length === 0}
                     searchable
@@ -222,7 +231,7 @@ const EmbedPreviewAiAgentForm: FC<{
 
                 <Stack gap="xs">
                     <Text size="sm" fw={500}>
-                        Expires in
+                        {t('preview.expiresIn')}
                     </Text>
                     <SegmentedControl
                         value={form.values.expiresIn}
@@ -230,11 +239,23 @@ const EmbedPreviewAiAgentForm: FC<{
                             form.setFieldValue('expiresIn', value)
                         }
                         data={[
-                            { label: '1 hour', value: '1 hour' },
-                            { label: '1 day', value: '1 day' },
-                            { label: '1 week', value: '1 week' },
-                            { label: '30 days', value: '30 days' },
-                            { label: '1 year', value: '1 year' },
+                            {
+                                label: t('preview.expiry.hour'),
+                                value: '1 hour',
+                            },
+                            { label: t('preview.expiry.day'), value: '1 day' },
+                            {
+                                label: t('preview.expiry.week'),
+                                value: '1 week',
+                            },
+                            {
+                                label: t('preview.expiry.days30'),
+                                value: '30 days',
+                            },
+                            {
+                                label: t('preview.expiry.year'),
+                                value: '1 year',
+                            },
                         ]}
                         size="xs"
                     />
@@ -242,9 +263,9 @@ const EmbedPreviewAiAgentForm: FC<{
 
                 <Paper p="md">
                     <Stack gap="md">
-                        <Title order={6}>Identification & Security</Title>
+                        <Title order={6}>{t('preview.identification')}</Title>
                         <Stack gap="xs">
-                            <Input.Wrapper label="User identifier">
+                            <Input.Wrapper label={t('preview.userIdentifier')}>
                                 <TextInput
                                     size="xs"
                                     placeholder="1234"
@@ -252,15 +273,17 @@ const EmbedPreviewAiAgentForm: FC<{
                                 />
                             </Input.Wrapper>
 
-                            <Input.Wrapper label="User email">
+                            <Input.Wrapper label={t('preview.userEmail')}>
                                 <TextInput
                                     size="xs"
-                                    placeholder="Type an email to add as intrinsic user attribute"
+                                    placeholder={t(
+                                        'preview.userEmailPlaceholder',
+                                    )}
                                     {...form.getInputProps('email')}
                                 />
                             </Input.Wrapper>
 
-                            <Input.Wrapper label="User attributes">
+                            <Input.Wrapper label={t('preview.userAttributes')}>
                                 <Stack gap="xs" mt="xs">
                                     {form.values.userAttributes.map(
                                         (item, index) => (
@@ -271,7 +294,9 @@ const EmbedPreviewAiAgentForm: FC<{
                                             >
                                                 <TextInput
                                                     size="xs"
-                                                    placeholder="E.g. user_country"
+                                                    placeholder={t(
+                                                        'preview.attributeKeyPlaceholder',
+                                                    )}
                                                     flex={1}
                                                     {...form.getInputProps(
                                                         `userAttributes.${index}.key`,
@@ -279,7 +304,9 @@ const EmbedPreviewAiAgentForm: FC<{
                                                 />
                                                 <TextInput
                                                     size="xs"
-                                                    placeholder="E.g. US"
+                                                    placeholder={t(
+                                                        'preview.attributeValuePlaceholder',
+                                                    )}
                                                     flex={1}
                                                     {...form.getInputProps(
                                                         `userAttributes.${index}.value`,
@@ -319,7 +346,7 @@ const EmbedPreviewAiAgentForm: FC<{
                                             )
                                         }
                                     >
-                                        Add attribute
+                                        {t('preview.addAttribute')}
                                     </Button>
                                 </Stack>
                             </Input.Wrapper>
@@ -332,15 +359,17 @@ const EmbedPreviewAiAgentForm: FC<{
                 <Paper p="md">
                     <Stack gap="md">
                         <Switch
-                            label="Explore from here"
-                            description="Allow embedded users to open generated charts in Explore."
+                            label={t('preview.exploreFromHere')}
+                            description={t(
+                                'preview.exploreFromHereDescription',
+                            )}
                             {...form.getInputProps('canExplore', {
                                 type: 'checkbox',
                             })}
                         />
                         <Switch
-                            label="Debug information"
-                            description="Allow embedded users to open the Debug panel on agent answers. It shows query configuration, field IDs and tool calls."
+                            label={t('preview.debugInfo')}
+                            description={t('preview.debugInfoDescription')}
                             {...form.getInputProps('canViewDebugInfo', {
                                 type: 'checkbox',
                             })}
@@ -355,7 +384,7 @@ const EmbedPreviewAiAgentForm: FC<{
                         onClick={handlePreview}
                         disabled={!hasRequiredWriteActions}
                     >
-                        Preview
+                        {t('preview.preview')}
                     </Button>
                     <Button
                         variant="default"
@@ -363,17 +392,16 @@ const EmbedPreviewAiAgentForm: FC<{
                         leftSection={<MantineIcon icon={IconLink} />}
                         disabled={!hasRequiredWriteActions}
                     >
-                        Generate & copy URL
+                        {t('preview.generateUrl')}
                     </Button>
                 </Flex>
             </Stack>
 
             <Stack gap="md" mb="md">
                 <Stack gap="xs">
-                    <Title order={5}>Iframe embed code</Title>
+                    <Title order={5}>{t('preview.iframeCode')}</Title>
                     <Text c="dimmed" fz="sm">
-                        Use this for iframe or direct embedding with a full
-                        embed URL.
+                        {t('preview.iframeDescription')}
                     </Text>
                 </Stack>
                 <EmbedCodeSnippet
@@ -386,11 +414,9 @@ const EmbedPreviewAiAgentForm: FC<{
 
             <Stack gap="md" mb="md">
                 <Stack gap="xs">
-                    <Title order={5}>React SDK embed code</Title>
+                    <Title order={5}>{t('preview.sdkEmbedCode')}</Title>
                     <Text c="dimmed" fz="sm">
-                        Use this to mount the AI agent with the React SDK,
-                        resume a known thread UUID, and persist newly-created
-                        thread UUIDs.
+                        {t('preview.agentSdkDescription')}
                     </Text>
                 </Stack>
                 <EmbedCodeSnippet

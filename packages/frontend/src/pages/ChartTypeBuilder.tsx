@@ -14,6 +14,7 @@ import {
 } from '@lightdash/common';
 import { Box, Button } from '@mantine/core';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     Link,
     Navigate,
@@ -120,6 +121,7 @@ const EXPLORE_PARAM = 'exploreName';
  * adopts the new uuid into the URL once the first build is accepted.
  */
 const ChartTypeBuilder: FC = () => {
+    const { t } = useTranslation('pages');
     const { dataAppVizUuid: urlVizUuid } = useParams();
     const projectUuid = useProjectUuid();
     const projectRoute = useOptionalProjectRoute();
@@ -420,10 +422,10 @@ const ChartTypeBuilder: FC = () => {
     useEffect(() => {
         if (previewError === null) return;
         showToastError({
-            title: 'Couldn’t load the saved chart’s data',
+            title: t('chartTypeBuilder.savedChartLoadError'),
             subtitle: previewError,
         });
-    }, [previewError, showToastError]);
+    }, [previewError, showToastError, t]);
     const exploreError =
         explorePreview.run.status === 'error'
             ? explorePreview.run.message
@@ -431,10 +433,10 @@ const ChartTypeBuilder: FC = () => {
     useEffect(() => {
         if (exploreError === null) return;
         showToastError({
-            title: 'Couldn’t run the table query',
+            title: t('chartTypeBuilder.tableQueryError'),
             subtitle: exploreError,
         });
-    }, [exploreError, showToastError]);
+    }, [exploreError, showToastError, t]);
 
     // Inspect the rendered pivot, or the source rows before a schema exists.
     const liveRows = useMemo<ChartTypeRows | null>(
@@ -666,7 +668,9 @@ const ChartTypeBuilder: FC = () => {
                     attached: {
                         status: 'running',
                         uuid: savedChartUuid,
-                        chartName: previewData.chartName ?? 'Saved chart',
+                        chartName:
+                            previewData.chartName ??
+                            t('chartTypeBuilder.savedChart'),
                         spaceName: previewData.spaceName,
                         rowCount: null,
                         columns: [],
@@ -680,7 +684,9 @@ const ChartTypeBuilder: FC = () => {
                     attached: {
                         status: 'error',
                         uuid: savedChartUuid,
-                        chartName: previewData.chartName ?? 'Saved chart',
+                        chartName:
+                            previewData.chartName ??
+                            t('chartTypeBuilder.savedChart'),
                         spaceName: previewData.spaceName,
                         rowCount: null,
                         columns: [],
@@ -694,7 +700,9 @@ const ChartTypeBuilder: FC = () => {
                     attached: {
                         status: 'ready',
                         uuid: savedChartUuid,
-                        chartName: previewData.chartName ?? 'Saved chart',
+                        chartName:
+                            previewData.chartName ??
+                            t('chartTypeBuilder.savedChart'),
                         spaceName: previewData.spaceName,
                         rowCount: previewData.rowCount,
                         columns: previewData.columns,
@@ -717,6 +725,7 @@ const ChartTypeBuilder: FC = () => {
         setIncludeSampleData,
         savedChartUuid,
         sourceRevision,
+        t,
     ]);
 
     const exploreSource = useMemo<ExploreSourceControls>(() => {
@@ -1025,15 +1034,15 @@ const ChartTypeBuilder: FC = () => {
             <Box className={classes.root}>
                 <Box className={classes.notFound}>
                     <SuboptimalState
-                        title="Chart type not found"
-                        description="It may have been deleted, or the link is wrong."
+                        title={t('chartTypeBuilder.notFound')}
+                        description={t('chartTypeBuilder.notFoundDescription')}
                         action={
                             <Button
                                 component={Link}
                                 to={`/projects/${projectUrlIdentifier}/chart-studio`}
                                 variant="default"
                             >
-                                Back to all chart types
+                                {t('chartTypeBuilder.backToAll')}
                             </Button>
                         }
                     />
@@ -1102,20 +1111,20 @@ const ChartTypeBuilder: FC = () => {
 
     const backLink = explorerChart
         ? {
-              label: 'Explorer',
+              label: t('chartTypeBuilder.explorer'),
               to: explorerDestination ?? {
                   pathname: `/projects/${projectUuid}/tables/${explorerChart.tableName}`,
                   search: location.search,
               },
           }
         : {
-              label: 'All chart types',
+              label: t('chartTypeBuilder.allChartTypes'),
               to: `/projects/${projectUrlIdentifier}/chart-studio`,
           };
 
     return (
         <Box className={classes.root}>
-            <DocumentTitle title="Chart Studio" />
+            <DocumentTitle title={t('chartTypeGallery.title')} />
             <ChartTypeBuilderHeader
                 projectUuid={projectUuid}
                 appUuidOrSlug={urlVizUuid}
@@ -1160,12 +1169,18 @@ const ChartTypeBuilder: FC = () => {
                 data={liveRows}
                 opened={isRowsModalOpen && liveRows !== null}
                 onClose={() => setIsRowsModalOpen(false)}
-                title="Query results"
-                subtitle={`${liveRows?.pivotDetails ? 'Pivoted preview of rows' : 'Rows'} returned by ${
-                    exploreSource.attached?.label ??
-                    savedChartSource.attached?.chartName ??
-                    'the saved chart'
-                }.`}
+                title={t('chartTypeBuilder.queryResults')}
+                subtitle={t(
+                    liveRows?.pivotDetails
+                        ? 'chartTypeBuilder.pivotedRowsReturnedBy'
+                        : 'chartTypeBuilder.rowsReturnedBy',
+                    {
+                        source:
+                            exploreSource.attached?.label ??
+                            savedChartSource.attached?.chartName ??
+                            t('chartTypeBuilder.theSavedChart'),
+                    },
+                )}
             />
             {isPreviewTableOpen && activeVizUuid && (
                 <ChartTypePreviewTableModal

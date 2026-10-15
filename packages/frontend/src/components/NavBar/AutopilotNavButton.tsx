@@ -14,7 +14,9 @@ import {
     IconTrendingUp,
 } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { type TFunction } from 'i18next';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { lightdashApi } from '../../api';
 import { useManagedAgentLatestRun } from '../../ee/features/managedAgent/hooks/useManagedAgentLatestRun';
@@ -39,36 +41,61 @@ type Props = {
     withLabel?: boolean;
 };
 
-const formatRelative = (dateInput: Date | string) => {
+const formatRelative = (
+    t: TFunction<'navigation'>,
+    dateInput: Date | string,
+) => {
     const diff = Date.now() - new Date(dateInput).getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return `${mins}m ago`;
+    if (mins < 1) return t('autopilot.relative.justNow');
+    if (mins < 60) return t('autopilot.relative.minutesAgo', { count: mins });
     const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
+    if (hours < 24) return t('autopilot.relative.hoursAgo', { count: hours });
+    return t('autopilot.relative.daysAgo', {
+        count: Math.floor(hours / 24),
+    });
 };
 
 const summarizeActionCounts = (
+    t: TFunction<'navigation'>,
     counts: ManagedAgentRun['actionCountsByType'] | undefined,
 ): string | null => {
     if (!counts) return null;
     const parts: string[] = [];
     if (counts[ManagedAgentActionType.FIXED_BROKEN])
-        parts.push(`${counts[ManagedAgentActionType.FIXED_BROKEN]} fixed`);
+        parts.push(
+            t('autopilot.summary.fixed', {
+                count: counts[ManagedAgentActionType.FIXED_BROKEN],
+            }),
+        );
     if (counts[ManagedAgentActionType.CREATED_CONTENT])
-        parts.push(`${counts[ManagedAgentActionType.CREATED_CONTENT]} created`);
+        parts.push(
+            t('autopilot.summary.created', {
+                count: counts[ManagedAgentActionType.CREATED_CONTENT],
+            }),
+        );
     if (counts[ManagedAgentActionType.FLAGGED_STALE])
-        parts.push(`${counts[ManagedAgentActionType.FLAGGED_STALE]} flagged`);
+        parts.push(
+            t('autopilot.summary.flagged', {
+                count: counts[ManagedAgentActionType.FLAGGED_STALE],
+            }),
+        );
     if (counts[ManagedAgentActionType.SOFT_DELETED])
-        parts.push(`${counts[ManagedAgentActionType.SOFT_DELETED]} deleted`);
+        parts.push(
+            t('autopilot.summary.deleted', {
+                count: counts[ManagedAgentActionType.SOFT_DELETED],
+            }),
+        );
     return parts.length > 0 ? parts.join(' · ') : null;
 };
 
 const CAPABILITIES = [
-    { icon: IconShieldCheck, label: 'Fixes broken charts' },
-    { icon: IconTrendingUp, label: 'Flags stale content' },
-    { icon: IconChartBar, label: 'Creates fresh visualizations' },
+    { icon: IconShieldCheck, labelKey: 'autopilot.capabilities.fixesBroken' },
+    { icon: IconTrendingUp, labelKey: 'autopilot.capabilities.flagsStale' },
+    {
+        icon: IconChartBar,
+        labelKey: 'autopilot.capabilities.createsVisualizations',
+    },
 ];
 
 /**
@@ -79,6 +106,7 @@ export const AutopilotNavButton = ({
     projectUuid,
     withLabel = false,
 }: Props) => {
+    const { t } = useTranslation('navigation');
     const portalTarget = useNavBarPortalTarget();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
@@ -121,8 +149,8 @@ export const AutopilotNavButton = ({
     if (!isEnabled) {
         const hasExistingSettings = !!settings;
         const actionLabel = hasExistingSettings
-            ? 'Resume Autopilot'
-            : 'Set up Autopilot';
+            ? t('autopilot.resume')
+            : t('autopilot.setUp');
         const handleCellClick = hasExistingSettings
             ? () => resumeMutation.mutate()
             : () => setSetupOpen(true);
@@ -163,15 +191,17 @@ export const AutopilotNavButton = ({
                 <HoverCard.Dropdown className={classes.promoDropdown}>
                     <div className={classes.promo}>
                         <div className={classes.promoHeader}>
-                            <div className={classes.promoTitle}>Autopilot</div>
+                            <div className={classes.promoTitle}>
+                                {t('autopilot.label')}
+                            </div>
                             <div className={classes.promoTagline}>
-                                Your project, kept sharp and current.
+                                {t('autopilot.tagline')}
                             </div>
                         </div>
                         <div className={classes.promoFeatures}>
                             {CAPABILITIES.map((feature) => (
                                 <div
-                                    key={feature.label}
+                                    key={feature.labelKey}
                                     className={classes.promoFeature}
                                 >
                                     <MantineIcon
@@ -179,7 +209,7 @@ export const AutopilotNavButton = ({
                                         size={15}
                                         className={classes.promoFeatureIcon}
                                     />
-                                    <span>{feature.label}</span>
+                                    <span>{t(feature.labelKey)}</span>
                                 </div>
                             ))}
                         </div>
@@ -190,7 +220,7 @@ export const AutopilotNavButton = ({
                             disabled={resumeMutation.isLoading}
                         >
                             {resumeMutation.isLoading
-                                ? 'Resuming…'
+                                ? t('autopilot.resuming')
                                 : actionLabel}
                             <MantineIcon icon={IconArrowRight} size={14} />
                         </button>
@@ -217,19 +247,25 @@ export const AutopilotNavButton = ({
 
     let statusText: string;
     if (running) {
-        statusText = latestRun?.currentActivity ?? 'Working…';
+        statusText = latestRun?.currentActivity ?? t('autopilot.working');
     } else if (failed) {
-        statusText = 'Last run failed';
+        statusText = t('autopilot.lastRunFailed');
     } else if (latestRun) {
-        const count = latestRun.actionCount;
-        statusText = `${count} action${count === 1 ? '' : 's'} · ${formatRelative(
-            latestRun.finishedAt ?? latestRun.startedAt,
-        )}`;
+        statusText = t('autopilot.actionsStatus', {
+            count: latestRun.actionCount,
+            time: formatRelative(
+                t,
+                latestRun.finishedAt ?? latestRun.startedAt,
+            ),
+        });
     } else {
-        statusText = 'Monitoring your project';
+        statusText = t('autopilot.monitoring');
     }
 
-    const actionSummary = summarizeActionCounts(latestRun?.actionCountsByType);
+    const actionSummary = summarizeActionCounts(
+        t,
+        latestRun?.actionCountsByType,
+    );
 
     return (
         <HoverCard
@@ -260,9 +296,9 @@ export const AutopilotNavButton = ({
                         </span>
                     }
                     onClick={goToAutopilot}
-                    aria-label="Autopilot"
+                    aria-label={t('autopilot.label')}
                 >
-                    {withLabel && 'Autopilot'}
+                    {withLabel && t('autopilot.label')}
                 </Button>
             </HoverCard.Target>
             <HoverCard.Dropdown className={classes.promoDropdown}>
@@ -272,7 +308,9 @@ export const AutopilotNavButton = ({
                     onClick={goToAutopilot}
                 >
                     <div className={classes.miniHeaderText}>
-                        <span className={classes.promoTitle}>Autopilot</span>
+                        <span className={classes.promoTitle}>
+                            {t('autopilot.label')}
+                        </span>
                         <span
                             className={`${classes.miniStatusDot} ${dotClass}`}
                             aria-hidden="true"
@@ -285,7 +323,7 @@ export const AutopilotNavButton = ({
                         </div>
                     )}
                     <div className={classes.miniFooter}>
-                        View activity
+                        {t('autopilot.viewActivity')}
                         <MantineIcon icon={IconArrowRight} size={12} />
                     </div>
                 </button>

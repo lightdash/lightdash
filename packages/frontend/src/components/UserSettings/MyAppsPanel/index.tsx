@@ -21,6 +21,7 @@ import {
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import AppThumbnailHoverCard from '../../../features/apps/components/AppThumbnailHoverCard';
@@ -43,11 +44,6 @@ import classes from './MyAppsPanel.module.css';
 
 const hasReadyVersion = (app: ApiAppSummary) =>
     app.lastVersionStatus === 'ready' && !!app.lastVersionNumber;
-
-const PROJECT_SCOPE_OPTIONS = [
-    { label: 'Production', value: 'production' },
-    { label: 'All projects', value: 'all' },
-];
 
 const MoveAppToSpaceModal: FC<{
     app: ApiAppSummary;
@@ -122,6 +118,7 @@ type MyAppsPanelProps = {
 const MyAppsPanel: FC<MyAppsPanelProps> = ({
     includePreviewAppsByDefault = false,
 }) => {
+    const { t } = useTranslation('userSettings');
     const [includePreviewApps, setIncludePreviewApps] = useState(
         includePreviewAppsByDefault,
     );
@@ -172,11 +169,22 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
         [projects],
     );
 
+    const projectScopeOptions = useMemo(
+        () => [
+            {
+                label: t('myAppsPanel.projectScope.production'),
+                value: 'production',
+            },
+            { label: t('myAppsPanel.projectScope.all'), value: 'all' },
+        ],
+        [t],
+    );
+
     const columns: ContentTableColumnDef<ApiAppSummary>[] = useMemo(
         () => [
             {
                 accessorKey: 'name',
-                header: 'Name',
+                header: t('myAppsPanel.columns.name'),
                 enableSorting: false,
                 size: 300,
                 Cell: ({ row }) => {
@@ -186,7 +194,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
             },
             {
                 accessorKey: 'projectName',
-                header: 'Project',
+                header: t('myAppsPanel.columns.project'),
                 enableSorting: false,
                 size: 150,
                 Cell: ({ row }) => (
@@ -197,7 +205,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
             },
             {
                 accessorKey: 'spaceName',
-                header: 'Space',
+                header: t('myAppsPanel.columns.space'),
                 enableSorting: false,
                 size: 150,
                 Cell: ({ row }) => {
@@ -226,7 +234,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
             },
             {
                 accessorKey: 'lastVersionStatus',
-                header: 'Status',
+                header: t('myAppsPanel.columns.status'),
                 enableSorting: false,
                 size: 100,
                 Cell: ({ row }) => {
@@ -238,7 +246,8 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                                 color={statusColor(lastVersionStatus)}
                                 size="sm"
                             >
-                                {lastVersionStatus ?? 'no versions'}
+                                {lastVersionStatus ??
+                                    t('myAppsPanel.noVersions')}
                             </Badge>
                             {lastVersionNumber && (
                                 <Text fz="xs" c="dimmed">
@@ -251,7 +260,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
             },
             {
                 accessorKey: 'createdAt',
-                header: 'Created',
+                header: t('myAppsPanel.columns.created'),
                 enableSorting: false,
                 size: 120,
                 Cell: ({ row }) => (
@@ -297,7 +306,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                                             />
                                         }
                                     >
-                                        Preview latest
+                                        {t('myAppsPanel.menu.previewLatest')}
                                     </Menu.Item>
                                 )}
                                 <Menu.Item
@@ -310,7 +319,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                                         />
                                     }
                                 >
-                                    Continue building
+                                    {t('myAppsPanel.menu.continueBuilding')}
                                 </Menu.Item>
                                 <Menu.Divider />
                                 <Menu.Item
@@ -322,7 +331,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                                     }
                                     onClick={() => setAppToRename(app)}
                                 >
-                                    Rename
+                                    {t('myAppsPanel.menu.rename')}
                                 </Menu.Item>
                                 <Menu.Item
                                     leftSection={
@@ -341,8 +350,8 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                                     onClick={() => setAppToMove(app)}
                                 >
                                     {app.spaceUuid
-                                        ? 'Move to space'
-                                        : 'Add to space'}
+                                        ? t('myAppsPanel.menu.moveToSpace')
+                                        : t('myAppsPanel.menu.addToSpace')}
                                 </Menu.Item>
                                 <Menu.Divider />
                                 <Menu.Item
@@ -355,7 +364,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                                     }
                                     onClick={() => setAppToDelete(app)}
                                 >
-                                    Delete
+                                    {t('actions.delete', { ns: 'common' })}
                                 </Menu.Item>
                             </Menu.Dropdown>
                         </Menu>
@@ -363,7 +372,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                 },
             },
         ],
-        [],
+        [t],
     );
 
     const table = useContentTable({
@@ -393,12 +402,12 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
         },
         emptyState: {
             title: includePreviewApps
-                ? "You haven't created any apps yet"
-                : 'No apps in production projects',
+                ? t('myAppsPanel.emptyState.noApps')
+                : t('myAppsPanel.emptyState.noProductionApps'),
             description: includePreviewApps
                 ? undefined
-                : 'Switch to All projects to include apps from preview projects.',
-            entityName: 'apps',
+                : t('myAppsPanel.emptyState.switchToAllProjects'),
+            entityName: t('myAppsPanel.emptyState.entityName'),
             hasActiveFilters: selectedProjectUuids.length > 0,
             onClearFilters: resetFilters,
             search,
@@ -406,18 +415,18 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
         renderTopToolbar: () => (
             <Group px="md" py="sm" gap="xs" wrap="nowrap">
                 <ContentTableSearchInput
-                    placeholder="Search apps..."
-                    tooltipLabel="Search by app, project, or space"
+                    placeholder={t('myAppsPanel.search.placeholder')}
+                    tooltipLabel={t('myAppsPanel.search.tooltip')}
                     value={search}
                     onChange={setSearch}
                 />
                 <Divider orientation="vertical" h={20} />
                 <SegmentedControl
                     size="xs"
-                    aria-label="App project scope"
+                    aria-label={t('myAppsPanel.projectScope.ariaLabel')}
                     value={includePreviewApps ? 'all' : 'production'}
                     onChange={(value) => setIncludePreviewApps(value === 'all')}
-                    data={PROJECT_SCOPE_OPTIONS}
+                    data={projectScopeOptions}
                     classNames={{
                         root: classes.segmentedControl,
                         indicator: classes.segmentedIndicator,
@@ -426,11 +435,11 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                 />
                 <Divider orientation="vertical" h={20} />
                 <FilterFacet
-                    label="Project"
+                    label={t('myAppsPanel.columns.project')}
                     options={projectOptions}
                     selected={selectedProjectUuids}
                     onChange={setSelectedProjectUuids}
-                    tooltipLabel="Filter apps by project"
+                    tooltipLabel={t('myAppsPanel.filterByProject')}
                     loading={isLoadingProjects}
                 />
             </Group>
@@ -444,8 +453,8 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
 
     return (
         <SettingsPage
-            title="My apps"
-            description="Manage the data apps you can access and edit."
+            title={t('myAppsPanel.title')}
+            description={t('myAppsPanel.description')}
         >
             <ContentTable table={table} />
             {appToDelete && (

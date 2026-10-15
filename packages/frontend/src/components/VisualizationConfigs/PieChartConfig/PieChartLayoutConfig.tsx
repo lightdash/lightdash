@@ -13,6 +13,7 @@ import {
 } from '@lightdash/common';
 import { Box, Group, Stack, SegmentedControl, Tooltip } from '@mantine/core';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import FieldSelect from '../../common/FieldSelect';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -21,6 +22,7 @@ import { Config } from '../common/Config';
 import { useAddFieldsToQuery } from '../common/useAddFieldsToQuery';
 
 export const Layout: React.FC = () => {
+    const { t } = useTranslation('vizConfig');
     const { visualizationConfig, itemsMap } = useVisualizationContext();
     const { addableItems, addFieldToQuery, isFieldPending } =
         useAddFieldsToQuery();
@@ -76,16 +78,18 @@ export const Layout: React.FC = () => {
             <Config>
                 <Config.Section>
                     <Config.Group>
-                        <Config.Heading>Groups</Config.Heading>
+                        <Config.Heading>
+                            {t('pie.layout.groups')}
+                        </Config.Heading>
                         <Tooltip
                             disabled={
                                 !(!hasAnyDimension || allDimensionsGrouped)
                             }
                             label={
                                 !hasAnyDimension
-                                    ? 'You must select at least one dimension to create a pie chart'
+                                    ? t('pie.layout.needDimension')
                                     : allDimensionsGrouped
-                                      ? 'All dimensions are already used as groups'
+                                      ? t('pie.layout.allDimensionsUsed')
                                       : undefined
                             }
                         >
@@ -132,7 +136,7 @@ export const Layout: React.FC = () => {
                                 key={index}
                                 disabled={!hasAnyDimension}
                                 clearable={index !== 0}
-                                placeholder="Select dimension"
+                                placeholder={t('pie.layout.selectDimension')}
                                 item={selectedDimension}
                                 items={dimensions}
                                 addItems={addableDimensions}
@@ -173,18 +177,18 @@ export const Layout: React.FC = () => {
 
             <Config>
                 <Config.Section>
-                    <Config.Heading>Metric</Config.Heading>
+                    <Config.Heading>{t('pie.layout.metric')}</Config.Heading>
 
                     <Tooltip
                         disabled={
                             numericMetrics.length > 0 ||
                             addableNumericMetrics.length > 0
                         }
-                        label="You must select at least one numeric metric to create a pie chart"
+                        label={t('pie.layout.needMetric')}
                     >
                         <Box>
                             <FieldSelect<Metric | TableCalculation>
-                                placeholder="Select metric"
+                                placeholder={t('pie.layout.selectMetric')}
                                 disabled={
                                     numericMetrics.length === 0 &&
                                     addableNumericMetrics.length === 0
@@ -226,13 +230,13 @@ export const Layout: React.FC = () => {
             </Config>
 
             <Group gap="xs">
-                <Config.Label>Display as</Config.Label>
+                <Config.Label>{t('pie.layout.displayAs')}</Config.Label>
                 <SegmentedControl
                     size="xs"
                     value={isDonut ? 'donut' : 'pie'}
                     data={[
-                        { value: 'pie', label: 'Pie' },
-                        { value: 'donut', label: 'Donut' },
+                        { value: 'pie', label: t('pie.layout.pie') },
+                        { value: 'donut', label: t('pie.layout.donut') },
                     ]}
                     onChange={() => toggleDonut()}
                 />

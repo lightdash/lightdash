@@ -7,7 +7,8 @@ import {
     TextInput,
 } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
-import { type FC } from 'react';
+import { type FC, useMemo } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
 import { SnowflakeOAuthInput } from '../../common/Authentication/SnowflakeOAuthInput';
 import { NumberInput } from '../../common/NumberInput';
@@ -21,15 +22,15 @@ type Props = {
     onAuthenticated?: (isAuthenticated: boolean) => void;
 };
 
-const daysOfWeekOptions = [
-    'Monday',
-    'Tuesday',
-    'Wednesday',
-    'Thursday',
-    'Friday',
-    'Saturday',
-    'Sunday',
-].map((x, index) => ({ value: index.toString(), label: x }));
+const DAYS_OF_WEEK = [
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday',
+    'saturday',
+    'sunday',
+] as const;
 
 export const SnowflakeCredentialsForm: FC<Props> = ({
     form,
@@ -37,7 +38,18 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
     showName = true,
     onAuthenticated,
 }) => {
+    const { t } = useTranslation('userSettings');
     const [isOpen, toggleOpen] = useToggle(false);
+    const daysOfWeekOptions = useMemo(
+        () =>
+            DAYS_OF_WEEK.map((day, index) => ({
+                value: index.toString(),
+                label: t(
+                    `organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.daysOfWeek.${day}`,
+                ),
+            })),
+        [t],
+    );
 
     return (
         <Stack gap="xs">
@@ -45,7 +57,9 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
                 <TextInput
                     required
                     size="xs"
-                    label="Name"
+                    label={t(
+                        'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.nameLabel',
+                    )}
                     disabled={disabled}
                     {...form.getInputProps('name')}
                 />
@@ -53,8 +67,12 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
 
             <Textarea
                 size="xs"
-                label="Description"
-                placeholder="Optional description"
+                label={t(
+                    'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.descriptionLabel',
+                )}
+                placeholder={t(
+                    'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.descriptionPlaceholder',
+                )}
                 disabled={disabled}
                 {...form.getInputProps('description')}
             />
@@ -62,9 +80,15 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
             <TextInput
                 required
                 size="xs"
-                label="Account"
-                placeholder="your-account"
-                description="This is the Snowflake account identifier"
+                label={t(
+                    'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.accountLabel',
+                )}
+                placeholder={t(
+                    'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.accountPlaceholder',
+                )}
+                description={t(
+                    'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.accountDescription',
+                )}
                 disabled={disabled}
                 {...form.getInputProps('credentials.account')}
             />
@@ -75,10 +99,12 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
                 {...form.getInputProps('warehouse.authenticationType')}
                 // TODO: default value is not being recognized. private key is always being selected
                 defaultValue={'SSO'}
-                label="Authentication Type"
-                description={
-                    'Choose how to authenticate with your data warehouse.'
-                }
+                label={t(
+                    'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.authenticationTypeLabel',
+                )}
+                description={t(
+                    'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.authenticationTypeDescription',
+                )}
                 data={['SSO']}
                 disabled={true}
             />
@@ -87,9 +113,15 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
             <TextInput
                 required
                 size="xs"
-                label="Database"
-                placeholder="your-database"
-                description="This is the database name"
+                label={t(
+                    'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.databaseLabel',
+                )}
+                placeholder={t(
+                    'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.databasePlaceholder',
+                )}
+                description={t(
+                    'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.databaseDescription',
+                )}
                 disabled={disabled}
                 {...form.getInputProps('credentials.database')}
             />
@@ -97,9 +129,15 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
             <TextInput
                 required
                 size="xs"
-                label="Warehouse"
-                placeholder="your-warehouse"
-                description="This is the warehouse name"
+                label={t(
+                    'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.warehouseLabel',
+                )}
+                placeholder={t(
+                    'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.warehousePlaceholder',
+                )}
+                description={t(
+                    'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.warehouseDescription',
+                )}
                 disabled={disabled}
                 {...form.getInputProps('credentials.warehouse')}
             />
@@ -107,9 +145,15 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
             <TextInput
                 required
                 size="xs"
-                label="Schema"
-                placeholder="your-schema"
-                description="This is the schema name"
+                label={t(
+                    'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.schemaLabel',
+                )}
+                placeholder={t(
+                    'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.schemaPlaceholder',
+                )}
+                description={t(
+                    'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.schemaDescription',
+                )}
                 disabled={disabled}
                 {...form.getInputProps('credentials.schema')}
             />
@@ -118,8 +162,12 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
                 <Stack gap="xs" mt="xs">
                     <Switch
                         size="xs"
-                        label="Always use this warehouse"
-                        description="When enabled, this warehouse will always be used for queries"
+                        label={t(
+                            'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.overrideLabel',
+                        )}
+                        description={t(
+                            'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.overrideDescription',
+                        )}
                         disabled={disabled}
                         {...form.getInputProps('credentials.override', {
                             type: 'checkbox',
@@ -128,7 +176,9 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
 
                     <Switch
                         size="xs"
-                        label="Require users to provide their own credentials"
+                        label={t(
+                            'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.requireUserCredentialsLabel',
+                        )}
                         disabled={disabled}
                         {...form.getInputProps(
                             'credentials.requireUserCredentials',
@@ -140,22 +190,24 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
 
                     <Switch
                         size="xs"
-                        label="Keep client session alive"
+                        label={t(
+                            'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.clientSessionKeepAliveLabel',
+                        )}
                         description={
-                            <>
-                                This is intended to keep Snowflake sessions
-                                alive beyond the typical 4 hour timeout limit.
-                                You can see more details in{' '}
-                                <Anchor
-                                    target="_blank"
-                                    href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#client_session_keep_alive"
-                                    rel="noreferrer"
-                                    fz="9"
-                                >
-                                    dbt documentation
-                                </Anchor>
-                                .
-                            </>
+                            <Trans
+                                t={t}
+                                i18nKey="organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.clientSessionKeepAliveDescription"
+                                components={{
+                                    docsLink: (
+                                        <Anchor
+                                            target="_blank"
+                                            href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#client_session_keep_alive"
+                                            rel="noreferrer"
+                                            fz="9"
+                                        />
+                                    ),
+                                }}
+                            />
                         }
                         disabled={disabled}
                         {...form.getInputProps(
@@ -168,21 +220,24 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
 
                     <TextInput
                         size="xs"
-                        label="Query tag"
+                        label={t(
+                            'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.queryTagLabel',
+                        )}
                         description={
-                            <>
-                                This is Snowflake query tags parameter. You can
-                                see more details in{' '}
-                                <Anchor
-                                    target="_blank"
-                                    href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#query_tag"
-                                    rel="noreferrer"
-                                    fz="9"
-                                >
-                                    dbt documentation
-                                </Anchor>
-                                .
-                            </>
+                            <Trans
+                                t={t}
+                                i18nKey="organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.queryTagDescription"
+                                components={{
+                                    docsLink: (
+                                        <Anchor
+                                            target="_blank"
+                                            href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#query_tag"
+                                            rel="noreferrer"
+                                            fz="9"
+                                        />
+                                    ),
+                                }}
+                            />
                         }
                         disabled={disabled}
                         {...form.getInputProps('credentials.queryTag')}
@@ -190,8 +245,12 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
 
                     <TextInput
                         size="xs"
-                        label="Snowflake URL override"
-                        description="Usually Lightdash would connect to a default url: account.snowflakecomputing.com. If you'd like to override this (e.g. for the dbt server) you can specify a full custom URL here."
+                        label={t(
+                            'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.accessUrlLabel',
+                        )}
+                        description={t(
+                            'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.accessUrlDescription',
+                        )}
                         disabled={disabled}
                         {...form.getInputProps('credentials.accessUrl')}
                     />
@@ -199,9 +258,15 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
                     <Select
                         size="xs"
                         clearable
-                        placeholder="Auto"
-                        label="Start of week"
-                        description="Will be taken into account when using 'WEEK' time interval"
+                        placeholder={t(
+                            'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.startOfWeekPlaceholder',
+                        )}
+                        label={t(
+                            'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.startOfWeekLabel',
+                        )}
+                        description={t(
+                            'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.startOfWeekDescription',
+                        )}
                         data={daysOfWeekOptions}
                         disabled={disabled}
                         {...form.getInputProps('credentials.startOfWeek')}
@@ -216,8 +281,12 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
 
                     <NumberInput
                         size="xs"
-                        label="Timeout in seconds"
-                        description="Sets the maximum execution time for queries. If a query takes longer than this timeout, Snowflake will cancel it."
+                        label={t(
+                            'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.timeoutSecondsLabel',
+                        )}
+                        description={t(
+                            'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.timeoutSecondsDescription',
+                        )}
                         disabled={disabled}
                         {...form.getInputProps('credentials.timeoutSeconds')}
                     />
@@ -225,7 +294,9 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
             </FormSection>
 
             <FormCollapseButton isSectionOpen={isOpen} onClick={toggleOpen}>
-                Advanced configuration options
+                {t(
+                    'organizationWarehouseCredentialsPanel.snowflakeCredentialsForm.advancedOptions',
+                )}
             </FormCollapseButton>
         </Stack>
     );

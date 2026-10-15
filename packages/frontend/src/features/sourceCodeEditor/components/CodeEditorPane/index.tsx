@@ -3,6 +3,7 @@ import { Box, Loader, Stack, Text } from '@mantine/core';
 import { IconFileOff } from '@tabler/icons-react';
 import type { editor } from 'monaco-editor';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import Editor, {
     type BeforeMount,
@@ -75,6 +76,7 @@ const CodeEditorPane: FC<CodeEditorPaneProps> = ({
     onSave,
     onCreatePR,
 }) => {
+    const { t } = useTranslation('sourceCode');
     const { monaco: monacoTheme } = useEditorTheme();
     const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
     const monacoRef = useRef<Monaco | null>(null);
@@ -179,7 +181,7 @@ const CodeEditorPane: FC<CodeEditorPaneProps> = ({
             {isLoading ? (
                 <Stack align="center" justify="center" flex={1}>
                     <Loader size="lg" color="gray" />
-                    <Text c="ldGray.5">Loading file...</Text>
+                    <Text c="ldGray.5">{t('editorPane.loadingFile')}</Text>
                 </Stack>
             ) : filePath ? (
                 <Box className={styles.editorContainer}>
@@ -204,7 +206,7 @@ const CodeEditorPane: FC<CodeEditorPaneProps> = ({
                         color="ldGray.4"
                     />
                     <Text c="ldGray.5" fz="lg">
-                        Select a file from the sidebar
+                        {t('editorPane.selectFile')}
                     </Text>
                 </Stack>
             )}

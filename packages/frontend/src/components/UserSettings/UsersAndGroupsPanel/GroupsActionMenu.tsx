@@ -2,6 +2,7 @@ import { type GroupWithMembers } from '@lightdash/common';
 import { ActionIcon, Menu } from '@mantine/core';
 import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
 import React, { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useGroupDeleteMutation } from '../../../hooks/useOrganizationGroups';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
@@ -17,6 +18,7 @@ const GroupsActionMenu: FC<GroupsActionMenuProps> = ({
     disabled,
     onEdit,
 }) => {
+    const { t } = useTranslation('userSettings');
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
     const { mutateAsync, isLoading: isDeleting } = useGroupDeleteMutation();
 
@@ -49,7 +51,7 @@ const GroupsActionMenu: FC<GroupsActionMenuProps> = ({
                         onClick={() => onEdit(group)}
                         disabled={disabled}
                     >
-                        Edit group
+                        {t('usersAndGroupsPanel.groupsActionMenu.editGroup')}
                     </Menu.Item>
                     <Menu.Divider />
                     <Menu.Item
@@ -60,7 +62,7 @@ const GroupsActionMenu: FC<GroupsActionMenuProps> = ({
                         onClick={() => setIsDeleteDialogOpen(true)}
                         disabled={disabled}
                     >
-                        Delete group
+                        {t('usersAndGroupsPanel.groupsActionMenu.deleteGroup')}
                     </Menu.Item>
                 </Menu.Dropdown>
             </Menu>
@@ -70,9 +72,11 @@ const GroupsActionMenu: FC<GroupsActionMenuProps> = ({
                 onClose={() =>
                     !isDeleting ? setIsDeleteDialogOpen(false) : undefined
                 }
-                title="Delete group"
+                title={t('usersAndGroupsPanel.groupsActionMenu.deleteGroup')}
                 variant="delete"
-                resourceType="group"
+                resourceType={t(
+                    'usersAndGroupsPanel.groupsActionMenu.resourceType',
+                )}
                 resourceLabel={group.name}
                 cancelDisabled={isDeleting}
                 onConfirm={handleDelete}

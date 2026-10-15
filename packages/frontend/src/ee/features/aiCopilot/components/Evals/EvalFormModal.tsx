@@ -18,34 +18,39 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPlus, IconSettings, IconTrash } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { EvalPromptThreadReference } from './EvalPromptThreadReference';
 
-const evaluationFormSchema = z.object({
-    title: z.string().min(1, 'Title is required'),
-    description: z.string().optional(),
-    prompts: z
-        .array(
-            z.union([
-                z.object({
-                    prompt: z.string().min(1, 'Question cannot be empty'),
-                    expectedResponse: z.string().nullable(),
-                }),
-                z.object({
-                    promptUuid: z.string(),
-                    threadUuid: z.string(),
-                    expectedResponse: z.string().nullable(),
-                }),
-            ]),
-        )
-        .min(1, 'At least one question is required'),
-});
+const getEvaluationFormSchema = (t: TFunction) =>
+    z.object({
+        title: z.string().min(1, t('evals.form.validation.titleRequired')),
+        description: z.string().optional(),
+        prompts: z
+            .array(
+                z.union([
+                    z.object({
+                        prompt: z
+                            .string()
+                            .min(1, t('evals.form.validation.questionEmpty')),
+                        expectedResponse: z.string().nullable(),
+                    }),
+                    z.object({
+                        promptUuid: z.string(),
+                        threadUuid: z.string(),
+                        expectedResponse: z.string().nullable(),
+                    }),
+                ]),
+            )
+            .min(1, t('evals.form.validation.questionRequired')),
+    });
 
-type EvaluationFormValues = z.infer<typeof evaluationFormSchema>;
+type EvaluationFormValues = z.infer<ReturnType<typeof getEvaluationFormSchema>>;
 
 type Props = {
     mode: 'create' | 'edit';
@@ -74,6 +79,8 @@ export const EvalFormModal: FC<Props> = ({
     isLoading = false,
     isDeleting = false,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
+    const evaluationFormSchema = useMemo(() => getEvaluationFormSchema(t), [t]);
     const initialValues = useMemo(() => {
         if (mode === 'edit' && evaluation) {
             return {
@@ -175,9 +182,13 @@ export const EvalFormModal: FC<Props> = ({
     };
 
     const modalTitle =
-        mode === 'create' ? 'Create Evaluation' : 'Edit Evaluation';
+        mode === 'create'
+            ? t('evals.form.createTitle')
+            : t('evals.form.editTitle');
     const submitButtonText =
-        mode === 'create' ? 'Create Evaluation' : 'Save Changes';
+        mode === 'create'
+            ? t('evals.form.createSubmit')
+            : t('evals.form.saveChanges');
 
     return (
         <MantineModal
@@ -198,7 +209,7 @@ export const EvalFormModal: FC<Props> = ({
                         disabled={isLoading || isDeleting}
                         loading={isDeleting}
                     >
-                        Delete
+                        {t('actions.delete', { ns: 'common' })}
                     </Button>
                 ) : null
             }
@@ -217,16 +228,16 @@ export const EvalFormModal: FC<Props> = ({
                 <Stack gap="md">
                     <TextInput
                         variant="subtle"
-                        label="Title"
-                        placeholder="Enter evaluation title"
+                        label={t('evals.form.title')}
+                        placeholder={t('evals.form.titlePlaceholder')}
                         required
                         {...form.getInputProps('title')}
                     />
 
                     <Textarea
                         variant="subtle"
-                        label="Description"
-                        placeholder="Enter evaluation description (optional)"
+                        label={t('evals.form.description')}
+                        placeholder={t('evals.form.descriptionPlaceholder')}
                         rows={3}
                         {...form.getInputProps('description')}
                     />
@@ -234,7 +245,7 @@ export const EvalFormModal: FC<Props> = ({
                     <Box>
                         <Group justify="space-between" align="center" mb="sm">
                             <Text size="sm" fw={500}>
-                                Questions
+                                {t('evals.form.questions')}
                             </Text>
                             <Button
                                 variant="subtle"
@@ -242,7 +253,7 @@ export const EvalFormModal: FC<Props> = ({
                                 leftSection={<MantineIcon icon={IconPlus} />}
                                 onClick={addPrompt}
                             >
-                                Add Question
+                                {t('evals.form.addQuestion')}
                             </Button>
                         </Group>
 
@@ -267,14 +278,18 @@ export const EvalFormModal: FC<Props> = ({
                                                 {isStringPrompt(prompt) ? (
                                                     <Textarea
                                                         variant="subtle"
-                                                        placeholder="Enter your prompt"
+                                                        placeholder={t(
+                                                            'evals.form.promptPlaceholder',
+                                                        )}
                                                         rows={2}
                                                         {...form.getInputProps(
                                                             `prompts.${index}.prompt`,
                                                         )}
                                                         flex={1}
                                                         resize="vertical"
-                                                        label="Prompt"
+                                                        label={t(
+                                                            'evals.form.prompt',
+                                                        )}
                                                     />
                                                 ) : (
                                                     <EvalPromptThreadReference
@@ -294,7 +309,9 @@ export const EvalFormModal: FC<Props> = ({
                                             <Textarea
                                                 flex={1}
                                                 rows={2}
-                                                label="Expected Response"
+                                                label={t(
+                                                    'evals.form.expectedResponse',
+                                                )}
                                                 variant="subtle"
                                                 resize="vertical"
                                                 {...form.getInputProps(

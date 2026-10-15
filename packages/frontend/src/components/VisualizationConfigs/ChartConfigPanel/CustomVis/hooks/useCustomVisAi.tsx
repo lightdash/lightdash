@@ -1,5 +1,6 @@
 import { type ApiError, type ItemsMap } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../../../api';
 import useToaster from '../../../../../hooks/toaster/useToaster';
 
@@ -24,6 +25,7 @@ const getCustomVis = async (
     });
 
 export const useCustomVis = (projectUuid: string | undefined) => {
+    const { t } = useTranslation('vizConfig');
     const { showToastApiError } = useToaster();
     return useMutation<
         string,
@@ -49,7 +51,7 @@ export const useCustomVis = (projectUuid: string | undefined) => {
             mutationKey: ['get_custom_vis_ai', projectUuid],
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to generate custom visualization`,
+                    title: t('customVis.generateFailed'),
                     apiError: error,
                 });
             },

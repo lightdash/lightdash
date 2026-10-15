@@ -9,6 +9,7 @@ import {
     IconInfoCircle,
 } from '@tabler/icons-react';
 import { useId, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
@@ -31,15 +32,13 @@ const SimilarContentPanel: FC<Props> = ({
     contentUuid,
     items,
 }) => {
+    const { t } = useTranslation('eeMisc');
     const [expanded, setExpanded] = useState(false);
     const [showAll, setShowAll] = useState(false);
     const resultsId = useId();
     const { track } = useTracking();
     if (items.length === 0) return null;
-    const noun =
-        contentType === ContentReviewContentType.DASHBOARD
-            ? 'dashboard'
-            : 'chart';
+    const isDashboard = contentType === ContentReviewContentType.DASHBOARD;
     const hidden = Math.max(items.length - VISIBLE_ROWS, 0);
     const visible = showAll ? items : items.slice(0, VISIBLE_ROWS);
     return (
@@ -54,8 +53,13 @@ const SimilarContentPanel: FC<Props> = ({
                 <Group gap={6} wrap="nowrap">
                     <MantineIcon icon={IconInfoCircle} size="sm" />
                     <Text fz="xs" inherit>
-                        {items.length} similar {noun}
-                        {items.length === 1 ? '' : 's'} found
+                        {isDashboard
+                            ? t('contentReview.similar.dashboardsFound', {
+                                  count: items.length,
+                              })
+                            : t('contentReview.similar.chartsFound', {
+                                  count: items.length,
+                              })}
                     </Text>
                     <MantineIcon
                         icon={expanded ? IconChevronDown : IconChevronRight}
@@ -71,7 +75,12 @@ const SimilarContentPanel: FC<Props> = ({
                                 key={item.contentUuid}
                                 contentType={item.contentType}
                                 name={item.name}
-                                meta={`${getSimilarityMatchLabel(item.matchReason)} · in ${item.spaceName}`}
+                                meta={t('contentReview.similar.meta', {
+                                    match: getSimilarityMatchLabel(
+                                        item.matchReason,
+                                    ),
+                                    space: item.spaceName,
+                                })}
                                 description={item.explanation}
                                 href={getContentHref(
                                     projectUuid,
@@ -104,7 +113,11 @@ const SimilarContentPanel: FC<Props> = ({
                                     setShowAll((current) => !current)
                                 }
                             >
-                                {showAll ? 'Show fewer' : `Show ${hidden} more`}
+                                {showAll
+                                    ? t('contentReview.similar.showFewer')
+                                    : t('contentReview.similar.showMore', {
+                                          count: hidden,
+                                      })}
                             </Button>
                         )}
                     </Stack>

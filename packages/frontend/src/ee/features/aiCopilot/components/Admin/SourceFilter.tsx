@@ -5,6 +5,7 @@ import {
     IconBrandSlack,
     IconMessageCircleStar,
 } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { type useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
 
@@ -17,6 +18,7 @@ export const SourceFilter = ({
     selectedSource,
     setSelectedSource,
 }: SourceFilterProps) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const iconProps = {
         style: { display: 'block' },
         size: 18,
@@ -25,10 +27,10 @@ export const SourceFilter = ({
     const data = [
         {
             label: (
-                <Tooltip label="All sources">
+                <Tooltip label={t('filters.source.allTooltip')}>
                     <Box>
                         <Text fz="xs" fw={500}>
-                            All
+                            {t('filters.source.all')}
                         </Text>
                     </Box>
                 </Tooltip>
@@ -37,7 +39,7 @@ export const SourceFilter = ({
         },
         {
             label: (
-                <Tooltip label="Web app threads">
+                <Tooltip label={t('filters.source.webApp')}>
                     <Box>
                         <MantineIcon
                             icon={IconMessageCircleStar}
@@ -50,7 +52,7 @@ export const SourceFilter = ({
         },
         {
             label: (
-                <Tooltip label="Slack threads">
+                <Tooltip label={t('filters.source.slack')}>
                     <Box>
                         <MantineIcon icon={IconBrandSlack} {...iconProps} />
                     </Box>
@@ -60,7 +62,7 @@ export const SourceFilter = ({
         },
         {
             label: (
-                <Tooltip label="API threads">
+                <Tooltip label={t('filters.source.api')}>
                     <Box>
                         <MantineIcon icon={IconApi} {...iconProps} />
                     </Box>

@@ -1,5 +1,6 @@
 import { IconEraser } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../../components/common/MantineModal';
 
 type Props = {
@@ -16,22 +17,25 @@ const ClearAgentContextModal: FC<Props> = ({
     onClose,
     onConfirm,
     loading,
-}) => (
-    <MantineModal
-        opened={opened}
-        onClose={() => {
-            if (loading) return;
-            onClose();
-        }}
-        title="Clear agent context?"
-        icon={IconEraser}
-        role="alertdialog"
-        description="The agent will forget the current conversation and start fresh from your latest ready version. Unfinished changes from a cancelled build are discarded."
-        confirmLabel="Clear context"
-        confirmLoading={loading}
-        cancelDisabled={loading}
-        onConfirm={onConfirm}
-    />
-);
+}) => {
+    const { t } = useTranslation('apps');
+    return (
+        <MantineModal
+            opened={opened}
+            onClose={() => {
+                if (loading) return;
+                onClose();
+            }}
+            title={t('clearContext.modalTitle')}
+            icon={IconEraser}
+            role="alertdialog"
+            description={t('clearContext.description')}
+            confirmLabel={t('clearContext.confirm')}
+            confirmLoading={loading}
+            cancelDisabled={loading}
+            onConfirm={onConfirm}
+        />
+    );
+};
 
 export default ClearAgentContextModal;

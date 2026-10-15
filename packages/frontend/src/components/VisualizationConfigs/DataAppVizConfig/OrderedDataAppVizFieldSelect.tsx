@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { CloseButton, Group, Loader, Stack, Tooltip } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import FieldSelect from '../../common/FieldSelect';
 import { AddButton } from '../common/AddButton';
 
@@ -32,12 +33,13 @@ const OrderedDataAppVizFieldSelect: FC<Props> = ({
     selectedIds,
     addDisabled,
     addPosition = 'header',
-    emptyPlaceholder = 'No fields available',
+    emptyPlaceholder,
     describedBy,
     isFieldPending,
     onAddToQuery,
     onChange,
 }) => {
+    const { t } = useTranslation('vizConfig');
     const allItems = [...items, ...(addItems ?? [])];
     const hasAvailableItem = allItems.some(
         (item) => !selectedIds.includes(getItemId(item)),
@@ -57,7 +59,9 @@ const OrderedDataAppVizFieldSelect: FC<Props> = ({
 
     const addButton = (
         <AddButton
-            aria-label={`Add ${label.toLowerCase()}`}
+            aria-label={t('dataAppViz.fieldSelect.addItem', {
+                label: label.toLowerCase(),
+            })}
             disabled={addDisabled || !hasAvailableItem}
             onClick={add}
         />
@@ -91,7 +95,10 @@ const OrderedDataAppVizFieldSelect: FC<Props> = ({
                 <FieldSelect
                     size="xs"
                     disabled
-                    placeholder={emptyPlaceholder}
+                    placeholder={
+                        emptyPlaceholder ??
+                        t('dataAppViz.fieldSelect.noFieldsAvailable')
+                    }
                     items={[]}
                     onChange={() => {}}
                 />
@@ -106,9 +113,14 @@ const OrderedDataAppVizFieldSelect: FC<Props> = ({
                     <FieldSelect
                         key={id}
                         size="xs"
-                        aria-label={`${label}: ${itemLabel}`}
+                        aria-label={t('dataAppViz.fieldSelect.itemAriaLabel', {
+                            label,
+                            item: itemLabel,
+                        })}
                         aria-describedby={describedBy}
-                        placeholder={`Select ${label.toLowerCase()}`}
+                        placeholder={t('dataAppViz.fieldSelect.selectItem', {
+                            label: label.toLowerCase(),
+                        })}
                         item={item}
                         items={items}
                         addItems={addItems}
@@ -123,14 +135,19 @@ const OrderedDataAppVizFieldSelect: FC<Props> = ({
                             <Group gap={2} wrap="nowrap">
                                 {isFieldPending?.(id) && (
                                     <Tooltip
-                                        label="Adding field to query"
+                                        label={t(
+                                            'dataAppViz.fieldSelect.addingFieldToQuery',
+                                        )}
                                         openDelay={300}
                                     >
                                         <Loader size="xs" />
                                     </Tooltip>
                                 )}
                                 <CloseButton
-                                    aria-label={`Remove ${itemLabel}`}
+                                    aria-label={t(
+                                        'dataAppViz.fieldSelect.removeItem',
+                                        { item: itemLabel },
+                                    )}
                                     size="xs"
                                     onClick={() => replace(index, undefined)}
                                 />

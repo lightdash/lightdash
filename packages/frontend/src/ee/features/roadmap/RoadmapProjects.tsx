@@ -42,6 +42,7 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { useEffect, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
 import { ContentTableSearchInput } from '../../../components/common/ContentTable';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
@@ -53,6 +54,7 @@ import {
 } from '../../../components/common/PriorityBars';
 import { SettingsPage } from '../../../components/common/Settings/SettingsPage';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import i18n from '../../../i18n/i18n';
 import {
     FollowProjectButton,
     type FollowProjectAction,
@@ -61,6 +63,7 @@ import { FollowProjectModal } from './FollowProjectModal';
 import {
     defaultProjectPresentation,
     getProjectPresentation,
+    getRoadmapPriorityLabel,
     ticketStage,
     type RoadmapBoardStage,
     type RoadmapProjectPresentation,
@@ -76,28 +79,36 @@ import { useRoadmapProjects, useRoadmapRequests } from './useRoadmapProjects';
 const columns = [
     {
         id: 'planned',
-        label: 'Backlog',
+        get label() {
+            return i18n.t('roadmap.columns.backlog', { ns: 'eeMisc' });
+        },
         icon: IconCircleDashed,
         color: 'dimmed',
         ticketStatus: RoadmapItemStatus.BACKLOG,
     },
     {
         id: 'started',
-        label: 'In progress',
+        get label() {
+            return i18n.t('roadmap.columns.inProgress', { ns: 'eeMisc' });
+        },
         icon: IconCircleHalf2,
         color: 'yellow.6',
         ticketStatus: RoadmapItemStatus.BUILDING,
     },
     {
         id: 'completed',
-        label: 'Done',
+        get label() {
+            return i18n.t('roadmap.columns.done', { ns: 'eeMisc' });
+        },
         icon: IconCircleCheck,
         color: 'green.6',
         ticketStatus: RoadmapItemStatus.SHIPPED,
     },
     {
         id: 'canceled',
-        label: 'Canceled',
+        get label() {
+            return i18n.t('roadmap.columns.canceled', { ns: 'eeMisc' });
+        },
         icon: IconCircleX,
         color: 'dimmed',
         ticketStatus: RoadmapItemStatus.CANCELED,
@@ -135,6 +146,7 @@ function Board({
     columnQueries: ReturnType<typeof useRoadmapBoard>;
     projectStatusCounts: RoadmapProject['issueStatusCounts'] | null;
 }) {
+    const { t } = useTranslation('eeMisc');
     const [expandedColumns, setExpandedColumns] = useState<string[]>([]);
     const visibleColumns = columns.filter((column) =>
         statuses.length
@@ -176,7 +188,15 @@ function Board({
                     <section
                         className={classes.column}
                         key={column.id}
-                        aria-label={`${column.label} ${projectBoard ? 'tickets' : 'roadmap items'}`}
+                        aria-label={
+                            projectBoard
+                                ? t('roadmap.board.columnTickets', {
+                                      column: column.label,
+                                  })
+                                : t('roadmap.board.columnItems', {
+                                      column: column.label,
+                                  })
+                        }
                     >
                         <Group
                             className={classes.columnHeader}
@@ -197,7 +217,9 @@ function Board({
                                 className={classes.columnCount}
                                 aria-label={
                                     projectBoard
-                                        ? `${columnTotal} total tickets`
+                                        ? t('roadmap.board.totalTickets', {
+                                              count: columnTotal,
+                                          })
                                         : undefined
                                 }
                             >
@@ -206,7 +228,7 @@ function Board({
                             {(column.id === 'completed' ||
                                 column.id === 'canceled') && (
                                 <Text fz="xs" c="dimmed">
-                                    this month
+                                    {t('roadmap.board.thisMonth')}
                                 </Text>
                             )}
                         </Group>
@@ -230,7 +252,9 @@ function Board({
                                                 className={classes.ticketIcon}
                                             />
                                             <Tooltip
-                                                label="Only followed tickets are shown individually."
+                                                label={t(
+                                                    'roadmap.board.onlyFollowedShown',
+                                                )}
                                                 events={{
                                                     hover: true,
                                                     focus: true,
@@ -243,10 +267,12 @@ function Board({
                                                     }
                                                     tabIndex={0}
                                                 >
-                                                    {remainingTicketCount}{' '}
-                                                    {remainingTicketCount === 1
-                                                        ? 'other ticket'
-                                                        : 'other tickets'}
+                                                    {t(
+                                                        'roadmap.board.otherTickets',
+                                                        {
+                                                            count: remainingTicketCount,
+                                                        },
+                                                    )}
                                                 </Text>
                                             </Tooltip>
                                         </Group>
@@ -272,7 +298,9 @@ function Board({
                                             void query.fetchAll();
                                         }}
                                     >
-                                        Show all ({query.total})
+                                        {t('roadmap.board.showAll', {
+                                            count: query.total,
+                                        })}
                                     </Button>
                                 )}
                             {!cards.length && !remainingTicketCount && (
@@ -281,7 +309,7 @@ function Board({
                                     fz="xs"
                                     c="dimmed"
                                 >
-                                    No items
+                                    {t('roadmap.board.noItems')}
                                 </Text>
                             )}
                         </Stack>
@@ -293,6 +321,7 @@ function Board({
 }
 
 function ProjectProgress({ value }: { value: number | null }) {
+    const { t } = useTranslation('eeMisc');
     return (
         <Group
             gap={6}
@@ -300,8 +329,8 @@ function ProjectProgress({ value }: { value: number | null }) {
             role="img"
             aria-label={
                 value === null
-                    ? 'Overall project progress unavailable'
-                    : `${value}% overall project progress`
+                    ? t('roadmap.progress.unavailableAria')
+                    : t('roadmap.progress.aria', { value })
             }
         >
             {value !== null && (
@@ -313,7 +342,9 @@ function ProjectProgress({ value }: { value: number | null }) {
                 />
             )}
             <Text className={classes.progressValue} fz="xs" c="dimmed">
-                {value === null ? 'Progress unavailable' : `${value}%`}
+                {value === null
+                    ? t('roadmap.progress.unavailable')
+                    : t('roadmap.progress.percent', { value })}
             </Text>
         </Group>
     );
@@ -346,13 +377,15 @@ function ItemPriority({
     priority: RoadmapItemPriority;
     withLabel?: boolean;
 }) {
+    const { t } = useTranslation('eeMisc');
     const level = priorityLevel(priority);
+    const label = getRoadmapPriorityLabel(priority);
     const glyph = (
         <Group
             gap={6}
             wrap="nowrap"
             role="img"
-            aria-label={`Priority: ${priority}`}
+            aria-label={t('roadmap.priorityAria', { priority: label })}
             className={
                 level === 'none' && !withLabel
                     ? classes.priorityNone
@@ -360,12 +393,12 @@ function ItemPriority({
             }
         >
             <PriorityBars priority={level} />
-            {withLabel && <Text fz="sm">{priority}</Text>}
+            {withLabel && <Text fz="sm">{label}</Text>}
         </Group>
     );
     if (withLabel) return glyph;
     return (
-        <Tooltip label={priority} openDelay={300}>
+        <Tooltip label={label} openDelay={300}>
             {glyph}
         </Tooltip>
     );
@@ -384,13 +417,16 @@ function ProjectCard({
     onOpenBoard: (() => void) | null;
     followAction: FollowProjectAction;
 }) {
+    const { t } = useTranslation('eeMisc');
     return (
         <Box className={classes.projectCard}>
             <Box className={classes.projectCardBody}>
                 <UnstyledButton
                     className={classes.cardOpen}
                     onClick={onClick}
-                    aria-label={`Open ${group.project.title}`}
+                    aria-label={t('roadmap.open', {
+                        title: group.project.title,
+                    })}
                 >
                     <Title order={5} className={classes.projectTitle}>
                         {group.project.title}
@@ -415,7 +451,7 @@ function ProjectCard({
                     </Group>
                     {group.ownRequestCount === 0 && group.hasDirectNeed && (
                         <Text fz="xs" c="dimmed">
-                            Interested
+                            {t('roadmap.interested')}
                         </Text>
                     )}
                     {group.ownRequestCount > 0 && (
@@ -426,11 +462,9 @@ function ProjectCard({
                                 color="dimmed"
                             />
                             <Text fz="xs" c="dimmed">
-                                {group.ownRequestCount}{' '}
-                                {group.ownRequestCount === 1
-                                    ? 'ticket'
-                                    : 'tickets'}{' '}
-                                followed
+                                {t('roadmap.ticketsFollowed', {
+                                    count: group.ownRequestCount,
+                                })}
                             </Text>
                         </Group>
                     )}
@@ -446,11 +480,13 @@ function ProjectCard({
                 <UnstyledButton
                     className={classes.projectCardFooter}
                     onClick={onOpenBoard}
-                    aria-label={`Open project board for ${group.project.title}`}
+                    aria-label={t('roadmap.openBoardFor', {
+                        title: group.project.title,
+                    })}
                 >
                     <Group gap={6}>
                         <MantineIcon icon={IconLayoutKanban} size={14} />
-                        <Text fz="xs">Open project board</Text>
+                        <Text fz="xs">{t('roadmap.details.openBoard')}</Text>
                     </Group>
                     <MantineIcon icon={IconArrowUpRight} size={14} />
                 </UnstyledButton>
@@ -466,13 +502,16 @@ function TicketCard({
     ticket: RoadmapItem;
     onClick: () => void;
 }) {
+    const { t } = useTranslation('eeMisc');
     return (
         <Box className={classes.ticketCard}>
             <Stack gap="xs">
                 <UnstyledButton
                     className={classes.cardOpen}
                     onClick={onClick}
-                    aria-label={`Open ticket ${ticket.title}`}
+                    aria-label={t('roadmap.openTicket', {
+                        title: ticket.title,
+                    })}
                 >
                     <Text className={classes.ticketTitle}>{ticket.title}</Text>
                 </UnstyledButton>
@@ -508,6 +547,7 @@ type RoadmapEntry = {
 };
 
 function RoadmapTable({ entries }: { entries: RoadmapEntry[] }) {
+    const { t } = useTranslation('eeMisc');
     return (
         <Table.ScrollContainer
             type="native"
@@ -520,16 +560,16 @@ function RoadmapTable({ entries }: { entries: RoadmapEntry[] }) {
                 horizontalSpacing="md"
                 highlightOnHover
                 className={classes.table}
-                aria-label="Roadmap items"
+                aria-label={t('roadmap.table.label')}
             >
                 <Table.Thead>
                     <Table.Tr>
-                        <Table.Th>Name</Table.Th>
-                        <Table.Th>Type / ID</Table.Th>
-                        <Table.Th>Status</Table.Th>
-                        <Table.Th>Priority</Table.Th>
-                        <Table.Th>Progress</Table.Th>
-                        <Table.Th>Following</Table.Th>
+                        <Table.Th>{t('roadmap.table.name')}</Table.Th>
+                        <Table.Th>{t('roadmap.table.typeId')}</Table.Th>
+                        <Table.Th>{t('roadmap.details.status')}</Table.Th>
+                        <Table.Th>{t('roadmap.details.priority')}</Table.Th>
+                        <Table.Th>{t('roadmap.details.progress')}</Table.Th>
+                        <Table.Th>{t('roadmap.details.following')}</Table.Th>
                     </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
@@ -544,7 +584,15 @@ function RoadmapTable({ entries }: { entries: RoadmapEntry[] }) {
                                         <UnstyledButton
                                             className={classes.tableTitle}
                                             onClick={entry.onOpen}
-                                            aria-label={`Open ${entry.type === 'ticket' ? 'ticket ' : ''}${entry.title}`}
+                                            aria-label={
+                                                entry.type === 'ticket'
+                                                    ? t('roadmap.openTicket', {
+                                                          title: entry.title,
+                                                      })
+                                                    : t('roadmap.open', {
+                                                          title: entry.title,
+                                                      })
+                                            }
                                         >
                                             {entry.type === 'ticket' && (
                                                 <MantineIcon
@@ -577,7 +625,8 @@ function RoadmapTable({ entries }: { entries: RoadmapEntry[] }) {
                                 </Table.Td>
                                 <Table.Td>
                                     <Text fz="xs" c="dimmed">
-                                        {entry.ticketId ?? 'Project'}
+                                        {entry.ticketId ??
+                                            t('roadmap.table.project')}
                                     </Text>
                                 </Table.Td>
                                 <Table.Td>
@@ -610,11 +659,13 @@ function RoadmapTable({ entries }: { entries: RoadmapEntry[] }) {
                                 <Table.Td>
                                     <Text fz="xs" c="dimmed">
                                         {entry.following
-                                            ? `${entry.following} ${entry.following === 1 ? 'ticket' : 'tickets'}`
+                                            ? t('roadmap.details.ticketCount', {
+                                                  count: entry.following,
+                                              })
                                             : entry.type === 'ticket'
-                                              ? 'Following'
+                                              ? t('roadmap.details.following')
                                               : entry.hasDirectNeed
-                                                ? 'Interested'
+                                                ? t('roadmap.interested')
                                                 : ''}
                                     </Text>
                                     {entry.onOpenBoard && (
@@ -622,9 +673,12 @@ function RoadmapTable({ entries }: { entries: RoadmapEntry[] }) {
                                             variant="subtle"
                                             size="compact-xs"
                                             onClick={entry.onOpenBoard}
-                                            aria-label={`Open project board for ${entry.title}`}
+                                            aria-label={t(
+                                                'roadmap.openBoardFor',
+                                                { title: entry.title },
+                                            )}
                                         >
-                                            Open project board
+                                            {t('roadmap.details.openBoard')}
                                         </Button>
                                     )}
                                 </Table.Td>
@@ -638,19 +692,20 @@ function RoadmapTable({ entries }: { entries: RoadmapEntry[] }) {
 }
 
 function BoardError({ roadmapUnreachable }: { roadmapUnreachable: boolean }) {
+    const { t } = useTranslation('eeMisc');
     return (
         <Box p="xl" role="alert">
             <SuboptimalState
                 icon={IconAlertCircle}
                 title={
                     roadmapUnreachable
-                        ? 'Cannot reach the roadmap service'
-                        : 'Could not load the roadmap'
+                        ? t('roadmap.error.unreachableTitle')
+                        : t('roadmap.error.loadTitle')
                 }
                 description={
                     roadmapUnreachable
-                        ? 'The server cannot reach roadmap.lightdash.com. If you self-host, ask your administrator to allow outbound HTTPS (port 443) to roadmap.lightdash.com.'
-                        : 'The roadmap is currently unavailable.'
+                        ? t('roadmap.error.unreachableDescription')
+                        : t('roadmap.error.unavailable')
                 }
                 action={
                     roadmapUnreachable ? (
@@ -661,7 +716,7 @@ function BoardError({ roadmapUnreachable }: { roadmapUnreachable: boolean }) {
                             target="_blank"
                             rel="noopener noreferrer"
                         >
-                            View network-egress guidance
+                            {t('roadmap.error.egressGuidance')}
                         </Button>
                     ) : undefined
                 }
@@ -677,6 +732,7 @@ export function RoadmapProjects({
     cacheKey: string;
     canFollow: boolean;
 }) {
+    const { t } = useTranslation('eeMisc');
     const { follow, submittedProjectIds, pendingProjectIds } =
         useFollowRoadmapProject(cacheKey);
     const [projectToFollow, setProjectToFollow] =
@@ -917,7 +973,7 @@ export function RoadmapProjects({
                     loading={projectsQuery.isFetchingNextPage}
                     onClick={() => void projectsQuery.fetchNextPage()}
                 >
-                    Load more projects
+                    {t('roadmap.loadMoreProjects')}
                 </Button>
             )}
             {showTickets && ticketsQuery.hasNextPage && (
@@ -927,7 +983,7 @@ export function RoadmapProjects({
                     loading={ticketsQuery.isFetchingNextPage}
                     onClick={() => void ticketsQuery.fetchNextPage()}
                 >
-                    Load more tickets
+                    {t('roadmap.loadMoreTickets')}
                 </Button>
             )}
         </Group>
@@ -939,19 +995,25 @@ export function RoadmapProjects({
                 projectBoard
                     ? !failed && selectedProject
                         ? selectedProject.project.title
-                        : 'Project board'
-                    : 'Roadmap'
+                        : t('roadmap.page.projectBoard')
+                    : t('roadmap.page.title')
             }
             breadcrumbs={
                 projectBoard
-                    ? [{ title: 'Roadmap', to: pathname, onClick: back }]
+                    ? [
+                          {
+                              title: t('roadmap.page.title'),
+                              to: pathname,
+                              onClick: back,
+                          },
+                      ]
                     : undefined
             }
             description={
                 projectBoard
                     ? selectedProject?.project.description.trim() ||
-                      'Tickets your organization follows in this project.'
-                    : 'Explore the Lightdash roadmap and track your organization’s feature requests.'
+                      t('roadmap.page.projectBoardDescription')
+                    : t('roadmap.page.description')
             }
             actions={
                 projectBoard && !failed && selectedProject ? (
@@ -967,16 +1029,16 @@ export function RoadmapProjects({
             >
                 <Group gap="sm">
                     <ContentTableSearchInput
-                        tooltipLabel="Search by title, description, or ticket ID"
+                        tooltipLabel={t('roadmap.toolbar.searchTooltip')}
                         aria-label={
                             projectBoard
-                                ? 'Search project tickets'
-                                : 'Search roadmap'
+                                ? t('roadmap.toolbar.searchProjectTickets')
+                                : t('roadmap.toolbar.searchRoadmap')
                         }
                         placeholder={
                             projectBoard
-                                ? 'Search project tickets'
-                                : 'Search roadmap'
+                                ? t('roadmap.toolbar.searchProjectTickets')
+                                : t('roadmap.toolbar.searchRoadmap')
                         }
                         collapsedWidth={340}
                         expandedWidth={340}
@@ -987,7 +1049,7 @@ export function RoadmapProjects({
                     />
                     {!projectBoard && (
                         <SegmentedControl
-                            aria-label="Roadmap interest"
+                            aria-label={t('roadmap.toolbar.interest')}
                             size="xs"
                             disabled={initializingInterest}
                             value={
@@ -997,26 +1059,38 @@ export function RoadmapProjects({
                                 setOnlyInterested(value === 'following')
                             }
                             data={[
-                                { value: 'following', label: 'Following' },
-                                { value: 'all', label: 'All' },
+                                {
+                                    value: 'following',
+                                    label: t('roadmap.details.following'),
+                                },
+                                {
+                                    value: 'all',
+                                    label: t('roadmap.toolbar.all'),
+                                },
                             ]}
                         />
                     )}
                     {!projectBoard && (
                         <FilterFacet
-                            label="Type"
+                            label={t('roadmap.toolbar.type')}
                             icon={IconFilter}
                             selected={itemTypes}
                             onChange={setItemTypes}
                             options={[
-                                { value: 'projects', label: 'Projects' },
-                                { value: 'tickets', label: 'Tickets' },
+                                {
+                                    value: 'projects',
+                                    label: t('roadmap.toolbar.projects'),
+                                },
+                                {
+                                    value: 'tickets',
+                                    label: t('roadmap.toolbar.tickets'),
+                                },
                             ]}
-                            tooltipLabel="Filter by item type"
+                            tooltipLabel={t('roadmap.toolbar.filterByType')}
                         />
                     )}
                     <FilterFacet
-                        label="Status"
+                        label={t('roadmap.details.status')}
                         icon={IconRoad}
                         selected={statuses}
                         onChange={setStatuses}
@@ -1035,25 +1109,25 @@ export function RoadmapProjects({
                                 value: column.id,
                                 label: column.label,
                             }))}
-                        tooltipLabel="Filter by status"
+                        tooltipLabel={t('roadmap.toolbar.filterByStatus')}
                     />
                     <FilterFacet
-                        label="Priority"
+                        label={t('roadmap.details.priority')}
                         icon={IconFlag}
                         selected={priorities}
                         onChange={setPriorities}
                         options={Object.values(RoadmapItemPriority).map(
                             (priority) => ({
                                 value: priority,
-                                label: priority,
+                                label: getRoadmapPriorityLabel(priority),
                             }),
                         )}
-                        tooltipLabel="Filter by priority"
+                        tooltipLabel={t('roadmap.toolbar.filterByPriority')}
                     />
                 </Group>
                 <Group gap="md" className={classes.viewControls}>
                     <SegmentedControl
-                        aria-label="Roadmap view"
+                        aria-label={t('roadmap.toolbar.view')}
                         size="xs"
                         value={view}
                         onChange={setView}
@@ -1066,7 +1140,7 @@ export function RoadmapProjects({
                                             icon={IconLayoutKanban}
                                             size="sm"
                                         />
-                                        Board
+                                        {t('roadmap.toolbar.board')}
                                     </Group>
                                 ),
                             },
@@ -1078,7 +1152,7 @@ export function RoadmapProjects({
                                             icon={IconTable}
                                             size="sm"
                                         />
-                                        Table
+                                        {t('roadmap.toolbar.table')}
                                     </Group>
                                 ),
                             },
@@ -1090,8 +1164,8 @@ export function RoadmapProjects({
                 <Box p="xl">
                     <SuboptimalState
                         icon={IconRoad}
-                        title="Your roadmap isn't set up yet"
-                        description="Reach out to your Lightdash contact to get it switched on."
+                        title={t('roadmap.page.notSetUpTitle')}
+                        description={t('roadmap.page.notSetUpDescription')}
                     />
                 </Box>
             ) : failed ? (
@@ -1101,8 +1175,8 @@ export function RoadmapProjects({
                     <EmptyStateLoader
                         title={
                             projectBoard
-                                ? 'Loading project tickets'
-                                : 'Loading roadmap'
+                                ? t('roadmap.page.loadingProjectTickets')
+                                : t('roadmap.page.loading')
                         }
                     />
                 </Box>
@@ -1114,20 +1188,20 @@ export function RoadmapProjects({
                             title={
                                 projectBoard
                                     ? hasFilters
-                                        ? 'No matching tickets'
-                                        : 'No followed tickets in this project'
+                                        ? t('roadmap.empty.noMatchingTickets')
+                                        : t('roadmap.empty.noFollowedTickets')
                                     : requestsForbidden && !showProjects
-                                      ? 'No feature requests yet'
+                                      ? t('roadmap.empty.noRequests')
                                       : hasFilters
-                                        ? 'No matching projects or tickets'
-                                        : 'No roadmap items yet'
+                                        ? t('roadmap.empty.noMatchingItems')
+                                        : t('roadmap.empty.noItems')
                             }
                             description={
                                 projectBoard
-                                    ? 'Only your organization’s visible requests in this project appear here.'
+                                    ? t('roadmap.empty.projectDescription')
                                     : requestsForbidden && !showProjects
-                                      ? 'Your organization has no feature requests yet.'
-                                      : 'Projects and tickets you follow will appear here.'
+                                      ? t('roadmap.empty.noRequestsDescription')
+                                      : t('roadmap.empty.followDescription')
                             }
                             action={
                                 hasFilters ? (
@@ -1135,7 +1209,7 @@ export function RoadmapProjects({
                                         variant="default"
                                         onClick={clearFilters}
                                     >
-                                        Clear filters
+                                        {t('roadmap.empty.clearFilters')}
                                     </Button>
                                 ) : undefined
                             }
@@ -1146,7 +1220,7 @@ export function RoadmapProjects({
                 <>
                     {requestsForbidden && showTickets && (
                         <Text fz="xs" c="dimmed" px="xl" pt="md">
-                            Your organization has no feature requests yet.
+                            {t('roadmap.empty.noRequestsDescription')}
                         </Text>
                     )}
                     {view === 'board' ? (

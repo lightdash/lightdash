@@ -20,6 +20,7 @@ import { useForm } from '@mantine/form';
 import { IconDownload, IconEdit } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
 import { useCallback, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import remarkFrontmatter from 'remark-frontmatter';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
@@ -54,6 +55,7 @@ const LoadedDocumentModal = ({
     onClose,
     projectUuid,
 }: LoadedDocumentModalProps) => {
+    const { t } = useTranslation('aiAgent');
     const { colorScheme } = useMantineColorScheme();
     const markdownStyle = useMdEditorStyle();
     const updateDocument = useUpdateAiAgentDocumentContent(
@@ -96,10 +98,10 @@ const LoadedDocumentModal = ({
     const handleSave = useCallback(async () => {
         if (contentTooLarge) {
             showToastError({
-                title: 'Document is too large',
-                subtitle: `Content exceeds the ${formatFileSize(
-                    AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
-                )} limit.`,
+                title: t('knowledge.tooLarge'),
+                subtitle: t('knowledge.contentExceedsLimit', {
+                    limit: formatFileSize(AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES),
+                }),
             });
             return;
         }
@@ -119,7 +121,14 @@ const LoadedDocumentModal = ({
         } catch {
             // The mutation hook shows the error; keep the editor open for retry.
         }
-    }, [contentTooLarge, document.uuid, form, showToastError, updateDocument]);
+    }, [
+        contentTooLarge,
+        document.uuid,
+        form,
+        showToastError,
+        updateDocument,
+        t,
+    ]);
 
     const saveDisabled =
         !form.isDirty() ||
@@ -136,14 +145,14 @@ const LoadedDocumentModal = ({
                             leftSection={<MantineIcon icon={IconDownload} />}
                             onClick={handleDownload}
                         >
-                            Download
+                            {t('actions.download', { ns: 'common' })}
                         </Button>
                         <Button
                             size="xs"
                             leftSection={<MantineIcon icon={IconEdit} />}
                             onClick={() => setMode('edit')}
                         >
-                            Edit
+                            {t('actions.edit', { ns: 'common' })}
                         </Button>
                     </Group>
                 );
@@ -156,7 +165,7 @@ const LoadedDocumentModal = ({
                             disabled={updateDocument.isLoading}
                             onClick={handleCancelEdit}
                         >
-                            Cancel
+                            {t('actions.cancel', { ns: 'common' })}
                         </Button>
                         <Button
                             size="xs"
@@ -164,7 +173,7 @@ const LoadedDocumentModal = ({
                             loading={updateDocument.isLoading}
                             onClick={() => void handleSave()}
                         >
-                            Save
+                            {t('actions.save', { ns: 'common' })}
                         </Button>
                     </Group>
                 );
@@ -180,7 +189,7 @@ const LoadedDocumentModal = ({
                 if (!updateDocument.isLoading) onClose();
             }}
             title={
-                mode === 'edit' ? 'Edit knowledge document' : form.values.name
+                mode === 'edit' ? t('knowledge.editTitle') : form.values.name
             }
             fullScreen
             headerActions={headerActions}
@@ -229,7 +238,7 @@ const LoadedDocumentModal = ({
             ) : (
                 <Stack gap="md" h="100%">
                     <TextInput
-                        label="Name"
+                        label={t('knowledge.name')}
                         required
                         maxLength={AI_AGENT_DOCUMENT_MAX_NAME_LENGTH}
                         {...form.getInputProps('name')}
@@ -255,7 +264,7 @@ const LoadedDocumentModal = ({
                         </Box>
                     ) : (
                         <Textarea
-                            label="Content"
+                            label={t('knowledge.content')}
                             autosize
                             minRows={24}
                             maxRows={40}
@@ -290,6 +299,7 @@ export const AiAgentKnowledgeDocumentModal = ({
     onClose,
     projectUuid,
 }: Props) => {
+    const { t } = useTranslation('aiAgent');
     const documentContent = useAiAgentDocumentContent(
         projectUuid,
         agentUuid,
@@ -325,14 +335,14 @@ export const AiAgentKnowledgeDocumentModal = ({
                 ) : (
                     <Stack align="center" gap="xs">
                         <Text size="sm" c="dimmed">
-                            Unable to load this document.
+                            {t('knowledge.loadFailed')}
                         </Text>
                         <Button
                             size="xs"
                             variant="default"
                             onClick={() => void documentContent.refetch()}
                         >
-                            Try again
+                            {t('knowledge.tryAgain')}
                         </Button>
                     </Stack>
                 )}

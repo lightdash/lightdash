@@ -2,6 +2,7 @@ import { ActionIcon, Box, TextInput, Tooltip } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconListDetails } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import MantineIcon from '../../MantineIcon';
 import { PillTagsInput } from '../../TagsInput/PillTagsInput';
@@ -40,6 +41,7 @@ const FilterMultiNumberInput: FC<Props> = ({
     onModalOpen,
     onModalClose,
 }) => {
+    const { t } = useTranslation('filters');
     const getUiString = useUiStrings();
     const [opened, { open: openInternal, close: closeInternal }] =
         useDisclosure(false);
@@ -64,7 +66,10 @@ const FilterMultiNumberInput: FC<Props> = ({
             if (value === MORE_VALUES_TOKEN) {
                 return (
                     <TagPill
-                        label={`+${hiddenCount.toLocaleString()} more`}
+                        label={t('inputs.moreValues', {
+                            count: hiddenCount,
+                            formattedCount: hiddenCount.toLocaleString(),
+                        })}
                         size="xs"
                         readOnly
                         onMouseDown={(e: React.MouseEvent) => {
@@ -85,7 +90,7 @@ const FilterMultiNumberInput: FC<Props> = ({
                 />
             );
         },
-        [disabled, hiddenCount, open],
+        [disabled, hiddenCount, open, t],
     );
 
     const handleChange = useCallback(
@@ -152,7 +157,10 @@ const FilterMultiNumberInput: FC<Props> = ({
                         size="xs"
                         w="100%"
                         readOnly
-                        value={`${values.length.toLocaleString()} values selected`}
+                        value={t('inputs.valuesSelected', {
+                            count: values.length,
+                            formattedCount: values.length.toLocaleString(),
+                        })}
                         onClick={!disabled ? open : undefined}
                         classNames={{ input: classes.summaryInput }}
                         rightSection={manageButton}

@@ -29,6 +29,7 @@ import React, {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { v4 as uuid4 } from 'uuid';
 import { useChartSummariesV2 } from '../../../hooks/useChartSummariesV2';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -77,6 +78,7 @@ const SelectItem: FC<ItemProps> = ({
 );
 
 const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuids }) => {
+    const { t } = useTranslation('dashboard');
     const projectUuid = useProjectUuid();
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
@@ -164,12 +166,12 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuids }) => {
                 label: name,
                 group: space.name,
                 tooltipLabel: isAlreadyAdded
-                    ? 'This chart has already been added to this dashboard'
+                    ? t('tileForms.addCharts.alreadyAdded')
                     : undefined,
                 chartKind,
             };
         });
-    }, [savedQueries, dashboard?.spaceUuid, dashboardTiles]);
+    }, [savedQueries, dashboard?.spaceUuid, dashboardTiles, t]);
 
     const selectedChartUuids = form.values.savedChartsUuids as string[];
     const filteredSavedCharts = useMemo(() => {
@@ -235,7 +237,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuids }) => {
         <MantineModal
             opened
             onClose={onClose}
-            title="Add saved charts"
+            title={t('tileForms.addCharts.title')}
             icon={IconChartAreaLine}
             size="lg"
             modalRootProps={{ closeOnClickOutside: false }}
@@ -250,7 +252,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuids }) => {
                     data-tour-anchor="add-charts-submit"
                     data-tour-hint="Click Add"
                 >
-                    Add
+                    {t('actions.add', { ns: 'common' })}
                 </Button>
             }
         >
@@ -266,14 +268,14 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuids }) => {
                     data-tour-anchor="chart-picker"
                     data-tour-hint="Open the chart list"
                     id="saved-charts"
-                    label={`Select the charts you want to add to this dashboard`}
+                    label={t('tileForms.addCharts.selectLabel')}
                     options={filteredSavedCharts}
                     filterOptions={false}
                     disabled={isInitialLoading}
-                    placeholder="Search..."
+                    placeholder={t('tileForms.searchPlaceholder')}
                     required
                     name="savedChartsUuids"
-                    nothingFoundMessage="No charts found"
+                    nothingFoundMessage={t('tileForms.noChartsFound')}
                     searchValue={searchQuery}
                     onSearchChange={setSearchQuery}
                     maxDropdownHeight={300}
@@ -321,7 +323,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuids }) => {
                                 }}
                                 disabled={isFetching}
                             >
-                                Load more
+                                {t('tileForms.loadMore')}
                             </Button>
                         ) : null
                     }

@@ -21,7 +21,9 @@ import {
     IconSitemap,
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
+import { type TFunction } from 'i18next';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import CodeBlock from '../../../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
 import { useCanViewAiAgentSql } from '../../../../hooks/useCanViewAiAgentSql';
@@ -61,26 +63,34 @@ const referenceTargets = (items: string[] | Record<string, string>) =>
 const getNodePresentation = (
     node: ToolComposerQueryNode,
     titlesByNodeId: Record<string, string>,
+    t: TFunction,
 ) => {
     switch (node.sourceType) {
         case QuerySourceType.SEMANTIC_LAYER:
             return {
                 icon: IconSitemap,
-                badge: 'Semantic layer',
-                detail: `${node.exploreName} · ${node.dimensions.length} dimension${node.dimensions.length === 1 ? '' : 's'} · ${node.metrics.length} metric${node.metrics.length === 1 ? '' : 's'}`,
+                badge: t('pipeline.nodeType.semanticLayer'),
+                detail: `${node.exploreName} · ${t(
+                    'composerQueries.dimensions',
+                    {
+                        count: node.dimensions.length,
+                    },
+                )} · ${t('composerQueries.metrics', {
+                    count: node.metrics.length,
+                })}`,
             } as const;
         case QuerySourceType.SQL:
             return {
                 icon: IconDatabase,
-                badge: 'Warehouse SQL',
-                detail: 'Project warehouse',
+                badge: t('pipeline.nodeType.warehouseSql'),
+                detail: t('composerQueries.projectWarehouse'),
             } as const;
         case QuerySourceType.EXTERNAL: {
             const tables = referenceAliases(node.tables);
             return {
                 icon: IconFileSpreadsheet,
-                badge: 'External data',
-                detail: `Reads ${tables.join(', ')}`,
+                badge: t('pipeline.nodeType.externalData'),
+                detail: t('pipeline.reads', { reads: tables.join(', ') }),
             } as const;
         }
         case QuerySourceType.DUCKDB: {
@@ -89,8 +99,8 @@ const getNodePresentation = (
             );
             return {
                 icon: IconGitMerge,
-                badge: 'DuckDB compose',
-                detail: `Reads ${references.join(', ')}`,
+                badge: t('composerQueries.duckdbCompose'),
+                detail: t('pipeline.reads', { reads: references.join(', ') }),
             } as const;
         }
         case QuerySourceType.PYTHON: {
@@ -99,8 +109,8 @@ const getNodePresentation = (
             );
             return {
                 icon: IconBrandPython,
-                badge: 'Python',
-                detail: `Reads ${references.join(', ')}`,
+                badge: t('pipeline.nodeType.python'),
+                detail: t('pipeline.reads', { reads: references.join(', ') }),
             } as const;
         }
     }
@@ -149,7 +159,8 @@ const ComposerQueryNode: FC<{
     nodeStatus?: ComposerQueryNodeStatus;
     approval?: SqlApprovalTarget;
 }> = ({ node, titlesByNodeId, nodeStatus, approval }) => {
-    const presentation = getNodePresentation(node, titlesByNodeId);
+    const { t } = useTranslation('aiCopilotChat');
+    const presentation = getNodePresentation(node, titlesByNodeId, t);
     const active = isActiveStatus(nodeStatus);
     // Active and failed nodes open by default; a user toggle wins until the status changes.
     const defaultOpen = active || nodeStatus?.status === 'error';

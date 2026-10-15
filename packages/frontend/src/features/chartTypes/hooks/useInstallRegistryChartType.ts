@@ -3,6 +3,7 @@ import {
     type ApiInstallRegistryChartTypeResponse,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { captureChartTypeError } from '../utils/captureChartTypeError';
@@ -32,6 +33,7 @@ const installRegistryChartType = ({
 
 export const useInstallRegistryChartType = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('chartTypes');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         InstallRegistryChartTypeResult,
@@ -59,13 +61,13 @@ export const useInstallRegistryChartType = () => {
             showToastSuccess({
                 title:
                     result.action === 'upgraded'
-                        ? 'Chart type upgraded'
-                        : 'Chart type installed',
+                        ? t('install.upgradedToast')
+                        : t('install.installedToast'),
                 subtitle:
                     result.upgradedChartCount > 0
-                        ? `${result.upgradedChartCount} saved chart${
-                              result.upgradedChartCount === 1 ? '' : 's'
-                          } moved to the new version`
+                        ? t('install.chartsMoved', {
+                              count: result.upgradedChartCount,
+                          })
                         : undefined,
             });
         },
@@ -75,7 +77,7 @@ export const useInstallRegistryChartType = () => {
                 chartSlug,
             });
             showToastApiError({
-                title: 'Failed to install chart type',
+                title: t('install.failed'),
                 apiError: apiError.error,
             });
         },
@@ -125,6 +127,7 @@ const upgradeAllRegistryChartTypes = async ({
 
 export const useUpgradeAllRegistryChartTypes = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('chartTypes');
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<
         UpgradeAllRegistryChartTypesResult,
@@ -153,22 +156,22 @@ export const useUpgradeAllRegistryChartTypes = () => {
             );
             if (result.upgradedCount > 0) {
                 showToastSuccess({
-                    title: `${result.upgradedCount} chart type${
-                        result.upgradedCount === 1 ? '' : 's'
-                    } upgraded`,
+                    title: t('install.typesUpgraded', {
+                        count: result.upgradedCount,
+                    }),
                     subtitle:
                         result.upgradedChartCount > 0
-                            ? `${result.upgradedChartCount} saved chart${
-                                  result.upgradedChartCount === 1 ? '' : 's'
-                              } moved to the new versions`
+                            ? t('install.chartsMovedPlural', {
+                                  count: result.upgradedChartCount,
+                              })
                             : undefined,
                 });
             }
             if (result.failed.length > 0) {
                 showToastError({
-                    title: `Failed to upgrade ${result.failed.length} chart type${
-                        result.failed.length === 1 ? '' : 's'
-                    }`,
+                    title: t('install.upgradeFailed', {
+                        count: result.failed.length,
+                    }),
                     subtitle: result.failed.map(({ name }) => name).join(', '),
                 });
             }

@@ -1,5 +1,6 @@
 import { Anchor, Box, Breadcrumbs, Stack, Text } from '@mantine/core';
 import { useEffect, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
@@ -16,6 +17,7 @@ import {
 import { AiArtifactPanel } from '../ChatElements/AiArtifactPanel';
 
 export const VerifiedArtifactDetail: FC = () => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const navigate = useNavigate();
     const { agentUuid, artifactUuid } = useParams();
     const projectUuid = useProjectUuid();
@@ -91,10 +93,10 @@ export const VerifiedArtifactDetail: FC = () => {
             td="none"
             fw={500}
         >
-            Verified Answers
+            {t('verifiedArtifacts.title')}
         </Anchor>,
         <Text key="artifact" size="lg" fw={500}>
-            {artifactData?.title || 'Artifact'}
+            {artifactData?.title || t('verifiedArtifacts.artifact')}
         </Text>,
     ];
 
@@ -104,7 +106,8 @@ export const VerifiedArtifactDetail: FC = () => {
                 <Stack gap="xs">
                     <Breadcrumbs separator="/">{breadcrumbItems}</Breadcrumbs>
                     <Text size="sm" c="dimmed">
-                        {artifactData?.description || 'View verified answer'}
+                        {artifactData?.description ||
+                            t('verifiedArtifacts.viewVerifiedAnswer')}
                     </Text>
                 </Stack>
                 {artifact && (

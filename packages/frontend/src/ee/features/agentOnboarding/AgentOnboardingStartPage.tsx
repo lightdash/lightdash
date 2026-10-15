@@ -1,6 +1,7 @@
 import { FeatureFlags } from '@lightdash/common';
 import { Box, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Navigate } from 'react-router';
 import Page from '../../../components/common/Page/Page';
 import PageSpinner from '../../../components/PageSpinner';
@@ -12,6 +13,7 @@ import useApp from '../../../providers/App/useApp';
 import { AgentOnboardingLaunchPanel } from './AgentOnboardingLaunchPanel';
 
 const AgentOnboardingStartPage: FC = () => {
+    const { t } = useTranslation('agentOnboarding');
     const projectUuid = useProjectUuid();
     const { health } = useApp();
     const { data: project, isInitialLoading: isLoadingProject } =
@@ -43,15 +45,12 @@ const AgentOnboardingStartPage: FC = () => {
     }
 
     return (
-        <Page title="Project setup" withFixedContent withPaddedContent>
+        <Page title={t('pageTitle')} withFixedContent withPaddedContent>
             <Stack w="100%" maw={960} mx="auto" mt="xl">
                 <Box>
-                    <OnboardingTitle>
-                        Set up your semantic layer
-                    </OnboardingTitle>
+                    <OnboardingTitle>{t('start.title')}</OnboardingTitle>
                     <Text c="dimmed" mt="xs">
-                        Turn your warehouse tables into metrics and dimensions
-                        your team can explore.
+                        {t('start.subtitle')}
                     </Text>
                 </Box>
             </Stack>

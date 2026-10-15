@@ -12,6 +12,7 @@ import {
 import { Box, Skeleton, Stack, Text, Title } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type ContentTableSortingState } from '../../../components/common/ContentTable';
 import Page from '../../../components/common/Page/Page';
 import { useProject } from '../../../hooks/useProject';
@@ -51,6 +52,7 @@ const DEFAULT_SORTING: ContentTableSortingState = [
 ];
 
 export const QueryHistoryPage: FC = () => {
+    const { t } = useTranslation('queryHistory');
     const projectUuid = useProjectUuid();
     const { data: project } = useProject(projectUuid);
 
@@ -242,9 +244,11 @@ export const QueryHistoryPage: FC = () => {
     const subtitle = [
         project?.name,
         activeCounts
-            ? `${formatWarehouseTime(
-                  activeCounts.warehouseTimeMsLast7Days,
-              )} of warehouse time in the last 7 days`
+            ? t('page.warehouseTimeLast7Days', {
+                  time: formatWarehouseTime(
+                      activeCounts.warehouseTimeMsLast7Days,
+                  ),
+              })
             : null,
     ]
         .filter(Boolean)
@@ -268,7 +272,7 @@ export const QueryHistoryPage: FC = () => {
 
     return (
         <Page
-            title="My query history"
+            title={t('page.title')}
             withFullHeight
             noContentPadding
             rightSidebar={
@@ -288,7 +292,7 @@ export const QueryHistoryPage: FC = () => {
             }
             isRightSidebarOpen={isPanelOpen}
             onRightSidebarClose={() => setSelectedItem(null)}
-            rightSidebarTitle="Query details"
+            rightSidebarTitle={t('page.detailsTitle')}
             noRightSidebarPadding
             rightSidebarWidthProps={{
                 defaultWidth: DETAIL_PANEL_WIDTH,
@@ -314,7 +318,7 @@ export const QueryHistoryPage: FC = () => {
                     ))}
 
                 <Stack gap={2}>
-                    <Title order={4}>My query history</Title>
+                    <Title order={4}>{t('page.title')}</Title>
                     <Box className={styles.subtitleLine}>
                         {subtitle ? (
                             <Text fz="sm" c="dimmed">

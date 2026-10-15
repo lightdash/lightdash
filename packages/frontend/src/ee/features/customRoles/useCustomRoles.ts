@@ -10,6 +10,7 @@ import { useMemo } from 'react';
 import { lightdashApi } from '../../../api';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
+import i18n from '../../../i18n/i18n';
 
 const CACHE_KEY = 'custom-roles';
 const ALL_ROLES_CACHE_KEY = 'all-roles';
@@ -65,12 +66,12 @@ export const useCustomRoles = () => {
                 queryKey: [ALL_ROLES_CACHE_KEY, organization?.organizationUuid],
             });
             showToastSuccess({
-                title: `Custom role created successfully`,
+                title: i18n.t('toasts.created', { ns: 'customRoles' }),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to create custom role`,
+                title: i18n.t('toasts.createFailed', { ns: 'customRoles' }),
                 apiError: error,
             });
         },
@@ -95,12 +96,12 @@ export const useCustomRoles = () => {
                 queryKey: [ALL_ROLES_CACHE_KEY, organization?.organizationUuid],
             });
             showToastSuccess({
-                title: `Custom role deleted successfully`,
+                title: i18n.t('toasts.deleted', { ns: 'customRoles' }),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to delete custom role`,
+                title: i18n.t('toasts.deleteFailed', { ns: 'customRoles' }),
                 apiError: error,
             });
         },

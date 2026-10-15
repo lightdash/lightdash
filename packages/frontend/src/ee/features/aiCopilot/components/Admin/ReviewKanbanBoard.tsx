@@ -44,6 +44,7 @@ import {
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FC, useDeferredValue, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import FilterFacet, {
     type FilterFacetOption,
 } from '../../../../../components/common/FilterFacet';
@@ -59,7 +60,7 @@ import {
     useUpdateAiAgentReviewItemStatus,
 } from '../../hooks/useAiAgentAdmin';
 import { type AiAgentAdminReviewItemPreviewTarget } from './AiAgentAdminReviewItemsTable';
-import { EXAMPLE_REVIEW_ITEMS } from './onboarding';
+import { getExampleReviewItems } from './onboarding';
 import {
     buildAssigneeFacetOptions,
     matchesAssigneeFilter,
@@ -69,7 +70,7 @@ import {
     getIssueTitle,
     getReviewItemAgentUuid,
     getReviewItemProjectUuid,
-    reviewRootCauseLabels,
+    getRootCauseLabelKey,
     SURFACED_ROOT_CAUSES,
 } from './reviewItemDetails';
 import styles from './ReviewKanbanBoard.module.css';
@@ -189,6 +190,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
     initialProjectUuids = [],
     initialAgentUuids = [],
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const [search, setSearch] = useState<string | undefined>(undefined);
     const deferredSearch = useDeferredValue(search);
     const [selectedProjectUuids, setSelectedProjectUuids] = useState<string[]>(
@@ -248,10 +250,10 @@ export const ReviewKanbanBoard: FC<Props> = ({
         // Tie the examples to the tour being open (not to emptiness) so the same
         // cards get highlighted every run, even on a populated board.
         if (showOnboardingExamples) {
-            return EXAMPLE_REVIEW_ITEMS;
+            return getExampleReviewItems(t);
         }
         return data ?? [];
-    }, [data, showOnboardingExamples]);
+    }, [data, showOnboardingExamples, t]);
 
     // Skeletons only on the genuine first load (keepPreviousData keeps refetches silent).
     const showSkeletons = isLoading && allItems.length === 0;
@@ -320,7 +322,9 @@ export const ReviewKanbanBoard: FC<Props> = ({
         return Array.from(counts.entries())
             .map(([projectUuid, count]) => ({
                 value: projectUuid,
-                label: projectsMap.get(projectUuid)?.name ?? 'Unknown project',
+                label:
+                    projectsMap.get(projectUuid)?.name ??
+                    t('board.unknownProject'),
                 count,
             }))
             .sort(
@@ -328,7 +332,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
                     b.count - a.count ||
                     String(a.label).localeCompare(String(b.label)),
             );
-    }, [projectsMap, searchFilteredItems, selectedRootCauses]);
+    }, [projectsMap, searchFilteredItems, selectedRootCauses, t]);
 
     const agentFacetOptions = useMemo((): FilterFacetOption[] => {
         const counts = new Map<string, number>();
@@ -344,7 +348,8 @@ export const ReviewKanbanBoard: FC<Props> = ({
         return Array.from(counts.entries())
             .map(([agentUuid, count]) => ({
                 value: agentUuid,
-                label: agentsMap.get(agentUuid)?.name ?? 'Unknown agent',
+                label:
+                    agentsMap.get(agentUuid)?.name ?? t('board.unknownAgent'),
                 count,
             }))
             .sort(
@@ -352,7 +357,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
                     b.count - a.count ||
                     String(a.label).localeCompare(String(b.label)),
             );
-    }, [agentsMap, projectFilteredItems, selectedRootCauses]);
+    }, [agentsMap, projectFilteredItems, selectedRootCauses, t]);
 
     const rootCauseFacetOptions = useMemo((): FilterFacetOption[] => {
         const counts = new Map<AiAgentRootCause, number>();
@@ -364,14 +369,14 @@ export const ReviewKanbanBoard: FC<Props> = ({
         }
         return SURFACED_ROOT_CAUSES.map((rootCause) => ({
             value: rootCause,
-            label: reviewRootCauseLabels[rootCause],
+            label: t(getRootCauseLabelKey(rootCause)),
             count: counts.get(rootCause) ?? 0,
         })).sort(
             (a, b) =>
                 b.count - a.count ||
                 String(a.label).localeCompare(String(b.label)),
         );
-    }, [scopedItems]);
+    }, [scopedItems, t]);
 
     const assigneeFacetOptions = useMemo(
         (): FilterFacetOption[] =>
@@ -391,10 +396,10 @@ export const ReviewKanbanBoard: FC<Props> = ({
         }
         return REVIEW_LANES.map((lane) => ({
             value: lane.id,
-            label: lane.label,
+            label: t(lane.labelKey),
             count: counts.get(lane.id) ?? 0,
         }));
-    }, [scopedItems]);
+    }, [scopedItems, t]);
 
     const lanes = useMemo(() => {
         const byLane: Record<ReviewLane, AiAgentReviewItemSummary[]> = {
@@ -556,56 +561,56 @@ export const ReviewKanbanBoard: FC<Props> = ({
                 <SearchFilter
                     search={search}
                     setSearch={setSearch}
-                    placeholder="Search issues"
+                    placeholder={t('board.searchPlaceholder')}
                 />
                 <FilterFacet
-                    label="Project"
+                    label={t('board.project')}
                     icon={IconBox}
                     options={projectFacetOptions}
                     selected={selectedProjectUuids}
                     onChange={setSelectedProjectUuids}
-                    emptyLabel="No projects in current view"
-                    tooltipLabel="Filter by project"
+                    emptyLabel={t('board.noProjects')}
+                    tooltipLabel={t('board.filterByProject')}
                 />
                 <FilterFacet
-                    label="Agent"
+                    label={t('board.agent')}
                     icon={IconRobotFace}
                     options={agentFacetOptions}
                     selected={selectedAgentUuids}
                     onChange={setSelectedAgentUuids}
-                    emptyLabel="No agents in current view"
-                    tooltipLabel="Filter by agent"
+                    emptyLabel={t('board.noAgents')}
+                    tooltipLabel={t('board.filterByAgent')}
                 />
                 <FilterFacet
-                    label="Cause"
+                    label={t('board.cause')}
                     icon={IconTag}
                     options={rootCauseFacetOptions}
                     selected={selectedRootCauses}
                     onChange={(values) =>
                         setSelectedRootCauses(values as AiAgentRootCause[])
                     }
-                    emptyLabel="No root causes in current view"
-                    tooltipLabel="Filter by root cause"
+                    emptyLabel={t('board.noCauses')}
+                    tooltipLabel={t('board.filterByCause')}
                 />
                 <FilterFacet
-                    label="Status"
+                    label={t('board.status')}
                     icon={IconListCheck}
                     options={statusFacetOptions}
                     selected={selectedStatuses}
                     onChange={(values) =>
                         setSelectedStatuses(values as ReviewLane[])
                     }
-                    emptyLabel="No statuses in current view"
-                    tooltipLabel="Filter by status"
+                    emptyLabel={t('board.noStatuses')}
+                    tooltipLabel={t('board.filterByStatus')}
                 />
                 <FilterFacet
-                    label="Assignee"
+                    label={t('board.assignee')}
                     icon={IconUser}
                     options={assigneeFacetOptions}
                     selected={selectedAssignees}
                     onChange={setSelectedAssignees}
-                    emptyLabel="No assignees in current view"
-                    tooltipLabel="Filter by assignee"
+                    emptyLabel={t('board.noAssignees')}
+                    tooltipLabel={t('board.filterByAssignee')}
                 />
             </Group>
             <Box className={styles.boardWrapper}>
@@ -645,7 +650,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
                                             style={{ borderRadius: 3 }}
                                         />
                                         <Text fz="xs" fw={600}>
-                                            {lane.label}
+                                            {t(lane.labelKey)}
                                         </Text>
                                         <Badge size="xs">{all.length}</Badge>
                                     </Group>
@@ -683,7 +688,9 @@ export const ReviewKanbanBoard: FC<Props> = ({
                                                             fz="xs"
                                                             c="dimmed"
                                                         >
-                                                            No issues
+                                                            {t(
+                                                                'board.noIssues',
+                                                            )}
                                                         </Text>
                                                     </Box>
                                                 ) : (
@@ -722,8 +729,15 @@ export const ReviewKanbanBoard: FC<Props> = ({
                                                         }
                                                     >
                                                         {isExpanded
-                                                            ? 'Show less'
-                                                            : `Show all (${all.length})`}
+                                                            ? t(
+                                                                  'board.showLess',
+                                                              )
+                                                            : t(
+                                                                  'board.showAll',
+                                                                  {
+                                                                      count: all.length,
+                                                                  },
+                                                              )}
                                                     </Button>
                                                 )}
                                             </SortableContext>

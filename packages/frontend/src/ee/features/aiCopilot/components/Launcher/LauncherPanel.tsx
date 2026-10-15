@@ -22,6 +22,7 @@ import {
     type CSSProperties,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPath, useLocation, useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import useApp from '../../../../../providers/App/useApp';
@@ -94,6 +95,7 @@ export const LauncherPanel: FC<Props> = ({
     activeThreadId,
     style,
 }) => {
+    const { t } = useTranslation('aiAgent');
     if (!agent) {
         return (
             <LauncherPanelFrame style={style}>
@@ -101,7 +103,7 @@ export const LauncherPanel: FC<Props> = ({
                     projectUuid={projectUuid}
                     agent={null}
                     agents={agents}
-                    title="AI"
+                    title={t('launcher.aiTitle')}
                     threadId={null}
                 />
                 <Center className={styles.panelBody}>
@@ -135,6 +137,7 @@ const NewThreadPanel: FC<{
     agents: AiAgentSummary[];
     style?: CSSProperties;
 }> = ({ projectUuid, agent, agents, style }) => {
+    const { t } = useTranslation('aiAgent');
     const navigate = useNavigate();
     const dispatch = useAiAgentStoreDispatch();
     const pendingContext = useAiAgentStoreSelector(
@@ -323,9 +326,9 @@ const NewThreadPanel: FC<{
         previewItems: previewItemsWithPageContext,
         projectUuid,
     });
-    const displayName = isAuto ? 'Auto' : agent.name;
+    const displayName = isAuto ? t('agentSelector.auto') : agent.name;
     const description = isAuto
-        ? 'Routes each new question to the best-fit agent'
+        ? t('launcher.autoDescription')
         : agent.description;
 
     return (
@@ -379,7 +382,7 @@ const NewThreadPanel: FC<{
                 {previewItemsWithPageContext.length > 0 && (
                     <Stack gap="xxs" px="md" pb="xs">
                         <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-                            Pinned context
+                            {t('launcher.pinnedContext')}
                         </Text>
                         <Group gap="xs" wrap="wrap">
                             {previewItemsWithPageContext.map((item) => (
@@ -411,7 +414,9 @@ const NewThreadPanel: FC<{
                     }
                     loading={isLocked}
                     disabled={!isPinnedContextReady || isPickingAgent}
-                    placeholder={`Ask ${displayName} anything...`}
+                    placeholder={t('launcher.askAnything', {
+                        name: displayName,
+                    })}
                     projectUuid={projectUuid}
                     agentUuid={concreteAgent?.uuid}
                     fullWidth
@@ -431,41 +436,44 @@ const NewThreadPanel: FC<{
 const LauncherAgentPicker: FC<{
     candidates: LauncherRouterCandidate[];
     onPick: (agentUuid: string) => void;
-}> = ({ candidates, onPick }) => (
-    <Stack gap="xs" px="md" pb="xs">
-        <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-            Choose agent
-        </Text>
-        <Stack gap="xxs">
-            {candidates.map((candidate) => (
-                <Button
-                    key={candidate.agentUuid}
-                    variant="default"
-                    justify="start"
-                    leftSection={
-                        <LightdashUserAvatar
-                            size="xs"
-                            name={candidate.name}
-                            src={candidate.agent?.imageUrl}
-                        />
-                    }
-                    onClick={() => onPick(candidate.agentUuid)}
-                >
-                    <Box className={styles.candidateContent}>
-                        <Box className={styles.candidateText}>
-                            {candidate.name}
+}> = ({ candidates, onPick }) => {
+    const { t } = useTranslation('aiAgent');
+    return (
+        <Stack gap="xs" px="md" pb="xs">
+            <Text size="xs" fw={600} c="dimmed" tt="uppercase">
+                {t('launcher.chooseAgent')}
+            </Text>
+            <Stack gap="xxs">
+                {candidates.map((candidate) => (
+                    <Button
+                        key={candidate.agentUuid}
+                        variant="default"
+                        justify="start"
+                        leftSection={
+                            <LightdashUserAvatar
+                                size="xs"
+                                name={candidate.name}
+                                src={candidate.agent?.imageUrl}
+                            />
+                        }
+                        onClick={() => onPick(candidate.agentUuid)}
+                    >
+                        <Box className={styles.candidateContent}>
+                            <Box className={styles.candidateText}>
+                                {candidate.name}
+                            </Box>
+                            {candidate.isRecommended && (
+                                <Badge size="xs" color="violet">
+                                    {t('launcher.recommended')}
+                                </Badge>
+                            )}
                         </Box>
-                        {candidate.isRecommended && (
-                            <Badge size="xs" color="violet">
-                                Recommended
-                            </Badge>
-                        )}
-                    </Box>
-                </Button>
-            ))}
+                    </Button>
+                ))}
+            </Stack>
         </Stack>
-    </Stack>
-);
+    );
+};
 
 const ExistingThreadPanel: FC<{
     projectUuid: string;
@@ -474,6 +482,7 @@ const ExistingThreadPanel: FC<{
     threadId: string;
     style?: CSSProperties;
 }> = ({ projectUuid, agent, agents, threadId, style }) => {
+    const { t } = useTranslation('aiAgent');
     const { user } = useApp();
     const canStartDeepResearch = useDeepResearchAccess(projectUuid);
     const navigate = useNavigate();
@@ -695,7 +704,7 @@ const ExistingThreadPanel: FC<{
                     <AgentChatInput
                         accessCalloutVariant="inline"
                         disabled={isInputDisabled}
-                        disabledReason="This thread is read-only. To continue the conversation, reply in Slack."
+                        disabledReason={t('launcher.slackReadOnly')}
                         loading={isBusy}
                         onSubmit={handleSubmit}
                         onStartDeepResearch={
@@ -703,7 +712,9 @@ const ExistingThreadPanel: FC<{
                                 ? handleStartDeepResearch
                                 : undefined
                         }
-                        placeholder={`Ask ${agent.name} anything...`}
+                        placeholder={t('launcher.askAnything', {
+                            name: agent.name,
+                        })}
                         messageCount={thread.messages?.length || 0}
                         projectUuid={projectUuid}
                         agentUuid={agent.uuid}

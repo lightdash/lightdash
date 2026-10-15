@@ -25,6 +25,7 @@ import {
     IconScreenshot,
 } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PreviewAndCustomizeScreenshot } from '../../../features/preview';
 import { CsvFormattingOptions } from '../../../features/scheduler/components/CsvFormattingOptions';
 import { Limit, Values } from '../../../features/scheduler/components/types';
@@ -52,6 +53,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
     gridWidth,
     dashboard,
 }) => {
+    const { t } = useTranslation('modals');
     const [exportType, setExportType] = useState<ExportContentFormat>(
         SchedulerFormat.IMAGE,
     );
@@ -215,7 +217,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                     disabled={!hasTilesInSelectedTabs()}
                     leftSection={<MantineIcon icon={IconFileTypePdf} />}
                 >
-                    Export PDF
+                    {t('dashboardExport.exportPdf')}
                 </Button>
             );
         }
@@ -228,7 +230,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                     disabled={limit === Limit.CUSTOM && customLimit < 1}
                     leftSection={<MantineIcon icon={IconCsv} />}
                 >
-                    Export CSV
+                    {t('dashboardExport.exportCsv')}
                 </Button>
             );
         }
@@ -241,7 +243,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                     disabled={limit === Limit.CUSTOM && customLimit < 1}
                     leftSection={<MantineIcon icon={IconFileTypeXls} />}
                 >
-                    Export XLSX
+                    {t('dashboardExport.exportXlsx')}
                 </Button>
             );
         }
@@ -257,7 +259,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                     />
                 }
             >
-                Export dashboard
+                {t('dashboardExport.exportDashboard')}
             </Button>
         );
     };
@@ -266,17 +268,22 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Export dashboard"
+            title={t('dashboardExport.title')}
             icon={IconLayoutDashboard}
             size="xl"
             actions={renderActions()}
         >
             <Stack gap="md">
                 <Stack gap="xs">
-                    <Input.Label>Export format</Input.Label>
+                    <Input.Label>
+                        {t('dashboardExport.formatLabel')}
+                    </Input.Label>
                     <SegmentedControl
                         data={[
-                            { label: 'Image', value: SchedulerFormat.IMAGE },
+                            {
+                                label: t('dashboardExport.formatImage'),
+                                value: SchedulerFormat.IMAGE,
+                            },
                             { label: 'PDF', value: SchedulerFormat.PDF },
                             { label: '.csv', value: SchedulerFormat.CSV },
                             { label: '.xlsx', value: SchedulerFormat.XLSX },
@@ -289,12 +296,10 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                     />
                     {isDataExport && (
                         <Text fs="italic" fz="sm" c="dimmed">
-                            Charts from the selected tabs will be exported as
-                            tables
                             {exportType === SchedulerFormat.XLSX &&
                             xlsxFileLayout === 'workbook'
-                                ? ' in one workbook.'
-                                : ' in a ZIP file.'}
+                                ? t('dashboardExport.dataExportWorkbook')
+                                : t('dashboardExport.dataExportZip')}
                         </Text>
                     )}
                 </Stack>
@@ -303,11 +308,10 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                     <Stack gap="xs">
                         {!!dateZoomGranularity && (
                             <Callout
-                                title="Date zoom is enabled"
+                                title={t('dashboardExport.dateZoomTitle')}
                                 variant="info"
                             >
-                                Your export will include data for the selected
-                                date zoom granularity.
+                                {t('dashboardExport.dateZoomDescription')}
                             </Callout>
                         )}
                         <CsvFormattingOptions
@@ -330,10 +334,10 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                     <Stack gap="xs">
                         <Input.Label>
                             <Group gap="xs">
-                                Tabs
+                                {t('dashboardExport.tabsLabel')}
                                 <Tooltip
                                     maw={400}
-                                    label="When unchecked, choose specific tabs to include in the export."
+                                    label={t('dashboardExport.tabsTooltip')}
                                 >
                                     <MantineIcon
                                         icon={IconHelpCircle}
@@ -346,7 +350,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                         </Input.Label>
                         <Checkbox
                             size="sm"
-                            label="Include all tabs"
+                            label={t('dashboardExport.includeAllTabs')}
                             labelPosition="right"
                             checked={allTabsSelected}
                             onChange={(e) => {
@@ -368,7 +372,9 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                         />
                         {!allTabsSelected && (
                             <MultiSelect
-                                placeholder="Select tabs to include in the export"
+                                placeholder={t(
+                                    'dashboardExport.selectTabsPlaceholder',
+                                )}
                                 value={selectedTabs}
                                 data={(dashboard?.tabs || []).map((tab) => ({
                                     value: tab.uuid,
@@ -388,7 +394,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                                 required
                                 error={
                                     !hasTilesInSelectedTabs()
-                                        ? 'There are no tiles in the selected tab(s)'
+                                        ? t('dashboardExport.noTilesInTabs')
                                         : undefined
                                 }
                             />

@@ -6,7 +6,9 @@ import {
 } from '@lightdash/common';
 import { Button, Group, LoadingOverlay, Text } from '@mantine/core';
 import { IconFolderShare, IconPlus } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useCallback, useMemo, type ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
 import { usePersonalSpace, useSpaceSummaries } from '../../../hooks/useSpaces';
 import Callout from '../Callout';
@@ -31,26 +33,27 @@ type Props<T> = Pick<MantineModalProps, 'opened' | 'onClose'> & {
     footer?: ReactNode;
 };
 
-const ItemName = ({ name }: { name: string }) => {
-    return (
-        <Text fw={600} component="span">
-            "{name}"
-        </Text>
-    );
-};
+const itemNameElement = <Text fw={600} component="span" />;
 
-const getItemsText = <T extends ResourceViewItem>(items: T[]) => {
-    if (items.length === 1) {
-        return {
-            name: <ItemName name={getResourceViewItemName(items[0])} />,
-            type: items[0].type,
-        };
+const getDefaultTitle = <T extends ResourceViewItem>(
+    t: TFunction,
+    items: T[],
+): string => {
+    if (items.length !== 1) return t('transferItems.title.items');
+    switch (items[0].type) {
+        case ResourceViewItemType.CHART:
+            return t('transferItems.title.chart');
+        case ResourceViewItemType.DASHBOARD:
+            return t('transferItems.title.dashboard');
+        case ResourceViewItemType.SPACE:
+            return t('transferItems.title.space');
+        case ResourceViewItemType.DATA_APP:
+            return t('transferItems.title.dataApp');
+        case ResourceViewItemType.DOCUMENT:
+            return t('transferItems.title.document');
+        default:
+            return assertUnreachable(items[0], 'Invalid item type');
     }
-
-    return {
-        name: `${items.length} items`,
-        type: 'items',
-    };
 };
 
 const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
@@ -62,10 +65,11 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
     isLoading,
     title,
     description,
-    confirmLabel = 'Confirm',
-    createSpaceConfirmLabel = 'Create space & move',
+    confirmLabel,
+    createSpaceConfirmLabel,
     footer,
 }: Props<T>) => {
+    const { t } = useTranslation('modals');
     // Fetch spaces only when the modal is opened
     const { data: spaces = [], isLoading: isLoadingSpaces } = useSpaceSummaries(
         projectUuid,
@@ -160,9 +164,7 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
 
     return (
         <MantineModal
-            title={
-                title ?? `Move ${getItemsText(items).type.replace(/_/g, ' ')}`
-            }
+            title={title ?? getDefaultTitle(t, items)}
             opened={opened}
             onClose={onClose}
             icon={IconFolderShare}
@@ -176,7 +178,7 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
                             onClick={openCreateSpaceForm}
                             leftSection={<MantineIcon icon={IconPlus} />}
                         >
-                            New Space
+                            {t('newSpace')}
                         </Button>
                         {footer}
                     </Group>
@@ -189,7 +191,8 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
                         disabled={newSpaceName.length === 0}
                         onClick={createSpace}
                     >
-                        {createSpaceConfirmLabel}
+                        {createSpaceConfirmLabel ??
+                            t('transferItems.createSpaceAndMove')}
                     </Button>
                 ) : (
                     <Button
@@ -201,7 +204,7 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
                         data-tour-anchor="transfer-confirm"
                         data-tour-hint="Confirm the move"
                     >
-                        {confirmLabel}
+                        {confirmLabel ?? t('actions.confirm', { ns: 'common' })}
                     </Button>
                 )
             }
@@ -228,10 +231,20 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
                 <>
                     {description ?? (
                         <Text fz="sm" fw={500}>
-                            <>
-                                Select a space to move{' '}
-                                {getItemsText(items).name} to:
-                            </>
+                            {isMovingSingleItem ? (
+                                <Trans
+                                    t={t}
+                                    i18nKey="transferItems.selectSpaceSingle"
+                                    values={{
+                                        name: getResourceViewItemName(items[0]),
+                                    }}
+                                    components={{ name: itemNameElement }}
+                                />
+                            ) : (
+                                t('transferItems.selectSpaceMany', {
+                                    count: items.length,
+                                })
+                            )}
                         </Text>
                     )}
 
@@ -247,8 +260,34 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
                         {!isCreatingNewSpace && selectedSpaceLabel ? (
                             <Callout variant="info">
                                 <Text fw={500} fz="sm">
-                                    Move {getItemsText(items).name} to{' '}
-                                    <ItemName name={selectedSpaceLabel} />
+                                    {isMovingSingleItem ? (
+                                        <Trans
+                                            t={t}
+                                            i18nKey="transferItems.moveSingleTo"
+                                            values={{
+                                                name: getResourceViewItemName(
+                                                    items[0],
+                                                ),
+                                                space: selectedSpaceLabel,
+                                            }}
+                                            components={{
+                                                name: itemNameElement,
+                                                space: itemNameElement,
+                                            }}
+                                        />
+                                    ) : (
+                                        <Trans
+                                            t={t}
+                                            i18nKey="transferItems.moveManyTo"
+                                            count={items.length}
+                                            values={{
+                                                space: selectedSpaceLabel,
+                                            }}
+                                            components={{
+                                                space: itemNameElement,
+                                            }}
+                                        />
+                                    )}
                                 </Text>
                             </Callout>
                         ) : null}

@@ -11,24 +11,25 @@ import React, {
     type FC,
     type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getCandidateExploreNames } from '../../../utils/exploreSplitError';
 import CodeBlock from '../CodeBlock/CodeBlock';
 import SuboptimalState from '../SuboptimalState/SuboptimalState';
-
-const DEFAULT_ERROR_PROPS: ComponentProps<typeof SuboptimalState> = {
-    icon: IconAlertCircle,
-    title: 'Unexpected error',
-    description: 'Please contact support',
-};
 
 const ErrorState: FC<{
     error?: ApiErrorDetail | null;
     hasMarginTop?: boolean;
     action?: ReactNode;
 }> = ({ error, hasMarginTop = true, action }) => {
+    const { t } = useTranslation('commonUi');
     const props = useMemo<ComponentProps<typeof SuboptimalState>>(() => {
+        const defaultErrorProps: ComponentProps<typeof SuboptimalState> = {
+            icon: IconAlertCircle,
+            title: t('errorState.unexpectedError'),
+            description: t('errorState.contactSupport'),
+        };
         if (!error) {
-            return DEFAULT_ERROR_PROPS;
+            return defaultErrorProps;
         }
         try {
             const description = (
@@ -37,12 +38,14 @@ const ErrorState: FC<{
                     {(error.sentryEventId || error.sentryTraceId) && (
                         <>
                             <Text maw={400} fw="bold">
-                                Contact support with the following information:
+                                {t('errorState.contactSupportWithInfo')}
                             </Text>
                             <CodeBlock
-                                code={`\nError ID: ${
-                                    error.sentryEventId || 'n/a'
-                                }\nTrace ID: ${error.sentryTraceId || 'n/a'}`}
+                                code={`\n${t('errorState.errorId', {
+                                    id: error.sentryEventId || 'n/a',
+                                })}\n${t('errorState.traceId', {
+                                    id: error.sentryTraceId || 'n/a',
+                                })}`}
                                 language="yaml"
                                 pr="lg"
                                 ta="left"
@@ -59,7 +62,7 @@ const ErrorState: FC<{
             if (isExploreSplitError) {
                 return {
                     icon: IconMoodPuzzled,
-                    title: 'Explore was split',
+                    title: t('errorState.exploreSplit'),
                     description: (
                         <Stack gap="xs" align="center">
                             <Text maw={400}>{error.message}</Text>
@@ -75,31 +78,31 @@ const ErrorState: FC<{
                 case 'ForbiddenError':
                     return {
                         icon: IconLock,
-                        title: 'You need access',
+                        title: t('errorState.needAccess'),
                         description,
                     };
                 case 'AuthorizationError':
                     return {
                         icon: IconLock,
-                        title: 'Authorization error',
+                        title: t('errorState.authorizationError'),
                         description,
                     };
                 case 'NotFoundError':
                     return {
                         icon: IconMoodPuzzled,
-                        title: 'Not found',
+                        title: t('errorState.notFound'),
                         description,
                     };
                 default:
                     return {
-                        ...DEFAULT_ERROR_PROPS,
+                        ...defaultErrorProps,
                         description,
                     };
             }
         } catch {
-            return DEFAULT_ERROR_PROPS;
+            return defaultErrorProps;
         }
-    }, [action, error]);
+    }, [action, error, t]);
 
     return (
         <SuboptimalState mt={hasMarginTop ? '20px' : undefined} {...props} />

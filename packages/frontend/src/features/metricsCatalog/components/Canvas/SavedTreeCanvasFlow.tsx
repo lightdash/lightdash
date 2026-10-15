@@ -20,6 +20,7 @@ import {
 } from '@xyflow/react';
 import { clsx } from 'clsx';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import '@xyflow/react/dist/style.css';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import DefaultEdge from '../../../../components/common/ReactFlow/DefaultEdge';
@@ -73,6 +74,7 @@ const SavedTreeCanvasFlow: FC<Props> = ({
 }) => {
     const theme = useMantineTheme();
     const getUiString = useUiStrings();
+    const { t } = useTranslation('metricsCatalog');
     const compact = useMatches(
         { base: true, sm: false },
         { getInitialValueInEffect: false },
@@ -258,7 +260,7 @@ const SavedTreeCanvasFlow: FC<Props> = ({
                                                     />
                                                 }
                                             >
-                                                Clean up
+                                                {t('canvas.cleanUp')}
                                             </Button>
                                             {(flow.currentNodes.some(
                                                 (node) => node.selected,

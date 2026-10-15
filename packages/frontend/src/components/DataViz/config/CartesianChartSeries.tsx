@@ -19,6 +19,7 @@ import {
     useMantineColorScheme,
 } from '@mantine/core';
 import { useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useAppSelector,
     useAppDispatch as useVizDispatch,
@@ -59,6 +60,7 @@ export const CartesianChartSeries = ({
     selectedChartType: ChartKind;
     actions: BarChartActionsType | LineChartActionsType;
 }) => {
+    const { t } = useTranslation('dataViz');
     const projectUuid = useAppSelector(selectProjectUuid);
     const { data: resolvedPalette } = useProjectColorPalette(
         projectUuid || undefined,
@@ -294,28 +296,30 @@ export const CartesianChartSeries = ({
     return (
         <Stack mt="sm" gap="xs">
             {Object.keys(groupedSeries).length === 0 && (
-                <Text>No series found. Add a metric to create a series.</Text>
+                <Text>{t('cartesian.series.noSeries')}</Text>
             )}
             {Object.keys(groupedSeries).length > 0 && (
                 <>
                     <Config>
                         <Config.Group>
-                            <Config.Label>{`Stacking`}</Config.Label>
+                            <Config.Label>
+                                {t('cartesian.series.stacking')}
+                            </Config.Label>
                             <SegmentedControl
                                 fz="sm"
                                 disabled={!canStack}
                                 data={[
                                     {
                                         value: 'None',
-                                        label: 'None',
+                                        label: t('cartesian.series.stackNone'),
                                     },
                                     {
                                         value: 'Stacked',
-                                        label: 'Stacked',
+                                        label: t('cartesian.series.stacked'),
                                     },
                                     {
                                         value: '100%',
-                                        label: '100%',
+                                        label: t('cartesian.series.stack100'),
                                     },
                                 ]}
                                 value={(() => {

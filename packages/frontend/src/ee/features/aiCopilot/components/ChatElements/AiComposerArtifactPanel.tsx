@@ -16,6 +16,7 @@ import { useDebouncedCallback } from '@mantine/hooks';
 import { IconArrowLeft, IconX } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
@@ -34,8 +35,6 @@ import { useArtifactResultRows } from './useArtifactResultRows';
 import { useComposerRunNodeStatuses } from './useComposerRunNodeStatuses';
 
 const SAVE_DELAY_MS = 400;
-const READ_ONLY_REASON =
-    'Only the thread owner or an agent admin can change this chart';
 
 type Props = {
     projectUuid: string;
@@ -68,6 +67,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     canEdit,
     onClose,
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const isEmbed = useIsEmbedded();
     const identityFlag = useServerFeatureFlag(FeatureFlags.AgentIdentity);
     const identityEnabled = identityFlag.data?.enabled === true;
@@ -180,7 +180,9 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         if (!isResultReady || options.kinds.length <= 1) return 'static';
         return isTerminalDisplayed ? 'expandable' : 'switcher';
     })();
-    const fieldsDisabledReason = isWritable ? null : READ_ONLY_REASON;
+    const fieldsDisabledReason = isWritable
+        ? null
+        : t('composerArtifact.readOnlyReason');
     // Only one of Chart and Queries is open at a time.
     const [isChartOpen, setIsChartOpen] = useState(false);
     const [isPipelineOpen, setIsPipelineOpen] = useState(false);
@@ -195,13 +197,16 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     const head = (
         <Box className={clsx(styles.head, styles.flushHead)}>
             {!isTerminalDisplayed && (
-                <Tooltip label="Back to result" position="bottom">
+                <Tooltip
+                    label={t('composerArtifact.backToResult')}
+                    position="bottom"
+                >
                     <ActionIcon
                         size="sm"
                         onClick={() =>
                             setDisplayedNodeId(config.terminalNodeId)
                         }
-                        aria-label="Back to result"
+                        aria-label={t('composerArtifact.backToResult')}
                     >
                         <MantineIcon icon={IconArrowLeft} />
                     </ActionIcon>
@@ -219,7 +224,11 @@ export const AiComposerArtifactPanel: FC<Props> = ({
             </Stack>
             {onClose && (
                 <Group gap={2} className={styles.headRight}>
-                    <ActionIcon size="sm" onClick={onClose} aria-label="Close">
+                    <ActionIcon
+                        size="sm"
+                        onClick={onClose}
+                        aria-label={t('actions.close', { ns: 'common' })}
+                    >
                         <MantineIcon icon={IconX} />
                     </ActionIcon>
                 </Group>

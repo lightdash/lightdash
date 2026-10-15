@@ -5,6 +5,9 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Box, Button, Group, Select, Stack } from '@mantine/core';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
+import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useAppDispatch as useVizDispatch,
     useAppSelector as useVizSelector,
@@ -19,22 +22,36 @@ import {
     updateConditionalFormattingRule,
 } from '../store/bigNumberSlice';
 
-const OPERATOR_OPTIONS: {
+const getOperatorOptions = (
+    t: TFunction,
+): {
     value: VizBigNumberConditionalOperator;
     label: string;
-}[] = [
-    { value: FilterOperator.GREATER_THAN, label: 'is greater than' },
+}[] => [
+    {
+        value: FilterOperator.GREATER_THAN,
+        label: t('bigNumber.rules.operators.greaterThan'),
+    },
     {
         value: FilterOperator.GREATER_THAN_OR_EQUAL,
-        label: 'is greater than or equal to',
+        label: t('bigNumber.rules.operators.greaterThanOrEqual'),
     },
-    { value: FilterOperator.LESS_THAN, label: 'is less than' },
+    {
+        value: FilterOperator.LESS_THAN,
+        label: t('bigNumber.rules.operators.lessThan'),
+    },
     {
         value: FilterOperator.LESS_THAN_OR_EQUAL,
-        label: 'is less than or equal to',
+        label: t('bigNumber.rules.operators.lessThanOrEqual'),
     },
-    { value: FilterOperator.EQUALS, label: 'is equal to' },
-    { value: FilterOperator.NOT_EQUALS, label: 'is not equal to' },
+    {
+        value: FilterOperator.EQUALS,
+        label: t('bigNumber.rules.operators.equals'),
+    },
+    {
+        value: FilterOperator.NOT_EQUALS,
+        label: t('bigNumber.rules.operators.notEquals'),
+    },
 ];
 
 const DEFAULT_RULE: VizBigNumberConditionalRule = {
@@ -48,6 +65,8 @@ export const BigNumberConditionalFormatting = ({
 }: {
     colors: string[];
 }) => {
+    const { t } = useTranslation('dataViz');
+    const operatorOptions = useMemo(() => getOperatorOptions(t), [t]);
     const dispatch = useVizDispatch();
     const rules = useVizSelector(
         (state) => state.bigNumberConfig.display?.conditionalFormatting ?? [],
@@ -56,10 +75,8 @@ export const BigNumberConditionalFormatting = ({
     return (
         <Stack gap="sm" mb="lg">
             <Config.Section>
-                <Config.Heading>Rules</Config.Heading>
-                <Config.Label>
-                    The value takes the colour of the first rule it matches.
-                </Config.Label>
+                <Config.Heading>{t('bigNumber.rules.title')}</Config.Heading>
+                <Config.Label>{t('bigNumber.rules.description')}</Config.Label>
 
                 {rules.map((rule, index) => (
                     // Rules are an ordered list with no stable id; the index is
@@ -84,7 +101,7 @@ export const BigNumberConditionalFormatting = ({
                         <Select
                             size="xs"
                             flex={1}
-                            data={OPERATOR_OPTIONS}
+                            data={operatorOptions}
                             value={rule.operator}
                             allowDeselect={false}
                             onChange={(operator) => {
@@ -118,7 +135,7 @@ export const BigNumberConditionalFormatting = ({
                         />
 
                         <ActionIcon
-                            aria-label="Remove rule"
+                            aria-label={t('bigNumber.rules.remove')}
                             onClick={() =>
                                 dispatch(removeConditionalFormattingRule(index))
                             }
@@ -136,7 +153,7 @@ export const BigNumberConditionalFormatting = ({
                         dispatch(addConditionalFormattingRule(DEFAULT_RULE))
                     }
                 >
-                    Add rule
+                    {t('bigNumber.rules.add')}
                 </Button>
             </Config.Section>
         </Stack>

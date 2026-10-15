@@ -1,0 +1,123 @@
+{
+    "activity": {
+        "waiting": "Esperando a que el agente empiece…",
+        "title": "Actividad",
+        "show": "Mostrar",
+        "hide": "Ocultar"
+    },
+    "files": {
+        "previewUnavailable": "Vista previa no disponible",
+        "binaryFile": "Este archivo es binario o usa una codificación no compatible.",
+        "loadFailed": "No se pudo cargar este archivo.",
+        "selectFile": "Selecciona un archivo para previsualizarlo.",
+        "empty": {
+            "liveTitle": "Explorando tu warehouse",
+            "doneTitle": "No se generaron archivos",
+            "liveDescription": "Los archivos de tu capa semántica aparecerán aquí en cuanto el agente empiece a escribirlos.",
+            "doneDescription": "La ejecución terminó antes de que se escribiera ningún archivo del proyecto."
+        },
+        "resize": "Redimensionar árbol de archivos y vista previa",
+        "followingLatest": "Siguiendo el último",
+        "followLatest": "Seguir el último",
+        "expandPreview": "Ampliar vista previa",
+        "expandFilePreview": "Ampliar vista previa del archivo",
+        "filePreview": "Vista previa del archivo"
+    },
+    "pageTitle": "Configuración del proyecto",
+    "progress": {
+        "stagesLabel": "Etapas de configuración",
+        "stages": {
+            "explore": {
+                "label": "Explorar tu warehouse",
+                "activeLabel": "Explorando tu warehouse",
+                "description": "Lee tus tablas para encontrar un punto de partida útil."
+            },
+            "semantic_layer": {
+                "label": "Construir la capa semántica",
+                "activeLabel": "Construyendo la capa semántica",
+                "description": "Convierte tus datos en métricas y dimensiones reutilizables."
+            },
+            "dashboard": {
+                "label": "Crear un dashboard inicial",
+                "activeLabel": "Creando un dashboard inicial",
+                "description": "Reúne los primeros gráficos y filtros por ti."
+            },
+            "ready": {
+                "label": "Verificar y entregar",
+                "activeLabel": "Verificando y entregando",
+                "description": "Comprueba que todo funciona y abre el proyecto."
+            }
+        }
+    },
+    "run": {
+        "status": {
+            "queued": "En cola",
+            "running": "En ejecución",
+            "completed": "Completado",
+            "failed": "Requiere atención",
+            "cancelled": "Cancelado"
+        },
+        "statusMessage": {
+            "queued": "Tu configuración está en cola y empezará en breve.",
+            "running": "Puedes salir de esta página y volver en cualquier momento.",
+            "completed": "Tu capa semántica y tu dashboard inicial están listos.",
+            "failed": "No se pudo completar la configuración. Puedes intentarlo de nuevo.",
+            "cancelled": "Esta configuración se canceló. Puedes iniciar una nueva."
+        },
+        "cancelling": "Cancelando…",
+        "cancelSetup": "Cancelar configuración",
+        "skipToProject": "Ir al proyecto",
+        "viewDashboard": "Ver dashboard",
+        "openProject": "Abrir proyecto",
+        "tryAgain": "Intentar de nuevo",
+        "notFound": "No se encontró esta ejecución de onboarding.",
+        "title": "Construyendo tu proyecto de Lightdash",
+        "stopping": "Deteniendo la configuración…",
+        "setupStopped": "Configuración detenida",
+        "progress": "Progreso",
+        "generatedFiles": "Archivos generados",
+        "fileCount_one": "{{count}} archivo",
+        "fileCount_other": "{{count}} archivos"
+    },
+    "errors": {
+        "startFailed": "No se pudo iniciar la configuración del proyecto",
+        "cancelFailed": "No se pudo cancelar la configuración del proyecto"
+    },
+    "start": {
+        "title": "Configura tu capa semántica",
+        "subtitle": "Convierte las tablas de tu warehouse en métricas y dimensiones que tu equipo pueda explorar."
+    },
+    "completion": {
+        "title": "Tu proyecto de Lightdash está listo",
+        "subtitle": "Se han generado la capa semántica y el dashboard inicial."
+    },
+    "demoOffer": {
+        "failures": {
+            "unavailable": "Los proyectos de demostración no están disponibles en esta instancia.",
+            "previouslyRemoved": "El proyecto de demostración de tu organización se eliminó y no se puede volver a configurar.",
+            "forbidden": "No tienes permiso para crear un proyecto de demostración.",
+            "unknown": "Algo salió mal al preparar tu proyecto de demostración."
+        },
+        "actions": {
+            "settingUp": "configurando tu proyecto de demostración…",
+            "tryAgain": "intentarlo de nuevo",
+            "openDemo": "abrir el proyecto de demostración",
+            "exploreSampleData": "explorar datos de ejemplo"
+        },
+        "offer": "También puedes <action>{{action}}</action> mientras esperas."
+    },
+    "launch": {
+        "localPrompt": {
+            "title": "Completa la configuración de tu proyecto",
+            "description": "Copia el prompt de abajo y ejecútalo con tu agente de programación para terminar de configurar tu proyecto de Lightdash.",
+            "copied": "Prompt copiado",
+            "copy": "Copiar prompt"
+        },
+        "managed": {
+            "title": "Deja que Lightdash lo construya por ti",
+            "description": "Exploraremos tu warehouse, crearemos una capa semántica y construiremos un dashboard inicial. Puedes seguir cada paso.",
+            "runForMe": "Hazlo por mí",
+            "useOwnAgent": "Usar mi propio agente de programación"
+        }
+    }
+}

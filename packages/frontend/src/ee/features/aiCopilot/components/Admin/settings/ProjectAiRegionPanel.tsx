@@ -1,6 +1,7 @@
 import { FeatureFlags } from '@lightdash/common';
 import { Button, Group, Select, Stack, Text } from '@mantine/core';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../../../../../components/common/Callout';
 import EmptyStateLoader from '../../../../../../components/common/EmptyStateLoader';
 import { useServerFeatureFlag } from '../../../../../../hooks/useServerOrClientFeatureFlag';
@@ -17,6 +18,7 @@ type Props = {
 };
 
 export const ProjectAiRegionPanel: FC<Props> = ({ projectUuid }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const credentialsQuery = useAiProviderCredentials();
     const selectionQuery = useProjectAiProviderCredential(projectUuid);
     const setCredential = useSetProjectAiProviderCredential(projectUuid);
@@ -48,9 +50,7 @@ export const ProjectAiRegionPanel: FC<Props> = ({ projectUuid }) => {
     if (!customProvidersEnabled && storedUuid === null) {
         return (
             <Callout variant="info">
-                <Text fz="sm">
-                    Custom AI providers are not enabled for this organization.
-                </Text>
+                <Text fz="sm">{t('settings.projectRegion.notEnabled')}</Text>
             </Callout>
         );
     }
@@ -58,11 +58,7 @@ export const ProjectAiRegionPanel: FC<Props> = ({ projectUuid }) => {
     if (credentials.length === 0) {
         return (
             <Callout variant="info">
-                <Text fz="sm">
-                    No AI provider credentials are configured for this
-                    organization yet. An organization admin can add them in
-                    Organization settings → Ask AI.
-                </Text>
+                <Text fz="sm">{t('settings.projectRegion.noCredentials')}</Text>
             </Callout>
         );
     }
@@ -75,28 +71,31 @@ export const ProjectAiRegionPanel: FC<Props> = ({ projectUuid }) => {
             {!customProvidersEnabled && (
                 <Callout variant="warning">
                     <Text fz="sm">
-                        Custom AI providers are not enabled for this
-                        organization, so this project's pinned credential is not
-                        being served — AI features are unavailable in this
-                        project. Clear the pin, or enable custom providers.
+                        {t('settings.projectRegion.pinNotServed')}
                     </Text>
                 </Callout>
             )}
             <Select
-                label="AI provider credential"
-                description="Where this project's Ask AI requests are processed."
+                label={t('settings.projectRegion.label')}
+                description={t('settings.projectRegion.description')}
                 data={[
                     {
                         value: ORGANIZATION_DEFAULT,
                         label: defaultCredential
-                            ? `Organization default — ${defaultCredential.label} (${defaultCredential.region})`
-                            : 'Organization default',
+                            ? t('settings.projectRegion.orgDefaultWith', {
+                                  label: defaultCredential.label,
+                                  region: defaultCredential.region,
+                              })
+                            : t('settings.projectRegion.orgDefault'),
                     },
                     // While the flag is off only clearing is offered — the
                     // backend rejects any new pin.
                     ...credentials.map((credential) => ({
                         value: credential.uuid,
-                        label: `${credential.label} — ${credential.region}`,
+                        label: t('settings.projectRegion.credentialOption', {
+                            label: credential.label,
+                            region: credential.region,
+                        }),
                         disabled: !customProvidersEnabled,
                     })),
                 ]}
@@ -107,13 +106,7 @@ export const ProjectAiRegionPanel: FC<Props> = ({ projectUuid }) => {
             {/* The honest limit of project-level pinning: a request that has
                 to pick a project before it can run cannot already know it. */}
             <Callout variant="info">
-                <Text fz="sm">
-                    This covers Ask AI, agent conversations and generated
-                    content in this project. It cannot cover Slack agent
-                    routing, which asks a model which project a message belongs
-                    to before any project is known — that call uses the
-                    organization default.
-                </Text>
+                <Text fz="sm">{t('settings.projectRegion.coverage')}</Text>
             </Callout>
 
             <Group>
@@ -126,7 +119,7 @@ export const ProjectAiRegionPanel: FC<Props> = ({ projectUuid }) => {
                         )
                     }
                 >
-                    Save
+                    {t('actions.save', { ns: 'common' })}
                 </Button>
             </Group>
         </Stack>

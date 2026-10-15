@@ -7,6 +7,7 @@ import {
 import { Button, getDefaultZIndex, Menu, Text } from '@mantine/core';
 import { IconCheck, IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useProjectUserWarehouseCredentialsPreference,
     useProjectUserWarehouseCredentialsPreferenceMutation,
@@ -39,6 +40,7 @@ const ConnectionCredentialsSwitcher: FC<Props> = ({
     project,
     onPreferenceSaved,
 }) => {
+    const { t } = useTranslation('navigation');
     const menuProps = useNavBarMenuProps();
     const [creatingFor, setCreatingFor] =
         useState<ConnectionCredentialsSection | null>(null);
@@ -150,7 +152,7 @@ const ConnectionCredentialsSwitcher: FC<Props> = ({
             >
                 <Menu.Target>
                     <Button
-                        aria-label="Warehouse credentials"
+                        aria-label={t('credentials.label')}
                         variant="default"
                         size="xs"
                     >
@@ -163,8 +165,9 @@ const ConnectionCredentialsSwitcher: FC<Props> = ({
                 <Menu.Dropdown>
                     {connectionsError && (
                         <Text c="red" fz="xs" px="sm" py="xs" maw={260}>
-                            Could not load the warehouse connections:{' '}
-                            {connectionsError.error.message}
+                            {t('credentials.loadConnectionsFailed', {
+                                message: connectionsError.error.message,
+                            })}
                         </Text>
                     )}
                     {sections.map((section, index) => (
@@ -201,35 +204,38 @@ const ConnectionCredentialsMenuSection: FC<{
     credentials: UserWarehouseCredentials[];
     hasDivider: boolean;
     onCreate: () => void;
-}> = ({ section, credentials, hasDivider, onCreate }) => (
-    <>
-        {hasDivider && <Menu.Divider />}
-        <Menu.Label>
-            <Text fz="xs" fw={600} truncate>
-                {section.name}
-            </Text>
-        </Menu.Label>
-        {credentials.map((item) => (
+}> = ({ section, credentials, hasDivider, onCreate }) => {
+    const { t } = useTranslation('navigation');
+    return (
+        <>
+            {hasDivider && <Menu.Divider />}
+            <Menu.Label>
+                <Text fz="xs" fw={600} truncate>
+                    {section.name}
+                </Text>
+            </Menu.Label>
+            {credentials.map((item) => (
+                <Menu.Item
+                    key={item.uuid}
+                    leftSection={<MantineIcon icon={IconDatabaseCog} />}
+                    rightSection={
+                        section.selectedUuid === item.uuid ? (
+                            <MantineIcon icon={IconCheck} />
+                        ) : undefined
+                    }
+                    onClick={() => section.onSelect(item.uuid)}
+                >
+                    {item.name}
+                </Menu.Item>
+            ))}
             <Menu.Item
-                key={item.uuid}
-                leftSection={<MantineIcon icon={IconDatabaseCog} />}
-                rightSection={
-                    section.selectedUuid === item.uuid ? (
-                        <MantineIcon icon={IconCheck} />
-                    ) : undefined
-                }
-                onClick={() => section.onSelect(item.uuid)}
+                leftSection={<MantineIcon icon={IconPlus} />}
+                onClick={onCreate}
             >
-                {item.name}
+                {t('credentials.createNew')}
             </Menu.Item>
-        ))}
-        <Menu.Item
-            leftSection={<MantineIcon icon={IconPlus} />}
-            onClick={onCreate}
-        >
-            Create new
-        </Menu.Item>
-    </>
-);
+        </>
+    );
+};
 
 export default ConnectionCredentialsSwitcher;

@@ -8,6 +8,7 @@ import { Button, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPencil } from '@tabler/icons-react';
 import React, { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useUpdateOrganizationWarehouseCredentials } from '../../../hooks/organization/useOrganizationWarehouseCredentials';
 import MantineModal, {
     type MantineModalProps,
@@ -21,6 +22,7 @@ export const EditCredentialsModal: FC<
         organizationCredentials: OrganizationWarehouseCredentials;
     }
 > = ({ opened, onClose, organizationCredentials }) => {
+    const { t } = useTranslation('userSettings');
     const [isAuthenticated, setIsAuthenticated] = React.useState(false);
     const { mutateAsync, isLoading: isSaving } =
         useUpdateOrganizationWarehouseCredentials();
@@ -57,7 +59,9 @@ export const EditCredentialsModal: FC<
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Edit credentials"
+            title={t(
+                'organizationWarehouseCredentialsPanel.editCredentialsModal.title',
+            )}
             icon={IconPencil}
             size="lg"
             cancelDisabled={isSaving}
@@ -68,7 +72,7 @@ export const EditCredentialsModal: FC<
                     disabled={isSaving || !isAuthenticated}
                     loading={isSaving}
                 >
-                    Save
+                    {t('actions.save', { ns: 'common' })}
                 </Button>
             }
         >

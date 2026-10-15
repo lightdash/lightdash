@@ -20,6 +20,7 @@ import {
 import { IconExclamationCircle } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { memo, useCallback, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import CodeBlock from '../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
@@ -59,6 +60,7 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
         message,
         index,
     }) => {
+        const { t } = useTranslation('aiCopilotChat');
         const queryClient = useQueryClient();
         const isEmbed = useIsEmbedded();
         const identityFlag = useServerFeatureFlag(FeatureFlags.AgentIdentity);
@@ -291,7 +293,7 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
                                         fw={500}
                                         ta="center"
                                     >
-                                        Failed to load visualization
+                                        {t('dashboardViz.itemLoadFailed')}
                                     </Text>
                                 </Group>
                                 <Text size="xs" c="dimmed" ta="center">

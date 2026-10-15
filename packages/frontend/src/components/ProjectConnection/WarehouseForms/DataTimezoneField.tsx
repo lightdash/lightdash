@@ -12,6 +12,7 @@ import {
     Text,
 } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useDataTimezonePreviewMutation } from '../../../hooks/useProject';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import TimeZonePicker from '../../common/TimeZonePicker';
@@ -45,6 +46,7 @@ const Connector: FC<{ children: ReactNode }> = ({ children }) => (
 );
 
 const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
+    const { t } = useTranslation('projectConnection');
     const form = useFormContext();
     const { savedProject } = useProjectFormContext();
     const { data: timezoneSupportFlag } = useServerFeatureFlag(
@@ -87,11 +89,11 @@ const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
             <TimeZonePicker
                 size="sm"
                 maw="100%"
-                label="Data timezone"
-                description="The timezone your warehouse stores ambiguous timestamps in. Defaults to UTC if not set."
+                label={t('dataTimezone.label')}
+                description={t('dataTimezone.description')}
                 searchable
                 clearable
-                placeholder="Not set (uses warehouse default)"
+                placeholder={t('dataTimezone.placeholder')}
                 disabled={disabled}
                 {...form.getInputProps('warehouse.dataTimezone')}
             />
@@ -102,64 +104,68 @@ const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
                 loading={preview.isLoading}
                 disabled={disabled}
             >
-                Preview
+                {t('dataTimezone.preview')}
             </Button>
 
             {preview.isError && (
-                <Alert color="red" title="Could not preview">
-                    {preview.error?.error.message ?? 'Connection failed'}
+                <Alert color="red" title={t('dataTimezone.previewFailed')}>
+                    {preview.error?.error.message ??
+                        t('dataTimezone.connectionFailed')}
                 </Alert>
             )}
 
             {result && (
                 <Stack gap="xs">
                     <Text size="xs" c="dimmed">
-                        The current moment, step by step
+                        {t('dataTimezone.stepByStep')}
                     </Text>
                     {!result.dataTimezoneApplies && (
                         <Text size="xs" c="dimmed">
-                            No data timezone set, so the warehouse reads the
-                            bare value in its own session timezone. Pick one
-                            above to control it.
+                            {t('dataTimezone.noTimezone')}
                         </Text>
                     )}
                     <PipelineStep
                         n={1}
-                        title="From the warehouse"
-                        value={`${result.naive.raw}  ·  no timezone`}
+                        title={t('dataTimezone.fromWarehouse')}
+                        value={t('dataTimezone.rawValue', {
+                            raw: result.naive.raw,
+                        })}
                     />
                     <Connector>
-                        read as {result.naive.interpretedAs}
                         {result.dataTimezoneApplies
-                            ? ' (your data timezone)'
-                            : ''}
+                            ? t('dataTimezone.readAsDataTimezone', {
+                                  timezone: result.naive.interpretedAs,
+                              })
+                            : t('dataTimezone.readAs', {
+                                  timezone: result.naive.interpretedAs,
+                              })}
                     </Connector>
                     <PipelineStep
                         n={2}
-                        title="An exact moment in time"
+                        title={t('dataTimezone.exactMoment')}
                         value={result.naive.readAs}
                     />
                     <Connector>
-                        shown in {result.projectTimezone} (your project
-                        timezone)
+                        {t('dataTimezone.shownIn', {
+                            timezone: result.projectTimezone,
+                        })}
                     </Connector>
                     <PipelineStep
                         n={3}
-                        title="What users see"
+                        title={t('dataTimezone.whatUsersSee')}
                         value={result.naive.rendered}
                     />
                     <Divider my={4} />
                     <Text size="xs" c="dimmed">
-                        If a column already stores a timezone, step 1 is
-                        skipped: the moment is already exact (
-                        <Text span ff="monospace">
-                            {result.aware.raw} UTC
-                        </Text>
-                        ) and your data timezone is ignored, so users see{' '}
-                        <Text span ff="monospace">
-                            {result.aware.rendered}
-                        </Text>
-                        .
+                        <Trans
+                            t={t}
+                            i18nKey="dataTimezone.awareNote"
+                            values={{
+                                raw: result.aware.raw,
+                                rendered: result.aware.rendered,
+                            }}
+                            components={{ mono: <Text span ff="monospace" /> }}
+                        />
                     </Text>
                 </Stack>
             )}

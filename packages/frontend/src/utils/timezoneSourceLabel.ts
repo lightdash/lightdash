@@ -3,6 +3,7 @@ import {
     PROJECT_TIMEZONE_SETTING,
     USER_TIMEZONE_SETTING,
 } from '@lightdash/common';
+import i18n from '../i18n/i18n';
 
 // Explains where a chart's resolved time zone came from, classifying its single
 // `timezone` setting as project default / per-viewer / pinned override.
@@ -11,14 +12,23 @@ export const getTimezoneSourceLabel = (
     resolvedTimezone: string,
 ): string => {
     if (timezoneSetting === USER_TIMEZONE_SETTING) {
-        return `This chart follows each viewer's own time zone. You're seeing it in ${resolvedTimezone}.`;
+        return i18n.t('timezoneSource.viewer', {
+            ns: 'app',
+            timezone: resolvedTimezone,
+        });
     }
     if (
         timezoneSetting &&
         timezoneSetting !== PROJECT_TIMEZONE_SETTING &&
         isTimeZone(timezoneSetting)
     ) {
-        return `This chart is pinned to ${resolvedTimezone} and won't follow the project time zone.`;
+        return i18n.t('timezoneSource.pinned', {
+            ns: 'app',
+            timezone: resolvedTimezone,
+        });
     }
-    return `This chart resolves in the project time zone (${resolvedTimezone}).`;
+    return i18n.t('timezoneSource.project', {
+        ns: 'app',
+        timezone: resolvedTimezone,
+    });
 };

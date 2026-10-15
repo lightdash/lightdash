@@ -1,0 +1,40 @@
+{
+    "totals": {
+        "total": "Total",
+        "noTotal": "Sin total",
+        "noTotalWithReason": "Sin total: {{reason}}",
+        "calculationErrorWithMessage": "Error al calcular el total: {{message}}",
+        "fromSourceExplanation": "Total de la consulta {{sourceLabel}}. La combinación conserva todas las filas de {{sourceLabel}}, por lo que es el total de las filas mostradas.",
+        "totalOf": "Total {{label}}"
+    },
+    "imageCell": {
+        "loadFailed": "No se pudo cargar la imagen \"{{imageUrl}}\"",
+        "loadFailedWithError": "No se pudo cargar la imagen \"{{imageUrl}}\": {{error}}"
+    },
+    "pagination": {
+        "resultCount_one": "{{count}} resultado",
+        "resultCount_other": "{{count}} resultados",
+        "pages": "Páginas",
+        "scroll": "Desplazamiento"
+    },
+    "scrollableTable": {
+        "loadingMoreRows": "Cargando más filas..."
+    },
+    "paginateControl": {
+        "pageOf": "Página <strong>{{currentPage}}</strong> de <strong>{{totalPages}}</strong>"
+    },
+    "valueCellMenu": {
+        "copyValue": "Copiar valor",
+        "drillInto": "Profundizar en <value>{{value}}</value>"
+    },
+    "jsonViewer": {
+        "title": "Celda JSON",
+        "copyJson": "Copiar JSON",
+        "copiedJson": "JSON copiado",
+        "selectedPath": "Ruta seleccionada",
+        "copyPath": "Copiar ruta",
+        "treeTab": "Árbol",
+        "textTab": "Texto",
+        "viewJson": "Ver JSON"
+    }
+}

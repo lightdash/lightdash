@@ -1,6 +1,7 @@
 import { Button } from '@mantine/core';
 import { IconGitMerge } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 
 /**
@@ -10,13 +11,16 @@ import MantineIcon from '../../../components/common/MantineIcon';
  */
 export const JoinWithWarehouseHint: FC<{ onClick: () => void }> = ({
     onClick,
-}) => (
-    <Button
-        variant="light"
-        size="compact-xs"
-        leftSection={<MantineIcon icon={IconGitMerge} size="sm" />}
-        onClick={onClick}
-    >
-        Join with your warehouse data
-    </Button>
-);
+}) => {
+    const { t } = useTranslation('sync');
+    return (
+        <Button
+            variant="light"
+            size="compact-xs"
+            leftSection={<MantineIcon icon={IconGitMerge} size="sm" />}
+            onClick={onClick}
+        >
+            {t('externalSources.joinWithWarehouse')}
+        </Button>
+    );
+};

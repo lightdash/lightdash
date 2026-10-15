@@ -1,5 +1,6 @@
 import { useLocalStorage } from '@mantine/hooks';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import i18n from '../../../i18n/i18n';
 import type { QueryEvent } from './useAppSdkBridge';
 
 const PERSIST_LOGS_STORAGE_KEY = 'data-apps:persist-logs';
@@ -123,7 +124,7 @@ export const useTrackedAppQueries = (
             return {
                 ...q,
                 status: 'error' as const,
-                error: 'Interrupted by reload',
+                error: i18n.t('inspector.interruptedByReload', { ns: 'apps' }),
             };
         });
         if (mutated) commitQueries(next);

@@ -3,12 +3,14 @@ import { Menu } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useToaster from '../../hooks/toaster/useToaster';
 import MantineIcon from '../common/MantineIcon';
 import { type CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 
 const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
+    const { t } = useTranslation('app');
     const clipboard = useClipboard({ timeout: 2000 });
     const { showToastSuccess } = useToaster();
 
@@ -20,8 +22,8 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
 
     const handleCopyToClipboard = useCallback(() => {
         clipboard.copy(value.formatted);
-        showToastSuccess({ title: 'Copied to clipboard!' });
-    }, [value, clipboard, showToastSuccess]);
+        showToastSuccess({ title: t('metricQueryData.copiedToClipboard') });
+    }, [value, clipboard, showToastSuccess, t]);
 
     const urls: FieldUrl[] | undefined = useMemo(
         () =>
@@ -39,7 +41,7 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                 leftSection={<MantineIcon icon={IconCopy} />}
                 onClick={handleCopyToClipboard}
             >
-                Copy value
+                {t('metricQueryData.copyValue')}
             </Menu.Item>
         </>
     );

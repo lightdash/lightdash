@@ -18,6 +18,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useToaster from '../../../hooks/toaster/useToaster';
 import useSearchParams from '../../../hooks/useSearchParams';
 import githubIcon from '../../../svgs/github-icon.svg';
@@ -32,6 +33,7 @@ import classes from './GithubSettingsPanel.module.css';
 const GITHUB_INSTALL_URL = `/api/v1/github/install`;
 
 const GithubSettingsPanel: FC = () => {
+    const { t } = useTranslation('userSettings');
     const { data, isError, isInitialLoading } = useGitHubRepositories();
     const deleteGithubInstallationMutation =
         useDeleteGithubInstallationMutation();
@@ -50,9 +52,8 @@ const GithubSettingsPanel: FC = () => {
         ) {
             const toastKey = 'github_request_sent';
             showToastWarning({
-                title: 'GitHub app installation pending',
-                subtitle:
-                    'The GitHub app is waiting to be authorized by a Github admin.',
+                title: t('githubSettingsPanel.pendingToast.title'),
+                subtitle: t('githubSettingsPanel.pendingToast.subtitle'),
                 key: toastKey,
             });
         }
@@ -61,6 +62,7 @@ const GithubSettingsPanel: FC = () => {
         isValidGithubInstallation,
         isInitialLoading,
         showToastWarning,
+        t,
     ]);
 
     if (isInitialLoading) {
@@ -78,8 +80,7 @@ const GithubSettingsPanel: FC = () => {
 
             <Stack>
                 <Text c="dimmed" fz="xs">
-                    Installing GitHub App allows Lightdash to access your GitHub
-                    repositories and create pull requests.
+                    {t('githubSettingsPanel.description')}
                 </Text>
 
                 {isValidGithubInstallation && data.length === 0 && (
@@ -87,15 +88,15 @@ const GithubSettingsPanel: FC = () => {
                         color="blue"
                         icon={<MantineIcon icon={IconAlertCircle} />}
                     >
-                        Your GitHub integration doesn't have access to any
-                        repository.
+                        {t('githubSettingsPanel.noRepositories')}
                     </Alert>
                 )}
                 {isValidGithubInstallation && data && data.length > 0 && (
                     <Stack gap="xs">
                         <Text c="dimmed" fz="xs">
-                            Your GitHub integration has access to the following
-                            repositories ({data.length}):
+                            {t('githubSettingsPanel.repositoriesAccess', {
+                                count: data.length,
+                            })}
                         </Text>
                         <Box mah={200} className={classes.repositoryList}>
                             <Text
@@ -137,7 +138,7 @@ const GithubSettingsPanel: FC = () => {
                                     );
                                 }}
                             >
-                                Reinstall
+                                {t('githubSettingsPanel.reinstall')}
                             </Button>
                             <Button
                                 size="xs"
@@ -149,7 +150,7 @@ const GithubSettingsPanel: FC = () => {
                                 }
                                 leftSection={<MantineIcon icon={IconTrash} />}
                             >
-                                Delete
+                                {t('actions.delete', { ns: 'common' })}
                             </Button>
                         </Group>
                     </Stack>
@@ -158,9 +159,9 @@ const GithubSettingsPanel: FC = () => {
                         {isWaitingForGithubRequest ? (
                             <Tooltip
                                 maw={400}
-                                label={`
-                                An admin from your GitHub organization needs to approve this app
-                                installation. They should have received an email for a "Request to install lightdash" from GitHub.`}
+                                label={t(
+                                    'githubSettingsPanel.pendingApprovalTooltip',
+                                )}
                             >
                                 <Button
                                     size="xs"
@@ -173,7 +174,7 @@ const GithubSettingsPanel: FC = () => {
                                         <MantineIcon icon={IconClock} />
                                     }
                                 >
-                                    Pending approval
+                                    {t('githubSettingsPanel.pendingApproval')}
                                 </Button>
                             </Tooltip>
                         ) : (
@@ -183,7 +184,7 @@ const GithubSettingsPanel: FC = () => {
                                 target="_blank"
                                 href={GITHUB_INSTALL_URL}
                             >
-                                Install
+                                {t('githubSettingsPanel.install')}
                             </Button>
                         )}
                     </Flex>

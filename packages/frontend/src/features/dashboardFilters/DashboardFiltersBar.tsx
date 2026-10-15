@@ -23,6 +23,7 @@ import {
     IconFilter,
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useCompactContentHeader } from '../../components/common/Page/useCompactContentHeader';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
@@ -79,6 +80,7 @@ export const DashboardFiltersBar: FC<Props> = ({
     const compact = useCompactContentHeader();
     const [opened, { open, close }] = useDisclosure(false);
     const getUiString = useUiStrings();
+    const { t } = useTranslation('dashboardFilters');
     const isAddFilterDisabled = useDashboardContext(
         (c) => c.isAddFilterDisabled,
     );
@@ -98,12 +100,9 @@ export const DashboardFiltersBar: FC<Props> = ({
             tooltipLabel={
                 <Box>
                     <Text fw={500} fz="xs">
-                        Parameters
+                        {t('bar.parameters.title')}
                     </Text>
-                    <Text fz="xs">
-                        Adjust preset inputs that change how the dashboard's
-                        numbers are calculated.
-                    </Text>
+                    <Text fz="xs">{t('bar.parameters.description')}</Text>
                 </Box>
             }
         />
@@ -148,11 +147,10 @@ export const DashboardFiltersBar: FC<Props> = ({
                                     tooltipLabel={
                                         <Box>
                                             <Text fw={500} fz="xs">
-                                                Filters
+                                                {t('bar.filters.title')}
                                             </Text>
                                             <Text fz="xs">
-                                                Refine your dashboard by
-                                                choosing which data to see.
+                                                {t('bar.filters.description')}
                                             </Text>
                                         </Box>
                                     }
@@ -216,11 +214,10 @@ export const DashboardFiltersBar: FC<Props> = ({
                                     tooltipLabel={
                                         <Box>
                                             <Text fw={500} fz="xs">
-                                                Date Zoom
+                                                {t('bar.dateZoom.title')}
                                             </Text>
                                             <Text fz="xs">
-                                                Quickly change the date
-                                                granularity of charts.
+                                                {t('bar.dateZoom.description')}
                                             </Text>
                                         </Box>
                                     }
@@ -229,12 +226,18 @@ export const DashboardFiltersBar: FC<Props> = ({
                                     <Tooltip
                                         label={
                                             isDateZoomDisabled
-                                                ? 'Date zoom is hidden from viewers. Click to show.'
-                                                : 'Hide date zoom from viewers'
+                                                ? t(
+                                                      'bar.dateZoom.hiddenFromViewers',
+                                                  )
+                                                : t(
+                                                      'bar.dateZoom.hideFromViewers',
+                                                  )
                                         }
                                     >
                                         <ActionIcon
-                                            aria-label="Toggle date zoom visibility for viewers"
+                                            aria-label={t(
+                                                'bar.dateZoom.toggleVisibility',
+                                            )}
                                             onClick={() =>
                                                 setIsDateZoomDisabled(
                                                     !isDateZoomDisabled,
@@ -260,7 +263,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                     {!isEditMode && !compact && (
                         <>
                             <Divider orientation="vertical" />
-                            <Tooltip label="Hide filters">
+                            <Tooltip label={t('bar.hideFilters')}>
                                 <Button
                                     size="xs"
                                     variant="subtle"
@@ -270,7 +273,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                                     }
                                     onClick={onCollapse}
                                 >
-                                    Hide
+                                    {t('bar.hide')}
                                 </Button>
                             </Tooltip>
                         </>

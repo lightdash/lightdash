@@ -1,6 +1,7 @@
 import { type TextInputProps } from '@mantine/core';
 import { useDebouncedCallback } from '@mantine/hooks';
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ContentTableSearchInput } from '../../../../../components/common/ContentTable';
 import { type useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
 
@@ -18,6 +19,7 @@ export const SearchFilter = ({
     placeholder,
     debounceMs,
 }: SearchFilterProps) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const [inputValue, setInputValue] = useState(search ?? '');
     const debouncedSetSearch = useDebouncedCallback(setSearch, debounceMs ?? 0);
 
@@ -37,7 +39,7 @@ export const SearchFilter = ({
 
     return (
         <ContentTableSearchInput
-            tooltipLabel="Search current view"
+            tooltipLabel={t('filters.search.tooltip')}
             placeholder={placeholder}
             value={debounceMs ? inputValue : (search ?? '')}
             onChange={handleChange}

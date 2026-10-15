@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { Group, Loader, Pill } from '@mantine/core';
 import { IconFileText, IconTable } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ElementRefPill } from '../../../../../features/apps/components/ElementRefPill';
 import {
@@ -44,62 +45,76 @@ export const PromptAttachments = <T extends ElementRef>({
     pendingThreadFiles,
     elementRefs,
     onRemoveElementRef,
-}: Props<T>) => (
-    <Pill.Group>
-        {externalSources.map((attachment) => (
-            <Pill
-                key={attachment.sourceUuid}
-                withRemoveButton
-                onRemove={() => onRemoveExternalSource(attachment.sourceUuid)}
-            >
-                {attachment.displayName}
-                {attachment.tables.length > 1
-                    ? ` · ${attachment.tables.length} tables`
-                    : ''}
-            </Pill>
-        ))}
-        {pendingCsvFiles.map((file) => (
-            <Pill key={file.id}>
-                <Group gap={6} wrap="nowrap">
-                    {file.status === 'preparing' && <Loader size={10} />}
-                    {file.status === 'queued' ? 'Queued' : 'Preparing'}{' '}
-                    {file.filename}
-                </Group>
-            </Pill>
-        ))}
-        {threadFiles.map((attachment) => (
-            <Pill
-                key={attachment.fileUuid}
-                withRemoveButton
-                onRemove={() => onRemoveThreadFile(attachment.fileUuid)}
-            >
-                <Group gap={4} wrap="nowrap">
-                    <MantineIcon
-                        icon={
-                            isTabularThreadFileName(attachment.fileName)
-                                ? IconTable
-                                : IconFileText
-                        }
-                        size={12}
-                    />
-                    {attachment.fileName}
-                </Group>
-            </Pill>
-        ))}
-        {pendingThreadFiles.map((file) => (
-            <Pill key={`document-${file.id}`}>
-                <Group gap={6} wrap="nowrap">
-                    <Loader size={10} />
-                    Uploading {file.filename}
-                </Group>
-            </Pill>
-        ))}
-        {elementRefs.map((ref) => (
-            <ElementRefPill
-                key={elementRefKey(ref)}
-                elementRef={ref}
-                onRemove={() => onRemoveElementRef(ref)}
-            />
-        ))}
-    </Pill.Group>
-);
+}: Props<T>) => {
+    const { t } = useTranslation('aiCopilotChat');
+    return (
+        <Pill.Group>
+            {externalSources.map((attachment) => (
+                <Pill
+                    key={attachment.sourceUuid}
+                    withRemoveButton
+                    onRemove={() =>
+                        onRemoveExternalSource(attachment.sourceUuid)
+                    }
+                >
+                    {attachment.displayName}
+                    {attachment.tables.length > 1
+                        ? ` · ${t('attachments.tables', {
+                              count: attachment.tables.length,
+                          })}`
+                        : ''}
+                </Pill>
+            ))}
+            {pendingCsvFiles.map((file) => (
+                <Pill key={file.id}>
+                    <Group gap={6} wrap="nowrap">
+                        {file.status === 'preparing' && <Loader size={10} />}
+                        {file.status === 'queued'
+                            ? t('attachments.queued', {
+                                  filename: file.filename,
+                              })
+                            : t('attachments.preparing', {
+                                  filename: file.filename,
+                              })}
+                    </Group>
+                </Pill>
+            ))}
+            {threadFiles.map((attachment) => (
+                <Pill
+                    key={attachment.fileUuid}
+                    withRemoveButton
+                    onRemove={() => onRemoveThreadFile(attachment.fileUuid)}
+                >
+                    <Group gap={4} wrap="nowrap">
+                        <MantineIcon
+                            icon={
+                                isTabularThreadFileName(attachment.fileName)
+                                    ? IconTable
+                                    : IconFileText
+                            }
+                            size={12}
+                        />
+                        {attachment.fileName}
+                    </Group>
+                </Pill>
+            ))}
+            {pendingThreadFiles.map((file) => (
+                <Pill key={`document-${file.id}`}>
+                    <Group gap={6} wrap="nowrap">
+                        <Loader size={10} />
+                        {t('attachments.uploading', {
+                            filename: file.filename,
+                        })}
+                    </Group>
+                </Pill>
+            ))}
+            {elementRefs.map((ref) => (
+                <ElementRefPill
+                    key={elementRefKey(ref)}
+                    elementRef={ref}
+                    onRemove={() => onRemoveElementRef(ref)}
+                />
+            ))}
+        </Pill.Group>
+    );
+};

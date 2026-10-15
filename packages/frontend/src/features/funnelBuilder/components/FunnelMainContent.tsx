@@ -1,5 +1,6 @@
 import { Group, Loader, Stack, Text } from '@mantine/core';
 import { useEffect, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '../store';
 import { selectQueryLoading, selectResults } from '../store/funnelBuilderSlice';
 import { FunnelBarChart } from './FunnelBarChart';
@@ -11,6 +12,7 @@ import { FunnelResultsTable } from './FunnelResultsTable';
 const LOADING_DEBOUNCE_MS = 200;
 
 export const FunnelMainContent: FC = () => {
+    const { t } = useTranslation('metricsCatalog');
     const results = useAppSelector(selectResults);
     const isLoading = useAppSelector(selectQueryLoading);
 
@@ -69,9 +71,9 @@ export const FunnelMainContent: FC = () => {
             {!results && !isLoading && (
                 <Stack align="center" justify="center" h="100%" gap="md">
                     <Text c="dimmed" ta="center">
-                        Configure your funnel in the sidebar
+                        {t('funnelBuilder.emptyState.configure')}
                         <br />
-                        Select fields and add at least 2 steps to see results
+                        {t('funnelBuilder.emptyState.selectFields')}
                     </Text>
                 </Stack>
             )}

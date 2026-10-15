@@ -5,6 +5,7 @@ import {
     IconLock,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 
 type EditorToolbarProps = {
@@ -26,6 +27,7 @@ const EditorToolbar: FC<EditorToolbarProps> = ({
     onSave,
     onCreatePR,
 }) => {
+    const { t } = useTranslation('sourceCode');
     const pathParts = filePath?.split('/').filter(Boolean) ?? [];
     const canSave = canManage && !isProtectedBranch && hasUnsavedChanges;
     const canCreatePR = canManage && !isProtectedBranch && !hasUnsavedChanges;
@@ -57,13 +59,13 @@ const EditorToolbar: FC<EditorToolbarProps> = ({
                         </Breadcrumbs>
                         {hasUnsavedChanges && (
                             <Text fz="xs" c="ldGray.5">
-                                (modified)
+                                {t('toolbar.modified')}
                             </Text>
                         )}
                     </>
                 ) : (
                     <Text fz="sm" c="ldGray.5">
-                        Select a file to view
+                        {t('toolbar.selectFile')}
                     </Text>
                 )}
             </Group>
@@ -77,7 +79,7 @@ const EditorToolbar: FC<EditorToolbarProps> = ({
                             size={14}
                         />
                         <Text fz="xs" c="ldGray.5">
-                            Read-only (protected branch)
+                            {t('toolbar.readOnly')}
                         </Text>
                     </Group>
                 )}
@@ -97,7 +99,7 @@ const EditorToolbar: FC<EditorToolbarProps> = ({
                             disabled={!canSave || isSaving}
                             onClick={onSave}
                         >
-                            Save
+                            {t('actions.save', { ns: 'common' })}
                         </Button>
                         <Button
                             size="xs"
@@ -108,7 +110,7 @@ const EditorToolbar: FC<EditorToolbarProps> = ({
                             disabled={!canCreatePR}
                             onClick={onCreatePR}
                         >
-                            Create Pull Request
+                            {t('toolbar.createPullRequest')}
                         </Button>
                     </>
                 )}

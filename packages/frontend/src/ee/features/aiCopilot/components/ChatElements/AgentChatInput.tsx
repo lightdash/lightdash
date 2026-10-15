@@ -47,6 +47,7 @@ import {
     useState,
     type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
@@ -224,9 +225,6 @@ const buildSubmitContext = ({
         ...(optimisticContext.length > 0 ? { optimisticContext } : {}),
     };
 };
-const ACTIVE_DEEP_RESEARCH_DISABLED_REASON =
-    'Only one deep research run can be active in a thread at a time.';
-
 type AgentComposerMode = 'ask' | 'deep_research';
 
 const SuggestionChipMention = Mention.extend({
@@ -336,7 +334,7 @@ export const AgentChatInput = ({
     loading = false,
     disabled: disabledProp = false,
     disabledReason,
-    placeholder = 'Ask anything',
+    placeholder: placeholderProp,
     messageCount = 0,
     accessCalloutVariant,
     projectUuid,
@@ -366,6 +364,8 @@ export const AgentChatInput = ({
     threadModelName,
     threadModelWarning = null,
 }: AgentChatInputProps) => {
+    const { t } = useTranslation('aiCopilotChat');
+    const placeholder = placeholderProp ?? t('input.placeholder');
     const accessGate = useAiAccessGate(projectUuid);
     const accessRefused = accessGate.disabled;
     const disabled = disabledProp || accessRefused;
@@ -924,7 +924,7 @@ export const AgentChatInput = ({
                         color="dimmed"
                     />
                     <Text size="sm" fw={500} c="dimmed">
-                        Drop files to analyze them
+                        {t('input.dropFiles')}
                     </Text>
                 </Stack>
             </Box>
@@ -1157,10 +1157,10 @@ export const AgentChatInput = ({
             <Menu.Item
                 aria-label={
                     hasActiveDeepResearchRun
-                        ? `Deep research unavailable. ${ACTIVE_DEEP_RESEARCH_DISABLED_REASON}`
+                        ? t('input.deepResearchUnavailable')
                         : composerMode === 'deep_research'
-                          ? 'Disable deep research'
-                          : 'Enable deep research'
+                          ? t('input.disableDeepResearch')
+                          : t('input.enableDeepResearch')
                 }
                 disabled={hasActiveDeepResearchRun}
                 closeMenuOnClick={false}
@@ -1196,11 +1196,11 @@ export const AgentChatInput = ({
                 }
             >
                 <Text component="span" size="sm">
-                    Deep research
+                    {t('input.deepResearch')}
                 </Text>
                 {hasActiveDeepResearchRun && (
                     <Text component="span" display="block" size="xs" c="dimmed">
-                        {ACTIVE_DEEP_RESEARCH_DISABLED_REASON}
+                        {t('input.activeDeepResearchReason')}
                     </Text>
                 )}
             </Menu.Item>
@@ -1215,7 +1215,7 @@ export const AgentChatInput = ({
                     <ActionIcon
                         size={30}
                         radius="xl"
-                        aria-label="Composer options"
+                        aria-label={t('input.composerOptions')}
                         // Anchor for scope walkthroughs (data-tour-via)
                         data-tour-anchor="composer-options"
                         data-tour-hint="Open the composer options"
@@ -1250,8 +1250,10 @@ export const AgentChatInput = ({
                                             {...fileButtonProps}
                                             aria-label={
                                                 canUseAttachControl
-                                                    ? 'Attach a CSV'
-                                                    : 'Attach a CSV unavailable in deep research'
+                                                    ? t('input.attachCsv')
+                                                    : t(
+                                                          'input.attachCsvUnavailable',
+                                                      )
                                             }
                                             disabled={
                                                 isPreparingCsv ||
@@ -1264,7 +1266,7 @@ export const AgentChatInput = ({
                                                 />
                                             }
                                         >
-                                            Attach a CSV
+                                            {t('input.attachCsv')}
                                         </Menu.Item>
                                     )}
                                 </FileButton>
@@ -1289,8 +1291,10 @@ export const AgentChatInput = ({
                                             {...fileButtonProps}
                                             aria-label={
                                                 canUseAttachControl
-                                                    ? 'Attach a document'
-                                                    : 'Attach a document unavailable in deep research'
+                                                    ? t('input.attachDocument')
+                                                    : t(
+                                                          'input.attachDocumentUnavailable',
+                                                      )
                                             }
                                             disabled={
                                                 isUploadingThreadFile ||
@@ -1303,7 +1307,7 @@ export const AgentChatInput = ({
                                                 />
                                             }
                                         >
-                                            Attach a document
+                                            {t('input.attachDocument')}
                                         </Menu.Item>
                                     )}
                                 </FileButton>
@@ -1320,8 +1324,8 @@ export const AgentChatInput = ({
                         <Menu.Item
                             aria-label={
                                 sqlMode
-                                    ? 'Disable SQL Runner'
-                                    : 'Enable SQL Runner'
+                                    ? t('input.disableSqlRunner')
+                                    : t('input.enableSqlRunner')
                             }
                             closeMenuOnClick={false}
                             onClick={() => onSqlModeChange?.(!sqlMode)}
@@ -1342,7 +1346,7 @@ export const AgentChatInput = ({
                                 ) : null
                             }
                         >
-                            SQL Runner
+                            {t('input.sqlRunner')}
                         </Menu.Item>
                     )}
                     {showDeepResearchInComposerMenu && deepResearchMenuItem}
@@ -1350,8 +1354,8 @@ export const AgentChatInput = ({
                         <Menu.Item
                             aria-label={
                                 fastMode.enabled
-                                    ? 'Disable Fast mode'
-                                    : 'Enable Fast mode'
+                                    ? t('input.disableFastMode')
+                                    : t('input.enableFastMode')
                             }
                             closeMenuOnClick={false}
                             onClick={() =>
@@ -1376,7 +1380,7 @@ export const AgentChatInput = ({
                                 ) : null
                             }
                         >
-                            Fast
+                            {t('input.fast')}
                         </Menu.Item>
                     )}
                     {showThemeControl && (
@@ -1428,7 +1432,7 @@ export const AgentChatInput = ({
                         >
                             {(fileButtonProps) => (
                                 <Tooltip
-                                    label="Attach a document"
+                                    label={t('input.attachDocument')}
                                     position="top"
                                     openDelay={300}
                                 >
@@ -1438,8 +1442,10 @@ export const AgentChatInput = ({
                                         variant="transparent"
                                         aria-label={
                                             canUseAttachControl
-                                                ? 'Attach a document'
-                                                : 'Attach a document unavailable in deep research'
+                                                ? t('input.attachDocument')
+                                                : t(
+                                                      'input.attachDocumentUnavailable',
+                                                  )
                                         }
                                         disabled={
                                             isUploadingThreadFile ||
@@ -1464,7 +1470,7 @@ export const AgentChatInput = ({
                                 color="dimmed"
                             />
                             <Text size="xs" c="dimmed">
-                                Can run SQL
+                                {t('input.canRunSql')}
                             </Text>
                         </Group>
                     )}
@@ -1476,7 +1482,7 @@ export const AgentChatInput = ({
                                 color="dimmed"
                             />
                             <Text size="xs" c="dimmed">
-                                Deep research
+                                {t('input.deepResearch')}
                             </Text>
                         </Group>
                     )}
@@ -1486,7 +1492,7 @@ export const AgentChatInput = ({
                     <Group gap={4} wrap="nowrap">
                         {showFastModeControl && (
                             <Tooltip
-                                label="Jev picks the quickest way to answer, so simple questions come back faster"
+                                label={t('input.fastModeTooltip')}
                                 multiline
                                 w={240}
                                 position="top"
@@ -1497,8 +1503,8 @@ export const AgentChatInput = ({
                                     variant="transparent"
                                     aria-label={
                                         fastMode.enabled
-                                            ? 'Disable Fast mode'
-                                            : 'Enable Fast mode'
+                                            ? t('input.disableFastMode')
+                                            : t('input.enableFastMode')
                                     }
                                     aria-pressed={fastMode.enabled}
                                     onClick={() =>
@@ -1609,7 +1615,7 @@ export const AgentChatInput = ({
             return (
                 <ComposerSubmitButton
                     icon={IconArrowUp}
-                    label="Send guidance"
+                    label={t('input.sendGuidance')}
                     size={size}
                     disabled={steerMutation.isLoading}
                     loading={steerMutation.isLoading}
@@ -1621,7 +1627,7 @@ export const AgentChatInput = ({
             return (
                 <ComposerSubmitButton
                     icon={IconPlayerStop}
-                    label="Stop agent"
+                    label={t('input.stopAgent')}
                     destructive
                     size={size}
                     disabled={hasRequestedInterrupt}
@@ -1636,7 +1642,11 @@ export const AgentChatInput = ({
         return (
             <ComposerSubmitButton
                 icon={IconArrowUp}
-                label={isDeepResearch ? 'Start research' : 'Send message'}
+                label={
+                    isDeepResearch
+                        ? t('input.startResearch')
+                        : t('input.sendMessage')
+                }
                 size={size}
                 // Walkthrough marker for create:AiAgentThread: sending the
                 // first message opens a thread. The learner picks one of the

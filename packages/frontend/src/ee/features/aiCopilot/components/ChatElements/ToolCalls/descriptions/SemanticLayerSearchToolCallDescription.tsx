@@ -1,14 +1,15 @@
 import { type ToolSearchSemanticLayerArgs } from '@lightdash/common';
 import { rem, Text } from '@mantine/core';
 import type { FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ToolCallChip } from '../ToolCallChip';
 
 type Props = Pick<ToolSearchSemanticLayerArgs, 'page' | 'searchQuery' | 'type'>;
 
-const getFieldTypeLabel = (type: Props['type']) => {
-    if (type === 'metric') return 'metrics';
-    if (type === 'dimension') return 'dimensions';
-    return 'fields';
+const getFieldTypeKey = (type: Props['type']) => {
+    if (type === 'metric') return 'chipLabel.metrics';
+    if (type === 'dimension') return 'chipLabel.dimensions';
+    return 'chipLabel.fields';
 };
 
 export const SemanticLayerSearchToolCallDescription: FC<Props> = ({
@@ -16,23 +17,32 @@ export const SemanticLayerSearchToolCallDescription: FC<Props> = ({
     searchQuery,
     type,
 }) => {
-    const fieldTypeLabel = getFieldTypeLabel(type);
+    const { t } = useTranslation('aiCopilotChat');
+    const fieldTypeLabel = t(getFieldTypeKey(type));
     const trimmedSearchQuery = searchQuery?.trim();
 
     return (
         <Text c="dimmed" size="xs">
             {trimmedSearchQuery ? (
                 <>
-                    Searched {fieldTypeLabel} for{' '}
+                    {t('toolDescriptions.searchedFieldTypeFor', {
+                        fieldType: fieldTypeLabel,
+                    })}{' '}
                     <ToolCallChip mx={rem(2)}>
                         {trimmedSearchQuery}
                     </ToolCallChip>
                 </>
             ) : (
-                <>Listed {fieldTypeLabel}</>
+                <>
+                    {t('toolDescriptions.listedFieldType', {
+                        fieldType: fieldTypeLabel,
+                    })}
+                </>
             )}
             {page && page > 1 ? (
-                <ToolCallChip mx={rem(2)}>page {page}</ToolCallChip>
+                <ToolCallChip mx={rem(2)}>
+                    {t('toolDescriptions.page', { page })}
+                </ToolCallChip>
             ) : null}
         </Text>
     );

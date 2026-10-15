@@ -2,6 +2,7 @@ import { type RoleLevel, type RoleWithScopes } from '@lightdash/common';
 import { Badge, Group, Stack, Tabs, Text } from '@mantine/core';
 import { IconBuilding, IconFolder, IconIdBadge2 } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { SettingsEmptyState } from '../../../components/common/Settings/SettingsEmptyState';
@@ -13,6 +14,7 @@ import { useCustomRoles } from '../../features/customRoles/useCustomRoles';
 import classes from './CustomRoles.module.css';
 
 export const CustomRoles = () => {
+    const { t } = useTranslation('customRoles');
     const navigate = useNavigate();
     const { listRoles, deleteRole } = useCustomRoles();
     const [level, setLevel] = useState<RoleLevel>('project');
@@ -60,15 +62,15 @@ export const CustomRoles = () => {
         ) : (
             <Text c="dimmed" fz="sm">
                 {level === 'organization'
-                    ? 'No organization roles yet.'
-                    : 'No project roles yet.'}
+                    ? t('page.noOrganizationRoles')
+                    : t('page.noProjectRoles')}
             </Text>
         );
 
     return (
         <SettingsPage
-            title="Custom roles"
-            description="Create reusable permission sets for users, groups, and service accounts."
+            title={t('page.title')}
+            description={t('page.description')}
             actions={<AddRoleButton size="xs" />}
         >
             {listRoles.isLoading ? (
@@ -90,7 +92,7 @@ export const CustomRoles = () => {
                             >
                                 <Group gap="xs" wrap="nowrap">
                                     <Text span inherit>
-                                        Project
+                                        {t('levels.project')}
                                     </Text>
                                     <Badge className={classes.tabBadge}>
                                         {projectRoles.length}
@@ -108,7 +110,7 @@ export const CustomRoles = () => {
                             >
                                 <Group gap="xs" wrap="nowrap">
                                     <Text span inherit>
-                                        Organization
+                                        {t('levels.organization')}
                                     </Text>
                                     <Badge className={classes.tabBadge}>
                                         {organizationRoles.length}
@@ -131,8 +133,8 @@ export const CustomRoles = () => {
             ) : (
                 <SettingsEmptyState
                     icon={IconIdBadge2}
-                    title="No custom roles"
-                    description="Create a role to define reusable organization or project permissions."
+                    title={t('page.emptyTitle')}
+                    description={t('page.emptyDescription')}
                 />
             )}
         </SettingsPage>

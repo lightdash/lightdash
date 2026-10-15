@@ -13,6 +13,7 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useLocation,
     useNavigate,
@@ -401,6 +402,7 @@ export const useExplorerRoute = () => {
 };
 
 export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
+    const { t } = useTranslation('app');
     const { showToastError } = useToaster();
     const { search } = useLocation();
     const { health } = useApp();
@@ -500,8 +502,10 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
             } catch (e: any) {
                 const errorMessage = e.message ? ` Error: "${e.message}"` : '';
                 showToastError({
-                    title: 'Error parsing url',
-                    subtitle: `URL is invalid or incomplete.${errorMessage}`,
+                    title: t('useExplorerRoute.errorParsingUrl'),
+                    subtitle: t('useExplorerRoute.urlIsInvalidOrIncomplete', {
+                        errorMessage,
+                    }),
                 });
             }
         }
@@ -513,6 +517,7 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
         colorPaletteUuid,
         isExploreFromHere,
         health.data?.query.defaultLimit,
+        t,
     ]);
 };
 

@@ -2,6 +2,7 @@ import { WarehouseTypes } from '@lightdash/common';
 import { Stack, Switch, TagsInput } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export type WarehouseDatabaseListingValues = {
     listAllDatabases: boolean;
@@ -13,17 +14,18 @@ const WarehouseDatabaseListingFields: FC<{
     warehouseType: WarehouseTypes;
     disabled: boolean;
 }> = ({ form, warehouseType, disabled }) => {
+    const { t } = useTranslation('projectConnection');
     const isAthena = warehouseType === WarehouseTypes.ATHENA;
     const listAllDatabases = form.values.listAllDatabases;
 
     return (
         <Stack gap="md">
             <Switch
-                label="List all databases"
+                label={t('warehouseDatabaseListing.listAll')}
                 description={
                     isAthena
-                        ? 'The SQL runner sidebar lists every database in the data catalog this connection can read, up to 100.'
-                        : 'The SQL runner sidebar lists every database this connection can read, up to 100.'
+                        ? t('warehouseDatabaseListing.listAllDescriptionAthena')
+                        : t('warehouseDatabaseListing.listAllDescription')
                 }
                 disabled={disabled}
                 {...form.getInputProps('listAllDatabases', {
@@ -31,13 +33,17 @@ const WarehouseDatabaseListingFields: FC<{
                 })}
             />
             <TagsInput
-                label="Additional databases"
+                label={t('warehouseDatabaseListing.additional')}
                 description={
                     isAthena
-                        ? 'Other databases in this data catalog to show in the SQL runner sidebar.'
-                        : 'Other databases to show in the SQL runner sidebar.'
+                        ? t(
+                              'warehouseDatabaseListing.additionalDescriptionAthena',
+                          )
+                        : t('warehouseDatabaseListing.additionalDescription')
                 }
-                placeholder="Type a database name and press Enter"
+                placeholder={t(
+                    'warehouseDatabaseListing.additionalPlaceholder',
+                )}
                 disabled={disabled || listAllDatabases}
                 {...form.getInputProps('additionalDatabases')}
             />

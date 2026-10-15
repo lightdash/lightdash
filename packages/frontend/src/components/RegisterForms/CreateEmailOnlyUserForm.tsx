@@ -6,6 +6,7 @@ import { Anchor, Button, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { z } from 'zod';
 
@@ -19,6 +20,7 @@ const validationSchema = z.object({
 });
 
 const CreateEmailOnlyUserForm: FC<Props> = ({ isLoading, onSubmit }) => {
+    const { t } = useTranslation('auth');
     const form = useForm<CreateEmailOnlyUserArgs>({
         initialValues: {
             email: '',
@@ -30,7 +32,7 @@ const CreateEmailOnlyUserForm: FC<Props> = ({ isLoading, onSubmit }) => {
         <form name="register" onSubmit={form.onSubmit(onSubmit)}>
             <Stack gap="md">
                 <TextInput
-                    label="Work email"
+                    label={t('login.workEmail')}
                     name="email"
                     type="email"
                     inputMode="email"
@@ -38,7 +40,7 @@ const CreateEmailOnlyUserForm: FC<Props> = ({ isLoading, onSubmit }) => {
                     autoCapitalize="none"
                     autoCorrect="off"
                     spellCheck={false}
-                    placeholder="maya@acme.com"
+                    placeholder={t('login.emailPlaceholder')}
                     required
                     {...form.getInputProps('email')}
                     disabled={isLoading}
@@ -50,13 +52,18 @@ const CreateEmailOnlyUserForm: FC<Props> = ({ isLoading, onSubmit }) => {
                     disabled={isLoading}
                     data-cy="signup-button"
                 >
-                    Continue
+                    {t('login.continue')}
                 </Button>
                 <Text mx="auto" mt="md" fz="sm">
-                    Already have an account?{' '}
-                    <Anchor component={Link} to="/login" fz="sm">
-                        Log in
-                    </Anchor>
+                    <Trans
+                        t={t}
+                        i18nKey="createUser.alreadyHaveAccount"
+                        components={{
+                            link: (
+                                <Anchor component={Link} to="/login" fz="sm" />
+                            ),
+                        }}
+                    />
                 </Text>
             </Stack>
         </form>

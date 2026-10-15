@@ -25,6 +25,7 @@ import {
     IconVideo,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { scrollToDashboardTile } from '../../../components/common/Dashboard/scrollToDashboardTile';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../components/common/PolymorphicGroupButton';
@@ -79,6 +80,7 @@ const TileCard: FC<{
     isResolved: boolean;
     onGoToTile: (group: TileCommentGroup) => void;
 }> = ({ group, projectUuid, dashboardUuid, isResolved, onGoToTile }) => {
+    const { t } = useTranslation('comments');
     const canGoToTile = group.tileType !== null;
     return (
         <Paper
@@ -86,7 +88,7 @@ const TileCard: FC<{
             data-testid="dashboard-comments-group"
         >
             <Tooltip
-                label="Go to tile"
+                label={t('panel.goToTile')}
                 position="top-start"
                 openDelay={400}
                 disabled={!canGoToTile}
@@ -96,7 +98,9 @@ const TileCard: FC<{
                     role={canGoToTile ? 'button' : undefined}
                     tabIndex={canGoToTile ? 0 : undefined}
                     aria-label={
-                        canGoToTile ? `Go to tile ${group.title}` : undefined
+                        canGoToTile
+                            ? t('panel.goToTileNamed', { title: group.title })
+                            : undefined
                     }
                     data-clickable={canGoToTile || undefined}
                     className={classes.tileHeader}
@@ -235,6 +239,7 @@ export const DashboardCommentsPanel: FC<Props> = ({
     dashboardTabs,
     onSwitchTab,
 }) => {
+    const { t } = useTranslation('comments');
     const isCompact = useMatches({ base: true, sm: false });
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
@@ -287,7 +292,7 @@ export const DashboardCommentsPanel: FC<Props> = ({
 
     const handleSelectTab = useCallback(
         (tabUuid: string) => {
-            const tab = dashboardTabs.find((t) => t.uuid === tabUuid);
+            const tab = dashboardTabs.find((tb) => tb.uuid === tabUuid);
             if (tab) onSwitchTab(tab);
         },
         [dashboardTabs, onSwitchTab],
@@ -312,8 +317,10 @@ export const DashboardCommentsPanel: FC<Props> = ({
     if (!projectUuid || !dashboardUuid) return null;
 
     const summary = [
-        `${openCount} open`,
-        ...(resolvedCount > 0 ? [`${resolvedCount} resolved`] : []),
+        t('panel.openCount', { count: openCount }),
+        ...(resolvedCount > 0
+            ? [t('panel.resolvedCount', { count: resolvedCount })]
+            : []),
     ].join(' · ');
 
     return (
@@ -338,7 +345,7 @@ export const DashboardCommentsPanel: FC<Props> = ({
                             </Paper>
                             <div>
                                 <Text fw={600} fz="sm">
-                                    Comments
+                                    {t('panel.title')}
                                 </Text>
                                 <Text fz="xs" c="dimmed">
                                     {summary}
@@ -347,7 +354,7 @@ export const DashboardCommentsPanel: FC<Props> = ({
                         </Group>
                     </Drawer.Title>
                     <Drawer.CloseButton
-                        aria-label="Close comments"
+                        aria-label={t('panel.close')}
                         mod="touch-target"
                     />
                 </Drawer.Header>
@@ -357,12 +364,12 @@ export const DashboardCommentsPanel: FC<Props> = ({
                             <Paper variant="dotted" p="lg">
                                 <Stack gap="two">
                                     <Text fz="sm" fw={500} ta="center">
-                                        No open comments
+                                        {t('panel.noOpenComments')}
                                     </Text>
                                     <Text fz="xs" c="dimmed" ta="center">
                                         {canCreateDashboardComments
-                                            ? 'Use a tile’s comment button to start a thread.'
-                                            : 'Threads started on any tile will show up here.'}
+                                            ? t('panel.emptyCanCreate')
+                                            : t('panel.emptyViewOnly')}
                                     </Text>
                                 </Stack>
                             </Paper>
@@ -399,8 +406,13 @@ export const DashboardCommentsPanel: FC<Props> = ({
                                                 />
                                             }
                                         >
-                                            {showResolved ? 'Hide' : 'Show'}{' '}
-                                            resolved ({resolvedCount})
+                                            {showResolved
+                                                ? t('panel.hideResolved', {
+                                                      count: resolvedCount,
+                                                  })
+                                                : t('panel.showResolved', {
+                                                      count: resolvedCount,
+                                                  })}
                                         </Button>
                                     }
                                 />

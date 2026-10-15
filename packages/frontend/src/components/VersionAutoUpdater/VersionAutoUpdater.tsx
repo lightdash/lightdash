@@ -1,9 +1,11 @@
 import { IconReload } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
 
 const VersionAutoUpdater: FC = () => {
+    const { t } = useTranslation('app');
     const [version, setVersion] = useState<string>();
     const { showToastInfo } = useToaster();
     const { data: healthData } = useHealth({
@@ -18,16 +20,16 @@ const VersionAutoUpdater: FC = () => {
                 showToastInfo({
                     key: 'new-version-available',
                     autoClose: false,
-                    title: 'A new version is ready for you!',
+                    title: t('versionAutoUpdater.title'),
                     action: {
-                        children: 'Use new version',
+                        children: t('versionAutoUpdater.action'),
                         icon: IconReload,
                         onClick: () => window.location.reload(),
                     },
                 });
             }
         }
-    }, [version, healthData, showToastInfo]);
+    }, [version, healthData, showToastInfo, t]);
 
     return null;
 };

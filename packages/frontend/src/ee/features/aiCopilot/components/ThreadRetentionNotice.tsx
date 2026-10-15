@@ -6,6 +6,7 @@ import {
 import { Group, Text } from '@mantine/core';
 import { IconHourglass } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import { useAiOrganizationSettings } from '../hooks/useAiOrganizationSettings';
@@ -18,6 +19,7 @@ type Props = {
 export const ThreadRetentionNotice: FC<Props> = ({
     agentThreadRetentionHours,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const flag = useServerFeatureFlag(FeatureFlags.AiThreadRetention);
     const settingsQuery = useAiOrganizationSettings();
 
@@ -36,8 +38,9 @@ export const ThreadRetentionNotice: FC<Props> = ({
         <Group gap={4} wrap="nowrap">
             <MantineIcon icon={IconHourglass} size={14} color="dimmed" />
             <Text size="xs" c="dimmed">
-                Threads are deleted after {formatRetentionHours(effectiveHours)}{' '}
-                of inactivity
+                {t('retention.notice', {
+                    duration: formatRetentionHours(effectiveHours),
+                })}
             </Text>
         </Group>
     );

@@ -1,8 +1,14 @@
-import { SQL_CHART_KINDS, type SqlChartKind } from '@lightdash/common';
+import {
+    assertUnreachable,
+    SQL_CHART_KINDS,
+    type SqlChartKind,
+} from '@lightdash/common';
 import { Group, Stack, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconChartBar } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
 import { useCanViewAiAgentSql } from '../../../../hooks/useCanViewAiAgentSql';
 import { AiSqlModal } from '../../AiSqlModal';
@@ -31,12 +37,21 @@ type Props = {
     approval: SqlApprovalTarget | null;
 };
 
-const CHART_KIND_LABELS: Record<SqlChartKind, string> = {
-    vertical_bar: 'Bar chart',
-    line: 'Line chart',
-    pie: 'Pie chart',
-    big_number: 'Big number',
-    table: 'Table',
+const getChartKindLabel = (kind: SqlChartKind, t: TFunction): string => {
+    switch (kind) {
+        case 'vertical_bar':
+            return t('sqlChart.kinds.bar');
+        case 'line':
+            return t('sqlChart.kinds.line');
+        case 'pie':
+            return t('sqlChart.kinds.pie');
+        case 'big_number':
+            return t('sqlChart.kinds.bigNumber');
+        case 'table':
+            return t('sqlChart.kinds.table');
+        default:
+            return assertUnreachable(kind, 'Unknown SQL chart kind');
+    }
 };
 
 const isSqlChartKind = (value: string): value is SqlChartKind =>
@@ -48,10 +63,10 @@ export const SqlChartToolCallDescription: FC<Props> = ({
     chart,
     approval,
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const canViewSql = useCanViewAiAgentSql();
     // Whoever approves the SQL has to see it.
     const showSql = (canViewSql || approval !== null) && !!chart.sql;
-    const verb = action === 'create' ? 'Save' : 'Update';
     const autoApprove = useSqlAutoApprove(
         approval ? approval.threadUuid : null,
     );
@@ -60,19 +75,25 @@ export const SqlChartToolCallDescription: FC<Props> = ({
     const chartName = chart.name ?? slug;
     const chartKindLabel = chart.chartKind
         ? isSqlChartKind(chart.chartKind)
-            ? CHART_KIND_LABELS[chart.chartKind]
+            ? getChartKindLabel(chart.chartKind, t)
             : chart.chartKind
         : null;
     const reviewSubtitle = [
         chartName,
-        chart.spaceSlug ? `in ${chart.spaceSlug}` : null,
+        chart.spaceSlug
+            ? t('sqlChart.inSpace', { space: chart.spaceSlug })
+            : null,
         chartKindLabel,
     ]
         .filter(Boolean)
         .join(' · ');
     const title = approval
-        ? `${verb} SQL chart`
-        : `${action === 'create' ? 'Created' : 'Edited'} SQL chart`;
+        ? action === 'create'
+            ? t('sqlChart.save')
+            : t('sqlChart.update')
+        : action === 'create'
+          ? t('sqlChart.created')
+          : t('sqlChart.edited');
     const review: SqlApprovalReview | null =
         showSql && chart.sql
             ? {
@@ -97,7 +118,7 @@ export const SqlChartToolCallDescription: FC<Props> = ({
                     {chart.spaceSlug ? (
                         <>
                             <Text size="xs" c="dimmed">
-                                in
+                                {t('toolDescriptions.in')}
                             </Text>
                             <ToolCallChip>{chart.spaceSlug}</ToolCallChip>
                         </>

@@ -11,6 +11,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useIsTruncated } from '../../hooks/useIsTruncated';
 
@@ -39,6 +40,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
     handleToggleTabHidden,
     setDeletingTab,
 }) => {
+    const { t } = useTranslation('dashboard');
     const { ref, isTruncated } = useIsTruncated('span');
 
     return (
@@ -100,7 +102,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                                     <IconPencil size={14} />
                                                 }
                                             >
-                                                Rename Tab
+                                                {t('tabs.menu.rename')}
                                             </Menu.Item>
                                             <Menu.Item
                                                 onClick={() =>
@@ -110,7 +112,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                                     <IconCopy size={14} />
                                                 }
                                             >
-                                                Duplicate Tab
+                                                {t('tabs.menu.duplicate')}
                                             </Menu.Item>
                                             <Menu.Item
                                                 onClick={() =>
@@ -133,8 +135,8 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                                 }
                                             >
                                                 {tab.hidden
-                                                    ? 'Show Tab'
-                                                    : 'Hide Tab'}
+                                                    ? t('tabs.menu.show')
+                                                    : t('tabs.menu.hide')}
                                             </Menu.Item>
                                             {sortedTabs.length === 1 ||
                                             !currentTabHasTiles ? (
@@ -152,7 +154,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                                         <IconTrash size={14} />
                                                     }
                                                 >
-                                                    Remove Tab
+                                                    {t('tabs.menu.remove')}
                                                 </Menu.Item>
                                             ) : (
                                                 <Menu.Item
@@ -164,7 +166,9 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                                         <IconTrash size={14} />
                                                     }
                                                 >
-                                                    Safely Remove Tab
+                                                    {t(
+                                                        'tabs.menu.safelyRemove',
+                                                    )}
                                                 </Menu.Item>
                                             )}
                                         </Menu.Dropdown>

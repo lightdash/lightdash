@@ -9,6 +9,7 @@ import {
     type KeyboardEvent,
     type PropsWithChildren,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import styles from './AiAgentsLauncher.module.css';
 import {
     clampLauncherPanelSize,
@@ -52,6 +53,7 @@ const measure = (frame: HTMLElement) => {
 };
 
 export const LauncherPanelFrame: FC<Props> = ({ style, children }) => {
+    const { t } = useTranslation('aiAgent');
     const { previewSize, commitSize, resizeHintSeen, markResizeHintSeen } =
         useLauncherPanelSizeContext();
     const frameRef = useRef<HTMLDivElement>(null);
@@ -128,14 +130,11 @@ export const LauncherPanelFrame: FC<Props> = ({ style, children }) => {
     return (
         <Box ref={frameRef} className={styles.panel} style={style}>
             {children}
-            <Tooltip
-                label="Drag to resize, double-click to reset"
-                opened={hintOpen}
-            >
+            <Tooltip label={t('launcher.resizeHint')} opened={hintOpen}>
                 <Box
                     ref={handleRef}
                     role="separator"
-                    aria-label="Resize panel"
+                    aria-label={t('launcher.resizePanel')}
                     tabIndex={0}
                     className={styles.resizeHandle}
                     onPointerEnter={() => {

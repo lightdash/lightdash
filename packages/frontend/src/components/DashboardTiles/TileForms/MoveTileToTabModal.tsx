@@ -2,6 +2,7 @@ import { type Dashboard, type DashboardTab } from '@lightdash/common';
 import { Button, Select, Text, type ModalProps } from '@mantine/core';
 import { IconArrowAutofitContent } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../common/MantineModal';
 
 type Tile = Dashboard['tiles'][number];
@@ -19,6 +20,7 @@ const MoveTileToTabModal: FC<Props> = ({
     onConfirm,
     className,
 }) => {
+    const { t } = useTranslation('dashboard');
     const [selectedTabId, setSelectedTabId] = useState<string | null>(null);
 
     const handleConfirm = useCallback(() => {
@@ -36,20 +38,20 @@ const MoveTileToTabModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Move tile to another tab"
+            title={t('tileForms.moveToTab.title')}
             icon={IconArrowAutofitContent}
             actions={
                 <Button onClick={handleConfirm} disabled={!selectedTabId}>
-                    Move
+                    {t('tileForms.moveToTab.confirm')}
                 </Button>
             }
             modalRootProps={{ className }}
         >
             {tabs && tabs.length ? (
                 <Select
-                    label="Select tab to move this tile to"
+                    label={t('tileForms.moveToTab.selectLabel')}
                     value={selectedTabId}
-                    placeholder="Pick a tab"
+                    placeholder={t('tabs.deleteModal.pickTabPlaceholder')}
                     data={tabs
                         .filter((tab) => tab.uuid !== tile.tabUuid)
                         .map((tab) => ({
@@ -59,7 +61,7 @@ const MoveTileToTabModal: FC<Props> = ({
                     onChange={(value) => setSelectedTabId(value)}
                 />
             ) : (
-                <Text>No tabs available</Text>
+                <Text>{t('tileForms.moveToTab.noTabs')}</Text>
             )}
         </MantineModal>
     );

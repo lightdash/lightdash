@@ -1,0 +1,93 @@
+{
+    "contentPanel": {
+        "mostPopular": "Most popular",
+        "recentlyUpdated": "Recently updated",
+        "verified": "Verified",
+        "noVerifiedContent": "No verified content yet",
+        "chartsAndDashboards": "Charts and Dashboards",
+        "learn": "Learn",
+        "emptyTitle": "Feels a little bit empty over here",
+        "noItems": "No items added yet",
+        "emptyDescription": "get started by creating some charts",
+        "createChart": "Create chart"
+    },
+    "landing": {
+        "welcome": "Welcome to Lightdash!",
+        "welcomeUser": "Welcome, {{name}}!",
+        "subtitle": "Run a query to ask a business question or browse your data below:",
+        "runQuery": "Run a query"
+    },
+    "onboarding": {
+        "subtitle": "You're ready to start exploring. Here's what you can do with Lightdash:",
+        "runFirstQuery": "Run your first query!",
+        "steps": {
+            "runQueries": {
+                "title": "1. Run queries",
+                "description": "to explore your data"
+            },
+            "createCharts": {
+                "title": "2. Create charts",
+                "description": "using your query results"
+            },
+            "buildDashboards": {
+                "title": "3. Build dashboards",
+                "description": "to share your insights"
+            }
+        }
+    },
+    "pinned": {
+        "titleManager": "Pinned items",
+        "titleViewer": "Pinned for you",
+        "descriptionManager": "Pin Spaces, Dashboards, Charts and Data apps to the top of the homepage to guide your business users to the right content.",
+        "descriptionViewer": "Your data team have pinned these items to help guide you towards the most relevant content!",
+        "emptyTitle": "No pinned items.",
+        "emptyTitleShort": "No pinned items",
+        "emptyDescription": "Pin items to the top of the homepage to guide users to relevant content.",
+        "emptyDescriptionViewer": "Your data team has not pinned any items yet.",
+        "viewDocs": "View docs"
+    },
+    "favorites": {
+        "title": "My favorites",
+        "description": "Your personally favorited spaces, dashboards, charts, data apps, and documents.",
+        "emptyTitle": "No favorites yet.",
+        "emptyTitleShort": "No favorites yet",
+        "emptyDescription": "Star items to add them to your personal favorites."
+    },
+    "addToDashboard": {
+        "otherSpace": "Other",
+        "title": "Add chart to dashboard",
+        "submit": "Add to dashboard",
+        "selectDashboard": "Select a dashboard",
+        "noMatchingDashboards": "No matching dashboards found",
+        "createNewDashboard": "Create new dashboard",
+        "dashboardName": "Name your dashboard",
+        "dashboardNamePlaceholder": "eg. KPI dashboard",
+        "dashboardDescription": "Dashboard description",
+        "dashboardDescriptionPlaceholder": "A few words to give your team some context",
+        "selectSpace": "Select a space",
+        "createNewSpace": "Create new space",
+        "spaceName": "Name your new space",
+        "spaceNamePlaceholder": "eg. KPIs",
+        "saveToExistingSpace": "Save to existing space"
+    },
+    "verifiedContent": {
+        "types": {
+            "chart": "Chart",
+            "dashboard": "Dashboard",
+            "dataApp": "Data app",
+            "document": "Document"
+        },
+        "columns": {
+            "name": "Name",
+            "space": "Space",
+            "verifiedBy": "Verified By",
+            "verifiedAt": "Verified At"
+        },
+        "openActions": "Open actions",
+        "removeVerification": "Remove verification",
+        "emptyTitle": "No verified content",
+        "emptyDescription": "Charts, dashboards, data apps, and Documents that are verified will appear here.",
+        "removeTitle": "Remove verification?",
+        "removeDescription": "This will remove the verified badge from this content. You can verify it again later."
+    }
+}

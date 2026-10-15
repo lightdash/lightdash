@@ -44,6 +44,7 @@ import {
     useRef,
     useState,
 } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
 import {
     ContentTable,
@@ -57,6 +58,7 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useOnboardingMock } from '../../../../../hooks/useOnboardingMock';
 import { useOrgUsersByUuid } from '../../../../../hooks/useOrganizationUsers';
 import { useProjects } from '../../../../../hooks/useProjects';
+import i18n from '../../../../../i18n/i18n';
 import useApp from '../../../../../providers/App/useApp';
 import {
     useAiAgentAdminAgents,
@@ -66,7 +68,7 @@ import {
 } from '../../hooks/useAiAgentAdmin';
 import { AgentNamePill } from '../AgentNamePill';
 import styles from './AiAgentAdminReviewItemsTable.module.css';
-import { EXAMPLE_REVIEW_ITEMS, isExampleReviewItem } from './onboarding';
+import { getExampleReviewItems, isExampleReviewItem } from './onboarding';
 import {
     buildAssigneeFacetOptions,
     matchesAssigneeFilter,
@@ -84,6 +86,7 @@ import {
     getWhatHappened,
     getWhyText,
     reviewRootCauseColors,
+    getRootCauseLabelKey,
     reviewRootCauseLabels,
 } from './reviewItemDetails';
 import { SearchFilter } from './SearchFilter';
@@ -94,28 +97,31 @@ const ACTIVE_REVIEW_ITEM_STATUSES: AiAgentReviewItemStatus[] = [
     'in_progress',
 ];
 
-const reviewItemStatusLabels: Record<AiAgentReviewItemStatus, string> = {
-    triage: 'Needs triage',
-    open: 'To Do',
-    in_progress: 'In Progress',
-    resolved: 'Resolved',
-    dismissed: 'Dismissed',
-    duplicate: 'Duplicate',
+const reviewItemStatusLabelKeys: Record<AiAgentReviewItemStatus, string> = {
+    triage: 'reviews.lanes.needsTriage',
+    open: 'reviews.lanes.todo',
+    in_progress: 'reviews.lanes.inProgress',
+    resolved: 'reviews.statuses.resolved',
+    dismissed: 'reviews.statuses.dismissed',
+    duplicate: 'reviews.statuses.duplicate',
 };
 
-const signalLabels: Record<AiAgentTurnSignal, string> = {
-    normal_refinement: 'Normal refinement',
-    implicit_correction: 'Implicit correction',
-    explicit_dispute: 'Explicit dispute',
-    retry_after_failure: 'Retry after failure',
-    output_shape_correction: 'Output correction',
-    new_question: 'New question',
-    acceptance_or_continuation: 'Accepted',
-    product_capability_request: 'Capability request',
-    human_intervention: 'Human intervention',
-    standing_instruction: 'Standing instruction',
-    ambiguous: 'Ambiguous',
+const signalLabelKeys: Record<AiAgentTurnSignal, string> = {
+    normal_refinement: 'reviewsTable.signals.normalRefinement',
+    implicit_correction: 'reviewsTable.signals.implicitCorrection',
+    explicit_dispute: 'reviewsTable.signals.explicitDispute',
+    retry_after_failure: 'reviewsTable.signals.retryAfterFailure',
+    output_shape_correction: 'reviewsTable.signals.outputShapeCorrection',
+    new_question: 'reviewsTable.signals.newQuestion',
+    acceptance_or_continuation: 'reviewsTable.signals.acceptanceOrContinuation',
+    product_capability_request: 'reviewsTable.signals.productCapabilityRequest',
+    human_intervention: 'reviewsTable.signals.humanIntervention',
+    standing_instruction: 'reviewsTable.signals.standingInstruction',
+    ambiguous: 'reviewsTable.signals.ambiguous',
 };
+
+const tr = (key: string, options?: Record<string, unknown>) =>
+    i18n.t(`reviewsTable.${key}`, { ns: 'aiCopilotAdmin', ...options });
 
 type ReviewSurface = 'findings' | 'signals';
 
@@ -145,13 +151,13 @@ const getSignalResultLabel = (signal: AiAgentReviewSignalSummary): string => {
         return reviewRootCauseLabels[signal.finding.primaryRootCause];
     }
 
-    return signal.promotedToFinding ? 'Finding pending' : 'Signal only';
+    return signal.promotedToFinding ? tr('findingPending') : tr('signalOnly');
 };
 
 const getSignalWhyText = (signal: AiAgentReviewSignalSummary): string =>
     signal.promotionReason ??
     signal.finding?.recommendation?.rationale ??
-    'The judge reviewed this turn but did not promote it into an issue.';
+    tr('signalWhyFallback');
 
 const getSignalActionText = (signal: AiAgentReviewSignalSummary): string => {
     if (signal.finding?.recommendation) {
@@ -161,10 +167,10 @@ const getSignalActionText = (signal: AiAgentReviewSignalSummary): string => {
     }
 
     if (signal.promotedToFinding) {
-        return 'Review finding';
+        return tr('reviewFinding');
     }
 
-    return 'No admin action';
+    return tr('noAdminAction');
 };
 
 const getConfidenceIcon = (
@@ -194,6 +200,7 @@ const ExpandableText = ({
     size?: string;
     weight?: number;
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const [expanded, setExpanded] = useState(false);
     const [isOverflowing, setIsOverflowing] = useState(false);
     const textRef = useRef<HTMLParagraphElement>(null);
@@ -229,8 +236,8 @@ const ExpandableText = ({
             title={
                 canExpand
                     ? expanded
-                        ? 'Click to collapse'
-                        : 'Click to expand'
+                        ? t('reviewsTable.clickToCollapse')
+                        : t('reviewsTable.clickToExpand')
                     : undefined
             }
         >
@@ -239,52 +246,64 @@ const ExpandableText = ({
     );
 };
 
-const SuggestedStep = ({ children }: { children: string }) => (
-    <Tooltip label={`Suggested next step: ${children}`} openDelay={300}>
-        <Group gap={4} wrap="nowrap" className={styles.suggestedStep}>
-            <MantineIcon
-                icon={IconArrowRight}
-                size="xs"
-                className={styles.suggestedStepArrow}
-            />
-            <Text fz="xs" fw={600} c="ldGray.8" lineClamp={1}>
-                {children}
-            </Text>
-        </Group>
-    </Tooltip>
-);
+const SuggestedStep = ({ children }: { children: string }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
+    return (
+        <Tooltip
+            label={t('reviewsTable.suggestedStep', { step: children })}
+            openDelay={300}
+        >
+            <Group gap={4} wrap="nowrap" className={styles.suggestedStep}>
+                <MantineIcon
+                    icon={IconArrowRight}
+                    size="xs"
+                    className={styles.suggestedStepArrow}
+                />
+                <Text fz="xs" fw={600} c="ldGray.8" lineClamp={1}>
+                    {children}
+                </Text>
+            </Group>
+        </Tooltip>
+    );
+};
 
 // Plain-English gloss for each root cause + which two are fixable from this page.
 const rootCauseHelp: Record<
     AiAgentRootCause,
-    { desc: string; opensPr: boolean }
+    { descKey: string; opensPr: boolean }
 > = {
     semantic_layer: {
-        desc: 'A metric, field, or model was missing or off',
+        descKey: 'reviewsTable.rootCauseHelp.semanticLayer',
         opensPr: true,
     },
     project_context: {
-        desc: 'The agent didn’t know something about your data',
+        descKey: 'reviewsTable.rootCauseHelp.projectContext',
         opensPr: true,
     },
     agent_configuration: {
-        desc: 'Its instructions or setup got in the way',
+        descKey: 'reviewsTable.rootCauseHelp.agentConfiguration',
         opensPr: false,
     },
     product_capability: {
-        desc: 'The agent can’t do this yet',
+        descKey: 'reviewsTable.rootCauseHelp.productCapability',
         opensPr: false,
     },
     runtime_reliability: {
-        desc: 'Something broke or timed out',
+        descKey: 'reviewsTable.rootCauseHelp.runtimeReliability',
         opensPr: false,
     },
     feedback_quality: {
-        desc: 'The judge’s read needs a second look',
+        descKey: 'reviewsTable.rootCauseHelp.feedbackQuality',
         opensPr: false,
     },
-    not_a_failure: { desc: 'Nothing wrong, it answered fine', opensPr: false },
-    ambiguous: { desc: 'Not clear, worth a look', opensPr: false },
+    not_a_failure: {
+        descKey: 'reviewsTable.rootCauseHelp.notAFailure',
+        opensPr: false,
+    },
+    ambiguous: {
+        descKey: 'reviewsTable.rootCauseHelp.ambiguous',
+        opensPr: false,
+    },
 };
 
 const rootCauseHelpOrder: AiAgentRootCause[] =
@@ -299,64 +318,70 @@ const rootCauseHelpOrder: AiAgentRootCause[] =
         'ambiguous',
     ]);
 
-const ReviewConceptHelp = () => (
-    <HoverCard width={380} position="bottom-start" withArrow openDelay={150}>
-        <HoverCard.Target>
-            <Box className={styles.headerHelpIcon}>
-                <MantineIcon icon={IconHelpCircle} color="ldGray.5" size="sm" />
-            </Box>
-        </HoverCard.Target>
-        <HoverCard.Dropdown>
-            <Stack gap="sm">
-                <Stack gap={4}>
-                    <Text fz="xs" c="dimmed">
-                        A{' '}
-                        <Text span fw={600}>
-                            turn
-                        </Text>{' '}
-                        is one question and answer. When a turn shows a clear
-                        issue, it becomes a{' '}
-                        <Text span fw={600}>
-                            finding
-                        </Text>{' '}
-                        so you can review it here and decide what to fix next.
-                    </Text>
+const ReviewConceptHelp = () => {
+    const { t } = useTranslation('aiCopilotAdmin');
+    return (
+        <HoverCard
+            width={380}
+            position="bottom-start"
+            withArrow
+            openDelay={150}
+        >
+            <HoverCard.Target>
+                <Box className={styles.headerHelpIcon}>
+                    <MantineIcon
+                        icon={IconHelpCircle}
+                        color="ldGray.5"
+                        size="sm"
+                    />
+                </Box>
+            </HoverCard.Target>
+            <HoverCard.Dropdown>
+                <Stack gap="sm">
+                    <Stack gap={4}>
+                        <Text fz="xs" c="dimmed">
+                            <Trans
+                                t={t}
+                                i18nKey="reviewsTable.conceptHelp"
+                                components={{ b: <Text span fw={600} /> }}
+                            />
+                        </Text>
+                    </Stack>
+                    <Divider />
+                    <Stack gap={6}>
+                        <Text fz="xs" fw={600}>
+                            {t('reviewsTable.whatWentWrong')}
+                        </Text>
+                        {rootCauseHelpOrder.map((cause) => (
+                            <Group
+                                key={cause}
+                                gap="xs"
+                                wrap="nowrap"
+                                align="flex-start"
+                            >
+                                <Box miw={110}>
+                                    <CategoryBadge
+                                        variant="dot"
+                                        label={reviewRootCauseLabels[cause]}
+                                        color={reviewRootCauseColors[cause]}
+                                    />
+                                </Box>
+                                <Text fz="xs" c="dimmed">
+                                    {t(rootCauseHelp[cause].descKey)}
+                                    {rootCauseHelp[cause].opensPr && (
+                                        <Text span c="ldGray.7" fw={600}>
+                                            {t('reviewsTable.fixableHere')}
+                                        </Text>
+                                    )}
+                                </Text>
+                            </Group>
+                        ))}
+                    </Stack>
                 </Stack>
-                <Divider />
-                <Stack gap={6}>
-                    <Text fz="xs" fw={600}>
-                        What went wrong
-                    </Text>
-                    {rootCauseHelpOrder.map((cause) => (
-                        <Group
-                            key={cause}
-                            gap="xs"
-                            wrap="nowrap"
-                            align="flex-start"
-                        >
-                            <Box miw={110}>
-                                <CategoryBadge
-                                    variant="dot"
-                                    label={reviewRootCauseLabels[cause]}
-                                    color={reviewRootCauseColors[cause]}
-                                />
-                            </Box>
-                            <Text fz="xs" c="dimmed">
-                                {rootCauseHelp[cause].desc}
-                                {rootCauseHelp[cause].opensPr && (
-                                    <Text span c="ldGray.7" fw={600}>
-                                        {' '}
-                                        · fixable here
-                                    </Text>
-                                )}
-                            </Text>
-                        </Group>
-                    ))}
-                </Stack>
-            </Stack>
-        </HoverCard.Dropdown>
-    </HoverCard>
-);
+            </HoverCard.Dropdown>
+        </HoverCard>
+    );
+};
 
 const isTerminalReviewItem = (reviewItem: AiAgentReviewItemSummary): boolean =>
     reviewItem.status === 'resolved' ||
@@ -380,6 +405,7 @@ const AiAgentAdminReviewItemsTable = ({
     initialProjectUuids = [],
     initialAgentUuids = [],
 }: AiAgentAdminReviewItemsTableProps) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const theme = useMantineTheme();
     const [search, setSearch] = useState<string | undefined>(undefined);
     const [reviewSurface, _setReviewSurface] =
@@ -411,8 +437,9 @@ const AiAgentAdminReviewItemsTable = ({
     // While the tour is running the table always shows the sample rows so the
     // tour is deterministic; otherwise it passes real data straight through
     // (which may be empty or not).
+    const exampleReviewItems = useMemo(() => getExampleReviewItems(t), [t]);
     const selectReviewItems = useOnboardingMock(
-        EXAMPLE_REVIEW_ITEMS,
+        exampleReviewItems,
         showOnboardingExamples,
     );
     const { data: reviewItems = [], isLoading } = useAiAgentAdminReviewItems(
@@ -476,7 +503,7 @@ const AiAgentAdminReviewItemsTable = ({
                 signal.prompt,
                 signal.responsePreview,
                 signal.errorMessage,
-                signalLabels[signal.signal],
+                t(signalLabelKeys[signal.signal]),
                 getSignalResultLabel(signal),
                 getSignalWhyText(signal),
                 getSignalActionText(signal),
@@ -486,7 +513,7 @@ const AiAgentAdminReviewItemsTable = ({
                 .filter(Boolean)
                 .some((value) => value?.toLowerCase().includes(searchLower));
         },
-        [agentsMap, projectsMap],
+        [agentsMap, projectsMap, t],
     );
 
     const searchFilteredReviewItems = useMemo(() => {
@@ -611,7 +638,9 @@ const AiAgentAdminReviewItemsTable = ({
         return Array.from(counts.entries())
             .map(([projectUuid, count]) => ({
                 value: projectUuid,
-                label: projectsMap.get(projectUuid)?.name ?? 'Unknown project',
+                label:
+                    projectsMap.get(projectUuid)?.name ??
+                    t('reviewsTable.unknownProject'),
                 count,
             }))
             .sort(
@@ -624,6 +653,7 @@ const AiAgentAdminReviewItemsTable = ({
         searchFilteredReviewSignals,
         selectedRootCauses,
         selectedSignals,
+        t,
     ]);
 
     const agentFacetOptions = useMemo((): FilterFacetOption[] => {
@@ -653,7 +683,9 @@ const AiAgentAdminReviewItemsTable = ({
         return Array.from(counts.entries())
             .map(([agentUuid, count]) => ({
                 value: agentUuid,
-                label: agentsMap.get(agentUuid)?.name ?? 'Unknown agent',
+                label:
+                    agentsMap.get(agentUuid)?.name ??
+                    t('reviewsTable.unknownAgent'),
                 count,
             }))
             .sort(
@@ -666,6 +698,7 @@ const AiAgentAdminReviewItemsTable = ({
         projectFilteredReviewSignals,
         selectedRootCauses,
         selectedSignals,
+        t,
     ]);
 
     const rootCauseFacetOptions = useMemo((): FilterFacetOption[] => {
@@ -679,13 +712,13 @@ const AiAgentAdminReviewItemsTable = ({
         return (Object.keys(reviewRootCauseLabels) as AiAgentRootCause[])
             .map((rootCause) => ({
                 value: rootCause,
-                label: reviewRootCauseLabels[rootCause],
+                label: t(getRootCauseLabelKey(rootCause)),
                 count: counts.get(rootCause) ?? 0,
             }))
             .sort(
                 (a, b) => b.count - a.count || a.label.localeCompare(b.label),
             );
-    }, [scopedReviewItems]);
+    }, [scopedReviewItems, t]);
 
     const statusFacetOptions = useMemo((): FilterFacetOption[] => {
         const counts = new Map<AiAgentReviewItemStatus, number>();
@@ -694,10 +727,10 @@ const AiAgentAdminReviewItemsTable = ({
         }
         return ACTIVE_REVIEW_ITEM_STATUSES.map((status) => ({
             value: status,
-            label: reviewItemStatusLabels[status],
+            label: t(reviewItemStatusLabelKeys[status]),
             count: counts.get(status) ?? 0,
         }));
-    }, [scopedReviewItems]);
+    }, [scopedReviewItems, t]);
 
     const assigneeFacetOptions = useMemo(
         (): FilterFacetOption[] =>
@@ -714,16 +747,16 @@ const AiAgentAdminReviewItemsTable = ({
         for (const signal of scopedReviewSignals) {
             counts.set(signal.signal, (counts.get(signal.signal) ?? 0) + 1);
         }
-        return (Object.keys(signalLabels) as AiAgentTurnSignal[])
+        return (Object.keys(signalLabelKeys) as AiAgentTurnSignal[])
             .map((turnSignal) => ({
                 value: turnSignal,
-                label: signalLabels[turnSignal],
+                label: t(signalLabelKeys[turnSignal]),
                 count: counts.get(turnSignal) ?? 0,
             }))
             .sort(
                 (a, b) => b.count - a.count || a.label.localeCompare(b.label),
             );
-    }, [scopedReviewSignals]);
+    }, [scopedReviewSignals, t]);
 
     const hasDefaultRootCauseSelection =
         selectedRootCauses.length === DEFAULT_VISIBLE_ROOT_CAUSES.length &&
@@ -782,15 +815,23 @@ const AiAgentAdminReviewItemsTable = ({
         onClearSelection?: () => void;
         onDismissSelected?: () => void;
     }) => {
-        const pluralised = visibleCount === 1 ? noun : `${noun}s`;
         const hasSelection = selectedCount > 0;
         const countLabel = toolbarLoading
-            ? 'Loading…'
+            ? t('reviewsTable.loading')
             : hasActiveFilters && visibleCount !== totalCount
-              ? `${visibleCount} of ${totalCount} ${pluralised}`
-              : `${visibleCount} ${pluralised}`;
-        const helperCopy =
-            'Issues are items worth attention. Click a row to inspect details and thread context.';
+              ? t(
+                    noun === 'issue'
+                        ? 'reviewsTable.countOfIssues'
+                        : 'reviewsTable.countOfTurns',
+                    { visible: visibleCount, count: totalCount },
+                )
+              : t(
+                    noun === 'issue'
+                        ? 'reviewsTable.countIssues'
+                        : 'reviewsTable.countTurns',
+                    { count: visibleCount },
+                );
+        const helperCopy = t('reviewsTable.helper');
 
         return (
             <Box>
@@ -799,7 +840,7 @@ const AiAgentAdminReviewItemsTable = ({
                         <SearchFilter
                             search={search}
                             setSearch={setSearch}
-                            placeholder="Search issues"
+                            placeholder={t('reviewsTable.searchPlaceholder')}
                         />
 
                         <Group
@@ -808,31 +849,31 @@ const AiAgentAdminReviewItemsTable = ({
                             className={styles.toolbarHeading}
                         >
                             <Text fz="sm" fw={600}>
-                                Issues
+                                {t('reviewsTable.issues')}
                             </Text>
                             <ReviewConceptHelp />
                         </Group>
 
                         <FilterFacet
-                            label="Project"
+                            label={t('reviewsTable.project')}
                             icon={IconBox}
                             options={projectFacetOptions}
                             selected={selectedProjectUuids}
                             onChange={setSelectedProjectUuids}
-                            emptyLabel="No projects in current view"
-                            tooltipLabel="Filter by project"
+                            emptyLabel={t('reviewsTable.noProjects')}
+                            tooltipLabel={t('reviewsTable.filterByProject')}
                         />
                         <FilterFacet
-                            label="Agent"
+                            label={t('reviewsTable.agent')}
                             icon={IconRobotFace}
                             options={agentFacetOptions}
                             selected={selectedAgentUuids}
                             onChange={setSelectedAgentUuids}
-                            emptyLabel="No agents in current view"
-                            tooltipLabel="Filter by agent"
+                            emptyLabel={t('reviewsTable.noAgents')}
+                            tooltipLabel={t('reviewsTable.filterByAgent')}
                         />
                         <FilterFacet
-                            label="Cause"
+                            label={t('reviewsTable.cause')}
                             icon={IconTag}
                             options={rootCauseFacetOptions}
                             selected={selectedRootCauses}
@@ -841,11 +882,11 @@ const AiAgentAdminReviewItemsTable = ({
                                     values as AiAgentRootCause[],
                                 )
                             }
-                            emptyLabel="No root causes in current view"
-                            tooltipLabel="Filter by root cause"
+                            emptyLabel={t('reviewsTable.noCauses')}
+                            tooltipLabel={t('reviewsTable.filterByCause')}
                         />
                         <FilterFacet
-                            label="Status"
+                            label={t('reviewsTable.status')}
                             icon={IconListCheck}
                             options={statusFacetOptions}
                             selected={selectedStatuses}
@@ -854,17 +895,17 @@ const AiAgentAdminReviewItemsTable = ({
                                     values as AiAgentReviewItemStatus[],
                                 )
                             }
-                            emptyLabel="No statuses in current view"
-                            tooltipLabel="Filter by status"
+                            emptyLabel={t('reviewsTable.noStatuses')}
+                            tooltipLabel={t('reviewsTable.filterByStatus')}
                         />
                         <FilterFacet
-                            label="Assignee"
+                            label={t('reviewsTable.assignee')}
                             icon={IconUser}
                             options={assigneeFacetOptions}
                             selected={selectedAssignees}
                             onChange={setSelectedAssignees}
-                            emptyLabel="No assignees in current view"
-                            tooltipLabel="Filter by assignee"
+                            emptyLabel={t('reviewsTable.noAssignees')}
+                            tooltipLabel={t('reviewsTable.filterByAssignee')}
                         />
                         {hasActiveFilters && (
                             <Button
@@ -876,7 +917,7 @@ const AiAgentAdminReviewItemsTable = ({
                                 }
                                 onClick={clearAllFilters}
                             >
-                                Clear filters
+                                {t('reviewsTable.clearFilters')}
                             </Button>
                         )}
                     </Group>
@@ -887,7 +928,9 @@ const AiAgentAdminReviewItemsTable = ({
                             onDismissSelected && (
                                 <>
                                     <Text fz="sm" c="dimmed" fw={500}>
-                                        {selectedCount} selected
+                                        {t('reviewsTable.selectedCount', {
+                                            count: selectedCount,
+                                        })}
                                     </Text>
                                     <Button
                                         size="xs"
@@ -899,7 +942,7 @@ const AiAgentAdminReviewItemsTable = ({
                                         }
                                         onClick={onDismissSelected}
                                     >
-                                        Dismiss issues
+                                        {t('reviewsTable.dismissIssues')}
                                     </Button>
                                     {onClearSelection && (
                                         <Button
@@ -908,7 +951,7 @@ const AiAgentAdminReviewItemsTable = ({
                                             color="gray"
                                             onClick={onClearSelection}
                                         >
-                                            Clear
+                                            {t('reviewsTable.clear')}
                                         </Button>
                                     )}
                                 </>
@@ -934,7 +977,7 @@ const AiAgentAdminReviewItemsTable = ({
         () => [
             {
                 accessorKey: 'primaryRootCause',
-                header: 'Cause',
+                header: t('reviewsTable.columns.cause'),
                 enableSorting: false,
                 size: 170,
                 Header: ({ column }) => (
@@ -952,7 +995,7 @@ const AiAgentAdminReviewItemsTable = ({
                                 <CategoryBadge
                                     variant="token"
                                     color="gray"
-                                    label="Example"
+                                    label={t('reviewsTable.example')}
                                 />
                             )}
                             <CategoryBadge
@@ -974,7 +1017,7 @@ const AiAgentAdminReviewItemsTable = ({
             },
             {
                 accessorKey: 'title',
-                header: 'Finding',
+                header: t('reviewsTable.columns.finding'),
                 enableSorting: false,
                 size: 700,
                 Header: ({ column }) => (
@@ -990,7 +1033,7 @@ const AiAgentAdminReviewItemsTable = ({
             },
             {
                 accessorKey: 'prWritebackStatus',
-                header: 'Action',
+                header: t('reviewsTable.columns.action'),
                 enableSorting: false,
                 size: 190,
                 Header: ({ column }) => (
@@ -1002,14 +1045,14 @@ const AiAgentAdminReviewItemsTable = ({
                 Cell: ({ row }) =>
                     isExampleReviewItem(row.original.uuid) ? (
                         <Button size="compact-xs" variant="default" disabled>
-                            Create PR
+                            {t('reviewsTable.createPr')}
                         </Button>
                     ) : (
                         <ReviewItemActions reviewItem={row.original} />
                     ),
             },
         ],
-        [],
+        [t],
     );
 
     const signalColumns: ContentTableColumnDef<AiAgentReviewSignalSummary>[] =
@@ -1017,7 +1060,7 @@ const AiAgentAdminReviewItemsTable = ({
             () => [
                 {
                     accessorKey: 'promotedToFinding',
-                    header: 'Result',
+                    header: t('reviewsTable.columns.result'),
                     enableSorting: false,
                     size: 110,
                     Header: ({ column }) => (
@@ -1046,7 +1089,9 @@ const AiAgentAdminReviewItemsTable = ({
                                     }
                                 />
                                 <Tooltip
-                                    label={`${signal.confidence} confidence`}
+                                    label={t(
+                                        `reviewsTable.confidence.${signal.confidence}`,
+                                    )}
                                 >
                                     <Box className={styles.confidenceIcon}>
                                         <MantineIcon
@@ -1062,7 +1107,7 @@ const AiAgentAdminReviewItemsTable = ({
                 },
                 {
                     accessorKey: 'signal',
-                    header: 'Signal',
+                    header: t('reviewsTable.columns.signal'),
                     enableSorting: false,
                     size: 300,
                     Header: ({ column }) => (
@@ -1080,7 +1125,9 @@ const AiAgentAdminReviewItemsTable = ({
                                 <Group gap={4} wrap="nowrap">
                                     <CategoryBadge
                                         variant="dot"
-                                        label={signalLabels[signal.signal]}
+                                        label={t(
+                                            signalLabelKeys[signal.signal],
+                                        )}
                                         color="gray"
                                     />
                                     {subcategory && (
@@ -1106,7 +1153,7 @@ const AiAgentAdminReviewItemsTable = ({
                 },
                 {
                     accessorKey: 'prompt',
-                    header: 'Turn',
+                    header: t('reviewsTable.columns.turn'),
                     enableSorting: false,
                     size: 300,
                     Header: ({ column }) => (
@@ -1125,7 +1172,7 @@ const AiAgentAdminReviewItemsTable = ({
                                 <ExpandableText lineClamp={1}>
                                     {signal.errorMessage ??
                                         signal.responsePreview ??
-                                        'No response captured'}
+                                        t('reviewsTable.noResponse')}
                                 </ExpandableText>
                             </Stack>
                         );
@@ -1133,7 +1180,7 @@ const AiAgentAdminReviewItemsTable = ({
                 },
                 {
                     accessorKey: 'agentUuid',
-                    header: 'Agent',
+                    header: t('reviewsTable.columns.agent'),
                     enableSorting: false,
                     size: 100,
                     Header: ({ column }) => (
@@ -1164,7 +1211,8 @@ const AiAgentAdminReviewItemsTable = ({
                                     size="sm"
                                 />
                                 <Text fz="sm" lineClamp={1}>
-                                    {project?.name ?? 'Unknown agent'}
+                                    {project?.name ??
+                                        t('reviewsTable.unknownAgent')}
                                 </Text>
                             </Group>
                         );
@@ -1172,7 +1220,7 @@ const AiAgentAdminReviewItemsTable = ({
                 },
                 {
                     accessorKey: 'createdAt',
-                    header: 'Reviewed',
+                    header: t('reviewsTable.columns.reviewed'),
                     enableSorting: true,
                     size: 150,
                     Header: ({ column }) => (
@@ -1192,10 +1240,14 @@ const AiAgentAdminReviewItemsTable = ({
                                 <Text fz="xs" c="ldGray.7" fw={500}>
                                     {formatReviewDate(signal.createdAt)}
                                 </Text>
-                                <Tooltip label="Open AI thread preview">
+                                <Tooltip
+                                    label={t('reviewsTable.openThreadPreview')}
+                                >
                                     <ActionIcon
                                         size="sm"
-                                        aria-label="Open AI thread preview"
+                                        aria-label={t(
+                                            'reviewsTable.openThreadPreview',
+                                        )}
                                         className={styles.threadIcon}
                                         onClick={(event) => {
                                             event.stopPropagation();
@@ -1217,7 +1269,7 @@ const AiAgentAdminReviewItemsTable = ({
                     },
                 },
             ],
-            [agentsMap, onReviewItemSelect, projectsMap],
+            [agentsMap, onReviewItemSelect, projectsMap, t],
         );
 
     const table = useContentTable({
@@ -1322,9 +1374,9 @@ const AiAgentAdminReviewItemsTable = ({
             });
         },
         emptyState: {
-            entityName: 'issues',
-            title: 'No issues yet',
-            description: 'When an agent answer looks wrong, it shows up here.',
+            entityName: t('reviewsTable.entityName'),
+            title: t('reviewsTable.emptyTitle'),
+            description: t('reviewsTable.emptyDescription'),
             search,
             hasActiveFilters,
             onClearFilters: clearAllFilters,

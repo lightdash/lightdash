@@ -15,6 +15,7 @@ import dashboardAsCodeSchema from '@lightdash/common/src/schemas/dashboardAsCode
 import { Box, Text } from '@mantine/core';
 import type { editor } from 'monaco-editor';
 import { useCallback, useEffect, useRef, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type TourEditable } from '../../components/common/GuidedTour/GuidedTour';
 import Editor, {
     type BeforeMount,
@@ -22,6 +23,7 @@ import Editor, {
     type OnMount,
 } from '../../components/MonacoEditor';
 import { useEditorTheme } from '../../hooks/useEditorTheme';
+import i18n from '../../i18n/i18n';
 import { configureLightdashYaml } from '../../utils/monacoYaml';
 import {
     getLightdashMonacoTheme,
@@ -75,12 +77,12 @@ const configureLearnYaml = (monaco: Monaco) => {
 
 type EditorState = 'saved' | 'dirty' | 'saving' | 'readonly' | 'invalid';
 
-const STATE_LABELS: Record<EditorState, string> = {
-    saved: 'Saved',
-    dirty: 'Unsaved changes',
-    saving: 'Saving…',
-    readonly: 'Read-only',
-    invalid: 'Invalid YAML',
+const STATE_KEYS: Record<EditorState, string> = {
+    saved: 'editor.state.saved',
+    dirty: 'editor.state.dirty',
+    saving: 'editor.state.saving',
+    readonly: 'editor.state.readonly',
+    invalid: 'editor.state.invalid',
 };
 
 type WorkspaceEditorProps = {
@@ -134,6 +136,7 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
     onChange,
     onBlur,
 }) => {
+    const { t } = useTranslation('learn');
     const wrapperRef = useRef<HTMLDivElement & TourEditable>(null);
     const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
     const keyTypoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -424,7 +427,11 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
                     KEY_TYPO_MARKERS,
                     typos.map((typo) => ({
                         severity: monaco.MarkerSeverity.Warning,
-                        message: `Unknown key "${typo.key}". Did you mean "${typo.suggestion}"?`,
+                        message: i18n.t('editor.unknownKey', {
+                            ns: 'learn',
+                            key: typo.key,
+                            suggestion: typo.suggestion,
+                        }),
                         startLineNumber: typo.line,
                         endLineNumber: typo.line,
                         startColumn: typo.column,
@@ -462,7 +469,9 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
                               ? checkLearnLessonEntry(ed.getValue(), expect)
                               : holdsEntry(ed.getValue(), suggestion)
                                 ? null
-                                : 'Add the highlighted lines, then check again',
+                                : i18n.t('editor.addHighlightedLines', {
+                                      ns: 'learn',
+                                  }),
                 };
             }
             ed.onDidBlurEditorText(() => onBlurRef.current());
@@ -505,8 +514,8 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
                     {state === 'invalid'
                         ? invalid
                         : editable
-                          ? STATE_LABELS[state]
-                          : 'Read-only'}
+                          ? t(STATE_KEYS[state])
+                          : t('editor.state.readonly')}
                 </Text>
             </Box>
             <Box

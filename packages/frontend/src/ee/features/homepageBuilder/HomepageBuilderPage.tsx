@@ -1,6 +1,7 @@
 import { type ProjectHomepage } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router';
 import Page from '../../../components/common/Page/Page';
 import ForbiddenPanel from '../../../components/ForbiddenPanel';
@@ -41,6 +42,7 @@ const useAutoCreateStarterHomepage = ({
     opening: ReturnType<typeof useHomepageOpening>['opening'];
     onCreated: (created: ProjectHomepage) => void;
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const { data: project } = useProject(projectUuid);
     const { data: pinnedItems } = usePinnedItems(
         projectUuid,
@@ -60,7 +62,7 @@ const useAutoCreateStarterHomepage = ({
         didAutoCreate.current = true;
         createFirstHomepage.mutate(
             {
-                name: 'Homepage',
+                name: t('builder.defaultName'),
                 draftConfig: buildStarterHomepage(
                     opening,
                     (pinnedItems ?? []).map((item) => ({
@@ -79,6 +81,7 @@ const useAutoCreateStarterHomepage = ({
         opening,
         pinnedItems,
         keySpaces,
+        t,
     ]);
 };
 

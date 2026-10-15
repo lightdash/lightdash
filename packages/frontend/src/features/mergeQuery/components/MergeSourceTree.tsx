@@ -1,6 +1,7 @@
 import { Box, Button, Stack } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useMemo, type Dispatch, type FC, type SetStateAction } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import BasePanel from '../../../components/Explorer/ExploreSideBar/BasePanel';
 import ExploreTree from '../../../components/Explorer/ExploreTree';
@@ -24,6 +25,7 @@ export const MergeSourceTree: FC<{
     selectedFields,
     hideSelectedFields = false,
 }) => {
+    const { t } = useTranslation('mergeQuery');
     const merge = useMerge();
     const source = merge.additionalSources.find(({ id }) => id === sourceId);
     const { data: explore, isInitialLoading } = useExplore(
@@ -52,7 +54,7 @@ export const MergeSourceTree: FC<{
                     leftSection={<MantineIcon icon={IconArrowLeft} size={13} />}
                     onClick={() => setIsChoosingExplore(false)}
                 >
-                    Back to fields
+                    {t('sourceTree.backToFields')}
                 </Button>
                 <Box style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
                     <BasePanel
@@ -84,7 +86,7 @@ export const MergeSourceTree: FC<{
                 leftSection={<MantineIcon icon={IconArrowLeft} size={13} />}
                 onClick={() => setIsChoosingExplore(true)}
             >
-                Change table
+                {t('sourceTree.changeTable')}
             </Button>
 
             {source.exploreName && isInitialLoading && <LoadingSkeleton />}

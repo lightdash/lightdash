@@ -31,6 +31,7 @@ import {
     type ClipboardEventHandler,
     type DragEventHandler,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ComposerSubmitButton } from '../../../components/common/PromptComposer/ComposerSubmitButton';
 import PromptComposer, {
@@ -133,53 +134,60 @@ const QueuedPromptRow = ({
     onEdit: () => void;
     onRemove: () => void;
     onSendNow: () => void;
-}) => (
-    <Box
-        className={`${classes.stackRow} ${classes.queuedPrompt}`}
-        data-state={state}
-        role="listitem"
-    >
-        {state === 'sending' && <Loader size={12} color="ldGray.6" />}
-        <UnstyledButton
-            className={classes.queuedPromptText}
-            aria-label={`Edit queued prompt: ${item.request.description}`}
-            onClick={onEdit}
-            disabled={state === 'sending'}
+}) => {
+    const { t } = useTranslation('chartTypes');
+    return (
+        <Box
+            className={`${classes.stackRow} ${classes.queuedPrompt}`}
+            data-state={state}
+            role="listitem"
         >
-            <Text fz="xs" lineClamp={1}>
-                {item.request.description}
+            {state === 'sending' && <Loader size={12} color="ldGray.6" />}
+            <UnstyledButton
+                className={classes.queuedPromptText}
+                aria-label={t('promptBar.editQueued', {
+                    description: item.request.description,
+                })}
+                onClick={onEdit}
+                disabled={state === 'sending'}
+            >
+                <Text fz="xs" lineClamp={1}>
+                    {item.request.description}
+                </Text>
+            </UnstyledButton>
+            <Text className={classes.queueState} fz="xs">
+                {state === 'sending'
+                    ? t('promptBar.sending')
+                    : state === 'next'
+                      ? t('promptBar.nextUp')
+                      : t('promptBar.queued')}
             </Text>
-        </UnstyledButton>
-        <Text className={classes.queueState} fz="xs">
-            {state === 'sending'
-                ? 'Sending…'
-                : state === 'next'
-                  ? 'Next up'
-                  : 'Queued'}
-        </Text>
-        {state === 'queued' && canInterrupt && (
-            <Anchor
-                component="button"
-                type="button"
-                size="xs"
-                fw={500}
-                onClick={onSendNow}
-            >
-                Send now
-            </Anchor>
-        )}
-        {state !== 'sending' && (
-            <ActionIcon
-                color="ldGray"
-                size="xs"
-                aria-label={`Remove queued prompt: ${item.request.description}`}
-                onClick={onRemove}
-            >
-                <MantineIcon icon={IconX} size={14} />
-            </ActionIcon>
-        )}
-    </Box>
-);
+            {state === 'queued' && canInterrupt && (
+                <Anchor
+                    component="button"
+                    type="button"
+                    size="xs"
+                    fw={500}
+                    onClick={onSendNow}
+                >
+                    {t('promptBar.sendNow')}
+                </Anchor>
+            )}
+            {state !== 'sending' && (
+                <ActionIcon
+                    color="ldGray"
+                    size="xs"
+                    aria-label={t('promptBar.removeQueued', {
+                        description: item.request.description,
+                    })}
+                    onClick={onRemove}
+                >
+                    <MantineIcon icon={IconX} size={14} />
+                </ActionIcon>
+            )}
+        </Box>
+    );
+};
 
 const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
     function PromptPill(
@@ -208,6 +216,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         },
         ref,
     ) {
+        const { t } = useTranslation('chartTypes');
         const attachments = useVizComposerAttachments({
             projectUuid,
             appUuid: composerAppUuid,
@@ -286,17 +295,17 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             : (savedDesign?.designUuid ?? null);
         const themeName =
             themesQuery.isError && isNewChart
-                ? 'Themes unavailable'
+                ? t('promptBar.themesUnavailable')
                 : themesQuery.isInitialLoading && isNewChart
-                  ? 'Loading themes…'
+                  ? t('promptBar.loadingThemes')
                   : selectedThemeUuid === null
-                    ? 'No theme'
+                    ? t('promptBar.noTheme')
                     : (themes.find(
                           (theme) => theme.designUuid === selectedThemeUuid,
                       )?.name ??
                       (savedDesign?.designUuid === selectedThemeUuid
                           ? savedDesign.name
-                          : 'Selected theme'));
+                          : t('promptBar.selectedTheme')));
 
         // A finished build may have linked connections; refresh the count.
         useEffect(() => {
@@ -535,7 +544,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                 });
             } catch (error) {
                 showToastError({
-                    title: 'Failed to capture screenshot',
+                    title: t('promptBar.screenshotFailed'),
                     subtitle: getErrorMessage(error),
                 });
             } finally {
@@ -615,7 +624,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     fw={600}
                                     inherit
                                 >
-                                    Reading your prompt…
+                                    {t('promptBar.readingPrompt')}
                                 </Text>
                                 <Text
                                     className={classes.buildingPrompt}
@@ -634,7 +643,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     fw={500}
                                     onClick={handleReclaimPrompt}
                                 >
-                                    Cancel
+                                    {t('actions.cancel', { ns: 'common' })}
                                 </Anchor>
                             </Box>
                         )}
@@ -650,7 +659,11 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     fw={600}
                                     inherit
                                 >
-                                    Building…{elapsed ? ` ${elapsed}` : ''}
+                                    {elapsed
+                                        ? t('promptBar.buildingElapsed', {
+                                              elapsed,
+                                          })
+                                        : t('promptBar.building')}
                                 </Text>
                                 {build.cancelError ? (
                                     <Text
@@ -660,7 +673,9 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                         lineClamp={1}
                                         role="alert"
                                     >
-                                        Could not cancel: {build.cancelError}
+                                        {t('promptBar.couldNotCancel', {
+                                            error: build.cancelError,
+                                        })}
                                     </Text>
                                 ) : (
                                     buildingPrompt && (
@@ -680,7 +695,10 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                         c="dimmed"
                                         className={classes.queuedCount}
                                     >
-                                        · {queuedPrompts.length} queued
+                                        ·{' '}
+                                        {t('promptBar.queuedCount', {
+                                            count: queuedPrompts.length,
+                                        })}
                                     </Text>
                                 )}
                                 {cancelActiveBuild && (
@@ -695,8 +713,10 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                         disabled={isCancelling}
                                     >
                                         {isCancelling
-                                            ? 'Cancelling…'
-                                            : 'Cancel'}
+                                            ? t('promptBar.cancelling')
+                                            : t('actions.cancel', {
+                                                  ns: 'common',
+                                              })}
                                     </Anchor>
                                 )}
                             </Box>
@@ -712,7 +732,9 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                             <Box
                                 className={classes.queueList}
                                 role="list"
-                                aria-label={`${queuedStackSize} queued ${queuedStackSize === 1 ? 'prompt' : 'prompts'}`}
+                                aria-label={t('promptBar.queuedPrompts', {
+                                    count: queuedStackSize,
+                                })}
                             >
                                 {visibleSendingPrompt && (
                                     <QueuedPromptRow
@@ -772,14 +794,14 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                     className={classes.composer}
                     placeholder={
                         questions !== null
-                            ? 'Answer the questions, or skip, to build…'
+                            ? t('promptBar.placeholders.answerQuestions')
                             : isClarifying
-                              ? 'Reading your prompt…'
+                              ? t('promptBar.readingPrompt')
                               : isBuilding
-                                ? 'Ask for another change…'
+                                ? t('promptBar.placeholders.anotherChange')
                                 : hasVersions
-                                  ? 'Ask for a change…'
-                                  : 'Describe a new chart type…'
+                                  ? t('promptBar.placeholders.change')
+                                  : t('promptBar.placeholders.newChartType')
                     }
                     disabled={isComposerLocked}
                     submitDisabled={!canSubmit || isComposerLocked}
@@ -817,12 +839,18 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                 />
                             )}
                             {onCaptureScreenshot && (
-                                <Tooltip label="Attach screenshot of current render">
+                                <Tooltip
+                                    label={t(
+                                        'promptBar.attachScreenshotTooltip',
+                                    )}
+                                >
                                     <ActionIcon
                                         variant="subtle"
                                         color="gray"
                                         radius="xl"
-                                        aria-label="Attach screenshot"
+                                        aria-label={t(
+                                            'promptBar.attachScreenshot',
+                                        )}
                                         onClick={() =>
                                             void handleCaptureScreenshot()
                                         }
@@ -853,7 +881,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                             <Box
                                 className={classes.contextTray}
                                 role="group"
-                                aria-label="Selected chart context"
+                                aria-label={t('promptBar.selectedContext')}
                             >
                                 {(!isNewChart || canViewThemes) && (
                                     <ThemePicker
@@ -880,7 +908,9 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                         selectionHint={
                                             isNewChart
                                                 ? undefined
-                                                : 'Selecting a theme rebuilds this chart type.'
+                                                : t(
+                                                      'promptBar.themeRebuildHint',
+                                                  )
                                         }
                                     />
                                 )}
@@ -892,7 +922,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                             void themesQuery.refetch()
                                         }
                                     >
-                                        Retry themes
+                                        {t('promptBar.retryThemes')}
                                     </Button>
                                 )}
                                 <DataSourceChip
@@ -903,7 +933,9 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                 {linkedConnections.map(({ connection }) => (
                                     <Tooltip
                                         key={connection.externalConnectionUuid}
-                                        label={`Manage connection: ${connection.name}`}
+                                        label={t('promptBar.manageConnection', {
+                                            name: connection.name,
+                                        })}
                                     >
                                         <Button
                                             size="compact-xs"
@@ -913,7 +945,10 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                             onClick={() =>
                                                 setComposerPanel('connections')
                                             }
-                                            aria-label={`Manage connection: ${connection.name}`}
+                                            aria-label={t(
+                                                'promptBar.manageConnection',
+                                                { name: connection.name },
+                                            )}
                                             leftSection={
                                                 <MantineIcon
                                                     icon={IconPlugConnected}
@@ -945,7 +980,10 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                             )
                                         }
                                         removeButtonProps={{
-                                            'aria-label': `Remove connection: ${connection.name}`,
+                                            'aria-label': t(
+                                                'promptBar.removeConnection',
+                                                { name: connection.name },
+                                            ),
                                             'aria-hidden': false,
                                             tabIndex: 0,
                                         }}
@@ -1014,7 +1052,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                 )}
                                 {questions !== null ? (
                                     <Text size="xs" c="dimmed">
-                                        Answer or skip first
+                                        {t('promptBar.answerOrSkipFirst')}
                                     </Text>
                                 ) : null}
                             </Stack>
@@ -1040,8 +1078,10 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     icon={IconPlayerStop}
                                     label={
                                         isCancelling
-                                            ? 'Cancelling generation'
-                                            : 'Stop generation'
+                                            ? t(
+                                                  'promptBar.cancellingGeneration',
+                                              )
+                                            : t('promptBar.stopGeneration')
                                     }
                                     size="sm"
                                     destructive
@@ -1055,7 +1095,9 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                 <ComposerSubmitButton
                                     icon={IconArrowUp}
                                     label={
-                                        isBuilding ? 'Queue message' : 'Send'
+                                        isBuilding
+                                            ? t('promptBar.queueMessage')
+                                            : t('promptBar.send')
                                     }
                                     size="sm"
                                     disabled={
@@ -1077,6 +1119,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
 /** The floating prompt pill; a failed send reports itself right above it. */
 const BuilderPromptBar = forwardRef<BuilderPromptBarHandle, Props>(
     function BuilderPromptBar(props, ref) {
+        const { t } = useTranslation('chartTypes');
         return (
             <Box className={classes.wrap}>
                 {props.build.error !== null && (
@@ -1091,7 +1134,7 @@ const BuilderPromptBar = forwardRef<BuilderPromptBarHandle, Props>(
                                 size="xs"
                                 onClick={props.build.retry}
                             >
-                                Retry
+                                {t('actions.retry', { ns: 'common' })}
                             </Anchor>
                         )}
                     </Box>

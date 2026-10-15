@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
-    capitalize,
     ChartSourceType,
     ContentSortByColumns,
     contentToResourceViewItem,
@@ -44,7 +43,9 @@ import {
     IconColumns,
     IconCheck,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import { getListedDocumentAccess } from '../../../features/documents/listedDocumentAccess';
 import {
@@ -128,10 +129,32 @@ type ResourceView2Props = Partial<ContentTableOptions<ResourceViewItem>> & {
 
 const defaultSpaces: SpaceSummary[] = [];
 
+const getMobileColumnLabel = (t: TFunction<'resourceView'>, key: string) => {
+    switch (key) {
+        case ColumnVisibility.NAME:
+            return t('columns.name');
+        case ColumnVisibility.SPACE:
+            return t('columns.space');
+        case ColumnVisibility.UPDATED_AT:
+            return t('columns.lastUpdated');
+        case ColumnVisibility.OWNER:
+            return t('columns.owner');
+        case ColumnVisibility.VIEWS:
+            return t('columns.views');
+        case ColumnVisibility.ACCESS:
+            return t('columns.access');
+        case ColumnVisibility.CONTENT:
+            return t('columns.content');
+        default:
+            return key;
+    }
+};
+
 // Self-contained search input: holds the typed value locally and only lifts the
 // debounced value to the parent, so keystrokes don't re-render the whole table.
 const DebouncedSearchInput = memo(
     ({ onSearch }: { onSearch: (value: string) => void }) => {
+        const { t } = useTranslation('resourceView');
         const [value, setValue] = useState('');
         const debouncedOnSearch = useDebouncedCallback(onSearch, 300);
 
@@ -150,11 +173,11 @@ const DebouncedSearchInput = memo(
         );
 
         return (
-            <Tooltip label="Search by name">
+            <Tooltip label={t('table.searchByName')}>
                 <TextInput
                     size="xs"
                     w={{ base: '100%', sm: 309 }}
-                    aria-label="Search by name"
+                    aria-label={t('table.searchByName')}
                     classNames={{ input: classes.searchInput }}
                     styles={(inputTheme) => ({
                         input: {
@@ -171,7 +194,7 @@ const DebouncedSearchInput = memo(
                     })}
                     type="search"
                     variant="default"
-                    placeholder="Search by name"
+                    placeholder={t('table.searchByName')}
                     value={value}
                     leftSection={
                         <MantineIcon
@@ -185,7 +208,7 @@ const DebouncedSearchInput = memo(
                     rightSection={
                         value && (
                             <ActionIcon
-                                aria-label="Clear search"
+                                aria-label={t('table.clearSearch')}
                                 onMouseDown={(event) => event.preventDefault()}
                                 onClick={() => handleChange('')}
                                 variant="transparent"
@@ -215,6 +238,7 @@ const InfiniteResourceTable = ({
     errorStateTitle,
     ...contentTableProps
 }: ResourceView2Props) => {
+    const { t } = useTranslation('resourceView');
     const compact = useMatches(
         { base: true, sm: false },
         { getInitialValueInEffect: false },
@@ -268,7 +292,7 @@ const InfiniteResourceTable = ({
     const ResourceColumns: ContentTableColumnDef<ResourceViewItem>[] = [
         {
             accessorKey: ColumnVisibility.NAME,
-            header: capitalize(ColumnVisibility.NAME),
+            header: t('columns.name'),
             enableSorting: true,
             enableEditing: false,
             size: compact ? 220 : 300,
@@ -288,7 +312,7 @@ const InfiniteResourceTable = ({
             accessorKey: ColumnVisibility.SPACE,
             enableSorting: true,
             enableEditing: false,
-            header: capitalize(ColumnVisibility.SPACE),
+            header: t('columns.space'),
             Cell: ({ row }) => {
                 const item = row.original;
                 if (isResourceViewSpaceItem(item)) {
@@ -319,7 +343,7 @@ const InfiniteResourceTable = ({
                 if (isResourceViewDocumentItem(item) && !item.data.spaceUuid) {
                     return (
                         <Text fz="xs" fw={500} c="dimmed">
-                            Personal
+                            {t('table.personal')}
                         </Text>
                     );
                 }
@@ -352,7 +376,7 @@ const InfiniteResourceTable = ({
             accessorKey: ColumnVisibility.UPDATED_AT,
             enableSorting: true,
             enableEditing: false,
-            header: 'Last Modified',
+            header: t('columns.lastModified'),
             Cell: ({ row }) => {
                 if (isResourceViewSpaceItem(row.original))
                     return (
@@ -367,7 +391,7 @@ const InfiniteResourceTable = ({
             accessorKey: ColumnVisibility.OWNER,
             enableSorting: false,
             enableEditing: false,
-            header: 'Owner',
+            header: t('columns.owner'),
             size: 160,
             Cell: ({ row }) => {
                 const item = row.original;
@@ -398,7 +422,7 @@ const InfiniteResourceTable = ({
             accessorKey: ColumnVisibility.VIEWS,
             enableSorting: true,
             enableEditing: false,
-            header: 'Views',
+            header: t('columns.views'),
             size: 100,
             Cell: ({ row }) => {
                 if (
@@ -428,7 +452,7 @@ const InfiniteResourceTable = ({
             accessorKey: ColumnVisibility.ACCESS,
             enableSorting: false,
             enableEditing: false,
-            header: 'Access',
+            header: t('columns.access'),
             Cell: ({ row }) => {
                 if (!isResourceViewSpaceItem(row.original)) return null;
                 return (
@@ -457,7 +481,7 @@ const InfiniteResourceTable = ({
             accessorKey: ColumnVisibility.CONTENT,
             enableSorting: false,
             enableEditing: false,
-            header: 'Content',
+            header: t('columns.content'),
             Cell: ({ row }) => {
                 if (!isResourceViewSpaceItem(row.original)) return null;
                 const {
@@ -477,30 +501,30 @@ const InfiniteResourceTable = ({
                             <AttributeCount
                                 Icon={IconFileText}
                                 count={documentCount}
-                                name="Documents"
+                                name={t('attributeCount.documents')}
                             />
                         )}
                         <AttributeCount
                             Icon={IconLayoutDashboard}
                             count={dashboardCount}
-                            name="Dashboards"
+                            name={t('attributeCount.dashboards')}
                         />
                         <AttributeCount
                             Icon={IconChartBar}
                             count={chartCount}
-                            name="Charts"
+                            name={t('attributeCount.charts')}
                         />
                         {dataAppsEnabled && (
                             <AttributeCount
                                 Icon={IconAppWindow}
                                 count={appCount}
-                                name="Data apps"
+                                name={t('attributeCount.dataApps')}
                             />
                         )}
                         <AttributeCount
                             Icon={IconFolder}
                             count={childSpaceCount}
-                            name="Spaces"
+                            name={t('attributeCount.spaces')}
                         />
                     </Group>
                 );
@@ -899,7 +923,7 @@ const InfiniteResourceTable = ({
                                                 />
                                             }
                                         >
-                                            Columns
+                                            {t('table.columns')}
                                         </Button>
                                     </Menu.Target>
                                     <Menu.Dropdown>
@@ -946,10 +970,10 @@ const InfiniteResourceTable = ({
                                                         )
                                                     }
                                                 >
-                                                    {key ===
-                                                    ColumnVisibility.UPDATED_AT
-                                                        ? 'Last updated'
-                                                        : capitalize(key)}
+                                                    {getMobileColumnLabel(
+                                                        t,
+                                                        key,
+                                                    )}
                                                 </Menu.Item>
                                             ))}
                                     </Menu.Dropdown>
@@ -1006,7 +1030,9 @@ const InfiniteResourceTable = ({
                                     />
                                     <Box w={220}>
                                         <UserSelect
-                                            placeholder="Filter by owner"
+                                            placeholder={t(
+                                                'table.filterByOwner',
+                                            )}
                                             value={selectedOwnerUserUuid}
                                             onChange={setSelectedOwnerUserUuid}
                                             clearable
@@ -1025,7 +1051,7 @@ const InfiniteResourceTable = ({
                                 }
                                 onClick={openTransferItemsModal}
                             >
-                                Move to space
+                                {t('actionMenu.moveToSpace')}
                             </Button>
                         ) : null}
                     </Group>
@@ -1044,18 +1070,23 @@ const InfiniteResourceTable = ({
                 }}
             >
                 {isFetching ? (
-                    <Text fz="xs">Loading more...</Text>
+                    <Text fz="xs">{t('table.loadingMore')}</Text>
                 ) : (
                     <Group gap="two">
                         <Text fz="xs">
                             {hasNextPage
-                                ? 'Scroll for more results'
-                                : 'All results loaded'}
+                                ? t('table.scrollForMore')
+                                : t('table.allResultsLoaded')}
                         </Text>
                         <Text fz="xs" fw={400} c="dimmed">
                             {hasNextPage
-                                ? `(${flatData.length} of ${totalResults} loaded)`
-                                : `(${flatData.length})`}
+                                ? t('table.loadedOfTotal', {
+                                      loaded: flatData.length,
+                                      total: totalResults,
+                                  })
+                                : t('table.loadedCount', {
+                                      loaded: flatData.length,
+                                  })}
                         </Text>
                     </Group>
                 )}
@@ -1260,7 +1291,7 @@ const InfiniteResourceTable = ({
                             void refetch();
                         }}
                     >
-                        Retry
+                        {t('actions.retry', { ns: 'common' })}
                     </Button>
                 }
             />

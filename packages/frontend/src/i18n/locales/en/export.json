@@ -1,0 +1,74 @@
+{
+    "exportSelector": {
+        "downloadData": "Download data"
+    },
+    "largeExportWarning": {
+        "title": "Large export",
+        "body_one": "This export is about {{cellMillions}} million cells. Exports must finish within {{count}} minute, and one this large may take longer. Filter the results or use a scheduled delivery to Google Sheets.",
+        "body_other": "This export is about {{cellMillions}} million cells. Exports must finish within {{count}} minutes, and one this large may take longer. Filter the results or use a scheduled delivery to Google Sheets."
+    },
+    "exportResults": {
+        "toast": {
+            "exporting": "Exporting results",
+            "mayTakeMinutes": "This may take a few minutes...",
+            "truncatedTitle": "The results in this export have been limited.",
+            "truncatedSubtitle": "The export was truncated due to size constraints.",
+            "downloadFailed": "Unable to download results"
+        },
+        "errors": {
+            "noDownloadUrl": "The export did not return a download URL."
+        },
+        "noData": "No data to export",
+        "limit": {
+            "tableRows": "Table rows",
+            "allResults": "All results",
+            "custom": "Custom",
+            "rowsToExport": "Rows to export"
+        },
+        "layout": {
+            "title": "Layout",
+            "tooltip": "Grouped keeps the chart's pivoted columns. Flat exports the raw rows behind the chart.",
+            "description": "Choose whether to export the chart's grouped layout or the underlying flat rows.",
+            "grouped": "Grouped",
+            "flat": "Flat"
+        },
+        "dialog": {
+            "title": "Export configuration",
+            "description": "Choose the file type, value format, and result scope for this export."
+        },
+        "fileFormat": {
+            "title": "File format",
+            "description": "CSV is best for pipelines. XLSX is ready for spreadsheet tools."
+        },
+        "values": {
+            "title": "Values",
+            "description": "Formatted keeps table presentation. Raw uses the underlying values.",
+            "formatted": "Formatted",
+            "raw": "Raw"
+        },
+        "resultScope": {
+            "title": "Result scope",
+            "description": "Export only the visible table rows or expand the result set."
+        },
+        "pivotLimitNote": "<strong>Pivot export limit.</strong> Pivot exports are limited to {{cells}} cells and {{columns}} columns.",
+        "excelLimitNote": "<strong>Excel row limit.</strong> Excel exports are limited to 1,000,000 rows."
+    },
+    "googleSheets": {
+        "exportMenuItem": "Export Google Sheets",
+        "button": "Google Sheets",
+        "progress": {
+            "mayTakeMinutes": "This may take a few minutes...",
+            "runningQuery": "Running query...",
+            "writing": "Writing to Google Sheets...",
+            "writingRetry": "Writing to Google Sheets... (retry {{attempt}})"
+        },
+        "toast": {
+            "exporting": "Exporting Google Sheets",
+            "uploadFailed": "Unable to upload to Google Sheets",
+            "exportFailed": "Unable to export to Google Sheets"
+        },
+        "errors": {
+            "schedulerJobFailed": "Couldn't create scheduler job for google sheets export"
+        }
+    }
+}

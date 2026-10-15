@@ -12,6 +12,7 @@ import {
     Textarea,
 } from '@mantine/core';
 import { useEffect, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AiAgentIcon } from '../../../../ee/features/aiCopilot/components/AiAgentIcon';
 import { useAiAgentButtonVisibility } from '../../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useProjectAiAgents } from '../../../../ee/features/aiCopilot/hooks/useProjectAiAgents';
@@ -36,6 +37,7 @@ export const SchedulerFormAiInput: FC<Props> = ({
     resourceSpaceUuid,
     bare,
 }) => {
+    const { t } = useTranslation('scheduler');
     const form = useSchedulerFormContext();
     const isAiVisible = useAiAgentButtonVisibility();
     const { data: agentsData } = useProjectAiAgents({
@@ -124,7 +126,7 @@ export const SchedulerFormAiInput: FC<Props> = ({
                 <Group gap="sm" wrap="nowrap" align="center">
                     {!bare && <AiAgentIcon size={18} animated calm />}
                     <Text fw={600} fz="sm">
-                        AI-enhanced message
+                        {t('aiInput.title')}
                     </Text>
                 </Group>
                 <Switch
@@ -138,13 +140,13 @@ export const SchedulerFormAiInput: FC<Props> = ({
                 mt={2}
                 className={bare ? undefined : classes.subtitle}
             >
-                Writes the delivery message from your data on every send.
+                {t('aiInput.subtitle')}
             </Text>
 
             {augmentation && (
                 <Stack gap="sm" mt="md">
                     <Textarea
-                        label="Instructions"
+                        label={t('aiInput.instructions')}
                         rows={3}
                         resize="vertical"
                         value={augmentation.prompt}
@@ -153,15 +155,15 @@ export const SchedulerFormAiInput: FC<Props> = ({
                         }
                         error={
                             augmentation.prompt.trim().length === 0
-                                ? 'Instructions are required'
+                                ? t('form.validation.instructionsRequired')
                                 : undefined
                         }
                     />
                     {agents.length > 0 && (
                         <Select
-                            label="AI agent (optional)"
-                            description="Uses the agent's tools and context."
-                            placeholder="None"
+                            label={t('aiInput.agentLabel')}
+                            description={t('aiInput.agentDescription')}
+                            placeholder={t('state.none', { ns: 'common' })}
                             clearable
                             data={agents.map((agent) => ({
                                 value: agent.uuid,

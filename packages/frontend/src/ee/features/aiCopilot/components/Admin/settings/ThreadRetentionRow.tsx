@@ -2,6 +2,7 @@ import { type RetentionWindowHours } from '@lightdash/common';
 import { Box, Group, Loader, Stack, Text, Title } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../../../../../components/common/Callout';
 import MantineModal from '../../../../../../components/common/MantineModal';
 import {
@@ -16,6 +17,7 @@ export const ThreadRetentionRow = ({
 }: {
     current: RetentionWindowHours;
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const { mutate: updateSettings, isLoading: isUpdatingSettings } =
         useUpdateAiOrganizationSettings();
     // A tightening change is held here until the admin confirms the deletion
@@ -35,12 +37,10 @@ export const ThreadRetentionRow = ({
             >
                 <Box maw={620}>
                     <Title order={5} mb={4}>
-                        Thread retention
+                        {t('settings.retention.title')}
                     </Title>
                     <Text c="dimmed" fz="xs">
-                        Automatically delete agent threads after a period of
-                        inactivity. Agents can shorten this window but not
-                        extend it.
+                        {t('settings.retention.description')}
                     </Text>
                 </Box>
                 <ThreadRetentionSelect
@@ -61,10 +61,10 @@ export const ThreadRetentionRow = ({
             <MantineModal
                 opened={pendingRetentionHours !== undefined}
                 onClose={() => setPendingRetentionHours(undefined)}
-                title="Reduce thread retention?"
+                title={t('settings.retention.confirmTitle')}
                 icon={IconAlertTriangle}
                 role="alertdialog"
-                confirmLabel="Reduce retention"
+                confirmLabel={t('settings.retention.confirmLabel')}
                 onConfirm={() => {
                     if (pendingRetentionHours !== undefined) {
                         updateSettings({
@@ -76,30 +76,34 @@ export const ThreadRetentionRow = ({
             >
                 <Stack gap="xs">
                     <Text fz="sm">
-                        Threads inactive for longer than{' '}
-                        {pendingRetentionHours !== undefined
-                            ? formatRetentionHours(pendingRetentionHours)
-                            : ''}{' '}
-                        will be permanently deleted across all agents in this
-                        organization, starting within the hour. This cannot be
-                        undone.
+                        {t('settings.retention.confirmBody', {
+                            window:
+                                pendingRetentionHours !== undefined
+                                    ? formatRetentionHours(
+                                          pendingRetentionHours,
+                                      )
+                                    : '',
+                        })}
                     </Text>
                     {previewQuery.isInitialLoading ? (
                         <Group gap="xs">
                             <Loader size="xs" />
                             <Text fz="sm" c="dimmed">
-                                Counting affected threads…
+                                {t('settings.retention.counting')}
                             </Text>
                         </Group>
                     ) : previewQuery.data &&
                       previewQuery.data.threadCount > 0 ? (
                         <Callout
                             variant="danger"
-                            title={`${previewQuery.data.threadCount} thread${
-                                previewQuery.data.threadCount === 1 ? '' : 's'
-                            } across ${previewQuery.data.agentCount} agent${
-                                previewQuery.data.agentCount === 1 ? '' : 's'
-                            } will be deleted`}
+                            title={t('settings.retention.willBeDeleted', {
+                                threads: t('settings.retention.threadCount', {
+                                    count: previewQuery.data.threadCount,
+                                }),
+                                agents: t('settings.retention.agentCount', {
+                                    count: previewQuery.data.agentCount,
+                                }),
+                            })}
                         />
                     ) : null}
                 </Stack>

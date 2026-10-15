@@ -1,6 +1,7 @@
 import { type ExternalFetchResponse } from '@lightdash/common';
 import { Badge, Code, Group, ScrollArea, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const MAX_BODY_RENDER_CHARS = 4000;
 
@@ -17,29 +18,36 @@ type Props = {
 /** Renders the result of a connection test: status badge, content type, and a
  *  truncated JSON preview of the response body. Shared by the onboarding wizard
  *  and the Edit modal's Examples tab. */
-export const ConnectionTestResult: FC<Props> = ({ response }) => (
-    <Stack gap="xs">
-        <Group gap="xs">
-            <Badge color={statusColor(response.status)}>
-                {response.status}
-            </Badge>
-            <Text fz="xs" c="dimmed">
-                {response.contentType}
-            </Text>
-            {response.truncated && <Badge color="yellow">truncated</Badge>}
-        </Group>
+export const ConnectionTestResult: FC<Props> = ({ response }) => {
+    const { t } = useTranslation('sync');
+    return (
+        <Stack gap="xs">
+            <Group gap="xs">
+                <Badge color={statusColor(response.status)}>
+                    {response.status}
+                </Badge>
+                <Text fz="xs" c="dimmed">
+                    {response.contentType}
+                </Text>
+                {response.truncated && (
+                    <Badge color="yellow">
+                        {t('externalConnections.testResult.truncated')}
+                    </Badge>
+                )}
+            </Group>
 
-        <ScrollArea.Autosize mah={260} w="100%" offsetScrollbars>
-            <Code
-                block
-                fz="xs"
-                style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
-            >
-                {(typeof response.body === 'string'
-                    ? response.body
-                    : JSON.stringify(response.body, null, 2)
-                ).slice(0, MAX_BODY_RENDER_CHARS)}
-            </Code>
-        </ScrollArea.Autosize>
-    </Stack>
-);
+            <ScrollArea.Autosize mah={260} w="100%" offsetScrollbars>
+                <Code
+                    block
+                    fz="xs"
+                    style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+                >
+                    {(typeof response.body === 'string'
+                        ? response.body
+                        : JSON.stringify(response.body, null, 2)
+                    ).slice(0, MAX_BODY_RENDER_CHARS)}
+                </Code>
+            </ScrollArea.Autosize>
+        </Stack>
+    );
+};

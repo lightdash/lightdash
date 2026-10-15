@@ -14,6 +14,7 @@ import {
 } from '@lightdash/common';
 import { useCallback, useState } from 'react';
 import { v4 as uuid4 } from 'uuid';
+import i18n from '../../../i18n/i18n';
 import { useAppBuildPoller } from '../../apps/hooks/useAppBuildPoller';
 import { useCancelAppVersion } from '../../apps/hooks/useCancelAppVersion';
 import { useDeleteApp } from '../../apps/hooks/useDeleteApp';
@@ -164,7 +165,7 @@ export const useDataAppVizBuild = ({
                 message:
                     version.statusMessage ??
                     version.error ??
-                    'That build could not be completed. Please try again.',
+                    i18n.t('errors.buildFailed', { ns: 'chartTypes' }),
                 // A new app cannot retry with its already-claimed uuid.
                 request: target?.isNew ? null : request,
             });

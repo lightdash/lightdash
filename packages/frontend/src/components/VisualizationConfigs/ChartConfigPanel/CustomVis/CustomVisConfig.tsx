@@ -10,6 +10,7 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import { type IDisposable, type languages } from 'monaco-editor';
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router';
 import { useDeepCompareEffect } from 'react-use';
 import { useCanCreateDataApp } from '../../../../features/apps/hooks/useCanCreateDataApp';
@@ -128,6 +129,7 @@ const registerCustomCompletionProvider = (
 };
 
 export const ConfigTabs: React.FC = memo(() => {
+    const { t } = useTranslation('vizConfig');
     const { visualizationConfig } = useVisualizationContext();
     const colorScheme = useComputedColorScheme();
     const projectUuid = useProjectUuid();
@@ -303,7 +305,9 @@ export const ConfigTabs: React.FC = memo(() => {
                     <Config.Section>
                         <Config.Group>
                             <Group gap={4} wrap="nowrap">
-                                <Config.Heading>Vega-Lite JSON</Config.Heading>
+                                <Config.Heading>
+                                    {t('customVis.vegaLiteJson')}
+                                </Config.Heading>
                                 <DocumentationHelpButton
                                     href="https://docs.lightdash.com/references/custom-charts#custom-charts"
                                     // Block, so the anchor hugs the glyph and
@@ -348,7 +352,7 @@ export const ConfigTabs: React.FC = memo(() => {
                         c="ldGray.5"
                         className={classes.editorPlaceholder}
                     >
-                        {`Start by entering your Vega-Lite JSON code or choose from our pre-built templates to create your chart.`}
+                        {t('customVis.editorPlaceholder')}
                     </Text>
                 ) : null}
 

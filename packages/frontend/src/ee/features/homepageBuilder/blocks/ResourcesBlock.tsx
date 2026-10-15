@@ -33,6 +33,7 @@ import {
     type FC,
     type KeyboardEvent,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useAppThumbnailUrl } from '../../../../features/apps/hooks/useAppThumbnail';
 import { dataAppHref } from '../../../../features/apps/utils/appUrls';
@@ -55,33 +56,41 @@ import { type BlockComponentProps, type BuildComponentProps } from './types';
 // content carries its own icon language and takes no tint — see DataAppCardMedia.
 const KIND_META: Record<
     HomepageResourceKind,
-    { icon: Icon; label: string; thumbAccent?: string }
+    { icon: Icon; labelKey: string; thumbAccent?: string }
 > = {
     video: {
         icon: IconVideo,
-        label: 'Video',
+        labelKey: 'resources.kinds.video',
         thumbAccent: classes.resThumbVideo,
     },
-    doc: { icon: IconBook, label: 'Doc', thumbAccent: classes.resThumbDoc },
-    link: { icon: IconLink, label: 'Link', thumbAccent: classes.resThumbLink },
+    doc: {
+        icon: IconBook,
+        labelKey: 'resources.kinds.doc',
+        thumbAccent: classes.resThumbDoc,
+    },
+    link: {
+        icon: IconLink,
+        labelKey: 'resources.kinds.link',
+        thumbAccent: classes.resThumbLink,
+    },
     claude: {
         icon: IconSparkles,
-        label: 'Claude',
+        labelKey: 'resources.kinds.claude',
         thumbAccent: classes.resThumbClaude,
     },
     youtube: {
         icon: IconBrandYoutube,
-        label: 'YouTube',
+        labelKey: 'resources.kinds.youtube',
         thumbAccent: classes.resThumbYoutube,
     },
-    'data-app': { icon: IconAppWindow, label: 'Data app' },
+    'data-app': { icon: IconAppWindow, labelKey: 'resources.kinds.dataApp' },
 };
 
 // Data apps are added via the picker, not the kind dropdown, so they're
 // excluded from the manually-selectable kinds.
-const KIND_OPTIONS = (Object.keys(KIND_META) as HomepageResourceKind[])
-    .filter((kind) => kind !== 'data-app')
-    .map((kind) => ({ value: kind, label: KIND_META[kind].label }));
+const SELECTABLE_KINDS = (
+    Object.keys(KIND_META) as HomepageResourceKind[]
+).filter((kind) => kind !== 'data-app');
 
 const kindMeta = (kind: HomepageResourceKind) =>
     KIND_META[kind] ?? KIND_META.link;
@@ -208,6 +217,7 @@ const ResourceCard: FC<{
     standalone: boolean;
     showDescription?: boolean;
 }> = ({ item, projectUuid, standalone, showDescription = true }) => {
+    const { t } = useTranslation('homepageBuilder');
     const dataApp = isDataApp(item);
     return (
         <a
@@ -234,7 +244,7 @@ const ResourceCard: FC<{
                     <div className={classes.mediaDesc}>
                         {item.description ||
                             (dataApp
-                                ? kindMeta(item.kind).label
+                                ? t(kindMeta(item.kind).labelKey)
                                 : hostnameOf(item.url))}
                     </div>
                 )}
@@ -278,6 +288,7 @@ const ResourceTile: FC<{
     projectUuid: string;
     showDescription: boolean;
 }> = ({ item, projectUuid, showDescription }) => {
+    const { t } = useTranslation('homepageBuilder');
     const dataApp = isDataApp(item);
     return (
         <a
@@ -295,7 +306,7 @@ const ResourceTile: FC<{
                     <div className={classes.rowDesc}>
                         {item.description ||
                             (dataApp
-                                ? kindMeta(item.kind).label
+                                ? t(kindMeta(item.kind).labelKey)
                                 : hostnameOf(item.url))}
                     </div>
                 )}
@@ -397,30 +408,38 @@ type EditProps = {
 const KindSelect: FC<{
     value: HomepageResourceKind;
     onChange: (kind: HomepageResourceKind) => void;
-}> = ({ value, onChange }) => (
-    <Select
-        size="xs"
-        w={104}
-        variant="unstyled"
-        data={KIND_OPTIONS}
-        value={value}
-        allowDeselect={false}
-        onChange={(v) => v && onChange(v as HomepageResourceKind)}
-        aria-label="Resource kind"
-    />
-);
+}> = ({ value, onChange }) => {
+    const { t } = useTranslation('homepageBuilder');
+    return (
+        <Select
+            size="xs"
+            w={104}
+            variant="unstyled"
+            data={SELECTABLE_KINDS.map((kind) => ({
+                value: kind,
+                label: t(KIND_META[kind].labelKey),
+            }))}
+            value={value}
+            allowDeselect={false}
+            onChange={(v) => v && onChange(v as HomepageResourceKind)}
+            aria-label={t('resources.kindAria')}
+        />
+    );
+};
 
 // Data app kind is fixed (set by the picker) — show a static pill instead of
 // the editable dropdown so it can't be switched to a URL-based kind.
 const KindControl: FC<{
     item: HomepageResourceItem;
     onChange: (kind: HomepageResourceKind) => void;
-}> = ({ item, onChange }) =>
-    item.kind === 'data-app' ? (
-        <MiniPill>{kindMeta(item.kind).label}</MiniPill>
+}> = ({ item, onChange }) => {
+    const { t } = useTranslation('homepageBuilder');
+    return item.kind === 'data-app' ? (
+        <MiniPill>{t(kindMeta(item.kind).labelKey)}</MiniPill>
     ) : (
         <KindSelect value={item.kind} onChange={onChange} />
     );
+};
 
 const BuildCard: FC<EditProps & { standalone: boolean }> = ({
     item,
@@ -428,86 +447,101 @@ const BuildCard: FC<EditProps & { standalone: boolean }> = ({
     standalone,
     onPatch,
     onRemove,
-}) => (
-    <div
-        className={`${classes.mediaCard} ${
-            standalone ? classes.mediaCardTall : ''
-        }`}
-    >
-        <CardThumb item={item} projectUuid={projectUuid} />
-        <div className={classes.mediaBody}>
-            <Group gap={4} justify="space-between" wrap="nowrap">
+}) => {
+    const { t } = useTranslation('homepageBuilder');
+    return (
+        <div
+            className={`${classes.mediaCard} ${
+                standalone ? classes.mediaCardTall : ''
+            }`}
+        >
+            <CardThumb item={item} projectUuid={projectUuid} />
+            <div className={classes.mediaBody}>
+                <Group gap={4} justify="space-between" wrap="nowrap">
+                    <KindControl
+                        item={item}
+                        onChange={(kind) => onPatch({ kind })}
+                    />
+                    <ActionIcon
+                        size="sm"
+                        aria-label={t('resources.remove', {
+                            title: item.title,
+                        })}
+                        onClick={onRemove}
+                    >
+                        <MantineIcon icon={IconTrash} />
+                    </ActionIcon>
+                </Group>
+                <TextInput
+                    variant="unstyled"
+                    size="xs"
+                    placeholder={t('resources.titlePlaceholder')}
+                    value={item.title}
+                    className={classes.mediaTitleInput}
+                    onChange={(e) => onPatch({ title: e.currentTarget.value })}
+                />
+                <Textarea
+                    variant="unstyled"
+                    size="xs"
+                    autosize
+                    minRows={1}
+                    maxRows={3}
+                    placeholder={t('resources.descriptionPlaceholder')}
+                    value={item.description ?? ''}
+                    onChange={(e) =>
+                        onPatch({
+                            description: e.currentTarget.value || undefined,
+                        })
+                    }
+                />
+            </div>
+        </div>
+    );
+};
+
+const BuildTile: FC<EditProps> = ({ item, projectUuid, onPatch, onRemove }) => {
+    const { t } = useTranslation('homepageBuilder');
+    return (
+        <div className={classes.resTile}>
+            <IconSquare icon={kindMeta(item.kind).icon} />
+            <div className={classes.resTileBody}>
+                <TextInput
+                    variant="unstyled"
+                    size="xs"
+                    placeholder={t('resources.titlePlaceholder')}
+                    value={item.title}
+                    onChange={(e) => onPatch({ title: e.currentTarget.value })}
+                />
+                <TextInput
+                    variant="unstyled"
+                    size="xs"
+                    placeholder={t('resources.descriptionPlaceholder')}
+                    value={item.description ?? ''}
+                    onChange={(e) =>
+                        onPatch({
+                            description: e.currentTarget.value || undefined,
+                        })
+                    }
+                />
+            </div>
+            {isDataApp(item) ? (
+                <DataAppTilePeek item={item} projectUuid={projectUuid} />
+            ) : (
                 <KindControl
                     item={item}
                     onChange={(kind) => onPatch({ kind })}
                 />
-                <ActionIcon
-                    size="sm"
-                    aria-label={`Remove ${item.title}`}
-                    onClick={onRemove}
-                >
-                    <MantineIcon icon={IconTrash} />
-                </ActionIcon>
-            </Group>
-            <TextInput
-                variant="unstyled"
-                size="xs"
-                placeholder="Title"
-                value={item.title}
-                className={classes.mediaTitleInput}
-                onChange={(e) => onPatch({ title: e.currentTarget.value })}
-            />
-            <Textarea
-                variant="unstyled"
-                size="xs"
-                autosize
-                minRows={1}
-                maxRows={3}
-                placeholder="Description"
-                value={item.description ?? ''}
-                onChange={(e) =>
-                    onPatch({ description: e.currentTarget.value || undefined })
-                }
-            />
+            )}
+            <ActionIcon
+                size="sm"
+                aria-label={t('resources.remove', { title: item.title })}
+                onClick={onRemove}
+            >
+                <MantineIcon icon={IconTrash} />
+            </ActionIcon>
         </div>
-    </div>
-);
-
-const BuildTile: FC<EditProps> = ({ item, projectUuid, onPatch, onRemove }) => (
-    <div className={classes.resTile}>
-        <IconSquare icon={kindMeta(item.kind).icon} />
-        <div className={classes.resTileBody}>
-            <TextInput
-                variant="unstyled"
-                size="xs"
-                placeholder="Title"
-                value={item.title}
-                onChange={(e) => onPatch({ title: e.currentTarget.value })}
-            />
-            <TextInput
-                variant="unstyled"
-                size="xs"
-                placeholder="Description"
-                value={item.description ?? ''}
-                onChange={(e) =>
-                    onPatch({ description: e.currentTarget.value || undefined })
-                }
-            />
-        </div>
-        {isDataApp(item) ? (
-            <DataAppTilePeek item={item} projectUuid={projectUuid} />
-        ) : (
-            <KindControl item={item} onChange={(kind) => onPatch({ kind })} />
-        )}
-        <ActionIcon
-            size="sm"
-            aria-label={`Remove ${item.title}`}
-            onClick={onRemove}
-        >
-            <MantineIcon icon={IconTrash} />
-        </ActionIcon>
-    </div>
-);
+    );
+};
 
 // --- Build container --------------------------------------------------------
 
@@ -524,6 +558,7 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
     itemSpan,
     standalone = false,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const [pasteValue, setPasteValue] = useState('');
     const [batch, setBatch] = useState<BatchEntry[]>([]);
     const [isAppPickerOpen, setIsAppPickerOpen] = useState(false);
@@ -630,7 +665,7 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
                 align="flex-end"
             >
                 <TextInput
-                    label="Title"
+                    label={t('blockBuild.title')}
                     size="xs"
                     fw={600}
                     flex={1}
@@ -648,7 +683,7 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
             </Group>
             <Switch
                 size="xs"
-                label="Show descriptions"
+                label={t('resources.showDescriptions')}
                 checked={block.config.showDescriptions ?? true}
                 onChange={(e) =>
                     patchConfig({
@@ -714,7 +749,7 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
 
             <TextInput
                 size="sm"
-                placeholder="Paste a Claude artifact, YouTube, or any link…"
+                placeholder={t('resources.pastePlaceholder')}
                 value={pasteValue}
                 onChange={(e) => setPasteValue(e.currentTarget.value)}
                 onPaste={handlePaste}
@@ -722,19 +757,22 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
                 rightSectionWidth={64}
                 rightSection={
                     <Group gap={2} wrap="nowrap">
-                        <Tooltip label="Add data app" openDelay={200}>
+                        <Tooltip
+                            label={t('resources.addDataApp')}
+                            openDelay={200}
+                        >
                             <ActionIcon
                                 size="sm"
-                                aria-label="Add data app"
+                                aria-label={t('resources.addDataApp')}
                                 onClick={() => setIsAppPickerOpen(true)}
                             >
                                 <MantineIcon icon={IconAppWindow} />
                             </ActionIcon>
                         </Tooltip>
-                        <Tooltip label="Add link" openDelay={200}>
+                        <Tooltip label={t('resources.addLink')} openDelay={200}>
                             <ActionIcon
                                 size="sm"
-                                aria-label="Add resource"
+                                aria-label={t('resources.addResource')}
                                 onClick={() => startResolving(pasteValue)}
                             >
                                 <MantineIcon icon={IconPlus} />
@@ -743,10 +781,7 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
                     </Group>
                 }
             />
-            <div className={classes.buildHint}>
-                Paste multiple links (one per line) to add them all at once, or
-                add a data app with the app button.
-            </div>
+            <div className={classes.buildHint}>{t('resources.buildHint')}</div>
             <DataAppPickerModal
                 opened={isAppPickerOpen}
                 onClose={() => setIsAppPickerOpen(false)}

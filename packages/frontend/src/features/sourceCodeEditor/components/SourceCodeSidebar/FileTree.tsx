@@ -2,6 +2,7 @@ import { type GitFileEntry } from '@lightdash/common';
 import { Loader, NavLink, ScrollArea, Stack, Text } from '@mantine/core';
 import { IconChevronRight, IconFile, IconFolder } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useGitDirectory } from '../../hooks';
 // eslint-disable-next-line css-modules/no-unused-class -- classes used in this component
@@ -113,6 +114,7 @@ const FileTree: FC<FileTreeProps> = ({
     currentFilePath,
     onFileSelect,
 }) => {
+    const { t } = useTranslation('sourceCode');
     const { data, isLoading, error } = useGitDirectory(
         projectUuid,
         branch ?? undefined,
@@ -122,7 +124,7 @@ const FileTree: FC<FileTreeProps> = ({
         return (
             <Stack p="md" align="center">
                 <Text c="ldGray.5" fz="sm">
-                    Select a branch to view files
+                    {t('fileTree.selectBranch')}
                 </Text>
             </Stack>
         );
@@ -133,7 +135,7 @@ const FileTree: FC<FileTreeProps> = ({
             <Stack p="md" align="center">
                 <Loader size="sm" />
                 <Text c="ldGray.5" fz="sm">
-                    Loading files...
+                    {t('fileTree.loading')}
                 </Text>
             </Stack>
         );
@@ -143,7 +145,7 @@ const FileTree: FC<FileTreeProps> = ({
         return (
             <Stack p="md" align="center">
                 <Text c="red" fz="sm">
-                    Failed to load files
+                    {t('fileTree.loadFailed')}
                 </Text>
             </Stack>
         );
@@ -161,7 +163,7 @@ const FileTree: FC<FileTreeProps> = ({
         return (
             <Stack p="md" align="center">
                 <Text c="ldGray.5" fz="sm">
-                    No files found
+                    {t('fileTree.empty')}
                 </Text>
             </Stack>
         );

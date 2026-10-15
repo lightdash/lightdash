@@ -14,6 +14,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Provider } from 'react-redux';
 import { useNavigate } from 'react-router';
 import { AiAgentsLauncherModalHost } from '../../ee/features/aiCopilot/components/Launcher/AiAgentsLauncherPortal';
@@ -139,6 +140,7 @@ const DashboardChartEditorContent: FC<ContentProps> = ({
     onOpenVersionHistory,
     onDeleted,
 }) => {
+    const { t } = useTranslation('dashboard');
     const { data } = useExplore(exploreId);
 
     // Store initializes once; the parent key remounts it per session.
@@ -167,7 +169,7 @@ const DashboardChartEditorContent: FC<ContentProps> = ({
                 onOpenChartPage={onOpenChartPage}
                 onOpenVersionHistory={onOpenVersionHistory}
                 onDeleted={onDeleted}
-                title={data ? data.label : 'Tables'}
+                title={data ? data.label : t('chartEditor.tablesTitle')}
             />
         </Provider>
     );
@@ -273,6 +275,7 @@ const DashboardChartEditorModal: FC<Props> = ({
     onRegistryMetricDeleted,
     onClose,
 }) => {
+    const { t } = useTranslation('dashboard');
     const authoringEnabled = useContentAuthoringEnabled();
     const [pickedExploreId, setPickedExploreId] = useState<string>();
     const exploreId = editChart ? editChart.tableName : pickedExploreId;
@@ -327,14 +330,14 @@ const DashboardChartEditorModal: FC<Props> = ({
                     },
                     onError: (error) => {
                         showToastError({
-                            title: 'Failed to prepare metric removal',
+                            title: t('chartEditor.prepareMetricRemovalFailed'),
                             subtitle: error.error?.message,
                         });
                     },
                 },
             );
         },
-        [deleteRegistryMetric, showToastError],
+        [deleteRegistryMetric, showToastError, t],
     );
 
     const handleConfirmRegistryDelete = useCallback(() => {
@@ -346,13 +349,13 @@ const DashboardChartEditorModal: FC<Props> = ({
                 onSuccess: () => {
                     onRegistryMetricDeleted(metric);
                     showToastSuccess({
-                        title: 'Custom metric removed from this dashboard',
+                        title: t('chartEditor.customMetricRemoved'),
                     });
                     setRegistryDeletePreview(null);
                 },
                 onError: (error) => {
                     showToastError({
-                        title: 'Failed to remove custom metric',
+                        title: t('chartEditor.customMetricRemoveFailed'),
                         subtitle: error.error?.message,
                     });
                 },
@@ -363,6 +366,7 @@ const DashboardChartEditorModal: FC<Props> = ({
         deleteRegistryMetric,
         onRegistryMetricDeleted,
         showToastSuccess,
+        t,
         showToastError,
     ]);
 
@@ -480,10 +484,14 @@ const DashboardChartEditorModal: FC<Props> = ({
                                 {chartName ?? editChart.name}
                             </TruncatedText>
                             {dashboard && canManageChart && (
-                                <Tooltip label="Edit name and description">
+                                <Tooltip
+                                    label={t('chartEditor.editNameDescription')}
+                                >
                                     <ActionIcon
                                         size="xs"
-                                        aria-label="Edit name and description"
+                                        aria-label={t(
+                                            'chartEditor.editNameDescription',
+                                        )}
                                         onClick={() => setIsRenamingChart(true)}
                                     >
                                         <MantineIcon icon={IconPencil} />
@@ -492,7 +500,7 @@ const DashboardChartEditorModal: FC<Props> = ({
                             )}
                         </>
                     ) : (
-                        <Text fw={600}>New chart</Text>
+                        <Text fw={600}>{t('addTile.newChart')}</Text>
                     )}
                 </Group>
             }
@@ -569,7 +577,7 @@ const DashboardChartEditorModal: FC<Props> = ({
             <MantineModal
                 opened={history !== null}
                 onClose={() => setHistory(null)}
-                title="Version history"
+                title={t('chartEditor.versionHistory')}
                 subtitle={historySubtitle}
                 icon={IconHistory}
                 fullScreen
@@ -582,7 +590,7 @@ const DashboardChartEditorModal: FC<Props> = ({
                         projectUuid={history.chart.projectUuid}
                         sidebarHeader={
                             <Text fz="lg" fw={600} c="ldGray.9">
-                                Versions
+                                {t('chartEditor.versions')}
                             </Text>
                         }
                         hasUnsavedEdits={history.hasUnsavedEdits}

@@ -1,5 +1,6 @@
 import { getDefaultZIndex, Loader, Stack, Text } from '@mantine/core';
 import { useCallback, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import ErrorState from '../../../components/common/ErrorState';
 import MantineModal, {
     type MantineModalProps,
@@ -21,6 +22,7 @@ export const SchedulerDeleteModal: FC<SchedulerDeleteModalProps> = ({
     onClose,
     opened,
 }) => {
+    const { t } = useTranslation('scheduler');
     const scheduler = useScheduler(schedulerUuid);
     const mutation = useSchedulersDeleteMutation();
 
@@ -34,18 +36,18 @@ export const SchedulerDeleteModal: FC<SchedulerDeleteModalProps> = ({
             opened={opened}
             onClose={onClose}
             modalRootProps={{ zIndex: getDefaultZIndex('popover') }}
-            title="Delete scheduled delivery"
+            title={t('deleteModal.title')}
             variant="delete"
-            resourceType="scheduled delivery"
+            resourceType={t('deleteModal.resourceType')}
             resourceLabel={scheduler.data?.name}
-            description="This action is permanent and cannot be undone."
+            description={t('deleteModal.description')}
             size="md"
             onConfirm={scheduler.isSuccess ? handleConfirm : undefined}
             confirmLoading={mutation.isLoading}
         >
             {scheduler.isInitialLoading ? (
                 <Stack h={200} w="100%" align="center" justify="center">
-                    <Text fw={600}>Loading scheduler</Text>
+                    <Text fw={600}>{t('deleteModal.loading')}</Text>
                     <Loader />
                 </Stack>
             ) : scheduler.isError ? (

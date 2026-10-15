@@ -1,11 +1,11 @@
 import { Button, Menu, Text, Tooltip } from '@mantine/core';
 import { IconBrush, IconCheck } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ManageThemesMenuItem } from '../../../../../features/organizationDesigns/components/ManageThemesMenuItem';
 import {
     getThemeControlLabel,
-    THEME_CONTROL_TOOLTIP,
     type ComposerTheme,
     type ComposerThemeOption,
 } from './dataAppThemeComposer';
@@ -29,66 +29,70 @@ const ThemeMenuItems: FC<Props> = ({
     value,
     onChange,
     canManageThemes,
-}) => (
-    <>
-        {themes.map((theme) => {
-            const selected = value?.designUuid === theme.designUuid;
-            return (
-                <Menu.Item
-                    key={theme.designUuid}
-                    closeMenuOnClick={false}
-                    aria-label={
-                        selected
-                            ? `Unselect theme ${theme.name}`
-                            : `Select theme ${theme.name}`
-                    }
-                    onClick={() =>
-                        onChange(selected ? null : toComposerTheme(theme))
-                    }
-                    rightSection={
-                        selected ? (
-                            <MantineIcon
-                                icon={IconCheck}
-                                size={14}
-                                color="indigo.5"
-                            />
-                        ) : null
-                    }
-                >
-                    <Text component="span" size="sm">
-                        {theme.name}
-                    </Text>
-                    {theme.isDefault && (
-                        <Text
-                            component="span"
-                            display="block"
-                            size="xs"
-                            c="dimmed"
-                        >
-                            Organization default
+}) => {
+    const { t } = useTranslation('aiCopilotChat');
+    return (
+        <>
+            {themes.map((theme) => {
+                const selected = value?.designUuid === theme.designUuid;
+                return (
+                    <Menu.Item
+                        key={theme.designUuid}
+                        closeMenuOnClick={false}
+                        aria-label={
+                            selected
+                                ? t('theme.unselect', { name: theme.name })
+                                : t('theme.select', { name: theme.name })
+                        }
+                        onClick={() =>
+                            onChange(selected ? null : toComposerTheme(theme))
+                        }
+                        rightSection={
+                            selected ? (
+                                <MantineIcon
+                                    icon={IconCheck}
+                                    size={14}
+                                    color="indigo.5"
+                                />
+                            ) : null
+                        }
+                    >
+                        <Text component="span" size="sm">
+                            {theme.name}
                         </Text>
-                    )}
-                </Menu.Item>
-            );
-        })}
-        {canManageThemes && (
-            <>
-                <Menu.Divider role="separator" mx="sm" />
-                <ManageThemesMenuItem />
-            </>
-        )}
-    </>
-);
+                        {theme.isDefault && (
+                            <Text
+                                component="span"
+                                display="block"
+                                size="xs"
+                                c="dimmed"
+                            >
+                                {t('theme.organizationDefault')}
+                            </Text>
+                        )}
+                    </Menu.Item>
+                );
+            })}
+            {canManageThemes && (
+                <>
+                    <Menu.Divider role="separator" mx="sm" />
+                    <ManageThemesMenuItem />
+                </>
+            )}
+        </>
+    );
+};
 
 /** Theme entry of the composer `+` menu: a submenu listing the themes. */
 export const ComposerThemeMenuEntry: FC<Props> = (props) => {
+    const { t } = useTranslation('aiCopilotChat');
     const { label, detail } = getThemeControlLabel(props.value, props.themes);
     return (
         <Menu.Sub>
             <Menu.Sub.Target>
-                <Tooltip label={THEME_CONTROL_TOOLTIP} position="right">
+                <Tooltip label={t('theme.tooltip')} position="right">
                     <Menu.Sub.Item
-                        aria-label="Apply theme"
+                        aria-label={t('theme.apply')}
                         leftSection={
                             <MantineIcon
                                 icon={IconBrush}
@@ -122,11 +126,12 @@ export const ComposerThemeMenuEntry: FC<Props> = (props) => {
 
 /** Theme control on the main input, once the draft looks like a data app request. */
 export const ComposerThemeButton: FC<Props> = (props) => {
+    const { t } = useTranslation('aiCopilotChat');
     const { label, detail } = getThemeControlLabel(props.value, props.themes);
     return (
         <Menu position="top-start" width={220}>
             <Menu.Target>
-                <Tooltip label={THEME_CONTROL_TOOLTIP} position="top">
+                <Tooltip label={t('theme.tooltip')} position="top">
                     <Button
                         variant="subtle"
                         size="compact-xs"

@@ -10,17 +10,53 @@ import {
     type AiAgentRootCause,
     type AiAgentTargetRef,
 } from '@lightdash/common';
+import i18n from '../../../../../i18n/i18n';
 
 export const reviewRootCauseLabels: Record<AiAgentRootCause, string> = {
-    semantic_layer: 'Semantic layer',
-    project_context: 'Project context',
-    agent_configuration: 'Agent config',
-    product_capability: 'Product',
-    runtime_reliability: 'Runtime',
-    feedback_quality: 'Feedback',
-    not_a_failure: 'Not failure',
-    ambiguous: 'Ambiguous',
+    get semantic_layer() {
+        return i18n.t('reviews.rootCauses.semanticLayer', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get project_context() {
+        return i18n.t('reviews.rootCauses.projectContext', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get agent_configuration() {
+        return i18n.t('reviews.rootCauses.agentConfiguration', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get product_capability() {
+        return i18n.t('reviews.rootCauses.productCapability', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get runtime_reliability() {
+        return i18n.t('reviews.rootCauses.runtimeReliability', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get feedback_quality() {
+        return i18n.t('reviews.rootCauses.feedbackQuality', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get not_a_failure() {
+        return i18n.t('reviews.rootCauses.notAFailure', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get ambiguous() {
+        return i18n.t('reviews.rootCauses.ambiguous', { ns: 'aiCopilotAdmin' });
+    },
 };
+
+export const getRootCauseLabelKey = (rootCause: AiAgentRootCause): string =>
+    `reviews.rootCauses.${rootCause.replace(/_([a-z])/g, (_, char: string) =>
+        char.toUpperCase(),
+    )}`;
 
 // Every root cause a user can ever see or pick. Root causes the judge keeps
 // assigning but the API never returns (product capability gaps) are dropped
@@ -51,11 +87,21 @@ export const reviewRootCauseColors: Record<AiAgentRootCause, string> = {
 };
 
 export const reviewPriorityLabels: Record<AiAgentReviewItemPriority, string> = {
-    urgent: 'Urgent',
-    high: 'High',
-    medium: 'Medium',
-    low: 'Low',
-    none: 'No priority',
+    get urgent() {
+        return i18n.t('reviews.priorities.urgent', { ns: 'aiCopilotAdmin' });
+    },
+    get high() {
+        return i18n.t('reviews.priorities.high', { ns: 'aiCopilotAdmin' });
+    },
+    get medium() {
+        return i18n.t('reviews.priorities.medium', { ns: 'aiCopilotAdmin' });
+    },
+    get low() {
+        return i18n.t('reviews.priorities.low', { ns: 'aiCopilotAdmin' });
+    },
+    get none() {
+        return i18n.t('reviews.priorities.none', { ns: 'aiCopilotAdmin' });
+    },
 };
 
 export const reviewPriorityColors: Record<AiAgentReviewItemPriority, string> = {
@@ -70,24 +116,81 @@ export const writebackBlockedReasonLabels: Record<
     AiAgentReviewItemWritebackBlockedReason,
     string
 > = {
-    reviews_disabled: 'Issues are not enabled for this organization',
-    unsupported_root_cause: 'No writeback strategy for this root cause',
-    missing_project: 'No project is linked to this issue',
-    missing_agent: 'No agent is linked to this issue',
-    missing_project_context_entry: 'No project context entry was generated',
-    project_context_disabled: 'Project context is not enabled',
-    insufficient_source_code_access:
-        'You do not have permission to modify source code',
-    unsupported_source_control:
-        'Project is not connected to GitHub, GitLab or Bitbucket Cloud',
-    bitbucket_token_missing: 'Configure the project Bitbucket API token',
-    git_app_not_installed: 'Git app is not installed',
-    missing_writeback_config: 'Writeback runtime is not configured',
-    pull_request_open: 'A pull request is already open',
-    source_thread_writeback_exists:
-        'The agent already opened a pull request in the source thread',
-    terminal_state: 'Issue is already closed',
-    writeback_in_progress: 'Writeback is already in progress',
+    get reviews_disabled() {
+        return i18n.t('reviews.blockedReasons.reviewsDisabled', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get unsupported_root_cause() {
+        return i18n.t('reviews.blockedReasons.unsupportedRootCause', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get missing_project() {
+        return i18n.t('reviews.blockedReasons.missingProject', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get missing_agent() {
+        return i18n.t('reviews.blockedReasons.missingAgent', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get missing_project_context_entry() {
+        return i18n.t('reviews.blockedReasons.missingProjectContextEntry', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get project_context_disabled() {
+        return i18n.t('reviews.blockedReasons.projectContextDisabled', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get insufficient_source_code_access() {
+        return i18n.t('reviews.blockedReasons.insufficientSourceCodeAccess', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get unsupported_source_control() {
+        return i18n.t('reviews.blockedReasons.unsupportedSourceControl', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get bitbucket_token_missing() {
+        return i18n.t('reviews.blockedReasons.bitbucketTokenMissing', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get git_app_not_installed() {
+        return i18n.t('reviews.blockedReasons.gitAppNotInstalled', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get missing_writeback_config() {
+        return i18n.t('reviews.blockedReasons.missingWritebackConfig', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get pull_request_open() {
+        return i18n.t('reviews.blockedReasons.pullRequestOpen', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get source_thread_writeback_exists() {
+        return i18n.t('reviews.blockedReasons.sourceThreadWritebackExists', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get terminal_state() {
+        return i18n.t('reviews.blockedReasons.terminalState', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get writeback_in_progress() {
+        return i18n.t('reviews.blockedReasons.writebackInProgress', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
 };
 
 /**
@@ -98,19 +201,46 @@ export const writebackBlockedReasonLabels: Record<
 export const writebackBlockedReasonDescriptions: Partial<
     Record<AiAgentReviewItemWritebackBlockedReason, string>
 > = {
-    unsupported_source_control:
-        'Connect this project to GitHub, GitLab or Bitbucket Cloud so Lightdash can open a pull request that fixes issues like this for you.',
-    reviews_disabled:
-        'Turn on Issues for your organization to let agents file and fix issues automatically.',
-    bitbucket_token_missing: 'Configure the project Bitbucket API token',
-    git_app_not_installed:
-        'Install the Lightdash app on your repository so it can open pull requests.',
-    project_context_disabled:
-        'Enable project context so Lightdash can propose updates to your project knowledge.',
-    insufficient_source_code_access:
-        'Ask a project admin for permission to manage source code before creating a pull request.',
-    missing_writeback_config:
-        'Ask an admin to configure the writeback runtime to enable automatic fixes.',
+    get unsupported_source_control() {
+        return i18n.t(
+            'reviews.blockedReasonDescriptions.unsupportedSourceControl',
+            { ns: 'aiCopilotAdmin' },
+        );
+    },
+    get reviews_disabled() {
+        return i18n.t('reviews.blockedReasonDescriptions.reviewsDisabled', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get bitbucket_token_missing() {
+        return i18n.t(
+            'reviews.blockedReasonDescriptions.bitbucketTokenMissing',
+            { ns: 'aiCopilotAdmin' },
+        );
+    },
+    get git_app_not_installed() {
+        return i18n.t('reviews.blockedReasonDescriptions.gitAppNotInstalled', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get project_context_disabled() {
+        return i18n.t(
+            'reviews.blockedReasonDescriptions.projectContextDisabled',
+            { ns: 'aiCopilotAdmin' },
+        );
+    },
+    get insufficient_source_code_access() {
+        return i18n.t(
+            'reviews.blockedReasonDescriptions.insufficientSourceCodeAccess',
+            { ns: 'aiCopilotAdmin' },
+        );
+    },
+    get missing_writeback_config() {
+        return i18n.t(
+            'reviews.blockedReasonDescriptions.missingWritebackConfig',
+            { ns: 'aiCopilotAdmin' },
+        );
+    },
 };
 
 export const shouldShowWritebackBlockedReason = (
@@ -121,20 +251,72 @@ export const shouldShowWritebackBlockedReason = (
 > => reason !== null && reason !== 'unsupported_root_cause';
 
 const actionLabels: Record<AiAgentRecommendationAction, string> = {
-    update_semantic_yaml: 'Update semantic layer',
-    update_agent_instructions: 'Update instructions',
-    add_knowledge_document: 'Add knowledge doc',
-    enable_data_access: 'Enable data access',
-    enable_sql_mode: 'Enable SQL mode',
-    enable_self_improvement: 'Enable self-improvement',
-    configure_mcp_server: 'Configure MCP',
-    adjust_explore_tags: 'Adjust explore tags',
-    update_access: 'Update access',
-    route_to_product_work: 'Route to product',
-    request_more_evidence: 'Needs more evidence',
-    create_skill: 'Create skill',
-    no_action: 'No action',
+    get update_semantic_yaml() {
+        return i18n.t('reviews.actions.updateSemanticYaml', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get update_agent_instructions() {
+        return i18n.t('reviews.actions.updateAgentInstructions', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get add_knowledge_document() {
+        return i18n.t('reviews.actions.addKnowledgeDocument', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get enable_data_access() {
+        return i18n.t('reviews.actions.enableDataAccess', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get enable_sql_mode() {
+        return i18n.t('reviews.actions.enableSqlMode', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get enable_self_improvement() {
+        return i18n.t('reviews.actions.enableSelfImprovement', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get configure_mcp_server() {
+        return i18n.t('reviews.actions.configureMcpServer', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get adjust_explore_tags() {
+        return i18n.t('reviews.actions.adjustExploreTags', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get update_access() {
+        return i18n.t('reviews.actions.updateAccess', { ns: 'aiCopilotAdmin' });
+    },
+    get route_to_product_work() {
+        return i18n.t('reviews.actions.routeToProductWork', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get request_more_evidence() {
+        return i18n.t('reviews.actions.requestMoreEvidence', {
+            ns: 'aiCopilotAdmin',
+        });
+    },
+    get create_skill() {
+        return i18n.t('reviews.actions.createSkill', { ns: 'aiCopilotAdmin' });
+    },
+    get no_action() {
+        return i18n.t('reviews.actions.noAction', { ns: 'aiCopilotAdmin' });
+    },
 };
+
+const camelCase = (value: string) =>
+    value.replace(/_([a-z])/g, (_, char: string) => char.toUpperCase());
+
+const tr = (key: string, options?: Record<string, unknown>) =>
+    i18n.t(`reviews.${key}`, { ns: 'aiCopilotAdmin', ...options });
 
 export const getRecommendationActionLabel = (
     actionType: AiAgentRecommendationAction,
@@ -161,14 +343,15 @@ export const formatRelativeReviewDate = (date: Date): string => {
     const diffMs = new Date().getTime() - parsedDate.getTime();
     const diffMinutes = Math.floor(diffMs / 60_000);
 
-    if (diffMinutes < 1) return 'just now';
-    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+    if (diffMinutes < 1) return tr('relative.justNow');
+    if (diffMinutes < 60)
+        return tr('relative.minutesAgo', { count: diffMinutes });
 
     const diffHours = Math.floor(diffMinutes / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffHours < 24) return tr('relative.hoursAgo', { count: diffHours });
 
     const diffDays = Math.floor(diffHours / 24);
-    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffDays < 7) return tr('relative.daysAgo', { count: diffDays });
 
     return formatReviewDate(parsedDate);
 };
@@ -221,7 +404,7 @@ const isTriageReviewItem = (reviewItem: AiAgentReviewItemSummary): boolean =>
 
 export const getIssueTitle = (reviewItem: AiAgentReviewItemSummary): string => {
     if (isTriageReviewItem(reviewItem)) {
-        return 'Triage correction signal';
+        return tr('details.triageTitle');
     }
 
     return reviewItem.latestFinding?.recommendation?.title ?? reviewItem.title;
@@ -248,11 +431,11 @@ export const getCompactIssueTitle = (
 
 export const getWhyText = (reviewItem: AiAgentReviewItemSummary): string => {
     if (isTriageReviewItem(reviewItem)) {
-        return 'Could be a real failure or a normal change in user intent.';
+        return tr('details.triageWhy');
     }
 
     if (reviewItem.source === 'manual') {
-        return reviewItem.description || 'Manually filed issue.';
+        return reviewItem.description || tr('details.manualWhy');
     }
 
     if (reviewItem.source === 'memory') {
@@ -261,7 +444,7 @@ export const getWhyText = (reviewItem: AiAgentReviewItemSummary): string => {
 
     return (
         reviewItem.latestFinding?.recommendation?.rationale ??
-        `Review agent judged this as ${reviewRootCauseLabels[reviewItem.primaryRootCause].toLowerCase()}.`
+        tr(`rootCauseJudged.${camelCase(reviewItem.primaryRootCause)}`)
     );
 };
 
@@ -270,7 +453,11 @@ export const getReviewReasoningText = (
 ): string => {
     const skillProposal = getReviewItemSkillProposal(reviewItem);
     if (skillProposal) {
-        return `${getWhyText(reviewItem)}\n\nProposed skill \`/${skillProposal.name}\`: ${skillProposal.description}`;
+        return tr('details.proposedSkill', {
+            why: getWhyText(reviewItem),
+            name: skillProposal.name,
+            description: skillProposal.description,
+        });
     }
 
     const contextEntry = getReviewItemProjectContextEntry(reviewItem);
@@ -279,10 +466,16 @@ export const getReviewReasoningText = (
         const objectRefs = contextEntry.objects
             .map(formatAiProjectContextObjectRef)
             .join(', ');
-        return `${
-            contextEntry.op === 'update' ? 'Updates' : 'Adds'
-        } project context: ${contextEntry.content}${
-            objectRefs ? ` Objects: ${objectRefs}.` : ''
+        const summary = tr(
+            contextEntry.op === 'update'
+                ? 'details.contextUpdates'
+                : 'details.contextAdds',
+            { content: contextEntry.content },
+        );
+        return `${summary}${
+            objectRefs
+                ? tr('details.contextObjects', { objects: objectRefs })
+                : ''
         }`;
     }
 
@@ -302,23 +495,21 @@ export const getActionLabel = (
         return fixTarget.replaceAll('_', ' ');
     }
 
-    return 'Review';
+    return tr('details.review');
 };
 
 export const getSuggestedNextStep = (
     reviewItem: AiAgentReviewItemSummary,
 ): string => {
-    const action = getActionLabel(reviewItem);
-
     if (isTriageReviewItem(reviewItem)) {
-        return 'Review the backing thread before deciding whether this is actionable.';
+        return tr('details.triageNextStep');
     }
 
-    if (action === 'No action') {
-        return 'No action suggested.';
+    if (reviewItem.latestFinding?.recommendation?.actionType === 'no_action') {
+        return tr('details.noActionSuggested');
     }
 
-    return action;
+    return getActionLabel(reviewItem);
 };
 
 export const getReviewSecondaryDetail = (

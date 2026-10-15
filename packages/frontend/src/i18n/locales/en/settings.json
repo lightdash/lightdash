@@ -1,0 +1,638 @@
+{
+    "dataAppConnections": {
+        "panel": {
+            "title": "Data app connections",
+            "description": "Manage external connections used by this project's data apps and chart types.",
+            "addConnection": "Add connection",
+            "dataWarningTitle": "Data leaves Lightdash",
+            "dataWarningBody": "Apps linked to a connection can send any data they can query to that connection's external host. Only add connections to hosts you trust with this project's data.",
+            "emptyTitle": "No connections",
+            "emptyDescription": "Create a connection to let data apps and chart types call an external HTTP service."
+        },
+        "authTypes": {
+            "none": "None",
+            "apiKey": "API key",
+            "bearerToken": "Bearer token",
+            "google": "Google",
+            "oauth2": "OAuth 2",
+            "googleServiceAccount": "Google service account",
+            "oauthClientCredentials": "OAuth 2.0 client credentials"
+        },
+        "table": {
+            "headers": {
+                "name": "Name",
+                "origin": "Origin",
+                "auth": "Auth",
+                "access": "Access",
+                "linkedTo": "Linked to",
+                "builderLinking": "Builder linking"
+            },
+            "methodsWithPublicImages": "{{methods}} + public images",
+            "publicImagesOnly": "Public images only",
+            "dataAppCount_one": "{{count}} data app",
+            "dataAppCount_other": "{{count}} data apps",
+            "chartTypeCount_one": "{{count}} chart type",
+            "chartTypeCount_other": "{{count}} chart types",
+            "linkedResources": "{{dataApps}} and {{chartTypes}}",
+            "linkedResourcesTooltip": "{{resources}}. Click to view the full list.",
+            "viewLinkedResourcesAria": "View {{resources}} linked to {{name}}",
+            "linkedSummaryWithChartTypes": "{{dataApps}} + {{chartTypes}}",
+            "builderLinkingAllowed": "Allowed",
+            "builderLinkingAdminsOnly": "Admins only",
+            "actionsAria": "Actions for {{name}}"
+        },
+        "usage": {
+            "title": "Linked to “{{name}}”",
+            "subtitle": "Linked resources can send data to {{origin}}",
+            "personalApp": "Personal app",
+            "unlink": "Unlink",
+            "unlinkAria": "Unlink {{name}}",
+            "loadError": "Could not load the apps using this connection.",
+            "tryAgain": "Try again",
+            "dataAppsTab": "Data apps ({{count}})",
+            "chartTypesTab": "Chart types ({{count}})",
+            "unlinkConfirm": {
+                "title": "Unlink {{name}}?",
+                "description": "Unlinking removes access to this connection.",
+                "confirm": "Unlink connection",
+                "cancel": "Keep connection"
+            }
+        },
+        "linkApp": {
+            "dataApp": {
+                "loading": "Loading data apps...",
+                "loadError": "Could not load data apps",
+                "noneAvailable": "No data apps available",
+                "allLinked": "All data apps are linked",
+                "linkPlaceholder": "Link a data app...",
+                "linkAria": "Link a data app",
+                "linking": "Linking data app...",
+                "nothingFound": "No matching data apps"
+            },
+            "chartType": {
+                "loading": "Loading chart types...",
+                "loadError": "Could not load chart types",
+                "noneAvailable": "No chart types available",
+                "allLinked": "All chart types are linked",
+                "linkPlaceholder": "Link a chart type...",
+                "linkAria": "Link a chart type",
+                "linking": "Linking chart type...",
+                "nothingFound": "No matching chart types"
+            }
+        },
+        "delete": {
+            "title": "Delete connection"
+        },
+        "fields": {
+            "name": "Name",
+            "namePlaceholder": "My API",
+            "origin": "Origin",
+            "originDescription": "The remote base URL apps may call (must start with https://)",
+            "authentication": "Authentication",
+            "secretPlaceholderKeep": "•••• set (leave blank to keep current)",
+            "tokenUrl": "Token URL",
+            "tokenUrlDescription": "The OAuth server endpoint used to obtain access tokens",
+            "clientId": "Client ID",
+            "clientIdPlaceholder": "Your OAuth client ID",
+            "clientSecret": "Client secret",
+            "clientSecretPlaceholder": "Your OAuth client secret",
+            "sendClientCredentialsAs": "Send client credentials as",
+            "authorizationHeader": "Authorization header",
+            "requestBody": "Request body",
+            "oauthScopesOptional": "OAuth scopes (optional)",
+            "oauthScopesDescription": "Sent as a space-separated token request parameter",
+            "addScope": "Add a scope",
+            "serviceAccountJson": "Service account JSON",
+            "serviceAccountJsonDescription": "Paste the full service account key file",
+            "oauthScopes": "OAuth scopes",
+            "googleScopesDescription": "e.g. https://www.googleapis.com/auth/bigquery",
+            "apiKeyName": "API key name",
+            "apiKeyNameDescription": "The header or query parameter the key is sent in",
+            "apiKeyLocation": "API key location",
+            "header": "Header",
+            "queryParameter": "Query parameter",
+            "customHeaders": "Custom headers",
+            "customHeadersOptional": "Custom headers (optional)",
+            "requestPolicy": "Request policy",
+            "allowedMethods": "Allowed methods",
+            "pathsLabel": "Which paths can apps call?",
+            "publicImagesLabel": "Allow public images in linked apps",
+            "publicImagesDescription": "Linked apps and chart types can load public images from this origin. Enable only for trusted public image or tile hosts.",
+            "allowedContentTypes": "Allowed response content types",
+            "responseMaxBytes": "Response max bytes",
+            "requestMaxBytes": "Request max bytes",
+            "timeoutMs": "Timeout (ms)",
+            "rateLimitPerMinute": "Rate limit (per minute)",
+            "advancedSettings": "Advanced settings"
+        },
+        "validation": {
+            "nameRequired": "Name is required",
+            "invalidUrl": "Enter a valid URL, e.g. https://api.example.com",
+            "urlHttps": "URL must start with https://",
+            "baseUrlOnly": "Enter just the base URL, with no path or query",
+            "originHttps": "Origin must start with https://",
+            "secretRequired": "A secret is required for this auth method",
+            "invalidServiceAccountJson": "Paste valid service account JSON",
+            "clientSecretRequired": "Client secret is required",
+            "reenterClientSecret": "Re-enter the client secret when changing the token URL or client ID",
+            "scopeRequired": "Add at least one OAuth scope",
+            "invalidScope": "Invalid OAuth scope: {{scope}}",
+            "clientIdRequired": "Client ID is required",
+            "apiKeyNameRequired": "API key name is required",
+            "invalidApiKeyName": "Use a valid header or query parameter name",
+            "methodRequired": "Select at least one method or allow public images",
+            "publicImagesNoAuth": "Public browser images require no authentication",
+            "pathRequired": "Add at least one path, or allow all paths",
+            "pathFieldRequired": "Path is required",
+            "invalidRequestBody": "Request body must be valid JSON"
+        },
+        "wizard": {
+            "title": "Add data app connection",
+            "steps": {
+                "basics": "Basics",
+                "auth": "Auth",
+                "rules": "Rules",
+                "test": "Test"
+            },
+            "generating": "Generating…",
+            "generate": "Generate",
+            "createConnection": "Create connection",
+            "modeChooser": {
+                "prompt": "How would you like to set up the connection?",
+                "describeTitle": "Describe it",
+                "describeDescription": "Tell us what you want to connect to and AI drafts the connection for you.",
+                "aiNotConfigured": "AI is not configured for your organization.",
+                "manualTitle": "Set up manually",
+                "manualDescription": "Enter the base URL, authentication, and access rules yourself."
+            },
+            "automatic": {
+                "intro": "Describe what you want to connect to and AI will prefill the connection — you review every step and paste the credential yourself.",
+                "placeholder": "I want to connect to Google Sheets to read spreadsheet data…",
+                "loadingHint": "This usually takes about 15 seconds.",
+                "aiUnavailableTitle": "AI isn't configured",
+                "aiUnavailableBody": "Your organization has no AI provider configured, so the connection can't be drafted automatically. You can still set it up manually.",
+                "setUpManually": "Set up manually",
+                "draftErrorTitle": "Couldn't draft the connection"
+            },
+            "connect": {
+                "intro": "Give your connection a name and the base URL of the API your data apps should be able to call.",
+                "baseUrl": "Base URL",
+                "baseUrlDescription": "The remote origin apps may call (https only, no path)"
+            },
+            "auth": {
+                "prompt": "How should we authenticate?",
+                "credentialGuideTitle": "How to get your credential",
+                "openProviderDocs": "Open the provider's docs",
+                "doubleCheck": "Double-check",
+                "apiKeyPlaceholder": "Your secret API key",
+                "bearerTokenPlaceholder": "Your bearer token",
+                "sendKeyAs": "Send key as",
+                "requestHeader": "Request header"
+            },
+            "access": {
+                "methodsLabel": "Which methods can apps use?",
+                "usageNotes": "Usage notes for app generation (optional)",
+                "usageNotesDescription": "Helps the AI use this API correctly when building apps: key endpoints, pagination, quirks"
+            },
+            "testStep": {
+                "intro": "Send a test request to confirm the connection works before saving it. This step is optional.",
+                "pathDescription": "Relative to the base URL",
+                "sendTest": "Send test",
+                "saveSample": "Save this response as an example to ground app generation"
+            }
+        },
+        "test": {
+            "method": "Method",
+            "path": "Path",
+            "requestBodyJson": "Request body (JSON)",
+            "imageOnly": "This image-only connection does not allow proxied requests, so there is nothing to test here."
+        },
+        "edit": {
+            "saveConnection": "Save connection",
+            "tabs": {
+                "details": "Connection details",
+                "instructions": "Instructions",
+                "examples": "Examples"
+            },
+            "instructionsIntro": "Notes on how apps should use this API — auth quirks, pagination, which endpoints matter, response caveats. Passed to the app builder when generating apps, alongside the technical spec. Markdown is supported.",
+            "instructionsAria": "Usage instructions",
+            "instructionsPlaceholder": "e.g. Paginate with ?page= and ?per_page=. The /issues endpoint returns open issues only unless state=all is passed."
+        },
+        "examples": {
+            "title": "Test connection and add examples",
+            "description": "Send a real request through this connection and optionally save it as a sample for app generation.",
+            "sampleQueued": "A tested sample is queued and will be added when you save the connection.",
+            "remove": "Remove",
+            "queryParams": "Query params",
+            "queryParamsDescription": "Sent as URL query params. Tip: paste a URL with a query string into the path field to fill these in automatically.",
+            "keyPlaceholder": "key",
+            "valuePlaceholder": "value",
+            "addQueryParam": "Add query param",
+            "sendTestRequest": "Send test request",
+            "sampleLabel": "Sample label (optional)",
+            "sampleLabelPlaceholder": "e.g. Current weather Berlin",
+            "saveWithConnection": "Save with connection",
+            "saveAsSample": "Save as sample",
+            "savedAfterConnection": "The sample will be added after you save the connection.",
+            "samplesGround": "Saved samples ground Claude in the API response shape.",
+            "savedSamples": "Saved samples",
+            "noSamples": "No saved samples yet.",
+            "noSamplesRunTest": "No saved samples yet — run a test above and save it.",
+            "deleteSampleAria": "Delete sample",
+            "confirmDeleteTooltip": "Click again to confirm"
+        }
+    },
+    "designs": {
+        "list": {
+            "title": "Themes",
+            "description": "Manage shared brand assets and instructions used when building data apps.",
+            "newTheme": "New theme",
+            "emptyTitle": "No themes",
+            "emptyDescription": "Create a theme to share brand assets and instructions across data apps.",
+            "columnTheme": "Theme",
+            "columnFiles": "Files",
+            "editTheme": "Edit theme",
+            "done": "Done"
+        },
+        "row": {
+            "default": "Default",
+            "fileCount_one": "{{count}} file",
+            "fileCount_other": "{{count}} files",
+            "moreActions": "More actions",
+            "edit": "Edit",
+            "setAsDefault": "Set as default",
+            "delete": "Delete"
+        },
+        "create": {
+            "title": "Create new theme",
+            "confirm": "Create theme",
+            "nameLabel": "Name",
+            "namePlaceholder": "Acme brand",
+            "descriptionLabel": "Description",
+            "descriptionPlaceholder": "Optional — what this theme is for"
+        },
+        "delete": {
+            "title": "Delete theme",
+            "resourceType": "theme",
+            "filesWarning_one": "This will also delete {{count}} file stored with this theme. Any content currently using this theme will keep its files but won't inherit future edits.",
+            "filesWarning_other": "This will also delete {{count}} files stored with this theme. Any content currently using this theme will keep its files but won't inherit future edits."
+        },
+        "detail": {
+            "download": "Download",
+            "delete": "Delete",
+            "downloadFile": "Download {{filename}}",
+            "deleteFile": "Delete {{filename}}",
+            "saving": "Saving…",
+            "unsavedChanges": "Unsaved changes",
+            "saved": "Saved",
+            "details": "Details",
+            "nameLabel": "Name",
+            "descriptionLabel": "Description",
+            "descriptionHelp": "For users selecting a theme",
+            "extraInstructionsLabel": "Extra instructions",
+            "extraInstructionsHelp": "These will be passed to the agent alongside any markdown files. These can be any instructions you want included.",
+            "extraInstructionsPlaceholder": "e.g. Use sentence case for all headings. Prefer dense layouts over generous whitespace.",
+            "defaultTitle": "Default",
+            "defaultDescription": "The default theme is automatically applied to new content. Individual items can override it.",
+            "useAsDefault": "Use as default theme",
+            "filesTitle": "Files",
+            "filesUsage_one": "{{count}} file · {{used}} / {{max}}",
+            "filesUsage_other": "{{count}} files · {{used}} / {{max}}",
+            "deleteAll": "Delete all",
+            "filesHelp": "Drag & drop CSS, font, image, or markdown instruction files. They'll be picked up automatically wherever this theme is applied.",
+            "overLimit": "This theme is over the {{max}} limit (currently {{used}}). Apps won't apply it until you remove some assets.",
+            "nearLimit": "This theme is getting large ({{used}} of {{max}}). Large themes are slower to generate and can fail to apply — keep only the assets you need.",
+            "noFiles": "No files yet.",
+            "deleteAllTitle": "Delete all files",
+            "deleteAllDescription_one": "Are you sure you want to delete {{count}} file from \"{{name}}\"?",
+            "deleteAllDescription_other": "Are you sure you want to delete all {{count}} files from \"{{name}}\"?",
+            "deleteAllBody": "The theme itself is kept, along with its description, extra instructions, and anything already using it.",
+            "notFound": "Theme not found."
+        },
+        "upload": {
+            "unsupportedTitle": "Unsupported file: {{filename}}",
+            "unsupportedSubtitle": "Allowed: {{extensions}}",
+            "tooLargeTitle": "{{filename}} is too large",
+            "tooLargeSubtitle": "Files must be under {{max}}.",
+            "cantAddTitle": "Can't add {{filename}}",
+            "uploading": "Uploading…",
+            "dropHint": "Drop files here or click to browse",
+            "ariaLabel": "Upload theme files",
+            "browse": "Browse files"
+        },
+        "picker": {
+            "noTheme": "No theme",
+            "applyTheme": "Apply theme",
+            "noThemeDescription": "No shared design assets - prompt any style you want",
+            "themeLabel": "Theme: {{label}}",
+            "themePrefix": "Theme:",
+            "lockedTooltip": "Theme can't be changed after creation",
+            "default": "Default",
+            "manageThemes": "Manage themes"
+        },
+        "toast": {
+            "created": "Theme created successfully",
+            "createFailed": "Failed to create theme",
+            "updateFailed": "Failed to update theme",
+            "deleted": "Theme deleted",
+            "deleteFailed": "Failed to delete theme",
+            "defaultUpdated": "Default theme updated",
+            "setDefaultFailed": "Failed to set default theme",
+            "defaultCleared": "Default theme cleared",
+            "clearDefaultFailed": "Failed to clear default theme",
+            "uploaded": "Uploaded {{filename}}",
+            "uploadFailed": "Failed to upload {{filename}}",
+            "fileDeleted": "File deleted",
+            "fileDeleteFailed": "Failed to delete file",
+            "allFilesDeleted": "All files deleted",
+            "filesDeleteFailed": "Failed to delete files"
+        }
+    },
+    "recentlyDeleted": {
+        "page": {
+            "title": "Recently Deleted",
+            "retention_one": "Items are permanently deleted after {{count}} day",
+            "retention_other": "Items are permanently deleted after {{count}} days",
+            "refreshTooltip": "Click to refresh the list",
+            "loadFailed": "Failed to load deleted content. Please try again.",
+            "searchTooltip": "Search by item name",
+            "searchPlaceholder": "Search deleted items..."
+        },
+        "columns": {
+            "name": "Name",
+            "deletedBy": "Deleted by",
+            "deleted": "Deleted",
+            "daysRemaining": "Days remaining"
+        },
+        "unknownUser": "Unknown",
+        "daysRemaining": {
+            "expired": "Expired",
+            "days_one": "{{count}} day",
+            "days_other": "{{count}} days"
+        },
+        "contains": "Contains {{items}}",
+        "counts": {
+            "documents_one": "{{count}} document",
+            "documents_other": "{{count}} documents",
+            "spaces_one": "{{count}} space",
+            "spaces_other": "{{count}} spaces",
+            "dashboards_one": "{{count}} dashboard",
+            "dashboards_other": "{{count}} dashboards",
+            "charts_one": "{{count}} chart",
+            "charts_other": "{{count}} charts",
+            "dataApps_one": "{{count}} data app",
+            "dataApps_other": "{{count}} data apps",
+            "scheduledDeliveries_one": "{{count}} scheduled delivery",
+            "scheduledDeliveries_other": "{{count}} scheduled deliveries"
+        },
+        "actions": {
+            "menuLabel": "Actions for {{name}}",
+            "restore": "Restore",
+            "deletePermanently": "Delete permanently",
+            "confirmTitle": "Permanently delete item?",
+            "resourceType": "item"
+        },
+        "filters": {
+            "all": "All",
+            "allTooltip": "Show all deleted items",
+            "chartsTooltip": "Show only deleted charts",
+            "dashboardsTooltip": "Show only deleted dashboards",
+            "documentsTooltip": "Show only deleted documents",
+            "documentsLabel": "Documents",
+            "dataAppsTooltip": "Show only deleted data apps",
+            "chartTypesTooltip": "Show only deleted custom chart types",
+            "spacesTooltip": "Show only deleted spaces",
+            "deletedBy": "Deleted by",
+            "deletedByTooltip": "Filter by user who deleted the item",
+            "searchUsers": "Search users…",
+            "noUsers": "No users found"
+        },
+        "toast": {
+            "restored": "Content restored",
+            "restoredSubtitle": "The item has been restored successfully.",
+            "goToChart": "Go to chart",
+            "goToDashboard": "Go to dashboard",
+            "goToSpace": "Go to space",
+            "goToChartType": "Go to chart type",
+            "goToApp": "Go to app",
+            "goToDocument": "Go to document",
+            "restoreFailed": "Failed to restore content",
+            "deleted": "Content permanently deleted",
+            "deletedSubtitle": "The item has been permanently deleted.",
+            "deleteFailed": "Failed to delete content"
+        }
+    },
+    "projectSettings": {
+        "pages": {
+            "recentlyDeleted": {
+                "title": "Recently deleted",
+                "description": "Review and restore recently deleted project content."
+            },
+            "connection": {
+                "title": "Connection settings",
+                "description": "Manage this project's warehouse and semantic layer connections."
+            },
+            "tablesConfiguration": {
+                "title": "Tables configuration",
+                "description": "Choose which dbt models are available in this project."
+            },
+            "agentIdentity": {
+                "title": "Agent identity",
+                "description": "See who agents run as on this project, and manage its shared agent account."
+            },
+            "projectAccess": {
+                "title": "Project access",
+                "description": "Manage who can access this project and what they can do."
+            },
+            "appearance": {
+                "title": "Appearance",
+                "description": "Customize colors and chart styling for this project."
+            },
+            "externalSources": {
+                "title": "External sources",
+                "description": "Upload files to query them alongside your warehouse."
+            },
+            "usageAnalytics": {
+                "title": "Usage analytics",
+                "description": "Review how people use this project's content."
+            },
+            "scheduledDeliveries": {
+                "title": "Syncs & scheduled deliveries",
+                "description": "Configure delivery defaults and manage this project's schedules."
+            },
+            "verifiedContent": {
+                "title": "Verified content",
+                "description": "Review verified charts, dashboards, data apps, and Documents in this project."
+            },
+            "reviewRequests": {
+                "title": "Review requests",
+                "description": "Who reviews content submitted from personal spaces, and what happens on approval."
+            },
+            "dataOps": {
+                "title": "Data ops",
+                "description": "Configure workflows for promoting content between projects."
+            },
+            "defaultUserSpaces": {
+                "title": "Default user spaces",
+                "description": "Choose whether project members receive a personal space automatically."
+            },
+            "parameters": {
+                "title": "Parameters",
+                "description": "Review reusable values defined for project queries and content."
+            },
+            "agentDataScope": {
+                "title": "Agent data scope",
+                "description": "Limit which schemas an AI agent can read when it writes raw SQL."
+            },
+            "aiRegion": {
+                "title": "AI region",
+                "description": "Choose which AI provider credential, and therefore which region, serves this project."
+            },
+            "queryTimezone": {
+                "title": "Project time zone",
+                "description": "Set the default time zone used by this project."
+            },
+            "previewsConfig": {
+                "title": "Preview settings",
+                "description": "Configure preview project expiration and cleanup."
+            },
+            "semanticLayer": {
+                "title": "Semantic layer",
+                "description": "Configure this project's semantic layer connection."
+            },
+            "pullRequests": {
+                "title": "Pull requests",
+                "description": "Review pull requests opened for this project's code."
+            },
+            "contentReview": {
+                "title": "Content review",
+                "description": "Unpublished changes made in this project, awaiting a reviewer to write them back to the repo."
+            },
+            "caching": {
+                "title": "Results caching",
+                "description": "Choose how long charts and dashboards in this project load from cached results before Lightdash queries the warehouse again."
+            },
+            "embed": {
+                "title": "Embed configuration",
+                "description": "Configure embedded access for this project."
+            },
+            "cors": {
+                "title": "CORS",
+                "description": "Control which external browser origins can call the Lightdash API."
+            },
+            "managedAnalytics": {
+                "title": "Project settings",
+                "description": "Lightdash manages this analytics project's configuration."
+            }
+        },
+        "rolesDocumentation": "Roles documentation",
+        "embeddingDocumentation": "Embedding documentation",
+        "loadingProject": "Loading project",
+        "documentTitle": "Project Settings",
+        "allProjects": "All projects",
+        "managedAnalyticsWarning": "Settings cannot be changed for managed analytics projects.",
+        "cors": {
+            "allowedOrigins": "Allowed origins",
+            "help": "CORS controls which external browser origins can call the Lightdash API. Add exact origins like https://app.example.com or wildcard subdomains like *.example.com. Use regex only for advanced patterns."
+        }
+    },
+    "search": {
+        "placeholder": "Search settings",
+        "clear": "Clear search"
+    },
+    "createProject": {
+        "title": "Your project has connected successfully! 🎉",
+        "description": "Before you start exploring your data, pick the dbt models you want to appear as tables in Lightdash. You can always adjust this in your project settings later."
+    },
+    "semanticLayer": {
+        "metricSqlApi": "Metric SQL API",
+        "description": "Connect BI tools and SQL clients over the Postgres wire protocol. Follow the three steps below.",
+        "adminOnly": "Connection details are only visible to organization admins.",
+        "beforeConnect": {
+            "title": "Before you connect",
+            "limitations": "Only simple <code>SELECT</code> queries against a single explore are supported (no SQL joins), with a default limit of 500 rows.",
+            "tlsRequired": "Connections are encrypted — TLS is required, so use <code>sslmode=require</code> (or <code>verify-full</code>).",
+            "tlsDisabled": "TLS is disabled on this server, so clients must use <code>sslmode=disable</code>."
+        },
+        "steps": {
+            "token": {
+                "title": "Token",
+                "description": "Paste an existing Lightdash token or generate a new one for this integration. You can use a service account or personal access token.",
+                "placeholder": "ldsvc_… or ldpat_…",
+                "noToken": "Don't have a token?",
+                "generateNew": "Generate a new one",
+                "pastePat": "Paste a personal access token from your account settings."
+            },
+            "connectionDetails": {
+                "title": "Connection details",
+                "host": "Host",
+                "port": "Port",
+                "user": "User",
+                "database": "Database",
+                "sslMode": "SSL mode"
+            },
+            "connectClient": {
+                "title": "Connect your client",
+                "description": "Pick your tool and copy the ready-made string.",
+                "tabs": {
+                    "libpqUrl": "Connection URL",
+                    "psql": "psql",
+                    "jdbc": "JDBC"
+                }
+            }
+        },
+        "tokenCard": {
+            "title": "Token added as your password",
+            "generatedFor": "Generated for {{description}} · {{expires}}",
+            "replace": "Replace",
+            "copied": "Copied",
+            "saveReminder": "Remember to save your token — you can't access it again."
+        },
+        "tokenModal": {
+            "title": "Create service account token",
+            "submit": "Generate & copy",
+            "description": "A project-level token, scoped to this project. Shown only once.",
+            "descriptionLabel": "Description",
+            "descriptionPlaceholder": "What's this token for?",
+            "descriptionRequired": "Description is required",
+            "expiresLabel": "Expires",
+            "projectRole": "Project · role",
+            "roleRecommended": "{{role}} (recommended)",
+            "roleHint": "<bold>Interactive Viewer</bold> is the minimum for the Metric SQL API — it can read this project's explores and run queries against them. Pick a higher role only if the same token is reused elsewhere.",
+            "copyFailed": {
+                "title": "Couldn't copy token to clipboard",
+                "subtitle": "Copy it from the connection form before leaving the page."
+            },
+            "expiry": {
+                "days7": {
+                    "label": "7 days",
+                    "expiresIn": "expires in 7 days"
+                },
+                "days30": {
+                    "label": "30 days",
+                    "expiresIn": "expires in 30 days"
+                },
+                "days60": {
+                    "label": "60 days",
+                    "expiresIn": "expires in 60 days"
+                },
+                "days90": {
+                    "label": "90 days",
+                    "expiresIn": "expires in 90 days"
+                },
+                "months6": {
+                    "label": "6 months",
+                    "expiresIn": "expires in 6 months"
+                },
+                "year1": {
+                    "label": "1 year",
+                    "expiresIn": "expires in 1 year"
+                },
+                "never": {
+                    "label": "No expiration",
+                    "expiresIn": "never expires"
+                }
+            }
+        }
+    }
+}

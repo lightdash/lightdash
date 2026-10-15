@@ -1,6 +1,7 @@
 import type { AiAgentBattleProfile, AiAgentThread } from '@lightdash/common';
 import { Anchor, Badge, Box, Group, Stack, Text } from '@mantine/core';
 import { useContext, useEffect, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { matchesModelConfig } from '../../../../../components/common/ModelSelector/utils';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
@@ -56,6 +57,7 @@ const BattlePaneHeader: FC<Omit<Props, 'agentName' | 'onChoiceSelect'>> = ({
     thread,
     queuedCount,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const isEmbed = useIsEmbedded();
     const stream = useAiAgentThreadStreamQuery(thread.uuid);
     const isStreaming = stream?.connection.status === 'streaming';
@@ -112,11 +114,11 @@ const BattlePaneHeader: FC<Omit<Props, 'agentName' | 'onChoiceSelect'>> = ({
             : undefined;
 
     const status = isStreaming
-        ? 'Streaming'
+        ? t('battle.pane.status.streaming')
         : lastAssistantMessage?.status === 'error'
-          ? 'Failed'
+          ? t('battle.pane.status.failed')
           : lastAssistantMessage?.status === 'pending'
-            ? 'Waiting'
+            ? t('battle.pane.status.waiting')
             : null;
 
     return (
@@ -139,13 +141,17 @@ const BattlePaneHeader: FC<Omit<Props, 'agentName' | 'onChoiceSelect'>> = ({
                     {label}
                 </Badge>
                 <Text size="sm" fw={600} truncate>
-                    {modelDisplayName ?? 'Default model'}
+                    {modelDisplayName ?? t('battle.pane.defaultModel')}
                 </Text>
                 {(status || queuedCount > 0) && (
                     <Text size="xs" c="dimmed">
                         {[
                             status,
-                            queuedCount > 0 ? `${queuedCount} queued` : null,
+                            queuedCount > 0
+                                ? t('battle.pane.queued', {
+                                      count: queuedCount,
+                                  })
+                                : null,
                         ]
                             .filter(Boolean)
                             .join(' · ')}
@@ -155,10 +161,12 @@ const BattlePaneHeader: FC<Omit<Props, 'agentName' | 'onChoiceSelect'>> = ({
             <Group gap="sm" wrap="nowrap">
                 {liveTtftMs !== undefined && (
                     <Text size="xs" c="dimmed">
-                        first token{' '}
-                        {liveTtftMs === null
-                            ? '…'
-                            : formatDurationMs(liveTtftMs)}
+                        {t('battle.pane.firstToken', {
+                            value:
+                                liveTtftMs === null
+                                    ? '…'
+                                    : formatDurationMs(liveTtftMs),
+                        })}
                     </Text>
                 )}
                 {sessionMs > 0 && (
@@ -181,7 +189,7 @@ const BattlePaneHeader: FC<Omit<Props, 'agentName' | 'onChoiceSelect'>> = ({
                     to={`${getAiAgentPageBase(projectUuid, isEmbed)}/${agentUuid}/threads/${thread.uuid}`}
                     size="xs"
                 >
-                    Open
+                    {t('battle.pane.open')}
                 </Anchor>
             </Group>
         </Group>

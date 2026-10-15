@@ -24,6 +24,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FieldIcon from '../../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../../components/common/Filters/FieldLabel';
 import FilterInputComponent from '../../../../components/common/Filters/FilterInputs';
@@ -45,11 +46,12 @@ const FilterSummaryLabel: FC<
         filterSummary: ReturnType<typeof getConditionalRuleLabelFromItem>;
     } & Record<'isDisabled', boolean>
 > = ({ filterSummary, isDisabled }) => {
+    const { t } = useTranslation('scheduler');
     if (isDisabled) {
         return (
             <Text fw={400} span>
                 <Text span c="dimmed">
-                    is any value
+                    {t('filterItem.isAnyValue')}
                 </Text>
             </Text>
         );
@@ -88,10 +90,11 @@ export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
     onRevert,
     hasChanged,
     onRemove,
-    removeTooltip = 'Remove filter',
+    removeTooltip,
     tilesWithFilter,
     readOnly = false,
 }: SchedulerFilterItemProps<R>) => {
+    const { t } = useTranslation('scheduler');
     const { getField } = useFiltersContext();
     const getUiString = useUiStrings();
     const item = getField(savedFilter);
@@ -118,11 +121,11 @@ export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
                     <Group gap="xs">
                         <MantineIcon icon={IconAlertTriangle} color="red" />
                         <Text span fw={500} fz="sm">
-                            Invalid filter
+                            {t('filterItem.invalidFilter')}
                         </Text>
                         <Text fw={400} span fz="xs">
                             <Text span c="dimmed" fz="xs">
-                                Tried to reference field with unknown id:
+                                {t('filterItem.unknownField')}
                             </Text>
                             <Text span fz="xs" fw={500}>
                                 {' '}
@@ -132,10 +135,13 @@ export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
                     </Group>
                 </Paper>
                 {onRemove && (
-                    <Tooltip label="Remove invalid filter" fz="xs">
+                    <Tooltip
+                        label={t('filterItem.removeInvalidFilter')}
+                        fz="xs"
+                    >
                         <ActionIcon
                             size="xs"
-                            aria-label="Remove invalid filter"
+                            aria-label={t('filterItem.removeInvalidFilter')}
                             onClick={onRemove}
                         >
                             <MantineIcon icon={IconTrash} />
@@ -175,12 +181,16 @@ export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
                     )}
                     {tilesWithFilter && tilesWithFilter.length > 0 && (
                         <Tooltip
-                            label={`Applies to: ${tilesWithFilter.join(', ')}`}
+                            label={t('filterItem.appliesToTiles', {
+                                tiles: tilesWithFilter.join(', '),
+                            })}
                             fz="xs"
                             w={200}
                         >
                             <Text fz="xs" c="dimmed" span>
-                                {`Applies to ${tilesWithFilter.length} tiles`}
+                                {t('filterItem.appliesToCount', {
+                                    count: tilesWithFilter.length,
+                                })}
                             </Text>
                         </Tooltip>
                     )}
@@ -188,10 +198,13 @@ export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
                 {!readOnly && (
                     <Group gap={4} wrap="nowrap">
                         {hasChanged && (
-                            <Tooltip label="Reset filter" fz="xs">
+                            <Tooltip
+                                label={t('filterItem.resetFilter')}
+                                fz="xs"
+                            >
                                 <ActionIcon
                                     size="xs"
-                                    aria-label="Reset filter"
+                                    aria-label={t('filterItem.resetFilter')}
                                     onClick={() => {
                                         if (isEditing) {
                                             setIsEditing(false);
@@ -206,7 +219,9 @@ export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
                         <ActionIcon
                             size="xs"
                             aria-label={
-                                isEditing ? 'Done editing' : 'Edit filter'
+                                isEditing
+                                    ? t('filterItem.doneEditing')
+                                    : t('filterItem.editFilter')
                             }
                             onClick={() => {
                                 setIsEditing(!isEditing);
@@ -217,10 +232,16 @@ export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
                             />
                         </ActionIcon>
                         {onRemove && (
-                            <Tooltip label={removeTooltip} fz="xs">
+                            <Tooltip
+                                label={
+                                    removeTooltip ??
+                                    t('filterItem.removeFilter')
+                                }
+                                fz="xs"
+                            >
                                 <ActionIcon
                                     size="xs"
-                                    aria-label="Remove filter"
+                                    aria-label={t('filterItem.removeFilter')}
                                     onClick={onRemove}
                                 >
                                     <MantineIcon icon={IconTrash} />
@@ -232,7 +253,7 @@ export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
             </Group>
             {!isEditing && hasChanged && (
                 <Text fz="xs" c="dimmed">
-                    Unsaved changes
+                    {t('filterItem.unsavedChanges')}
                 </Text>
             )}
 
@@ -290,6 +311,7 @@ export const RemovedSchedulerFilterItem = <R extends SchedulerOverridableRule>({
     defaultLabel,
     onRestore,
 }: RemovedSchedulerFilterItemProps<R>) => {
+    const { t } = useTranslation('scheduler');
     const { getField } = useFiltersContext();
     const field = getField(savedFilter);
 
@@ -311,13 +333,10 @@ export const RemovedSchedulerFilterItem = <R extends SchedulerOverridableRule>({
                     {defaultLabel}
                 </Text>
             </Group>
-            <Tooltip
-                label="Re-add filter to override it for this delivery"
-                fz="xs"
-            >
+            <Tooltip label={t('filterItem.readdFilterTooltip')} fz="xs">
                 <ActionIcon
                     size="xs"
-                    aria-label="Re-add filter"
+                    aria-label={t('filterItem.readdFilter')}
                     onClick={onRestore}
                 >
                     <MantineIcon icon={IconFilterPlus} />

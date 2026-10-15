@@ -12,14 +12,17 @@ import { IconConfetti } from '@tabler/icons-react';
 import { useIsMutating } from '@tanstack/react-query';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Navigate, useLocation } from 'react-router';
 import { useUserCompleteMutation } from '../../hooks/user/useUserCompleteMutation';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import MantineModal from '../common/MantineModal';
-import { jobTitles } from './jobTitles';
+import { getJobTitleOptions } from './jobTitles';
 
 const UserCompletionModal: FC = () => {
+    const { t } = useTranslation('app');
+    const jobTitleOptions = useMemo(() => getJobTitleOptions(t), [t]);
     const { health, user } = useApp();
 
     const canEnterOrganizationName = user.data?.organizationName === '';
@@ -106,7 +109,7 @@ const UserCompletionModal: FC = () => {
             size="md"
             onClose={() => {}}
             icon={IconConfetti}
-            title="Nearly there..."
+            title={t('userCompletion.title')}
             cancelLabel={false}
             withCloseButton={false}
             actions={
@@ -124,14 +127,14 @@ const UserCompletionModal: FC = () => {
                         )
                     }
                 >
-                    Next
+                    {t('actions.next', { ns: 'common' })}
                 </Button>
             }
             modalRootProps={{
                 closeOnClickOutside: false,
                 closeOnEscape: false,
             }}
-            description="Tell us a bit more about yourself"
+            description={t('userCompletion.description')}
         >
             <form
                 id="complete_user"
@@ -141,26 +144,30 @@ const UserCompletionModal: FC = () => {
                 <Stack gap="md">
                     {canEnterOrganizationName && (
                         <TextInput
-                            label="Organization name"
-                            placeholder="Enter company name"
+                            label={t('userCompletion.organizationName')}
+                            placeholder={t(
+                                'userCompletion.organizationNamePlaceholder',
+                            )}
                             disabled={isLoading}
                             required
                             {...form.getInputProps('organizationName')}
                         />
                     )}
                     <Select
-                        label="What's your role?"
+                        label={t('userCompletion.role')}
                         disabled={isLoading}
-                        data={jobTitles}
+                        data={jobTitleOptions}
                         required
-                        placeholder="Select your role"
+                        placeholder={t('userCompletion.rolePlaceholder')}
                         {...form.getInputProps('jobTitle')}
                     />
 
                     {canEnterOrganizationName && (
                         <TextInput
-                            label="How did you hear about us?"
-                            placeholder="Google, a colleague, a podcast..."
+                            label={t('userCompletion.howDidYouHear')}
+                            placeholder={t(
+                                'userCompletion.howDidYouHearPlaceholder',
+                            )}
                             disabled={isLoading}
                             required
                             {...form.getInputProps('howDidYouHearAboutUs')}
@@ -170,9 +177,11 @@ const UserCompletionModal: FC = () => {
                     <Stack gap="xs">
                         {canEnableEmailDomainAccess && (
                             <Checkbox
-                                label={`Allow users with @${getEmailDomain(
-                                    user.data?.email || '',
-                                )} to join the organization as a viewer`}
+                                label={t('userCompletion.allowDomain', {
+                                    domain: getEmailDomain(
+                                        user.data?.email || '',
+                                    ),
+                                })}
                                 disabled={isLoading}
                                 {...form.getInputProps(
                                     'enableEmailDomainAccess',
@@ -184,7 +193,7 @@ const UserCompletionModal: FC = () => {
                         )}
 
                         <Checkbox
-                            label="Keep me updated on new Lightdash features"
+                            label={t('userCompletion.marketingOptIn')}
                             disabled={isLoading}
                             {...form.getInputProps('isMarketingOptedIn', {
                                 type: 'checkbox',
@@ -193,7 +202,7 @@ const UserCompletionModal: FC = () => {
 
                         {health.data?.mode !== LightdashMode.CLOUD_BETA && (
                             <Checkbox
-                                label="Anonymize my usage data"
+                                label={t('userCompletion.anonymize')}
                                 disabled={isLoading}
                                 {...form.getInputProps('isTrackingAnonymized', {
                                     type: 'checkbox',

@@ -31,6 +31,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
 import {
     explorerActions,
@@ -127,6 +128,7 @@ const customDimensionTourProps = {
 };
 
 const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
+    const { t } = useTranslation('explorer');
     const {
         fieldId,
         selectionKey,
@@ -359,7 +361,7 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                         </HoverCard.Dropdown>
                     </HoverCard>
                     {isDashboardMetric && (
-                        <Tooltip label="Only available in this dashboard">
+                        <Tooltip label={t('exploreTree.node.dashboardOnly')}>
                             <Badge size="xs" radius="sm" px={4} flex="0 0 auto">
                                 =
                             </Badge>
@@ -370,15 +372,19 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                             <Tooltip
                                 label={
                                     isFiltered
-                                        ? 'This field is filtered'
-                                        : 'Click here to add filter'
+                                        ? t('exploreTree.node.isFiltered')
+                                        : t('exploreTree.node.addFilter')
                                 }
                             >
                                 <ActionIcon
                                     aria-label={
                                         isFiltered
-                                            ? 'Field is filtered'
-                                            : 'Add filter'
+                                            ? t(
+                                                  'exploreTree.selectedFields.fieldIsFiltered',
+                                              )
+                                            : t(
+                                                  'exploreTree.selectedFields.addFilter',
+                                              )
                                     }
                                     onClick={handleFilterClick}
                                 >
@@ -387,7 +393,9 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                             </Tooltip>
                         )}
                         {showDeleteAction && (
-                            <Tooltip label="Delete custom metric">
+                            <Tooltip
+                                label={t('exploreTree.node.deleteCustomMetric')}
+                            >
                                 <ActionIcon onClick={handleDeleteClick}>
                                     <MantineIcon icon={IconTrash} />
                                 </ActionIcon>
@@ -457,9 +465,10 @@ type ExitingField = { field: SelectedField; index: number };
 const SelectedFieldsSectionComponent: FC<Props> = ({
     fields,
     onDeselect,
-    heading = 'Selected',
+    heading,
     showAllFieldsDivider = true,
 }) => {
+    const { t } = useTranslation('explorer');
     const [exitingFields, setExitingFields] = useState<
         Map<string, ExitingField>
     >(new Map());
@@ -574,7 +583,9 @@ const SelectedFieldsSectionComponent: FC<Props> = ({
 
     return (
         <div className={classes.section}>
-            <div className={classes.divider}>{heading}</div>
+            <div className={classes.divider}>
+                {heading ?? t('exploreTree.selectedFields.heading')}
+            </div>
             <div className={classes.list} data-testid="SelectedFieldsSection">
                 {groups.map((group) => (
                     <Fragment key={group.tableLabel ?? '__no_table__'}>
@@ -594,7 +605,9 @@ const SelectedFieldsSectionComponent: FC<Props> = ({
                 ))}
             </div>
             {showAllFieldsDivider && (
-                <div className={classes.divider}>All fields</div>
+                <div className={classes.divider}>
+                    {t('exploreTree.selectedFields.allFields')}
+                </div>
             )}
         </div>
     );

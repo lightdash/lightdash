@@ -20,7 +20,8 @@ import {
     IconPointer,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ContentTableSearchInput } from '../../../components/common/ContentTable';
 import FilterFacet from '../../../components/common/FilterFacet';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -41,20 +42,6 @@ const TRIGGER_ICONS: Record<QueryTrigger, TablerIcon> = {
     [QueryTrigger.APPS]: IconLayoutDashboard,
     [QueryTrigger.SCHEDULED]: IconClock,
 };
-
-const LANGUAGE_OPTIONS = [
-    { value: QueryLanguage.SEMANTIC, label: 'Semantic' },
-    { value: QueryLanguage.SQL, label: 'SQL' },
-];
-
-const STATUS_OPTIONS = [
-    { value: QueryHistoryStatus.READY, label: 'Ready' },
-    { value: QueryHistoryStatus.EXECUTING, label: 'Running' },
-    { value: QueryHistoryStatus.QUEUED, label: 'Queued' },
-    { value: QueryHistoryStatus.ERROR, label: 'Failed' },
-    { value: QueryHistoryStatus.CANCELLED, label: 'Cancelled' },
-    { value: QueryHistoryStatus.EXPIRED, label: 'Expired' },
-];
 
 const isQueryTrigger = (value: string): value is QueryTrigger =>
     Object.values<string>(QueryTrigger).includes(value);
@@ -108,6 +95,31 @@ export const QueryHistoryToolbar: FC<Props> = ({
     search,
     onSearchChange,
 }) => {
+    const { t } = useTranslation('queryHistory');
+    const languageOptions = useMemo(
+        () => [
+            { value: QueryLanguage.SEMANTIC, label: t('languages.semantic') },
+            { value: QueryLanguage.SQL, label: t('languages.sql') },
+        ],
+        [t],
+    );
+    const statusOptions = useMemo(
+        () => [
+            { value: QueryHistoryStatus.READY, label: t('statuses.ready') },
+            {
+                value: QueryHistoryStatus.EXECUTING,
+                label: t('statuses.running'),
+            },
+            { value: QueryHistoryStatus.QUEUED, label: t('statuses.queued') },
+            { value: QueryHistoryStatus.ERROR, label: t('statuses.failed') },
+            {
+                value: QueryHistoryStatus.CANCELLED,
+                label: t('statuses.cancelled'),
+            },
+            { value: QueryHistoryStatus.EXPIRED, label: t('statuses.expired') },
+        ],
+        [t],
+    );
     const compact = useMatches(
         { base: true, sm: false },
         { getInitialValueInEffect: false },
@@ -127,7 +139,7 @@ export const QueryHistoryToolbar: FC<Props> = ({
             <Group gap="xs" wrap="nowrap" className={styles.toolbarFilters}>
                 {compact ? (
                     <Select
-                        aria-label="Query source"
+                        aria-label={t('toolbar.querySource')}
                         w="100%"
                         value={trigger ?? ALL_TRIGGERS}
                         allowDeselect={false}
@@ -142,9 +154,18 @@ export const QueryHistoryToolbar: FC<Props> = ({
                             const count = option
                                 ? counts?.triggers[option]
                                 : counts?.total;
+                            const label = option
+                                ? getTriggerLabel(option)
+                                : t('triggers.all');
                             return {
                                 value: option ?? ALL_TRIGGERS,
-                                label: `${option ? getTriggerLabel(option) : 'All'}${count === undefined ? '' : ` (${count.toLocaleString()})`}`,
+                                label:
+                                    count === undefined
+                                        ? label
+                                        : t('triggers.allWithCount', {
+                                              label,
+                                              count: count.toLocaleString(),
+                                          }),
                             };
                         })}
                     />
@@ -167,7 +188,9 @@ export const QueryHistoryToolbar: FC<Props> = ({
                                             : undefined
                                     }
                                     label={
-                                        option ? getTriggerLabel(option) : 'All'
+                                        option
+                                            ? getTriggerLabel(option)
+                                            : t('triggers.all')
                                     }
                                     count={
                                         option
@@ -180,7 +203,7 @@ export const QueryHistoryToolbar: FC<Props> = ({
                     />
                 )}
                 <FilterFacet
-                    label="Language"
+                    label={t('toolbar.language')}
                     mode="single"
                     clearable
                     selected={language ? [language] : []}
@@ -192,16 +215,16 @@ export const QueryHistoryToolbar: FC<Props> = ({
                                 : undefined,
                         );
                     }}
-                    options={LANGUAGE_OPTIONS}
+                    options={languageOptions}
                 />
                 <FilterFacet
-                    label="Status"
+                    label={t('toolbar.status')}
                     clearable
                     selected={statuses}
                     onChange={(values) =>
                         onStatusesChange(values.filter(isQueryHistoryStatus))
                     }
-                    options={STATUS_OPTIONS}
+                    options={statusOptions}
                 />
                 {hasRefinements ? (
                     <Button
@@ -213,18 +236,18 @@ export const QueryHistoryToolbar: FC<Props> = ({
                             onSearchChange('');
                         }}
                     >
-                        Clear
+                        {t('toolbar.clear')}
                     </Button>
                 ) : null}
             </Group>
             <ContentTableSearchInput
-                aria-label="Search fields, tables or SQL"
+                aria-label={t('toolbar.searchPlaceholder')}
                 w={compact ? '100%' : undefined}
                 collapsedWidth={compact ? '100%' : undefined}
                 expandedWidth={compact ? '100%' : undefined}
                 value={search}
                 onChange={onSearchChange}
-                placeholder="Search fields, tables or SQL"
+                placeholder={t('toolbar.searchPlaceholder')}
             />
         </Group>
     );

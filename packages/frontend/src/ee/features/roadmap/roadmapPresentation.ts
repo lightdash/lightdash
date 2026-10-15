@@ -4,6 +4,7 @@ import {
     RoadmapItemPriority,
     type RoadmapProject,
 } from '@lightdash/common';
+import i18n from '../../../i18n/i18n';
 
 export type RoadmapBoardStage =
     | 'backlog'
@@ -46,3 +47,24 @@ export function ticketStage(status: RoadmapItemStatus): RoadmapBoardStage {
             return assertUnreachable(status, 'Unknown ticket status');
     }
 }
+
+const PRIORITY_KEYS: Record<RoadmapItemPriority, string> = {
+    [RoadmapItemPriority.URGENT]: 'urgent',
+    [RoadmapItemPriority.HIGH]: 'high',
+    [RoadmapItemPriority.MEDIUM]: 'medium',
+    [RoadmapItemPriority.LOW]: 'low',
+    [RoadmapItemPriority.NO_PRIORITY]: 'none',
+};
+
+export const getRoadmapPriorityLabel = (priority: RoadmapItemPriority) =>
+    i18n.t(`roadmap.priority.${PRIORITY_KEYS[priority]}`, { ns: 'eeMisc' });
+
+const STATUS_KEYS: Record<RoadmapItemStatus, string> = {
+    [RoadmapItemStatus.BACKLOG]: 'backlog',
+    [RoadmapItemStatus.BUILDING]: 'building',
+    [RoadmapItemStatus.SHIPPED]: 'shipped',
+    [RoadmapItemStatus.CANCELED]: 'canceled',
+};
+
+export const getRoadmapStatusLabel = (status: RoadmapItemStatus) =>
+    i18n.t(`roadmap.status.${STATUS_KEYS[status]}`, { ns: 'eeMisc' });

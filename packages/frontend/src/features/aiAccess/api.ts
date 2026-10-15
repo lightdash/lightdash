@@ -26,6 +26,7 @@ import { lightdashApi, lightdashApiResponse } from '../../api';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import i18n from '../../i18n/i18n';
 import useApp from '../../providers/App/useApp';
 
 const aiAccessUrl = (
@@ -160,12 +161,16 @@ export const useUpdateOrganizationAgentIdentityRule = () => {
                 body: JSON.stringify(rule),
             }),
         onSuccess: async () => {
-            showToastSuccess({ title: 'Agent identity saved.' });
+            showToastSuccess({
+                title: i18n.t('toasts.identitySaved', { ns: 'aiAccess' }),
+            });
             await client.invalidateQueries(['ai-access']);
         },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Could not update agent identity settings.',
+                title: i18n.t('toasts.identityUpdateFailed', {
+                    ns: 'aiAccess',
+                }),
                 apiError: error,
             }),
     });
@@ -232,12 +237,16 @@ export const useSaveAiServiceAccount = (projectUuid: string) => {
             };
         },
         onSuccess: async () => {
-            showToastSuccess({ title: 'Shared agent account saved.' });
+            showToastSuccess({
+                title: i18n.t('toasts.serviceAccountSaved', { ns: 'aiAccess' }),
+            });
             await client.invalidateQueries(['ai-access']);
         },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Could not save the shared agent account.',
+                title: i18n.t('toasts.serviceAccountSaveFailed', {
+                    ns: 'aiAccess',
+                }),
                 apiError: error,
             }),
     });
@@ -262,12 +271,18 @@ export const useDeleteAiServiceAccount = (projectUuid: string) => {
                 body: undefined,
             }),
         onSuccess: async () => {
-            showToastSuccess({ title: 'Shared agent account removed.' });
+            showToastSuccess({
+                title: i18n.t('toasts.serviceAccountRemoved', {
+                    ns: 'aiAccess',
+                }),
+            });
             await client.invalidateQueries(['ai-access']);
         },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Could not remove the shared agent account.',
+                title: i18n.t('toasts.serviceAccountRemoveFailed', {
+                    ns: 'aiAccess',
+                }),
                 apiError: error,
             }),
     });
@@ -298,7 +313,9 @@ export const useTestAiServiceAccount = (projectUuid: string) => {
         },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Could not test the shared agent account.',
+                title: i18n.t('toasts.serviceAccountTestFailed', {
+                    ns: 'aiAccess',
+                }),
                 apiError: error,
             }),
     });
@@ -359,7 +376,11 @@ export const useSaveSnowflakeAgentClient = () => {
                 client.cancelQueries([...orgKey, 'snowflake-setup']),
             ]);
             client.setQueryData([...orgKey, 'snowflake-setup'], setup);
-            showToastSuccess({ title: 'Snowflake client saved.' });
+            showToastSuccess({
+                title: i18n.t('toasts.snowflakeClientSaved', {
+                    ns: 'aiAccess',
+                }),
+            });
             void Promise.all([
                 client.resetQueries([...orgKey, 'snowflake-verify']),
                 client.invalidateQueries(['ai-access']),
@@ -458,7 +479,7 @@ export const useSaveAgentCapabilityCeiling = (
     useAgentPermissionMutation<AgentCapabilityPolicy, AgentCapabilityCeiling>(
         agentPolicyUrl,
         'PUT',
-        'Could not save agent permissions.',
+        i18n.t('toasts.permissionsSaveFailed', { ns: 'aiAccess' }),
         onSaved,
         agentPolicyMutationKey,
     );

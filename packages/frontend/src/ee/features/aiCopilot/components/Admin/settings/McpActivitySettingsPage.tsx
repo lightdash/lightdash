@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { Box, Drawer, Text } from '@mantine/core';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { NAVBAR_HEIGHT } from '../../../../../../components/common/Page/constants';
 import { SettingsPage } from '../../../../../../components/common/Settings/SettingsPage';
 import { useMcpActivityStats } from '../../../hooks/useMcpActivity';
@@ -21,6 +22,7 @@ import McpActivityTable from '../McpActivityTable';
 import drawerClasses from './ThreadPreviewDrawer.module.css';
 
 export const McpActivitySettingsPage = () => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const [selectedCall, setSelectedCall] = useState<McpActivityItem | null>(
         null,
     );
@@ -50,11 +52,11 @@ export const McpActivitySettingsPage = () => {
 
     return (
         <SettingsPage
-            title="MCP analytics"
-            description="Monitor MCP tool calls and investigate errors across your organization."
+            title={t('settings.mcpActivity.title')}
+            description={t('settings.mcpActivity.description')}
             actions={
                 <Text fz="xs" c="dimmed">
-                    Last 90 days
+                    {t('settings.mcpActivity.last90Days')}
                 </Text>
             }
         >
@@ -74,7 +76,7 @@ export const McpActivitySettingsPage = () => {
                     </Box>
                     <aside
                         className={overviewClasses.rail}
-                        aria-label="MCP activity overview"
+                        aria-label={t('settings.mcpActivity.overviewAria')}
                     >
                         <McpActivityOverview
                             stats={stats}

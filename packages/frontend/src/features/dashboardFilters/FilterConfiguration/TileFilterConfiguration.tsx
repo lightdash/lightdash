@@ -34,6 +34,7 @@ import {
     IconChevronRight,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FieldSelect from '../../../components/common/FieldSelect';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
@@ -119,6 +120,7 @@ const TileFilterConfiguration: FC<Props> = ({
     onToggleAll,
 }) => {
     const getUiString = useUiStrings();
+    const { t } = useTranslation('dashboardFilters');
     const [collapsedTabs, setCollapsedTabs] = useState<Record<string, boolean>>(
         {},
     );
@@ -393,12 +395,11 @@ const TileFilterConfiguration: FC<Props> = ({
         const selectedCount = tileList.filter((tile) => tile.checked).length;
 
         const getTooltipLabel = () => {
-            if (disabled) return 'No tiles in this tab';
+            if (disabled) return t('tileConfig.noTilesInTab');
             if (!hasAnyExactMatch && !shouldBeChecked)
-                return 'No tiles in this tab have an exact field match';
-            if (shouldBeChecked)
-                return `Uncheck to turn filter off for tab '${tabName}'`;
-            return `Check to turn filter on for tab '${tabName}'`;
+                return t('tileConfig.noExactMatchInTab');
+            if (shouldBeChecked) return t('tileConfig.uncheckTab', { tabName });
+            return t('tileConfig.checkTab', { tabName });
         };
 
         const toggleCollapse = () => {
@@ -436,8 +437,10 @@ const TileFilterConfiguration: FC<Props> = ({
 
                                     {isCollapsed && (
                                         <Text c="dimmed">
-                                            ({selectedCount} of{' '}
-                                            {tileList.length} selected)
+                                            {t('tileConfig.selectedOfTotal', {
+                                                selected: selectedCount,
+                                                total: tileList.length,
+                                            })}
                                         </Text>
                                     )}
                                 </Group>
@@ -714,12 +717,12 @@ const TileFilterConfiguration: FC<Props> = ({
                 indeterminate={isIndeterminate}
                 label={
                     <Text fz="sm" fw={500}>
-                        Select all{' '}
                         {isIndeterminate
-                            ? ` (${
-                                  tileTargetList.filter((v) => v.checked).length
-                              } tiles selected)`
-                            : ''}
+                            ? t('tileConfig.selectAllWithCount', {
+                                  count: tileTargetList.filter((v) => v.checked)
+                                      .length,
+                              })
+                            : t('tileConfig.selectAll')}
                     </Text>
                 }
                 classNames={{

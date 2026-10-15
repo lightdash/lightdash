@@ -1,10 +1,12 @@
 import { Box, Group, Stack, Switch, Text, Tooltip } from '@mantine/core';
 import MDEditor, { commands } from '@uiw/react-md-editor';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSchedulerFormContext } from '../schedulerFormContext';
 import classes from './SchedulerDeliveryModal.module.css';
 
 export const SchedulerMessageSection: FC = () => {
+    const { t } = useTranslation('scheduler');
     const form = useSchedulerFormContext();
     const isAiMessage = form.values.aiAugmentation !== null;
     const hasEmailTargets = (form.values.emailTargets?.length ?? 0) > 0;
@@ -14,10 +16,10 @@ export const SchedulerMessageSection: FC = () => {
             <Group justify="space-between" wrap="nowrap" align="flex-start">
                 <Stack gap={2}>
                     <Text fw={500} fz="sm">
-                        Include link to Lightdash
+                        {t('message.includeLink')}
                     </Text>
                     <Text fz="xs" c="dimmed">
-                        Recipients can open this in Lightdash.
+                        {t('message.includeLinkDescription')}
                     </Text>
                 </Stack>
                 <Switch
@@ -34,17 +36,14 @@ export const SchedulerMessageSection: FC = () => {
             <Group justify="space-between" wrap="nowrap" align="flex-start">
                 <Stack gap={2}>
                     <Text fw={500} fz="sm">
-                        Send as plain text
+                        {t('message.plainText')}
                     </Text>
                     <Text fz="xs" c="dimmed">
-                        Emails arrive as plain text with the file attached — no
-                        Lightdash branding, buttons or footer. Your message
-                        below is the whole body. Slack and webhook deliveries
-                        are unaffected.
+                        {t('message.plainTextDescription')}
                     </Text>
                 </Stack>
                 <Tooltip
-                    label="You must have at least one email recipient to send as plain text"
+                    label={t('message.plainTextDisabled')}
                     position="top-end"
                     disabled={hasEmailTargets}
                 >
@@ -65,11 +64,12 @@ export const SchedulerMessageSection: FC = () => {
 
             <Stack gap="xs">
                 <Stack gap={2}>
-                    <span className={classes.subBlockLabel}>Message body</span>
+                    <span className={classes.subBlockLabel}>
+                        {t('message.body')}
+                    </span>
                     {isAiMessage && (
                         <Text fz="xs" c="dimmed">
-                            AI writes the message on every send; this text is
-                            only used if AI generation fails.
+                            {t('message.aiFallback')}
                         </Text>
                     )}
                 </Stack>
@@ -91,7 +91,7 @@ export const SchedulerMessageSection: FC = () => {
                     }
                     overflow={false}
                     textareaProps={{
-                        placeholder: 'Add a note for recipients...',
+                        placeholder: t('message.placeholder'),
                     }}
                 />
             </Stack>

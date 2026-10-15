@@ -4,6 +4,7 @@ import {
     type PasswordReset,
 } from '@lightdash/common';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 
@@ -39,6 +40,7 @@ export const usePasswordResetLink = (code: string | undefined) =>
     });
 
 export const usePasswordResetLinkMutation = () => {
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<null, ApiError, CreatePasswordResetLink>(
         sendPasswordResetLinkQuery,
@@ -46,12 +48,16 @@ export const usePasswordResetLinkMutation = () => {
             mutationKey: ['send_password_reset_email'],
             onSuccess: async () => {
                 showToastSuccess({
-                    title: 'Password recovery email sent successfully',
+                    title: t(
+                        'usePasswordReset.passwordRecoveryEmailSentSuccessfully',
+                    ),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to send password recovery email`,
+                    title: t(
+                        'usePasswordReset.failedToSendPasswordRecoveryEmail',
+                    ),
                     apiError: error,
                 });
             },
@@ -60,17 +66,18 @@ export const usePasswordResetLinkMutation = () => {
 };
 
 export const usePasswordResetMutation = () => {
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<null, ApiError, PasswordReset>(resetPasswordQuery, {
         mutationKey: ['reset_password'],
         onSuccess: async () => {
             showToastSuccess({
-                title: 'Password updated successfully',
+                title: t('usePasswordReset.passwordUpdatedSuccessfully'),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to reset password`,
+                title: t('usePasswordReset.failedToResetPassword'),
                 apiError: error,
             });
         },

@@ -17,6 +17,7 @@ import {
     IconPlus,
 } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
 import ErrorState from '../components/common/ErrorState';
@@ -50,6 +51,7 @@ import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
 
 const Space: FC = () => {
+    const { t } = useTranslation('spaces');
     const projectUuid = useProjectUuid()!;
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const { spaceUuid } = useParams<{
@@ -109,7 +111,7 @@ const Space: FC = () => {
     );
 
     if (isInitialLoading) {
-        return <EmptyStateLoader my="xl" title="Loading space" />;
+        return <EmptyStateLoader my="xl" title={t('spacePage.loading')} />;
     }
 
     if (error) {
@@ -120,8 +122,10 @@ const Space: FC = () => {
         return (
             <div style={{ marginTop: '20px' }}>
                 <SuboptimalState
-                    title="Space does not exist"
-                    description={`We could not find space with uuid ${spaceUuid}`}
+                    title={t('spacePage.notFoundTitle')}
+                    description={t('spacePage.notFoundDescription', {
+                        spaceUuid,
+                    })}
                 />
             </div>
         );
@@ -188,7 +192,7 @@ const Space: FC = () => {
                         <PageBreadcrumbs
                             items={[
                                 {
-                                    title: 'Spaces',
+                                    title: t('spacesPage.title'),
                                     to: `/projects/${projectUrlIdentifier}/spaces`,
                                 },
                                 ...(space.breadcrumbs?.map(
@@ -267,7 +271,9 @@ const Space: FC = () => {
                                                   }
                                                 : {
                                                       tooltipProps: {
-                                                          label: 'You do not have access to this space',
+                                                          label: t(
+                                                              'spacePage.noAccess',
+                                                          ),
                                                       },
                                                   }),
                                         };
@@ -300,7 +306,9 @@ const Space: FC = () => {
                                                     />
                                                 }
                                             >
-                                                Add
+                                                {t('actions.add', {
+                                                    ns: 'common',
+                                                })}
                                             </Button>
                                         </Menu.Target>
 
@@ -321,7 +329,9 @@ const Space: FC = () => {
                                                             );
                                                         }}
                                                     >
-                                                        Create space
+                                                        {t(
+                                                            'spacePage.createSpace',
+                                                        )}
                                                     </Menu.Item>
                                                     <Menu.Divider />
                                                 </>
@@ -341,7 +351,9 @@ const Space: FC = () => {
                                                         );
                                                     }}
                                                 >
-                                                    Create new dashboard
+                                                    {t(
+                                                        'spacePage.createDashboard',
+                                                    )}
                                                 </Menu.Item>
                                             ) : null}
 
@@ -359,7 +371,7 @@ const Space: FC = () => {
                                                         );
                                                     }}
                                                 >
-                                                    Create new chart
+                                                    {t('spacePage.createChart')}
                                                 </Menu.Item>
                                             ) : null}
 
@@ -377,7 +389,9 @@ const Space: FC = () => {
                                                         );
                                                     }}
                                                 >
-                                                    Create new document
+                                                    {t(
+                                                        'spacePage.createDocument',
+                                                    )}
                                                 </Menu.Item>
                                             ) : null}
 
@@ -394,7 +408,9 @@ const Space: FC = () => {
                                                         );
                                                     }}
                                                 >
-                                                    Create new data app
+                                                    {t(
+                                                        'spacePage.createDataApp',
+                                                    )}
                                                 </Menu.Item>
                                             ) : null}
                                         </Menu.Dropdown>
@@ -419,7 +435,7 @@ const Space: FC = () => {
                                         size={36}
                                         w={{ base: 32, md: 36 }}
                                         h={{ base: 32, md: 36 }}
-                                        aria-label="Space actions"
+                                        aria-label={t('spacePage.actions')}
                                         // Anchor for scope walkthroughs
                                         data-tour-anchor="space-actions"
                                         data-tour-hint="Open the space's actions menu"
@@ -435,8 +451,11 @@ const Space: FC = () => {
                                         projectUuid={projectUuid}
                                         spaceUuid={space?.uuid}
                                         actionType={ActionType.UPDATE}
-                                        title="Update space"
-                                        confirmButtonLabel="Update"
+                                        title={t('spacePage.updateSpace')}
+                                        confirmButtonLabel={t(
+                                            'actions.update',
+                                            { ns: 'common' },
+                                        )}
                                         icon={IconFolderCog}
                                         onClose={() => setUpdateSpace(false)}
                                         parentSpaceUuid={space.parentSpaceUuid}
@@ -448,8 +467,11 @@ const Space: FC = () => {
                                         spaceUuid={space?.uuid}
                                         actionType={ActionType.DELETE}
                                         parentSpaceUuid={null}
-                                        title="Delete space"
-                                        confirmButtonLabel="Delete"
+                                        title={t('spacePage.deleteSpace')}
+                                        confirmButtonLabel={t(
+                                            'actions.delete',
+                                            { ns: 'common' },
+                                        )}
                                         confirmButtonColor="red"
                                         icon={IconFolderX}
                                         onSubmitForm={() => {
@@ -570,8 +592,12 @@ const Space: FC = () => {
                             projectUuid={projectUuid}
                             actionType={ActionType.CREATE}
                             parentSpaceUuid={space.uuid}
-                            title={`Create space in "${space.name}"`}
-                            confirmButtonLabel="Create"
+                            title={t('spacePage.createSpaceIn', {
+                                name: space.name,
+                            })}
+                            confirmButtonLabel={t('actions.create', {
+                                ns: 'common',
+                            })}
                             icon={IconFolderPlus}
                             onClose={() => setIsCreateNestedSpaceOpen(false)}
                             spaceUuid={spaceUuid}

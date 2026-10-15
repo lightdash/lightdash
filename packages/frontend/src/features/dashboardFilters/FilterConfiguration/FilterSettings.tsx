@@ -24,6 +24,7 @@ import {
 } from '@mantine/core';
 import { IconHelpCircle, IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FilterInputComponent from '../../../components/common/Filters/FilterInputs';
 import { getFilterOperatorOptions } from '../../../components/common/Filters/FilterInputs/utils';
 import FilterOperatorOption from '../../../components/common/Filters/FilterOperatorOption';
@@ -64,6 +65,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     const { user } = useApp();
     const canManageExplore = user.data?.ability?.can('manage', 'Explore');
     const getUiString = useUiStrings();
+    const { t } = useTranslation('dashboardFilters');
 
     const [filterLabel, setFilterLabel] = useState<string>();
 
@@ -169,7 +171,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
             <Stack gap="xs">
                 {isEditMode && !hideLabel && (
                     <TextInput
-                        label="Filter label"
+                        label={t('controls.editor.filterLabel')}
                         mb="sm"
                         size="xs"
                         onChange={(e) => {
@@ -180,7 +182,9 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                             });
                         }}
                         placeholder={
-                            field ? `Label for ${field.label}` : 'Filter label'
+                            field
+                                ? t('config.labelFor', { label: field.label })
+                                : t('controls.editor.filterLabel')
                         }
                         value={filterLabel}
                     />
@@ -229,8 +233,8 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                     <Tooltip
                                         label={
                                             filterRule.singleValue
-                                                ? 'Prevent selection of multiple values'
-                                                : 'Allow selection of multiple values'
+                                                ? t('config.preventMultiple')
+                                                : t('config.allowMultiple')
                                         }
                                     >
                                         <MantineIcon
@@ -247,8 +251,8 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                 }}
                             >
                                 {filterRule.singleValue
-                                    ? 'Single value'
-                                    : 'Multiple values'}
+                                    ? t('config.singleValue')
+                                    : t('config.multipleValues')}
                             </Button>
                         )
                     }
@@ -329,8 +333,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         {hasRequirement &&
                             (filterRule?.values || []).length > 0 && (
                                 <Text size="xs" c={'ldGray.7'}>
-                                    Temporary filter values for required filters
-                                    will be removed on dashboard save
+                                    {t('config.temporaryValuesRemoved')}
                                 </Text>
                             )}
                         {!hasRequirement && (
@@ -338,8 +341,8 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                 position="right"
                                 label={
                                     isFilterDisabled
-                                        ? 'Toggle on to set a default filter value'
-                                        : 'Toggle off to leave the filter value empty, allowing users to populate it in view mode'
+                                        ? t('config.toggleOnDefault')
+                                        : t('config.toggleOffDefault')
                                 }
                                 openDelay={500}
                             >
@@ -347,7 +350,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                     <Switch
                                         label={
                                             <Text size="xs" mt="two" fw={500}>
-                                                Provide default value
+                                                {t('config.provideDefault')}
                                             </Text>
                                         }
                                         labelPosition="right"

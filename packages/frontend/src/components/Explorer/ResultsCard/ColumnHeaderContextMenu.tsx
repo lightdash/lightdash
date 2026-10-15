@@ -30,6 +30,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import {
     explorerActions,
     selectAdditionalMetrics,
@@ -76,6 +77,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
     onQuickCalculationCreated,
     mergeTableCalculation,
 }) => {
+    const { t } = useTranslation('explorer');
     const { addFilter } = useFilters();
     const { track } = useTracking();
 
@@ -140,7 +142,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     leftSection={<MantineIcon icon={IconPencil} />}
                     onClick={() => onToggleCalculationEditModal(true)}
                 >
-                    Edit calculation
+                    {t('columnHeaderMenu.editCalculation')}
                 </Menu.Item>
                 <Menu.Divider />
                 <ColumnHeaderSortMenuOptions
@@ -154,7 +156,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     color="red"
                     onClick={() => onToggleCalculationDeleteModal(true)}
                 >
-                    Remove
+                    {t('columnHeaderMenu.remove')}
                 </Menu.Item>
             </>
         );
@@ -186,7 +188,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                                 );
                             }}
                         >
-                            Add period comparison
+                            {t('columnHeaderMenu.addPeriodComparison')}
                         </Menu.Item>
 
                         {!isItemAdditionalMetric &&
@@ -208,7 +210,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                                     );
                                 }}
                             >
-                                Create custom metric
+                                {t('columnHeaderMenu.createCustomMetric')}
                             </Menu.Item>
                         ) : null}
 
@@ -225,10 +227,14 @@ const ContextMenu: FC<ContextMenuProps> = ({
                                 addFilter(item, undefined);
                             }}
                         >
-                            Filter by{' '}
-                            <Text span>
-                                "{getItemLabelWithoutTableName(item)}"
-                            </Text>
+                            <Trans
+                                t={t}
+                                i18nKey="columnHeaderMenu.filterByQuoted"
+                                values={{
+                                    label: getItemLabelWithoutTableName(item),
+                                }}
+                                components={{ label: <Text span /> }}
+                            />
                         </Menu.Item>
 
                         <Menu.Divider />
@@ -286,7 +292,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                             );
                         }}
                     >
-                        Edit custom metric
+                        {t('columnHeaderMenu.editCustomMetric')}
                     </Menu.Item>
                 ) : null}
 
@@ -300,7 +306,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                                 );
                             }}
                         >
-                            Remove
+                            {t('columnHeaderMenu.remove')}
                         </Menu.Item>
 
                         <Menu.Item
@@ -314,7 +320,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                                 );
                             }}
                         >
-                            Delete custom metric
+                            {t('columnHeaderMenu.deleteCustomMetric')}
                         </Menu.Item>
                     </>
                 ) : (
@@ -325,7 +331,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                             dispatch(explorerActions.removeField(itemFieldId));
                         }}
                     >
-                        Remove
+                        {t('columnHeaderMenu.remove')}
                     </Menu.Item>
                 )}
             </>
@@ -340,7 +346,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                         dispatch(explorerActions.removeField(header.column.id));
                     }}
                 >
-                    Remove
+                    {t('columnHeaderMenu.remove')}
                 </Menu.Item>
             </>
         );
@@ -359,10 +365,14 @@ const ContextMenu: FC<ContextMenuProps> = ({
                                 addFilter(item, undefined);
                             }}
                         >
-                            Filter by{' '}
-                            <Text span fw={500}>
-                                {getItemLabelWithoutTableName(item)}
-                            </Text>
+                            <Trans
+                                t={t}
+                                i18nKey="columnHeaderMenu.filterBy"
+                                values={{
+                                    label: getItemLabelWithoutTableName(item),
+                                }}
+                                components={{ label: <Text span fw={500} /> }}
+                            />
                         </Menu.Item>
 
                         <Menu.Divider />
@@ -382,7 +392,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                                 );
                             }}
                         >
-                            Edit custom dimension
+                            {t('columnHeaderMenu.editCustomDimension')}
                         </Menu.Item>
                         <Menu.Divider />
                     </>
@@ -408,7 +418,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                                 );
                             }}
                         >
-                            Remove
+                            {t('columnHeaderMenu.remove')}
                         </Menu.Item>
 
                         <Menu.Item
@@ -422,7 +432,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                                 );
                             }}
                         >
-                            Delete custom dimension
+                            {t('columnHeaderMenu.deleteCustomDimension')}
                         </Menu.Item>
                     </>
                 )}
@@ -438,10 +448,12 @@ const ContextMenu: FC<ContextMenuProps> = ({
                         addFilter(item, undefined);
                     }}
                 >
-                    Filter by{' '}
-                    <Text span fw="semibold">
-                        {getItemLabelWithoutTableName(item)}
-                    </Text>
+                    <Trans
+                        t={t}
+                        i18nKey="columnHeaderMenu.filterBy"
+                        values={{ label: getItemLabelWithoutTableName(item) }}
+                        components={{ label: <Text span fw="semibold" /> }}
+                    />
                 </Menu.Item>
 
                 <Menu.Divider />
@@ -456,7 +468,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                         onToggleCalculationEditModal(true);
                     }}
                 >
-                    Edit calculation
+                    {t('columnHeaderMenu.editCalculation')}
                 </Menu.Item>
 
                 <Menu.Divider />
@@ -480,7 +492,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                         onToggleCalculationDeleteModal(true);
                     }}
                 >
-                    Remove
+                    {t('columnHeaderMenu.remove')}
                 </Menu.Item>
             </>
         );
@@ -490,6 +502,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
 };
 
 const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
+    const { t } = useTranslation('explorer');
     const [showUpdate, setShowUpdate] = useState(false);
     const [showDelete, setShowDelete] = useState(false);
     const [quickCalcToEdit, setQuickCalcToEdit] =
@@ -521,7 +534,7 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                                 size="xs"
                                 variant="light"
                                 bg="transparent"
-                                aria-label="Context menu"
+                                aria-label={t('columnHeaderMenu.contextMenu')}
                             >
                                 <MantineIcon icon={IconDots} />
                             </ActionIcon>

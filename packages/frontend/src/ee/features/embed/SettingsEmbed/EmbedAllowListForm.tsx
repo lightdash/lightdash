@@ -9,6 +9,7 @@ import {
 import { Button, Flex, MultiSelect, Stack, Switch } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const EmbedAllowListForm: FC<{
     disabled: boolean;
@@ -27,6 +28,7 @@ const EmbedAllowListForm: FC<{
     showDataApps,
     onSave,
 }) => {
+    const { t } = useTranslation('embed');
     const form = useForm({
         initialValues: {
             allowAllDashboards: embedConfig.allowAllDashboards,
@@ -54,7 +56,7 @@ const EmbedAllowListForm: FC<{
             <Stack>
                 <Switch
                     name="allowAllDashboards"
-                    label="Allow all dashboards"
+                    label={t('allowList.allowAllDashboards')}
                     {...form.getInputProps('allowAllDashboards', {
                         type: 'checkbox',
                     })}
@@ -62,7 +64,7 @@ const EmbedAllowListForm: FC<{
                 {!form.values.allowAllDashboards && (
                     <MultiSelect
                         required={!form.values.allowAllDashboards}
-                        label={'Dashboards'}
+                        label={t('settings.tabs.dashboards')}
                         data={dashboards.map((dashboard) => ({
                             value: dashboard.uuid,
                             label: dashboard.name,
@@ -75,17 +77,17 @@ const EmbedAllowListForm: FC<{
                         defaultValue={[]}
                         placeholder={
                             dashboards.length === 0
-                                ? 'No dashboards available to embed'
-                                : 'Select a dashboard...'
+                                ? t('allowList.noDashboards')
+                                : t('allowList.selectDashboard')
                         }
                         searchable
-                        description="Only these dashboards will be allowed to be embedded."
+                        description={t('allowList.dashboardsDescription')}
                         {...form.getInputProps('dashboardUuids')}
                     />
                 )}
                 <Switch
                     name="allowAllCharts"
-                    label="Allow all charts"
+                    label={t('allowList.allowAllCharts')}
                     {...form.getInputProps('allowAllCharts', {
                         type: 'checkbox',
                     })}
@@ -93,7 +95,7 @@ const EmbedAllowListForm: FC<{
                 {!form.values.allowAllCharts && (
                     <MultiSelect
                         required={!form.values.allowAllCharts}
-                        label={'Charts'}
+                        label={t('settings.tabs.charts')}
                         data={charts.map((chart) => ({
                             value: chart.uuid,
                             label: chart.name,
@@ -106,11 +108,11 @@ const EmbedAllowListForm: FC<{
                         defaultValue={[]}
                         placeholder={
                             charts.length === 0
-                                ? 'No charts available to embed'
-                                : 'Select a chart...'
+                                ? t('allowList.noCharts')
+                                : t('allowList.selectChart')
                         }
                         searchable
-                        description="Only these charts will be allowed to be embedded."
+                        description={t('allowList.chartsDescription')}
                         {...form.getInputProps('chartUuids')}
                     />
                 )}
@@ -118,7 +120,7 @@ const EmbedAllowListForm: FC<{
                     <>
                         <Switch
                             name="allowAllApps"
-                            label="Allow all data apps"
+                            label={t('allowList.allowAllApps')}
                             {...form.getInputProps('allowAllApps', {
                                 type: 'checkbox',
                             })}
@@ -126,7 +128,7 @@ const EmbedAllowListForm: FC<{
                         {!form.values.allowAllApps && (
                             <MultiSelect
                                 required={!form.values.allowAllApps}
-                                label={'Data apps'}
+                                label={t('settings.tabs.apps')}
                                 data={apps.map((app) => ({
                                     value: app.appUuid,
                                     label: getAppDisplayName(
@@ -142,11 +144,11 @@ const EmbedAllowListForm: FC<{
                                 defaultValue={[]}
                                 placeholder={
                                     apps.length === 0
-                                        ? 'No data apps available to embed'
-                                        : 'Select a data app...'
+                                        ? t('allowList.noApps')
+                                        : t('allowList.selectApp')
                                 }
                                 searchable
-                                description="Only these data apps will be allowed to be embedded standalone."
+                                description={t('allowList.appsDescription')}
                                 {...form.getInputProps('appUuids')}
                             />
                         )}
@@ -162,7 +164,7 @@ const EmbedAllowListForm: FC<{
                                 (!showDataApps || apps.length === 0))
                         }
                     >
-                        Save changes
+                        {t('allowList.save')}
                     </Button>
                 </Flex>
             </Stack>

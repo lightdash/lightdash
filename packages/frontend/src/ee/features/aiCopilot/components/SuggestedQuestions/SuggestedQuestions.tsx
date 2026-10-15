@@ -1,6 +1,7 @@
 import { SimpleGrid, Stack, Text } from '@mantine/core';
 import shuffle from 'lodash/shuffle';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PolymorphicPaperButton } from '../../../../../components/common/PolymorphicPaperButton';
 import { getLeastSimilar } from './getLeastSimilar';
 import classes from './SuggestedQuestions.module.css';
@@ -24,6 +25,7 @@ export const SuggestedQuestions: FC<SuggestedQuestionsProps> = ({
     onQuestionClick,
     isLoading,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const selectedQuestions = useMemo(() => {
         if (questions.length <= MIN_AVAILABLE_QUESTIONS) {
             return [];
@@ -44,7 +46,7 @@ export const SuggestedQuestions: FC<SuggestedQuestionsProps> = ({
     return (
         <Stack gap="xs">
             <Text size="xs" c="dimmed" fw={500}>
-                Suggested questions
+                {t('suggestedQuestions')}
             </Text>
             <SimpleGrid cols={2} spacing="xs">
                 {selectedQuestions.map((q) => (

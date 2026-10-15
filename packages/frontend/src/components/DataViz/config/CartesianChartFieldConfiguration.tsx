@@ -10,6 +10,7 @@ import {
 import { Box, Group, Stack, ActionIcon, Tooltip } from '@mantine/core';
 import { IconMinus, IconPlus, IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useAppDispatch as useVizDispatch,
     useAppSelector as useVizSelector,
@@ -36,6 +37,7 @@ const YFieldsAxisConfig: FC<{
           >['references'][number]
         | undefined;
 }> = ({ field, yLayoutOptions, isSingle, index, actions, columns, error }) => {
+    const { t } = useTranslation('dataViz');
     const dispatch = useVizDispatch();
 
     return (
@@ -60,9 +62,11 @@ const YFieldsAxisConfig: FC<{
                                 value={field.reference}
                                 error={
                                     !!error &&
-                                    `Column "${error}" does not exist. Choose another`
+                                    t('errors.columnDoesNotExist', {
+                                        column: error,
+                                    })
                                 }
-                                placeholder="Select Y axis"
+                                placeholder={t('cartesian.fields.selectYAxis')}
                                 onChange={(value) => {
                                     if (value) {
                                         dispatch(
@@ -103,7 +107,7 @@ const YFieldsAxisConfig: FC<{
                                     )
                                 }
                             />
-                            <Tooltip label="Remove Y axis">
+                            <Tooltip label={t('cartesian.fields.removeYAxis')}>
                                 <ActionIcon
                                     onClick={() =>
                                         dispatch(
@@ -135,6 +139,7 @@ const XFieldAxisConfig = ({
     actions: BarChartActionsType | LineChartActionsType;
     error: VizConfigErrors['indexFieldError'];
 }) => {
+    const { t } = useTranslation('dataViz');
     const dispatch = useVizDispatch();
 
     return (
@@ -146,13 +151,13 @@ const XFieldAxisConfig = ({
                     label: x.reference,
                 }))}
                 value={field?.reference ?? null}
-                placeholder="Select X axis"
+                placeholder={t('cartesian.fields.selectXAxis')}
                 onChange={(value) =>
                     value && dispatch(actions.setXAxisReference(value))
                 }
                 error={
                     error &&
-                    `Column "${error.reference}" does not exist. Choose another`
+                    t('errors.columnDoesNotExist', { column: error.reference })
                 }
                 fieldType={
                     (field?.reference &&
@@ -177,7 +182,7 @@ const XFieldAxisConfig = ({
                     )
                 }
             />
-            <Tooltip label="Remove X axis">
+            <Tooltip label={t('cartesian.fields.removeXAxis')}>
                 <ActionIcon
                     onClick={() => dispatch(actions.removeXAxisField())}
                     data-testid="remove-x-axis-field"
@@ -202,9 +207,10 @@ const GroupByFieldAxisConfig = ({
     actions: BarChartActionsType | LineChartActionsType;
     error: VizConfigErrors['groupByFieldError'];
 }) => {
+    const { t } = useTranslation('dataViz');
     const dispatch = useVizDispatch();
     const groupByError = error?.references[0]
-        ? `Column "${error.references[0]}" does not exist. Choose another`
+        ? t('errors.columnDoesNotExist', { column: error.references[0] })
         : undefined;
     return (
         <FieldReferenceSelect
@@ -228,7 +234,7 @@ const GroupByFieldAxisConfig = ({
                 label: groupBy.reference,
             }))}
             value={field?.reference ?? null}
-            placeholder="Select group by"
+            placeholder={t('cartesian.fields.selectGroupBy')}
             error={groupByError}
             onChange={(value) => {
                 if (!value) {
@@ -258,6 +264,7 @@ export const CartesianChartFieldConfiguration = ({
     columns: VizColumn[];
     actions: BarChartActionsType | LineChartActionsType;
 }) => {
+    const { t } = useTranslation('dataViz');
     const dispatch = useVizDispatch();
     const xLayoutOptions = useVizSelector((state) =>
         cartesianChartSelectors.getIndexLayoutOptions(state, selectedChartType),
@@ -297,7 +304,9 @@ export const CartesianChartFieldConfiguration = ({
         <Stack gap="xl" mt="sm">
             <Config>
                 <Config.Section>
-                    <Config.Heading>{`X-axis`}</Config.Heading>
+                    <Config.Heading>
+                        {t('cartesian.display.xAxis')}
+                    </Config.Heading>
                     {filteredXLayoutOptions && (
                         <XFieldAxisConfig
                             columns={columns}
@@ -312,8 +321,10 @@ export const CartesianChartFieldConfiguration = ({
             <Config>
                 <Config.Section>
                     <Config.Group>
-                        <Config.Heading>{`Y-axis`}</Config.Heading>
-                        <Tooltip label="Add Y axis">
+                        <Config.Heading>
+                            {t('cartesian.display.yAxis')}
+                        </Config.Heading>
+                        <Tooltip label={t('cartesian.fields.addYAxis')}>
                             <ActionIcon
                                 onClick={() =>
                                     dispatch(actions.addYAxisField())
@@ -347,7 +358,9 @@ export const CartesianChartFieldConfiguration = ({
             </Config>
             <Config>
                 <Config.Section>
-                    <Config.Heading>Group by</Config.Heading>
+                    <Config.Heading>
+                        {t('cartesian.fields.groupBy')}
+                    </Config.Heading>
                     <GroupByFieldAxisConfig
                         columns={columns}
                         field={groupByField}

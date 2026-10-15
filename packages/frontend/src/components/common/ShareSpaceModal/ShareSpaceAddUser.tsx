@@ -28,6 +28,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useInfiniteOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useInfiniteOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
@@ -45,7 +46,7 @@ import { DEFAULT_PAGE_SIZE } from '../Table/constants';
 import { ServiceAccountBadge } from './ServiceAccountBadge';
 import styles from './ShareSpaceAddUser.module.css';
 import { getAccessColor } from './ShareSpaceModalUtils';
-import { UserAccessOptions } from './ShareSpaceSelect';
+import { getUserAccessOptions } from './ShareSpaceSelect';
 import { getUserNameOrEmail } from './Utils';
 
 const ALL_PROJECT_MEMBERS_VALUE = '__all_project_members__';
@@ -61,6 +62,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     projectUuid,
     disabled = false,
 }) => {
+    const { t } = useTranslation('modals');
     const [selectedItems, setSelectedItems] = useState<{
         users: string[];
         groups: string[];
@@ -278,26 +280,33 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         }));
 
         // Show "All project members" option if not already enabled on this space
+        const allProjectMembersLabel = t('shareSpace.allProjectMembers');
         if (
             !space.projectMemberAccessRole &&
             (!debouncedSearchQuery ||
-                'all project members'.includes(
-                    debouncedSearchQuery.toLowerCase(),
-                ))
+                allProjectMembersLabel
+                    .toLowerCase()
+                    .includes(debouncedSearchQuery.toLowerCase()))
         ) {
             groupItems.unshift({
                 value: ALL_PROJECT_MEMBERS_VALUE,
-                label: 'All project members',
+                label: allProjectMembersLabel,
             });
         }
 
         const result: (ComboboxItem | ComboboxItemGroup<ComboboxItem>)[] = [];
 
         if (groupItems.length > 0) {
-            result.push({ group: 'Groups', items: groupItems });
+            result.push({
+                group: t('shareSpace.addUser.groupsHeader'),
+                items: groupItems,
+            });
         }
         if (usersSet.length > 0) {
-            result.push({ group: 'Users', items: usersSet });
+            result.push({
+                group: t('shareSpace.addUser.usersHeader'),
+                items: usersSet,
+            });
         }
         const serviceAccountItems = (serviceAccounts ?? [])
             .filter((account) => {
@@ -320,7 +329,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             }));
         if (serviceAccountItems.length > 0) {
             result.push({
-                group: 'Service accounts',
+                group: t('shareSpace.addUser.serviceAccountsHeader'),
                 items: serviceAccountItems,
             });
         }
@@ -338,6 +347,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         currentSearchUserUuids,
         currentSearchGroupUuids,
         serviceAccounts,
+        t,
     ]);
 
     const isFetching =
@@ -409,22 +419,22 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
 
             const spaceAccess = spaceAccessByUserUuid.get(user.userUuid);
             const roleTitle = spaceAccess
-                ? (UserAccessOptions.find(
+                ? (getUserAccessOptions(t).find(
                       (opt) => opt.value === spaceAccess.role,
                   )?.title ?? spaceAccess.role)
                 : null;
 
             const origin = spaceAccess
                 ? spaceAccess.inheritedFrom === 'parent_space'
-                    ? 'Parent'
+                    ? t('shareSpace.origin.parent')
                     : spaceAccess.inheritedFrom === 'organization'
-                      ? 'Organization'
+                      ? t('shareSpace.origin.organization')
                       : spaceAccess.inheritedFrom === 'project' ||
                           spaceAccess.inheritedFrom === 'group'
-                        ? 'Project'
+                        ? t('shareSpace.origin.project')
                         : spaceAccess.inheritedFrom === 'space_group'
-                          ? 'Group'
-                          : 'Direct'
+                          ? t('shareSpace.origin.group')
+                          : t('shareSpace.origin.direct')
                 : null;
 
             return (
@@ -469,13 +479,16 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                             color={getAccessColor(spaceAccess.role)}
                             radius="xl"
                         >
-                            {origin} &middot; {roleTitle}
+                            {t('shareSpace.originRole', {
+                                origin,
+                                role: roleTitle,
+                            })}
                         </Badge>
                     )}
                 </Group>
             );
         },
-        [spaceAccessByUserUuid, groupUuidsSet, serviceAccounts],
+        [spaceAccessByUserUuid, groupUuidsSet, serviceAccounts, t],
     );
 
     const handleSelectionChange = useCallback(
@@ -539,8 +552,8 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 classNames={{ option: styles.option }}
                 searchable
                 clearable
-                placeholder="Select groups or users to share this space with"
-                nothingFoundMessage="No users found"
+                placeholder={t('shareSpace.addUser.placeholder')}
+                nothingFoundMessage={t('shareSpace.addUser.nothingFound')}
                 searchValue={searchQuery}
                 onSearchChange={setSearchQuery}
                 value={selectedValues}
@@ -571,11 +584,11 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 }
                 onClick={handleShare}
             >
-                Share
+                {t('shareSpace.addUser.share')}
             </Button>
             {isServiceAccountsError && (
                 <InlineErrorState
-                    message="Unable to load service accounts"
+                    message={t('shareSpace.addUser.serviceAccountsLoadError')}
                     onRetry={() => void refetchServiceAccounts()}
                 />
             )}

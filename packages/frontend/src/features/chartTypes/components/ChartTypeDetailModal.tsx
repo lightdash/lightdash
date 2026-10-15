@@ -8,6 +8,7 @@ import {
 import { Box, Button, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { IconFilePencil, IconGitFork, IconTrash } from '@tabler/icons-react';
 import { useEffect, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -52,6 +53,7 @@ const ChartTypeDetailModal: FC<Props> = ({
     onPreview,
     onDelete,
 }) => {
+    const { t } = useTranslation('chartTypes');
     const navigate = useNavigate();
     const canEdit = useCanEditDataApp(projectUuid, dataAppViz);
     const canFork = useCanCreateDataApp(projectUuid);
@@ -144,7 +146,9 @@ const ChartTypeDetailModal: FC<Props> = ({
                             leftSection={<MantineIcon icon={IconTrash} />}
                             onClick={onDelete}
                         >
-                            {isOfficial ? 'Uninstall' : 'Delete'}
+                            {isOfficial
+                                ? t('detail.uninstall')
+                                : t('actions.delete', { ns: 'common' })}
                         </Button>
                     )
                 }
@@ -169,7 +173,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                                       setIsForkOpen(true);
                                   }}
                               >
-                                  Fork to customize
+                                  {t('detail.forkToCustomize')}
                               </Button>
                           )
                         : dataAppsEnabled &&
@@ -185,12 +189,12 @@ const ChartTypeDetailModal: FC<Props> = ({
                                       <MantineIcon icon={IconFilePencil} />
                                   }
                               >
-                                  Edit
+                                  {t('actions.edit', { ns: 'common' })}
                               </Button>
                           )
                 }
                 onConfirm={onPreview}
-                confirmLabel="Preview in explorer"
+                confirmLabel={t('detail.previewInExplorer')}
             >
                 <Stack gap="md">
                     <Box className={classes.preview}>
@@ -201,22 +205,23 @@ const ChartTypeDetailModal: FC<Props> = ({
                         />
                     </Box>
                     <Text fz="sm" c="ldGray.7" lh={1.55}>
-                        {dataAppViz.description || 'No description'}
+                        {dataAppViz.description || t('detail.noDescription')}
                     </Text>
                     {registryUpdate && (
                         <Callout
                             variant="info"
-                            title={`Update available: v${registryUpdate.version}`}
+                            title={t('detail.updateAvailable', {
+                                version: registryUpdate.version,
+                            })}
                         >
                             <Stack gap="sm" align="flex-start">
                                 <Text fz="sm">
                                     {registryUpdate.changelog
                                         ? `${registryUpdate.changelog} `
                                         : ''}
-                                    Charts pinned to an earlier version keep
-                                    rendering it until each chart is upgraded;
-                                    charts without a pinned version switch to v
-                                    {registryUpdate.version} right away.
+                                    {t('detail.updateExplanation', {
+                                        version: registryUpdate.version,
+                                    })}
                                 </Text>
                                 {canFork && (
                                     <Button
@@ -224,7 +229,9 @@ const ChartTypeDetailModal: FC<Props> = ({
                                         variant="default"
                                         onClick={() => setIsUpgradeOpen(true)}
                                     >
-                                        Upgrade to v{registryUpdate.version}
+                                        {t('detail.upgradeTo', {
+                                            version: registryUpdate.version,
+                                        })}
                                     </Button>
                                 )}
                             </Stack>
@@ -239,7 +246,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                         {builtBy !== null && (
                             <Box>
                                 <Text fz="xs" fw={600} c="dimmed">
-                                    Built by
+                                    {t('detail.builtBy')}
                                 </Text>
                                 <Text fz="sm" fw={500} c="ldGray.8">
                                     {builtBy}
@@ -248,7 +255,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                         )}
                         <Box>
                             <Text fz="xs" fw={600} c="dimmed">
-                                Last updated
+                                {t('detail.lastUpdated')}
                             </Text>
                             <Text fz="sm" fw={500} c="ldGray.8">
                                 {lastUpdatedAgo}
@@ -256,7 +263,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                         </Box>
                         <Box>
                             <Text fz="xs" fw={600} c="dimmed">
-                                Version
+                                {t('detail.version')}
                             </Text>
                             <Group gap="xs" wrap="nowrap">
                                 <Text fz="sm" fw={500} c="ldGray.8">
@@ -280,8 +287,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                     </SimpleGrid>
                     {dataAppViz.schema === null && (
                         <Text fz="sm" c="dimmed">
-                            No finished version yet. Open the builder to
-                            generate one.
+                            {t('detail.noFinishedVersion')}
                         </Text>
                     )}
                 </Stack>
@@ -292,7 +298,9 @@ const ChartTypeDetailModal: FC<Props> = ({
                     onClose={() => setIsForkOpen(false)}
                     projectUuid={projectUuid}
                     appUuid={dataAppViz.dataAppVizUuid}
-                    defaultName={`${dataAppViz.name} (custom)`}
+                    defaultName={t('detail.forkDefaultName', {
+                        name: dataAppViz.name,
+                    })}
                     onForked={(result) =>
                         void navigate(
                             chartTypeBuilderPath(

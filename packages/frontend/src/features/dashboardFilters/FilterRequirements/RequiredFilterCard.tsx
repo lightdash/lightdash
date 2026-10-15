@@ -12,6 +12,7 @@ import {
 import { IconAsterisk, IconPlus } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
@@ -34,6 +35,7 @@ const RequiredFilterCard: FC<Props> = ({
     onChangeFilterRule,
     onEditRules,
 }) => {
+    const { t } = useTranslation('dashboardFilters');
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
     const updateFilterRule = useUpdateDashboardFilterRule();
     const [isAddingAlternative, setIsAddingAlternative] = useState(false);
@@ -116,13 +118,13 @@ const RequiredFilterCard: FC<Props> = ({
                         color={isActive ? 'yellow.7' : 'ldGray.6'}
                     />
                     <Text size="xs" fw={600}>
-                        Required
+                        {t('controls.viewer.required')}
                     </Text>
                 </Group>
                 <Switch
                     size="xs"
                     color="yellow.6"
-                    aria-label="Required"
+                    aria-label={t('controls.viewer.required')}
                     checked={isActive}
                     onChange={(e) => onToggleRequired(e.currentTarget.checked)}
                 />
@@ -130,13 +132,13 @@ const RequiredFilterCard: FC<Props> = ({
             {isOnlyMember && (
                 <Stack gap={6} mt="xs">
                     <Text size="xs" c="ldGray.7">
-                        Viewers must set this filter to load the dashboard.
+                        {t('controls.viewer.requiredDescription')}
                     </Text>
                     {isSavedFilter &&
                         (isAddingAlternative ? (
                             <FilterSelect
                                 selectableFilters={selectableFilters}
-                                placeholder="+ Add a filter"
+                                placeholder={t('requirements.addAFilter')}
                                 onSelect={handleAddAlternative}
                             />
                         ) : (
@@ -148,7 +150,7 @@ const RequiredFilterCard: FC<Props> = ({
                                 leftSection={<MantineIcon icon={IconPlus} />}
                                 onClick={() => setIsAddingAlternative(true)}
                             >
-                                Add an alternative filter
+                                {t('requirements.addAlternative')}
                             </Button>
                         ))}
                 </Stack>
@@ -156,8 +158,7 @@ const RequiredFilterCard: FC<Props> = ({
             {sharesRule && (
                 <Stack gap={6} className={classes.groupSection}>
                     <Text size="xs" c="dimmed">
-                        Shares a rule. Viewers can satisfy it by setting this or
-                        an alternative:
+                        {t('requirements.sharesRule')}
                     </Text>
                     <Group gap={4}>
                         {siblings.map((member) => (
@@ -178,7 +179,7 @@ const RequiredFilterCard: FC<Props> = ({
                                 className={classes.buttonAnchor}
                                 onClick={onEditRules}
                             >
-                                Edit rule →
+                                {t('requirements.editRuleArrow')}
                             </Anchor>
                         )}
                     </Group>

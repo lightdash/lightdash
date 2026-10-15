@@ -7,6 +7,7 @@ import {
     type GroupingState,
 } from '@tanstack/react-table';
 import React, { useEffect, useMemo, useState, type FC } from 'react';
+import i18n from '../../../i18n/i18n';
 import {
     DEFAULT_PAGE_SIZE,
     FROZEN_COLUMN_BACKGROUND,
@@ -24,7 +25,7 @@ const rowColumn: TableColumn = {
         const pageStartIndex = pageIndex * pageSize;
         return pageStartIndex + props.row.index + 1;
     },
-    footer: 'Total',
+    footer: () => i18n.t('totals.total', { ns: 'table' }),
     meta: {
         width: 30,
     },

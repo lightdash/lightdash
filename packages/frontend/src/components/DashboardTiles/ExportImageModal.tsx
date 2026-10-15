@@ -1,5 +1,6 @@
 import { IconPhoto } from '@tabler/icons-react';
 import { useCallback, type FC, type RefObject } from 'react';
+import { useTranslation } from 'react-i18next';
 import ChartDownloadOptions from '../common/ChartDownload/ChartDownloadOptions';
 import { type DownloadType } from '../common/ChartDownload/chartDownloadUtils';
 import MantineModal from '../common/MantineModal';
@@ -20,6 +21,7 @@ const ExportImageModal: FC<ExportImageModalProps> = ({
     onClose,
     unavailableOptions,
 }) => {
+    const { t } = useTranslation('dashboard');
     const getChartInstance = useCallback(
         () => echartRef?.current?.getEchartsInstance(),
         [echartRef],
@@ -31,7 +33,7 @@ const ExportImageModal: FC<ExportImageModalProps> = ({
         <MantineModal
             opened
             onClose={onClose}
-            title="Export Image"
+            title={t('tile.exportImage')}
             icon={IconPhoto}
             cancelLabel={false}
         >

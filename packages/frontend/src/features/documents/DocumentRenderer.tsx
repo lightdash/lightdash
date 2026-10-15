@@ -2,6 +2,7 @@ import { type Document } from '@lightdash/common';
 import { Box, Text } from '@mantine/core';
 import { EditorContent } from '@tiptap/react';
 import { useMemo, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import DocumentByline from './DocumentByline';
 import { DocumentEditorProvider } from './editor/DocumentEditorContext';
 import { useDocumentReader } from './editor/useDocumentEditor';
@@ -29,6 +30,7 @@ const DocumentRenderer = ({
     initialScrollTop?: number;
     onScrollTopChange?: (scrollTop: number) => void;
 }) => {
+    const { t } = useTranslation('documents');
     const isEmpty = document.version.content.markdown.trim() === '';
     const { editor, headings } = useDocumentReader(document);
     const mentions = useMentionNavigation(editor, document.projectUuid);
@@ -60,7 +62,7 @@ const DocumentRenderer = ({
             onScrollTopChange={onScrollTopChange}
         >
             {isEmpty ? (
-                <Text c="dimmed">This document is empty.</Text>
+                <Text c="dimmed">{t('renderer.empty')}</Text>
             ) : (
                 <DocumentEditorProvider value={target}>
                     <Box

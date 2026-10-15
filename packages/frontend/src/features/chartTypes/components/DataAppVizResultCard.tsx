@@ -1,6 +1,7 @@
 import { type DataAppVizSchema } from '@lightdash/common';
 import { Card, Group, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import DataAppVizFieldTypeBadge from './DataAppVizFieldTypeBadge';
 
 type Props = {
@@ -11,22 +12,25 @@ type Props = {
 // versions in the generator chat (the latest ready version renders the
 // interactive DataAppVizTestPanel instead). Required fields aren't badged —
 // required-ness is surfaced where it's actionable (the field-mapping step).
-const DataAppVizResultCard: FC<Props> = ({ schema }) => (
-    <Card radius="md" p="sm">
-        <Stack gap="xs">
-            <Text size="sm" fw={600}>
-                Visualization ready
-            </Text>
-            <Stack gap={4}>
-                {schema.fields.map((f) => (
-                    <Group key={f.name} justify="space-between" gap="xs">
-                        <Text size="sm">{f.label}</Text>
-                        <DataAppVizFieldTypeBadge type={f.type} />
-                    </Group>
-                ))}
+const DataAppVizResultCard: FC<Props> = ({ schema }) => {
+    const { t } = useTranslation('chartTypes');
+    return (
+        <Card radius="md" p="sm">
+            <Stack gap="xs">
+                <Text size="sm" fw={600}>
+                    {t('testPanel.visualizationReady')}
+                </Text>
+                <Stack gap={4}>
+                    {schema.fields.map((f) => (
+                        <Group key={f.name} justify="space-between" gap="xs">
+                            <Text size="sm">{f.label}</Text>
+                            <DataAppVizFieldTypeBadge type={f.type} />
+                        </Group>
+                    ))}
+                </Stack>
             </Stack>
-        </Stack>
-    </Card>
-);
+        </Card>
+    );
+};
 
 export default DataAppVizResultCard;

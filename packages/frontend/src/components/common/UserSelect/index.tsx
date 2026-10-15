@@ -1,6 +1,7 @@
 import { Group, Loader, Select, Stack, Text } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useInfiniteOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { LightdashUserAvatar } from '../../Avatar';
 import { DEFAULT_PAGE_SIZE } from '../Table/constants';
@@ -34,12 +35,13 @@ export const UserSelect: FC<UserSelectProps> = ({
     onChange,
     excludedUserUuid,
     label,
-    placeholder = 'Search for a user...',
+    placeholder,
     disabled = false,
     clearable = false,
     requireGoogleToken = false,
     projectUuid,
 }) => {
+    const { t } = useTranslation('commonUi');
     const [searchValue, setSearchValue] = useState('');
     const [debouncedSearchValue] = useDebouncedValue(searchValue, 300);
     const viewportRef = useRef<HTMLDivElement>(null);
@@ -136,7 +138,7 @@ export const UserSelect: FC<UserSelectProps> = ({
     return (
         <Select
             label={label}
-            placeholder={placeholder}
+            placeholder={placeholder ?? t('userSelect.searchPlaceholder')}
             searchable
             searchValue={searchValue}
             onSearchChange={setSearchValue}
@@ -145,8 +147,8 @@ export const UserSelect: FC<UserSelectProps> = ({
             data={selectData}
             nothingFoundMessage={
                 requireGoogleToken
-                    ? 'No users with an active Google connection found'
-                    : 'No users found'
+                    ? t('userSelect.noGoogleUsers')
+                    : t('userSelect.noUsers')
             }
             maxDropdownHeight={250}
             disabled={disabled}

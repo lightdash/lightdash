@@ -1,6 +1,7 @@
 import { Box, Text } from '@mantine/core';
 import { IconFolder, IconFolders } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useOptionalProjectRoute } from '../../../../hooks/useProjectRoute';
 import { type KeySpace } from '../hooks/rankKeySpaces';
@@ -8,12 +9,11 @@ import { BlockHeader, IconSquare } from './BlockShell';
 import classes from './blockStyles.module.css';
 import { PageGrid, PageGridItem } from './PageGrid';
 
-const itemLabel = (count: number) => `${count} item${count === 1 ? '' : 's'}`;
-
 const KeySpaceCard: FC<{
     space: KeySpace;
     projectUrlIdentifier: string;
 }> = ({ space, projectUrlIdentifier }) => {
+    const { t } = useTranslation('homepageBuilder');
     return (
         <Link
             to={`/projects/${projectUrlIdentifier}/spaces/${space.uuid}`}
@@ -25,7 +25,7 @@ const KeySpaceCard: FC<{
                     {space.name}
                 </Text>
                 <Text size="xs" c="dimmed">
-                    {itemLabel(space.itemCount)}
+                    {t('keySpaces.itemCount', { count: space.itemCount })}
                 </Text>
             </Box>
         </Link>
@@ -38,7 +38,8 @@ export const KeySpaces: FC<{
     spaces: KeySpace[];
     projectUuid: string;
     title?: string;
-}> = ({ spaces, projectUuid, title = 'Spaces' }) => {
+}> = ({ spaces, projectUuid, title }) => {
+    const { t } = useTranslation('homepageBuilder');
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
         projectRoute?.projectUrlIdentifier ?? projectUuid;
@@ -46,7 +47,10 @@ export const KeySpaces: FC<{
     if (spaces.length === 0) return null;
     return (
         <Box>
-            <BlockHeader icon={IconFolders} title={title} />
+            <BlockHeader
+                icon={IconFolders}
+                title={title ?? t('keySpaces.title')}
+            />
             <PageGrid itemSpan={3}>
                 {spaces.map((space) => (
                     <PageGridItem key={space.uuid}>

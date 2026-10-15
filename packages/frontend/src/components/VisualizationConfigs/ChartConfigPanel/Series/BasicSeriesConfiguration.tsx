@@ -11,6 +11,7 @@ import { Box, Group } from '@mantine/core';
 import { useDebouncedState } from '@mantine/hooks';
 import { IconPalette } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import MantineIcon from '../../../common/MantineIcon';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
@@ -51,6 +52,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
     drawOrder,
     showColorPickerIcon,
 }) => {
+    const { t } = useTranslation('vizConfig');
     const { colorPalette, getSeriesColor } = useVisualizationContext();
     const [value, setValue] = useDebouncedState(
         getSingleSeries(series)?.name || getItemLabelWithoutTableName(item),
@@ -68,7 +70,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                     <GrabIcon
                         dragHandleProps={dragHandleProps}
                         disabled={isDragDisabled}
-                        disabledTooltip="Series order is automatically determined by the sort applied to the grouped dimension"
+                        disabledTooltip={t('series.orderDeterminedBySort')}
                     />
 
                     {showColorPickerIcon ? (

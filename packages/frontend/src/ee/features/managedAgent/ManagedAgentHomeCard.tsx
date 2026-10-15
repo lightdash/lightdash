@@ -12,6 +12,7 @@ import {
     IconTarget,
     IconTrendingUp,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import {
     type CSSProperties,
     type FC,
@@ -19,6 +20,7 @@ import {
     useMemo,
     useState,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { BetaBadge } from '../../../components/common/BetaBadge';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -29,33 +31,33 @@ import classes from './ManagedAgentHomeCard.module.css';
 import { ManagedAgentSetupModal } from './ManagedAgentSetupModal';
 
 const FEATURES = [
-    { icon: IconShieldCheck, label: 'Fixes broken charts' },
-    { icon: IconTrendingUp, label: 'Flags stale content' },
-    { icon: IconChartBar, label: 'Creates visualizations' },
+    { icon: IconShieldCheck, labelKey: 'homeCard.features.fixesBrokenCharts' },
+    { icon: IconTrendingUp, labelKey: 'homeCard.features.flagsStaleContent' },
+    { icon: IconChartBar, labelKey: 'homeCard.features.createsVisualizations' },
 ];
 
-const formatRelative = (dateInput: Date | string) => {
+const formatRelative = (t: TFunction, dateInput: Date | string) => {
     const diff = Date.now() - new Date(dateInput).getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return `${mins}m ago`;
+    if (mins < 1) return t('relativeTime.justNow');
+    if (mins < 60) return t('relativeTime.minutesAgo', { count: mins });
     const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
+    if (hours < 24) return t('relativeTime.hoursAgo', { count: hours });
+    return t('relativeTime.daysAgo', { count: Math.floor(hours / 24) });
 };
 
-const formatSchedule = (schedule: ManagedAgentScheduleOption) => {
+const formatSchedule = (t: TFunction, schedule: ManagedAgentScheduleOption) => {
     switch (schedule) {
         case ManagedAgentScheduleOption.EVERY_6_HOURS:
-            return '6h';
+            return t('homeCard.schedule.every6Hours');
         case ManagedAgentScheduleOption.EVERY_12_HOURS:
-            return '12h';
+            return t('homeCard.schedule.every12Hours');
         case ManagedAgentScheduleOption.DAILY:
-            return '24h';
+            return t('homeCard.schedule.daily');
         case ManagedAgentScheduleOption.EVERY_2_DAYS:
-            return '2d';
+            return t('homeCard.schedule.every2Days');
         case ManagedAgentScheduleOption.WEEKLY:
-            return '7d';
+            return t('homeCard.schedule.weekly');
         default:
             return assertUnreachable(schedule, 'Unknown schedule option');
     }
@@ -112,6 +114,7 @@ const PixelGrid: FC = () => {
 export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
+    const { t } = useTranslation('managedAgent');
     const navigate = useNavigate();
     const { user } = useApp();
     const canManageAutopilot =
@@ -154,13 +157,26 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
             counts[a.actionType] = (counts[a.actionType] || 0) + 1;
         }
         const parts: string[] = [];
-        if (counts.fixed_broken) parts.push(`${counts.fixed_broken} fixed`);
+        if (counts.fixed_broken)
+            parts.push(
+                t('homeCard.summary.fixed', { count: counts.fixed_broken }),
+            );
         if (counts.created_content)
-            parts.push(`${counts.created_content} created`);
-        if (counts.flagged_stale) parts.push(`${counts.flagged_stale} flagged`);
-        if (counts.soft_deleted) parts.push(`${counts.soft_deleted} deleted`);
-        return parts.join(', ');
-    }, [actions]);
+            parts.push(
+                t('homeCard.summary.created', {
+                    count: counts.created_content,
+                }),
+            );
+        if (counts.flagged_stale)
+            parts.push(
+                t('homeCard.summary.flagged', { count: counts.flagged_stale }),
+            );
+        if (counts.soft_deleted)
+            parts.push(
+                t('homeCard.summary.deleted', { count: counts.soft_deleted }),
+            );
+        return parts.join(t('homeCard.summary.separator'));
+    }, [actions, t]);
 
     const [setupOpen, setSetupOpen] = useState(false);
 
@@ -187,25 +203,31 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                         <Stack gap={4}>
                             <Group gap={8} align="center">
                                 <Text fz="lg" fw={600}>
-                                    Autopilot
+                                    {t('homeCard.title')}
                                 </Text>
                                 <BetaBadge />
                                 <Box className={classes.activePill}>
                                     <Box className={classes.activeDotSmall} />
-                                    Active &middot; {formatSchedule(schedule)}
+                                    {t('homeCard.activeSchedule', {
+                                        schedule: formatSchedule(t, schedule),
+                                    })}
                                 </Box>
                             </Group>
                             <Text fz="sm" c="dimmed" fw={500}>
-                                {actionCount > 0 ? (
-                                    <>
-                                        {actionCount} actions
-                                        {actionSummary && ` - ${actionSummary}`}
-                                    </>
-                                ) : (
-                                    'Monitoring your project'
-                                )}
+                                {actionCount > 0
+                                    ? actionSummary
+                                        ? t('homeCard.actionsWithSummary', {
+                                              count: actionCount,
+                                              summary: actionSummary,
+                                          })
+                                        : t('homeCard.actions', {
+                                              count: actionCount,
+                                          })
+                                    : t('homeCard.monitoring')}
                                 {lastActionAt &&
-                                    ` · last action ${formatRelative(lastActionAt)}`}
+                                    t('homeCard.lastAction', {
+                                        time: formatRelative(t, lastActionAt),
+                                    })}
                             </Text>
                         </Stack>
                     </Group>
@@ -216,7 +238,7 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                             size="sm"
                             rightSection={<IconArrowRight size={14} />}
                         >
-                            View progress
+                            {t('homeCard.viewProgress')}
                         </Button>
                     </Box>
                 </Stack>
@@ -239,7 +261,7 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                         <Stack gap={4}>
                             <Group gap={8} align="center">
                                 <Text fz="lg" fw={600}>
-                                    Autopilot
+                                    {t('homeCard.title')}
                                 </Text>
                                 <BetaBadge />
                             </Group>
@@ -254,7 +276,7 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                                     color="var(--mantine-color-violet-4)"
                                 />
                                 <Text fz="sm" fw={500} c="dimmed">
-                                    {currentFeature.label}
+                                    {t(currentFeature.labelKey)}
                                 </Text>
                             </Group>
                         </Stack>
@@ -265,7 +287,7 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                             size="sm"
                             rightSection={<IconArrowRight size={14} />}
                         >
-                            Get started
+                            {t('homeCard.getStarted')}
                         </Button>
                     </Box>
                 </Stack>

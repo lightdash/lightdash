@@ -2,6 +2,7 @@ import { type AiAgentReviewItemSummary } from '@lightdash/common';
 import { Anchor, Box, Stack, Text } from '@mantine/core';
 import { IconArrowRight } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import styles from './IssueDetailModal.module.css';
@@ -12,24 +13,29 @@ type Props = {
 };
 
 export const MemoryProvenance: FC<Props> = ({ item, projectUuid }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const sourceMemoryProjectUuid = item.projectUuid ?? projectUuid;
     const nominationReason = item.nominationReason ?? item.description;
     const nominator =
-        item.nominator?.name ?? item.nominator?.email ?? 'Unknown user';
+        item.nominator?.name ??
+        item.nominator?.email ??
+        t('memoryProvenance.unknownUser');
 
     return (
         <Stack gap="md" className={styles.evidenceSection}>
-            <Text className={styles.sectionLabel}>Memory provenance</Text>
+            <Text className={styles.sectionLabel}>
+                {t('memoryProvenance.title')}
+            </Text>
             <Stack gap="sm">
                 <Box>
                     <Text fz="xs" fw={600} c="dimmed">
-                        Nomination reason
+                        {t('memoryProvenance.nominationReason')}
                     </Text>
                     <Text fz="sm">{nominationReason}</Text>
                 </Box>
                 <Box>
                     <Text fz="xs" fw={600} c="dimmed">
-                        Nominated by
+                        {t('memoryProvenance.nominatedBy')}
                     </Text>
                     <Text fz="sm">{nominator}</Text>
                 </Box>
@@ -39,7 +45,7 @@ export const MemoryProvenance: FC<Props> = ({ item, projectUuid }) => {
                         to={`/projects/${sourceMemoryProjectUuid}/ai-agents/memories/${item.sourceMemory.slug}`}
                         className={styles.toggle}
                     >
-                        View source memory
+                        {t('memoryProvenance.viewSource')}
                         <MantineIcon
                             icon={IconArrowRight}
                             size={13}
@@ -48,7 +54,7 @@ export const MemoryProvenance: FC<Props> = ({ item, projectUuid }) => {
                     </Anchor>
                 ) : (
                     <Text fz="sm" c="dimmed">
-                        Source memory unavailable
+                        {t('memoryProvenance.sourceUnavailable')}
                     </Text>
                 )}
             </Stack>

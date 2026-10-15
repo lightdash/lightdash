@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import { useHotkeys } from '@mantine/hooks';
 import { memo, useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Provider } from 'react-redux';
 import { useNavigate, useParams } from 'react-router';
 import Page from '../components/common/Page/Page';
@@ -29,6 +30,7 @@ import useApp from '../providers/App/useApp';
 import { defaultState } from '../providers/Explorer/defaultState';
 
 const ExplorerContent = memo(() => {
+    const { t } = useTranslation('pages');
     // Sync URL params to Redux
     useExplorerRoute();
 
@@ -62,9 +64,9 @@ const ExplorerContent = memo(() => {
 
     return (
         <Page
-            title={data ? data?.label : 'Tables'}
+            title={data ? data?.label : t('explorer.tables')}
             sidebar={<ExploreSideBar />}
-            sidebarTitle="Tables and fields"
+            sidebarTitle={t('explorer.tablesAndFields')}
             {...rightSidebarProps}
             withFullHeight
             withPaddedContent

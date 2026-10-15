@@ -16,6 +16,7 @@ import {
 import { useForm } from '@mantine/form';
 import { IconArrowUpRight } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { SettingsGridCard } from '../../../../components/common/Settings/SettingsCard';
@@ -33,6 +34,7 @@ const SettingsForm: FC<{
     projectUuid: string;
     settings: ContentReviewSettings;
 }> = ({ projectUuid, settings }) => {
+    const { t } = useTranslation('eeMisc');
     const { data: groups = [], isInitialLoading: isLoadingGroups } =
         useOrganizationGroups({});
     const { data: slack } = useGetSlack();
@@ -51,23 +53,23 @@ const SettingsForm: FC<{
     const groupOptions = useMemo(
         () => [
             {
-                group: 'Default',
+                group: t('contentReview.settings.defaultGroup'),
                 items: [
                     {
                         value: SPACE_EDITORS,
-                        label: 'Editors of the target space',
+                        label: t('contentReview.settings.spaceEditors'),
                     },
                 ],
             },
             {
-                group: 'Organization groups',
+                group: t('contentReview.settings.organizationGroups'),
                 items: groups.map((group) => ({
                     value: group.uuid,
                     label: group.name,
                 })),
             },
         ],
-        [groups],
+        [groups, t],
     );
 
     return (
@@ -85,24 +87,30 @@ const SettingsForm: FC<{
         >
             <Stack gap="lg">
                 <Select
-                    label="Who reviews requests"
-                    description="A group needs access to this project, and its members must be able to edit the target space."
+                    label={t('contentReview.settings.whoReviews')}
+                    description={t(
+                        'contentReview.settings.whoReviewsDescription',
+                    )}
                     data={groupOptions}
                     rightSection={isLoadingGroups ? <Loader size="xs" /> : null}
                     allowDeselect={false}
                     {...form.getInputProps('reviewerGroupUuid')}
                 />
                 <Switch
-                    label="Verify content when approving"
-                    description="Ticked by default on every request. Reviewers can still untick it."
+                    label={t('contentReview.settings.verifyOnApprove')}
+                    description={t(
+                        'contentReview.settings.verifyOnApproveDescription',
+                    )}
                     {...form.getInputProps('verifyOnApproveDefault', {
                         type: 'checkbox',
                     })}
                 />
                 {isSlackConnected ? (
                     <SlackChannelSelect
-                        label="Slack channel for new requests"
-                        placeholder="Organization notification channel"
+                        label={t('contentReview.settings.slackChannel')}
+                        placeholder={t(
+                            'contentReview.settings.slackChannelPlaceholder',
+                        )}
                         value={form.values.slackChannelId}
                         onChange={(value) =>
                             form.setFieldValue('slackChannelId', value)
@@ -111,18 +119,22 @@ const SettingsForm: FC<{
                 ) : (
                     <Stack gap={2}>
                         <Text fz="sm" fw={500}>
-                            Slack channel for new requests
+                            {t('contentReview.settings.slackChannel')}
                         </Text>
                         <Text fz="xs" c="dimmed">
-                            <Anchor
-                                component={Link}
-                                to="/generalSettings/integrations"
-                                fz="xs"
-                            >
-                                Connect Slack
-                            </Anchor>{' '}
-                            to post new requests to a channel and send decisions
-                            as direct messages.
+                            <Trans
+                                t={t}
+                                i18nKey="contentReview.settings.connectSlack"
+                                components={{
+                                    anchor: (
+                                        <Anchor
+                                            component={Link}
+                                            to="/generalSettings/integrations"
+                                            fz="xs"
+                                        />
+                                    ),
+                                }}
+                            />
                         </Text>
                     </Stack>
                 )}
@@ -134,14 +146,14 @@ const SettingsForm: FC<{
                         size="xs"
                         rightSection={<MantineIcon icon={IconArrowUpRight} />}
                     >
-                        Open the review queue
+                        {t('contentReview.settings.openQueue')}
                     </Button>
                     <Button
                         type="submit"
                         loading={isSaving}
                         disabled={!form.isDirty()}
                     >
-                        Save
+                        {t('actions.save', { ns: 'common' })}
                     </Button>
                 </Group>
             </Stack>
@@ -152,6 +164,7 @@ const SettingsForm: FC<{
 const ContentReviewSettingsPanel: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
+    const { t } = useTranslation('eeMisc');
     const { data: settings, isInitialLoading } = useContentReviewSettings(
         projectUuid,
         true,
@@ -159,11 +172,9 @@ const ContentReviewSettingsPanel: FC<{ projectUuid: string }> = ({
     return (
         <SettingsGridCard>
             <Stack gap="xs">
-                <Title order={5}>Review requests</Title>
+                <Title order={5}>{t('contentReview.reviewRequests')}</Title>
                 <Text c="dimmed" fz="xs">
-                    People submit charts and dashboards from their personal
-                    space. Approving moves the content to the shared space they
-                    picked.
+                    {t('contentReview.settings.description')}
                 </Text>
             </Stack>
             {isInitialLoading || !settings ? (

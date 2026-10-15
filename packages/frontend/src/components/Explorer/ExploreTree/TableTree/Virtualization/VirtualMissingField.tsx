@@ -1,6 +1,7 @@
 import { ActionIcon, Group, Text, Tooltip } from '@mantine/core';
 import { IconAlertTriangle, IconTrash } from '@tabler/icons-react';
 import { memo, useCallback, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../common/MantineIcon';
 import type { MissingFieldItem } from './types';
 import classes from './VirtualMissingField.module.css';
@@ -17,6 +18,7 @@ const VirtualMissingFieldComponent: FC<VirtualMissingFieldProps> = ({
     item,
     onRemove,
 }) => {
+    const { t } = useTranslation('explorer');
     const { fieldId, isDimension } = item.data;
 
     const handleClick = useCallback(() => {
@@ -45,7 +47,7 @@ const VirtualMissingFieldComponent: FC<VirtualMissingFieldProps> = ({
             <Tooltip
                 label={
                     <Text size="xs" style={{ wordBreak: 'break-all' }}>
-                        Remove missing field "{fieldId}".
+                        {t('exploreTree.removeMissingField', { fieldId })}
                     </Text>
                 }
                 maw={300}

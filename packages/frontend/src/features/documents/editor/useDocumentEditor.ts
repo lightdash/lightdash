@@ -2,6 +2,7 @@ import { type Document } from '@lightdash/common';
 import { useEditor, useEditorState, type Editor } from '@tiptap/react';
 import { useMemo, useRef } from 'react';
 import { hydrateContentMentions } from '../../../ee/features/homepageBuilder/blocks/markdownEditor/contentMentionMarkdown';
+import i18n from '../../../i18n/i18n';
 import { type ReportHeading } from '../presentation/DocumentReportLayout';
 import { buildDocumentContent } from './documentContent';
 import {
@@ -104,7 +105,9 @@ export const useDocumentEditor = (
                 attributes: {
                     role: 'textbox',
                     'aria-multiline': 'true',
-                    'aria-label': 'Document body',
+                    'aria-label': i18n.t('editor.bodyAriaLabel', {
+                        ns: 'documents',
+                    }),
                 },
             },
             extensions,

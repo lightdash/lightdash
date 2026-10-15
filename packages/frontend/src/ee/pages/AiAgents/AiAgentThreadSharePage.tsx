@@ -1,12 +1,14 @@
 import { Box } from '@mantine/core';
 import { IconLinkOff } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useCloneAgentThreadShareMutation } from '../../features/aiCopilot/hooks/useProjectAiAgents';
 
 const AiAgentThreadSharePage: FC = () => {
+    const { t } = useTranslation('eeMisc');
     const { aiThreadShareUuid } = useParams();
     const projectUuid = useProjectUuid();
     const { mutate, isLoading, error } = useCloneAgentThreadShareMutation(
@@ -21,7 +23,7 @@ const AiAgentThreadSharePage: FC = () => {
         return (
             <Box mt={50}>
                 <SuboptimalState
-                    title="Shared AI thread link does not exist"
+                    title={t('agents.sharePage.notFound')}
                     icon={IconLinkOff}
                 />
             </Box>
@@ -30,7 +32,10 @@ const AiAgentThreadSharePage: FC = () => {
 
     return (
         <Box mt={50}>
-            <SuboptimalState title="Loading..." loading={isLoading} />
+            <SuboptimalState
+                title={t('agents.sharePage.loading')}
+                loading={isLoading}
+            />
         </Box>
     );
 };

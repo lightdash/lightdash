@@ -1,0 +1,151 @@
+{
+    "groups": {
+        "foundations": {
+            "label": "Foundations",
+            "description": "Become a knowledgeable Lightdash user"
+        },
+        "content": {
+            "label": "Content",
+            "description": "Create and maintain charts, dashboards, and spaces"
+        },
+        "sharing": {
+            "label": "Sharing",
+            "description": "Send, schedule, and discuss trusted answers"
+        },
+        "embed": {
+            "label": "Embedding",
+            "description": "Put charts and dashboards inside other products"
+        },
+        "data": {
+            "label": "Data",
+            "description": "Shape, inspect, and extend the data available in Lightdash"
+        },
+        "ai": {
+            "label": "AI",
+            "description": "Ask better questions and manage AI-powered workflows"
+        },
+        "projectManagement": {
+            "label": "Project management",
+            "description": "Keep project access and delivery healthy"
+        },
+        "spotlight": {
+            "label": "Spotlight",
+            "description": "Learn timely product areas and advanced workflows"
+        },
+        "organizationManagement": {
+            "label": "Organization",
+            "description": "Administer people, roles, and organisation settings"
+        },
+        "developer": {
+            "label": "Developer",
+            "description": "Model the semantic layer and manage content as code with the CLI"
+        }
+    },
+    "roles": {
+        "viewer": "Viewer",
+        "interactiveViewer": "Interactive viewer",
+        "editor": "Editor",
+        "developer": "Developer",
+        "admin": "Admin"
+    },
+    "library": {
+        "roleAndAbove": "{{role}} and above",
+        "greeting": "{{greeting}}. What do you want to learn?",
+        "search": "Search the library",
+        "upNext": "Up next",
+        "everyModule": "Every module",
+        "whatYouCanDo": "What you can do",
+        "progress": "{{done}} of {{total}} complete",
+        "groupsAriaLabel": "Library groups",
+        "all": "All",
+        "filter": "Filter",
+        "show": "Show",
+        "showExtraModules": "Show extra modules",
+        "extraModules": "Extra modules",
+        "comingSoon": "Coming soon",
+        "noMatches": "No modules match this search."
+    },
+    "enable": {
+        "overline": "Learn",
+        "title": "Get confident with Lightdash, step by step",
+        "lede": "Work through guided walkthroughs on a sample project, one feature at a time.",
+        "notEnabled": "Not enabled yet",
+        "adminTitle": "Enable Learn for your organisation",
+        "adminIntro": "Enabling does three things:",
+        "effects": {
+            "createsProject": "creates a project named Training (sample data), on a small built-in dataset;",
+            "grantsPermissions": "gives everyone the permissions to practise there, and only there;",
+            "makesAdmin": "makes you that project's admin."
+        },
+        "button": "Enable Learn",
+        "askAdminTitle": "Ask an admin to enable Learn",
+        "askAdminBody": "An organisation admin turns Learn on from this page. Once they have, every walkthrough here is yours to start."
+    },
+    "done": {
+        "subtitle": "Module complete",
+        "backToLibrary": "Back to library",
+        "next": "Next: {{title}}",
+        "progress": "You finished every step. Modules <b>{{done}} of {{total}}</b> complete.",
+        "recommendedNext": "Recommended next",
+        "recommendation": "Recommendation",
+        "allCompleteTitle": "Every available walkthrough is complete",
+        "allCompleteBody": "There is nothing left to recommend. Start any walkthrough again from the library."
+    },
+    "link": {
+        "label": "Learn"
+    },
+    "card": {
+        "complete": "Complete",
+        "steps_one": "{{count}} step",
+        "steps_other": "{{count}} steps",
+        "comingSoon": "Coming Soon",
+        "startAgain": "Start again",
+        "resume": "Resume",
+        "start": "Start"
+    },
+    "walkthrough": {
+        "startFailed": "Could not start the walkthrough"
+    },
+    "terminal": {
+        "status": {
+            "queued": "Queued",
+            "running": "Running",
+            "finished": "Finished",
+            "failed": "Failed",
+            "failedWithCode": "Failed (exit {{exitCode}})",
+            "timedOut": "Timed out"
+        },
+        "commandLabel": "Command",
+        "run": "Run",
+        "empty": "Run a command to see its output here",
+        "errors": {
+            "missingSubcommand": "Type a subcommand, for example: dbt parse",
+            "unknownTool": "Commands start with lightdash or dbt",
+            "readOutputFailed": "Could not read the command output"
+        }
+    },
+    "editor": {
+        "state": {
+            "saved": "Saved",
+            "dirty": "Unsaved changes",
+            "saving": "Saving…",
+            "readonly": "Read-only",
+            "invalid": "Invalid YAML"
+        },
+        "unknownKey": "Unknown key \"{{key}}\". Did you mean \"{{suggestion}}\"?",
+        "addHighlightedLines": "Add the highlighted lines, then check again"
+    },
+    "workspace": {
+        "saveFailed": "Could not save the file",
+        "fixThenRun": "{{problem}}, then run the command again",
+        "saveFailedNothingRan": "The file could not be saved, so nothing ran",
+        "runFailed": "Could not run that command",
+        "title": "Workspace",
+        "resizeFileTree": "Resize the file tree",
+        "fileTreeLoadFailed": "Could not load the file tree",
+        "resizeTerminal": "Resize the terminal",
+        "fileLoadFailed": "Could not load the file",
+        "loadingFile": "Loading file…",
+        "pickFile": "Pick a file to start"
+    }
+}

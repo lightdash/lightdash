@@ -2,6 +2,7 @@ import type { AiModelOption } from '@lightdash/common';
 import { Group, Paper, SegmentedControl, Switch, Text } from '@mantine/core';
 import { IconSwords } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ModelSelector } from '../../../../../components/common/ModelSelector/ModelSelector';
 
@@ -34,79 +35,90 @@ export const BattleModeSetup: FC<Props> = ({
     modelBKey,
     onModelAChange,
     onModelBChange,
-}) => (
-    <Paper withBorder radius="md" px="sm" py="xs">
-        <Group justify="space-between" wrap="wrap" gap="sm">
-            <Switch
-                size="sm"
-                checked={enabled}
-                onChange={(event) =>
-                    onEnabledChange(event.currentTarget.checked)
-                }
-                label={
-                    <Group gap={6} wrap="nowrap">
-                        <MantineIcon icon={IconSwords} />
-                        <Text size="sm" fw={500}>
-                            Battle mode
-                        </Text>
-                    </Group>
-                }
-            />
-            {enabled && (
-                <Group gap="xs" wrap="nowrap">
-                    {speedBattleAvailable && (
-                        <SegmentedControl
-                            size="xs"
-                            value={battleType}
-                            onChange={(value) => {
-                                if (isBattleType(value))
-                                    onBattleTypeChange(value);
-                            }}
-                            data={[
-                                { value: 'speed', label: 'Speed features' },
-                                {
-                                    value: 'decisions',
-                                    label: 'JEV vs Luna',
-                                },
-                                { value: 'models', label: 'Models' },
-                            ]}
-                        />
-                    )}
-                    <ModelSelector
-                        models={models}
-                        value={modelAKey}
-                        onChange={onModelAChange}
-                        variant="subtle"
-                        color="gray"
-                        size="xs"
-                    />
-                    {battleType === 'models' && (
-                        <>
-                            <Text size="xs" c="dimmed">
-                                vs
+}) => {
+    const { t } = useTranslation('aiCopilotAdmin');
+    return (
+        <Paper withBorder radius="md" px="sm" py="xs">
+            <Group justify="space-between" wrap="wrap" gap="sm">
+                <Switch
+                    size="sm"
+                    checked={enabled}
+                    onChange={(event) =>
+                        onEnabledChange(event.currentTarget.checked)
+                    }
+                    label={
+                        <Group gap={6} wrap="nowrap">
+                            <MantineIcon icon={IconSwords} />
+                            <Text size="sm" fw={500}>
+                                {t('battle.setup.battleMode')}
                             </Text>
-                            <ModelSelector
-                                models={models}
-                                value={modelBKey}
-                                onChange={onModelBChange}
-                                variant="subtle"
-                                color="gray"
+                        </Group>
+                    }
+                />
+                {enabled && (
+                    <Group gap="xs" wrap="nowrap">
+                        {speedBattleAvailable && (
+                            <SegmentedControl
                                 size="xs"
+                                value={battleType}
+                                onChange={(value) => {
+                                    if (isBattleType(value))
+                                        onBattleTypeChange(value);
+                                }}
+                                data={[
+                                    {
+                                        value: 'speed',
+                                        label: t('battle.setup.types.speed'),
+                                    },
+                                    {
+                                        value: 'decisions',
+                                        label: t(
+                                            'battle.setup.types.decisions',
+                                        ),
+                                    },
+                                    {
+                                        value: 'models',
+                                        label: t('battle.setup.types.models'),
+                                    },
+                                ]}
                             />
-                        </>
-                    )}
-                </Group>
+                        )}
+                        <ModelSelector
+                            models={models}
+                            value={modelAKey}
+                            onChange={onModelAChange}
+                            variant="subtle"
+                            color="gray"
+                            size="xs"
+                        />
+                        {battleType === 'models' && (
+                            <>
+                                <Text size="xs" c="dimmed">
+                                    {t('battle.setup.vs')}
+                                </Text>
+                                <ModelSelector
+                                    models={models}
+                                    value={modelBKey}
+                                    onChange={onModelBChange}
+                                    variant="subtle"
+                                    color="gray"
+                                    size="xs"
+                                />
+                            </>
+                        )}
+                    </Group>
+                )}
+            </Group>
+            {enabled && (
+                <Text size="xs" c="dimmed" mt={6}>
+                    {battleType === 'speed' &&
+                        t('battle.setup.descriptions.speed')}
+                    {battleType === 'decisions' &&
+                        t('battle.setup.descriptions.decisions')}
+                    {battleType === 'models' &&
+                        t('battle.setup.descriptions.models')}
+                </Text>
             )}
-        </Group>
-        {enabled && (
-            <Text size="xs" c="dimmed" mt={6}>
-                {battleType === 'speed' &&
-                    'Same prompt and model. A uses the complete JEV fast path; B is the baseline. Replies continue both threads side by side.'}
-                {battleType === 'decisions' &&
-                    'Same prompt and model. A makes fast decisions with JEV; B makes them with OpenAI Luna. Replies continue both threads side by side.'}
-                {battleType === 'models' &&
-                    'Your prompt is sent to both models in separate threads. Replies continue both sides with timing and token usage.'}
-            </Text>
-        )}
-    </Paper>
-);
+        </Paper>
+    );
+};

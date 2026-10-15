@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { Button, PasswordInput, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../components/common/MantineModal';
 import { useSaveAiServiceAccount, useTestAiServiceAccount } from './api';
 
@@ -37,6 +38,7 @@ export const AthenaAiServiceAccountForm = ({
         verification: AiServiceAccountTestResult | null,
     ) => void;
 }) => {
+    const { t } = useTranslation('aiAccess');
     const form = useForm<AthenaFormValues>({
         initialValues: {
             accessKeyId: '',
@@ -77,12 +79,12 @@ export const AthenaAiServiceAccountForm = ({
     return (
         <MantineModal
             opened
-            title="Shared agent account"
+            title={t('serviceAccountForm.title')}
             onClose={() => {
                 if (!busy) close();
             }}
             cancelDisabled={busy}
-            confirmLabel="Test and save"
+            confirmLabel={t('serviceAccountForm.testAndSave')}
             confirmDisabled={!valid || busy}
             confirmLoading={save.isLoading}
             onConfirm={() => {
@@ -108,13 +110,13 @@ export const AthenaAiServiceAccountForm = ({
                     loading={test.isLoading}
                     onClick={() => test.mutate({ credentials })}
                 >
-                    Test
+                    {t('serviceAccountCard.test')}
                 </Button>
             }
         >
             <Stack gap="sm">
                 <TextInput
-                    label="Access key ID"
+                    label={t('athenaForm.accessKeyId')}
                     required
                     autoComplete="off"
                     disabled={busy}
@@ -124,7 +126,7 @@ export const AthenaAiServiceAccountForm = ({
                     }
                 />
                 <PasswordInput
-                    label="Secret access key"
+                    label={t('athenaForm.secretAccessKey')}
                     required
                     autoComplete="new-password"
                     disabled={busy}
@@ -134,7 +136,7 @@ export const AthenaAiServiceAccountForm = ({
                     }
                 />
                 <PasswordInput
-                    label="Session token (optional)"
+                    label={t('athenaForm.sessionToken')}
                     autoComplete="new-password"
                     disabled={busy}
                     value={form.values.sessionToken}
@@ -143,7 +145,7 @@ export const AthenaAiServiceAccountForm = ({
                     }
                 />
                 <TextInput
-                    label="Agent workgroup"
+                    label={t('athenaForm.workGroup')}
                     required
                     disabled={busy}
                     value={form.values.workGroup}
@@ -152,7 +154,7 @@ export const AthenaAiServiceAccountForm = ({
                     }
                 />
                 <TextInput
-                    label="S3 results location"
+                    label={t('athenaForm.s3StagingDir')}
                     required
                     disabled={busy}
                     value={form.values.s3StagingDir}
@@ -161,7 +163,7 @@ export const AthenaAiServiceAccountForm = ({
                     }
                 />
                 <TextInput
-                    label="S3 data location (optional)"
+                    label={t('athenaForm.s3DataDir')}
                     disabled={busy}
                     value={form.values.s3DataDir}
                     onChange={(event) =>
@@ -171,7 +173,9 @@ export const AthenaAiServiceAccountForm = ({
                 {test.data && (
                     <Text size="sm" role={test.data.ok ? 'status' : 'alert'}>
                         {test.data.ok && test.data.principal
-                            ? `Signs in as ${test.data.principal}`
+                            ? t('serviceAccountDetails.signsInAs', {
+                                  principal: test.data.principal,
+                              })
                             : test.data.message}
                     </Text>
                 )}

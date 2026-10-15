@@ -19,6 +19,7 @@ import {
     IconTarget,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
@@ -38,6 +39,7 @@ type Props = {
 };
 
 export const EvalDetail: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
 
@@ -92,7 +94,7 @@ export const EvalDetail: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                     size="sm"
                     leftSection={<MantineIcon icon={IconArrowLeft} size="sm" />}
                 ></Button>
-                <Text>Evaluation not found</Text>
+                <Text>{t('evals.detail.notFound')}</Text>
             </Stack>
         );
     }
@@ -118,7 +120,7 @@ export const EvalDetail: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                                                 c="ldGray.8"
                                                 fw={500}
                                             >
-                                                Test Prompts
+                                                {t('evals.detail.testPrompts')}
                                             </Title>
                                             <Tooltip
                                                 label={
@@ -132,10 +134,14 @@ export const EvalDetail: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                                                         )}
 
                                                         <Text fz="xs">
-                                                            Created{' '}
-                                                            {new Date(
-                                                                evaluation.createdAt,
-                                                            ).toLocaleDateString()}
+                                                            {t(
+                                                                'evals.detail.created',
+                                                                {
+                                                                    date: new Date(
+                                                                        evaluation.createdAt,
+                                                                    ).toLocaleDateString(),
+                                                                },
+                                                            )}
                                                         </Text>
                                                     </>
                                                 }
@@ -155,7 +161,7 @@ export const EvalDetail: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                                         }
                                         onClick={handleEditModalOpen}
                                     >
-                                        Edit
+                                        {t('actions.edit', { ns: 'common' })}
                                     </Button>
                                 </Group>
                                 <ScrollArea.Autosize
@@ -208,8 +214,9 @@ export const EvalDetail: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                                                             c="dimmed"
                                                             fs="italic"
                                                         >
-                                                            Invalid prompt
-                                                            configuration
+                                                            {t(
+                                                                'evals.detail.invalidPrompt',
+                                                            )}
                                                         </Text>
                                                     )}
                                                 </Box>

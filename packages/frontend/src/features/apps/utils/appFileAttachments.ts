@@ -1,3 +1,5 @@
+import i18n from '../../../i18n/i18n';
+
 export const MAX_APP_FILE_SIZE = 10 * 1024 * 1024;
 
 const ACCEPTED_IMAGE_TYPES = new Set([
@@ -20,8 +22,11 @@ export const getAppFileSizeError = (
 ): AppFileValidationError | null =>
     file.size > MAX_APP_FILE_SIZE
         ? {
-              title: 'File too large',
-              subtitle: `${file.name} exceeds the 10MB limit.`,
+              title: i18n.t('upload.tooLarge.title', { ns: 'apps' }),
+              subtitle: i18n.t('upload.tooLarge.subtitle', {
+                  ns: 'apps',
+                  name: file.name,
+              }),
           }
         : null;
 
@@ -54,8 +59,11 @@ export const getAppFileValidationError = async (
     if (sizeError) return sizeError;
     if (!isSupportedAppImage(file) && !(await isSupportedNonImageFile(file))) {
         return {
-            title: 'Unsupported file type',
-            subtitle: `${file.name}: attach images (PNG, JPEG, GIF, WEBP), PDFs, or text-based files (JSON, CSV, Markdown, TWB, code, …).`,
+            title: i18n.t('upload.unsupported.title', { ns: 'apps' }),
+            subtitle: i18n.t('upload.unsupported.subtitle', {
+                ns: 'apps',
+                name: file.name,
+            }),
         };
     }
     return null;

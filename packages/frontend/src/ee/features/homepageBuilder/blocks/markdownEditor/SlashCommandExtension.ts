@@ -2,6 +2,7 @@ import { PluginKey } from '@tiptap/pm/state';
 import { Extension } from '@tiptap/react';
 import Suggestion from '@tiptap/suggestion';
 import { generateSuggestion } from '../../../../../components/common/SuggestionList/generateSuggestion';
+import i18n from '../../../../../i18n/i18n';
 import {
     SLASH_COMMAND_ITEMS,
     type SlashCommandItem,
@@ -35,7 +36,9 @@ export const SlashCommand = Extension.create<SlashCommandOptions>({
                         item.run(editor, range);
                     },
                     renderItem: renderSlashCommandItem,
-                    emptyMessage: 'No matching block type',
+                    emptyMessage: i18n.t('slashCommands.noMatches', {
+                        ns: 'homepageBuilder',
+                    }),
                 }),
             }),
         ];

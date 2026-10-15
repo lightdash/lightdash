@@ -3,6 +3,7 @@ import {
     type OrganizationAccess,
 } from '@lightdash/common';
 import { Center, Text } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import { BANNER_HEIGHT } from '../common/Page/constants';
 import classes from './TrialWarningBanner.module.css';
 
@@ -11,6 +12,7 @@ type Props = {
 };
 
 export const TrialWarningBanner = ({ access }: Props) => {
+    const { t } = useTranslation('navigation');
     if (
         access.status !== OrganizationAccessStatus.TRIAL_WARNING &&
         access.status !== OrganizationAccessStatus.TRIAL_EXPIRED
@@ -37,8 +39,8 @@ export const TrialWarningBanner = ({ access }: Props) => {
                 truncate
             >
                 {isExpired
-                    ? 'Your Lightdash trial has expired and queries are disabled. Contact sales@lightdash.com to reactivate.'
-                    : 'Your Lightdash trial has expired. Contact sales@lightdash.com'}
+                    ? t('trialBanner.expiredQueriesDisabled')
+                    : t('trialBanner.expired')}
             </Text>
         </Center>
     );

@@ -1,6 +1,7 @@
 import { type DataAppVizField } from '@lightdash/common';
 import { Badge } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LD_FIELD_COLORS } from '../../../theme';
 
 // Match the field-type colors used everywhere else (field icons, sidebar tree,
@@ -21,10 +22,11 @@ const FIELD_TYPE_COLORS: Record<
 const DataAppVizFieldTypeBadge: FC<{ type: DataAppVizField['type'] }> = ({
     type,
 }) => {
+    const { t } = useTranslation('chartTypes');
     const colors = FIELD_TYPE_COLORS[type];
     return (
         <Badge size="xs" bg={colors.bg} c={colors.color}>
-            {type}
+            {t(`fieldType.${type}`)}
         </Badge>
     );
 };

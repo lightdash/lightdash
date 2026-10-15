@@ -1,5 +1,6 @@
 import { type OrganizationWarehouseCredentials } from '@lightdash/common';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDeleteOrganizationWarehouseCredentials } from '../../../hooks/organization/useOrganizationWarehouseCredentials';
 import MantineModal, {
     type MantineModalProps,
@@ -14,6 +15,7 @@ export const DeleteCredentialsModal: FC<Props> = ({
     onClose,
     warehouseCredentialsToBeDeleted,
 }) => {
+    const { t } = useTranslation('userSettings');
     const { mutateAsync, isLoading: isDeleting } =
         useDeleteOrganizationWarehouseCredentials();
 
@@ -28,9 +30,13 @@ export const DeleteCredentialsModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Delete credentials"
+            title={t(
+                'organizationWarehouseCredentialsPanel.deleteCredentialsModal.title',
+            )}
             variant="delete"
-            resourceType="credentials"
+            resourceType={t(
+                'organizationWarehouseCredentialsPanel.deleteCredentialsModal.resourceType',
+            )}
             resourceLabel={warehouseCredentialsToBeDeleted.name}
             cancelDisabled={isDeleting}
             onConfirm={handleConfirm}

@@ -3,6 +3,7 @@ import { Box, Flex, Group, Paper, Text, Tooltip } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconEye } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { VerifiedResourceIcon } from '../../ResourceIcon';
 import ViewsCountPopover from '../../ViewsCountPopover';
 import ResourceViewActionMenu, {
@@ -28,6 +29,7 @@ const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
     onAction,
     dragIcon,
 }) => {
+    const { t } = useTranslation('resourceView');
     const { hovered, ref } = useHover();
     const [opened, handlers] = useDisclosure(false);
 
@@ -78,7 +80,7 @@ const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
                         />
 
                         <Text c="dimmed" fz="xs">
-                            {item.data.views} views
+                            {t('views.count', { count: item.data.views })}
                         </Text>
                     </Flex>
                 </ViewsCountPopover>

@@ -1,0 +1,473 @@
+{
+    "common": {
+        "loading": "Loading...",
+        "home": "Home",
+        "error": "Error",
+        "versionHistory": "Version history"
+    },
+    "queryHistory": {
+        "forbiddenSubject": "query history"
+    },
+    "learn": {
+        "title": "Learn",
+        "workspaceTitle": "Workspace"
+    },
+    "shareRedirect": {
+        "notFound": "Shared link does not exist"
+    },
+    "authPopup": {
+        "documentTitle": "Authentication",
+        "success": "Thank you for authenticating",
+        "failed": "Authentication failed. Please try again",
+        "willClose": "This window will close automatically"
+    },
+    "agentConnected": {
+        "errors": {
+            "notAgentSession": "Your Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC = TRUE on the security integration used for agents.",
+            "noRefreshToken": "Snowflake did not return a refresh token. Try again.",
+            "licenseRequired": "An enterprise licence is required.",
+            "default": "The sign-in did not complete. Try again."
+        },
+        "documentTitle": "Agent connection",
+        "failed": "Agent connection failed.",
+        "tryAgain": "Try again from My agent identity",
+        "connected": "Agent connected.",
+        "connectedDescription": "Go back to your client and run that again."
+    },
+    "agentConnect": {
+        "missingProject": "This agent sign-in link is missing a valid project.",
+        "notAvailable": "Agent sign-in is not available for your account.",
+        "unavailable": "Agent connection unavailable.",
+        "myAgentIdentity": "My agent identity",
+        "myWarehouseConnections": "My warehouse connections",
+        "connecting": "Connecting your agent…"
+    },
+    "savedQueries": {
+        "title": "Saved charts",
+        "allSavedCharts": "All saved charts",
+        "createChart": "Create chart"
+    },
+    "savedApps": {
+        "title": "Data apps",
+        "allDataApps": "All data apps",
+        "createDataApp": "Create data app"
+    },
+    "savedDashboards": {
+        "loading": "Loading dashboards",
+        "title": "Dashboards",
+        "allDashboards": "All dashboards",
+        "createDashboard": "Create dashboard"
+    },
+    "documents": {
+        "loading": "Loading documents",
+        "title": "Documents",
+        "allDocuments": "All documents",
+        "newDocument": "New document",
+        "entityName": "documents",
+        "loadError": "Unable to load documents"
+    },
+    "chartHistory": {
+        "documentTitle": "Chart version history",
+        "chart": "Chart"
+    },
+    "explorer": {
+        "tables": "Tables",
+        "tablesAndFields": "Tables and fields"
+    },
+    "createProject": {
+        "title": "Create project"
+    },
+    "joinOrganization": {
+        "cancelRegistration": "Cancel registration",
+        "title": "Join a workspace",
+        "openToDomain": "The workspaces below are open to anyone with a <domain>@{{domain}}</domain> domain",
+        "members_one": "{{count}} member",
+        "members_other": "{{count}} members",
+        "join": "Join",
+        "createNew": "Create a new workspace"
+    },
+    "onboardingDataSource": {
+        "signInWithGoogle": "Sign in with Google to connect",
+        "connectWithSso": "Connect with SSO",
+        "connectWithServiceAccount": "Connect with a service account",
+        "title": "Add a data source",
+        "subtitle": "Connect your warehouse so your agents can query your data.",
+        "mostPopular": "Most popular",
+        "allWarehouses": "All warehouses"
+    },
+    "onboardingDbt": {
+        "viewDocs": "View docs",
+        "methods": {
+            "cli": {
+                "label": "Using your CLI",
+                "description": "with lightdash deploy"
+            },
+            "manual": {
+                "label": "Manually",
+                "description": "Pull project from git repository"
+            }
+        },
+        "title": "Let's get you set up!",
+        "subtitle": "Choose how you want to upload your dbt project.",
+        "connected": "Your dbt project is connected!",
+        "steps": {
+            "install": "Install the Lightdash CLI",
+            "login": "Log in to Lightdash",
+            "deploy": "Deploy your dbt project"
+        },
+        "waitingTitle": "Waiting for data",
+        "waitingSubtitle": "Inside your dbt project, run the steps below. We'll pick it up automatically.",
+        "documentTitle": "Set up your dbt"
+    },
+    "onboardingInviteExpert": {
+        "preparingPlayground": "Preparing your playground…",
+        "preparingPlaygroundDescription": "Explore sample data while your expert connects your warehouse.",
+        "playgroundFailed": "We couldn't set up a sample project",
+        "tryAgain": "Try again",
+        "done": "Done",
+        "firstName": "Your first name",
+        "lastName": "Your last name",
+        "nameHint": "We'll include your name in the invite so they know who's asking.",
+        "email": "Their email address",
+        "emailPlaceholder": "example@company.com",
+        "emailHint": "We'll ask them to connect your data warehouse.",
+        "sendInvite": "Send invite",
+        "backToProjectSetup": "Back to project setup",
+        "backToDataSources": "Back to data sources",
+        "documentTitle": "Invite an expert",
+        "title": "Invite someone to set this up",
+        "noPermission": "You don't have permission to invite people",
+        "askAdmin": "Ask an admin of this organization to send the invite instead.",
+        "subtitle": "Connecting the warehouse is usually a data-team job — we'll take them straight to warehouse setup."
+    },
+    "organizationSetup": {
+        "stepWorkspace": "Set up your workspace",
+        "stepAboutYou": "About you",
+        "documentTitle": "Set up your organization",
+        "stepOf": "Step {{step}} of {{total}} · {{label}}",
+        "nameTitle": "Name your organization",
+        "nameSubtitle": "This is how your team and your agent will refer to your workspace.",
+        "nameLabel": "Organization name",
+        "namePlaceholder": "Acme Analytics",
+        "useSuggestion": "Use \"{{name}}\"",
+        "brand": "Brand",
+        "optional": "Optional · you can change this later",
+        "themeColor": "Theme color",
+        "selectThemeColor": "Select theme color {{color}}",
+        "aboutTitle": "Tell us about you",
+        "aboutSubtitle": "This helps us tailor Lightdash for you.",
+        "finish": "Finish",
+        "themeDetectedFrom": "Theme detected from <domain>{{domain}}</domain>",
+        "previewCaption": "A preview of Lightdash, themed to your brand."
+    },
+    "minimalSqlChart": {
+        "loadError": "Error loading SQL chart"
+    },
+    "minimalDocument": {
+        "empty": "This document is empty."
+    },
+    "viewSqlChart": {
+        "title": "SQL chart",
+        "chart": "Chart",
+        "results": "Results"
+    },
+    "sqlRunner": {
+        "sharedStateError": "Unable to load shared SQL runner state",
+        "title": "SQL Runner",
+        "loadingProject": "Loading project",
+        "unavailableManaged": "SQL Runner is unavailable for managed analytics projects"
+    },
+    "savedExplorer": {
+        "changeExplore": "Change explore"
+    },
+    "minimalSavedExplorer": {
+        "loadError": "Error loading chart",
+        "projectNotFound": "Cannot find project: {{project}}"
+    },
+    "document": {
+        "loadingEditor": "Loading editor",
+        "verifiedBy": "Verified by {{name}}",
+        "verified": "Verified",
+        "controls": "Document controls",
+        "edit": "Edit document",
+        "loading": "Loading document",
+        "unavailable": "Document unavailable",
+        "unavailableDescription": "This document may have been deleted, or you may not have access."
+    },
+    "documentHistory": {
+        "savedBy": "Saved by",
+        "saved": "Saved {{time}}",
+        "currentVersion": "Current version {{number}}",
+        "version": "Version {{number}}",
+        "versionUnavailable": "Version unavailable",
+        "versionUnavailableDescription": "This version does not belong to this document, or it could not be loaded.",
+        "showCurrent": "Show current version",
+        "controls": "Version history controls",
+        "showThisVersion": "Show this version",
+        "compareWithCurrent": "Compare with current version",
+        "close": "Close version history",
+        "changesFrom": "Changes from version {{from}} to the current version {{to}}.",
+        "loadingVersion": "Loading version",
+        "loading": "Loading version history"
+    },
+    "dashboardHistory": {
+        "title": "Dashboard version history",
+        "dashboard": "Dashboard",
+        "updatedByUnknown": "Updated by: unknown",
+        "selectVersion": "Select a version to compare",
+        "restoreTitle": "Restore dashboard version",
+        "restoreDescription": "By restoring to this dashboard version, a new version will be generated and saved. All previous versions are still safely stored and can be restored at any time.",
+        "restoreChartsNote": "Charts created within this dashboard will also be restored to their version at the time this dashboard version was created."
+    },
+    "dataApp": {
+        "missingRouteParams": "Missing route params",
+        "notFound": "Data app not found",
+        "notFoundDescription": "This data app doesn't exist or has been deleted.",
+        "loading": "Loading app...",
+        "loadFailed": "Failed to load app: {{message}}",
+        "unknownError": "Unknown error",
+        "stillBuilding": "This app is still building",
+        "stillBuildingDescription": "The preview will load automatically once the build is ready.",
+        "notBuilt": "This app hasn't been built yet",
+        "notBuiltDescription": "There's no ready version of this app to preview yet.",
+        "exitFullscreen": "Exit fullscreen",
+        "analyseView": "Analyse this view",
+        "enterFullscreen": "Enter Fullscreen Mode",
+        "noReadyVersion": "No ready version",
+        "noReadyVersionDescription": "This data app hasn't finished building yet."
+    },
+    "userActivity": {
+        "charts": {
+            "numUsers": "Num users",
+            "percentUsers": "% users",
+            "weeklyQueryingUsers": "Number of weekly querying users",
+            "percentWeeklyQueryingUsers": "% of weekly querying users",
+            "weeklyAverageQueries": "Weekly average number of\nqueries per user"
+        },
+        "title": "User activity for {{name}}",
+        "usageAnalytics": "Usage analytics",
+        "exportTooltip": "Export raw chart and dashboard user views in a CSV format",
+        "exporting": "Exporting...",
+        "exportCsv": "Export CSV",
+        "totalUsers": "Total users in project",
+        "numViewers": "Number of viewers",
+        "numInteractiveViewers": "Number of interactive viewers",
+        "numEditors": "Number of editors",
+        "numAdmins": "Number of admins",
+        "weeklyActive": "Users that viewed a chart in the last 7 days",
+        "chartActiveUsers": "How many users are querying this project, weekly?",
+        "queriesPerUser": "How many queries are users running each week, on average?",
+        "mostQueries": "Which users have run the most queries in the last 7 days?",
+        "mostChartUpdates": "Which users have made the most updates to charts in the last 7 days? (top 10)",
+        "notLoggedIn": "Which users have not run queries in the last 90 days?",
+        "mostViewedDashboard": "User's most viewed dashboard",
+        "dashboardViews": "Dashboard views (top 20)",
+        "chartViews": "Chart views (top 20)",
+        "columns": {
+            "firstName": "First Name",
+            "lastName": "Last Name",
+            "numQueries": "Number of Queries",
+            "numChartUpdates": "Number of chart updates",
+            "daysSinceLastQuery": "Days since last query",
+            "dashboardName": "Dashboard name",
+            "numViews": "Number of views",
+            "views": "Views",
+            "chartName": "Chart name"
+        }
+    },
+    "chartTypeGallery": {
+        "searchPlaceholder": "Search by name or description",
+        "newChartType": "New chart type",
+        "loading": "Loading chart types…",
+        "loadError": "Failed to load chart types",
+        "noMatch": "No chart types match “{{search}}”",
+        "loadingMore": "Loading more chart types…",
+        "title": "Chart Studio",
+        "installed": "Installed chart types",
+        "library": "Chart type library",
+        "detailsLoadError": "Failed to load chart type details",
+        "loadingDetails": "Loading chart type details…"
+    },
+    "chartTypeBuilder": {
+        "savedChartLoadError": "Couldn’t load the saved chart’s data",
+        "tableQueryError": "Couldn’t run the table query",
+        "savedChart": "Saved chart",
+        "notFound": "Chart type not found",
+        "notFoundDescription": "It may have been deleted, or the link is wrong.",
+        "backToAll": "Back to all chart types",
+        "explorer": "Explorer",
+        "allChartTypes": "All chart types",
+        "queryResults": "Query results",
+        "pivotedRowsReturnedBy": "Pivoted preview of rows returned by {{source}}.",
+        "rowsReturnedBy": "Rows returned by {{source}}.",
+        "theSavedChart": "the saved chart"
+    },
+    "settings": {
+        "title": "Settings",
+        "dangerZone": "Danger zone",
+        "pinSidebar": "Pin sidebar",
+        "unpinSidebar": "Unpin sidebar",
+        "noMatch": "No settings match “{{search}}”",
+        "clearSearch": "Clear search",
+        "profile": {
+            "title": "Profile",
+            "description": "Manage your personal details and account preferences.",
+            "details": "Profile details",
+            "leaveDescription": "Leave the organization to remove yourself from it (you cannot leave if you are the only admin). This action is not reversible."
+        },
+        "password": {
+            "title": "Password",
+            "description": "Update your password and manage the ways you sign in.",
+            "change": "Change password",
+            "socialLogins": "Social logins"
+        },
+        "general": {
+            "title": "General",
+            "description": "Manage organization-wide defaults, access, and account controls.",
+            "organizationDetails": "Organization details",
+            "allowedDomains": "Allowed email domains",
+            "allowedDomainsDescription": "Anyone with email addresses at these domains can automatically join the organization.",
+            "defaultProject": "Default project",
+            "defaultProjectDescription": "This is the project users will see when they log in for the first time or from a new device. If a user does not have access, they will see their next accessible project.",
+            "invitations": "Invitations",
+            "invitationsDescription": "Control how long new user invitations remain valid for your organization.",
+            "impersonation": "User impersonation",
+            "supportAccess": "Lightdash support access",
+            "dangerDescription": "Leave the organization to remove yourself from it (you cannot leave if you are the only admin). These actions are not reversible.",
+            "dangerDescriptionWithDelete": "Leave the organization to remove yourself from it (you cannot leave if you are the only admin). Deleting the organization removes the whole workspace and all its content, including users. These actions are not reversible."
+        },
+        "exporting": {
+            "title": "Exporting",
+            "description": "Control how exported files are shared outside Lightdash.",
+            "scheduledDeliveries": "Scheduled deliveries",
+            "scheduledDeliveriesDescription": "Control how files exported from your organization — starting with scheduled deliveries — are shared. <link>Learn more about scheduled deliveries</link>."
+        },
+        "limits": {
+            "title": "Limits",
+            "description": "Set organization-wide query and export limits.",
+            "queryAndExport": "Query and export limits",
+            "queryAndExportDescription": "Limit how many rows a query can return and how many cells a CSV or Excel export can contain for your organization."
+        },
+        "integrations": {
+            "title": "Integrations",
+            "description": "Connect Lightdash to the tools your organization uses.",
+            "none": "No integrations available"
+        },
+        "sso": {
+            "title": "Single Sign-On",
+            "description": "Configure SSO providers and account linking. Users are routed to the matching provider based on their email domain."
+        }
+    },
+    "dashboard": {
+        "parseChartError": "Error parsing chart",
+        "parseChartErrorSubtitle": "Unable to save chart in dashboard",
+        "parseTabsError": "Error parsing tabs",
+        "parseTabsErrorSubtitle": "Unable to save tabs in dashboard",
+        "unsavedChangesMessage": "You have unsaved changes to your dashboard! Are you sure you want to leave without saving?",
+        "notFound": "Dashboard not found",
+        "unsavedChanges": "Unsaved changes",
+        "stay": "Stay",
+        "leave": "Leave",
+        "saveBeforeEditTitle": "Save dashboard before editing chart?",
+        "saveBeforeEditDescription": "You have unsaved dashboard changes. These will be saved before opening the chart editor.",
+        "saveAndEditChart": "Save and edit chart",
+        "saveVerifiedTitle": "Save verified dashboard",
+        "keepVerified": "Keep this dashboard verified after saving?",
+        "saveAndVerify": "Save & verify",
+        "verifiedSaveWarning": "This dashboard is verified. Saving your changes will remove its verified status until someone verifies it again.",
+        "saveAnyway": "Save anyway"
+    },
+    "minimalDashboard": {
+        "tabEmpty": "Tab is empty",
+        "noTiles": "No tiles"
+    },
+    "dashboardVersionComparison": {
+        "columns": {
+            "tileType": "Tile Type",
+            "current": "Current",
+            "selected": "Selected",
+            "difference": "Difference",
+            "chartName": "Chart Name",
+            "currentVersion": "Current Version",
+            "selectedVersion": "Selected Version",
+            "rollbackAction": "Rollback Action"
+        },
+        "tileTypes": {
+            "charts": "Charts",
+            "sqlCharts": "SQL Charts",
+            "markdown": "Markdown",
+            "loom": "Loom",
+            "heading": "Heading",
+            "dataApp": "Data App",
+            "total": "Total"
+        },
+        "searchTileTypes": "Search tile types...",
+        "searchCharts": "Search charts by name...",
+        "searchFilters": "Search filters...",
+        "actions": {
+            "add": "Add",
+            "remove": "Remove",
+            "versionUpdate": "Version update",
+            "update": "Update"
+        },
+        "noChange": "No change",
+        "unnamedChart": "Unnamed Chart",
+        "loading": "Loading version details...",
+        "loadError": "Unable to load version comparison",
+        "title": "Version Comparison",
+        "sections": {
+            "tiles": "Tiles",
+            "charts": "Charts",
+            "filters": "Filters"
+        },
+        "changes_one": "{{count}} change",
+        "changes_other": "{{count}} changes",
+        "chartsNote": "Only charts created within this dashboard are affected by a rollback. Charts added from the space will keep their current version.",
+        "noFilters": "No filters configured",
+        "description": "Description"
+    },
+    "appGenerate": {
+        "attached": "Attached",
+        "noTheme": "No theme",
+        "default": "Default",
+        "installedInSandbox": "Installed in the build sandbox",
+        "packages_one": "{{count}} package",
+        "packages_other": "{{count}} packages",
+        "availableToApp": "Available to this app",
+        "connections_one": "{{count}} connection",
+        "connections_other": "{{count}} connections",
+        "generateFailed": "Failed to generate app",
+        "applyThemeFailed": "Failed to apply theme",
+        "missingProjectUuid": "Missing project UUID",
+        "attachmentLimit": "Attachment limit reached",
+        "attachmentLimitDescription": "You can attach up to {{count}} files per message.",
+        "thumbnailNotSaved": "Thumbnail not saved",
+        "screenshotFailed": "Screenshot failed",
+        "fileUploadFailed": "File upload failed",
+        "builderView": "App builder view",
+        "build": "Build",
+        "preview": "Preview",
+        "resizeHandle": "Resize chat and preview",
+        "showHistory": "Show project history",
+        "composeTitle": "Build a Data App",
+        "composeSubtitle": "Pick a starting point, then describe what you want to build.",
+        "loadingEarlier": "Loading earlier messages...",
+        "loadEarlier": "Load earlier messages",
+        "emptyChat": "Describe what you want to build and I'll generate a data app connected to your project.",
+        "uploadedLocalVersion": "Uploaded a locally-built version",
+        "alias": "Alias: {{alias}}",
+        "quickQuestions": "A few quick questions:",
+        "skip": "Skip",
+        "holdTight": "Hold tight, I may have some questions before starting",
+        "working": "Working on your app — feel free to switch tabs or close this one",
+        "generating": "Generating your app",
+        "verifiedLocked": "This app is verified. Ask an admin to unverify it before editing.",
+        "promptPlaceholder": "Describe the app you want to build...",
+        "startingFrom": "Starting from {{template}}",
+        "templateLabel": "Template:",
+        "stopGeneration": "Stop generation",
+        "sendMessage": "Send message",
+        "previewLatest": "Preview latest",
+        "previewEmpty": "Your app preview will appear here"
+    }
+}

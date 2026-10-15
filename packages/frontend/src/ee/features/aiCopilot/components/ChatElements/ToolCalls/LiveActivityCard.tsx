@@ -20,6 +20,7 @@ import {
     type Icon as TablerIconType,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AiMarkdown } from '../../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { type StepProgressMessage } from '../../../store/aiAgentThreadStreamSlice';
@@ -181,7 +182,9 @@ export const ReasoningHistoryRow: FC<{
      *  reuse the collapsed-history pattern for non-reasoning content. */
     icon?: TablerIconType;
     label?: string;
-}> = ({ texts, isLive, icon = IconNotes, label = 'Reasoning' }) => {
+}> = ({ texts, isLive, icon = IconNotes, label: labelProp }) => {
+    const { t } = useTranslation('aiCopilotChat');
+    const label = labelProp ?? t('activity.reasoning');
     const [open, setOpen] = useState(false);
     const combined = texts.join('\n\n');
     // While streaming, the preview is the *latest* reasoning chunk (it rolls
@@ -265,6 +268,7 @@ const LatestRow: FC<{
     awaitingApproval: boolean;
     mcpServers?: AiMcpServer[];
 }> = ({ group, isLive, awaitingApproval, mcpServers }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const builtInToolName = isToolName(group.toolName) ? group.toolName : null;
     const linkedMcpServer =
         group.calls.find((toolCall) => toolCall.mcpServer)?.mcpServer ??
@@ -345,7 +349,9 @@ const LatestRow: FC<{
                     key={`label-${group.toolName}-${isLive ? 'live' : 'done'}`}
                 >
                     <Text size="xs" className={styles.latestLabel}>
-                        Using {mcpDisplayMetadata?.label ?? 'MCP'}:
+                        {t('activity.usingMcp', {
+                            server: mcpDisplayMetadata?.label ?? 'MCP',
+                        })}
                     </Text>
                     <ToolCallChip
                         maxWidth={260}
@@ -365,7 +371,7 @@ const LatestRow: FC<{
             )}
             {awaitingApproval ? (
                 <Text size="xs" className={styles.awaitingApproval}>
-                    awaiting approval
+                    {t('activity.awaitingApproval')}
                 </Text>
             ) : (
                 showPreview &&

@@ -9,6 +9,7 @@ import {
 import { useForm } from '@mantine/form';
 import { IconPencil } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useSavedQuery, useUpdateMutation } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
@@ -27,6 +28,7 @@ const ChartUpdateModal: FC<ChartUpdateModalProps> = ({
     uuid,
     onConfirm,
 }) => {
+    const { t } = useTranslation('modals');
     const projectUuid = useProjectUuid();
     const dashboardUuid = useSearchParams('fromDashboard');
     const { data: chart, isInitialLoading } = useSavedQuery({
@@ -71,7 +73,7 @@ const ChartUpdateModal: FC<ChartUpdateModalProps> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Update Chart"
+            title={t('chartUpdate.title')}
             icon={IconPencil}
             actions={
                 <Button
@@ -80,27 +82,27 @@ const ChartUpdateModal: FC<ChartUpdateModalProps> = ({
                     type="submit"
                     form="update-chart-form"
                 >
-                    Save
+                    {t('actions.save', { ns: 'common' })}
                 </Button>
             }
         >
             <form
                 id="update-chart-form"
-                title="Update Chart"
+                title={t('chartUpdate.title')}
                 onSubmit={handleConfirm}
             >
                 <Stack>
                     <TextInput
-                        label="Chart name"
+                        label={t('chartForm.nameLabel')}
                         required
-                        placeholder="eg. How many weekly active users do we have?"
+                        placeholder={t('chartForm.namePlaceholder')}
                         disabled={isUpdating}
                         {...form.getInputProps('name')}
                     />
 
                     <Textarea
-                        label="Chart description"
-                        placeholder="A few words to give your team some context"
+                        label={t('chartForm.descriptionLabel')}
+                        placeholder={t('descriptionPlaceholder')}
                         disabled={isUpdating}
                         autosize
                         maxRows={3}

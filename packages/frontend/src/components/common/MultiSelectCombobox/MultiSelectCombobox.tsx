@@ -18,6 +18,7 @@ import {
     type KeyboardEvent,
     type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export type MultiSelectComboboxOption = {
     value: string;
@@ -123,6 +124,7 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
         },
         ref,
     ) => {
+        const { t } = useTranslation('commonUi');
         const combobox = useCombobox({
             onDropdownOpen: () => {
                 combobox.updateSelectedOptionIndex('active');
@@ -319,7 +321,10 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                                             disabled={disabled}
                                             onRemove={remove}
                                             removeButtonProps={{
-                                                'aria-label': `Remove ${label}`,
+                                                'aria-label': t(
+                                                    'multiSelectCombobox.removeItem',
+                                                    { label },
+                                                ),
                                                 'aria-hidden': false,
                                                 onMouseDown: (event) =>
                                                     event.preventDefault(),
@@ -445,7 +450,10 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                                     >
                                         {createLabel ?? (
                                             <Text c="indigo">
-                                                Add "${trimmedSearch}"
+                                                {t(
+                                                    'multiSelectCombobox.addItem',
+                                                    { value: trimmedSearch },
+                                                )}
                                             </Text>
                                         )}
                                     </Combobox.Option>

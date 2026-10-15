@@ -1,0 +1,218 @@
+{
+    "addButton": {
+        "label": "Table calculation"
+    },
+    "templateTypes": {
+        "percentChangeFromPrevious": {
+            "label": "Percent change from previous",
+            "description": "Calculates the percentage change from the previous row value."
+        },
+        "differenceFromPrevious": {
+            "label": "Difference from previous",
+            "description": "Subtracts the previous row value from the current row value."
+        },
+        "percentOfPreviousValue": {
+            "label": "Percent of previous value",
+            "description": "Shows the current value as a percentage of the previous row value."
+        },
+        "percentOfColumnTotal": {
+            "label": "Percent of column total",
+            "description": "Shows each value as a percentage of the column total."
+        },
+        "rankInColumn": {
+            "label": "Rank in column",
+            "description": "Ranks values within the column from highest to lowest."
+        },
+        "runningTotal": {
+            "label": "Running total",
+            "description": "Calculates a cumulative sum across rows."
+        },
+        "windowFunction": {
+            "label": "Window function",
+            "description": "Applies SQL window functions (e.g., ROW_NUMBER, PERCENT_RANK) to the result set."
+        }
+    },
+    "deleteModal": {
+        "title": "Delete Table Calculation",
+        "resourceType": "table calculation"
+    },
+    "templateViewer": {
+        "noTemplate": "No template available",
+        "type": "Type:",
+        "windowFunction": "Window Function:",
+        "field": "Field:",
+        "orderBy": "Order by:",
+        "partitionBy": "Partition By:",
+        "ascending": "Ascending",
+        "descending": "Descending",
+        "moveUp": "Move up",
+        "moveDown": "Move down",
+        "removeSort": "Remove sort",
+        "addSortField": "Add sort field",
+        "noSortFields": "No fields available to sort by",
+        "noPartitioning": "No partitioning (all rows)"
+    },
+    "formatRow": {
+        "title": "Format",
+        "dataTypes": {
+            "number": "Number",
+            "string": "String",
+            "date": "Date",
+            "timestamp": "Timestamp",
+            "boolean": "Boolean"
+        },
+        "pills": {
+            "plain": "Plain",
+            "number": "Number",
+            "currency": "Currency",
+            "percent": "Percent",
+            "bytes": "Bytes",
+            "custom": "Custom",
+            "default": "Default"
+        },
+        "defaultSeparator": "Default separator",
+        "sampleText": "Sample text",
+        "invalidFormat": "Invalid format",
+        "noOptionsForType": "No formatting options for this type",
+        "noOptionsForPreset": "No further options for this preset",
+        "decimals": "Decimals",
+        "auto": "Auto",
+        "compact": "Compact",
+        "none": "None",
+        "prefix": "Prefix",
+        "suffix": "Suffix",
+        "suffixPlaceholder": "km/h",
+        "separator": "Separator",
+        "currency": "Currency",
+        "currencyPlaceholder": "Pick a currency",
+        "unitSystem": "Unit system",
+        "expressionPlaceholder": "e.g. #,##0.00",
+        "formatExpression": "Format expression",
+        "buildAtCustomFormats": "Build at customformats.com",
+        "dateFormatPlaceholder": "e.g. dd/mm/yyyy or mmmm d, yyyy",
+        "timestampFormat": "Timestamp format",
+        "dateFormat": "Date format",
+        "pickPreset": "Pick a preset"
+    },
+    "modal": {
+        "totalModes": {
+            "formula": {
+                "label": "Apply calculation to the totals",
+                "description": "Runs the formula over the totals of the columns it references. Best for ratios and percentages."
+            },
+            "sumOfRows": {
+                "label": "Sum of the row values",
+                "description": "Adds up the calculation's value from every row. Best for row-level transformations."
+            },
+            "none": {
+                "label": "No totals",
+                "description": "Shows no totals for this calculation."
+            }
+        },
+        "accessRequest": {
+            "thisCalculation": "this SQL table calculation",
+            "customRoleMessage": "Hi! Could you grant me 'Manage custom SQL table calculations' via a custom role? I need it to edit '{{tcLabel}}' on this chart: {{chartUrl}}",
+            "sqlAccessMessage": "Hi! Could you grant me SQL access for table calculations? I need to edit '{{tcLabel}}' on this chart: {{chartUrl}}",
+            "changeMessage": "Hi! Could you update the SQL of '{{tcLabel}}' on this chart? {{chartUrl}}"
+        },
+        "nameRequired": "Name is required",
+        "nameExists": "Table calculation/Dimension with this label already exists",
+        "errorSaving": "Error saving",
+        "editor": {
+            "formula": "Formula",
+            "sql": "SQL",
+            "useSqlInstead": "Use SQL instead",
+            "useFormulaInstead": "Use formula instead"
+        },
+        "saveChanges": "Save changes",
+        "createFormula": "Create formula",
+        "createSqlCalculation": "Create SQL calculation",
+        "editTitle": "Edit Table Calculation",
+        "createTitle": "Create Table Calculation",
+        "collapse": "Collapse",
+        "expand": "Expand",
+        "fixWithAi": "Fix with AI",
+        "convertToFormula": {
+            "tooltip": "Use AI to suggest a formula equivalent of your SQL. You can review and edit it before saving.",
+            "button": "Convert to formula"
+        },
+        "sqlReadOnly": {
+            "viewOnly": "View only",
+            "noPermission": "You don't have permission to edit SQL here.",
+            "useFormulas": "Use formulas instead — no SQL required, validated as you type, and they work in any warehouse.",
+            "or": "or",
+            "askAdminCustomRole": "Ask an admin or developer to grant <scope>Manage custom SQL table calculations</scope> via a custom role.",
+            "askAdminSqlAccess": "Ask an admin or developer for SQL access.",
+            "copied": "Copied!",
+            "copyAccessRequest": "Copy access request",
+            "copyChangeRequest": "Copy SQL change request"
+        },
+        "loadingSqlEditor": "Loading SQL editor...",
+        "totals": "Totals",
+        "nameLabel": "Name",
+        "namePlaceholder": "E.g. Cumulative order count"
+    },
+    "conversionPreview": {
+        "genericError": "Something went wrong. Try again or write the formula yourself."
+    },
+    "sqlForm": {
+        "conversion": {
+            "failed": "Couldn't convert to formula",
+            "generating": "Generating suggestion…",
+            "suggested": "Suggested formula",
+            "dismiss": "Dismiss",
+            "tryAgain": "Try again",
+            "discard": "Discard",
+            "apply": "Apply"
+        },
+        "aiTitle": "Generate and improve your table calculation with AI",
+        "needInspiration": "Need inspiration? <anchor>Check out our templates!</anchor>"
+    },
+    "formula": {
+        "categories": {
+            "aggregate": "Aggregate",
+            "logical": "Logic",
+            "math": "Math",
+            "string": "Text",
+            "date": "Date",
+            "window": "Window",
+            "null": "Null handling",
+            "type": "Type"
+        },
+        "noFunctionsFound": "No functions found",
+        "improveWithAi": {
+            "label": "Improve with AI",
+            "describeChange": "Describe the change",
+            "closePrompt": "Close AI prompt",
+            "submit": "Submit"
+        },
+        "reference": {
+            "searchFunctions": "Search functions",
+            "closeEsc": "Close (Esc)",
+            "close": "Close function reference",
+            "noMatch": "No functions match “{{query}}”",
+            "fieldHint": "field",
+            "functionHint": "function",
+            "needHelp": "Need help?",
+            "docs": "Docs"
+        },
+        "availableFields": {
+            "show": "Show available fields",
+            "count_one": "{{count}} field available",
+            "count_other": "{{count}} fields available",
+            "title": "Available fields",
+            "hint": "Click to insert, or type <kbd>@</kbd> in the formula.",
+            "empty": "No fields selected yet — add dimensions or metrics to your query first."
+        },
+        "editor": {
+            "retryKey": "⇥ Retry",
+            "tabKey": "⇥ Tab",
+            "placeholder": "Type @ to use your selected fields or # for functions. Example: =IF(@Revenue > 1000, \"high\", \"low\")",
+            "placeholderWithAi": "Describe the calculation, or type @ to use your selected fields — e.g. =SUM(@Revenue)",
+            "resizeReference": "Resize formula reference"
+        },
+        "aiGenericError": "Couldn't generate a formula — try rephrasing or write it yourself.",
+        "generatingFrom": "Generating from “{{prompt}}”…",
+        "generatedFrom": "Generated from “{{prompt}}”"
+    }
+}

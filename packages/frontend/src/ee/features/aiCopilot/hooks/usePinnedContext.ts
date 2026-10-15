@@ -12,6 +12,7 @@ import { useMemo } from 'react';
 import { useGetApp } from '../../../../features/apps/hooks/useGetApp';
 import { useDashboardQuery } from '../../../../hooks/dashboard/useDashboard';
 import { useSavedQuery } from '../../../../hooks/useSavedQuery';
+import i18n from '../../../../i18n/i18n';
 import {
     contextItemsToContentMentionSuggestions,
     type ContentMentionSuggestionItem,
@@ -200,7 +201,9 @@ export const usePinnedContext = ({
                     label:
                         (!tile.properties.hideTitle && tile.properties.title) ||
                         tile.properties.chartName ||
-                        'Chart',
+                        i18n.t('pinnedContext.chartFallback', {
+                            ns: 'aiAgent',
+                        }),
                     contentType: ContentType.CHART,
                     uuid: tile.properties.savedChartUuid!,
                     slug: tile.properties.chartSlug ?? null,

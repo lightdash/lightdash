@@ -8,6 +8,7 @@ import {
     type FC,
     type KeyboardEvent,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type FilterPopoverProps } from '../context';
 import FilterMultiDateCalendar from './FilterMultiDateCalendar';
 import classes from './FilterMultiDatePicker.module.css';
@@ -47,6 +48,7 @@ const FilterMultiDatePicker: FC<Props> = ({
     popoverProps,
     'data-autofocus': dataAutofocus,
 }) => {
+    const { t } = useTranslation('filters');
     const [opened, { open, close }] = useDisclosure(false);
     const [search, setSearch] = useState('');
 
@@ -170,7 +172,9 @@ const FilterMultiDatePicker: FC<Props> = ({
                                     disabled={disabled}
                                     onRemove={() => handleRemove(value)}
                                     removeButtonProps={{
-                                        'aria-label': `Remove ${label}`,
+                                        'aria-label': t('inputs.removeValue', {
+                                            value: label,
+                                        }),
                                         'aria-hidden': false,
                                     }}
                                 >

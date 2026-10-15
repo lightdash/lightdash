@@ -16,6 +16,7 @@ import {
 } from '@mantine/core';
 import { IconInfoCircle, IconPin, IconPinFilled } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ParameterInput } from './ParameterInput';
 import { ShadowedReservedNameWarning } from './ShadowedReservedNameWarning';
@@ -58,6 +59,7 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
     onParameterPin,
     shadowedReservedNames = [],
 }) => {
+    const { t } = useTranslation('explorer');
     const parameterKeys = parameters ? Object.keys(parameters) : [];
     const selectedParametersCount = Object.values(parameterValues).filter(
         (value) => value !== null && value !== '',
@@ -66,7 +68,7 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
     if (isLoading) {
         return (
             <Text size={size} c="dimmed">
-                Loading parameters...
+                {t('parameters.selection.loading')}
             </Text>
         );
     }
@@ -74,7 +76,7 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
     if (isError) {
         return (
             <Text size={size} c="dimmed">
-                Failed to load parameters
+                {t('parameters.selection.loadFailed')}
             </Text>
         );
     }
@@ -82,7 +84,7 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
     if (parameterKeys.length === 0) {
         return (
             <Text size={size} c="dimmed">
-                No parameters available
+                {t('parameters.selection.empty')}
             </Text>
         );
     }
@@ -94,7 +96,9 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
                     const parameter = parameters?.[paramKey];
                     if (!parameter) {
                         return (
-                            <Text key={paramKey}>Error loading parameter</Text>
+                            <Text key={paramKey}>
+                                {t('parameters.selection.paramLoadFailed')}
+                            </Text>
                         );
                     }
                     return (
@@ -137,8 +141,10 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
                                     <Tooltip
                                         label={
                                             pinnedParameters.includes(paramKey)
-                                                ? 'Unpin parameter'
-                                                : 'Pin parameter'
+                                                ? t(
+                                                      'parameters.selection.unpin',
+                                                  )
+                                                : t('parameters.selection.pin')
                                         }
                                         position="left"
                                     >
@@ -197,7 +203,7 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
             {showClearAll && selectedParametersCount > 0 && onClearAll && (
                 <Flex justify="flex-end">
                     <Tooltip
-                        label="Clear all parameter values"
+                        label={t('parameters.selection.clearAllTooltip')}
                         position="bottom"
                     >
                         <Button
@@ -207,7 +213,7 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
                             onClick={onClearAll}
                             disabled={disabled}
                         >
-                            Clear all
+                            {t('parameters.selection.clearAll')}
                         </Button>
                     </Tooltip>
                 </Flex>

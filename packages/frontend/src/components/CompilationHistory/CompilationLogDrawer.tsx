@@ -1,5 +1,6 @@
 import { Box, Drawer, Group, ScrollArea, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReactJson from 'react-json-view';
 import { type ProjectCompileLog } from '../../hooks/useProjectCompileLogs';
 import { useRjvTheme } from '../../hooks/useRjvTheme';
@@ -16,6 +17,7 @@ export const CompilationLogDrawer: FC<CompilationLogDrawerProps> = ({
     onClose,
     log,
 }) => {
+    const { t } = useTranslation('projectConnection');
     const theme = useRjvTheme();
     return (
         <Drawer
@@ -26,12 +28,12 @@ export const CompilationLogDrawer: FC<CompilationLogDrawerProps> = ({
             title={
                 <Group justify="space-between" w="100%">
                     <Text fw={600} fz="lg">
-                        Compilation Log Details
+                        {t('compilationHistory.logDetails')}
                     </Text>
                     {log && (
                         <CopyActionIcon
                             value={JSON.stringify(log, null, 2)}
-                            copyLabel="Copy JSON"
+                            copyLabel={t('compilationHistory.copyJson')}
                         />
                     )}
                 </Group>

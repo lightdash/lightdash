@@ -1,5 +1,6 @@
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../common/MantineModal';
 
 type ConfirmAdminSelfDowngradeModalProps = {
@@ -11,19 +12,28 @@ type ConfirmAdminSelfDowngradeModalProps = {
 
 const ConfirmAdminSelfDowngradeModal: FC<
     ConfirmAdminSelfDowngradeModalProps
-> = ({ opened, loading, onClose, onConfirm }) => (
-    <MantineModal
-        opened={opened}
-        onClose={onClose}
-        title="Downgrade your role?"
-        icon={IconAlertTriangle}
-        role="alertdialog"
-        size="md"
-        description="You cannot undo this action. Another admin will have to manage your role for you."
-        onConfirm={onConfirm}
-        confirmLabel="Downgrade role"
-        confirmLoading={loading}
-    />
-);
+> = ({ opened, loading, onClose, onConfirm }) => {
+    const { t } = useTranslation('userSettings');
+    return (
+        <MantineModal
+            opened={opened}
+            onClose={onClose}
+            title={t(
+                'usersAndGroupsPanel.confirmAdminSelfDowngradeModal.title',
+            )}
+            icon={IconAlertTriangle}
+            role="alertdialog"
+            size="md"
+            description={t(
+                'usersAndGroupsPanel.confirmAdminSelfDowngradeModal.description',
+            )}
+            onConfirm={onConfirm}
+            confirmLabel={t(
+                'usersAndGroupsPanel.confirmAdminSelfDowngradeModal.confirm',
+            )}
+            confirmLoading={loading}
+        />
+    );
+};
 
 export default ConfirmAdminSelfDowngradeModal;

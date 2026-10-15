@@ -1,6 +1,7 @@
 import { isSummaryExploreError, type SummaryExplore } from '@lightdash/common';
 import { IconTable } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FilterFacet, {
     type FilterFacetOption,
 } from '../../../../components/common/FilterFacet';
@@ -16,6 +17,7 @@ const TableFilter: FC<TableFilterProps> = ({
     selectedTables,
     setSelectedTables,
 }) => {
+    const { t } = useTranslation('metricsCatalog');
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -47,22 +49,22 @@ const TableFilter: FC<TableFilterProps> = ({
 
     return (
         <FilterFacet
-            label="Tables"
+            label={t('filters.tables.label')}
             icon={IconTable}
             options={options}
             selected={selectedTables}
             onChange={setSelectedTables}
-            tooltipLabel="Filter metrics by table"
+            tooltipLabel={t('filters.tables.tooltip')}
             loading={isLoading}
             clearable
             emptyLabel={
                 searchValue
-                    ? 'No tables match your search.'
-                    : 'No tables available.'
+                    ? t('filters.tables.noMatch')
+                    : t('filters.tables.empty')
             }
             searchValue={searchValue}
             onSearchChange={tables.length > 5 ? setSearchValue : undefined}
-            searchPlaceholder="Search tables..."
+            searchPlaceholder={t('filters.tables.searchPlaceholder')}
         />
     );
 };

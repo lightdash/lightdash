@@ -1,6 +1,7 @@
 import { ActionIcon, Affix, Transition } from '@mantine/core';
 import { IconArrowUp } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from './MantineIcon';
 
 type ScrollToTopProps = {
@@ -27,6 +28,7 @@ export const ScrollToTop: FC<ScrollToTopProps> = ({
     scrollContainer,
     bottom = 24,
 }) => {
+    const { t } = useTranslation('commonUi');
     const handleScrollToTop = () => {
         if (!scrollContainer) {
             window.scrollTo({
@@ -52,7 +54,7 @@ export const ScrollToTop: FC<ScrollToTopProps> = ({
                         color="gray"
                         style={transitionStyles}
                         onClick={handleScrollToTop}
-                        aria-label="Scroll to top"
+                        aria-label={t('scrollToTop.label')}
                     >
                         <MantineIcon icon={IconArrowUp} />
                     </ActionIcon>

@@ -16,6 +16,7 @@ import {
 } from '@mantine/core';
 import { IconRotate2 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FiltersProvider from '../../../../components/common/Filters/FiltersProvider';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useProject } from '../../../../hooks/useProject';
@@ -78,6 +79,7 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
     unmetRequirements,
     filtersWithUnmetRequirements,
 }) => {
+    const { t } = useTranslation('scheduler');
     const { data: project, isInitialLoading } = useProject(
         dashboard?.projectUuid,
     );
@@ -179,7 +181,7 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
         return (
             <Center component={Stack} h={100}>
                 <Loader color="gray" />
-                <Text c="dimmed">Loading dashboard filters...</Text>
+                <Text c="dimmed">{t('dashboardFilters.loading')}</Text>
             </Center>
         );
     }
@@ -211,13 +213,12 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
                 <Stack mb="sm">
                     {hasUnmetSingles && (
                         <Text fz="xs" c="dimmed">
-                            All required filters must have values
+                            {t('chartFilters.allRequired')}
                         </Text>
                     )}
                     {hasUnmetGroups && (
                         <Text fz="xs" c="dimmed">
-                            Set a value for at least one filter in each
-                            requirement group
+                            {t('form.validation.requirementGroupsUnmet')}
                         </Text>
                     )}
                     {currentDashboardFilters.dimensions.map(
@@ -250,16 +251,22 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
                                         {override && (
                                             <>
                                                 <Text fz="xs" c="dimmed">
-                                                    Differs from the dashboard
+                                                    {t(
+                                                        'dashboardFilters.differsFromDashboard',
+                                                    )}
                                                 </Text>
                                                 <Tooltip
-                                                    label="Revert to the dashboard value"
+                                                    label={t(
+                                                        'dashboardFilters.revertToDashboard',
+                                                    )}
                                                     fz="xs"
                                                 >
                                                     <ActionIcon
                                                         size="xs"
                                                         variant="subtle"
-                                                        aria-label="Revert to the dashboard value"
+                                                        aria-label={t(
+                                                            'dashboardFilters.revertToDashboard',
+                                                        )}
                                                         onClick={() =>
                                                             handleUpdateSchedulerFilter(
                                                                 dashboardFilterRule,
@@ -283,7 +290,9 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
                                     <RemovedSchedulerFilterItem
                                         key={dashboardFilterRule.id}
                                         savedFilter={dashboardFilterRule}
-                                        defaultLabel="Uses dashboard default"
+                                        defaultLabel={t(
+                                            'dashboardFilters.usesDashboardDefault',
+                                        )}
                                         onRestore={() =>
                                             handleRestoreFilter(
                                                 dashboardFilterRule,
@@ -326,15 +335,16 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
                                     onRemove={() =>
                                         handleRemoveFilter(draftFilter.id)
                                     }
-                                    removeTooltip="Remove filter — the delivery will use the dashboard default"
+                                    removeTooltip={t(
+                                        'dashboardFilters.removeTooltip',
+                                    )}
                                 />
                             );
                         },
                     )}
                     {savedFiltersNotInDashboard.length > 0 && (
                         <Text fz="xs" c="dimmed" mt="xs">
-                            The following filters are applied to this scheduled
-                            delivery but no longer exist in the dashboard
+                            {t('dashboardFilters.orphanNotice')}
                         </Text>
                     )}
                     {savedFiltersNotInDashboard?.map((filter) => {
@@ -395,9 +405,7 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
                 </Stack>
             ) : (
                 <Center component={Stack} h={100}>
-                    <Text c="dimmed">
-                        No filters defined for this dashboard.
-                    </Text>
+                    <Text c="dimmed">{t('dashboardFilters.empty')}</Text>
                 </Center>
             )}
         </FiltersProvider>

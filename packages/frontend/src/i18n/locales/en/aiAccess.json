@@ -1,0 +1,557 @@
+{
+    "capabilityChoices": {
+        "ariaLabel": "What agents can do",
+        "current": "Current",
+        "descriptions": {
+            "person": "Agents can do anything the person can do.",
+            "read": "Find content, query data and export results. Agents change nothing.",
+            "custom": "Everything starts on. Untick what agents must not do."
+        },
+        "createAndEditOff": "× Create and edit content",
+        "moreOff_one": "× {{count}} more",
+        "moreOff_other": "× {{count}} more",
+        "rawSqlNote": "Raw SQL runs with the person's warehouse permissions."
+    },
+    "permissionChoices": {
+        "person": "Same as the person",
+        "read": "Read and query",
+        "custom": "Custom",
+        "savedGroupFallback": "A saved group"
+    },
+    "capabilityGroups": {
+        "readAndQuery": "Read and query",
+        "changes": "Changes"
+    },
+    "capabilities": {
+        "readDiscover": {
+            "label": "Read and discover",
+            "description": "Find and read projects, data models, charts and dashboards.",
+            "pageDescription": "Find and read projects, data models, content and existing results."
+        },
+        "query": {
+            "label": "Query data",
+            "description": "Run queries through the data models.",
+            "pageDescription": "Run queries through the data models."
+        },
+        "export": {
+            "label": "Export results",
+            "description": "Download query results and export content.",
+            "pageDescription": "Download results, render charts and export content."
+        },
+        "rawSql": {
+            "label": "Raw SQL",
+            "description": "Run SQL directly.",
+            "pageDescription": "Inspect warehouse tables and write or run SQL directly."
+        },
+        "contentWrite": {
+            "label": "Create and edit content",
+            "description": "Create or change charts, dashboards and spaces.",
+            "pageDescription": "Charts, dashboards, documents and data apps. Not access or sharing."
+        },
+        "delete": {
+            "label": "Delete content",
+            "description": "Delete charts, dashboards and other content.",
+            "pageDescription": "Delete content, files and objects."
+        },
+        "publish": {
+            "label": "Publish and share",
+            "description": "Publish content, share it and set up deliveries.",
+            "pageDescription": "Publish, share and schedule deliveries."
+        },
+        "deployUpload": {
+            "label": "Deploy and upload",
+            "description": "Deploy project changes and upload content."
+        },
+        "dbtWriteback": {
+            "label": "Write to dbt",
+            "description": "Write changes back to dbt files."
+        },
+        "administration": {
+            "label": "Administration",
+            "description": "Use administrative actions available to agents."
+        },
+        "externalTools": {
+            "label": "External tools",
+            "description": "Call tools connected through external services."
+        }
+    },
+    "capabilityMatrix": {
+        "role": "Role",
+        "columnTooltip": "{{label}}: {{description}}",
+        "cellAriaLabel": "{{role}}: {{capability}}",
+        "columns": {
+            "read": "Read",
+            "query": "Query",
+            "export": "Export",
+            "rawSql": "Raw SQL",
+            "contentWrite": "Create / edit",
+            "delete": "Delete",
+            "publish": "Publish",
+            "deploy": "Deploy",
+            "dbt": "dbt",
+            "admin": "Admin",
+            "externalTools": "External tools"
+        }
+    },
+    "capabilitySwitches": {
+        "readAndQuery": "READ AND QUERY",
+        "makeChanges": "MAKE CHANGES",
+        "developerTitle": "Developer and admin",
+        "developerDescription": "Deploy and upload, Git repository changes (dbt), Administration, External tools.",
+        "allOn": "All on.",
+        "allOff": "All off.",
+        "countOn_one": "{{count}} on.",
+        "countOn_other": "{{count}} on.",
+        "perRoleTitle": "Different limits per role",
+        "advanced": "Advanced",
+        "sameRoles": "All roles get the same today.",
+        "differentRoles": "Roles have different limits today.",
+        "limitsApply": "These limits apply to every role, custom roles included. A person never gets more than their own permissions.",
+        "customRolesNote": "Custom roles keep their own agent permissions. <anchor>Custom roles</anchor>",
+        "turnedOff": "Agents are turned off for everyone."
+    },
+    "identity": {
+        "marked_person": {
+            "label": "The person",
+            "description": "Gets the access of the person asking, so the warehouse can't limit agents separately.",
+            "tooltip": "agents run as the person asking, with that person's access.",
+            "inlineLabel": "the person"
+        },
+        "agent_sign_in": {
+            "label": "The person's agent sign-in",
+            "description": "People sign in once, so Snowflake can limit agents.",
+            "shortLabel": "Agent sign-in",
+            "tooltip": "agents run as each person's agent sign-in.",
+            "inlineLabel": "the person's agent sign-in"
+        },
+        "ai_service_account": {
+            "label": "A shared agent account",
+            "description": "One account per project, added by a project admin.",
+            "shortLabel": "Shared account",
+            "tooltip": "agents run as each project's shared agent account.",
+            "inlineLabel": "a shared agent account"
+        },
+        "state": {
+            "current": "Current",
+            "settingUp": "Setting up"
+        }
+    },
+    "groupAdmission": {
+        "title": "Who can use agents",
+        "everyone": "Everyone whose role allows AI",
+        "everyoneDescription": "Anyone with a role that allows AI can use agents.",
+        "onlyGroups": "Only these groups",
+        "onlyGroupsDescription": "People must belong to at least one of these groups. Their role must also allow AI.",
+        "groups": "Groups",
+        "chooseGroups": "Choose groups...",
+        "chooseAtLeastOne": "Choose at least one group.",
+        "noGroups": "No groups available",
+        "membersOnlyNote": "Only members of these groups can use Ask AI, the Slack agent, MCP clients and the CLI.",
+        "allDeleted": "No one can use agents. All chosen groups are deleted.",
+        "unavailable": "Groups are unavailable. The saved group restriction still applies.",
+        "allowEveryone": "Allow everyone"
+    },
+    "identityChip": {
+        "missingTitle_one": "{{count}} project has no shared agent account",
+        "missingTitle_other": "{{count}} projects have no shared agent account",
+        "missingDescription_one": "Agents are refused on it until a project admin adds one.",
+        "missingDescription_other": "Agents are refused on them until a project admin adds one.",
+        "missingStatus_one": "{{warehouse}}: {{count}} project has no shared agent account",
+        "missingStatus_other": "{{warehouse}}: {{count}} projects have no shared agent account",
+        "allHaveAccounts": "Every {{warehouse}} project has a shared agent account.",
+        "signInVerified": "Snowflake agent sign-in verified",
+        "signInNeedsAttention": "Snowflake agent sign-in needs attention",
+        "saving": "Saving {{warehouse}} identity",
+        "label": "{{warehouse}}: agents run as {{identity}}.",
+        "labelEditable": "{{warehouse}}: agents run as {{identity}}. Change.",
+        "tooltip": "{{warehouse}}: {{tooltip}}",
+        "tooltipEditable": "{{warehouse}}: {{tooltip}} Click to change.",
+        "agentsRunAs": "{{warehouse}} agents run as",
+        "choiceWithState": {
+            "current": "{{label}}, current",
+            "settingUp": "{{label}}, setting up"
+        },
+        "setupNeeded": "Setup needed",
+        "savedChoice": "Saved choice",
+        "hideSetup": "Hide setup",
+        "viewSetup": "View setup"
+    },
+    "listJoiner": " and ",
+    "learnMore": "Learn more",
+    "ruleConfirm": {
+        "sharedAccount": {
+            "title": "Use a shared agent account for {{warehouse}}?",
+            "body": "Agents on {{warehouse}} will run as each project's shared agent account, not as the person asking.",
+            "confirm": "Use a shared agent account"
+        },
+        "markedPerson": {
+            "title": "Run agents as the person on {{warehouse}}?",
+            "body": "Agents will get the same {{warehouse}} access as the person asking. Your warehouse can't limit agent queries separately.",
+            "confirm": "Run as the person"
+        },
+        "checking": "Checking shared agent accounts",
+        "checkFailed": "Could not check which projects have a shared agent account.",
+        "missingPrefix_one": "{{count}} project has no shared agent account yet:",
+        "missingPrefix_other": "{{count}} projects have no shared agent account yet:",
+        "andMore_one": " and {{count}} more",
+        "andMore_other": " and {{count}} more",
+        "missingSuffix_one": "Agents stop working on it until a project admin adds one.",
+        "missingSuffix_other": "Agents stop working on them until a project admin adds one."
+    },
+    "settingsPage": {
+        "loadError": "Could not load agent settings.",
+        "organizationSettings": "Organization settings",
+        "title": "Agents",
+        "description": "Who agents run as, and what they may do. Agents are Ask AI, the Slack agent, MCP clients and the CLI."
+    },
+    "reviewModal": {
+        "title": "Review changes to agent permissions",
+        "saveChanges": "Save changes",
+        "stops": "STOPS",
+        "turnedOffTitle": "Agents are turned off for everyone",
+        "turnedOffDescription": "No one can use Ask AI, the Slack agent, MCP clients or the CLI. People can still work themselves.",
+        "stopsForAgents": "<strong>{{names}}</strong> for agents",
+        "stopsDescription": "For every role, custom roles included. People can still do these themselves.",
+        "allows": "ALLOWS",
+        "allowsDescription": "These limits are removed. A person’s own permissions still apply.",
+        "roleStops": "STOPS: {{names}}",
+        "roleAllows": "ALLOWS: {{names}}",
+        "roleDescription": "Other roles, including custom roles, can still allow these actions within the limits for everyone.",
+        "who": "WHO",
+        "everyoneCanUse": "Everyone whose role allows AI can use agents",
+        "onlyMembersCanUse": "Only members of <strong>{{groups}}</strong> can use agents",
+        "othersLoseAccess": "Other people lose access to Ask AI, the Slack agent, MCP clients and the CLI.",
+        "modeLegacy": "Agents follow each person’s permissions again.",
+        "modeLimits": "Agent limits are turned on.",
+        "footnote": "Agents never get more access than the person. Personal access tokens are not limited."
+    },
+    "permissionsSection": {
+        "title": "Permissions",
+        "description": "What agents may do for a person. Agents never get more than the person has.",
+        "conflictTitle": "Agent permissions changed",
+        "conflictDescription": "Someone changed the saved permissions. Your unsaved changes are still shown. Reload the latest permissions to discard them.",
+        "reloadLatest": "Reload latest",
+        "mcpLabel": "Agents over MCP",
+        "mcpDescription": "MCP clients can use this organization's agents and their context. Per-agent access still applies.",
+        "patNote": "Personal access tokens are not limited. An agent that uses a person's token has that person's access.",
+        "noChanges": "No changes",
+        "unsavedChanges_one": "{{count}} unsaved change",
+        "unsavedChanges_other": "{{count}} unsaved changes",
+        "discard": "Discard",
+        "reviewAndSave": "Review and save"
+    },
+    "setupStep": {
+        "step": "Step {{number}}",
+        "stepDone": "Step {{number}} done"
+    },
+    "serviceAccountCard": {
+        "removeTitle": "Remove shared agent account",
+        "removeBody": "Remove this shared agent account? Agent queries are refused if your organization requires it.",
+        "lastSuccessfulCheck": "The account above is from the last successful check.",
+        "test": "Test",
+        "replace": "Replace",
+        "askAdminParent": "Ask an admin to add one on <anchor>the parent project</anchor>.",
+        "parentHasNone": "The parent project has no shared agent account. Add one on <anchor>the parent project</anchor>.",
+        "add": "Add shared agent account",
+        "loadError": "Could not load the shared agent account."
+    },
+    "serviceAccountDetails": {
+        "tested": "Tested {{date}}.",
+        "added": "Added {{date}}.",
+        "usesFromProject": "Uses the shared agent account from <anchor>{{project}}</anchor>.",
+        "usesFromParent": "Uses the shared agent account from the parent project.",
+        "signsInAs": "Signs in as {{principal}}",
+        "notTested": "Not tested yet. Select Test to see who it signs in as.",
+        "methods": {
+            "userPassword": "User and password",
+            "accessKeys": "Access keys",
+            "keyFile": "Key file",
+            "keyPair": "Key pair",
+            "clientIdSecret": "Client ID and secret"
+        }
+    },
+    "serviceAccountStatus": {
+        "parentWarning": "This preview can't read the parent project's shared agent account. Ask an admin of {{project}} to replace it.",
+        "parentWarningGeneric": "This preview can't read the parent project's shared agent account. Ask an admin of the parent project to replace it.",
+        "refusedPreviewWithWarning": "Agents are refused on this preview. {{warning}}",
+        "refusedPreview": "Agents are refused on this preview until the parent project has a shared agent account for this connection.",
+        "refusedProject": "Agents are refused on this project until you add a shared agent account.",
+        "requiredMessage": "Agents on this project run as this account. The organization rule for {{warehouse}} requires it.",
+        "agentSignInMessage": "Agents on this project use each person's own agent sign-in for Snowflake. The organization rule decides this.",
+        "personCredentialsMessage": "Agents on this project use each person's own {{warehouse}} credentials. The organization rule decides this.",
+        "unreadable": "The shared agent account can't be read. Replace it.",
+        "badge": {
+            "inUse": "In use",
+            "notInUse": "Not in use"
+        }
+    },
+    "serviceAccountForm": {
+        "title": "Shared agent account",
+        "testAndSave": "Test and save",
+        "userDescription": {
+            "trino": "The Trino login for agents",
+            "clickhouse": "The ClickHouse user for agents",
+            "redshift": "The Redshift database user for agents",
+            "postgres": "The Postgres login role for agents"
+        }
+    },
+    "setupGuide": {
+        "createTitle": "Create the account in {{warehouse}}",
+        "grantTitle": "Grant it only the data agents may read",
+        "addTitle": "Add it here and select Test",
+        "copySql": "Copy SQL",
+        "copyCommands": "Copy commands",
+        "grantOnlyVisible": "Grant only the data every agent user may see.",
+        "addUserHelp": "Enter the ai_agents user and its password, then select Test."
+    },
+    "athenaSetup": {
+        "createWorkgroup": "Create an Athena workgroup and an S3 results location for agents.",
+        "iamUser": "Use a dedicated IAM user for agents, with only the permissions agents need, and rotate its keys regularly. Keys from an assumed role expire within hours and Lightdash can't renew them yet, so agents would be refused until you paste new keys.",
+        "permissionPolicy": "Permission policy",
+        "copyPermissionPolicy": "Copy permission policy",
+        "attachPolicy": "Attach this policy to the IAM user. KMS keys and cross-account catalogs need extra permissions.",
+        "roleTrustPolicy": "Role trust policy (optional)",
+        "roleInstead": "If you rotate keys automatically, you can use an IAM role instead. Attach the permission policy to the role and use this trust policy. The trusted caller also needs permission to assume the role.",
+        "copyRoleTrustPolicy": "Copy role trust policy",
+        "lakeFormationAdmin": "Run as a Lake Formation administrator. Use the IAM user ARN, or the role ARN and not the session ARN. Repeat for each permitted table.",
+        "lakeFormationGrant": "Lake Formation grant",
+        "copyLakeFormationGrant": "Copy Lake Formation grant",
+        "dataFilter": "To limit rows or columns, grant a data filter instead. Other grants on the table can still allow more.",
+        "filteredTableGrant": "Filtered table grant",
+        "copyFilteredTableGrant": "Copy filtered table grant",
+        "addHelp": "Add the access keys, workgroup and results location. Test checks the AWS identity and runs a simple query."
+    },
+    "athenaForm": {
+        "accessKeyId": "Access key ID",
+        "secretAccessKey": "Secret access key",
+        "sessionToken": "Session token (optional)",
+        "workGroup": "Agent workgroup",
+        "s3StagingDir": "S3 results location",
+        "s3DataDir": "S3 data location (optional)"
+    },
+    "bigquerySetup": {
+        "grantDataViewer": "Grant Data Viewer on each dataset agents may read.",
+        "bytesDefault": "Agent queries use the connection maximum bytes billed. Set an agent limit in the project connection settings.",
+        "bytesUnlimited": "Agent queries have no maximum bytes billed. Change this in the project connection settings.",
+        "bytesLimited": "Agent queries are limited to {{bytes}} bytes billed. Change this in the project connection settings.",
+        "addHelp": "Create a JSON key for the account, upload it here, then select Test."
+    },
+    "clickhouseSetup": {
+        "createUser": "Run as a user with CREATE USER permission. Replace the password placeholder. readonly = 2 keeps queries read-only and allows the query settings agents need.",
+        "grant": "Grant SELECT on the project database, or limit the grant to specific tables. The row policy is a template. Replace the table and condition before you run it. Everyone's agent shares this account's access.",
+        "addHelp": "Enter the ai_agents user and its password, then select Test and save."
+    },
+    "databricksSetup": {
+        "create": "Create a service principal and an OAuth secret in the Databricks account console. Add it to the workspace and give it CAN USE on the SQL warehouse.",
+        "grant": "Replace the placeholders and repeat SELECT for each permitted table or view. Unity Catalog row filters and column masks apply to this principal. Grant only the data every agent user may see.",
+        "addHelp": "Use the service principal's application ID as the Client ID."
+    },
+    "postgresSetup": {
+        "createRole": "Run as a superuser or a role with CREATEROLE. Choose a strong password for this separate login role.",
+        "grant": "Grant only the data every agent user may see. Run ALTER DEFAULT PRIVILEGES as each role that creates tables. It applies to new tables from that role.",
+        "rls": "Replace the table and condition placeholders. Row-level security does not apply to superusers, roles with BYPASSRLS, or the table owner unless FORCE ROW LEVEL SECURITY is set.",
+        "columns": "To hide sensitive columns, replace table-wide SELECT grants with column grants such as GRANT SELECT (col_a, col_b). A table-wide grant still allows every column."
+    },
+    "redshiftSetup": {
+        "createUser": "Run as a superuser or a user with CREATE USER. Use an 8 to 64 character password with uppercase, lowercase and a number. Use ASCII characters. Exclude spaces, quotes, backslashes, slashes and @.",
+        "grant": "Run in the project database. Replace placeholders. Repeat ALTER DEFAULT PRIVILEGES for each table owner. It grants access to future tables.",
+        "policies": "These RLS and masking policies are templates. Replace the table, column, type and condition. Match the mask types to the column.",
+        "warning": "Do not give ai_agents superuser, IGNORE RLS or sys:secadmin rights. Check inherited and PUBLIC grants. Everyone shares this account's access. Check policy settings and limits for external and shared tables."
+    },
+    "trinoSetup": {
+        "createTitle": "Create or choose the Trino login",
+        "grantTitle": "Limit what the login can read",
+        "addTitle": "Enter the user and password",
+        "noCreateUser": "Trino has no CREATE USER. Ask an admin to add a user to the password file or LDAP. Turn on password authentication over HTTPS. Without it, Trino does not check the password.",
+        "starburst": "On Starburst Galaxy, create a service account with a restricted role. Use its user name and generated password to sign in with basic authentication.",
+        "fileAccessTitle": "File-based access control (rules.json)",
+        "fileAccess": "Set access-control.name=file and point security.config-file to rules.json. Merge these rules above broader rules. Rules match from top to bottom; the first match wins. Use the effective user shown by Test if your authenticator maps the login to another user.",
+        "copyRules": "Copy rules.json",
+        "replacePlaceholders": "Replace the user, table and policy placeholders. The filter and columns fields are optional: remove them or supply a row filter and a column mask expression with the right column type. Names in rules are regex literals; escape regex characters in replacements.",
+        "sqlRolesTitle": "SQL roles and grants",
+        "sqlRoles": "Use this alternative only with system access control that supports SQL roles and grants. Connector roles, such as Hive roles, need IN \"<catalog>\" on CREATE ROLE and the role grant. Check inherited and public grants.",
+        "addHelp": "Enter the user and password, then select Test. Everyone using agents shares this login's access. Test checks the sign-in, not every grant."
+    },
+    "databricksForm": {
+        "clientId": "Client ID",
+        "clientIdDescription": "The service principal's application ID",
+        "clientSecret": "Client secret"
+    },
+    "identitySection": {
+        "title": "Identity",
+        "noWarehouses": "No warehouses in use yet."
+    },
+    "projectIdentity": {
+        "notAvailable": "Agent identity is not available for this warehouse."
+    },
+    "snowflakeClient": {
+        "unreadableSecret": "The saved client secret could not be read. Replace it to use agent sign-in.",
+        "accountUrl": "Snowflake account URL",
+        "accountUrlDescription": "We work out the sign-in and token addresses from this.",
+        "clientIdPlaceholder": "OAUTH_CLIENT_ID from the query above",
+        "clientSecretPlaceholder": "OAUTH_CLIENT_SECRET from the query above",
+        "secretHint": "Stored encrypted for your organization. Only organization admins can replace it; it is never shown again.",
+        "secretSaved": "Client secret saved",
+        "replaceClient": "Replace client"
+    },
+    "snowflakeServiceAccountSetup": {
+        "serviceAgent": "Use TYPE = SERVICE_AGENT so Snowflake marks these sessions as agent sessions.",
+        "repeatSelect": "Repeat SELECT for each table agents may read.",
+        "addHelp": "Add the user's private key, role and warehouse, then select Test."
+    },
+    "snowflakeSetup": {
+        "step1": "Copy and run in Snowflake",
+        "copyIntegrationSql": "Copy integration SQL",
+        "step2": "Add your Snowflake account and client details",
+        "missingLicence": "Missing: Enterprise licence",
+        "step3": "Verify",
+        "verifyIntegration": "Verify integration",
+        "verifyDescription": "Checks the integration exists and marks sessions as agent sessions.",
+        "checkStatus": {
+            "passed": "Passed",
+            "failed": "Failed",
+            "notChecked": "Not checked"
+        },
+        "myAgentIdentity": "My agent identity",
+        "statusVerified": "Verified · Snowflake agent integration",
+        "statusNeedsAttention": "Snowflake agent integration needs attention",
+        "statusChecking": "Checking Snowflake agent integration",
+        "checkedAgo": " · checked {{ago}}",
+        "loadError": "Could not load the Snowflake setup.",
+        "compactConfirm": "The Snowflake agent integration is set up. Turn on agent sign-in? People who haven't connected their agent are asked to connect.",
+        "untilVerified": "Until this is verified, agents keep running as each user. After it's verified, people who haven't connected their agent are asked to connect.",
+        "turnOn": "Turn on",
+        "turnOnTitle": "Turn on agent sign-in",
+        "setupTitle": "Set up the Snowflake agent integration",
+        "notActiveYet": "Not active yet",
+        "runOnce": "Run this once in Snowflake as ACCOUNTADMIN. It lets people sign their agent in as themselves.",
+        "verifyError": "Could not verify the Snowflake agent integration. Try again."
+    },
+    "snowflakeForm": {
+        "enterUser": "Enter a user.",
+        "enterRole": "Enter a role.",
+        "enterWarehouse": "Enter a warehouse.",
+        "enterPem": "Enter a PEM private key.",
+        "chooseFile": "Choose a .p8 or .pem file.",
+        "readError": "Could not read the private key file.",
+        "checkingAndSaving": "Checking and saving…",
+        "privateKey": "Private key",
+        "privateKeyInput": "Private key input",
+        "uploadFile": "Upload file",
+        "pasteKey": "Paste key",
+        "passphrase": "Passphrase (optional)",
+        "role": "Role",
+        "warehouse": "Warehouse"
+    },
+    "userPasswordForm": {
+        "user": "User",
+        "password": "Password"
+    },
+    "toasts": {
+        "identitySaved": "Agent identity saved.",
+        "identityUpdateFailed": "Could not update agent identity settings.",
+        "serviceAccountSaved": "Shared agent account saved.",
+        "serviceAccountSaveFailed": "Could not save the shared agent account.",
+        "serviceAccountRemoved": "Shared agent account removed.",
+        "serviceAccountRemoveFailed": "Could not remove the shared agent account.",
+        "serviceAccountTestFailed": "Could not test the shared agent account.",
+        "snowflakeClientSaved": "Snowflake client saved.",
+        "permissionsSaveFailed": "Could not save agent permissions.",
+        "permissionsReloadFailed": "Could not reload agent permissions."
+    },
+    "agentConnections": {
+        "duration": {
+            "day_one": "{{count}} day",
+            "day_other": "{{count}} days",
+            "hour_one": "{{count}} hour",
+            "hour_other": "{{count}} hours",
+            "minute_one": "{{count}} minute",
+            "minute_other": "{{count}} minutes",
+            "second_one": "{{count}} second",
+            "second_other": "{{count}} seconds",
+            "separator": ", "
+        },
+        "warehouseStep": {
+            "noConnection": "No connection was created.",
+            "saved": "Your connection is saved.",
+            "setUpLater": "You can still set up warehouse sign-ins for later.",
+            "signInToRun": "Sign in to run queries on these warehouses.",
+            "heading": "Connect your warehouses",
+            "cancelledHeading": "Approval cancelled",
+            "nextStep": "Return to your terminal.",
+            "returnToCli": "Return to the CLI",
+            "defer": "Do this later",
+            "loading": "Loading warehouse sign-ins",
+            "loadingSignIn": "Loading warehouse sign-in",
+            "checking": "Checking warehouse sign-in",
+            "error": "Could not load warehouse sign-in.",
+            "administrator": "Ask an administrator to set up agent sign-in",
+            "ready": "Ready",
+            "signIn": "Sign in"
+        },
+        "actionRow": {
+            "deleteWarning": "Deleted content cannot be restored by the agent.",
+            "publishWarning": "Other people will see what the agent publishes.",
+            "availableIn_one": "Available in {{offered}} of {{count}} selected project",
+            "availableIn_other": "Available in {{offered}} of {{count}} selected projects",
+            "blockedReason": "{{name}}: {{reason}}",
+            "whyLimited": "Why this is limited"
+        },
+        "revoke": {
+            "title": "Revoke this connection?",
+            "confirm": "Revoke",
+            "description": "Its credential will stop working. Warehouse sign-ins stay connected."
+        },
+        "approval": {
+            "selectionChanged": "Your permissions changed. Check the selection and approve again.",
+            "outOfDate": "This review is out of date. Check it again.",
+            "loading": "Loading approval",
+            "title": "Connect your CLI agent",
+            "requestName": "{{name}} · CLI",
+            "projects": "Projects",
+            "actions": "Actions",
+            "expires": "Expires {{duration}} after approval",
+            "longerThanUsual": "Longer than the usual 24 hours",
+            "approve": "Approve",
+            "invalidLink": "This approval link is missing a valid request."
+        },
+        "table": {
+            "reasons": {
+                "personPermission": "Your permissions in this project do not allow this action.",
+                "agentPolicy": "This action is turned off for agents.",
+                "projectAccess": "You no longer have access to this project.",
+                "notSupported": "This action is not available for connections.",
+                "agentIdentityDisabled": "Agents are turned off.",
+                "unavailable": "Not available right now."
+            },
+            "whyNameLimited": "Why {{name}} is limited",
+            "projectUnavailable": "Project no longer available",
+            "mayReturn": "May return if your permissions change.",
+            "checkingRestrictions": "Checking restrictions",
+            "hideDetails": "Hide details",
+            "showDetails": "Show details",
+            "collapse": "Collapse {{name}}",
+            "expand": "Expand {{name}}",
+            "summary": "CLI · {{projects}} · {{actions}}",
+            "projectCount_one": "{{count}} project",
+            "projectCount_other": "{{count}} projects",
+            "actionCount_one": "{{count}} action",
+            "actionCount_other": "{{count}} actions",
+            "neverUsed": "Never used",
+            "status": {
+                "active": "Active",
+                "expired": "Expired",
+                "revoked": "Revoked",
+                "invalid": "Invalid"
+            },
+            "approved": "Approved",
+            "loading": "Loading agent connections",
+            "headings": {
+                "connection": "Connection",
+                "expires": "Expires",
+                "lastUsed": "Last used",
+                "status": "Status"
+            }
+        }
+    }
+}

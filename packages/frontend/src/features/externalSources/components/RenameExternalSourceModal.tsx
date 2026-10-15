@@ -3,6 +3,7 @@ import { Button, Group, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPencil } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../../components/common/MantineModal';
 import { useRenameExternalSource } from '../hooks/useExternalSources';
 
@@ -21,12 +22,15 @@ export const RenameExternalSourceModal: FC<Props> = ({
     opened,
     onClose,
 }) => {
+    const { t } = useTranslation('sync');
     const renameMutation = useRenameExternalSource(projectUuid);
     const form = useForm({
         initialValues: { label: currentLabel },
         validate: {
             label: (value) =>
-                value.trim().length === 0 ? 'Give the table a name' : null,
+                value.trim().length === 0
+                    ? t('externalSources.rename.nameRequired')
+                    : null,
         },
     });
 
@@ -44,20 +48,19 @@ export const RenameExternalSourceModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Rename table"
+            title={t('externalSources.rename.title')}
             icon={IconPencil}
             size="md"
         >
             <form id="external-source-rename-form" onSubmit={handleSubmit}>
                 <Stack gap="md">
                     <TextInput
-                        label="Name"
+                        label={t('externalSources.rename.nameLabel')}
                         data-autofocus
                         {...form.getInputProps('label')}
                     />
                     <Text fz="xs" c="dimmed">
-                        Renaming changes how the table appears; existing charts
-                        keep working.
+                        {t('externalSources.rename.hint')}
                     </Text>
                     <Group justify="flex-end">
                         <Button
@@ -65,14 +68,14 @@ export const RenameExternalSourceModal: FC<Props> = ({
                             variant="default"
                             onClick={onClose}
                         >
-                            Cancel
+                            {t('actions.cancel', { ns: 'common' })}
                         </Button>
                         <Button
                             type="submit"
                             form="external-source-rename-form"
                             loading={renameMutation.isLoading}
                         >
-                            Rename
+                            {t('externalSources.rename.submit')}
                         </Button>
                     </Group>
                 </Stack>

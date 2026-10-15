@@ -1,5 +1,6 @@
 import { Text, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * A footer cell whose total is the column's own query collapsed to one row,
@@ -9,7 +10,8 @@ const TotalFromSourceCell: FC<{ value: string; sourceLabel: string }> = ({
     value,
     sourceLabel,
 }) => {
-    const explanation = `Total of the ${sourceLabel} query. The merge keeps every ${sourceLabel} row, so it is the total of the rows shown.`;
+    const { t } = useTranslation('table');
+    const explanation = t('totals.fromSourceExplanation', { sourceLabel });
     return (
         <Tooltip maw={360} multiline label={explanation}>
             <Text

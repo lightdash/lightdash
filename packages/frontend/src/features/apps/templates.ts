@@ -7,48 +7,48 @@ import {
     IconPuzzle,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
+import i18n from '../../i18n/i18n';
 
 export type TemplateDefinition = {
     id: DataAppTemplate;
+    /** English name walkthroughs select the card by (data-tour-value). */
+    tourName: string;
     title: string;
     description: string;
     icon: TablerIcon;
 };
 
+const KEYS: Record<DataAppTemplate, string> = {
+    dashboard: 'dashboard',
+    slideshow: 'slideshow',
+    pdf: 'pdf',
+    custom: 'custom',
+    data_app_viz: 'dataAppViz',
+};
+
+// Getters keep copy lazy: i18n may not be initialised at import time.
+const template = (
+    id: DataAppTemplate,
+    tourName: string,
+    icon: TablerIcon,
+): TemplateDefinition => ({
+    id,
+    tourName,
+    icon,
+    get title() {
+        return i18n.t(`templates.${KEYS[id]}.title`, { ns: 'apps' });
+    },
+    get description() {
+        return i18n.t(`templates.${KEYS[id]}.description`, { ns: 'apps' });
+    },
+});
+
 const TEMPLATES: TemplateDefinition[] = [
-    {
-        id: 'dashboard',
-        title: 'Dashboard',
-        description: 'A grid of KPIs and charts for at-a-glance reporting.',
-        icon: IconLayoutDashboard,
-    },
-    {
-        id: 'slideshow',
-        title: 'Slide Show',
-        description:
-            'A guided narrative - one chart per slide, navigated linearly.',
-        icon: IconPresentation,
-    },
-    {
-        id: 'pdf',
-        title: 'PDF Report',
-        description:
-            'A print-friendly document with sections and supporting charts.',
-        icon: IconFileText,
-    },
-    {
-        id: 'custom',
-        title: 'From scratch',
-        description: 'Start from scratch and describe whatever you want.',
-        icon: IconPencil,
-    },
-    {
-        id: 'data_app_viz',
-        title: 'Data app visualization',
-        description:
-            'A reusable single-tile chart you can apply to any query like a chart type.',
-        icon: IconPuzzle,
-    },
+    template('dashboard', 'Dashboard', IconLayoutDashboard),
+    template('slideshow', 'Slide Show', IconPresentation),
+    template('pdf', 'PDF Report', IconFileText),
+    template('custom', 'From scratch', IconPencil),
+    template('data_app_viz', 'Data app visualization', IconPuzzle),
 ];
 
 // Offered when creating a data app. Vizs (custom chart types) are created from

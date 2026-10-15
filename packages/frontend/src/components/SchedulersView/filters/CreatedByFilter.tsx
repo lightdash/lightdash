@@ -1,5 +1,6 @@
 import { useDebouncedValue } from '@mantine/hooks';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useInfiniteOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import FilterFacet, { type FilterFacetOption } from '../../common/FilterFacet';
 
@@ -25,6 +26,7 @@ const CreatedByFilter: FC<CreatedByFilterProps> = ({
     selectedCreatedByUserUuids,
     setSelectedCreatedByUserUuids,
 }) => {
+    const { t } = useTranslation('scheduler');
     const [searchValue, setSearchValue] = useState('');
     const [debouncedSearchValue] = useDebouncedValue(searchValue, 300);
 
@@ -70,18 +72,18 @@ const CreatedByFilter: FC<CreatedByFilterProps> = ({
 
     return (
         <FilterFacet
-            label="Owner"
+            label={t('filters.owner.label')}
             options={options}
             selected={selectedCreatedByUserUuids}
             onChange={setSelectedCreatedByUserUuids}
-            tooltipLabel="Filter by user who owns the scheduler"
+            tooltipLabel={t('filters.owner.tooltip')}
             searchValue={searchValue}
             onSearchChange={setSearchValue}
-            searchPlaceholder="Search users…"
+            searchPlaceholder={t('filters.owner.searchPlaceholder')}
             loading={isLoading}
             loadingMore={isFetching && !isLoading}
             onScrollEnd={handleScrollEnd}
-            emptyLabel="No users found"
+            emptyLabel={t('filters.owner.empty')}
         />
     );
 };

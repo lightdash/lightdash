@@ -28,6 +28,7 @@ import {
 } from '@tabler/icons-react';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     Link,
     useBlocker,
@@ -46,6 +47,7 @@ import {
 import sidebarDrawerClasses from '../../../components/common/SidebarDrawer.module.css';
 import { useProjects } from '../../../hooks/useProjects';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import i18n from '../../../i18n/i18n';
 import useApp from '../../../providers/App/useApp';
 import { VerifiedArtifactDetail } from '../../features/aiCopilot/components/Admin/VerifiedArtifactDetail';
 import { VerifiedArtifactsLayout } from '../../features/aiCopilot/components/Admin/VerifiedArtifactsLayout';
@@ -94,12 +96,17 @@ const useObjectUrl = (file: File | null): string | null => {
 };
 
 const formSchema = z.object({
-    name: z.string().min(1, 'Name is required'),
+    name: z.string().min(1, {
+        error: () => i18n.t('agents.edit.nameRequired', { ns: 'eeMisc' }),
+    }),
     description: z.string().nullable(),
     integrations: z.array(
         z.object({
             type: z.literal('slack'),
-            channelId: z.string().min(1, 'Channel is required'),
+            channelId: z.string().min(1, {
+                error: () =>
+                    i18n.t('agents.edit.channelRequired', { ns: 'eeMisc' }),
+            }),
         }),
     ),
     tags: z.array(z.string()).nullable(),
@@ -131,6 +138,7 @@ type Props = {
 };
 
 const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
+    const { t } = useTranslation('eeMisc');
     const compact = useMatches(
         { base: true, sm: false },
         { getInitialValueInEffect: false },
@@ -353,7 +361,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                 navigate(`/projects/${projectUuid}/ai-agents`)
                             }
                         >
-                            Back to Agents
+                            {t('agents.edit.backToAgents')}
                         </Button>
                     </Group>
                     <Paper
@@ -363,9 +371,11 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                         gap="xxs"
                         align="center"
                     >
-                        <Title order={5}>Agent not found</Title>
+                        <Title order={5}>
+                            {t('agents.edit.notFoundTitle')}
+                        </Title>
                         <Text size="sm" c="dimmed">
-                            The agent you are looking for does not exist.
+                            {t('agents.edit.notFoundDescription')}
                         </Text>
                     </Paper>
                 </Stack>
@@ -387,7 +397,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                             void navigate(returnTo);
                         }}
                     >
-                        Back
+                        {t('actions.back', { ns: 'common' })}
                     </Button>
                     <Stack gap="xs" align="center">
                         <LightdashUserAvatar
@@ -404,8 +414,8 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                         <Stack gap={0} align="center">
                             <Title order={5} ta="center" lineClamp={2}>
                                 {isCreateMode
-                                    ? 'New agent'
-                                    : agent?.name || 'Agent'}
+                                    ? t('agents.edit.newAgent')
+                                    : agent?.name || t('agents.edit.agent')}
                             </Title>
                             {currentProject && (
                                 <Text size="xs" c="dimmed" ta="center">
@@ -436,7 +446,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                 );
                             }}
                         >
-                            Setup
+                            {t('agents.edit.setup')}
                         </Button>
                         {activeTab === 'setup' && (
                             <AgentSettingsSectionNav
@@ -456,7 +466,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                 );
                             }}
                         >
-                            Evals
+                            {t('agents.edit.evals')}
                         </Button>
                     )}
                     {!isCreateMode && (
@@ -475,7 +485,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                 );
                             }}
                         >
-                            Verified Answers
+                            {t('agents.edit.verifiedAnswers')}
                         </Button>
                     )}
                     {!isCreateMode && (
@@ -489,7 +499,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                             component={Link}
                             to={`/generalSettings/ai/threads?projects=${projectUuid}&agents=${actualAgentUuid}`}
                         >
-                            Conversations
+                            {t('agents.edit.conversations')}
                         </Button>
                     )}
                 </Stack>
@@ -515,11 +525,11 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                     classNames={sidebarDrawerClasses}
                     opened={sidebarOpened}
                     onClose={() => setSidebarOpened(false)}
-                    title="Agent settings"
+                    title={t('agents.edit.settings')}
                     size="min(360px, 100vw)"
                     closeButtonProps={{
                         size: 44,
-                        'aria-label': 'Close agent settings navigation',
+                        'aria-label': t('agents.edit.closeNavigation'),
                     }}
                     onClickCapture={(event) => {
                         if (
@@ -545,7 +555,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                 <MantineIcon icon={IconAdjustmentsAlt} />
                             }
                         >
-                            Agent settings
+                            {t('agents.edit.settings')}
                         </Button>
                     </Group>
                 )}
@@ -653,14 +663,14 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             <MantineModal
                 opened={blocker.state === 'blocked'}
                 onClose={() => blocker.reset?.()}
-                title="Discard unsaved changes?"
+                title={t('agents.edit.discardTitle')}
                 icon={IconAdjustmentsAlt}
                 role="alertdialog"
                 size="md"
-                description="Your changes to this agent have not been saved. Leaving now will discard them."
-                confirmLabel="Discard changes"
+                description={t('agents.edit.discardDescription')}
+                confirmLabel={t('agents.edit.discardConfirm')}
                 onConfirm={() => blocker.proceed?.()}
-                cancelLabel="Keep editing"
+                cancelLabel={t('agents.edit.keepEditing')}
             />
         </AppShell>
     );

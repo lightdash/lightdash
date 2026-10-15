@@ -14,6 +14,7 @@ import {
     type FC,
     type SetStateAction,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     selectIsEditMode,
     useExplorerSelector,
@@ -38,6 +39,7 @@ export const FilterForm: FC<{
     customMetricFiltersWithIds,
     setCustomMetricFiltersWithIds,
 }) => {
+    const { t } = useTranslation('explorer');
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const { itemsMap: dimensionsMap } =
         useFiltersContext<Record<string, FilterableDimension>>();
@@ -126,7 +128,7 @@ export const FilterForm: FC<{
                 }}
                 disabled={selectableDimensions.length <= 0}
             >
-                Add filter
+                {t('customMetric.filters.addFilter')}
             </Button>
         </Stack>
     );

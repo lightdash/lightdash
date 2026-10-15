@@ -8,6 +8,7 @@ import {
 } from '@mantine/core';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { type CustomHeaderRow } from '../utils/customHeaders';
 
@@ -29,6 +30,7 @@ export const CustomHeadersField: FC<Props> = ({
     error,
     disabled,
 }) => {
+    const { t } = useTranslation('sync');
     const updateRow = (index: number, patch: Partial<CustomHeaderRow>) => {
         onChange(
             value.map((row, i) => (i === index ? { ...row, ...patch } : row)),
@@ -41,16 +43,16 @@ export const CustomHeadersField: FC<Props> = ({
                 {label}
             </Text>
             <Text c="dimmed" fz="xs">
-                Sent with every request — e.g. anthropic-version or
-                X-GitHub-Api-Version. Never put secrets here; use the
-                connection's authentication instead.
+                {t('externalConnections.customHeaders.description')}
             </Text>
             {value.map((row, index) => (
                 // Rows have no stable identity — index keys are intentional.
                 // eslint-disable-next-line react/no-array-index-key
                 <Group key={index} gap="xs" align="flex-start">
                     <TextInput
-                        aria-label="Header name"
+                        aria-label={t(
+                            'externalConnections.customHeaders.nameAriaLabel',
+                        )}
                         placeholder="anthropic-version"
                         flex={1}
                         value={row.name}
@@ -60,7 +62,9 @@ export const CustomHeadersField: FC<Props> = ({
                         }
                     />
                     <TextInput
-                        aria-label="Header value"
+                        aria-label={t(
+                            'externalConnections.customHeaders.valueAriaLabel',
+                        )}
                         placeholder="2023-06-01"
                         flex={1}
                         value={row.value}
@@ -70,7 +74,9 @@ export const CustomHeadersField: FC<Props> = ({
                         }
                     />
                     <ActionIcon
-                        aria-label="Remove header"
+                        aria-label={t(
+                            'externalConnections.customHeaders.remove',
+                        )}
                         mt={4}
                         disabled={disabled}
                         onClick={() =>
@@ -91,7 +97,7 @@ export const CustomHeadersField: FC<Props> = ({
                         onChange([...value, { name: '', value: '' }])
                     }
                 >
-                    Add header
+                    {t('externalConnections.customHeaders.add')}
                 </Button>
             </Group>
             {error && (

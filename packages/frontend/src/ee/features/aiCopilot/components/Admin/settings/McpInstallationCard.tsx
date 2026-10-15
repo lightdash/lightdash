@@ -9,7 +9,9 @@ import {
     Title,
 } from '@mantine/core';
 import { IconPlugConnected } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { type ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import CodeBlock from '../../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
@@ -31,7 +33,7 @@ type Client = {
     steps: { text: ReactNode; code?: string; language?: string }[];
 };
 
-const getClients = (url: string): Client[] => {
+const getClients = (url: string, t: TFunction): Client[] => {
     const quotedUrl = `'${url.replaceAll("'", "'\\''")}'`;
 
     return [
@@ -43,14 +45,14 @@ const getClients = (url: string): Client[] => {
                 'https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp',
             steps: [
                 {
-                    text: 'In Claude Desktop, open Customize → Connectors and choose Add custom connector.',
+                    text: t('settings.mcpInstall.steps.claudeDesktop.s1'),
                 },
                 {
-                    text: 'Name it Lightdash and paste this server URL. Remote connectors need a publicly reachable HTTPS URL.',
+                    text: t('settings.mcpInstall.steps.claudeDesktop.s2'),
                     code: url,
                 },
                 {
-                    text: 'Add the connector, then sign in to Lightdash and approve access.',
+                    text: t('settings.mcpInstall.steps.claudeDesktop.s3'),
                 },
             ],
         },
@@ -61,20 +63,21 @@ const getClients = (url: string): Client[] => {
             docsUrl: 'https://code.claude.com/docs/en/mcp',
             steps: [
                 {
-                    text: 'Run this command in your terminal.',
+                    text: t('settings.mcpInstall.steps.claudeCode.s1'),
                     code: `claude mcp add --transport http lightdash ${quotedUrl}`,
                     language: 'bash',
                 },
                 {
                     text: (
-                        <>
-                            In Claude Code, run <Code>/mcp</Code>, select
-                            Lightdash, then choose Authenticate.
-                        </>
+                        <Trans
+                            t={t}
+                            i18nKey="settings.mcpInstall.steps.claudeCode.s2"
+                            components={{ code: <Code /> }}
+                        />
                     ),
                 },
                 {
-                    text: 'Sign in to Lightdash in your browser and approve access.',
+                    text: t('settings.mcpInstall.steps.signInBrowser'),
                 },
             ],
         },
@@ -85,15 +88,15 @@ const getClients = (url: string): Client[] => {
             docsUrl: 'https://learn.chatgpt.com/docs/extend/mcp?surface=cli',
             steps: [
                 {
-                    text: 'Add the server and start sign-in from your terminal.',
+                    text: t('settings.mcpInstall.steps.codex.s1'),
                     code: `codex mcp add lightdash --url ${quotedUrl}\ncodex mcp login lightdash`,
                     language: 'bash',
                 },
                 {
-                    text: 'Sign in to Lightdash in your browser and approve access.',
+                    text: t('settings.mcpInstall.steps.signInBrowser'),
                 },
                 {
-                    text: 'Start a new Codex session to use the Lightdash tools.',
+                    text: t('settings.mcpInstall.steps.codex.s3'),
                 },
             ],
         },
@@ -105,10 +108,11 @@ const getClients = (url: string): Client[] => {
             steps: [
                 {
                     text: (
-                        <>
-                            Add this server to your project’s{' '}
-                            <Code>.cursor/mcp.json</Code>.
-                        </>
+                        <Trans
+                            t={t}
+                            i18nKey="settings.mcpInstall.steps.cursor.s1"
+                            components={{ code: <Code /> }}
+                        />
                     ),
                     code: JSON.stringify(
                         { mcpServers: { lightdash: { url } } },
@@ -118,10 +122,10 @@ const getClients = (url: string): Client[] => {
                     language: 'json',
                 },
                 {
-                    text: 'Open Cursor Settings → MCP & Integrations and connect Lightdash.',
+                    text: t('settings.mcpInstall.steps.cursor.s2'),
                 },
                 {
-                    text: 'Sign in to Lightdash in your browser and approve access.',
+                    text: t('settings.mcpInstall.steps.signInBrowser'),
                 },
             ],
         },
@@ -134,10 +138,11 @@ const getClients = (url: string): Client[] => {
             steps: [
                 {
                     text: (
-                        <>
-                            Add this server to your project’s{' '}
-                            <Code>.vscode/mcp.json</Code>.
-                        </>
+                        <Trans
+                            t={t}
+                            i18nKey="settings.mcpInstall.steps.vscode.s1"
+                            components={{ code: <Code /> }}
+                        />
                     ),
                     code: JSON.stringify(
                         { servers: { lightdash: { type: 'http', url } } },
@@ -148,32 +153,33 @@ const getClients = (url: string): Client[] => {
                 },
                 {
                     text: (
-                        <>
-                            Run <Code>MCP: List Servers</Code> from the Command
-                            Palette, select Lightdash, and start it.
-                        </>
+                        <Trans
+                            t={t}
+                            i18nKey="settings.mcpInstall.steps.vscode.s2"
+                            components={{ code: <Code /> }}
+                        />
                     ),
                 },
                 {
-                    text: 'Sign in to Lightdash when prompted, then use the tools in Copilot agent mode.',
+                    text: t('settings.mcpInstall.steps.vscode.s3'),
                 },
             ],
         },
         {
             id: 'other',
-            name: 'Other clients',
+            name: t('settings.mcpInstall.otherClients'),
             icon: <MantineIcon icon={IconPlugConnected} size="md" />,
             docsUrl: `${LIGHTDASH_MCP_DOCS}#manual-setup`,
             steps: [
                 {
-                    text: 'Add a remote MCP server and choose Streamable HTTP as the transport.',
+                    text: t('settings.mcpInstall.steps.other.s1'),
                 },
                 {
-                    text: 'Name it Lightdash and paste this server URL.',
+                    text: t('settings.mcpInstall.steps.other.s2'),
                     code: url,
                 },
                 {
-                    text: 'Choose OAuth authentication, sign in to Lightdash, and approve access.',
+                    text: t('settings.mcpInstall.steps.other.s3'),
                 },
             ],
         },
@@ -181,26 +187,26 @@ const getClients = (url: string): Client[] => {
 };
 
 export const McpInstallationCard = () => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const { health } = useApp();
     const siteUrl = health.data?.siteUrl ?? window.location.origin;
     const mcpUrl = `${siteUrl.replace(/\/+$/, '')}/api/v1/mcp`;
-    const clients = getClients(mcpUrl);
+    const clients = getClients(mcpUrl, t);
 
     return (
         <SettingsCard p="md">
             <Stack gap="sm">
                 <Stack gap={4}>
-                    <Title order={5}>Client setup</Title>
+                    <Title order={5}>{t('settings.mcpInstall.title')}</Title>
                     <Text size="sm" c="dimmed">
-                        Connect your AI tools to Lightdash. Choose a client to
-                        get started.
+                        {t('settings.mcpInstall.description')}
                     </Text>
                 </Stack>
                 <Tabs defaultValue="claude-desktop" keepMounted={false}>
                     <Box className={classes.tabScroller}>
                         <Tabs.List
                             className={classes.tabList}
-                            aria-label="MCP clients"
+                            aria-label={t('settings.mcpInstall.clientsAria')}
                         >
                             {clients.map((client) => (
                                 <Tabs.Tab
@@ -235,7 +241,12 @@ export const McpInstallationCard = () => {
                                                     <CodeBlock
                                                         code={step.code}
                                                         language={step.language}
-                                                        copyLabel={`Copy ${client.name} configuration`}
+                                                        copyLabel={t(
+                                                            'settings.mcpInstall.copyLabel',
+                                                            {
+                                                                client: client.name,
+                                                            },
+                                                        )}
                                                     />
                                                 )}
                                             </Stack>
@@ -244,29 +255,39 @@ export const McpInstallationCard = () => {
                                 </List>
                                 <Stack gap={4}>
                                     <Text size="xs" c="dimmed">
-                                        For more details, see the{' '}
-                                        <Anchor
-                                            href={client.docsUrl}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            size="xs"
-                                        >
-                                            {client.name} MCP documentation
-                                        </Anchor>
-                                        .
+                                        <Trans
+                                            t={t}
+                                            i18nKey="settings.mcpInstall.moreDetails"
+                                            values={{ client: client.name }}
+                                            components={{
+                                                anchor: (
+                                                    <Anchor
+                                                        href={client.docsUrl}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        size="xs"
+                                                    />
+                                                ),
+                                            }}
+                                        />
                                     </Text>
                                     <Text size="xs" c="dimmed">
-                                        Connections use your Lightdash
-                                        permissions.{' '}
-                                        <Anchor
-                                            href={LIGHTDASH_MCP_DOCS}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            size="xs"
-                                        >
-                                            Read the Lightdash MCP guide
-                                        </Anchor>
-                                        .
+                                        <Trans
+                                            t={t}
+                                            i18nKey="settings.mcpInstall.permissions"
+                                            components={{
+                                                anchor: (
+                                                    <Anchor
+                                                        href={
+                                                            LIGHTDASH_MCP_DOCS
+                                                        }
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        size="xs"
+                                                    />
+                                                ),
+                                            }}
+                                        />
                                     </Text>
                                 </Stack>
                             </Stack>

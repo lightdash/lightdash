@@ -30,6 +30,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { v4 as uuidv4 } from 'uuid';
 import {
     explorerActions,
@@ -91,6 +92,7 @@ const TreeSingleNodeActions: FC<Props> = ({
     const customDimensionWriteBackError = isCustomDimension(item)
         ? getCustomDimensionWriteBackError(item)
         : null;
+    const { t } = useTranslation('explorer');
     const customMetrics = useMemo(() => {
         if (isCustomSqlDimension(item)) {
             return getCustomMetricType(item.dimensionType);
@@ -119,7 +121,9 @@ const TreeSingleNodeActions: FC<Props> = ({
         } else {
             currentName = currentName + pattern + newIdSubstring;
         }
-        newDeepCopyItem.label = 'Copy ' + newDeepCopyItem.label;
+        newDeepCopyItem.label = t('exploreTree.actions.copyOf', {
+            name: newDeepCopyItem.label,
+        });
         newDeepCopyItem.uuid = newId;
         newDeepCopyItem.name = currentName;
         dispatch(explorerActions.addAdditionalMetric(newDeepCopyItem));
@@ -137,7 +141,9 @@ const TreeSingleNodeActions: FC<Props> = ({
         } else {
             currentId = currentId + pattern + newIdSubstring;
         }
-        newDeepCopyItem.name = 'Copy ' + newDeepCopyItem.name;
+        newDeepCopyItem.name = t('exploreTree.actions.copyOf', {
+            name: newDeepCopyItem.name,
+        });
         newDeepCopyItem.id = currentId;
         dispatch(explorerActions.addCustomDimension(newDeepCopyItem));
     };
@@ -168,7 +174,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                             }
                         }}
                     >
-                        Add filter
+                        {t('exploreTree.actions.addFilter')}
                     </Menu.Item>
                 ) : null}
 
@@ -193,7 +199,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                             );
                         }}
                     >
-                        Create custom metric
+                        {t('exploreTree.actions.createCustomMetric')}
                     </Menu.Item>
                 ) : null}
 
@@ -213,7 +219,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                             );
                         }}
                     >
-                        Edit custom metric
+                        {t('exploreTree.actions.editCustomMetric')}
                     </Menu.Item>
                 ) : null}
 
@@ -227,7 +233,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                             requestRegistryMetricDelete?.(item);
                         }}
                     >
-                        Delete custom metric
+                        {t('exploreTree.actions.deleteCustomMetric')}
                     </Menu.Item>
                 ) : null}
 
@@ -245,11 +251,13 @@ const TreeSingleNodeActions: FC<Props> = ({
                                     name: EventName.ADD_CUSTOM_METRIC_CLICKED,
                                 });
                                 showToastSuccess({
-                                    title: 'Copy of Custom metric added successfully',
+                                    title: t(
+                                        'exploreTree.actions.customMetricDuplicated',
+                                    ),
                                 });
                             }}
                         >
-                            Duplicate custom metric
+                            {t('exploreTree.actions.duplicateCustomMetric')}
                         </Menu.Item>
 
                         {/* Write-back requires a base dimension column to attach the metric to in YAML */}
@@ -283,7 +291,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                                     );
                                 }}
                             >
-                                Write back to project
+                                {t('exploreTree.actions.writeBack')}
                             </Menu.Item>
                         ) : null}
 
@@ -307,7 +315,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                                 );
                             }}
                         >
-                            Delete custom metric
+                            {t('exploreTree.actions.deleteCustomMetric')}
                         </Menu.Item>
                     </>
                 ) : null}
@@ -321,7 +329,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                             onViewDescription();
                         }}
                     >
-                        View description
+                        {t('exploreTree.actions.viewDescription')}
                     </Menu.Item>
                 )}
 
@@ -350,7 +358,9 @@ const TreeSingleNodeActions: FC<Props> = ({
                                         );
                                     }}
                                 >
-                                    Edit custom dimension
+                                    {t(
+                                        'exploreTree.actions.editCustomDimension',
+                                    )}
                                 </Menu.Item>
                                 <Menu.Item
                                     component="button"
@@ -366,11 +376,15 @@ const TreeSingleNodeActions: FC<Props> = ({
                                             name: EventName.ADD_CUSTOM_DIMENSION_CLICKED,
                                         });
                                         showToastSuccess({
-                                            title: 'Copy of Custom Dimension added successfully',
+                                            title: t(
+                                                'exploreTree.actions.customDimensionDuplicated',
+                                            ),
                                         });
                                     }}
                                 >
-                                    Duplicate custom dimension
+                                    {t(
+                                        'exploreTree.actions.duplicateCustomDimension',
+                                    )}
                                 </Menu.Item>
                                 {!cannotAuthorCustomSql && (
                                     <Tooltip
@@ -428,7 +442,9 @@ const TreeSingleNodeActions: FC<Props> = ({
                                                     );
                                                 }}
                                             >
-                                                Write back to project
+                                                {t(
+                                                    'exploreTree.actions.writeBack',
+                                                )}
                                             </Menu.Item>
                                         </Box>
                                     </Tooltip>
@@ -456,7 +472,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                                     );
                                 }}
                             >
-                                Delete custom dimension
+                                {t('exploreTree.actions.deleteCustomDimension')}
                             </Menu.Item>
                         )}
                     </>
@@ -468,7 +484,9 @@ const TreeSingleNodeActions: FC<Props> = ({
                     <>
                         <Menu.Divider />
 
-                        <Menu.Label>Add custom metrics</Menu.Label>
+                        <Menu.Label>
+                            {t('exploreTree.actions.addCustomMetrics')}
+                        </Menu.Label>
                         {customMetrics.map((metric) => (
                             <Menu.Item
                                 key={metric}
@@ -532,7 +550,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                                 );
                             }}
                         >
-                            Add custom dimensions
+                            {t('exploreTree.actions.addCustomDimensions')}
                         </Menu.Item>
                     </>
                 ) : null}
@@ -550,11 +568,11 @@ const TreeSingleNodeActions: FC<Props> = ({
                     <Tooltip
                         openDelay={500}
                         position="top"
-                        label="View options"
+                        label={t('exploreTree.actions.viewOptions')}
                         disabled={isOpened}
                     >
                         <ActionIcon
-                            aria-label="View options"
+                            aria-label={t('exploreTree.actions.viewOptions')}
                             variant="transparent"
                         >
                             <MantineIcon

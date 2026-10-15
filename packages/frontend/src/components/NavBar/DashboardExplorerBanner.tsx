@@ -2,6 +2,7 @@ import { assertUnreachable } from '@lightdash/common';
 import { Button, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
@@ -12,6 +13,7 @@ type Props = {
 };
 
 export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
+    const { t } = useTranslation('navigation');
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
         projectRoute?.projectUrlIdentifier ?? projectUuid;
@@ -46,24 +48,24 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
     const cancelButtonText = useMemo(() => {
         switch (action) {
             case 'viewing':
-                return 'Return to dashboard';
+                return t('dashboardExplorer.returnToDashboard');
             case 'creating':
             case 'editing':
-                return 'Cancel';
+                return t('actions.cancel', { ns: 'common' });
             default:
                 return assertUnreachable(
                     action,
                     `${action} is not a valid action`,
                 );
         }
-    }, [action]);
+    }, [action, t]);
 
     const cancelButtonTooltipText = useMemo(() => {
         switch (action) {
             case 'creating':
-                return 'Cancel chart creation and return to dashboard';
+                return t('dashboardExplorer.cancelCreationTooltip');
             case 'editing':
-                return 'Cancel chart editing and return to dashboard';
+                return t('dashboardExplorer.cancelEditingTooltip');
             case 'viewing':
                 return '';
             default:
@@ -72,7 +74,35 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
                     `${action} is not a valid action`,
                 );
         }
-    }, [action]);
+    }, [action, t]);
+
+    const bannerText = useMemo(() => {
+        switch (action) {
+            case 'creating':
+                return dashboardName
+                    ? t('dashboardExplorer.creatingInNamed', {
+                          name: dashboardName,
+                      })
+                    : t('dashboardExplorer.creating');
+            case 'editing':
+                return dashboardName
+                    ? t('dashboardExplorer.editingInNamed', {
+                          name: dashboardName,
+                      })
+                    : t('dashboardExplorer.editing');
+            case 'viewing':
+                return dashboardName
+                    ? t('dashboardExplorer.viewingInNamed', {
+                          name: dashboardName,
+                      })
+                    : t('dashboardExplorer.viewing');
+            default:
+                return assertUnreachable(
+                    action,
+                    `${action} is not a valid action`,
+                );
+        }
+    }, [action, dashboardName, t]);
 
     const handleOnCancel = useCallback(() => {
         if (!projectUrlIdentifier) {
@@ -111,11 +141,7 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
             <MantineIcon icon={IconInfoCircle} color="white" size="sm" />
 
             <Text c="white" fw={500} fz="xs" mx={4}>
-                {isCancelling
-                    ? `Cancelling...`
-                    : `You are ${action} this chart from within ${
-                          dashboardName ? `"${dashboardName}"` : 'a dashboard'
-                      }`}
+                {isCancelling ? t('dashboardExplorer.cancelling') : bannerText}
             </Text>
 
             <Tooltip

@@ -1,6 +1,7 @@
 import { ActionIcon, Group, Text, Tooltip } from '@mantine/core';
 import { IconGripVertical, IconTrash } from '@tabler/icons-react';
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import ReportChartFrame from '../presentation/ReportChartFrame';
 import styles from '../presentation/ReportPresentation.module.css';
@@ -12,20 +13,21 @@ const DocumentUnsupportedNodeView = ({
     deleteNode,
     selected,
 }: NodeViewProps) => {
+    const { t } = useTranslation('documents');
     const { block } = node.attrs as DocumentUnsupportedAttributes;
     if (!block) {
         return null;
     }
-    const label = block.type === 'unsupportedChart' ? 'chart' : 'block';
+    const kind = block.type === 'unsupportedChart' ? 'chart' : 'block';
     const actions = editor.isEditable ? (
         <Group gap="xs" wrap="nowrap">
-            <Tooltip label="Drag to move">
+            <Tooltip label={t('editor.dragToMove')}>
                 {/* A div, not a button: Firefox never starts a drag from a <button> */}
                 <ActionIcon
                     component="div"
                     role="button"
                     tabIndex={0}
-                    aria-label={`Drag ${label}`}
+                    aria-label={t(`unsupported.${kind}.drag`)}
                     className={styles.chartDragHandle}
                     draggable
                     data-drag-handle
@@ -33,8 +35,11 @@ const DocumentUnsupportedNodeView = ({
                     <MantineIcon icon={IconGripVertical} />
                 </ActionIcon>
             </Tooltip>
-            <Tooltip label={`Remove ${label}`}>
-                <ActionIcon aria-label={`Remove ${label}`} onClick={deleteNode}>
+            <Tooltip label={t(`unsupported.${kind}.remove`)}>
+                <ActionIcon
+                    aria-label={t(`unsupported.${kind}.remove`)}
+                    onClick={deleteNode}
+                >
                     <MantineIcon icon={IconTrash} />
                 </ActionIcon>
             </Tooltip>
@@ -43,12 +48,12 @@ const DocumentUnsupportedNodeView = ({
     return (
         <NodeViewWrapper data-selected={selected || undefined}>
             <ReportChartFrame
-                ariaLabel={`Unsupported ${label}`}
+                ariaLabel={t(`unsupported.${kind}.ariaLabel`)}
                 actions={actions}
                 fit="content"
             >
                 <Text c="dimmed" size="sm" p="md">
-                    {`This ${label} was added in a newer version and can't be shown here.`}
+                    {t(`unsupported.${kind}.message`)}
                 </Text>
             </ReportChartFrame>
         </NodeViewWrapper>

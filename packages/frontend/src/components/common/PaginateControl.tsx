@@ -1,6 +1,7 @@
 import { Group, Pagination, Text, type GroupProps } from '@mantine/core';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import type { FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 
 type PaginateControlProps = GroupProps & {
     currentPage: number;
@@ -20,17 +21,16 @@ const PaginateControl: FC<PaginateControlProps> = ({
     hasNextPage,
     ...rest
 }) => {
+    const { t } = useTranslation('table');
     return (
         <Group {...rest}>
             <Text c="ldGray.7" size="xs">
-                Page{' '}
-                <Text span fw={600}>
-                    {currentPage}
-                </Text>{' '}
-                of{' '}
-                <Text span fw={600}>
-                    {totalPages}
-                </Text>
+                <Trans
+                    t={t}
+                    i18nKey="paginateControl.pageOf"
+                    values={{ currentPage, totalPages }}
+                    components={{ strong: <Text span fw={600} /> }}
+                />
             </Text>
 
             <Pagination.Root

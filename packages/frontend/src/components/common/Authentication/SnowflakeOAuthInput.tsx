@@ -2,6 +2,7 @@ import { WarehouseTypes } from '@lightdash/common';
 import { Anchor, Button, Text } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
 import React, { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useIsSnowflakeAuthenticated,
     useSnowflakeLoginPopup,
@@ -14,6 +15,7 @@ type Props = {
 };
 
 export const SnowflakeOAuthInput: FC<Props> = ({ onAuthenticated }) => {
+    const { t } = useTranslation('commonUi');
     const {
         data,
         isInitialLoading,
@@ -43,14 +45,14 @@ export const SnowflakeOAuthInput: FC<Props> = ({ onAuthenticated }) => {
     if (isAuthenticated) {
         return (
             <Text mt="0" c="ldGray.8" fz="xs">
-                You are connected to Snowflake,{' '}
+                {t('snowflakeOAuth.connected')}{' '}
                 <Anchor
                     href="#"
                     onClick={() => {
                         openLoginPopup();
                     }}
                 >
-                    Click here to reauthenticate.
+                    {t('snowflakeOAuth.reauthenticate')}
                 </Anchor>
             </Text>
         );
@@ -69,7 +71,7 @@ export const SnowflakeOAuthInput: FC<Props> = ({ onAuthenticated }) => {
                 <MantineIcon icon={IconExternalLink} color="dimmed" />
             }
         >
-            Sign in with Snowflake
+            {t('snowflakeOAuth.signIn')}
         </Button>
     );
 };

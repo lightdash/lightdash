@@ -48,6 +48,7 @@ import {
     IconUpload,
 } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, useState, type ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { z } from 'zod';
 import { BetaBadge } from '../../../../components/common/BetaBadge';
@@ -201,6 +202,7 @@ export const AiAgentFormSetup = ({
     onAvatarRemove: () => void;
     onAvatarRevert: (() => void) | null;
 }) => {
+    const { t } = useTranslation('aiAgent');
     const { data: aiOrganizationSettings } = useAiOrganizationSettings();
     const modelOptions = aiOrganizationSettings?.defaultAiAgentModelOptions;
     // Shown when there is a real choice, or when a pin is already set — a
@@ -221,7 +223,10 @@ export const AiAgentFormSetup = ({
             (providerCredentialsQuery.data?.credentials ?? []).map(
                 (credential) => ({
                     value: credential.uuid,
-                    label: `${credential.label} — ${credential.region}`,
+                    label: t('form.credentialOption', {
+                        label: credential.label,
+                        region: credential.region,
+                    }),
                 }),
             );
         if (
@@ -235,13 +240,15 @@ export const AiAgentFormSetup = ({
             options.push({
                 value: pinnedCredentialUuid,
                 label: unreadable
-                    ? `${unreadable.label} — unavailable`
-                    : 'Unavailable credential',
+                    ? t('form.credentialUnavailableNamed', {
+                          label: unreadable.label,
+                      })
+                    : t('form.credentialUnavailable'),
                 disabled: true,
             });
         }
         return options;
-    }, [providerCredentialsQuery.data, pinnedCredentialUuid]);
+    }, [providerCredentialsQuery.data, pinnedCredentialUuid, t]);
     const exploreAccessSummaryQuery = useGetAgentExploreAccessSummary(
         projectUuid!,
         {
@@ -298,7 +305,7 @@ export const AiAgentFormSetup = ({
         modelOptions,
         modelConfig: form.values.modelConfig,
         fallbackModelConfig: aiOrganizationSettings?.defaultAiAgentModelConfig,
-        fallbackLabel: 'Organization default',
+        fallbackLabel: t('form.organizationDefault'),
     });
     const slackChannelsConfigured = useMemo(
         () =>
@@ -408,8 +415,8 @@ export const AiAgentFormSetup = ({
                     <AgentSettingsSection
                         id="identity"
                         icon={IconId}
-                        title="Identity"
-                        description="How this agent introduces itself wherever it appears."
+                        title={t('settingsSections.identity')}
+                        description={t('form.identity.description')}
                         action={
                             mode === 'edit' &&
                             agentUuid &&
@@ -422,14 +429,14 @@ export const AiAgentFormSetup = ({
                                         <MantineIcon icon={IconCode} />
                                     }
                                 >
-                                    View as code
+                                    {t('form.identity.viewAsCode')}
                                 </Button>
                             ) : null
                         }
                     >
                         <TextInput
-                            label="Name"
-                            placeholder="Enter a name for this agent"
+                            label={t('form.identity.name')}
+                            placeholder={t('form.identity.namePlaceholder')}
                             variant="subtle"
                             // Typed anchor for scope walkthroughs, read first
                             // as a look at naming.
@@ -449,9 +456,11 @@ export const AiAgentFormSetup = ({
                                 form.values.description != null
                             }`}
                             variant="subtle"
-                            label="Description"
-                            description="A brief description of what this agent does and its purpose."
-                            placeholder="Describe what this agent specializes in..."
+                            label={t('form.identity.descriptionLabel')}
+                            description={t('form.identity.descriptionHelp')}
+                            placeholder={t(
+                                'form.identity.descriptionPlaceholder',
+                            )}
                             minRows={3}
                             maxRows={6}
                             error={form.errors.description}
@@ -465,19 +474,17 @@ export const AiAgentFormSetup = ({
                         />
                         <Box>
                             <Text size="sm" fw={500}>
-                                Avatar
+                                {t('form.identity.avatar')}
                             </Text>
                             <Text size="xs" c="dimmed" mt={2}>
-                                Upload an image (PNG, JPG, GIF) or use an image
-                                URL. Images are cropped to a square; a default
-                                avatar is used if none is set.
+                                {t('form.identity.avatarHelp')}
                             </Text>
 
                             {avatarMode === 'link' ? (
                                 <TextInput
                                     mt="sm"
                                     variant="subtle"
-                                    label="Avatar image URL"
+                                    label={t('form.identity.avatarUrl')}
                                     placeholder="https://example.com/avatar.jpg"
                                     type="url"
                                     {...form.getInputProps('imageUrl')}
@@ -506,7 +513,7 @@ export const AiAgentFormSetup = ({
                                                     />
                                                 }
                                             >
-                                                Upload image
+                                                {t('form.identity.uploadImage')}
                                             </Button>
                                         )}
                                     </FileButton>
@@ -533,8 +540,8 @@ export const AiAgentFormSetup = ({
                                     }
                                 >
                                     {avatarMode === 'link'
-                                        ? 'Upload an image instead'
-                                        : 'Use an image URL instead'}
+                                        ? t('form.identity.uploadInstead')
+                                        : t('form.identity.urlInstead')}
                                 </Anchor>
                                 {onAvatarRevert !== null && (
                                     <Anchor
@@ -544,7 +551,7 @@ export const AiAgentFormSetup = ({
                                         c="dimmed"
                                         onClick={onAvatarRevert}
                                     >
-                                        Revert
+                                        {t('form.identity.revert')}
                                     </Anchor>
                                 )}
                                 {(avatarFileName !== null ||
@@ -556,7 +563,7 @@ export const AiAgentFormSetup = ({
                                         c="red"
                                         onClick={onAvatarRemove}
                                     >
-                                        Remove
+                                        {t('actions.remove', { ns: 'common' })}
                                     </Anchor>
                                 )}
                             </Group>
@@ -566,20 +573,24 @@ export const AiAgentFormSetup = ({
                     <AgentSettingsSection
                         id="behaviour"
                         icon={IconSparkles}
-                        title="Behaviour"
-                        description="How the agent acts on every request, the workflows it can follow, and the model it thinks with."
+                        title={t('settingsSections.behaviour')}
+                        description={t('form.behaviour.description')}
                     >
                         <AgentSettingsSubsection
-                            title="Instructions"
-                            description="Always applied. Guidance for the agent's role, behaviour, priorities, and response style."
+                            title={t('form.behaviour.instructions')}
+                            description={t(
+                                'form.behaviour.instructionsDescription',
+                            )}
                         >
                             <CommitOnBlurTextarea
                                 key={`instruction-${
                                     form.values.instruction != null
                                 }`}
                                 variant="subtle"
-                                aria-label="Instructions"
-                                placeholder="You are a marketing analytics expert. Focus on campaign performance, customer acquisition costs, and ROI metrics. Always use bar charts and tables to visualize data."
+                                aria-label={t('form.behaviour.instructions')}
+                                placeholder={t(
+                                    'form.behaviour.instructionsPlaceholder',
+                                )}
                                 resize="vertical"
                                 autosize
                                 minRows={3}
@@ -612,25 +623,26 @@ export const AiAgentFormSetup = ({
                                         size="sm"
                                         fw={500}
                                     >
-                                        Guidelines
+                                        {t('form.behaviour.guidelines')}
                                     </Title>
                                     <Text c="dimmed" size="xs">
-                                        When writing instructions, consider the
-                                        following guidelines to help the agent
-                                        perform its tasks effectively.
+                                        {t('form.behaviour.guidelinesHelp')}
                                     </Text>
                                 </Box>
                                 <InstructionsGuidelines />
                                 <Text c="dimmed" size="xs">
-                                    Visit our{' '}
-                                    <Anchor
-                                        href="https://docs.lightdash.com/guides/ai-agents#writing-effective-instructions"
-                                        target="_blank"
-                                    >
-                                        docs
-                                    </Anchor>{' '}
-                                    to learn more about instructions and how
-                                    they work.
+                                    <Trans
+                                        t={t}
+                                        i18nKey="form.behaviour.docsLink"
+                                        components={{
+                                            anchor: (
+                                                <Anchor
+                                                    href="https://docs.lightdash.com/guides/ai-agents#writing-effective-instructions"
+                                                    target="_blank"
+                                                />
+                                            ),
+                                        }}
+                                    />
                                 </Text>
                             </Stack>
                         </AgentSettingsSubsection>
@@ -651,12 +663,14 @@ export const AiAgentFormSetup = ({
                         <Divider />
 
                         <AgentSettingsSubsection
-                            title="Default model"
-                            description="Used for new chats with this agent. Users can still change it in each chat."
+                            title={t('form.behaviour.defaultModel')}
+                            description={t(
+                                'form.behaviour.defaultModelDescription',
+                            )}
                         >
                             <Select
                                 variant="subtle"
-                                aria-label="Default model"
+                                aria-label={t('form.behaviour.defaultModel')}
                                 value={selectedModelKey}
                                 disabled={
                                     isSavingAgent || !modelOptions?.length
@@ -707,8 +721,10 @@ export const AiAgentFormSetup = ({
                             {showReasoningDefault && (
                                 <Switch
                                     variant="subtle"
-                                    label="High reasoning"
-                                    description="Use high reasoning for new chats with this agent."
+                                    label={t('form.behaviour.highReasoning')}
+                                    description={t(
+                                        'form.behaviour.highReasoningDescription',
+                                    )}
                                     checked={
                                         form.values.modelConfig?.reasoning ===
                                         true
@@ -733,15 +749,21 @@ export const AiAgentFormSetup = ({
                             <>
                                 <Divider />
                                 <AgentSettingsSubsection
-                                    title="AI provider credential"
-                                    description="Where this agent's requests are processed. Leave empty to follow the project or organization setting."
+                                    title={t('form.behaviour.credential')}
+                                    description={t(
+                                        'form.behaviour.credentialDescription',
+                                    )}
                                 >
                                     <Select
                                         variant="subtle"
-                                        aria-label="AI provider credential"
+                                        aria-label={t(
+                                            'form.behaviour.credential',
+                                        )}
                                         value={pinnedCredentialUuid}
                                         disabled={isSavingAgent}
-                                        placeholder="Project or organization default"
+                                        placeholder={t(
+                                            'form.behaviour.credentialPlaceholder',
+                                        )}
                                         clearable
                                         data={credentialOptions}
                                         onChange={(value) =>
@@ -759,12 +781,14 @@ export const AiAgentFormSetup = ({
                     <AgentSettingsSection
                         id="knowledge-and-data"
                         icon={IconBook2}
-                        title="Knowledge & data"
-                        description="What this agent can look at when it answers."
+                        title={t('settingsSections.knowledgeAndData')}
+                        description={t('form.knowledge.description')}
                     >
                         <AgentSettingsSubsection
-                            title="Reference documents"
-                            description="Consulted when relevant. Business context and source material the agent can retrieve, or include on every request. A short summary is generated for each file."
+                            title={t('form.knowledge.documents')}
+                            description={t(
+                                'form.knowledge.documentsDescription',
+                            )}
                         >
                             {agentUuid ? (
                                 <AiAgentKnowledgeFilesSection
@@ -775,8 +799,9 @@ export const AiAgentFormSetup = ({
                             ) : (
                                 <Paper variant="dotted" p="sm">
                                     <Text size="xs" c="dimmed" ta="center">
-                                        You can upload documents once this agent
-                                        is created.
+                                        {t(
+                                            'form.knowledge.documentsAfterCreate',
+                                        )}
                                     </Text>
                                 </Paper>
                             )}
@@ -785,18 +810,16 @@ export const AiAgentFormSetup = ({
                         <Divider />
 
                         <AgentSettingsSubsection
-                            title="Explores"
+                            title={t('form.knowledge.explores')}
                             description={
                                 <>
-                                    Limit which explores, metrics and dimensions
-                                    the agent can query, by tag. Leave empty to
-                                    allow all of them.{' '}
+                                    {t('form.knowledge.exploresDescription')}{' '}
                                     <Anchor
                                         fz="xs"
                                         href="https://docs.lightdash.com/guides/ai-agents#limiting-access-to-specific-explores-and-fields"
                                         target="_blank"
                                     >
-                                        Learn more
+                                        {t('form.learnMore')}
                                     </Anchor>
                                 </>
                             }
@@ -804,8 +827,8 @@ export const AiAgentFormSetup = ({
                             <Box>
                                 <TagsInput
                                     variant="subtle"
-                                    aria-label="Explore tags"
-                                    placeholder="Select tags"
+                                    aria-label={t('form.knowledge.exploreTags')}
+                                    placeholder={t('form.knowledge.selectTags')}
                                     inputWrapperOrder={[
                                         'label',
                                         'input',
@@ -815,29 +838,29 @@ export const AiAgentFormSetup = ({
                                         exploreAccessSummaryQuery.isSuccess ? (
                                             exploreAccessSummaryQuery.data
                                                 .length === 0 ? (
-                                                'No explorers are available for this tag selection. Make sure to use the correct tags, or tag the project with the correct tags and redeploy the project.'
+                                                t('form.knowledge.noExplores')
                                             ) : (
-                                                <>
-                                                    {
+                                                <Trans
+                                                    t={t}
+                                                    i18nKey="form.knowledge.exploresAvailable"
+                                                    count={
                                                         exploreAccessSummaryQuery
                                                             .data.length
-                                                    }{' '}
-                                                    explores will be available
-                                                    to this agent.{' '}
-                                                    <Anchor
-                                                        size="xs"
-                                                        onClick={
-                                                            toggleExploreAccessSummary
-                                                        }
-                                                    >
-                                                        Click here
-                                                    </Anchor>{' '}
-                                                    to see detailed list with
-                                                    metrics and dimensions.
-                                                </>
+                                                    }
+                                                    components={{
+                                                        anchor: (
+                                                            <Anchor
+                                                                size="xs"
+                                                                onClick={
+                                                                    toggleExploreAccessSummary
+                                                                }
+                                                            />
+                                                        ),
+                                                    }}
+                                                />
                                             )
                                         ) : (
-                                            `Loading agent access information...`
+                                            t('form.knowledge.loadingAccess')
                                         )
                                     }
                                     {...form.getInputProps('tags')}
@@ -872,8 +895,8 @@ export const AiAgentFormSetup = ({
                         <Divider />
 
                         <AgentSettingsSubsection
-                            title="Spaces"
-                            description="Restrict which saved charts and dashboards the agent can read. Empty selection means all spaces."
+                            title={t('form.knowledge.spaces')}
+                            description={t('form.knowledge.spacesDescription')}
                         >
                             <SpaceAccessSelect
                                 projectUuid={projectUuid}
@@ -888,30 +911,33 @@ export const AiAgentFormSetup = ({
                     <AgentSettingsSection
                         id="capabilities"
                         icon={IconBolt}
-                        title="Capabilities"
-                        description="What the agent may do with your data."
+                        title={t('settingsSections.capabilities')}
+                        description={t('form.capabilities.description')}
                     >
                         <Stack gap="md">
                             <Switch
                                 variant="subtle"
                                 label={
                                     <SwitchLabel
-                                        text="Read the rows behind a chart"
-                                        help="When enabled, the agent can analyze chart data and provide insights. When disabled, it only builds visualizations, without reading the data behind them."
+                                        text={t('form.capabilities.dataAccess')}
+                                        help={t(
+                                            'form.capabilities.dataAccessHelp',
+                                        )}
                                         badge={null}
                                     />
                                 }
                                 description={
                                     <>
-                                        Query the underlying data, not just the
-                                        chart.{' '}
+                                        {t(
+                                            'form.capabilities.dataAccessDescription',
+                                        )}{' '}
                                         <Anchor
                                             href="https://docs.lightdash.com/guides/ai-agents#data-access-control"
                                             target="_blank"
                                             size="xs"
                                             className={classes.switchLink}
                                         >
-                                            Learn more
+                                            {t('form.learnMore')}
                                         </Anchor>
                                     </>
                                 }
@@ -938,12 +964,16 @@ export const AiAgentFormSetup = ({
                                 variant="subtle"
                                 label={
                                     <SwitchLabel
-                                        text="Create and edit content"
-                                        help="Requires reading rows to be enabled. Only works for users with content-as-code access (admins, developers, and editors)."
+                                        text={t('form.capabilities.content')}
+                                        help={t(
+                                            'form.capabilities.contentHelp',
+                                        )}
                                         badge={<BetaBadge />}
                                     />
                                 }
-                                description="Build or change dashboards, charts and scheduled deliveries."
+                                description={t(
+                                    'form.capabilities.contentDescription',
+                                )}
                                 {...form.getInputProps('enableContentTools', {
                                     type: 'checkbox',
                                 })}
@@ -953,23 +983,23 @@ export const AiAgentFormSetup = ({
                                 variant="subtle"
                                 label={
                                     <SwitchLabel
-                                        text="Run SQL against the warehouse"
-                                        help="SQL Runner is only available to users whose role includes SQL Runner access (project developers and admins by default). This setting never grants permission: users without access cannot use SQL Runner, whether this is on or off."
+                                        text={t('form.capabilities.sql')}
+                                        help={t('form.capabilities.sqlHelp')}
                                         badge={null}
                                     />
                                 }
                                 description={
                                     <>
-                                        On by default in new chats; users can
-                                        switch it off per conversation.{' '}
+                                        {t('form.capabilities.sqlDescription')}{' '}
                                         <Anchor
                                             component={Link}
                                             to={`/generalSettings/projectManagement/${projectUuid}/agentDataScope`}
                                             size="xs"
                                             className={classes.switchLink}
                                         >
-                                            Configure which schemas and tables
-                                            it can query
+                                            {t(
+                                                'form.capabilities.sqlConfigure',
+                                            )}
                                         </Anchor>
                                     </>
                                 }
@@ -980,36 +1010,41 @@ export const AiAgentFormSetup = ({
                         </Stack>
 
                         <Text size="xs" c="dimmed">
-                            Which explores, spaces and documents it can read is
-                            set in{' '}
-                            <Anchor
-                                component="button"
-                                type="button"
-                                size="xs"
-                                onClick={scrollToKnowledgeAndData}
-                            >
-                                Knowledge &amp; data
-                            </Anchor>
-                            .
+                            <Trans
+                                t={t}
+                                i18nKey="form.capabilities.readAccessNote"
+                                components={{
+                                    anchor: (
+                                        <Anchor
+                                            component="button"
+                                            type="button"
+                                            size="xs"
+                                            onClick={scrollToKnowledgeAndData}
+                                        />
+                                    ),
+                                }}
+                            />
                         </Text>
                     </AgentSettingsSection>
 
                     <AgentSettingsSection
                         id="access-and-privacy"
                         icon={IconLock}
-                        title="Access & privacy"
-                        description="What the agent knows about the person asking, how long threads are kept, and who can use it."
+                        title={t('settingsSections.accessAndPrivacy')}
+                        description={t('form.access.description')}
                     >
                         <Switch
                             variant="subtle"
                             label={
                                 <SwitchLabel
-                                    text="Use user information"
-                                    help="Only applies when the agent knows who is asking — on Slack this requires the OAuth requirement to be enabled in the organization's Slack settings."
+                                    text={t('form.access.userContext')}
+                                    help={t('form.access.userContextHelp')}
                                     badge={null}
                                 />
                             }
-                            description="Shares the requesting user's name, role and group memberships, so answers can be tailored to who is asking."
+                            description={t(
+                                'form.access.userContextDescription',
+                            )}
                             {...form.getInputProps('enableUserContext', {
                                 type: 'checkbox',
                             })}
@@ -1019,13 +1054,17 @@ export const AiAgentFormSetup = ({
                             <>
                                 <Divider />
                                 <AgentSettingsSubsection
-                                    title="Thread retention"
-                                    description={`Delete this agent's threads after a period of inactivity. Active threads are never cut off.${
+                                    title={t('form.access.threadRetention')}
+                                    description={
                                         aiOrganizationSettings?.threadRetentionHours !=
                                         null
-                                            ? ' The organization retention policy caps this setting.'
-                                            : ''
-                                    }`}
+                                            ? t(
+                                                  'form.access.threadRetentionDescriptionCapped',
+                                              )
+                                            : t(
+                                                  'form.access.threadRetentionDescription',
+                                              )
+                                    }
                                 >
                                     <ThreadRetentionSelect
                                         value={form.values.threadRetentionHours}
@@ -1046,7 +1085,9 @@ export const AiAgentFormSetup = ({
 
                         <Divider />
 
-                        <AgentSettingsSubsection title="Who can use the agent">
+                        <AgentSettingsSubsection
+                            title={t('form.access.whoCanUse')}
+                        >
                             <Stack gap="md">
                                 <Radio.Group
                                     value={accessMode}
@@ -1055,18 +1096,38 @@ export const AiAgentFormSetup = ({
                                     <Stack gap="sm">
                                         <Radio
                                             value="everyone"
-                                            label="Everyone in the project"
-                                            description="All project members can see and use this agent."
+                                            label={t('form.access.everyone')}
+                                            description={t(
+                                                'form.access.everyoneDescription',
+                                            )}
                                         />
                                         <Radio
                                             value="admins"
-                                            label="Admins & developers only"
-                                            description="Hidden from everyone else — useful while setting up or testing the agent."
+                                            label={t('form.access.adminsOnly')}
+                                            description={t(
+                                                'form.access.adminsOnlyDescription',
+                                            )}
                                         />
                                         <Radio
                                             value="specific"
-                                            label={`Specific users ${isGroupsEnabled ? ' & groups' : ''}`}
-                                            description={`Only the users${isGroupsEnabled ? ' and groups ' : ' '}you choose. Admins and developers (Manage AI Agents scope) always have access.`}
+                                            label={
+                                                isGroupsEnabled
+                                                    ? t(
+                                                          'form.access.specificUsersAndGroups',
+                                                      )
+                                                    : t(
+                                                          'form.access.specificUsers',
+                                                      )
+                                            }
+                                            description={
+                                                isGroupsEnabled
+                                                    ? t(
+                                                          'form.access.specificUsersAndGroupsDescription',
+                                                      )
+                                                    : t(
+                                                          'form.access.specificUsersDescription',
+                                                      )
+                                            }
                                         />
                                     </Stack>
                                 </Radio.Group>
@@ -1091,10 +1152,14 @@ export const AiAgentFormSetup = ({
                                                 label={
                                                     <Group gap="xs">
                                                         <Text fz="sm" fw={500}>
-                                                            Group Access
+                                                            {t(
+                                                                'form.access.groupAccess',
+                                                            )}
                                                         </Text>
                                                         <Tooltip
-                                                            label="Admins and developers (Manage AI Agents scope) will always have access to this agent."
+                                                            label={t(
+                                                                'form.access.groupAccessTooltip',
+                                                            )}
                                                             position="right"
                                                             maw="250px"
                                                         >
@@ -1106,14 +1171,22 @@ export const AiAgentFormSetup = ({
                                                         </Tooltip>
                                                     </Group>
                                                 }
-                                                description="Select groups that can access this agent."
+                                                description={t(
+                                                    'form.access.groupAccessDescription',
+                                                )}
                                                 placeholder={
                                                     isLoadingGroups
-                                                        ? 'Loading groups...'
+                                                        ? t(
+                                                              'form.access.loadingGroups',
+                                                          )
                                                         : groupOptions.length ===
                                                             0
-                                                          ? 'No groups available'
-                                                          : 'Select groups or leave empty for all users'
+                                                          ? t(
+                                                                'form.access.noGroups',
+                                                            )
+                                                          : t(
+                                                                'form.access.selectGroups',
+                                                            )
                                                 }
                                                 data={groupOptions}
                                                 disabled={
@@ -1154,12 +1227,12 @@ export const AiAgentFormSetup = ({
                     <AgentSettingsSection
                         id="connections"
                         icon={IconPlug}
-                        title="Connections"
-                        description="Where people reach this agent, and which external tools it can reach."
+                        title={t('settingsSections.connections')}
+                        description={t('form.connections.description')}
                     >
                         <AgentSettingsSubsection
-                            title="Slack"
-                            description="Channels where people can talk to this agent."
+                            title={t('form.connections.slack')}
+                            description={t('form.connections.slackDescription')}
                             action={
                                 <Group
                                     c={
@@ -1177,10 +1250,12 @@ export const AiAgentFormSetup = ({
                                     />
                                     <Text size="xs">
                                         {!slackInstallation?.organizationUuid
-                                            ? 'Disabled'
+                                            ? t('form.connections.disabled')
                                             : !slackChannelsConfigured
-                                              ? 'Channels not configured'
-                                              : 'Enabled'}
+                                              ? t(
+                                                    'form.connections.channelsNotConfigured',
+                                                )
+                                              : t('form.connections.enabled')}
                                     </Text>
                                 </Group>
                             }
@@ -1191,31 +1266,35 @@ export const AiAgentFormSetup = ({
                             {!slackInstallation?.organizationUuid ? (
                                 <Paper variant="dotted" p="sm">
                                     <Text size="xs" c="dimmed" ta="center">
-                                        To enable AI agent interactions through
-                                        Slack, please connect your Slack
-                                        workspace in the{' '}
-                                        <Anchor
-                                            c="dimmed"
-                                            underline="always"
-                                            href="/generalSettings/integrations"
-                                            target="_blank"
-                                        >
-                                            Integrations settings
-                                        </Anchor>
-                                        . Once connected, you can select
-                                        channels where this agent will be
-                                        available.
+                                        <Trans
+                                            t={t}
+                                            i18nKey="form.connections.slackNotConnected"
+                                            components={{
+                                                anchor: (
+                                                    <Anchor
+                                                        c="dimmed"
+                                                        underline="always"
+                                                        href="/generalSettings/integrations"
+                                                        target="_blank"
+                                                    />
+                                                ),
+                                            }}
+                                        />
                                     </Text>
                                 </Paper>
                             ) : (
                                 <Stack gap="xs">
                                     {slackChannelsConfigured && (
                                         <Text size="sm" c="dimmed">
-                                            Tag the Slack app{' '}
-                                            <Code>
-                                                @{slackInstallation.appName}
-                                            </Code>{' '}
-                                            to get started.
+                                            <Trans
+                                                t={t}
+                                                i18nKey="form.connections.tagSlackApp"
+                                                values={{
+                                                    appName:
+                                                        slackInstallation.appName,
+                                                }}
+                                                components={{ code: <Code /> }}
+                                            />
                                         </Text>
                                     )}
                                     <SlackChannelSelect
@@ -1224,8 +1303,10 @@ export const AiAgentFormSetup = ({
                                         withRefresh
                                         size="sm"
                                         variant="subtle"
-                                        label="Channels"
-                                        placeholder="Search channel(s)"
+                                        label={t('form.connections.channels')}
+                                        placeholder={t(
+                                            'form.connections.searchChannels',
+                                        )}
                                         value={form.values.integrations.map(
                                             (i) => i.channelId,
                                         )}
@@ -1265,7 +1346,7 @@ export const AiAgentFormSetup = ({
                         <AgentSettingsSection
                             id="danger-zone"
                             icon={IconAlertTriangle}
-                            title="Danger zone"
+                            title={t('settingsSections.dangerZone')}
                         >
                             <Group
                                 gap="xs"
@@ -1279,11 +1360,12 @@ export const AiAgentFormSetup = ({
                                         size="sm"
                                         fw={500}
                                     >
-                                        Delete agent
+                                        {t('form.danger.deleteAgent')}
                                     </Title>
                                     <Text c="dimmed" size="xs">
-                                        Removes all of its data and
-                                        conversations.
+                                        {t(
+                                            'form.danger.deleteAgentDescription',
+                                        )}
                                     </Text>
                                 </Box>
                                 <Button
@@ -1294,7 +1376,7 @@ export const AiAgentFormSetup = ({
                                         <MantineIcon icon={IconTrash} />
                                     }
                                 >
-                                    Delete
+                                    {t('actions.delete', { ns: 'common' })}
                                 </Button>
                             </Group>
                         </AgentSettingsSection>
@@ -1304,10 +1386,10 @@ export const AiAgentFormSetup = ({
             <MantineModal
                 opened={deleteModalOpen}
                 onClose={handleCancelDelete}
-                title="Delete Agent"
+                title={t('form.danger.deleteModalTitle')}
                 variant="delete"
-                resourceType="agent"
-                description="This action cannot be undone."
+                resourceType={t('form.danger.resourceType')}
+                description={t('form.danger.cannotBeUndone')}
                 onConfirm={handleDelete}
             />
             {agentUuid && (

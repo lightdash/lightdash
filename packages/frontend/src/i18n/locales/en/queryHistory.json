@@ -1,0 +1,163 @@
+{
+    "page": {
+        "title": "My query history",
+        "detailsTitle": "Query details",
+        "warehouseTimeLast7Days": "{{time}} of warehouse time in the last 7 days"
+    },
+    "format": {
+        "now": "now",
+        "minutesAgo": "{{count}} min ago",
+        "since": "Since {{time}}"
+    },
+    "windows": {
+        "lastFewMinutes": "Last few minutes",
+        "lastHour": "Last hour",
+        "last24Hours": "Last 24 hours",
+        "last7Days": "Last 7 days",
+        "last30Days": "Last 30 days"
+    },
+    "triggers": {
+        "interactive": "Interactive",
+        "apps": "Apps",
+        "scheduled": "Scheduled",
+        "all": "All",
+        "allWithCount": "{{label}} ({{count}})"
+    },
+    "languages": {
+        "semantic": "Semantic",
+        "sql": "SQL"
+    },
+    "statuses": {
+        "ready": "Ready",
+        "running": "Running",
+        "queued": "Queued",
+        "failed": "Failed",
+        "cancelled": "Cancelled",
+        "expired": "Expired"
+    },
+    "toolbar": {
+        "querySource": "Query source",
+        "language": "Language",
+        "status": "Status",
+        "clear": "Clear",
+        "searchPlaceholder": "Search fields, tables or SQL"
+    },
+    "queryCell": {
+        "servedFromCache": "Served from cache"
+    },
+    "table": {
+        "columns": {
+            "query": "Query",
+            "language": "Language",
+            "trigger": "Trigger",
+            "runTime": "Run time",
+            "rows": "Rows",
+            "when": "When"
+        },
+        "runs_one": "{{formattedCount}} run",
+        "runs_other": "{{formattedCount}} runs",
+        "showMore": "Show {{count}} more",
+        "entityName": "queries",
+        "emptyMessage": "No queries in the last 30 days",
+        "filteredMessage": "No queries match these filters",
+        "loadingMore": "Loading more",
+        "scrollForMore": "Scroll for more",
+        "allResultsLoaded": "All results loaded"
+    },
+    "detail": {
+        "aiContext": "Regarding the results of my \"{{title}}\" query ({{rowCount}} rows): {{prompt}}",
+        "unknownRowCount": "unknown",
+        "rows_one": "{{formattedCount}} row",
+        "rows_other": "{{formattedCount}} rows",
+        "cachedUntil": "cached until {{time}}",
+        "cancelQuery": "Cancel query",
+        "openInSqlRunner": "Open in SQL runner",
+        "fixInExplore": "Fix in Explore",
+        "openInExplore": "Open in Explore",
+        "queryFailed": "Query failed",
+        "stillRunning": "Query is still running",
+        "resultsUnavailable": "Results are no longer available. Re-run the query to see them.",
+        "previousQuery": "Previous query",
+        "nextQuery": "Next query",
+        "close": "Close",
+        "closePanel": "Close panel",
+        "timings": {
+            "total": "Total",
+            "queued": "Queued",
+            "warehouse": "Warehouse",
+            "fetch": "Fetch"
+        },
+        "results": "Results",
+        "sql": "SQL",
+        "lines_one": "{{count}} line",
+        "lines_other": "{{count}} lines",
+        "askAiPlaceholder": "Ask AI about these results",
+        "rerun": "Re-run"
+    },
+    "rerun": {
+        "cannotRerun": "This query cannot be re-run"
+    },
+    "dataAppActivity": {
+        "settingsPage": {
+            "title": "Activity",
+            "description": "See who generated which data app, when, and with which model."
+        },
+        "tokens": {
+            "input": "Input: {{value}}",
+            "output": "Output: {{value}}",
+            "cached": "Cached: {{value}}",
+            "turns_one": "{{count}} turn",
+            "turns_other": "{{count}} turns",
+            "estimatedCostUnavailable": "Estimated cost: Not available",
+            "estimatedCost": "Estimated cost: {{cost}}"
+        },
+        "noPrompt": "No prompt",
+        "columns": {
+            "when": "When",
+            "user": "User",
+            "name": "Name",
+            "project": "Project",
+            "type": "Type",
+            "model": "Model",
+            "status": "Status",
+            "tokens": "Tokens",
+            "prompt": "Prompt"
+        },
+        "unknownUser": "Unknown user",
+        "deletedUser": "Deleted user",
+        "customChartType": "Custom chart type",
+        "dataApp": "Data app",
+        "deleted": "Deleted",
+        "created": "Created",
+        "iteration": "Iteration",
+        "emptyState": {
+            "entityName": "generations",
+            "emptyMessage": "No data apps have been generated yet.",
+            "filteredMessage": "No generations match these filters."
+        },
+        "periods": {
+            "all": "All time",
+            "7d": "7 days",
+            "30d": "30 days",
+            "90d": "90 days"
+        },
+        "kinds": {
+            "all": "All builds",
+            "apps": "Apps",
+            "chartTypes": "Chart types"
+        },
+        "filters": {
+            "projects": "Projects",
+            "projectsTooltip": "Filter activity by project",
+            "users": "Users",
+            "usersTooltip": "Filter activity by who generated it",
+            "models": "Models",
+            "modelsTooltip": "Filter activity by the model that built it",
+            "clearAll": "Clear all filters"
+        },
+        "loading": "Loading...",
+        "partialCount": "{{current}} of {{total}} generations",
+        "totalCount_one": "{{count}} generation",
+        "totalCount_other": "{{count}} generations"
+    }
+}

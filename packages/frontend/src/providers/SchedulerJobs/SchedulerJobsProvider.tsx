@@ -9,6 +9,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../components/common/MantineIcon';
 import { getSchedulerJobStatus } from '../../features/scheduler/hooks/useScheduler';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -39,6 +40,7 @@ const SchedulerJobsProvider: FC<React.PropsWithChildren> = ({ children }) => {
     const callbacksRef = useRef<Map<string, JobCallbacks>>(new Map());
     const processedRef = useRef<Map<string, SchedulerJobStatus>>(new Map());
 
+    const { t } = useTranslation('app');
     const { showToastInfo, showToastSuccess, showToastError } = useToaster();
 
     const activeJobs = useMemo(
@@ -119,7 +121,8 @@ const SchedulerJobsProvider: FC<React.PropsWithChildren> = ({ children }) => {
 
             const errorMessage =
                 newStatus === SchedulerJobStatus.ERROR
-                    ? ((details?.error as string) ?? 'Unknown error')
+                    ? ((details?.error as string) ??
+                      t('schedulerJobs.unknownError'))
                     : null;
 
             setJobs((prev) =>
@@ -149,13 +152,13 @@ const SchedulerJobsProvider: FC<React.PropsWithChildren> = ({ children }) => {
                     ) {
                         callbacks.onError(
                             job.jobId,
-                            errorMessage ?? 'Unknown error',
+                            errorMessage ?? t('schedulerJobs.unknownError'),
                         );
                     }
                 }
             }
         });
-    }, [queryResults, activeJobs]);
+    }, [queryResults, activeJobs, t]);
 
     // Show/update toast based on job progress
     useEffect(() => {
@@ -169,7 +172,7 @@ const SchedulerJobsProvider: FC<React.PropsWithChildren> = ({ children }) => {
         ).length;
         const allDone = completedCount === jobs.length;
 
-        const title = toastTitle ?? 'Background jobs';
+        const title = toastTitle ?? t('schedulerJobs.backgroundJobs');
         const icon = toastIcon ? (
             <MantineIcon icon={toastIcon} size="xl" />
         ) : undefined;
@@ -221,6 +224,7 @@ const SchedulerJobsProvider: FC<React.PropsWithChildren> = ({ children }) => {
         showToastInfo,
         showToastSuccess,
         showToastError,
+        t,
     ]);
 
     const hasActiveJobs = activeJobs.length > 0;

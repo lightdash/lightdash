@@ -11,6 +11,7 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
@@ -61,6 +62,7 @@ export const useOAuthClients = (
 
 export const useCreateOAuthClient = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError } = useToaster();
     return useMutation<
         CreateOAuthClientResponse,
@@ -73,7 +75,7 @@ export const useCreateOAuthClient = () => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to create OAuth application`,
+                title: t('useOAuthClients.failedToCreateOauthApplication'),
                 apiError: error,
             });
         },
@@ -82,6 +84,7 @@ export const useCreateOAuthClient = () => {
 
 export const useUpdateOAuthClient = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         OAuthClientSummary,
@@ -92,12 +95,12 @@ export const useUpdateOAuthClient = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries(['oauth_clients']);
             showToastSuccess({
-                title: `OAuth application updated`,
+                title: t('useOAuthClients.oauthApplicationUpdated'),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to update OAuth application`,
+                title: t('useOAuthClients.failedToUpdateOauthApplication'),
                 apiError: error,
             });
         },
@@ -106,18 +109,19 @@ export const useUpdateOAuthClient = () => {
 
 export const useDeleteOAuthClient = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<undefined, ApiError, string>(deleteOAuthClient, {
         mutationKey: ['oauth_clients'],
         onSuccess: async () => {
             await queryClient.invalidateQueries(['oauth_clients']);
             showToastSuccess({
-                title: `OAuth application deleted`,
+                title: t('useOAuthClients.oauthApplicationDeleted'),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to delete OAuth application`,
+                title: t('useOAuthClients.failedToDeleteOauthApplication'),
                 apiError: error,
             });
         },

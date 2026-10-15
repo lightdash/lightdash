@@ -18,6 +18,7 @@ import {
 import { useDebouncedValue, useIntersection } from '@mantine/hooks';
 import { IconPlus, IconSearch } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useSearchParams } from 'react-router';
 import { BetaBadge } from '../components/common/BetaBadge';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
@@ -48,6 +49,7 @@ const GalleryTab = {
 } as const;
 
 const ChartTypeGallery = () => {
+    const { t } = useTranslation('pages');
     const projectUuid = useProjectUuid();
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
@@ -189,7 +191,7 @@ const ChartTypeGallery = () => {
                     <TextInput
                         size="xs"
                         w={220}
-                        placeholder="Search by name or description"
+                        placeholder={t('chartTypeGallery.searchPlaceholder')}
                         leftSection={
                             <MantineIcon icon={IconSearch} size={15} />
                         }
@@ -214,7 +216,7 @@ const ChartTypeGallery = () => {
                                     <MantineIcon icon={IconPlus} size={15} />
                                 }
                             >
-                                New chart type
+                                {t('chartTypeGallery.newChartType')}
                             </Button>
                         </Can>
                     )}
@@ -222,18 +224,19 @@ const ChartTypeGallery = () => {
             )}
 
             {isInitialLoading ? (
-                <EmptyStateLoader title="Loading chart types…" />
+                <EmptyStateLoader title={t('chartTypeGallery.loading')} />
             ) : error ? (
                 <InlineErrorState
-                    message="Failed to load chart types"
+                    message={t('chartTypeGallery.loadError')}
                     onRetry={() => refetch()}
                 />
             ) : dataAppVizs.length === 0 ? (
                 debouncedSearch ? (
                     <Paper variant="dotted" p="xl">
                         <Text ta="center" fz="xs" c="dimmed">
-                            No chart types match &ldquo;
-                            {debouncedSearch}&rdquo;
+                            {t('chartTypeGallery.noMatch', {
+                                search: debouncedSearch,
+                            })}
                         </Text>
                     </Paper>
                 ) : (
@@ -270,7 +273,11 @@ const ChartTypeGallery = () => {
                             role="status"
                         >
                             {isFetchingNextPage && (
-                                <EmptyStateLoader description="Loading more chart types…" />
+                                <EmptyStateLoader
+                                    description={t(
+                                        'chartTypeGallery.loadingMore',
+                                    )}
+                                />
                             )}
                         </Box>
                     )}
@@ -281,7 +288,7 @@ const ChartTypeGallery = () => {
 
     return (
         <Page
-            title="Chart Studio"
+            title={t('chartTypeGallery.title')}
             withCenteredRoot
             withCenteredContent
             withXLargePaddedContent
@@ -290,8 +297,8 @@ const ChartTypeGallery = () => {
             <Stack gap="xl" w="100%">
                 <PageBreadcrumbs
                     items={[
-                        { title: 'Home', to: '/home' },
-                        { title: 'Chart Studio', active: true },
+                        { title: t('common.home'), to: '/home' },
+                        { title: t('chartTypeGallery.title'), active: true },
                     ]}
                 />
 
@@ -304,7 +311,7 @@ const ChartTypeGallery = () => {
                         <Tabs.List>
                             <Tabs.Tab value={GalleryTab.INSTALLED_CHARTS}>
                                 <Group gap={6} wrap="nowrap">
-                                    Installed chart types
+                                    {t('chartTypeGallery.installed')}
                                     {!isEmptyGallery && totalCount !== null && (
                                         <Text span fz="xs" c="dimmed">
                                             ({totalCount})
@@ -316,7 +323,7 @@ const ChartTypeGallery = () => {
                                 value={GalleryTab.CHART_LIBRARY}
                                 rightSection={<BetaBadge />}
                             >
-                                Chart type library
+                                {t('chartTypeGallery.library')}
                             </Tabs.Tab>
                         </Tabs.List>
 
@@ -341,11 +348,13 @@ const ChartTypeGallery = () => {
                 !selected &&
                 (selectedQuery.error ? (
                     <InlineErrorState
-                        message="Failed to load chart type details"
+                        message={t('chartTypeGallery.detailsLoadError')}
                         onRetry={() => void selectedQuery.refetch()}
                     />
                 ) : (
-                    <EmptyStateLoader title="Loading chart type details…" />
+                    <EmptyStateLoader
+                        title={t('chartTypeGallery.loadingDetails')}
+                    />
                 ))}
             {selected && (
                 <ChartTypeDetailModal

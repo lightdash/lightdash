@@ -57,6 +57,7 @@ import {
 } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';
 import { Fragment, useEffect, useMemo, useRef, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
@@ -224,6 +225,7 @@ const LibraryCard: FC<{ definition: BlockDefinition; onAdd: () => void }> = ({
     definition,
     onAdd,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
         id: `library:${definition.type}`,
         data: { kind: 'new', definition } satisfies DragSource,
@@ -241,13 +243,15 @@ const LibraryCard: FC<{ definition: BlockDefinition; onAdd: () => void }> = ({
             //   data-tour-anchor="homepage-block" data-tour-hint="Add the {value} block"
             data-tour-anchor="homepage-block"
             data-tour-hint="Add the {value} block"
-            data-tour-value={definition.label}
+            data-tour-value={definition.tourValue}
         >
             <IconSquare icon={definition.icon} />
             <Box miw={0}>
-                <div className={classes.railCardLabel}>{definition.label}</div>
+                <div className={classes.railCardLabel}>
+                    {t(definition.labelKey)}
+                </div>
                 <div className={classes.railCardDesc}>
-                    {definition.description}
+                    {t(definition.descriptionKey)}
                 </div>
             </Box>
         </div>
@@ -261,6 +265,7 @@ const RowGap: FC<{
     blocks: BlockDefinition[];
     onQuickAdd: (definition: BlockDefinition) => void;
 }> = ({ rowIndex, isDragActive, active, blocks, onQuickAdd }) => {
+    const { t } = useTranslation('homepageBuilder');
     const { setNodeRef } = useDroppable({ id: gapZoneId(rowIndex) });
     const [menuOpened, setMenuOpened] = useState(false);
     return (
@@ -283,7 +288,7 @@ const RowGap: FC<{
                         <Menu.Target>
                             <button type="button" className={classes.gapAddBtn}>
                                 <MantineIcon icon={IconPlus} size={13} />
-                                Add block
+                                {t('editor.addBlock')}
                             </button>
                         </Menu.Target>
                         <Menu.Dropdown>
@@ -298,7 +303,7 @@ const RowGap: FC<{
                                     }
                                     onClick={() => onQuickAdd(definition)}
                                 >
-                                    {definition.label}
+                                    {t(definition.labelKey)}
                                 </Menu.Item>
                             ))}
                         </Menu.Dropdown>
@@ -311,6 +316,7 @@ const RowGap: FC<{
 };
 
 const EndDropZone: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
+    const { t } = useTranslation('homepageBuilder');
     const { setNodeRef } = useDroppable({ id: END_ZONE_ID });
     return (
         <div
@@ -322,9 +328,7 @@ const EndDropZone: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
                 size={15}
                 className={classes.endZoneIcon}
             />
-            {isEmpty
-                ? 'No blocks yet — click or drag one from the library.'
-                : 'Drag a block here, or click one in the library.'}
+            {isEmpty ? t('editor.endZoneEmpty') : t('editor.endZone')}
         </div>
     );
 };
@@ -341,6 +345,7 @@ const ColumnGutter: FC<{
     blocks: BlockDefinition[];
     onAdd: (definition: BlockDefinition) => void;
 }> = ({ rowIndex, insertIndex, isDragActive, active, blocks, onAdd }) => {
+    const { t } = useTranslation('homepageBuilder');
     const { setNodeRef } = useDroppable({
         id: `slot:${rowIndex}:${insertIndex}`,
         disabled: !isDragActive,
@@ -370,7 +375,7 @@ const ColumnGutter: FC<{
                     <button
                         type="button"
                         className={classes.columnRailBtn}
-                        aria-label="Add column"
+                        aria-label={t('editor.addColumn')}
                     >
                         <MantineIcon icon={IconPlus} size={18} />
                     </button>
@@ -387,7 +392,7 @@ const ColumnGutter: FC<{
                             }
                             onClick={() => onAdd(definition)}
                         >
-                            {definition.label}
+                            {t(definition.labelKey)}
                         </Menu.Item>
                     ))}
                 </Menu.Dropdown>
@@ -403,12 +408,17 @@ const ColIndicator: FC<{ active: boolean }> = ({ active }) => (
 
 // A translucent preview of the block, shown in the layout exactly where the
 // drop will land — held until release.
-const GhostBlock: FC<{ definition: BlockDefinition }> = ({ definition }) => (
-    <div className={`${classes.ghostBlock} ${classes.dropEnvelope}`}>
-        <IconSquare icon={definition.icon} />
-        <span className={classes.ghostBlockLabel}>{definition.label}</span>
-    </div>
-);
+const GhostBlock: FC<{ definition: BlockDefinition }> = ({ definition }) => {
+    const { t } = useTranslation('homepageBuilder');
+    return (
+        <div className={`${classes.ghostBlock} ${classes.dropEnvelope}`}>
+            <IconSquare icon={definition.icon} />
+            <span className={classes.ghostBlockLabel}>
+                {t(definition.labelKey)}
+            </span>
+        </div>
+    );
+};
 
 type BlockCardProps = {
     block: HomepageBlock;
@@ -441,6 +451,7 @@ const BlockCard: FC<BlockCardProps> = ({
     itemSpan,
     standalone,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const {
         attributes,
         listeners,
@@ -473,34 +484,36 @@ const BlockCard: FC<BlockCardProps> = ({
                     className={classes.blockDragArea}
                     {...attributes}
                     {...listeners}
-                    aria-label={`Drag ${definition.label} block`}
+                    aria-label={t('editor.blockCard.drag', {
+                        block: t(definition.labelKey),
+                    })}
                 >
                     <span className={classes.blockHandle}>
                         <MantineIcon icon={IconGripVertical} color="dimmed" />
                     </span>
                     <span className={classes.blockTypeLabel}>
-                        {definition.label}
+                        {t(definition.labelKey)}
                     </span>
                 </div>
                 <Group gap={2} className={classes.blockActions} wrap="nowrap">
-                    <Tooltip label="Move up">
+                    <Tooltip label={t('editor.blockCard.moveUp')}>
                         <ActionIcon disabled={!canUp} onClick={onUp}>
                             <MantineIcon icon={IconArrowUp} />
                         </ActionIcon>
                     </Tooltip>
-                    <Tooltip label="Move down">
+                    <Tooltip label={t('editor.blockCard.moveDown')}>
                         <ActionIcon disabled={!canDown} onClick={onDown}>
                             <MantineIcon icon={IconArrowDown} />
                         </ActionIcon>
                     </Tooltip>
                     {!definition.singleton && (
-                        <Tooltip label="Duplicate">
+                        <Tooltip label={t('editor.blockCard.duplicate')}>
                             <ActionIcon onClick={onDuplicate}>
                                 <MantineIcon icon={IconCopy} />
                             </ActionIcon>
                         </Tooltip>
                     )}
-                    <Tooltip label="Remove">
+                    <Tooltip label={t('editor.blockCard.remove')}>
                         <ActionIcon color="red" onClick={onRemove}>
                             <MantineIcon icon={IconTrash} />
                         </ActionIcon>
@@ -537,6 +550,7 @@ export const HomepageEditor: FC<Props> = ({
     onDeleted,
     onReload,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const navigate = useNavigate();
     const updateMutation = useUpdateHomepageDraft(
         projectUuid,
@@ -778,7 +792,7 @@ export const HomepageEditor: FC<Props> = ({
                     onClick={() => navigate(`/projects/${projectUuid}/home`)}
                 >
                     <MantineIcon icon={IconArrowLeft} size={15} />
-                    Exit
+                    {t('editor.toolbar.exit')}
                 </button>
                 <div className={classes.toolbarDivider} />
                 <Group gap={10} wrap="nowrap">
@@ -793,13 +807,16 @@ export const HomepageEditor: FC<Props> = ({
                                     size={15}
                                     color="dimmed"
                                 />
-                                Editing:{' '}
-                                <strong>
-                                    {homepage.name}
-                                    {homepage.isDefault
-                                        ? ' (live)'
-                                        : ' (draft)'}
-                                </strong>
+                                <Trans
+                                    t={t}
+                                    i18nKey={
+                                        homepage.isDefault
+                                            ? 'editor.toolbar.editingLive'
+                                            : 'editor.toolbar.editingDraft'
+                                    }
+                                    values={{ name: homepage.name }}
+                                    components={{ strong: <strong /> }}
+                                />
                                 <MantineIcon
                                     icon={IconChevronDown}
                                     size={13}
@@ -808,7 +825,9 @@ export const HomepageEditor: FC<Props> = ({
                             </button>
                         </Menu.Target>
                         <Menu.Dropdown>
-                            <Menu.Label>Project homepages</Menu.Label>
+                            <Menu.Label>
+                                {t('editor.toolbar.projectHomepages')}
+                            </Menu.Label>
                             {homepages.map((item) => (
                                 <Menu.Item
                                     key={item.homepageUuid}
@@ -825,8 +844,11 @@ export const HomepageEditor: FC<Props> = ({
                                         onSwitchHomepage(item.homepageUuid)
                                     }
                                 >
-                                    {item.name}
-                                    {item.isDefault ? ' · live' : ''}
+                                    {item.isDefault
+                                        ? t('editor.toolbar.liveItem', {
+                                              name: item.name,
+                                          })
+                                        : item.name}
                                 </Menu.Item>
                             ))}
                             <Menu.Divider />
@@ -834,21 +856,23 @@ export const HomepageEditor: FC<Props> = ({
                                 leftSection={<MantineIcon icon={IconPlus} />}
                                 onClick={onCreateNew}
                             >
-                                New homepage…
+                                {t('editor.toolbar.newHomepage')}
                             </Menu.Item>
                             <Menu.Item
                                 color="red"
                                 leftSection={<MantineIcon icon={IconTrash} />}
                                 onClick={() => setIsDeleteModalOpen(true)}
                             >
-                                Delete this homepage
+                                {t('editor.toolbar.deleteHomepage')}
                             </Menu.Item>
                         </Menu.Dropdown>
                     </Menu>
                 </Group>
                 <Box flex={1} />
                 {isDirty ? (
-                    <span className={classes.savedIndicator}>Saving…</span>
+                    <span className={classes.savedIndicator}>
+                        {t('editor.toolbar.saving')}
+                    </span>
                 ) : (
                     <span className={classes.savedIndicator}>
                         <MantineIcon
@@ -856,7 +880,7 @@ export const HomepageEditor: FC<Props> = ({
                             size={14}
                             color="green"
                         />
-                        Draft saved
+                        {t('editor.toolbar.draftSaved')}
                     </span>
                 )}
                 {canRevertToPublished && (
@@ -866,7 +890,7 @@ export const HomepageEditor: FC<Props> = ({
                         onClick={() => setIsDiscardModalOpen(true)}
                     >
                         <MantineIcon icon={IconArrowBackUp} size={15} />
-                        Revert to published
+                        {t('editor.toolbar.revertToPublished')}
                     </button>
                 )}
                 <button
@@ -878,7 +902,9 @@ export const HomepageEditor: FC<Props> = ({
                         icon={isPreviewing ? IconPencil : IconEye}
                         size={15}
                     />
-                    {isPreviewing ? 'Back to editing' : 'Preview'}
+                    {isPreviewing
+                        ? t('editor.toolbar.backToEditing')
+                        : t('editor.toolbar.preview')}
                 </button>
                 <button
                     type="button"
@@ -887,18 +913,17 @@ export const HomepageEditor: FC<Props> = ({
                     onClick={handleOpenPublish}
                     {...publishTourAction}
                 >
-                    Publish
+                    {t('editor.toolbar.publish')}
                     <MantineIcon icon={IconArrowRight} size={14} />
                 </button>
             </div>
             {hasConflict && (
                 <div className={classes.conflictBanner}>
                     <Text size="sm" fw={500}>
-                        This homepage was changed somewhere else — your latest
-                        edits here can’t be saved.
+                        {t('editor.conflict.message')}
                     </Text>
                     <Button size="xs" onClick={onReload}>
-                        Reload homepage
+                        {t('editor.conflict.reload')}
                     </Button>
                 </div>
             )}
@@ -936,7 +961,9 @@ export const HomepageEditor: FC<Props> = ({
                             data-tour-label="The block library"
                             data-tour-docs="explore/homepage.mdx#build-a-homepage:li1"
                         >
-                            <div className={classes.railTitle}>Blocks</div>
+                            <div className={classes.railTitle}>
+                                {t('editor.rail.title')}
+                            </div>
                             <Stack gap={6}>
                                 {availableBlocks.map((definition) => (
                                     <LibraryCard
@@ -954,7 +981,7 @@ export const HomepageEditor: FC<Props> = ({
                                 ))}
                             </Stack>
                             <div className={classes.railHint}>
-                                Click to add, or drag a block onto the page.
+                                {t('editor.rail.hint')}
                             </div>
                         </aside>
                     )}
@@ -1283,11 +1310,11 @@ export const HomepageEditor: FC<Props> = ({
                             <div className={classes.dragOverlayHeader}>
                                 <IconSquare icon={activeDrag.definition.icon} />
                                 <span className={classes.dragOverlayLabel}>
-                                    {activeDrag.definition.label}
+                                    {t(activeDrag.definition.labelKey)}
                                 </span>
                             </div>
                             <div className={classes.dragOverlayDesc}>
-                                {activeDrag.definition.description}
+                                {t(activeDrag.definition.descriptionKey)}
                             </div>
                         </div>
                     ) : null}
@@ -1315,10 +1342,10 @@ export const HomepageEditor: FC<Props> = ({
                     !discardDraftMutation.isLoading &&
                     setIsDiscardModalOpen(false)
                 }
-                title="Revert to published"
+                title={t('editor.revertModal.title')}
                 role="alertdialog"
-                description="This discards your unpublished changes and restores the last published version of this homepage. This can't be undone."
-                confirmLabel="Revert draft"
+                description={t('editor.revertModal.description')}
+                confirmLabel={t('editor.revertModal.confirm')}
                 cancelDisabled={discardDraftMutation.isLoading}
                 onConfirm={handleDiscardDraft}
                 confirmLoading={discardDraftMutation.isLoading}
@@ -1328,7 +1355,7 @@ export const HomepageEditor: FC<Props> = ({
                 onClose={() =>
                     !deleteMutation.isLoading && setIsDeleteModalOpen(false)
                 }
-                title="Delete homepage"
+                title={t('editor.deleteModal.title')}
                 variant="delete"
                 resourceType="homepage"
                 resourceLabel={homepage.name}

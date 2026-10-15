@@ -1,6 +1,7 @@
 import { Button } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal, {
     type MantineModalProps,
 } from '../../../components/common/MantineModal';
@@ -14,19 +15,20 @@ export const ChartErrorsAlert: FC<Props> = ({
     onClose,
     onFixButtonClick,
 }) => {
+    const { t } = useTranslation('sqlRunner');
     return (
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Fix errors before saving"
+            title={t('chartErrors.title')}
             icon={IconAlertCircle}
             cancelLabel={false}
             actions={
                 <Button size="xs" variant="default" onClick={onFixButtonClick}>
-                    Fix errors
+                    {t('chartErrors.fixErrors')}
                 </Button>
             }
-            description="You have errors in your chart configuration. Please fix the errors and try again."
+            description={t('chartErrors.description')}
         ></MantineModal>
     );
 };

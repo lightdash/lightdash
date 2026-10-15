@@ -1,5 +1,6 @@
 import { IconBox } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FilterFacet, {
     type FilterFacetOption,
 } from '../../../../../components/common/FilterFacet';
@@ -22,10 +23,11 @@ type ProjectsFilterProps = Pick<
 const ProjectsFilter: FC<ProjectsFilterProps> = ({
     selectedProjectUuids,
     setSelectedProjectUuids,
-    tooltipLabel = 'Filter threads by project',
+    tooltipLabel,
     projectScope = 'with-agents',
     hidePreviewProjects = false,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const [searchValue, setSearchValue] = useState('');
     const { data: projects, isLoading } = useProjects();
     const organizationAiAgents = useAiAgentAdminAgents({
@@ -85,16 +87,16 @@ const ProjectsFilter: FC<ProjectsFilterProps> = ({
 
     return (
         <FilterFacet
-            label="Project"
+            label={t('filters.projects.label')}
             icon={IconBox}
             options={filteredOptions}
             selected={selectedProjectUuids}
             onChange={setSelectedProjectUuids}
-            tooltipLabel={tooltipLabel}
+            tooltipLabel={tooltipLabel ?? t('filters.projects.defaultTooltip')}
             emptyLabel={
                 searchValue
-                    ? 'No projects match your search.'
-                    : 'No projects available.'
+                    ? t('filters.projects.noMatch')
+                    : t('filters.projects.empty')
             }
             loading={
                 isLoading ||
@@ -103,12 +105,12 @@ const ProjectsFilter: FC<ProjectsFilterProps> = ({
             }
             helperText={
                 projectScope === 'with-agents'
-                    ? 'Showing projects with agents only'
+                    ? t('filters.projects.withAgentsOnly')
                     : undefined
             }
             searchValue={searchValue}
             onSearchChange={setSearchValue}
-            searchPlaceholder="Search projects..."
+            searchPlaceholder={t('filters.projects.searchPlaceholder')}
         />
     );
 };

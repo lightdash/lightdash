@@ -1,6 +1,7 @@
 import { type OrganizationColorPalette } from '@lightdash/common';
 import { type ModalProps } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useColorPalettes,
     useUpdateColorPalette,
@@ -16,6 +17,7 @@ export const EditPaletteModal: FC<EditPaletteModalProps> = ({
     opened,
     onClose,
 }) => {
+    const { t } = useTranslation('userSettings');
     const { data: palettes = [] } = useColorPalettes();
     const updateColorPalette = useUpdateColorPalette();
 
@@ -46,8 +48,12 @@ export const EditPaletteModal: FC<EditPaletteModalProps> = ({
                 colors: palette.colors,
                 darkColors: palette.darkColors || undefined,
             }}
-            title={`Edit "${palette.name}" Palette`}
-            submitButtonText="Save changes"
+            title={t('appearanceSettingsPanel.editPaletteModal.title', {
+                name: palette.name,
+            })}
+            submitButtonText={t(
+                'appearanceSettingsPanel.editPaletteModal.submit',
+            )}
             existingPaletteNames={existingPaletteNames}
         />
     );

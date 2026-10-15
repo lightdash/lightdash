@@ -19,6 +19,7 @@ import {
     IconUser,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
@@ -36,6 +37,7 @@ const DashboardInfoOverlay: FC<DashboardInfoOverlayProps> = ({
     dashboard,
     projectUuid,
 }) => {
+    const { t } = useTranslation('commonUi');
     const timeAgo = useTimeAgo(dashboard.updatedAt);
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
@@ -56,17 +58,20 @@ const DashboardInfoOverlay: FC<DashboardInfoOverlayProps> = ({
 
             <Stack gap={10}>
                 {dashboard.owner && (
-                    <InfoRow icon={IconUser} label="Owner">
+                    <InfoRow icon={IconUser} label={t('resourceInfo.owner')}>
                         {`${dashboard.owner.firstName} ${dashboard.owner.lastName}`.trim() ||
                             dashboard.owner.email}
                     </InfoRow>
                 )}
 
-                <InfoRow icon={IconClock} label="Last modified">
+                <InfoRow
+                    icon={IconClock}
+                    label={t('resourceInfo.lastModified')}
+                >
                     {timeAgo}
                 </InfoRow>
 
-                <InfoRow icon={IconEye} label="Views">
+                <InfoRow icon={IconEye} label={t('resourceInfo.views')}>
                     <ViewsCountPopover
                         resourceType="dashboard"
                         resourceUuid={dashboard.uuid}
@@ -78,7 +83,7 @@ const DashboardInfoOverlay: FC<DashboardInfoOverlayProps> = ({
                 </InfoRow>
 
                 {dashboard.spaceName && (
-                    <InfoRow icon={IconFolder} label="Space">
+                    <InfoRow icon={IconFolder} label={t('resourceInfo.space')}>
                         <Anchor
                             component={Link}
                             to={`/projects/${projectUrlIdentifier}/spaces/${dashboard.spaceUuid}`}
@@ -92,7 +97,7 @@ const DashboardInfoOverlay: FC<DashboardInfoOverlayProps> = ({
 
                 <Divider mb={4} />
 
-                <InfoRow icon={IconHash} label="Slug">
+                <InfoRow icon={IconHash} label={t('resourceInfo.slug')}>
                     <CopyButton value={dashboard.slug}>
                         {({ copied, copy }) => (
                             <UnstyledButton onClick={copy}>

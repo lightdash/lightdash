@@ -13,6 +13,7 @@ import {
     Title,
 } from '@mantine/core';
 import { type FC, type PropsWithChildren } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { BetaBadge } from '../../../../../../components/common/BetaBadge';
 import {
@@ -63,6 +64,7 @@ const Section: FC<
 );
 
 export const AiGeneralSettingsPage = () => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const { data: settings, isInitialLoading: isSettingsLoading } =
         useAiOrganizationAdminSettings();
     const { mutate: updateSettings, isLoading: isUpdatingSettings } =
@@ -109,7 +111,7 @@ export const AiGeneralSettingsPage = () => {
     } = useDefaultAiAgentModel({
         modelOptions: defaultModelOptions,
         modelConfig: defaultModelConfig,
-        fallbackLabel: 'System default',
+        fallbackLabel: t('settings.general.systemDefault'),
     });
 
     const anySurface = settings
@@ -139,8 +141,8 @@ export const AiGeneralSettingsPage = () => {
 
     return (
         <SettingsPage
-            title="Ask AI"
-            description="Configure organization-wide AI features, providers, and defaults."
+            title={t('settings.general.title')}
+            description={t('settings.general.description')}
         >
             {isSettingsLoading || !settings ? (
                 <Group justify="center" mt="xl">
@@ -166,8 +168,10 @@ export const AiGeneralSettingsPage = () => {
                     />
 
                     <Section
-                        label="Agent behaviour"
-                        description="Applies on every surface."
+                        label={t('settings.general.agentBehaviour')}
+                        description={t(
+                            'settings.general.agentBehaviourDescription',
+                        )}
                     >
                         <SettingsCard>
                             <Stack gap="md">
@@ -179,11 +183,12 @@ export const AiGeneralSettingsPage = () => {
                                 >
                                     <Box maw={620}>
                                         <Title order={5} mb={4}>
-                                            AI Router
+                                            {t('settings.general.aiRouter')}
                                         </Title>
                                         <Text c="dimmed" fz="xs">
-                                            Route user questions to the best
-                                            agent automatically.
+                                            {t(
+                                                'settings.general.aiRouterDescription',
+                                            )}
                                         </Text>
                                     </Box>
                                     <Switch
@@ -222,19 +227,20 @@ export const AiGeneralSettingsPage = () => {
                                 >
                                     <Box maw={620}>
                                         <Title order={5} mb={4}>
-                                            Default AI model
+                                            {t('settings.general.defaultModel')}
                                         </Title>
                                         <Text c="dimmed" fz="xs">
-                                            Choose the model and reasoning
-                                            default for new AI agent chats.
-                                            Users can still change it in each
-                                            chat.
+                                            {t(
+                                                'settings.general.defaultModelDescription',
+                                            )}
                                         </Text>
                                     </Box>
                                     <Select
                                         w={{ base: '100%', sm: 260 }}
                                         miw={{ base: 0, sm: 260 }}
-                                        aria-label="Default AI model"
+                                        aria-label={t(
+                                            'settings.general.defaultModel',
+                                        )}
                                         size="xs"
                                         value={selectedDefaultModelKey}
                                         disabled={
@@ -289,12 +295,14 @@ export const AiGeneralSettingsPage = () => {
                                         >
                                             <Box maw={620}>
                                                 <Title order={6} mb={4}>
-                                                    High reasoning by default
+                                                    {t(
+                                                        'settings.general.highReasoning',
+                                                    )}
                                                 </Title>
                                                 <Text c="dimmed" fz="xs">
-                                                    Start new chats with high
-                                                    reasoning enabled for the
-                                                    selected model.
+                                                    {t(
+                                                        'settings.general.highReasoningDescription',
+                                                    )}
                                                 </Text>
                                             </Box>
                                             <Switch
@@ -345,8 +353,10 @@ export const AiGeneralSettingsPage = () => {
                     {settings.isCopilotEnabled &&
                         customProvidersFlag.data?.enabled === true && (
                             <Section
-                                label="Providers & keys"
-                                description="Your own keys take precedence over the instance keys."
+                                label={t('settings.general.providers')}
+                                description={t(
+                                    'settings.general.providersDescription',
+                                )}
                             >
                                 <AiProvidersCard
                                     providerApiKeysSet={
@@ -390,7 +400,7 @@ export const AiGeneralSettingsPage = () => {
                             </Section>
                         )}
 
-                    <Section label="Quality & review">
+                    <Section label={t('settings.general.quality')}>
                         <SettingsCard>
                             <Stack gap="md">
                                 <Group
@@ -402,39 +412,36 @@ export const AiGeneralSettingsPage = () => {
                                     <Box maw={620}>
                                         <Group gap="xs" mb={4}>
                                             <Title order={5}>
-                                                Review AI agent turns
+                                                {t(
+                                                    'settings.general.reviewTurns',
+                                                )}
                                             </Title>
                                             <BetaBadge />
                                         </Group>
                                         <Text c="dimmed" fz="xs">
-                                            Process every agent turn to surface
-                                            semantic layer gaps, project context
-                                            improvements, and admin
-                                            recommendations. For connected
-                                            projects, Lightdash can suggest pull
-                                            requests that improve context and
-                                            semantic definitions.
+                                            {t(
+                                                'settings.general.reviewTurnsDescription',
+                                            )}
                                             {reviewsEffectivelyOn && (
-                                                <>
-                                                    {' '}
-                                                    See issues in{' '}
-                                                    <Anchor
-                                                        component={Link}
-                                                        to="/generalSettings/ai/issues"
-                                                    >
-                                                        Ask AI &gt; Issues
-                                                    </Anchor>
-                                                    .
-                                                </>
+                                                <Trans
+                                                    t={t}
+                                                    i18nKey="settings.general.seeIssues"
+                                                    components={{
+                                                        anchor: (
+                                                            <Anchor
+                                                                component={Link}
+                                                                to="/generalSettings/ai/issues"
+                                                            />
+                                                        ),
+                                                    }}
+                                                />
                                             )}
                                         </Text>
                                         {reviewsPausedByByok && (
                                             <Text c="dimmed" fz="xs" mt={4}>
-                                                Paused — your AI provider key
-                                                can&apos;t run the review model
-                                                (Claude Haiku). Reviews run on
-                                                your own key, so they resume
-                                                when it has access.
+                                                {t(
+                                                    'settings.general.reviewsPaused',
+                                                )}
                                             </Text>
                                         )}
                                     </Box>

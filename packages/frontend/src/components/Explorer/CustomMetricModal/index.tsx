@@ -33,6 +33,7 @@ import {
 import { useForm, type FormValidateInput } from '@mantine/form';
 import { IconSparkles } from '@tabler/icons-react';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { type ValueOf } from 'type-fest';
 import {
     explorerActions,
@@ -72,6 +73,7 @@ import {
 const EMPTY_ADDITIONAL_METRICS: AdditionalMetric[] = [];
 
 export const CustomMetricModal = memo(() => {
+    const { t } = useTranslation('explorer');
     const {
         isOpen,
         isEditing,
@@ -294,11 +296,11 @@ export const CustomMetricModal = memo(() => {
             percentile: (percentile) => {
                 if (!percentile) return null;
                 if (percentile < 0 || percentile > 100) {
-                    return 'Percentile must be a number between 0 and 100';
+                    return t('customMetric.percentileRange');
                 }
             },
         }),
-        [additionalMetrics, exploreData, isEditing, item],
+        [additionalMetrics, exploreData, isEditing, item, t],
     );
 
     const form = useForm<FormValues>({
@@ -333,13 +335,16 @@ export const CustomMetricModal = memo(() => {
                 isEditing
                     ? label
                     : isMetric(item)
-                      ? `Copy of ${label}`
+                      ? t('customMetric.copyOfLabel', { label })
                       : customMetricType
-                        ? `${friendlyName(customMetricType)} of ${label}`
+                        ? t('customMetric.defaultLabel', {
+                              type: friendlyName(customMetricType),
+                              field: label,
+                          })
                         : '',
             );
         }
-    }, [setFieldValue, item, customMetricType, isEditing, initialLabel]);
+    }, [setFieldValue, item, customMetricType, isEditing, initialLabel, t]);
 
     const initialCustomMetricFiltersWithIds = useMemo(() => {
         if (!isEditing) {
@@ -437,13 +442,13 @@ export const CustomMetricModal = memo(() => {
                     );
                     onRegistryMetricEdited?.(metric);
                     showToastSuccess({
-                        title: 'Custom metric updated across this dashboard',
+                        title: t('customMetric.toast.updatedAcrossDashboard'),
                     });
                     handleClose();
                 },
                 onError: (error) => {
                     showToastError({
-                        title: 'Failed to update custom metric',
+                        title: t('customMetric.toast.updateFailed'),
                         subtitle: error.error?.message,
                     });
                 },
@@ -457,6 +462,7 @@ export const CustomMetricModal = memo(() => {
         showToastSuccess,
         showToastError,
         handleClose,
+        t,
     ]);
 
     const handleOnSubmit = form.onSubmit(
@@ -502,9 +508,10 @@ export const CustomMetricModal = memo(() => {
                     // (table, name) identity is how every chart references it.
                     if (data.table !== item.table) {
                         showToastError({
-                            title: 'Shared metrics cannot move to another table',
-                            subtitle:
-                                'Pick a source field from the same table, or create a new metric instead.',
+                            title: t('customMetric.toast.cannotMoveTable'),
+                            subtitle: t(
+                                'customMetric.toast.cannotMoveTableHint',
+                            ),
                         });
                         return;
                     }
@@ -529,7 +536,9 @@ export const CustomMetricModal = memo(() => {
                             },
                             onError: (error) => {
                                 showToastError({
-                                    title: 'Failed to prepare metric update',
+                                    title: t(
+                                        'customMetric.toast.prepareUpdateFailed',
+                                    ),
                                     subtitle: error.error?.message,
                                 });
                             },
@@ -551,11 +560,12 @@ export const CustomMetricModal = memo(() => {
                 showToastSuccess({
                     title:
                         baseDimensionChanged && selectedBaseDimension
-                            ? `Custom metric rebuilt on ${
-                                  selectedBaseDimension.label ||
-                                  selectedBaseDimension.name
-                              }`
-                            : 'Custom metric edited successfully',
+                            ? t('customMetric.toast.rebuiltOn', {
+                                  field:
+                                      selectedBaseDimension.label ||
+                                      selectedBaseDimension.name,
+                              })
+                            : t('customMetric.toast.editedSuccess'),
                 });
             } else {
                 const newMetric = buildNewAdditionalMetric({
@@ -573,7 +583,7 @@ export const CustomMetricModal = memo(() => {
                     dispatch(explorerActions.addAdditionalMetric(newMetric));
                 }
                 showToastSuccess({
-                    title: 'Custom metric added successfully',
+                    title: t('customMetric.addedSuccess'),
                 });
             }
             handleClose();
@@ -620,7 +630,11 @@ export const CustomMetricModal = memo(() => {
                 size="xl"
                 opened={isOpen}
                 onClose={handleClose}
-                title={`${isEditing ? 'Edit' : 'Create'} Custom Metric`}
+                title={
+                    isEditing
+                        ? t('customMetric.modal.editTitle')
+                        : t('customMetric.modal.createTitle')
+                }
                 icon={IconSparkles}
                 actions={
                     <Button
@@ -628,7 +642,9 @@ export const CustomMetricModal = memo(() => {
                         form={CUSTOM_METRIC_FORM_ID}
                         disabled={!form.isValid()}
                     >
-                        {isEditing ? 'Save changes' : 'Create'}
+                        {isEditing
+                            ? t('customMetric.modal.saveChanges')
+                            : t('actions.create', { ns: 'common' })}
                     </Button>
                 }
             >
@@ -639,19 +655,25 @@ export const CustomMetricModal = memo(() => {
                 >
                     <Stack gap="md">
                         <TextInput
-                            label="Label"
+                            label={t('customMetric.label')}
                             required
-                            placeholder="Enter custom metric label"
+                            placeholder={t(
+                                'customMetric.modal.labelPlaceholder',
+                            )}
                             {...form.getInputProps('customMetricLabel')}
                         />
                         {showBaseDimensionPicker && customMetricType && (
                             <Stack gap="xs">
                                 <Select
-                                    label="Source field"
+                                    label={t('customMetric.modal.sourceField')}
                                     description={
                                         isEditing
-                                            ? `The field this metric aggregates over. Pick a different one to rebuild it without recreating it.`
-                                            : 'The field this metric aggregates over.'
+                                            ? t(
+                                                  'customMetric.modal.sourceFieldEditDescription',
+                                              )
+                                            : t(
+                                                  'customMetric.modal.sourceFieldDescription',
+                                              )
                                     }
                                     data={baseDimensionOptions.map(
                                         ({ value, label }) => ({
@@ -673,34 +695,43 @@ export const CustomMetricModal = memo(() => {
                                             />
                                         ) : null
                                     }
-                                    nothingFoundMessage="No compatible fields on this table"
+                                    nothingFoundMessage={t(
+                                        'customMetric.modal.noCompatibleFields',
+                                    )}
                                     comboboxProps={{ withinPortal: true }}
                                 />
                                 {baseDimensionChanged &&
                                 selectedBaseDimension ? (
                                     <Callout
                                         variant="info"
-                                        title="Source field will change"
+                                        title={t(
+                                            'customMetric.modal.sourceFieldChange.title',
+                                        )}
                                     >
-                                        This metric will be rebuilt to aggregate{' '}
-                                        <Text span fw={600}>
-                                            {selectedBaseDimension.label ||
-                                                selectedBaseDimension.name}
-                                        </Text>
-                                        . Filters and format options are
-                                        preserved, and the metric ID stays the
-                                        same so saved charts and dashboards keep
-                                        working.
+                                        <Trans
+                                            t={t}
+                                            i18nKey="customMetric.modal.sourceFieldChange.description"
+                                            values={{
+                                                field:
+                                                    selectedBaseDimension.label ||
+                                                    selectedBaseDimension.name,
+                                            }}
+                                            components={{
+                                                field: <Text span fw={600} />,
+                                            }}
+                                        />
                                     </Callout>
                                 ) : null}
                             </Stack>
                         )}
                         {isMetricDerived && sourceMetricLabel && (
                             <TextInput
-                                label="Source metric"
+                                label={t('customMetric.modal.sourceMetric')}
                                 value={sourceMetricLabel}
                                 readOnly
-                                description="The metric this custom metric is based on."
+                                description={t(
+                                    'customMetric.modal.sourceMetricDescription',
+                                )}
                                 leftSection={
                                     sourceMetric ? (
                                         <FieldIcon
@@ -713,20 +744,24 @@ export const CustomMetricModal = memo(() => {
                         )}
                         {customMetricType && (
                             <TextInput
-                                label="Type"
+                                label={t('customMetric.modal.type')}
                                 value={friendlyName(customMetricType)}
                                 readOnly
-                                description="Metric type"
+                                description={t(
+                                    'customMetric.modal.typeDescription',
+                                )}
                             />
                         )}
                         {isMetricDerived &&
                             (isMetric(item) || isAdditionalMetric(item)) &&
                             item.sql && (
                                 <TextInput
-                                    label="SQL"
+                                    label={t('customMetric.modal.sql')}
                                     value={item.sql}
                                     readOnly
-                                    description="SQL this metric aggregates"
+                                    description={t(
+                                        'customMetric.modal.sqlAggregatesDescription',
+                                    )}
                                 />
                             )}
                         {isEditing &&
@@ -734,10 +769,10 @@ export const CustomMetricModal = memo(() => {
                             item.sql &&
                             isNonAggregateMetricType(item.type) && (
                                 <TextInput
-                                    label="SQL"
+                                    label={t('customMetric.modal.sql')}
                                     value={item.sql}
                                     readOnly
-                                    description="SQL"
+                                    description={t('customMetric.modal.sql')}
                                 />
                             )}
                         {customMetricType === MetricType.PERCENTILE && (
@@ -747,7 +782,7 @@ export const CustomMetricModal = memo(() => {
                                 min={0}
                                 decimalScale={2}
                                 required
-                                label="Percentile"
+                                label={t('customMetric.percentile')}
                                 {...form.getInputProps('percentile')}
                             />
                         )}
@@ -761,7 +796,7 @@ export const CustomMetricModal = memo(() => {
                                 <Accordion.Item value="format">
                                     <Accordion.Control>
                                         <Text fw={500} fz="sm">
-                                            Format
+                                            {t('customMetric.modal.format')}
                                         </Text>
                                     </Accordion.Control>
                                     <Accordion.Panel>
@@ -780,7 +815,7 @@ export const CustomMetricModal = memo(() => {
                             <Accordion.Item value="filters">
                                 <Accordion.Control>
                                     <Text fw={500} fz="sm">
-                                        Filters
+                                        {t('customMetric.modal.filters')}
                                         <Text span fw={400} fz="xs">
                                             {customMetricFiltersWithIds.length >
                                             0
@@ -793,7 +828,7 @@ export const CustomMetricModal = memo(() => {
                                             c="ldGray.5"
                                             fw={400}
                                         >
-                                            (optional)
+                                            {t('customMetric.modal.optional')}
                                         </Text>
                                     </Text>
                                 </Accordion.Control>

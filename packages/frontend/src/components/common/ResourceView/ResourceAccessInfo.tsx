@@ -1,22 +1,24 @@
 import { type ResourceViewSpaceItem } from '@lightdash/common';
 import { Group, Text, Tooltip } from '@mantine/core';
 import { IconLock, IconUser, IconUsers } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../MantineIcon';
 import { ResourceAccess } from './types';
 
 const ResourceAccessInfoData = {
     [ResourceAccess.Private]: {
         Icon: IconLock,
-        status: 'Private',
+        statusKey: 'accessInfo.status.private',
     },
     [ResourceAccess.Public]: {
         Icon: IconUsers,
-        status: 'Inherited access',
+        statusKey: 'accessInfo.status.inherited',
     },
     [ResourceAccess.Shared]: {
         Icon: IconUser,
-        status: 'Restricted access',
+        statusKey: 'accessInfo.status.restricted',
     },
 } as const;
 
@@ -31,6 +33,7 @@ const getAccessType = (item: ResourceViewSpaceItem): ResourceAccess => {
 };
 
 const getAccessLabel = (
+    t: TFunction<'resourceView'>,
     item: ResourceViewSpaceItem,
     accessType: ResourceAccess,
     isNestedSpace: boolean,
@@ -38,14 +41,14 @@ const getAccessLabel = (
     switch (accessType) {
         case ResourceAccess.Public:
             return isNestedSpace
-                ? 'Inherits access from the parent space'
-                : 'All project members can access';
+                ? t('accessInfo.tooltip.inheritsFromParent')
+                : t('accessInfo.tooltip.allProjectMembers');
         case ResourceAccess.Private:
-            return 'Only you and admins can access';
+            return t('accessInfo.tooltip.onlyYouAndAdmins');
         case ResourceAccess.Shared:
-            return `Shared with ${item.data.accessListLength} member${
-                item.data.accessListLength > 1 ? 's' : ''
-            }`;
+            return t('accessInfo.tooltip.sharedWithMembers', {
+                count: item.data.accessListLength,
+            });
     }
 };
 
@@ -60,11 +63,12 @@ const ResourceAccessInfo: React.FC<ResourceAccessInfoProps> = ({
     type = 'secondary',
     withTooltip = false,
 }) => {
+    const { t } = useTranslation('resourceView');
     const accessType = getAccessType(item);
     const isNestedSpace = !!item.data.parentSpaceUuid;
     const { Icon } = ResourceAccessInfoData[accessType];
-    const status = ResourceAccessInfoData[accessType].status;
-    const tooltipLabel = getAccessLabel(item, accessType, isNestedSpace);
+    const status = t(ResourceAccessInfoData[accessType].statusKey);
+    const tooltipLabel = getAccessLabel(t, item, accessType, isNestedSpace);
 
     const styles = useMemo(() => {
         return {

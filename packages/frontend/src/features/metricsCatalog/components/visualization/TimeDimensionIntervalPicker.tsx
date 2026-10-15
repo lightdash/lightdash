@@ -2,6 +2,7 @@ import { TimeFrames, type TimeDimensionConfig } from '@lightdash/common';
 import { Select } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import selectStyles from '../../styles/selectStyles.module.css';
@@ -16,6 +17,7 @@ export const TimeDimensionIntervalPicker: FC<Props> = ({
     onChange,
 }) => {
     const getUiString = useUiStrings();
+    const { t } = useTranslation('metricsCatalog');
     const [optimisticInterval, setOptimisticInterval] = useState(
         dimension.interval,
     );
@@ -29,19 +31,19 @@ export const TimeDimensionIntervalPicker: FC<Props> = ({
             data={[
                 {
                     value: TimeFrames.DAY,
-                    label: 'Daily',
+                    label: t('intervals.daily'),
                 },
                 {
                     value: TimeFrames.WEEK,
-                    label: 'Weekly',
+                    label: t('intervals.weekly'),
                 },
                 {
                     value: TimeFrames.MONTH,
-                    label: 'Monthly',
+                    label: t('intervals.monthly'),
                 },
                 {
                     value: TimeFrames.YEAR,
-                    label: 'Yearly',
+                    label: t('intervals.yearly'),
                 },
             ]}
             value={optimisticInterval}

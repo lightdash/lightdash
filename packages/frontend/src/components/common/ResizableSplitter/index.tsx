@@ -5,6 +5,7 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue, type SplitterPaneSize } from '@mantine/hooks';
 import { Children, useEffect, useState, type ReactElement } from 'react';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import classes from './ResizableSplitter.module.css';
 
@@ -52,13 +53,14 @@ type Props = SplitterProps & {
 const ResizableSplitter = ({
     children,
     storageKey,
-    handleLabel = 'Resize panels',
+    handleLabel,
     resizable = true,
     sizes,
     onSizeChange,
     classNames,
     ...props
 }: Props) => {
+    const { t } = useTranslation('commonUi');
     const panes = Children.toArray(
         children,
     ) as ReactElement<SplitterPaneProps>[];
@@ -122,7 +124,8 @@ const ResizableSplitter = ({
             attributes={{
                 ...props.attributes,
                 handle: {
-                    'aria-label': handleLabel,
+                    'aria-label':
+                        handleLabel ?? t('resizableSplitter.resizePanels'),
                     ...props.attributes?.handle,
                     onPointerDownCapture: (
                         event: React.PointerEvent<HTMLDivElement>,

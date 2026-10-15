@@ -1,29 +1,31 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import useHealth from '../../../hooks/health/useHealth';
 
 export const useExpireOptions = (includeNoExpiration = false) => {
+    const { t } = useTranslation('userSettings');
     const health = useHealth();
 
     return useMemo(() => {
         const options = [
             {
-                label: 'No expiration',
+                label: t('accessTokensPanel.expireOptions.noExpiration'),
                 value: '',
             },
             {
-                label: '7 days',
+                label: t('accessTokensPanel.expireOptions.days', { count: 7 }),
                 value: '7',
             },
             {
-                label: '30 days',
+                label: t('accessTokensPanel.expireOptions.days', { count: 30 }),
                 value: '30',
             },
             {
-                label: '60 days',
+                label: t('accessTokensPanel.expireOptions.days', { count: 60 }),
                 value: '60',
             },
             {
-                label: '90 days',
+                label: t('accessTokensPanel.expireOptions.days', { count: 90 }),
                 value: '90',
             },
         ];
@@ -38,5 +40,5 @@ export const useExpireOptions = (includeNoExpiration = false) => {
             if (!maxExpirationTimeInDays) return true;
             return parseFloat(option.value) <= maxExpirationTimeInDays;
         });
-    }, [health.data?.auth.pat.maxExpirationTimeInDays, includeNoExpiration]);
+    }, [health.data?.auth.pat.maxExpirationTimeInDays, includeNoExpiration, t]);
 };

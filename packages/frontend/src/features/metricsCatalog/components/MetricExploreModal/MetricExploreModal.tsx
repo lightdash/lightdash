@@ -35,6 +35,7 @@ import {
     IconInfoCircle,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import LightdashVisualization from '../../../../components/LightdashVisualization';
@@ -80,6 +81,7 @@ type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
  */
 export const MetricExploreModal: FC<Props> = (props) => {
     const getUiString = useUiStrings();
+    const { t } = useTranslation('metricsCatalog');
     const compact = useMatches({ base: true, lg: false });
     const { opened, onClose, metrics } = props;
     const { track } = useTracking();
@@ -610,7 +612,7 @@ export const MetricExploreModal: FC<Props> = (props) => {
                                 <Stack gap="xs">
                                     <Group justify="space-between">
                                         <Text fw={500} c="ldGray.7">
-                                            Comparison
+                                            {t('exploreModal.comparison')}
                                         </Text>
                                         <Button
                                             variant="subtle"
@@ -628,7 +630,7 @@ export const MetricExploreModal: FC<Props> = (props) => {
                                                 })
                                             }
                                         >
-                                            Clear
+                                            {t('exploreModal.clear')}
                                         </Button>
                                     </Group>
 

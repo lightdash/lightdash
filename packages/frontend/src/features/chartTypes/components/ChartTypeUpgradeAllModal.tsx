@@ -1,6 +1,7 @@
 import { type RegistryChartTypeListItem } from '@lightdash/common';
 import { Checkbox, Group, Stack, Text } from '@mantine/core';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -21,6 +22,7 @@ const ChartTypeUpgradeAllModal: FC<Props> = ({
     updates,
     onClose,
 }) => {
+    const { t } = useTranslation('chartTypes');
     const { track } = useTracking();
     const upgradeAll = useUpgradeAllRegistryChartTypes();
     const [upgradeConsumingCharts, setUpgradeConsumingCharts] = useState(false);
@@ -30,8 +32,8 @@ const ChartTypeUpgradeAllModal: FC<Props> = ({
         <MantineModal
             opened
             onClose={onClose}
-            title={`Upgrade ${count} chart type${count === 1 ? '' : 's'}`}
-            confirmLabel="Upgrade all"
+            title={t('upgradeAll.title', { count })}
+            confirmLabel={t('library.upgradeAll')}
             onConfirm={() => {
                 updates.forEach((chart) =>
                     track({
@@ -84,17 +86,15 @@ const ChartTypeUpgradeAllModal: FC<Props> = ({
                     ))}
                 </Stack>
                 <Text fz="sm" c="dimmed">
-                    Saved charts without a pinned version switch to the new
-                    versions right away. Charts pinned to an earlier version
-                    keep rendering it until each chart is upgraded.
+                    {t('upgradeAll.explanation')}
                 </Text>
                 <Checkbox
                     checked={upgradeConsumingCharts}
                     onChange={(event) =>
                         setUpgradeConsumingCharts(event.currentTarget.checked)
                     }
-                    label="Also move pinned saved charts to the new versions"
-                    description="Deliberately overrides each chart's pin."
+                    label={t('upgradeAll.alsoMove')}
+                    description={t('upgradeAll.alsoMoveDescription')}
                 />
             </Stack>
         </MantineModal>

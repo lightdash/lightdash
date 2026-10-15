@@ -7,6 +7,7 @@ import {
 import { IconPlugConnected } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import {
     clearSharedSignInToastSuppression,
@@ -33,6 +34,7 @@ import {
 } from './sharedSignInListenerDecision';
 
 export const SharedSignInExpiryListener: FC = () => {
+    const { t } = useTranslation('navigation');
     const { user } = useApp();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
@@ -84,7 +86,7 @@ export const SharedSignInExpiryListener: FC = () => {
                 autoClose: false,
                 action: isSubject
                     ? {
-                          children: 'Reconnect',
+                          children: t('sharedSignIn.reconnect'),
                           icon: IconPlugConnected,
                           onClick: () =>
                               navigate(
@@ -229,6 +231,7 @@ export const SharedSignInExpiryListener: FC = () => {
         navigate,
         reconnectFlag.data?.enabled,
         reconnectFlag.isLoading,
+        t,
     ]);
 
     return modalProjectUuid ? (

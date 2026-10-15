@@ -39,17 +39,18 @@ export const summarisePrUrl = (prUrl: string): string | null => {
  */
 export const INSTALL_ACTIONS: Record<
     'github_not_installed' | 'gitlab_not_installed',
-    { icon: TablerIcon; installUrl: string; cta: string }
+    // ctaKey: key in the aiCopilotChat namespace
+    { icon: TablerIcon; installUrl: string; ctaKey: string }
 > = {
     github_not_installed: {
         icon: IconBrandGithub,
         installUrl: '/api/v1/github/install',
-        cta: 'Install GitHub App',
+        ctaKey: 'pullRequest.installGithubApp',
     },
     gitlab_not_installed: {
         icon: IconBrandGitlab,
         installUrl: '/api/v1/gitlab/install',
-        cta: 'Connect GitLab',
+        ctaKey: 'pullRequest.connectGitlab',
     },
 };
 

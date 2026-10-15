@@ -37,12 +37,13 @@ import {
     type FC,
     type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useProjectUrlIdentifier } from '../../../../hooks/useProjectRoute';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import usePinnedItemsContext from '../../../../providers/PinnedItems/usePinnedItemsContext';
 import MantineIcon from '../../MantineIcon';
-import { getResourceName, getResourceUrl } from '../resourceUtils';
+import { getResourceNamePlural, getResourceUrl } from '../resourceUtils';
 import {
     type ResourceViewCommonProps,
     type ResourceViewItemActionState,
@@ -277,6 +278,7 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
     onAction,
     hasReorder = false,
 }) => {
+    const { t } = useTranslation('resourceView');
     const { reorderItems, allowDelete } = usePinnedItemsContext();
     const projectUuid = useProjectUuid();
     const projectUrlIdentifier = useProjectUrlIdentifier();
@@ -308,17 +310,21 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
                     ['data.pinnedListOrder'],
                     ['asc'],
                 );
+                const names = group.map(getResourceNamePlural);
                 return {
-                    name: group
-                        .map((g) => getResourceName(g) + 's')
-                        .join(', ')
-                        .replace(/, ([^,]*)$/, ' & $1'), // replaces last comma with '&'
+                    name:
+                        names.length > 1
+                            ? t('grid.groupName', {
+                                  list: names.slice(0, -1).join(', '),
+                                  last: names[names.length - 1],
+                              })
+                            : (names[0] ?? ''),
 
                     items: hasReorder ? orderedItems : filteredItems,
                 };
             })
             .filter((group) => group.items.length > 0);
-    }, [hasReorder, groups, items]);
+    }, [hasReorder, groups, items, t]);
 
     const [localGroupedItems, setLocalGroupedItems] =
         useState<ResourceViewGridGroup[]>(groupedItems);

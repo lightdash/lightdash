@@ -18,7 +18,9 @@ import {
     Select,
     Switch,
 } from '@mantine/core';
+import { type TFunction } from 'i18next';
 import { memo, useEffect, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     findMatchingProperty,
     useGeoJsonProperties,
@@ -33,25 +35,24 @@ import MapFieldConfiguration from './MapFieldConfiguration';
 // Get the label and description for the region field based on map type
 const getRegionFieldConfig = (
     mapType: MapChartLocation | undefined,
+    t: TFunction,
 ): { label: string; description: string } => {
     switch (mapType) {
         case MapChartLocation.USA:
             return {
-                label: 'State field',
-                description: 'Field containing state codes (e.g., "CA", "NY")',
+                label: t('map.layout.regionField.stateLabel'),
+                description: t('map.layout.regionField.stateDescription'),
             };
         case MapChartLocation.CUSTOM:
             return {
-                label: 'Data join field',
-                description:
-                    'Field containing values that match the selected map join field',
+                label: t('map.layout.regionField.customLabel'),
+                description: t('map.layout.regionField.customDescription'),
             };
         case MapChartLocation.WORLD:
         default:
             return {
-                label: 'Country code field (ISO3)',
-                description:
-                    'Field containing ISO 3166-1 alpha-3 codes (e.g., "USA", "GBR")',
+                label: t('map.layout.regionField.worldLabel'),
+                description: t('map.layout.regionField.worldDescription'),
             };
     }
 };
@@ -90,6 +91,7 @@ const findLocationField = (
 };
 
 export const Layout: FC = memo(() => {
+    const { t } = useTranslation('vizConfig');
     const { visualizationConfig, itemsMap } = useVisualizationContext();
 
     const isMapConfig = isMapVisualizationConfig(visualizationConfig);
@@ -249,12 +251,12 @@ export const Layout: FC = memo(() => {
     } = chartConfig;
 
     const mapTypeOptions = [
-        { value: MapChartLocation.WORLD, label: 'World' },
-        { value: MapChartLocation.USA, label: 'US' },
+        { value: MapChartLocation.WORLD, label: t('map.layout.world') },
+        { value: MapChartLocation.USA, label: t('map.layout.us') },
     ];
 
     // Get region field config based on map type
-    const regionFieldConfig = getRegionFieldConfig(config.mapType);
+    const regionFieldConfig = getRegionFieldConfig(config.mapType, t);
 
     const locationType = config.locationType || MapChartType.SCATTER;
 
@@ -270,11 +272,11 @@ export const Layout: FC = memo(() => {
         locationType === MapChartType.HEXBIN;
 
     const locationTypeOptions = [
-        { value: MapChartType.SCATTER, label: 'Scatter' },
-        { value: MapChartType.AREA, label: 'Area' },
-        { value: MapChartType.HEATMAP, label: 'Heatmap' },
+        { value: MapChartType.SCATTER, label: t('map.layout.scatter') },
+        { value: MapChartType.AREA, label: t('map.layout.area') },
+        { value: MapChartType.HEATMAP, label: t('map.layout.heatmap') },
         ...(showHexbinOption
-            ? [{ value: MapChartType.HEXBIN, label: 'Hexbin' }]
+            ? [{ value: MapChartType.HEXBIN, label: t('map.layout.hexbin') }]
             : []),
     ];
     const isCustomMap = config.mapType === MapChartLocation.CUSTOM;
@@ -330,7 +332,7 @@ export const Layout: FC = memo(() => {
         <Stack>
             <Config>
                 <Config.Section>
-                    <Config.Heading>Map Type</Config.Heading>
+                    <Config.Heading>{t('map.layout.mapType')}</Config.Heading>
                     <SegmentedControl
                         size="xs"
                         data={locationTypeOptions}
@@ -350,11 +352,13 @@ export const Layout: FC = memo(() => {
                 locationType === MapChartType.HEXBIN) && (
                 <Config>
                     <Config.Section>
-                        <Config.Heading>Coordinates</Config.Heading>
+                        <Config.Heading>
+                            {t('map.layout.coordinates')}
+                        </Config.Heading>
                         <Group gap="md" grow>
                             <FieldSelect
-                                label="Latitude"
-                                placeholder="Select field"
+                                label={t('map.layout.latitude')}
+                                placeholder={t('map.layout.selectField')}
                                 item={latitudeField}
                                 items={availableFields}
                                 onChange={(newField) =>
@@ -368,8 +372,8 @@ export const Layout: FC = memo(() => {
                                 clearable
                             />
                             <FieldSelect
-                                label="Longitude"
-                                placeholder="Select field"
+                                label={t('map.layout.longitude')}
+                                placeholder={t('map.layout.selectField')}
                                 item={longitudeField}
                                 items={availableFields}
                                 onChange={(newField) =>
@@ -391,11 +395,13 @@ export const Layout: FC = memo(() => {
                 <>
                     <Config>
                         <Config.Section>
-                            <Config.Heading>Location</Config.Heading>
+                            <Config.Heading>
+                                {t('map.layout.location')}
+                            </Config.Heading>
 
                             <Switch
                                 size="xs"
-                                label="Custom region"
+                                label={t('map.layout.customRegion')}
                                 checked={isCustomMap}
                                 onChange={(e) => {
                                     if (e.currentTarget.checked) {
@@ -411,7 +417,7 @@ export const Layout: FC = memo(() => {
                                 <>
                                     <TextInput
                                         size="xs"
-                                        label="Custom GeoJSON URL"
+                                        label={t('map.layout.customGeoJsonUrl')}
                                         placeholder="https://example.com/map.geojson"
                                         value={config.customGeoJsonUrl || ''}
                                         onChange={(e) =>
@@ -422,16 +428,22 @@ export const Layout: FC = memo(() => {
                                         }
                                     />
                                     <Select
-                                        label="Map join field"
-                                        description="Property from geojson file to join on"
+                                        label={t('map.layout.mapJoinField')}
+                                        description={t(
+                                            'map.layout.mapJoinFieldDescription',
+                                        )}
                                         placeholder={
                                             !config.customGeoJsonUrl
-                                                ? 'Enter URL first'
+                                                ? t('map.layout.enterUrlFirst')
                                                 : isLoadingProperties
-                                                  ? 'Loading...'
+                                                  ? t('map.layout.loading')
                                                   : propertyOptions.length === 0
-                                                    ? 'No properties found'
-                                                    : 'Select property'
+                                                    ? t(
+                                                          'map.layout.noPropertiesFound',
+                                                      )
+                                                    : t(
+                                                          'map.layout.selectProperty',
+                                                      )
                                         }
                                         data={propertyOptions}
                                         value={
@@ -449,7 +461,10 @@ export const Layout: FC = memo(() => {
                                         }
                                         error={
                                             propertiesError
-                                                ? `Failed to load: ${propertiesError.message}`
+                                                ? t('map.layout.failedToLoad', {
+                                                      message:
+                                                          propertiesError.message,
+                                                  })
                                                 : undefined
                                         }
                                         rightSection={
@@ -464,7 +479,7 @@ export const Layout: FC = memo(() => {
                             ) : (
                                 <Select
                                     allowDeselect={false}
-                                    label="Map region"
+                                    label={t('map.layout.mapRegion')}
                                     disabled={isCustomMap}
                                     data={mapTypeOptions}
                                     value={
@@ -485,7 +500,7 @@ export const Layout: FC = memo(() => {
                         <Config.Section>
                             <FieldSelect
                                 label={regionFieldConfig.label}
-                                placeholder="Select field"
+                                placeholder={t('map.layout.selectField')}
                                 item={locationField}
                                 items={availableFields}
                                 description={regionFieldConfig.description}
@@ -507,7 +522,9 @@ export const Layout: FC = memo(() => {
             {showValuesSection && valueFieldIds.length > 0 && (
                 <Config>
                     <Config.Section>
-                        <Config.Heading>Values</Config.Heading>
+                        <Config.Heading>
+                            {t('map.layout.values')}
+                        </Config.Heading>
                         {valueFieldIds.map((fieldId) => (
                             <MapFieldConfiguration
                                 key={fieldId}

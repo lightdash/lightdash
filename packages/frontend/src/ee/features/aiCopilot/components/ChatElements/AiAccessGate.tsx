@@ -2,6 +2,7 @@ import { type AiAccessRefusal } from '@lightdash/common';
 import { Box, Button, Group, Paper, Text } from '@mantine/core';
 import { IconShieldCheck } from '@tabler/icons-react';
 import { useState, type ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { AiAccessCallout } from './AiAccessCallout';
 
@@ -22,6 +23,7 @@ export const AiAccessGate = ({
     variant: 'card' | 'inline';
     children: ReactNode;
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const [isRetrying, setIsRetrying] = useState(false);
     const minHeight = variant === 'card' ? 260 : 160;
 
@@ -32,24 +34,28 @@ export const AiAccessGate = ({
                     <Group gap="sm" align="flex-start" wrap="nowrap">
                         <MantineIcon icon={IconShieldCheck} color="dimmed" />
                         <Text size="sm" c="dimmed">
-                            Could not check your agent identity.{' '}
-                            <Button
-                                variant="subtle"
-                                size="compact-sm"
-                                px={0}
-                                loading={isRetrying}
-                                onClick={async () => {
-                                    setIsRetrying(true);
-                                    try {
-                                        await refetch();
-                                    } finally {
-                                        setIsRetrying(false);
-                                    }
+                            <Trans
+                                t={t}
+                                i18nKey="accessGate.checkFailed"
+                                components={{
+                                    retry: (
+                                        <Button
+                                            variant="subtle"
+                                            size="compact-sm"
+                                            px={0}
+                                            loading={isRetrying}
+                                            onClick={async () => {
+                                                setIsRetrying(true);
+                                                try {
+                                                    await refetch();
+                                                } finally {
+                                                    setIsRetrying(false);
+                                                }
+                                            }}
+                                        />
+                                    ),
                                 }}
-                            >
-                                Try again
-                            </Button>
-                            .
+                            />
                         </Text>
                     </Group>
                 </Paper>

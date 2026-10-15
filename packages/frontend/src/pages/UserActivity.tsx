@@ -18,7 +18,9 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
@@ -126,6 +128,7 @@ const showTableBodyWithUsers = (key: string, userList: UserWithCount[]) => {
 
 const chartWeeklyQueryingUsers = (
     data: UserActivityResponse['chartWeeklyQueryingUsers'],
+    t: TFunction,
 ) => ({
     grid: {
         height: '250px',
@@ -137,13 +140,13 @@ const chartWeeklyQueryingUsers = (
     yAxis: [
         {
             type: 'value',
-            name: 'Num users',
+            name: t('userActivity.charts.numUsers'),
             nameLocation: 'center',
             nameGap: '40',
         },
         {
             type: 'value',
-            name: '% users',
+            name: t('userActivity.charts.percentUsers'),
             nameLocation: 'center',
             nameGap: '40',
             nameRotate: -90,
@@ -152,7 +155,7 @@ const chartWeeklyQueryingUsers = (
     legend: { top: '40' },
     series: [
         {
-            name: 'Number of weekly querying users',
+            name: t('userActivity.charts.weeklyQueryingUsers'),
             data: data.map((queries: any) => [
                 queries.date,
                 queries.num_7d_active_users,
@@ -161,7 +164,7 @@ const chartWeeklyQueryingUsers = (
             color: '#d7c1fa',
         },
         {
-            name: '% of weekly querying users',
+            name: t('userActivity.charts.percentWeeklyQueryingUsers'),
             yAxisIndex: 1,
             data: data.map((queries: any) => [
                 queries.date,
@@ -177,6 +180,7 @@ const chartWeeklyQueryingUsers = (
 
 const chartWeeklyAverageQueries = (
     data: UserActivityResponse['chartWeeklyAverageQueries'],
+    t: TFunction,
 ) => ({
     grid: {
         height: '280px',
@@ -186,7 +190,7 @@ const chartWeeklyAverageQueries = (
     },
     yAxis: {
         type: 'value',
-        name: 'Weekly average number of\nqueries per user',
+        name: t('userActivity.charts.weeklyAverageQueries'),
         nameLocation: 'center',
         nameGap: '25',
     },
@@ -205,6 +209,7 @@ const chartWeeklyAverageQueries = (
 });
 
 const UserActivity: FC = () => {
+    const { t } = useTranslation('pages');
     const projectUuid = useProjectUuid();
     const { data: project } = useProject(projectUuid);
     const { user: sessionUser } = useApp();
@@ -220,18 +225,21 @@ const UserActivity: FC = () => {
     if (projectUuid === undefined || isInitialLoading || data === undefined) {
         return (
             <div style={{ marginTop: '20px' }}>
-                <SuboptimalState title="Loading..." loading />
+                <SuboptimalState title={t('common.loading')} loading />
             </div>
         );
     }
 
     return (
-        <Page title={`User activity for ${project?.name}`} withPaddedContent>
+        <Page
+            title={t('userActivity.title', { name: project?.name })}
+            withPaddedContent
+        >
             <Group mt={10} mb={30} justify="space-between">
                 <PageBreadcrumbs
                     items={[
                         {
-                            title: 'Usage analytics',
+                            title: t('userActivity.usageAnalytics'),
                             to: `/generalSettings/projectManagement/${projectUuid}/usageAnalytics`,
                         },
                         {
@@ -244,14 +252,16 @@ const UserActivity: FC = () => {
                                     }}
                                 >
                                     <MantineIcon icon={IconUsers} size={20} />{' '}
-                                    User activity for {project?.name}
+                                    {t('userActivity.title', {
+                                        name: project?.name,
+                                    })}
                                 </Group>
                             ),
                             active: true,
                         },
                     ]}
                 />
-                <Tooltip label="Export raw chart and dashboard user views in a CSV format">
+                <Tooltip label={t('userActivity.exportTooltip')}>
                     <Button
                         variant="outline"
                         disabled={isDownloadingCsv}
@@ -274,7 +284,9 @@ const UserActivity: FC = () => {
                                     .catch(console.error);
                         }}
                     >
-                        {isDownloadingCsv ? 'Exporting...' : 'Export CSV'}
+                        {isDownloadingCsv
+                            ? t('userActivity.exporting')
+                            : t('userActivity.exportCsv')}
                     </Button>
                 </Tooltip>
             </Group>
@@ -282,84 +294,85 @@ const UserActivity: FC = () => {
                 <VisualizationCard grid="total-users">
                     <BigNumberVis
                         value={data.numberUsers}
-                        label="Total users in project"
+                        label={t('userActivity.totalUsers')}
                     />
                 </VisualizationCard>
                 <VisualizationCard grid="viewers">
                     <BigNumberVis
                         value={data.numberViewers}
-                        label="Number of viewers"
+                        label={t('userActivity.numViewers')}
                     />
                 </VisualizationCard>
                 <VisualizationCard grid="interactive-viewers">
                     <BigNumberVis
                         value={data.numberInteractiveViewers}
-                        label="
-                        Number of interactive viewers
-                    "
+                        label={t('userActivity.numInteractiveViewers')}
                     />
                 </VisualizationCard>
                 <VisualizationCard grid="editors">
                     <BigNumberVis
                         value={data.numberEditors}
-                        label="Number of editors"
+                        label={t('userActivity.numEditors')}
                     />
                 </VisualizationCard>
 
                 <VisualizationCard grid="admins">
                     <BigNumberVis
                         value={data.numberAdmins}
-                        label="Number of admins"
+                        label={t('userActivity.numAdmins')}
                     />
                 </VisualizationCard>
                 <VisualizationCard grid="weekly-active">
                     <BigNumberVis
                         value={`${data.numberWeeklyQueryingUsers}%`}
-                        label="Users that viewed a chart in the last 7 days"
+                        label={t('userActivity.weeklyActive')}
                     />
                 </VisualizationCard>
 
                 <VisualizationCard
                     grid="chart-active-users"
-                    description="
-                        How many users are querying this project, weekly?"
+                    description={t('userActivity.chartActiveUsers')}
                 >
                     <EChartsReact
                         style={{ height: '100%' }}
                         notMerge
                         option={chartWeeklyQueryingUsers(
                             data.chartWeeklyQueryingUsers,
+                            t,
                         )}
                     />
                 </VisualizationCard>
 
                 <VisualizationCard
                     grid="queries-per-user"
-                    description="
-                        How many queries are users running each week, on
-                        average?"
+                    description={t('userActivity.queriesPerUser')}
                 >
                     <EChartsReact
                         style={{ height: '100%' }}
                         notMerge
                         option={chartWeeklyAverageQueries(
                             data.chartWeeklyAverageQueries,
+                            t,
                         )}
                     />
                 </VisualizationCard>
 
                 <VisualizationCard
                     grid="table-most-queries"
-                    description="
-                        Which users have run the most queries in the last 7
-                        days?"
+                    description={t('userActivity.mostQueries')}
                 >
                     <Table withColumnBorders ta="left">
                         <Table.Thead>
                             <Table.Tr>
-                                <Table.Th>First Name</Table.Th>
-                                <Table.Th>Last Name</Table.Th>
-                                <Table.Th>Number of Queries</Table.Th>
+                                <Table.Th>
+                                    {t('userActivity.columns.firstName')}
+                                </Table.Th>
+                                <Table.Th>
+                                    {t('userActivity.columns.lastName')}
+                                </Table.Th>
+                                <Table.Th>
+                                    {t('userActivity.columns.numQueries')}
+                                </Table.Th>
                             </Table.Tr>
                         </Table.Thead>
                         {showTableBodyWithUsers(
@@ -370,16 +383,20 @@ const UserActivity: FC = () => {
                 </VisualizationCard>
                 <VisualizationCard
                     grid="table-most-charts"
-                    description="
-                        Which users have made the most updates to charts in the
-                        last 7 days? (top 10)"
+                    description={t('userActivity.mostChartUpdates')}
                 >
                     <Table withColumnBorders ta="left">
                         <Table.Thead>
                             <Table.Tr>
-                                <Table.Th>First Name</Table.Th>
-                                <Table.Th>Last Name</Table.Th>
-                                <Table.Th>Number of chart updates</Table.Th>
+                                <Table.Th>
+                                    {t('userActivity.columns.firstName')}
+                                </Table.Th>
+                                <Table.Th>
+                                    {t('userActivity.columns.lastName')}
+                                </Table.Th>
+                                <Table.Th>
+                                    {t('userActivity.columns.numChartUpdates')}
+                                </Table.Th>
                             </Table.Tr>
                         </Table.Thead>
                         {showTableBodyWithUsers(
@@ -390,14 +407,22 @@ const UserActivity: FC = () => {
                 </VisualizationCard>
                 <VisualizationCard
                     grid="table-not-logged-in"
-                    description="Which users have not run queries in the last 90 days?"
+                    description={t('userActivity.notLoggedIn')}
                 >
                     <Table withColumnBorders ta="left">
                         <Table.Thead>
                             <Table.Tr>
-                                <Table.Th>First Name</Table.Th>
-                                <Table.Th>Last Name</Table.Th>
-                                <Table.Th>Days since last query</Table.Th>
+                                <Table.Th>
+                                    {t('userActivity.columns.firstName')}
+                                </Table.Th>
+                                <Table.Th>
+                                    {t('userActivity.columns.lastName')}
+                                </Table.Th>
+                                <Table.Th>
+                                    {t(
+                                        'userActivity.columns.daysSinceLastQuery',
+                                    )}
+                                </Table.Th>
                             </Table.Tr>
                         </Table.Thead>
                         {showTableBodyWithUsers(
@@ -409,15 +434,23 @@ const UserActivity: FC = () => {
 
                 <VisualizationCard
                     grid="table-most-viewed"
-                    description="User's most viewed dashboard"
+                    description={t('userActivity.mostViewedDashboard')}
                 >
                     <Table withColumnBorders ta="left">
                         <Table.Thead>
                             <Table.Tr>
-                                <Table.Th>First Name</Table.Th>
-                                <Table.Th>Last Name</Table.Th>
-                                <Table.Th>Dashboard name</Table.Th>
-                                <Table.Th>Number of views</Table.Th>
+                                <Table.Th>
+                                    {t('userActivity.columns.firstName')}
+                                </Table.Th>
+                                <Table.Th>
+                                    {t('userActivity.columns.lastName')}
+                                </Table.Th>
+                                <Table.Th>
+                                    {t('userActivity.columns.dashboardName')}
+                                </Table.Th>
+                                <Table.Th>
+                                    {t('userActivity.columns.numViews')}
+                                </Table.Th>
                             </Table.Tr>
                         </Table.Thead>
                         <Table.Tbody>
@@ -452,13 +485,19 @@ const UserActivity: FC = () => {
                     <>
                         <VisualizationCard
                             grid="table-dashboard-views"
-                            description="Dashboard views (top 20)"
+                            description={t('userActivity.dashboardViews')}
                         >
                             <Table withColumnBorders ta="left">
                                 <Table.Thead>
                                     <Table.Tr>
-                                        <Table.Th>Dashboard name</Table.Th>
-                                        <Table.Th>Views</Table.Th>
+                                        <Table.Th>
+                                            {t(
+                                                'userActivity.columns.dashboardName',
+                                            )}
+                                        </Table.Th>
+                                        <Table.Th>
+                                            {t('userActivity.columns.views')}
+                                        </Table.Th>
                                     </Table.Tr>
                                 </Table.Thead>
                                 {showTableViews({
@@ -474,13 +513,19 @@ const UserActivity: FC = () => {
                         </VisualizationCard>
                         <VisualizationCard
                             grid="table-chart-views"
-                            description="Chart views (top 20)"
+                            description={t('userActivity.chartViews')}
                         >
                             <Table withColumnBorders ta="left">
                                 <Table.Thead>
                                     <Table.Tr>
-                                        <Table.Th>Chart name</Table.Th>
-                                        <Table.Th>Views</Table.Th>
+                                        <Table.Th>
+                                            {t(
+                                                'userActivity.columns.chartName',
+                                            )}
+                                        </Table.Th>
+                                        <Table.Th>
+                                            {t('userActivity.columns.views')}
+                                        </Table.Th>
                                     </Table.Tr>
                                 </Table.Thead>
                                 {showTableViews({

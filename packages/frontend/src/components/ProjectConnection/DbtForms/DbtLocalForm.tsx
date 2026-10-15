@@ -1,39 +1,44 @@
 import { Alert, Stack, Text } from '@mantine/core';
 import { IconExclamationCircle, IconInfoCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import MantineIcon from '../../common/MantineIcon';
 import DbtVersionSelect from '../Inputs/DbtVersion';
 
-const DbtLocalForm: FC<{ disabled: boolean }> = ({ disabled }) => (
-    <Stack>
-        <DbtVersionSelect disabled={disabled} />
+const DbtLocalForm: FC<{ disabled: boolean }> = ({ disabled }) => {
+    const { t } = useTranslation('projectConnection');
+    return (
+        <Stack>
+            <DbtVersionSelect disabled={disabled} />
 
-        <Alert
-            color="orange"
-            icon={<MantineIcon icon={IconExclamationCircle} />}
-        >
-            <Text fz="sm">
-                This connection type should only be used for local development.
-            </Text>
-        </Alert>
+            <Alert
+                color="orange"
+                icon={<MantineIcon icon={IconExclamationCircle} />}
+            >
+                <Text fz="sm">{t('dbtForms.local.warning')}</Text>
+            </Alert>
 
-        <Alert color="blue" icon={<MantineIcon icon={IconInfoCircle} />}>
-            <Stack gap="xs">
-                <Text fz="sm">
-                    When using the install script, when you&apos;re asked{' '}
-                    <b>How do you want to setup Lightdash ?</b>, select the
-                    option <b>with local dbt</b> and then provide the absolute
-                    path to your dbt project.
-                </Text>
+            <Alert color="blue" icon={<MantineIcon icon={IconInfoCircle} />}>
+                <Stack gap="xs">
+                    <Text fz="sm">
+                        <Trans
+                            t={t}
+                            i18nKey="dbtForms.local.installScriptHint"
+                            components={{ b: <b /> }}
+                        />
+                    </Text>
 
-                <Text fz="sm">
-                    When using the install script, set the env var{' '}
-                    <b>DBT_PROJECT_DIR</b> with the absolute path to your dbt
-                    project.
-                </Text>
-            </Stack>
-        </Alert>
-    </Stack>
-);
+                    <Text fz="sm">
+                        <Trans
+                            t={t}
+                            i18nKey="dbtForms.local.envVarHint"
+                            components={{ b: <b /> }}
+                        />
+                    </Text>
+                </Stack>
+            </Alert>
+        </Stack>
+    );
+};
 
 export default DbtLocalForm;

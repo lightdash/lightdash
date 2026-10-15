@@ -8,6 +8,7 @@ import {
 import { Button, getDefaultZIndex, Indicator, Menu } from '@mantine/core';
 import { IconBell } from '@tabler/icons-react';
 import { Fragment, type FC, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAiAgentOrgPermission } from '../../../ee/features/aiCopilot/hooks/useAiAgentPermission';
 import { useContentReviewAvailability } from '../../../ee/features/contentReview/hooks/useContentReviewAvailability';
 import { useDashboardCommentsCheck } from '../../../features/comments';
@@ -33,6 +34,7 @@ export const NotificationsMenu: FC<{
     projectUuid: string;
     withLabel?: boolean;
 }> = ({ projectUuid, withLabel = false }) => {
+    const { t } = useTranslation('navigation');
     const menuProps = useNavBarMenuProps();
     const { user } = useApp();
 
@@ -196,7 +198,7 @@ export const NotificationsMenu: FC<{
         >
             <Menu.Target>
                 <Button
-                    aria-label="Notifications"
+                    aria-label={t('notifications.label')}
                     variant="default"
                     size="xs"
                     // NOTE: Set validation notification as read (Local Storage)
@@ -211,7 +213,7 @@ export const NotificationsMenu: FC<{
                     >
                         <MantineIcon icon={IconBell} />
                     </Indicator>
-                    {withLabel && 'Notifications'}
+                    {withLabel && t('notifications.label')}
                 </Button>
             </Menu.Target>
             <Menu.Dropdown
@@ -238,7 +240,9 @@ export const NotificationsMenu: FC<{
                     !hasAiReviewNotifications &&
                     !hasContentReviewNotifications &&
                     !hasAiCreditAllowanceNotifications && (
-                        <Menu.Item fz="sm">No notifications</Menu.Item>
+                        <Menu.Item fz="sm">
+                            {t('notifications.empty')}
+                        </Menu.Item>
                     )}
             </Menu.Dropdown>
         </Menu>

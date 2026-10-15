@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { Paper, Stack, Title } from '@mantine/core';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FiltersProvider from '../../components/common/Filters/FiltersProvider';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -22,6 +23,7 @@ type Props = {
 };
 
 export const FilterSettings: FC<Props> = ({ rule, field, onChange }) => {
+    const { t } = useTranslation('dashboardFilters');
     const projectUuid = useProjectUuid();
     const project = useProject(projectUuid);
     const allFilters = useDashboardContext((c) => c.allFilters);
@@ -65,7 +67,9 @@ export const FilterSettings: FC<Props> = ({ rule, field, onChange }) => {
             <Stack gap="md">
                 <Paper p="md">
                     <Stack gap="sm">
-                        <Title order={5}>Default value</Title>
+                        <Title order={5}>
+                            {t('controls.settings.defaultValue')}
+                        </Title>
                         <FilterValueSettings
                             filterType={filterType}
                             field={field}
@@ -76,7 +80,9 @@ export const FilterSettings: FC<Props> = ({ rule, field, onChange }) => {
                 </Paper>
                 <Paper p="md">
                     <Stack gap="sm">
-                        <Title order={5}>Viewer access</Title>
+                        <Title order={5}>
+                            {t('controls.settings.viewerAccess')}
+                        </Title>
                         <ViewerControls
                             rule={rule}
                             filterType={filterType}

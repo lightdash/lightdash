@@ -21,6 +21,7 @@ import {
     IconSearch,
 } from '@tabler/icons-react';
 import { type FC, Fragment, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import styles from './PinnedReviewEntityCard.module.css';
@@ -56,13 +57,14 @@ const Row: FC<{
 const PullRequestRow: FC<{
     item: Extract<ReviewEntityItem, { type: 'pull_request' }>;
 }> = ({ item }) => {
+    const { t } = useTranslation('aiAgent');
     const status = item.status ?? 'open';
     return (
         <Row
             icon={IconGitPullRequest}
             right={
                 <Badge color={PR_STATE_COLORS[status]} size="xs">
-                    {status}
+                    {t(`reviewEntity.prState.${status}`)}
                 </Badge>
             }
         >
@@ -83,6 +85,7 @@ const PullRequestRow: FC<{
 const ProposedChangeRow: FC<{
     item: Extract<ReviewEntityItem, { type: 'proposed_change' }>;
 }> = ({ item }) => {
+    const { t } = useTranslation('aiAgent');
     const { payload } = item;
     const summary =
         payload.changeKind === 'project_context'
@@ -94,7 +97,9 @@ const ProposedChangeRow: FC<{
             : [];
     return (
         <Row icon={IconPencil}>
-            <Text className={styles.eyebrow}>Proposed change</Text>
+            <Text className={styles.eyebrow}>
+                {t('reviewEntity.proposedChange')}
+            </Text>
             <Text fz="xs" c="ldGray.8">
                 {summary}
             </Text>
@@ -110,6 +115,7 @@ const ProposedChangeRow: FC<{
 const ReviewFindingRow: FC<{
     item: Extract<ReviewEntityItem, { type: 'review_finding' }>;
 }> = ({ item }) => {
+    const { t } = useTranslation('aiAgent');
     const [evidenceOpen, { toggle: toggleEvidence }] = useDisclosure(false);
     const hasEvidence = item.evidenceExcerpts.length > 0;
     return (
@@ -145,7 +151,9 @@ const ReviewFindingRow: FC<{
                                     evidenceOpen ? ` ${styles.chevronOpen}` : ''
                                 }`}
                             />
-                            Evidence ({item.evidenceExcerpts.length})
+                            {t('reviewEntity.evidence', {
+                                count: item.evidenceExcerpts.length,
+                            })}
                         </Group>
                     </Anchor>
                     <Collapse expanded={evidenceOpen}>
@@ -167,7 +175,7 @@ const ReviewFindingRow: FC<{
                                     }
                                 >
                                     {excerpt.redacted
-                                        ? '[redacted]'
+                                        ? t('reviewEntity.redacted')
                                         : excerpt.text}
                                 </Text>
                             ))}
@@ -182,6 +190,7 @@ const ReviewFindingRow: FC<{
 const PreviewEnvironmentRow: FC<{
     item: Extract<ReviewEntityItem, { type: 'preview_environment' }>;
 }> = ({ item }) => {
+    const { t } = useTranslation('aiAgent');
     const to = item.previewThreadUuid
         ? `/projects/${item.previewProjectUuid}/ai-agents/threads/${item.previewThreadUuid}`
         : `/projects/${item.previewProjectUuid}/home`;
@@ -204,7 +213,7 @@ const PreviewEnvironmentRow: FC<{
                 fz="xs"
                 c="ldGray.8"
             >
-                {item.projectName ?? 'Preview environment'}
+                {item.projectName ?? t('reviewEntity.previewEnvironment')}
             </Anchor>
         </Row>
     );

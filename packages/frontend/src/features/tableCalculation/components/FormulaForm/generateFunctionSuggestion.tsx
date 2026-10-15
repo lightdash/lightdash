@@ -6,9 +6,10 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../../components/common/PolymorphicGroupButton';
 import { generateSuggestion } from '../../../../components/common/SuggestionList';
 import suggestionStyles from '../../../../components/common/SuggestionList/SuggestionList.module.css';
+import i18n from '../../../../i18n/i18n';
 import {
-    CATEGORY_LABELS,
     CATEGORY_ORDER,
+    getCategoryLabels,
     type FunctionCategory,
 } from './functionCategories';
 
@@ -50,7 +51,7 @@ export const generateFunctionSuggestion = (
         },
         getGroupKey: (item) =>
             (item as FunctionSuggestionItem).definition.category,
-        groupLabels: CATEGORY_LABELS,
+        groupLabels: getCategoryLabels(),
         renderItem: (item, isSelected, onClick) => (
             <PolymorphicGroupButton
                 onClick={onClick}
@@ -77,7 +78,9 @@ export const generateFunctionSuggestion = (
                 </Group>
             </PolymorphicGroupButton>
         ),
-        emptyMessage: 'No functions found',
+        emptyMessage: i18n.t('formula.noFunctionsFound', {
+            ns: 'tableCalculation',
+        }),
     }),
     char: '#',
     allowedPrefixes: null,

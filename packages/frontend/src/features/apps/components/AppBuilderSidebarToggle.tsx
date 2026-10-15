@@ -4,6 +4,7 @@ import {
     IconLayoutSidebarLeftExpand,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 
 type Props = {
@@ -12,7 +13,8 @@ type Props = {
 };
 
 const AppBuilderSidebarToggle: FC<Props> = ({ collapsed, onToggle }) => {
-    const label = collapsed ? 'Show build panel' : 'Hide build panel';
+    const { t } = useTranslation('apps');
+    const label = collapsed ? t('builder.showPanel') : t('builder.hidePanel');
 
     return (
         <Tooltip label={label} position="right">

@@ -13,6 +13,7 @@ import { useDebouncedCallback } from '@mantine/hooks';
 import { IconHelp } from '@tabler/icons-react';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type z } from 'zod';
 import MantineIcon from '../common/MantineIcon';
 import TimeZonePicker from '../common/TimeZonePicker';
@@ -31,6 +32,7 @@ type Props = {
 };
 
 export const SchedulerSettingsForm: FC<Props> = ({ project, onChange }) => {
+    const { t } = useTranslation('projectSettings');
     const form = useForm<z.infer<typeof schedulerSettingsSchema>>({
         validate: zodResolver(schedulerSettingsSchema),
         initialValues: {
@@ -65,13 +67,12 @@ export const SchedulerSettingsForm: FC<Props> = ({ project, onChange }) => {
             <TimeZonePicker
                 label={
                     <Group display="inline-flex" gap="xs">
-                        Default time zone
+                        {t('scheduler.form.timezone.label')}
                         <Tooltip
                             maw={400}
                             label={
                                 <Text fz="xs">
-                                    Default time zone for the project's
-                                    scheduled deliveries
+                                    {t('scheduler.form.timezone.tooltip')}
                                 </Text>
                             }
                             multiline
@@ -97,12 +98,14 @@ export const SchedulerSettingsForm: FC<Props> = ({ project, onChange }) => {
             />
 
             <Stack gap="sm">
-                <Title order={6}>Error handling</Title>
+                <Title order={6}>{t('scheduler.form.errorHandling')}</Title>
 
                 <Switch
                     size="xs"
-                    label="Notify recipients if a delivery fails"
-                    description="When a scheduled delivery fails, send a minimal failure message to every recipient (in addition to the existing email to the delivery owner)."
+                    label={t('scheduler.form.notifyRecipients.label')}
+                    description={t(
+                        'scheduler.form.notifyRecipients.description',
+                    )}
                     checked={notifyEnabled}
                     onChange={(event) => {
                         const next = event.currentTarget.checked;
@@ -117,8 +120,10 @@ export const SchedulerSettingsForm: FC<Props> = ({ project, onChange }) => {
                 {notifyEnabled && (
                     <Switch
                         size="xs"
-                        label="Include a contact in failure messages"
-                        description="Add a line telling recipients who to contact about the failure."
+                        label={t('scheduler.form.includeContact.label')}
+                        description={t(
+                            'scheduler.form.includeContact.description',
+                        )}
                         checked={contactIncluded}
                         onChange={(event) => {
                             const next = event.currentTarget.checked;
@@ -136,9 +141,13 @@ export const SchedulerSettingsForm: FC<Props> = ({ project, onChange }) => {
                 {notifyEnabled && contactIncluded && (
                     <TextInput
                         size="xs"
-                        label="Custom contact sentence (optional)"
-                        description={`Replaces the default "You can also reach out to <delivery owner> for details." line appended to the failure message.`}
-                        placeholder="You can also reach out to data-support@example.com for details."
+                        label={t('scheduler.form.contactOverride.label')}
+                        description={t(
+                            'scheduler.form.contactOverride.description',
+                        )}
+                        placeholder={t(
+                            'scheduler.form.contactOverride.placeholder',
+                        )}
                         value={form.values.schedulerFailureContactOverride}
                         onChange={(event) => {
                             const next = event.currentTarget.value;

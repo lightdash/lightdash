@@ -20,6 +20,7 @@ import {
 import { IconCalendar, IconStack } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
 import { useCallback, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { groupComboboxItems } from '../../../../components/common/Select/utils';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
@@ -46,6 +47,7 @@ export const MetricExploreComparison: FC<Props> = ({
     canCompareToAnotherMetric = true,
 }) => {
     const getUiString = useUiStrings();
+    const { t } = useTranslation('metricsCatalog');
     const handleComparisonChange = useCallback(
         (newComparison: MetricExplorerComparison) => {
             switch (newComparison) {
@@ -117,8 +119,7 @@ export const MetricExploreComparison: FC<Props> = ({
                         type: MetricExplorerComparison.PREVIOUS_PERIOD,
                         icon: IconCalendar,
                         label: getUiString('metrics.comparePreviousYear'),
-                        tooltipLabel:
-                            'Show data from the same period in the previous year',
+                        tooltipLabel: t('comparison.previousYearTooltip'),
                     },
                     canCompareToAnotherMetric
                         ? {
@@ -196,7 +197,9 @@ export const MetricExploreComparison: FC<Props> = ({
                                                 .length > 0) ? (
                                             <Select
                                                 allowDeselect={false}
-                                                placeholder="Select a metric"
+                                                placeholder={t(
+                                                    'comparison.selectMetric',
+                                                )}
                                                 aria-label={getUiString(
                                                     'metrics.comparisonMetric',
                                                 )}
@@ -252,9 +255,9 @@ export const MetricExploreComparison: FC<Props> = ({
                                             />
                                         ) : (
                                             <Text span c="ldGray.7" fz="sm">
-                                                Only metrics with a time
-                                                dimension defined in the .yml
-                                                can be compared.{' '}
+                                                {t(
+                                                    'comparison.timeDimensionRequired',
+                                                )}{' '}
                                                 <Anchor
                                                     inherit
                                                     c="ldGray.9"
@@ -262,7 +265,7 @@ export const MetricExploreComparison: FC<Props> = ({
                                                     target="_blank"
                                                     href="https://docs.lightdash.com/guides/metrics-catalog/catalog#configuring-default-time-settings-in-yml"
                                                 >
-                                                    Learn more
+                                                    {t('comparison.learnMore')}
                                                 </Anchor>
                                             </Text>
                                         ))}

@@ -1,0 +1,75 @@
+{
+    "map": {
+        "hexbin": {
+            "count": "Count: {{count}}",
+            "valueLine": "{{label}} ({{aggregation}}): {{value}}",
+            "value": "Value"
+        },
+        "noData": "No data",
+        "coordinates": "Lat: {{lat}}, Lon: {{lon}}",
+        "location": "Location",
+        "emptyAreaDescription": "Query metrics and dimensions with region data.",
+        "emptyScatterDescription": "Query metrics and dimensions with latitude/longitude data.",
+        "noDataTitle": "No data available",
+        "hexbinTruncated": "Showing hex bins for the first {{shown}} points of {{total}}. Reduce the result set for accurate binning.",
+        "copyValues": "Copy values"
+    },
+    "dataAppViz": {
+        "noAccess": "You don't have access to this custom chart type.",
+        "chartTypeRemoved": "The chart type this chart was based on has been removed.",
+        "drillFailed": "Could not drill into this data point",
+        "underlyingDataFailed": "Could not open underlying data",
+        "pickChartType": "Pick a custom chart type to render.",
+        "recoveryEditMode": "Open Configure and choose another chart type",
+        "recoveryViewMode": "Edit the chart to choose another chart type",
+        "recoveryHintWithRestore": "{{action}}, or restore the chart type from Recently deleted.",
+        "recoveryHint": "{{action}}.",
+        "editChart": "Edit chart",
+        "couldNotLoad": "Custom chart type could not be loaded.",
+        "stillGenerating": "Custom chart type is still generating…",
+        "versionUnavailable": "Custom chart type version {{version}} is unavailable.",
+        "savedVersionUnavailable": "The saved custom chart type version is unavailable.",
+        "previewUnavailable": "Custom chart type preview is unavailable.",
+        "regenerateHint": "Regenerate the chart to use a renderable version.",
+        "failedToGenerate": "Custom chart type failed to generate."
+    },
+    "emptyState": {
+        "noDataTitle": "No data available",
+        "noDataDescription": "Query metrics and dimensions with results.",
+        "sankeyDescription": "Select a source dimension, a target dimension, and a weight metric to create a Sankey diagram. Multi-level flows are supported when nodes appear as both source and target."
+    },
+    "lightdashVisualization": {
+        "unableToLoad": "Unable to load visualization",
+        "learnHowToResolve": "Learn how to resolve this in our documentation →",
+        "loadingMap": "Loading map..."
+    },
+    "table": {
+        "noResults": "No results",
+        "noResultsDescription": "This query ran successfully but returned no results",
+        "updateRequired": "Application update required",
+        "refreshToLoad": "Refresh your browser to load the latest version and display this visualization correctly.",
+        "contactSupportIfPersists": "If this persists after refreshing, contact support.",
+        "refreshPage": "Refresh page",
+        "resultsNotAvailable": "Results not available",
+        "pivotRerun": {
+            "title": "Run query to see your pivot table",
+            "description": "You've changed the pivot configuration. Re-run the query to load the pivoted results.",
+            "runQuery": "Run query"
+        }
+    },
+    "contextMenu": {
+        "removeSort": "Remove sort",
+        "contextMenu": "Context menu",
+        "copiedToClipboard": "Copied to clipboard!",
+        "copyValue": "Copy value",
+        "viewUnderlyingData": "View underlying data",
+        "hideColumn": "Hide column",
+        "sortTargetMissing": "Sort target is not in the chart",
+        "sort": "Sort",
+        "drillIntoPrefix": "Drill into"
+    },
+    "customVis": {
+        "noVisualization": "No visualization loaded",
+        "startHint": "Start by entering your <link>Vega-Lite JSON</link> code or choose from our pre-built templates to create your chart."
+    }
+}

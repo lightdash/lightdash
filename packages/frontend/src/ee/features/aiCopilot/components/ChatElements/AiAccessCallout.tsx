@@ -19,6 +19,7 @@ import {
 } from '@mantine/core';
 import { IconShieldCheck } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useSnowflakeAiLoginPopup } from '../../../../../hooks/useSnowflake';
@@ -103,6 +104,7 @@ export const AiAccessCallout = ({
     variant?: 'card' | 'inline';
 }) => {
     const t = useUiStrings();
+    const { t: tChat } = useTranslation('aiCopilotChat');
     const isEmbedded = useIsEmbedded();
     const requirements = getAiAccessRefusalRequirements(refusal, t);
     const login = useSnowflakeAiLoginPopup({
@@ -117,16 +119,14 @@ export const AiAccessCallout = ({
                 <MantineIcon icon={IconShieldCheck} color="dimmed" />
                 <Stack gap="sm" flex={1}>
                     {requiresSignIn && variant === 'card' && (
-                        <Title order={5}>
-                            Connect your agent to your warehouse
-                        </Title>
+                        <Title order={5}>{tChat('accessCallout.title')}</Title>
                     )}
                     <Text size="sm" c="dimmed">
                         {requiresSignIn &&
                         refusal.reason !== AiAccessRefusalReason.SIGN_IN_EXPIRED
                             ? variant === 'inline'
-                                ? 'Connect your agent to your warehouse to run this.'
-                                : 'Connect once so the agent can query Snowflake as you, in a session your warehouse can verify.'
+                                ? tChat('accessCallout.inlineMessage')
+                                : tChat('accessCallout.cardMessage')
                             : refusal.message}
                     </Text>
                     {requirements && (
@@ -161,7 +161,7 @@ export const AiAccessCallout = ({
                                     })
                                 }
                             >
-                                Connect agent
+                                {tChat('accessCallout.connectAgent')}
                             </Button>
                             {variant === 'card' && (
                                 <Anchor
@@ -169,7 +169,7 @@ export const AiAccessCallout = ({
                                     to="/generalSettings/myAgentConnections"
                                     size="sm"
                                 >
-                                    My agent identity
+                                    {tChat('accessCallout.myAgentIdentity')}
                                 </Anchor>
                             )}
                         </Group>

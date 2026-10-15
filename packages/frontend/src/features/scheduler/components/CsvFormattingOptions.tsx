@@ -15,6 +15,7 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { NumberInput } from '../../../components/common/NumberInput';
 import useHealth from '../../../hooks/health/useHealth';
@@ -76,27 +77,31 @@ export const CsvFormattingOptions: FC<CsvFormattingOptionsProps> = ({
     limitVariant = 'full',
     hideExportPivotedData = false,
 }) => {
+    const { t } = useTranslation('scheduler');
     const health = useHealth();
     const [showFormatting, setShowFormatting] = useState(false);
 
     const optionGroups: ReactNode = (
         <>
             <Radio.Group
-                label="Values"
+                label={t('csvOptions.values')}
                 value={formatted}
                 onChange={(value) => onFormattedChange(value as Values)}
             >
                 <Stack gap="xxs" pt="xs">
-                    <Radio label="Formatted" value={Values.FORMATTED} />
-                    <Radio label="Raw" value={Values.RAW} />
+                    <Radio
+                        label={t('csvOptions.formatted')}
+                        value={Values.FORMATTED}
+                    />
+                    <Radio label={t('csvOptions.raw')} value={Values.RAW} />
                 </Stack>
             </Radio.Group>
             {!hideExportPivotedData && (
                 <Radio.Group
                     label={
                         <>
-                            Layout
-                            <HelpTooltip label="Applies to cartesian charts with pivoted dimensions. Grouped keeps the chart's column structure; Flat returns the raw rows from the query." />
+                            {t('csvOptions.layout')}
+                            <HelpTooltip label={t('csvOptions.layoutHelp')} />
                         </>
                     }
                     value={exportPivotedData ? 'pivoted' : 'unpivoted'}
@@ -105,22 +110,34 @@ export const CsvFormattingOptions: FC<CsvFormattingOptionsProps> = ({
                     }
                 >
                     <Stack gap="xxs" pt="xs">
-                        <Radio label="Grouped" value="pivoted" />
-                        <Radio label="Flat" value="unpivoted" />
+                        <Radio
+                            label={t('csvOptions.grouped')}
+                            value="pivoted"
+                        />
+                        <Radio label={t('csvOptions.flat')} value="unpivoted" />
                     </Stack>
                 </Radio.Group>
             )}
             <Stack gap="xs">
                 <Radio.Group
-                    label="Limit"
+                    label={t('csvOptions.limit')}
                     value={limit}
                     onChange={(value) => onLimitChange(value as Limit)}
                 >
                     <Stack gap="xxs" pt="xs">
-                        <Radio label="Results in Table" value={Limit.TABLE} />
-                        <Radio label="All Results" value={Limit.ALL} />
+                        <Radio
+                            label={t('csvOptions.resultsInTable')}
+                            value={Limit.TABLE}
+                        />
+                        <Radio
+                            label={t('csvOptions.allResults')}
+                            value={Limit.ALL}
+                        />
                         {limitVariant === 'full' && (
-                            <Radio label="Custom..." value={Limit.CUSTOM} />
+                            <Radio
+                                label={t('csvOptions.custom')}
+                                value={Limit.CUSTOM}
+                            />
                         )}
                     </Stack>
                 </Radio.Group>
@@ -139,26 +156,25 @@ export const CsvFormattingOptions: FC<CsvFormattingOptionsProps> = ({
                 {limitVariant === 'full' &&
                     (limit === Limit.ALL || limit === Limit.CUSTOM) && (
                         <i>
-                            Results are limited to{' '}
-                            {Number(
-                                health.data?.query.csvCellsLimit || 100000,
-                            ).toLocaleString()}{' '}
-                            cells for each file
+                            {t('csvOptions.cellsLimit', {
+                                limit: Number(
+                                    health.data?.query.csvCellsLimit || 100000,
+                                ).toLocaleString(),
+                            })}
                         </i>
                     )}
                 {limitVariant === 'tableOrAll' && limit === Limit.ALL && (
-                    <i>
-                        Queries that hit their row limit are re-run without a
-                        limit at delivery time — this may be slower.
-                    </i>
+                    <i>{t('csvOptions.rerunWithoutLimit')}</i>
                 )}
             </Stack>
             {format === SchedulerFormat.XLSX && (
                 <Radio.Group
                     label={
                         <>
-                            XLSX output
-                            <HelpTooltip label="Separate files puts each dashboard tile in its own XLSX file inside a ZIP. Single workbook puts each tile on its own sheet in one XLSX file." />
+                            {t('csvOptions.xlsxOutput')}
+                            <HelpTooltip
+                                label={t('csvOptions.xlsxOutputHelp')}
+                            />
                         </>
                     }
                     value={xlsxFileLayout}
@@ -167,8 +183,14 @@ export const CsvFormattingOptions: FC<CsvFormattingOptionsProps> = ({
                     }
                 >
                     <Stack gap="xxs" pt="xs">
-                        <Radio label="Separate files (ZIP)" value="zip" />
-                        <Radio label="Single workbook" value="workbook" />
+                        <Radio
+                            label={t('csvOptions.separateFiles')}
+                            value="zip"
+                        />
+                        <Radio
+                            label={t('csvOptions.singleWorkbook')}
+                            value="workbook"
+                        />
                     </Stack>
                 </Radio.Group>
             )}
@@ -197,7 +219,7 @@ export const CsvFormattingOptions: FC<CsvFormattingOptionsProps> = ({
                 }
                 onClick={() => setShowFormatting((old) => !old)}
             >
-                Formatting options
+                {t('csvOptions.formattingOptions')}
             </Button>
             <Collapse expanded={showFormatting} pl="md">
                 <Group align="start" gap="xxl">

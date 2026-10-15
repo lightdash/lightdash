@@ -8,6 +8,9 @@ import {
     assertUnreachable,
 } from '@lightdash/common';
 import dayjs from 'dayjs';
+import i18n from '../../../i18n/i18n';
+
+const ns = 'queryHistory';
 
 /** "0.31s" under 10s, "14.8s" under 60s, "1m 12s" beyond. */
 export const formatRunTime = (ms: number | null): string => {
@@ -28,8 +31,9 @@ export const formatWhen = (createdAt: Date | string): string => {
     const created = dayjs(createdAt);
     const now = dayjs();
     const minutesAgo = now.diff(created, 'minute');
-    if (minutesAgo < 1) return 'now';
-    if (minutesAgo < 60) return `${minutesAgo} min ago`;
+    if (minutesAgo < 1) return i18n.t('format.now', { ns });
+    if (minutesAgo < 60)
+        return i18n.t('format.minutesAgo', { ns, count: minutesAgo });
     if (now.diff(created, 'hour') < 24) return created.format('HH:mm');
     if (now.diff(created, 'day') < 7) return created.format('ddd HH:mm');
     return created.format('D MMM');
@@ -38,15 +42,15 @@ export const formatWhen = (createdAt: Date | string): string => {
 export const getWindowLabel = (window: QueryHistoryWindow): string => {
     switch (window) {
         case QueryHistoryWindow.LAST_FEW_MINUTES:
-            return 'Last few minutes';
+            return i18n.t('windows.lastFewMinutes', { ns });
         case QueryHistoryWindow.LAST_HOUR:
-            return 'Last hour';
+            return i18n.t('windows.lastHour', { ns });
         case QueryHistoryWindow.LAST_24_HOURS:
-            return 'Last 24 hours';
+            return i18n.t('windows.last24Hours', { ns });
         case QueryHistoryWindow.LAST_7_DAYS:
-            return 'Last 7 days';
+            return i18n.t('windows.last7Days', { ns });
         case QueryHistoryWindow.LAST_30_DAYS:
-            return 'Last 30 days';
+            return i18n.t('windows.last30Days', { ns });
         default:
             return assertUnreachable(window, 'Unknown query history window');
     }
@@ -74,7 +78,10 @@ export const getWindowRangeLabel = (window: QueryHistoryWindow): string => {
         case QueryHistoryWindow.LAST_HOUR:
             return `${from.format('HH:mm')} – ${to.format('HH:mm')}`;
         case QueryHistoryWindow.LAST_24_HOURS:
-            return `Since ${from.format('ddd HH:mm')}`;
+            return i18n.t('format.since', {
+                ns,
+                time: from.format('ddd HH:mm'),
+            });
         case QueryHistoryWindow.LAST_7_DAYS:
         case QueryHistoryWindow.LAST_30_DAYS:
             return from.month() === to.month()
@@ -97,11 +104,11 @@ export const formatWarehouseTime = (ms: number): string => {
 export const getTriggerLabel = (trigger: QueryTrigger): string => {
     switch (trigger) {
         case QueryTrigger.INTERACTIVE:
-            return 'Interactive';
+            return i18n.t('triggers.interactive', { ns });
         case QueryTrigger.APPS:
-            return 'Apps';
+            return i18n.t('triggers.apps', { ns });
         case QueryTrigger.SCHEDULED:
-            return 'Scheduled';
+            return i18n.t('triggers.scheduled', { ns });
         default:
             return assertUnreachable(trigger, 'Unknown query trigger');
     }
@@ -113,4 +120,6 @@ export const isRunningStatus = (status: QueryHistoryStatus): boolean =>
     status === QueryHistoryStatus.EXECUTING;
 
 export const getLanguageLabel = (language: QueryLanguage): string =>
-    language === QueryLanguage.SQL ? 'SQL' : 'Semantic';
+    language === QueryLanguage.SQL
+        ? i18n.t('languages.sql', { ns })
+        : i18n.t('languages.semantic', { ns });

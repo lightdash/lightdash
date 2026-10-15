@@ -8,6 +8,7 @@ import {
     type FilterRule,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
+import i18n from '../../../i18n/i18n';
 
 export interface FilterOperatorOption {
     value: FilterOperator;
@@ -19,10 +20,21 @@ export const getOperatorOptions = (
 ): FilterOperatorOption[] => {
     const isBoolean = dimension?.type === DimensionType.BOOLEAN;
     return METRICS_EXPLORER_FILTER_OPERATORS.map((value) => {
+        const ns = 'metricsCatalog';
         if (value === FilterOperator.EQUALS) {
-            return { value, label: isBoolean ? 'is true' : 'is' };
+            return {
+                value,
+                label: isBoolean
+                    ? i18n.t('filter.operators.isTrue', { ns })
+                    : i18n.t('filter.operators.is', { ns }),
+            };
         }
-        return { value, label: isBoolean ? 'is false' : 'is not' };
+        return {
+            value,
+            label: isBoolean
+                ? i18n.t('filter.operators.isFalse', { ns })
+                : i18n.t('filter.operators.isNot', { ns }),
+        };
     });
 };
 

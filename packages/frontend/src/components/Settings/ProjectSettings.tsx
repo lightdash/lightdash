@@ -8,6 +8,7 @@ import {
     type PropsWithChildren,
     type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     matchPath,
     Navigate,
@@ -91,6 +92,7 @@ const ProjectSettings: FC<{
     externalSourcesEnabled: boolean;
     projectSettingsAccess: Exclude<ProjectSettingsAccess, { type: 'none' }>;
 }> = ({ externalSourcesEnabled, projectSettingsAccess }) => {
+    const { t } = useTranslation('settings');
     const projectUuid = useProjectUuid();
     const location = useLocation();
 
@@ -190,8 +192,10 @@ const ProjectSettings: FC<{
                 path: '/recentlyDeleted',
                 element: (
                     <ProjectSettingsPage
-                        title="Recently deleted"
-                        description="Review and restore recently deleted project content."
+                        title={t('projectSettings.pages.recentlyDeleted.title')}
+                        description={t(
+                            'projectSettings.pages.recentlyDeleted.description',
+                        )}
                     >
                         <RecentlyDeletedPage projectUuid={projectUuid} />
                     </ProjectSettingsPage>
@@ -219,8 +223,10 @@ const ProjectSettings: FC<{
                 path: `/settings`,
                 element: (
                     <ProjectSettingsPage
-                        title="Connection settings"
-                        description="Manage this project's warehouse and semantic layer connections."
+                        title={t('projectSettings.pages.connection.title')}
+                        description={t(
+                            'projectSettings.pages.connection.description',
+                        )}
                     >
                         <UpdateProjectConnection projectUuid={projectUuid} />
                     </ProjectSettingsPage>
@@ -230,8 +236,12 @@ const ProjectSettings: FC<{
                 path: `/tablesConfiguration`,
                 element: (
                     <ProjectSettingsPage
-                        title="Tables configuration"
-                        description="Choose which dbt models are available in this project."
+                        title={t(
+                            'projectSettings.pages.tablesConfiguration.title',
+                        )}
+                        description={t(
+                            'projectSettings.pages.tablesConfiguration.description',
+                        )}
                     >
                         <ProjectTablesConfiguration projectUuid={projectUuid} />
                     </ProjectSettingsPage>
@@ -243,8 +253,12 @@ const ProjectSettings: FC<{
                           path: '/agentIdentity',
                           element: (
                               <ProjectSettingsPage
-                                  title="Agent identity"
-                                  description="See who agents run as on this project, and manage its shared agent account."
+                                  title={t(
+                                      'projectSettings.pages.agentIdentity.title',
+                                  )}
+                                  description={t(
+                                      'projectSettings.pages.agentIdentity.description',
+                                  )}
                               >
                                   <ProjectAgentIdentityPage
                                       key={project.projectUuid}
@@ -259,12 +273,14 @@ const ProjectSettings: FC<{
                 path: `/projectAccess`,
                 element: (
                     <ProjectSettingsPage
-                        title="Project access"
-                        description="Manage who can access this project and what they can do."
+                        title={t('projectSettings.pages.projectAccess.title')}
+                        description={t(
+                            'projectSettings.pages.projectAccess.description',
+                        )}
                         actions={
                             <SettingsPageDocumentationLink
                                 href="https://docs.lightdash.com/references/roles"
-                                label="Roles documentation"
+                                label={t('projectSettings.rolesDocumentation')}
                             />
                         }
                     >
@@ -276,8 +292,10 @@ const ProjectSettings: FC<{
                 path: `/appearance`,
                 element: (
                     <ProjectSettingsPage
-                        title="Appearance"
-                        description="Customize colors and chart styling for this project."
+                        title={t('projectSettings.pages.appearance.title')}
+                        description={t(
+                            'projectSettings.pages.appearance.description',
+                        )}
                     >
                         <ProjectAppearance projectUuid={projectUuid} />
                     </ProjectSettingsPage>
@@ -289,8 +307,12 @@ const ProjectSettings: FC<{
                           path: `/externalSources`,
                           element: (
                               <ProjectSettingsPage
-                                  title="External sources"
-                                  description="Upload files to query them alongside your warehouse."
+                                  title={t(
+                                      'projectSettings.pages.externalSources.title',
+                                  )}
+                                  description={t(
+                                      'projectSettings.pages.externalSources.description',
+                                  )}
                               >
                                   <ExternalSourcesSettingsPanel
                                       projectUuid={projectUuid}
@@ -304,8 +326,10 @@ const ProjectSettings: FC<{
                 path: `/usageAnalytics`,
                 element: (
                     <ProjectSettingsPage
-                        title="Usage analytics"
-                        description="Review how people use this project's content."
+                        title={t('projectSettings.pages.usageAnalytics.title')}
+                        description={t(
+                            'projectSettings.pages.usageAnalytics.description',
+                        )}
                     >
                         <SettingsUsageAnalytics projectUuid={projectUuid} />
                     </ProjectSettingsPage>
@@ -315,8 +339,12 @@ const ProjectSettings: FC<{
                 path: `/scheduledDeliveries`,
                 element: (
                     <ProjectSettingsPage
-                        title="Syncs & scheduled deliveries"
-                        description="Configure delivery defaults and manage this project's schedules."
+                        title={t(
+                            'projectSettings.pages.scheduledDeliveries.title',
+                        )}
+                        description={t(
+                            'projectSettings.pages.scheduledDeliveries.description',
+                        )}
                     >
                         <SettingsScheduler projectUuid={projectUuid} />
                     </ProjectSettingsPage>
@@ -327,8 +355,10 @@ const ProjectSettings: FC<{
                 path: `/verifiedContent`,
                 element: (
                     <ProjectSettingsPage
-                        title="Verified content"
-                        description="Review verified charts, dashboards, data apps, and Documents in this project."
+                        title={t('projectSettings.pages.verifiedContent.title')}
+                        description={t(
+                            'projectSettings.pages.verifiedContent.description',
+                        )}
                     >
                         <VerifiedContentPanel projectUuid={projectUuid} />
                     </ProjectSettingsPage>
@@ -340,8 +370,12 @@ const ProjectSettings: FC<{
                           path: `/reviewRequests`,
                           element: (
                               <ProjectSettingsPage
-                                  title="Review requests"
-                                  description="Who reviews content submitted from personal spaces, and what happens on approval."
+                                  title={t(
+                                      'projectSettings.pages.reviewRequests.title',
+                                  )}
+                                  description={t(
+                                      'projectSettings.pages.reviewRequests.description',
+                                  )}
                               >
                                   <ContentReviewSettingsPanel
                                       projectUuid={projectUuid}
@@ -355,8 +389,10 @@ const ProjectSettings: FC<{
                 path: `/dataOps`,
                 element: (
                     <ProjectSettingsPage
-                        title="Data ops"
-                        description="Configure workflows for promoting content between projects."
+                        title={t('projectSettings.pages.dataOps.title')}
+                        description={t(
+                            'projectSettings.pages.dataOps.description',
+                        )}
                     >
                         <DataOps projectUuid={projectUuid} />
                     </ProjectSettingsPage>
@@ -366,8 +402,12 @@ const ProjectSettings: FC<{
                 path: `/defaultUserSpaces`,
                 element: (
                     <ProjectSettingsPage
-                        title="Default user spaces"
-                        description="Choose whether project members receive a personal space automatically."
+                        title={t(
+                            'projectSettings.pages.defaultUserSpaces.title',
+                        )}
+                        description={t(
+                            'projectSettings.pages.defaultUserSpaces.description',
+                        )}
                     >
                         <DefaultUserSpaces projectUuid={projectUuid} />
                     </ProjectSettingsPage>
@@ -378,8 +418,10 @@ const ProjectSettings: FC<{
                 path: `/parameters`,
                 element: (
                     <ProjectSettingsPage
-                        title="Parameters"
-                        description="Review reusable values defined for project queries and content."
+                        title={t('projectSettings.pages.parameters.title')}
+                        description={t(
+                            'projectSettings.pages.parameters.description',
+                        )}
                         actions={
                             <SettingsPageDocumentationLink href="https://docs.lightdash.com/guides/using-parameters#how-to-use-parameters" />
                         }
@@ -396,8 +438,12 @@ const ProjectSettings: FC<{
                           path: `/agentDataScope`,
                           element: (
                               <ProjectSettingsPage
-                                  title="Agent data scope"
-                                  description="Limit which schemas an AI agent can read when it writes raw SQL."
+                                  title={t(
+                                      'projectSettings.pages.agentDataScope.title',
+                                  )}
+                                  description={t(
+                                      'projectSettings.pages.agentDataScope.description',
+                                  )}
                               >
                                   <SettingsAgentDataScope
                                       projectUuid={projectUuid}
@@ -413,8 +459,12 @@ const ProjectSettings: FC<{
                           path: `/aiRegion`,
                           element: (
                               <ProjectSettingsPage
-                                  title="AI region"
-                                  description="Choose which AI provider credential, and therefore which region, serves this project."
+                                  title={t(
+                                      'projectSettings.pages.aiRegion.title',
+                                  )}
+                                  description={t(
+                                      'projectSettings.pages.aiRegion.description',
+                                  )}
                               >
                                   <ProjectAiRegionPanel
                                       projectUuid={projectUuid}
@@ -428,8 +478,10 @@ const ProjectSettings: FC<{
                 path: `/queryTimezone`,
                 element: (
                     <ProjectSettingsPage
-                        title="Project time zone"
-                        description="Set the default time zone used by this project."
+                        title={t('projectSettings.pages.queryTimezone.title')}
+                        description={t(
+                            'projectSettings.pages.queryTimezone.description',
+                        )}
                         actions={
                             <SettingsPageDocumentationLink href="https://docs.lightdash.com/guides/developer/timezones" />
                         }
@@ -442,8 +494,10 @@ const ProjectSettings: FC<{
                 path: `/previewsConfig`,
                 element: (
                     <ProjectSettingsPage
-                        title="Preview settings"
-                        description="Configure preview project expiration and cleanup."
+                        title={t('projectSettings.pages.previewsConfig.title')}
+                        description={t(
+                            'projectSettings.pages.previewsConfig.description',
+                        )}
                     >
                         <ProjectPreviewExpiration projectUuid={projectUuid} />
                     </ProjectSettingsPage>
@@ -459,8 +513,12 @@ const ProjectSettings: FC<{
                           path: `/semanticLayer`,
                           element: (
                               <ProjectSettingsPage
-                                  title="Semantic layer"
-                                  description="Configure this project's semantic layer connection."
+                                  title={t(
+                                      'projectSettings.pages.semanticLayer.title',
+                                  )}
+                                  description={t(
+                                      'projectSettings.pages.semanticLayer.description',
+                                  )}
                               >
                                   <SemanticLayerConnectionPanel
                                       projectUuid={projectUuid}
@@ -476,8 +534,12 @@ const ProjectSettings: FC<{
                           path: `/pullRequests`,
                           element: (
                               <ProjectSettingsPage
-                                  title="Pull requests"
-                                  description="Review pull requests opened for this project's code."
+                                  title={t(
+                                      'projectSettings.pages.pullRequests.title',
+                                  )}
+                                  description={t(
+                                      'projectSettings.pages.pullRequests.description',
+                                  )}
                               >
                                   <PullRequestsPage projectUuid={projectUuid} />
                               </ProjectSettingsPage>
@@ -491,8 +553,12 @@ const ProjectSettings: FC<{
                           path: `/contentReview`,
                           element: (
                               <ProjectSettingsPage
-                                  title="Content review"
-                                  description="Unpublished changes made in this project, awaiting a reviewer to write them back to the repo."
+                                  title={t(
+                                      'projectSettings.pages.contentReview.title',
+                                  )}
+                                  description={t(
+                                      'projectSettings.pages.contentReview.description',
+                                  )}
                               >
                                   <ContentReviewPage
                                       projectUuid={projectUuid}
@@ -508,8 +574,12 @@ const ProjectSettings: FC<{
                           path: `/caching`,
                           element: (
                               <ProjectSettingsPage
-                                  title="Results caching"
-                                  description="Choose how long charts and dashboards in this project load from cached results before Lightdash queries the warehouse again."
+                                  title={t(
+                                      'projectSettings.pages.caching.title',
+                                  )}
+                                  description={t(
+                                      'projectSettings.pages.caching.description',
+                                  )}
                               >
                                   <ProjectResultsCache
                                       projectUuid={projectUuid}
@@ -555,8 +625,10 @@ const ProjectSettings: FC<{
                 path: '/embed', // commercial route
                 element: (
                     <ProjectSettingsPage
-                        title="Embed configuration"
-                        description="Configure embedded access for this project."
+                        title={t('projectSettings.pages.embed.title')}
+                        description={t(
+                            'projectSettings.pages.embed.description',
+                        )}
                     >
                         <SettingsEmbed projectUuid={projectUuid} />
                     </ProjectSettingsPage>
@@ -568,28 +640,28 @@ const ProjectSettings: FC<{
                           path: '/embed/cors',
                           element: (
                               <ProjectSettingsPage
-                                  title="CORS"
-                                  description="Control which external browser origins can call the Lightdash API."
+                                  title={t('projectSettings.pages.cors.title')}
+                                  description={t(
+                                      'projectSettings.pages.cors.description',
+                                  )}
                                   actions={
                                       <SettingsPageDocumentationLink
                                           href="https://docs.lightdash.com/guides/embedding/how-to-embed-content#cors"
-                                          label="Embedding documentation"
+                                          label={t(
+                                              'projectSettings.embeddingDocumentation',
+                                          )}
                                       />
                                   }
                               >
                                   <SettingsGridCard>
                                       <Stack gap="xs">
                                           <Title order={5}>
-                                              Allowed origins
+                                              {t(
+                                                  'projectSettings.cors.allowedOrigins',
+                                              )}
                                           </Title>
                                           <Text c="dimmed" fz="xs">
-                                              CORS controls which external
-                                              browser origins can call the
-                                              Lightdash API. Add exact origins
-                                              like https://app.example.com or
-                                              wildcard subdomains like
-                                              *.example.com. Use regex only for
-                                              advanced patterns.
+                                              {t('projectSettings.cors.help')}
                                           </Text>
                                       </Stack>
                                       <CorsSettingsPanel />
@@ -627,6 +699,7 @@ const ProjectSettings: FC<{
         canViewContentReviewSettings,
         isAiCopilotEnabledOrTrial,
         canManageOrgAiAgent,
+        t,
     ]);
     const routesElements = useRoutes(routes);
 
@@ -674,14 +747,17 @@ const ProjectSettings: FC<{
     ) {
         return (
             <div style={{ marginTop: '20px' }}>
-                <SuboptimalState title="Loading project" loading />
+                <SuboptimalState
+                    title={t('projectSettings.loadingProject')}
+                    loading
+                />
             </div>
         );
     }
 
     return (
         <>
-            <DocumentTitle title="Project Settings" />
+            <DocumentTitle title={t('projectSettings.documentTitle')} />
 
             {/* A walkthrough that clicked into project settings continues here. */}
             <Sentry.ErrorBoundary fallback={<></>}>
@@ -696,7 +772,9 @@ const ProjectSettings: FC<{
                                 ? []
                                 : [
                                       {
-                                          title: 'All projects',
+                                          title: t(
+                                              'projectSettings.allProjects',
+                                          ),
                                           to: '/generalSettings/projectManagement',
                                       },
                                   ]),
@@ -709,12 +787,16 @@ const ProjectSettings: FC<{
                 </SettingsPageContainer>
                 {project.provisioningSource === 'analytics' ? (
                     <ProjectSettingsPage
-                        title="Project settings"
-                        description="Lightdash manages this analytics project's configuration."
+                        title={t(
+                            'projectSettings.pages.managedAnalytics.title',
+                        )}
+                        description={t(
+                            'projectSettings.pages.managedAnalytics.description',
+                        )}
                     >
                         <Callout
                             variant="warning"
-                            title="Settings cannot be changed for managed analytics projects."
+                            title={t('projectSettings.managedAnalyticsWarning')}
                         />
                     </ProjectSettingsPage>
                 ) : (

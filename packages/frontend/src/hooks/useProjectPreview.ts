@@ -9,7 +9,9 @@ import {
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../api';
+import i18n from '../i18n/i18n';
 import useActiveJob from '../providers/ActiveJob/useActiveJob';
 import useToaster from './toaster/useToaster';
 
@@ -60,7 +62,10 @@ const createPreviewProject = async ({
                             job.steps.find(
                                 (step) =>
                                     step.stepStatus === JobStepStatusType.ERROR,
-                            )?.stepError ?? 'Failed to copy preview project',
+                            )?.stepError ??
+                            i18n.t('useProjectPreview.copyFailed', {
+                                ns: 'app',
+                            }),
                     },
                 };
                 throw error;
@@ -74,6 +79,7 @@ const createPreviewProject = async ({
 export const useCreatePreviewMutation = () => {
     const queryClient = useQueryClient();
     const { setActiveJobId } = useActiveJob();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<
         ApiCreatePreviewResults,
@@ -95,9 +101,9 @@ export const useCreatePreviewMutation = () => {
             await queryClient.invalidateQueries(['projects']);
             setActiveJobId(compileJobUuid);
             showToastSuccess({
-                title: `Preview project created`,
+                title: t('useProjectPreview.previewProjectCreated'),
                 action: {
-                    children: 'Open preview project',
+                    children: t('useProjectPreview.openPreviewProject'),
                     icon: IconArrowRight,
                     onClick: () => {
                         const url = `${window.origin}/projects/${projectUuid}/home`;
@@ -108,7 +114,7 @@ export const useCreatePreviewMutation = () => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to create preview project`,
+                title: t('useProjectPreview.failedToCreatePreviewProject'),
                 apiError: error,
             });
         },

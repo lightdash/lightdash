@@ -22,6 +22,7 @@ import {
     IconVideo,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
@@ -60,6 +61,7 @@ const AddTileButton: FC<Props> = ({
     chartSpaceUuids,
     onNewChart,
 }) => {
+    const { t } = useTranslation('dashboard');
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
         useState<boolean>(false);
@@ -141,11 +143,11 @@ const AddTileButton: FC<Props> = ({
                             data-tour-anchor="add-tile"
                             data-tour-hint="Click Add tile"
                         >
-                            Add tile
+                            {t('addTile.addTile')}
                         </Button>
                     </Menu.Target>
                     <Menu.Dropdown>
-                        <Menu.Label>Tiles</Menu.Label>
+                        <Menu.Label>{t('addTile.tiles')}</Menu.Label>
                         {showSavedCharts && (
                             <Menu.Item
                                 onClick={() =>
@@ -157,7 +159,7 @@ const AddTileButton: FC<Props> = ({
                                 data-tour-anchor="add-saved-chart"
                                 data-tour-hint="Choose Saved chart"
                             >
-                                Saved chart
+                                {t('addTile.savedChart')}
                             </Menu.Item>
                         )}
 
@@ -189,12 +191,12 @@ const AddTileButton: FC<Props> = ({
                                 leftSection={<MantineIcon icon={IconPlus} />}
                             >
                                 <Group gap="xxs">
-                                    <Text fz="sm">New chart</Text>
+                                    <Text fz="sm">{t('addTile.newChart')}</Text>
                                     <Tooltip
                                         label={
                                             onNewChart
-                                                ? 'Build a new chart and add it to this dashboard'
-                                                : 'Charts generated from here are exclusive to this dashboard'
+                                                ? t('addTile.newChartInPlace')
+                                                : t('addTile.newChartExclusive')
                                         }
                                     >
                                         <MantineIcon
@@ -215,7 +217,7 @@ const AddTileButton: FC<Props> = ({
                                     <MantineIcon icon={IconAppWindow} />
                                 }
                             >
-                                Data app
+                                {t('addTile.dataApp')}
                             </Menu.Item>
                         )}
 
@@ -228,7 +230,7 @@ const AddTileButton: FC<Props> = ({
                                     <MantineIcon icon={IconMarkdown} />
                                 }
                             >
-                                Markdown
+                                {t('addTile.markdown')}
                             </Menu.Item>
                         )}
 
@@ -239,14 +241,14 @@ const AddTileButton: FC<Props> = ({
                                 }
                                 leftSection={<MantineIcon icon={IconVideo} />}
                             >
-                                Loom video
+                                {t('addTile.loom')}
                             </Menu.Item>
                         )}
 
                         {(showTabs || showHeading) && <Menu.Divider />}
 
                         {(showTabs || showHeading) && (
-                            <Menu.Label>Elements</Menu.Label>
+                            <Menu.Label>{t('addTile.elements')}</Menu.Label>
                         )}
                         {showTabs && (
                             <Menu.Item
@@ -255,7 +257,7 @@ const AddTileButton: FC<Props> = ({
                                     <MantineIcon icon={IconNewSection} />
                                 }
                             >
-                                Tab
+                                {t('addTile.tab')}
                             </Menu.Item>
                         )}
 
@@ -266,7 +268,7 @@ const AddTileButton: FC<Props> = ({
                                 }
                                 leftSection={<MantineIcon icon={IconHeading} />}
                             >
-                                Heading
+                                {t('addTile.heading')}
                             </Menu.Item>
                         )}
                     </Menu.Dropdown>
@@ -274,7 +276,9 @@ const AddTileButton: FC<Props> = ({
             ) : canAddTab ? (
                 <Group gap="xs" wrap="nowrap">
                     <Tooltip
-                        label={`This tab has reached the ${maxTilesPerTab}-tile limit. Add a new tab to continue adding tiles.`}
+                        label={t('addTile.tileLimitReached', {
+                            max: maxTilesPerTab,
+                        })}
                     >
                         <span>
                             <Button
@@ -284,7 +288,7 @@ const AddTileButton: FC<Props> = ({
                                 disabled
                                 leftSection={<MantineIcon icon={IconPlus} />}
                             >
-                                Add tile
+                                {t('addTile.addTile')}
                             </Button>
                         </span>
                     </Tooltip>
@@ -296,12 +300,15 @@ const AddTileButton: FC<Props> = ({
                         onClick={() => setAddingTab(true)}
                         leftSection={<MantineIcon icon={IconNewSection} />}
                     >
-                        Add tab
+                        {t('addTile.addTab')}
                     </Button>
                 </Group>
             ) : (
                 <Tooltip
-                    label={`Maximum limits reached: ${maxTilesPerTab} tiles per tab, ${maxTabsPerDashboard} tabs per dashboard.`}
+                    label={t('addTile.allLimitsReached', {
+                        maxTiles: maxTilesPerTab,
+                        maxTabs: maxTabsPerDashboard,
+                    })}
                 >
                     <span>
                         <Button
@@ -311,7 +318,7 @@ const AddTileButton: FC<Props> = ({
                             disabled
                             leftSection={<MantineIcon icon={IconPlus} />}
                         >
-                            Add tile
+                            {t('addTile.addTile')}
                         </Button>
                     </span>
                 </Tooltip>

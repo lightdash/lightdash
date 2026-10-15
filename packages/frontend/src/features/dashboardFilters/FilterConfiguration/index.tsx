@@ -31,6 +31,7 @@ import { IconInfoCircle, IconRotate2, IconSql } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { flushSync } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -88,6 +89,7 @@ const FilterConfiguration: FC<Props> = ({
     onEditRequirementRules,
 }) => {
     const getUiString = useUiStrings();
+    const { t } = useTranslation('dashboardFilters');
     const [selectedTabId, setSelectedTabId] = useState<FilterTabs>(DEFAULT_TAB);
     const [selectedField, setSelectedField] = useState<
         DashboardFilterableField | undefined
@@ -498,7 +500,7 @@ const FilterConfiguration: FC<Props> = ({
                                 ) : (
                                     <Text span fz="sm" fw={500}>
                                         {draftFilterRule?.target.fieldId ||
-                                            'SQL column'}
+                                            t('controls.sqlColumn')}
                                     </Text>
                                 )}
                             </Group>

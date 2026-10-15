@@ -1,6 +1,7 @@
 import { type ApiError, type ApiSuccessEmpty } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../api';
 import useHealth from './health/useHealth';
 import useToaster from './toaster/useToaster';
@@ -78,6 +79,7 @@ export function useDatabricksLoginPopup({
     serverHostName?: string;
     credentialsName?: string;
 }) {
+    const { t } = useTranslation('app');
     const { showToastError } = useToaster();
     const health = useHealth();
     const queryClient = useQueryClient();
@@ -97,8 +99,8 @@ export function useDatabricksLoginPopup({
         },
         onError: (error: Error) => {
             showToastError({
-                title: 'Authentication failed',
-                subtitle: error.message || 'Please try again',
+                title: t('useDatabricks.authenticationFailed'),
+                subtitle: error.message || t('common.pleaseTryAgain'),
             });
         },
     });

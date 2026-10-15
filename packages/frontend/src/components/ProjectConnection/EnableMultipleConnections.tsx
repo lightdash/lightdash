@@ -21,6 +21,7 @@ import {
 } from '@mantine/core';
 import { IconAlertTriangle, IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import {
     usePreviewWarehouseConnectionSwitch,
     useSwitchToMultipleConnections,
@@ -41,97 +42,90 @@ type PreviewedSwitch = {
     idempotencyKey: string;
 };
 
-const pluralise = (count: number, singular: string, plural: string) =>
-    `${count} ${count === 1 ? singular : plural}`;
-
 const SwitchPlanSummary: FC<{ plan: WarehouseConnectionSwitchPlan }> = ({
     plan,
 }) => {
+    const { t } = useTranslation('projectConnection');
     const { staysOnOriginal } = plan;
+    const warehouse = getWarehouseLabel(plan.connection.warehouseType);
     return (
         <Stack gap="sm">
             <Text size="sm">
-                The switch adds{' '}
-                <Text span fw={600}>
-                    {plan.connection.name}
-                </Text>{' '}
-                ({getWarehouseLabel(plan.connection.warehouseType)}
-                {plan.connection.database
-                    ? `, database ${plan.connection.database}`
-                    : ''}
-                ). Its connection test passed.
+                <Trans
+                    t={t}
+                    i18nKey={
+                        plan.connection.database
+                            ? 'multipleConnections.summary.addsWithDatabase'
+                            : 'multipleConnections.summary.adds'
+                    }
+                    values={{
+                        name: plan.connection.name,
+                        warehouse,
+                        database: plan.connection.database,
+                    }}
+                    components={{ name: <Text span fw={600} /> }}
+                />
             </Text>
             <Text size="sm">
-                The current connection becomes{' '}
-                <Text span fw={600}>
-                    {plan.original.name}
-                </Text>
-                . Everything that exists today stays on it:
+                <Trans
+                    t={t}
+                    i18nKey="multipleConnections.summary.currentBecomes"
+                    values={{ name: plan.original.name }}
+                    components={{ name: <Text span fw={600} /> }}
+                />
             </Text>
             <List size="sm" spacing={2}>
                 <List.Item>
-                    {pluralise(staysOnOriginal.explores, 'explore', 'explores')}
+                    {t('multipleConnections.summary.explores', {
+                        count: staysOnOriginal.explores,
+                    })}
                 </List.Item>
                 <List.Item>
-                    {pluralise(
-                        staysOnOriginal.sqlCharts,
-                        'SQL chart',
-                        'SQL charts',
-                    )}{' '}
-                    (
-                    {pluralise(
-                        staysOnOriginal.sqlChartVersions,
-                        'version',
-                        'versions',
-                    )}
-                    )
+                    {t('multipleConnections.summary.sqlChartsWithVersions', {
+                        charts: t('multipleConnections.summary.sqlCharts', {
+                            count: staysOnOriginal.sqlCharts,
+                        }),
+                        versions: t('multipleConnections.summary.versions', {
+                            count: staysOnOriginal.sqlChartVersions,
+                        }),
+                    })}
                 </List.Item>
                 <List.Item>
-                    {pluralise(
-                        staysOnOriginal.dbtSources,
-                        'dbt source',
-                        'dbt sources',
-                    )}
+                    {t('multipleConnections.summary.dbtSources', {
+                        count: staysOnOriginal.dbtSources,
+                    })}
                 </List.Item>
                 <List.Item>
-                    {pluralise(
-                        staysOnOriginal.scheduledDeliveries,
-                        'scheduled delivery',
-                        'scheduled deliveries',
-                    )}
+                    {t('multipleConnections.summary.scheduledDeliveries', {
+                        count: staysOnOriginal.scheduledDeliveries,
+                    })}
                 </List.Item>
                 <List.Item>
-                    {pluralise(
-                        staysOnOriginal.dashboards,
-                        'dashboard',
-                        'dashboards',
-                    )}
+                    {t('multipleConnections.summary.dashboards', {
+                        count: staysOnOriginal.dashboards,
+                    })}
                 </List.Item>
             </List>
             {plan.personalCredentials.requireUserCredentials && (
                 <Text size="sm">
-                    This project requires personal credentials.{' '}
-                    {pluralise(
-                        plan.personalCredentials.usersWithPersonalCredentials,
-                        'person',
-                        'people',
-                    )}{' '}
-                    with personal credentials keep them for {plan.original.name}
-                    , and choose one for {plan.connection.name} when they first
-                    use it.
+                    {t('multipleConnections.summary.personalCredentials', {
+                        count: plan.personalCredentials
+                            .usersWithPersonalCredentials,
+                        original: plan.original.name,
+                        connection: plan.connection.name,
+                    })}
                 </Text>
             )}
             <Text size="sm">
-                After the switch, the SQL runner shows a connection picker and
-                these settings list the connections. A CLI deploy without a
-                source keeps using {plan.original.name}.
+                {t('multipleConnections.summary.afterSwitch', {
+                    original: plan.original.name,
+                })}
             </Text>
             <Alert
                 color="orange"
                 icon={<MantineIcon icon={IconAlertTriangle} />}
             >
-                There is no way back to a single connection. You can remove an
-                extra connection when nothing uses it.
+                {t('multipleConnections.summary.noWayBack')}
             </Alert>
         </Stack>
     );
@@ -142,8 +136,11 @@ const EnableMultipleConnectionsModal: FC<{
     warehouseType: WarehouseTypes;
     onClose: () => void;
 }> = ({ projectUuid, warehouseType, onClose }) => {
+    const { t } = useTranslation('projectConnection');
     const [originalName, setOriginalName] = useState(
-        () => getWarehouseLabel(warehouseType) ?? 'Original',
+        () =>
+            getWarehouseLabel(warehouseType) ??
+            t('multipleConnections.defaultOriginalName'),
     );
     const [previewed, setPreviewed] = useState<PreviewedSwitch | null>(null);
     const form = useForm({
@@ -194,9 +191,9 @@ const EnableMultipleConnectionsModal: FC<{
             <MantineModal
                 opened
                 onClose={onClose}
-                title="Enable multiple connections"
+                title={t('multipleConnections.enable')}
                 size="lg"
-                confirmLabel="Enable multiple connections"
+                confirmLabel={t('multipleConnections.enable')}
                 onConfirm={() =>
                     switchMutation.mutate({
                         ...previewed.request,
@@ -205,7 +202,7 @@ const EnableMultipleConnectionsModal: FC<{
                     })
                 }
                 confirmLoading={switchMutation.isLoading}
-                cancelLabel="Back"
+                cancelLabel={t('actions.back', { ns: 'common' })}
                 cancelDisabled={switchMutation.isLoading}
                 onCancel={() => setPreviewed(null)}
             >
@@ -218,17 +215,19 @@ const EnableMultipleConnectionsModal: FC<{
         <MantineModal
             opened
             onClose={onClose}
-            title="Enable multiple connections"
+            title={t('multipleConnections.enable')}
             size="lg"
-            confirmLabel="Review the switch"
+            confirmLabel={t('multipleConnections.review')}
             onConfirm={handlePreview}
             confirmLoading={previewMutation.isLoading}
             cancelDisabled={previewMutation.isLoading}
         >
             <Stack gap="md">
                 <TextInput
-                    label="Name of the current connection"
-                    description="Everything that exists today keeps using this connection."
+                    label={t('multipleConnections.originalNameLabel')}
+                    description={t(
+                        'multipleConnections.originalNameDescription',
+                    )}
                     required
                     maxLength={WAREHOUSE_CONNECTION_NAME_MAX_LENGTH}
                     value={originalName}
@@ -242,7 +241,7 @@ const EnableMultipleConnectionsModal: FC<{
                     projectUuid={projectUuid}
                     warehouseType={warehouseType}
                     showName
-                    intro="Add the first extra connection. It uses the same warehouse type, and it is tested before the preview."
+                    intro={t('multipleConnections.intro')}
                 />
                 {previewMutation.error && (
                     <Text size="sm" c="red">
@@ -257,6 +256,7 @@ const EnableMultipleConnectionsModal: FC<{
 export const EnableMultipleConnectionsCard: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
+    const { t } = useTranslation('projectConnection');
     const { data } = useWarehouseConnectionSwitchAvailability(
         projectUuid,
         true,
@@ -268,12 +268,9 @@ export const EnableMultipleConnectionsCard: FC<{ projectUuid: string }> = ({
     return (
         <Card padding="lg">
             <Stack gap="md">
-                <Title order={5}>Connections</Title>
+                <Title order={5}>{t('connectionsPanel.title')}</Title>
                 <Text size="sm" c="dimmed">
-                    This project uses one warehouse connection. Add more
-                    connections of the same warehouse type to query several
-                    warehouses from this project. Everything that exists today
-                    keeps using the current connection.
+                    {t('multipleConnections.cardDescription')}
                 </Text>
                 <Group justify="flex-end">
                     <Tooltip
@@ -291,7 +288,7 @@ export const EnableMultipleConnectionsCard: FC<{ projectUuid: string }> = ({
                                 }
                                 onClick={() => setIsOpen(true)}
                             >
-                                Enable multiple connections
+                                {t('multipleConnections.enable')}
                             </Button>
                         </Box>
                     </Tooltip>

@@ -7,6 +7,7 @@ import {
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type CalendarRangePickerProps } from '../../../components/common/DatePickers/CalendarRangePicker';
 import { type MonthRangePickerProps } from '../../../components/common/DatePickers/MonthRangePicker';
 import { type CalendarDateRange } from '../../../components/common/DatePickers/types';
@@ -68,6 +69,7 @@ export const useDateRangePicker = ({
     onChange,
     timeInterval,
 }: UseDateRangePickerProps) => {
+    const { t } = useTranslation('metricsCatalog');
     const presets = getDateRangePresets(timeInterval);
 
     const [isOpen, setIsOpen] = useState(false);
@@ -96,8 +98,8 @@ export const useDateRangePicker = ({
                 ? `${formatDate(dateRange[0])} - ${formatDate(dateRange[1])}`
                 : formatDate(dateRange[0]);
         }
-        return 'Select date range';
-    }, [selectedPreset, dateRange]);
+        return t('dateRangePicker.selectDateRange');
+    }, [selectedPreset, dateRange, t]);
 
     const formattedTempDateRange = useMemo(() => {
         return [formatDate(tempDateRange[0]), formatDate(tempDateRange[1])];

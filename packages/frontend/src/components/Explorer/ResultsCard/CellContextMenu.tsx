@@ -14,6 +14,7 @@ import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconStack } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
 import { useCallback, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { useMergeQuickFilter } from '../../../features/mergeQuery/hooks/useMergeQuickFilter';
 import { useMergeSourceCell } from '../../../features/mergeQuery/hooks/useMergeSourceCell';
@@ -48,6 +49,7 @@ const CellContextMenu: FC<
     const { openUnderlyingDataModal, metricQuery, tableName } =
         useMetricQueryDataContext();
     const { track } = useTracking();
+    const { t } = useTranslation('explorer');
     const { showToastError, showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 2000 });
     const meta = cell.column.columnDef.meta;
@@ -95,8 +97,8 @@ const CellContextMenu: FC<
 
     const handleCopyToClipboard = useCallback(() => {
         clipboard.copy(value.formatted);
-        showToastSuccess({ title: 'Copied to clipboard!' });
-    }, [value, clipboard, showToastSuccess]);
+        showToastSuccess({ title: t('cellContextMenu.copiedToClipboard') });
+    }, [value, clipboard, showToastSuccess, t]);
 
     const handleViewUnderlyingData = useCallback(async () => {
         if (meta?.item === undefined) return;
@@ -113,7 +115,7 @@ const CellContextMenu: FC<
                 });
             } catch {
                 showToastError({
-                    title: 'Could not open underlying data',
+                    title: t('cellContextMenu.underlyingDataFailed'),
                 });
                 return;
             }
@@ -144,6 +146,7 @@ const CellContextMenu: FC<
         prepareUnderlyingData,
         resolvedSourceCell,
         showToastError,
+        t,
     ]);
 
     const jsonValue =
@@ -163,7 +166,7 @@ const CellContextMenu: FC<
                 leftSection={<MantineIcon icon={IconCopy} />}
                 onClick={handleCopyToClipboard}
             >
-                Copy value
+                {t('cellContextMenu.copyValue')}
             </Menu.Item>
             {jsonValue && onViewJsonCell && (
                 <JsonCellMenuItem onClick={() => onViewJsonCell(jsonValue)} />
@@ -197,7 +200,7 @@ const CellContextMenu: FC<
                             data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"] >> [data-tour-anchor="results-heading"] >> [data-tour-anchor="results-metric-cell"]'
                             data-tour-docs="explore/dashboards/interact.mdx#view-underlying-data:1"
                         >
-                            View underlying data
+                            {t('cellContextMenu.viewUnderlyingData')}
                         </Menu.Item>
                     </Can>
                 )}

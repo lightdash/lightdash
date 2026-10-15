@@ -1,6 +1,7 @@
 import { SchedulerJobStatus } from '@lightdash/common';
 import { Progress, Text } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type TrackedJob } from './types';
 
 type Props = {
@@ -9,6 +10,7 @@ type Props = {
 };
 
 const JobProgressToastBody: FC<Props> = ({ jobs, label }) => {
+    const { t } = useTranslation('app');
     const completedCount = jobs.filter(
         (j) =>
             j.status === SchedulerJobStatus.COMPLETED ||
@@ -24,16 +26,30 @@ const JobProgressToastBody: FC<Props> = ({ jobs, label }) => {
 
     if (jobs.length === 1) {
         if (allDone && erroredCount === 0) {
-            return <Text fz="xs">{label ?? 'Job'} completed</Text>;
+            return (
+                <Text fz="xs">
+                    {t('schedulerJobs.jobCompleted', {
+                        label: label ?? t('schedulerJobs.job'),
+                    })}
+                </Text>
+            );
         }
         if (allDone && erroredCount > 0) {
             return (
                 <Text fz="xs" c="red">
-                    {label ?? 'Job'} failed
+                    {t('schedulerJobs.jobFailed', {
+                        label: label ?? t('schedulerJobs.job'),
+                    })}
                 </Text>
             );
         }
-        return <Text fz="xs">{label ?? 'Job'} in progress...</Text>;
+        return (
+            <Text fz="xs">
+                {t('schedulerJobs.jobInProgress', {
+                    label: label ?? t('schedulerJobs.job'),
+                })}
+            </Text>
+        );
     }
 
     const progressPct =
@@ -48,7 +64,10 @@ const JobProgressToastBody: FC<Props> = ({ jobs, label }) => {
                 </Text>
             )}
             <Text fz="xs" mb={4}>
-                {completedCount} of {jobs.length} completed
+                {t('schedulerJobs.completedOf', {
+                    completed: completedCount,
+                    total: jobs.length,
+                })}
             </Text>
             <Progress.Root size="sm">
                 <Progress.Section value={progressPct} color="green" />
@@ -58,7 +77,7 @@ const JobProgressToastBody: FC<Props> = ({ jobs, label }) => {
             </Progress.Root>
             {erroredCount > 0 && (
                 <Text fz="xs" c="red" mt={4}>
-                    {erroredCount} job{erroredCount === 1 ? '' : 's'} failed
+                    {t('schedulerJobs.jobsFailed', { count: erroredCount })}
                 </Text>
             )}
         </>

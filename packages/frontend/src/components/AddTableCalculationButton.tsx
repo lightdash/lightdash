@@ -1,6 +1,7 @@
 import { Button } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { memo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { MergeTableCalculationModal } from '../features/mergeQuery/components/MergeTableCalculationModal';
 import { useMergeSafe } from '../features/mergeQuery/context/useMerge';
 import { CreateTableCalculationModal } from '../features/tableCalculation';
@@ -9,6 +10,7 @@ import { EventName } from '../types/Events';
 import MantineIcon from './common/MantineIcon';
 
 const AddTableCalculationButton = memo(() => {
+    const { t } = useTranslation('tableCalculation');
     const [opened, setOpened] = useState<boolean>(false);
     const merge = useMergeSafe();
     const { track } = useTracking();
@@ -30,7 +32,7 @@ const AddTableCalculationButton = memo(() => {
                 data-tour-anchor="add-table-calculation"
                 data-tour-hint="Add a table calculation"
             >
-                Table calculation
+                {t('addButton.label')}
             </Button>
 
             {opened &&

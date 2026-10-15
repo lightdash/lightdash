@@ -1,5 +1,6 @@
 import { type ApiError } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { uniqueAliasFromName } from '../utils/aliasFromName';
@@ -34,18 +35,23 @@ const linkAppExternalConnection = async (
 export const useLinkAppExternalConnection = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('sync');
 
     return useMutation<undefined, ApiError, LinkParams>({
         mutationFn: linkAppExternalConnection,
         onSuccess: (_data, { appName, connectionName }) => {
             showToastSuccess({
-                title: `Linked ${connectionName}`,
-                subtitle: `${appName} can use this connection immediately. No new version was created.`,
+                title: t('externalConnections.toasts.linked', {
+                    connection: connectionName,
+                }),
+                subtitle: t('externalConnections.toasts.linkedSubtitle', {
+                    app: appName,
+                }),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to link connection',
+                title: t('externalConnections.toasts.linkFailed'),
                 apiError: error,
             });
         },

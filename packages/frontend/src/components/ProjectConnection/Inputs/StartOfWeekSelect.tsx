@@ -2,24 +2,30 @@ import { DbtProjectType, FeatureFlags } from '@lightdash/common';
 import { Alert, Text, Select } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import React, { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
 import { useFormContext } from '../formContext';
 
-const daysOfWeekOptions = [
-    'Monday',
-    'Tuesday',
-    'Wednesday',
-    'Thursday',
-    'Friday',
-    'Saturday',
-    'Sunday',
-].map((x, index) => ({ value: index.toString(), label: x }));
+const DAYS_OF_WEEK = [
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday',
+    'saturday',
+    'sunday',
+] as const;
 
 const StartOfWeekSelect: FC<{
     disabled: boolean;
     isRedeployRequired?: boolean;
 }> = ({ disabled, isRedeployRequired = true }) => {
+    const { t } = useTranslation('projectConnection');
+    const daysOfWeekOptions = DAYS_OF_WEEK.map((day, index) => ({
+        value: index.toString(),
+        label: t(`inputs.startOfWeek.days.${day}`),
+    }));
     const form = useFormContext();
     const field = form.getInputProps('warehouse.startOfWeek');
     const { data: timezoneSupportFlag } = useServerFeatureFlag(
@@ -38,12 +44,12 @@ const StartOfWeekSelect: FC<{
             <Select
                 name="warehouse.startOfWeek"
                 clearable
-                placeholder="Auto"
-                label="Start of week"
+                placeholder={t('inputs.startOfWeek.auto')}
+                label={t('inputs.startOfWeek.label')}
                 description={
                     isTimezoneSupportEnabled
-                        ? 'Sets the first day of the week for week time intervals. Changes apply straight away.'
-                        : 'Sets the first day of the week for week time intervals.'
+                        ? t('inputs.startOfWeek.descriptionImmediate')
+                        : t('inputs.startOfWeek.description')
                 }
                 data={daysOfWeekOptions}
                 value={field.value?.toString()}
@@ -62,15 +68,18 @@ const StartOfWeekSelect: FC<{
                 isDaySelected && (
                     <Alert
                         icon={<MantineIcon icon={IconInfoCircle} size={'md'} />}
-                        title="Required CLI option"
+                        title={t('inputs.startOfWeek.cliOptionTitle')}
                         color="blue"
                     >
-                        Going forward, if you use the CLI to deploy the project,
-                        you will need to run the deploy command with the option{' '}
-                        <Text fw={500} span>
-                            <code>--start-of-week={field.value}</code>
-                        </Text>{' '}
-                        ({dayName}), for the changes to take effect.
+                        <Trans
+                            t={t}
+                            i18nKey="inputs.startOfWeek.cliOptionDescription"
+                            values={{ value: field.value, day: dayName }}
+                            components={{
+                                option: <Text fw={500} span />,
+                                code: <code />,
+                            }}
+                        />
                     </Alert>
                 )}
         </>

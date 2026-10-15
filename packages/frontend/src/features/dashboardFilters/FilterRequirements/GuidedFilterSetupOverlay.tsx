@@ -2,6 +2,7 @@ import { type WeekDay } from '@lightdash/common';
 import { useDisclosure } from '@mantine/hooks';
 import { IconFilterExclamation } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../../components/common/MantineModal';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
@@ -23,6 +24,7 @@ const GuidedFilterSetupOverlay: FC<Props> = ({
     startOfWeek,
     onDismiss,
 }) => {
+    const { t } = useTranslation('dashboardFilters');
     const getUiString = useUiStrings();
     // Filter inputs report their dropdown state via popoverProps.onOpen/
     // onClose; Escape stands down while a dropdown is open so it only closes
@@ -78,7 +80,7 @@ const GuidedFilterSetupOverlay: FC<Props> = ({
                 className,
             }}
             modalContentProps={{
-                'aria-label': 'Set filters to load this dashboard',
+                'aria-label': t('requirements.guided.ariaLabel'),
             }}
         >
             <GuidedFilterSetup

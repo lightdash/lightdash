@@ -1,0 +1,638 @@
+{
+    "dataAppConnections": {
+        "panel": {
+            "title": "Conexiones de aplicaciones de datos",
+            "description": "Gestiona las conexiones externas que usan las aplicaciones de datos y los tipos de gráfico de este proyecto.",
+            "addConnection": "Añadir conexión",
+            "dataWarningTitle": "Los datos salen de Lightdash",
+            "dataWarningBody": "Las aplicaciones vinculadas a una conexión pueden enviar cualquier dato que puedan consultar al host externo de esa conexión. Añade solo conexiones a hosts a los que confíes los datos de este proyecto.",
+            "emptyTitle": "No hay conexiones",
+            "emptyDescription": "Crea una conexión para que las aplicaciones de datos y los tipos de gráfico puedan llamar a un servicio HTTP externo."
+        },
+        "authTypes": {
+            "none": "Ninguna",
+            "apiKey": "Clave de API",
+            "bearerToken": "Token bearer",
+            "google": "Google",
+            "oauth2": "OAuth 2",
+            "googleServiceAccount": "Cuenta de servicio de Google",
+            "oauthClientCredentials": "Credenciales de cliente OAuth 2.0"
+        },
+        "table": {
+            "headers": {
+                "name": "Nombre",
+                "origin": "Origen",
+                "auth": "Autenticación",
+                "access": "Acceso",
+                "linkedTo": "Vinculada a",
+                "builderLinking": "Vinculación desde el editor"
+            },
+            "methodsWithPublicImages": "{{methods}} + imágenes públicas",
+            "publicImagesOnly": "Solo imágenes públicas",
+            "dataAppCount_one": "{{count}} aplicación de datos",
+            "dataAppCount_other": "{{count}} aplicaciones de datos",
+            "chartTypeCount_one": "{{count}} tipo de gráfico",
+            "chartTypeCount_other": "{{count}} tipos de gráfico",
+            "linkedResources": "{{dataApps}} y {{chartTypes}}",
+            "linkedResourcesTooltip": "{{resources}}. Haz clic para ver la lista completa.",
+            "viewLinkedResourcesAria": "Ver {{resources}} vinculados a {{name}}",
+            "linkedSummaryWithChartTypes": "{{dataApps}} + {{chartTypes}}",
+            "builderLinkingAllowed": "Permitida",
+            "builderLinkingAdminsOnly": "Solo administradores",
+            "actionsAria": "Acciones para {{name}}"
+        },
+        "usage": {
+            "title": "Vinculados a “{{name}}”",
+            "subtitle": "Los recursos vinculados pueden enviar datos a {{origin}}",
+            "personalApp": "Aplicación personal",
+            "unlink": "Desvincular",
+            "unlinkAria": "Desvincular {{name}}",
+            "loadError": "No se pudieron cargar las aplicaciones que usan esta conexión.",
+            "tryAgain": "Reintentar",
+            "dataAppsTab": "Aplicaciones de datos ({{count}})",
+            "chartTypesTab": "Tipos de gráfico ({{count}})",
+            "unlinkConfirm": {
+                "title": "¿Desvincular {{name}}?",
+                "description": "Al desvincular se elimina el acceso a esta conexión.",
+                "confirm": "Desvincular conexión",
+                "cancel": "Mantener conexión"
+            }
+        },
+        "linkApp": {
+            "dataApp": {
+                "loading": "Cargando aplicaciones de datos...",
+                "loadError": "No se pudieron cargar las aplicaciones de datos",
+                "noneAvailable": "No hay aplicaciones de datos disponibles",
+                "allLinked": "Todas las aplicaciones de datos están vinculadas",
+                "linkPlaceholder": "Vincular una aplicación de datos...",
+                "linkAria": "Vincular una aplicación de datos",
+                "linking": "Vinculando aplicación de datos...",
+                "nothingFound": "No hay aplicaciones de datos coincidentes"
+            },
+            "chartType": {
+                "loading": "Cargando tipos de gráfico...",
+                "loadError": "No se pudieron cargar los tipos de gráfico",
+                "noneAvailable": "No hay tipos de gráfico disponibles",
+                "allLinked": "Todos los tipos de gráfico están vinculados",
+                "linkPlaceholder": "Vincular un tipo de gráfico...",
+                "linkAria": "Vincular un tipo de gráfico",
+                "linking": "Vinculando tipo de gráfico...",
+                "nothingFound": "No hay tipos de gráfico coincidentes"
+            }
+        },
+        "delete": {
+            "title": "Eliminar conexión"
+        },
+        "fields": {
+            "name": "Nombre",
+            "namePlaceholder": "Mi API",
+            "origin": "Origen",
+            "originDescription": "La URL base remota a la que pueden llamar las aplicaciones (debe empezar por https://)",
+            "authentication": "Autenticación",
+            "secretPlaceholderKeep": "•••• configurado (déjalo en blanco para mantener el actual)",
+            "tokenUrl": "URL del token",
+            "tokenUrlDescription": "El endpoint del servidor OAuth usado para obtener tokens de acceso",
+            "clientId": "ID de cliente",
+            "clientIdPlaceholder": "Tu ID de cliente OAuth",
+            "clientSecret": "Secreto de cliente",
+            "clientSecretPlaceholder": "Tu secreto de cliente OAuth",
+            "sendClientCredentialsAs": "Enviar credenciales de cliente como",
+            "authorizationHeader": "Cabecera Authorization",
+            "requestBody": "Cuerpo de la solicitud",
+            "oauthScopesOptional": "Ámbitos OAuth (opcional)",
+            "oauthScopesDescription": "Se envían como un parámetro de solicitud de token separado por espacios",
+            "addScope": "Añadir un ámbito",
+            "serviceAccountJson": "JSON de la cuenta de servicio",
+            "serviceAccountJsonDescription": "Pega el archivo de clave completo de la cuenta de servicio",
+            "oauthScopes": "Ámbitos OAuth",
+            "googleScopesDescription": "p. ej. https://www.googleapis.com/auth/bigquery",
+            "apiKeyName": "Nombre de la clave de API",
+            "apiKeyNameDescription": "La cabecera o el parámetro de consulta en el que se envía la clave",
+            "apiKeyLocation": "Ubicación de la clave de API",
+            "header": "Cabecera",
+            "queryParameter": "Parámetro de consulta",
+            "customHeaders": "Cabeceras personalizadas",
+            "customHeadersOptional": "Cabeceras personalizadas (opcional)",
+            "requestPolicy": "Política de solicitudes",
+            "allowedMethods": "Métodos permitidos",
+            "pathsLabel": "¿Qué rutas pueden llamar las aplicaciones?",
+            "publicImagesLabel": "Permitir imágenes públicas en aplicaciones vinculadas",
+            "publicImagesDescription": "Las aplicaciones y tipos de gráfico vinculados pueden cargar imágenes públicas desde este origen. Actívalo solo para hosts de imágenes o teselas públicos de confianza.",
+            "allowedContentTypes": "Tipos de contenido de respuesta permitidos",
+            "responseMaxBytes": "Bytes máximos de respuesta",
+            "requestMaxBytes": "Bytes máximos de solicitud",
+            "timeoutMs": "Tiempo de espera (ms)",
+            "rateLimitPerMinute": "Límite de frecuencia (por minuto)",
+            "advancedSettings": "Configuración avanzada"
+        },
+        "validation": {
+            "nameRequired": "El nombre es obligatorio",
+            "invalidUrl": "Introduce una URL válida, p. ej. https://api.example.com",
+            "urlHttps": "La URL debe empezar por https://",
+            "baseUrlOnly": "Introduce solo la URL base, sin ruta ni consulta",
+            "originHttps": "El origen debe empezar por https://",
+            "secretRequired": "Este método de autenticación requiere un secreto",
+            "invalidServiceAccountJson": "Pega un JSON de cuenta de servicio válido",
+            "clientSecretRequired": "El secreto de cliente es obligatorio",
+            "reenterClientSecret": "Vuelve a introducir el secreto de cliente al cambiar la URL del token o el ID de cliente",
+            "scopeRequired": "Añade al menos un ámbito OAuth",
+            "invalidScope": "Ámbito OAuth no válido: {{scope}}",
+            "clientIdRequired": "El ID de cliente es obligatorio",
+            "apiKeyNameRequired": "El nombre de la clave de API es obligatorio",
+            "invalidApiKeyName": "Usa un nombre de cabecera o parámetro de consulta válido",
+            "methodRequired": "Selecciona al menos un método o permite imágenes públicas",
+            "publicImagesNoAuth": "Las imágenes públicas del navegador no admiten autenticación",
+            "pathRequired": "Añade al menos una ruta o permite todas las rutas",
+            "pathFieldRequired": "La ruta es obligatoria",
+            "invalidRequestBody": "El cuerpo de la solicitud debe ser JSON válido"
+        },
+        "wizard": {
+            "title": "Añadir conexión de aplicación de datos",
+            "steps": {
+                "basics": "Básico",
+                "auth": "Autenticación",
+                "rules": "Reglas",
+                "test": "Prueba"
+            },
+            "generating": "Generando…",
+            "generate": "Generar",
+            "createConnection": "Crear conexión",
+            "modeChooser": {
+                "prompt": "¿Cómo quieres configurar la conexión?",
+                "describeTitle": "Descríbela",
+                "describeDescription": "Dinos a qué quieres conectarte y la IA redactará la conexión por ti.",
+                "aiNotConfigured": "La IA no está configurada para tu organización.",
+                "manualTitle": "Configurar manualmente",
+                "manualDescription": "Introduce tú mismo la URL base, la autenticación y las reglas de acceso."
+            },
+            "automatic": {
+                "intro": "Describe a qué quieres conectarte y la IA rellenará la conexión: tú revisas cada paso y pegas la credencial.",
+                "placeholder": "Quiero conectarme a Google Sheets para leer datos de hojas de cálculo…",
+                "loadingHint": "Esto suele tardar unos 15 segundos.",
+                "aiUnavailableTitle": "La IA no está configurada",
+                "aiUnavailableBody": "Tu organización no tiene ningún proveedor de IA configurado, así que la conexión no se puede redactar automáticamente. Aún puedes configurarla manualmente.",
+                "setUpManually": "Configurar manualmente",
+                "draftErrorTitle": "No se pudo redactar la conexión"
+            },
+            "connect": {
+                "intro": "Dale un nombre a tu conexión y la URL base de la API a la que deben poder llamar tus aplicaciones de datos.",
+                "baseUrl": "URL base",
+                "baseUrlDescription": "El origen remoto al que pueden llamar las aplicaciones (solo https, sin ruta)"
+            },
+            "auth": {
+                "prompt": "¿Cómo debemos autenticarnos?",
+                "credentialGuideTitle": "Cómo obtener tu credencial",
+                "openProviderDocs": "Abrir la documentación del proveedor",
+                "doubleCheck": "Compruébalo",
+                "apiKeyPlaceholder": "Tu clave de API secreta",
+                "bearerTokenPlaceholder": "Tu token bearer",
+                "sendKeyAs": "Enviar clave como",
+                "requestHeader": "Cabecera de la solicitud"
+            },
+            "access": {
+                "methodsLabel": "¿Qué métodos pueden usar las aplicaciones?",
+                "usageNotes": "Notas de uso para la generación de aplicaciones (opcional)",
+                "usageNotesDescription": "Ayuda a la IA a usar esta API correctamente al crear aplicaciones: endpoints clave, paginación, peculiaridades"
+            },
+            "testStep": {
+                "intro": "Envía una solicitud de prueba para confirmar que la conexión funciona antes de guardarla. Este paso es opcional.",
+                "pathDescription": "Relativa a la URL base",
+                "sendTest": "Enviar prueba",
+                "saveSample": "Guardar esta respuesta como ejemplo para orientar la generación de aplicaciones"
+            }
+        },
+        "test": {
+            "method": "Método",
+            "path": "Ruta",
+            "requestBodyJson": "Cuerpo de la solicitud (JSON)",
+            "imageOnly": "Esta conexión solo de imágenes no permite solicitudes a través del proxy, así que no hay nada que probar aquí."
+        },
+        "edit": {
+            "saveConnection": "Guardar conexión",
+            "tabs": {
+                "details": "Detalles de la conexión",
+                "instructions": "Instrucciones",
+                "examples": "Ejemplos"
+            },
+            "instructionsIntro": "Notas sobre cómo deben usar esta API las aplicaciones: peculiaridades de autenticación, paginación, qué endpoints importan, advertencias sobre las respuestas. Se pasan al editor de aplicaciones al generarlas, junto con la especificación técnica. Se admite Markdown.",
+            "instructionsAria": "Instrucciones de uso",
+            "instructionsPlaceholder": "p. ej. Pagina con ?page= y ?per_page=. El endpoint /issues solo devuelve incidencias abiertas a menos que se pase state=all."
+        },
+        "examples": {
+            "title": "Probar la conexión y añadir ejemplos",
+            "description": "Envía una solicitud real a través de esta conexión y, opcionalmente, guárdala como muestra para la generación de aplicaciones.",
+            "sampleQueued": "Hay una muestra probada en cola que se añadirá cuando guardes la conexión.",
+            "remove": "Quitar",
+            "queryParams": "Parámetros de consulta",
+            "queryParamsDescription": "Se envían como parámetros de consulta de la URL. Consejo: pega una URL con cadena de consulta en el campo de ruta para rellenarlos automáticamente.",
+            "keyPlaceholder": "clave",
+            "valuePlaceholder": "valor",
+            "addQueryParam": "Añadir parámetro de consulta",
+            "sendTestRequest": "Enviar solicitud de prueba",
+            "sampleLabel": "Etiqueta de la muestra (opcional)",
+            "sampleLabelPlaceholder": "p. ej. Tiempo actual en Berlín",
+            "saveWithConnection": "Guardar con la conexión",
+            "saveAsSample": "Guardar como muestra",
+            "savedAfterConnection": "La muestra se añadirá después de que guardes la conexión.",
+            "samplesGround": "Las muestras guardadas orientan a Claude sobre la forma de las respuestas de la API.",
+            "savedSamples": "Muestras guardadas",
+            "noSamples": "Aún no hay muestras guardadas.",
+            "noSamplesRunTest": "Aún no hay muestras guardadas: ejecuta una prueba arriba y guárdala.",
+            "deleteSampleAria": "Eliminar muestra",
+            "confirmDeleteTooltip": "Haz clic de nuevo para confirmar"
+        }
+    },
+    "designs": {
+        "list": {
+            "title": "Temas",
+            "description": "Gestiona los recursos de marca e instrucciones compartidos que se usan al crear aplicaciones de datos.",
+            "newTheme": "Nuevo tema",
+            "emptyTitle": "No hay temas",
+            "emptyDescription": "Crea un tema para compartir recursos de marca e instrucciones entre aplicaciones de datos.",
+            "columnTheme": "Tema",
+            "columnFiles": "Archivos",
+            "editTheme": "Editar tema",
+            "done": "Listo"
+        },
+        "row": {
+            "default": "Predeterminado",
+            "fileCount_one": "{{count}} archivo",
+            "fileCount_other": "{{count}} archivos",
+            "moreActions": "Más acciones",
+            "edit": "Editar",
+            "setAsDefault": "Establecer como predeterminado",
+            "delete": "Eliminar"
+        },
+        "create": {
+            "title": "Crear nuevo tema",
+            "confirm": "Crear tema",
+            "nameLabel": "Nombre",
+            "namePlaceholder": "Marca Acme",
+            "descriptionLabel": "Descripción",
+            "descriptionPlaceholder": "Opcional: para qué sirve este tema"
+        },
+        "delete": {
+            "title": "Eliminar tema",
+            "resourceType": "tema",
+            "filesWarning_one": "También se eliminará {{count}} archivo almacenado con este tema. El contenido que use este tema conservará sus archivos, pero no heredará futuras modificaciones.",
+            "filesWarning_other": "También se eliminarán {{count}} archivos almacenados con este tema. El contenido que use este tema conservará sus archivos, pero no heredará futuras modificaciones."
+        },
+        "detail": {
+            "download": "Descargar",
+            "delete": "Eliminar",
+            "downloadFile": "Descargar {{filename}}",
+            "deleteFile": "Eliminar {{filename}}",
+            "saving": "Guardando…",
+            "unsavedChanges": "Cambios sin guardar",
+            "saved": "Guardado",
+            "details": "Detalles",
+            "nameLabel": "Nombre",
+            "descriptionLabel": "Descripción",
+            "descriptionHelp": "Para los usuarios que seleccionan un tema",
+            "extraInstructionsLabel": "Instrucciones adicionales",
+            "extraInstructionsHelp": "Se pasarán al agente junto con los archivos markdown. Pueden ser cualquier instrucción que quieras incluir.",
+            "extraInstructionsPlaceholder": "p. ej. Usa mayúscula solo al inicio en todos los títulos. Prefiere diseños densos en lugar de mucho espacio en blanco.",
+            "defaultTitle": "Predeterminado",
+            "defaultDescription": "El tema predeterminado se aplica automáticamente al contenido nuevo. Cada elemento puede sobrescribirlo.",
+            "useAsDefault": "Usar como tema predeterminado",
+            "filesTitle": "Archivos",
+            "filesUsage_one": "{{count}} archivo · {{used}} / {{max}}",
+            "filesUsage_other": "{{count}} archivos · {{used}} / {{max}}",
+            "deleteAll": "Eliminar todos",
+            "filesHelp": "Arrastra y suelta archivos CSS, de fuentes, imágenes o instrucciones en markdown. Se usarán automáticamente donde se aplique este tema.",
+            "overLimit": "Este tema supera el límite de {{max}} (actualmente {{used}}). Las aplicaciones no lo aplicarán hasta que elimines algunos recursos.",
+            "nearLimit": "Este tema se está volviendo grande ({{used}} de {{max}}). Los temas grandes tardan más en generarse y pueden fallar al aplicarse: conserva solo los recursos que necesites.",
+            "noFiles": "Aún no hay archivos.",
+            "deleteAllTitle": "Eliminar todos los archivos",
+            "deleteAllDescription_one": "¿Seguro que quieres eliminar {{count}} archivo de \"{{name}}\"?",
+            "deleteAllDescription_other": "¿Seguro que quieres eliminar los {{count}} archivos de \"{{name}}\"?",
+            "deleteAllBody": "El tema se conserva, junto con su descripción, instrucciones adicionales y todo lo que ya lo use.",
+            "notFound": "Tema no encontrado."
+        },
+        "upload": {
+            "unsupportedTitle": "Archivo no compatible: {{filename}}",
+            "unsupportedSubtitle": "Permitidos: {{extensions}}",
+            "tooLargeTitle": "{{filename}} es demasiado grande",
+            "tooLargeSubtitle": "Los archivos deben pesar menos de {{max}}.",
+            "cantAddTitle": "No se puede añadir {{filename}}",
+            "uploading": "Subiendo…",
+            "dropHint": "Suelta archivos aquí o haz clic para explorar",
+            "ariaLabel": "Subir archivos del tema",
+            "browse": "Explorar archivos"
+        },
+        "picker": {
+            "noTheme": "Sin tema",
+            "applyTheme": "Aplicar tema",
+            "noThemeDescription": "Sin recursos de diseño compartidos: pide el estilo que quieras",
+            "themeLabel": "Tema: {{label}}",
+            "themePrefix": "Tema:",
+            "lockedTooltip": "El tema no se puede cambiar después de la creación",
+            "default": "Predeterminado",
+            "manageThemes": "Gestionar temas"
+        },
+        "toast": {
+            "created": "Tema creado correctamente",
+            "createFailed": "No se pudo crear el tema",
+            "updateFailed": "No se pudo actualizar el tema",
+            "deleted": "Tema eliminado",
+            "deleteFailed": "No se pudo eliminar el tema",
+            "defaultUpdated": "Tema predeterminado actualizado",
+            "setDefaultFailed": "No se pudo establecer el tema predeterminado",
+            "defaultCleared": "Tema predeterminado eliminado",
+            "clearDefaultFailed": "No se pudo quitar el tema predeterminado",
+            "uploaded": "{{filename}} subido",
+            "uploadFailed": "No se pudo subir {{filename}}",
+            "fileDeleted": "Archivo eliminado",
+            "fileDeleteFailed": "No se pudo eliminar el archivo",
+            "allFilesDeleted": "Todos los archivos eliminados",
+            "filesDeleteFailed": "No se pudieron eliminar los archivos"
+        }
+    },
+    "recentlyDeleted": {
+        "page": {
+            "title": "Eliminados recientemente",
+            "retention_one": "Los elementos se eliminan permanentemente después de {{count}} día",
+            "retention_other": "Los elementos se eliminan permanentemente después de {{count}} días",
+            "refreshTooltip": "Haz clic para actualizar la lista",
+            "loadFailed": "No se pudo cargar el contenido eliminado. Inténtalo de nuevo.",
+            "searchTooltip": "Buscar por nombre del elemento",
+            "searchPlaceholder": "Buscar elementos eliminados..."
+        },
+        "columns": {
+            "name": "Nombre",
+            "deletedBy": "Eliminado por",
+            "deleted": "Eliminado",
+            "daysRemaining": "Días restantes"
+        },
+        "unknownUser": "Desconocido",
+        "daysRemaining": {
+            "expired": "Caducado",
+            "days_one": "{{count}} día",
+            "days_other": "{{count}} días"
+        },
+        "contains": "Contiene {{items}}",
+        "counts": {
+            "documents_one": "{{count}} documento",
+            "documents_other": "{{count}} documentos",
+            "spaces_one": "{{count}} espacio",
+            "spaces_other": "{{count}} espacios",
+            "dashboards_one": "{{count}} panel",
+            "dashboards_other": "{{count}} paneles",
+            "charts_one": "{{count}} gráfico",
+            "charts_other": "{{count}} gráficos",
+            "dataApps_one": "{{count}} aplicación de datos",
+            "dataApps_other": "{{count}} aplicaciones de datos",
+            "scheduledDeliveries_one": "{{count}} envío programado",
+            "scheduledDeliveries_other": "{{count}} envíos programados"
+        },
+        "actions": {
+            "menuLabel": "Acciones para {{name}}",
+            "restore": "Restaurar",
+            "deletePermanently": "Eliminar permanentemente",
+            "confirmTitle": "¿Eliminar el elemento permanentemente?",
+            "resourceType": "elemento"
+        },
+        "filters": {
+            "all": "Todo",
+            "allTooltip": "Mostrar todos los elementos eliminados",
+            "chartsTooltip": "Mostrar solo gráficos eliminados",
+            "dashboardsTooltip": "Mostrar solo paneles eliminados",
+            "documentsTooltip": "Mostrar solo documentos eliminados",
+            "documentsLabel": "Documentos",
+            "dataAppsTooltip": "Mostrar solo aplicaciones de datos eliminadas",
+            "chartTypesTooltip": "Mostrar solo tipos de gráfico personalizados eliminados",
+            "spacesTooltip": "Mostrar solo espacios eliminados",
+            "deletedBy": "Eliminado por",
+            "deletedByTooltip": "Filtrar por el usuario que eliminó el elemento",
+            "searchUsers": "Buscar usuarios…",
+            "noUsers": "No se encontraron usuarios"
+        },
+        "toast": {
+            "restored": "Contenido restaurado",
+            "restoredSubtitle": "El elemento se ha restaurado correctamente.",
+            "goToChart": "Ir al gráfico",
+            "goToDashboard": "Ir al panel",
+            "goToSpace": "Ir al espacio",
+            "goToChartType": "Ir al tipo de gráfico",
+            "goToApp": "Ir a la aplicación",
+            "goToDocument": "Ir al documento",
+            "restoreFailed": "No se pudo restaurar el contenido",
+            "deleted": "Contenido eliminado permanentemente",
+            "deletedSubtitle": "El elemento se ha eliminado permanentemente.",
+            "deleteFailed": "No se pudo eliminar el contenido"
+        }
+    },
+    "projectSettings": {
+        "pages": {
+            "recentlyDeleted": {
+                "title": "Eliminados recientemente",
+                "description": "Revisa y restaura el contenido del proyecto eliminado recientemente."
+            },
+            "connection": {
+                "title": "Configuración de conexión",
+                "description": "Gestiona las conexiones del almacén de datos y de la capa semántica de este proyecto."
+            },
+            "tablesConfiguration": {
+                "title": "Configuración de tablas",
+                "description": "Elige qué modelos de dbt están disponibles en este proyecto."
+            },
+            "agentIdentity": {
+                "title": "Identidad del agente",
+                "description": "Consulta con qué identidad se ejecutan los agentes en este proyecto y gestiona su cuenta de agente compartida."
+            },
+            "projectAccess": {
+                "title": "Acceso al proyecto",
+                "description": "Gestiona quién puede acceder a este proyecto y qué puede hacer."
+            },
+            "appearance": {
+                "title": "Apariencia",
+                "description": "Personaliza los colores y el estilo de los gráficos de este proyecto."
+            },
+            "externalSources": {
+                "title": "Fuentes externas",
+                "description": "Sube archivos para consultarlos junto con tu almacén de datos."
+            },
+            "usageAnalytics": {
+                "title": "Analíticas de uso",
+                "description": "Revisa cómo usan las personas el contenido de este proyecto."
+            },
+            "scheduledDeliveries": {
+                "title": "Sincronizaciones y entregas programadas",
+                "description": "Configura los valores predeterminados de entrega y gestiona las programaciones de este proyecto."
+            },
+            "verifiedContent": {
+                "title": "Contenido verificado",
+                "description": "Revisa los gráficos, dashboards, apps de datos y Documentos verificados de este proyecto."
+            },
+            "reviewRequests": {
+                "title": "Solicitudes de revisión",
+                "description": "Quién revisa el contenido enviado desde espacios personales y qué ocurre al aprobarlo."
+            },
+            "dataOps": {
+                "title": "Data ops",
+                "description": "Configura flujos de trabajo para promover contenido entre proyectos."
+            },
+            "defaultUserSpaces": {
+                "title": "Espacios de usuario predeterminados",
+                "description": "Elige si los miembros del proyecto reciben un espacio personal automáticamente."
+            },
+            "parameters": {
+                "title": "Parámetros",
+                "description": "Revisa los valores reutilizables definidos para las consultas y el contenido del proyecto."
+            },
+            "agentDataScope": {
+                "title": "Alcance de datos del agente",
+                "description": "Limita qué esquemas puede leer un agente de IA cuando escribe SQL directo."
+            },
+            "aiRegion": {
+                "title": "Región de IA",
+                "description": "Elige qué credencial de proveedor de IA, y por tanto qué región, atiende a este proyecto."
+            },
+            "queryTimezone": {
+                "title": "Zona horaria del proyecto",
+                "description": "Establece la zona horaria predeterminada que usa este proyecto."
+            },
+            "previewsConfig": {
+                "title": "Configuración de vistas previas",
+                "description": "Configura la caducidad y limpieza de los proyectos de vista previa."
+            },
+            "semanticLayer": {
+                "title": "Capa semántica",
+                "description": "Configura la conexión de la capa semántica de este proyecto."
+            },
+            "pullRequests": {
+                "title": "Pull requests",
+                "description": "Revisa las pull requests abiertas para el código de este proyecto."
+            },
+            "contentReview": {
+                "title": "Revisión de contenido",
+                "description": "Cambios sin publicar hechos en este proyecto, a la espera de que un revisor los escriba de vuelta en el repositorio."
+            },
+            "caching": {
+                "title": "Caché de resultados",
+                "description": "Elige durante cuánto tiempo los gráficos y dashboards de este proyecto se cargan desde resultados en caché antes de que Lightdash vuelva a consultar el almacén de datos."
+            },
+            "embed": {
+                "title": "Configuración de inserción",
+                "description": "Configura el acceso insertado para este proyecto."
+            },
+            "cors": {
+                "title": "CORS",
+                "description": "Controla qué orígenes de navegador externos pueden llamar a la API de Lightdash."
+            },
+            "managedAnalytics": {
+                "title": "Configuración del proyecto",
+                "description": "Lightdash gestiona la configuración de este proyecto de analíticas."
+            }
+        },
+        "rolesDocumentation": "Documentación de roles",
+        "embeddingDocumentation": "Documentación de inserción",
+        "loadingProject": "Cargando proyecto",
+        "documentTitle": "Configuración del proyecto",
+        "allProjects": "Todos los proyectos",
+        "managedAnalyticsWarning": "La configuración no se puede cambiar en los proyectos de analíticas gestionados.",
+        "cors": {
+            "allowedOrigins": "Orígenes permitidos",
+            "help": "CORS controla qué orígenes de navegador externos pueden llamar a la API de Lightdash. Añade orígenes exactos como https://app.example.com o subdominios comodín como *.example.com. Usa expresiones regulares solo para patrones avanzados."
+        }
+    },
+    "search": {
+        "placeholder": "Buscar en la configuración",
+        "clear": "Borrar búsqueda"
+    },
+    "createProject": {
+        "title": "¡Tu proyecto se ha conectado correctamente! 🎉",
+        "description": "Antes de empezar a explorar tus datos, elige los modelos de dbt que quieres que aparezcan como tablas en Lightdash. Siempre puedes ajustarlo más tarde en la configuración del proyecto."
+    },
+    "semanticLayer": {
+        "metricSqlApi": "API SQL de métricas",
+        "description": "Conecta herramientas de BI y clientes SQL mediante el protocolo de comunicación de Postgres. Sigue los tres pasos a continuación.",
+        "adminOnly": "Los detalles de conexión solo son visibles para los administradores de la organización.",
+        "beforeConnect": {
+            "title": "Antes de conectarte",
+            "limitations": "Solo se admiten consultas <code>SELECT</code> simples sobre un único explore (sin joins SQL), con un límite predeterminado de 500 filas.",
+            "tlsRequired": "Las conexiones están cifradas — TLS es obligatorio, así que usa <code>sslmode=require</code> (o <code>verify-full</code>).",
+            "tlsDisabled": "TLS está desactivado en este servidor, así que los clientes deben usar <code>sslmode=disable</code>."
+        },
+        "steps": {
+            "token": {
+                "title": "Token",
+                "description": "Pega un token de Lightdash existente o genera uno nuevo para esta integración. Puedes usar una cuenta de servicio o un token de acceso personal.",
+                "placeholder": "ldsvc_… o ldpat_…",
+                "noToken": "¿No tienes un token?",
+                "generateNew": "Genera uno nuevo",
+                "pastePat": "Pega un token de acceso personal desde la configuración de tu cuenta."
+            },
+            "connectionDetails": {
+                "title": "Detalles de conexión",
+                "host": "Host",
+                "port": "Puerto",
+                "user": "Usuario",
+                "database": "Base de datos",
+                "sslMode": "Modo SSL"
+            },
+            "connectClient": {
+                "title": "Conecta tu cliente",
+                "description": "Elige tu herramienta y copia la cadena lista para usar.",
+                "tabs": {
+                    "libpqUrl": "URL de conexión",
+                    "psql": "psql",
+                    "jdbc": "JDBC"
+                }
+            }
+        },
+        "tokenCard": {
+            "title": "Token añadido como tu contraseña",
+            "generatedFor": "Generado para {{description}} · {{expires}}",
+            "replace": "Reemplazar",
+            "copied": "Copiado",
+            "saveReminder": "Recuerda guardar tu token — no podrás volver a acceder a él."
+        },
+        "tokenModal": {
+            "title": "Crear token de cuenta de servicio",
+            "submit": "Generar y copiar",
+            "description": "Un token a nivel de proyecto, limitado a este proyecto. Se muestra solo una vez.",
+            "descriptionLabel": "Descripción",
+            "descriptionPlaceholder": "¿Para qué es este token?",
+            "descriptionRequired": "La descripción es obligatoria",
+            "expiresLabel": "Caduca",
+            "projectRole": "Proyecto · rol",
+            "roleRecommended": "{{role}} (recomendado)",
+            "roleHint": "<bold>Interactive Viewer</bold> es el mínimo para la API SQL de métricas — puede leer los explores de este proyecto y ejecutar consultas sobre ellos. Elige un rol superior solo si el mismo token se reutiliza en otro lugar.",
+            "copyFailed": {
+                "title": "No se pudo copiar el token al portapapeles",
+                "subtitle": "Cópialo desde el formulario de conexión antes de salir de la página."
+            },
+            "expiry": {
+                "days7": {
+                    "label": "7 días",
+                    "expiresIn": "caduca en 7 días"
+                },
+                "days30": {
+                    "label": "30 días",
+                    "expiresIn": "caduca en 30 días"
+                },
+                "days60": {
+                    "label": "60 días",
+                    "expiresIn": "caduca en 60 días"
+                },
+                "days90": {
+                    "label": "90 días",
+                    "expiresIn": "caduca en 90 días"
+                },
+                "months6": {
+                    "label": "6 meses",
+                    "expiresIn": "caduca en 6 meses"
+                },
+                "year1": {
+                    "label": "1 año",
+                    "expiresIn": "caduca en 1 año"
+                },
+                "never": {
+                    "label": "Sin caducidad",
+                    "expiresIn": "nunca caduca"
+                }
+            }
+        }
+    }
+}

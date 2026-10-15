@@ -1,6 +1,7 @@
 import { ActionIcon, Badge } from '@mantine/core';
 import { IconPlugConnected, IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 
 type Props = {
@@ -8,23 +9,26 @@ type Props = {
     onRemove: () => void;
 };
 
-const ConnectionChip: FC<Props> = ({ name, onRemove }) => (
-    <Badge
-        size="md"
-        leftSection={<MantineIcon icon={IconPlugConnected} size={12} />}
-        rightSection={
-            <ActionIcon
-                size="xs"
-                variant="transparent"
-                onClick={onRemove}
-                aria-label={`Remove ${name}`}
-            >
-                <MantineIcon icon={IconX} size={10} />
-            </ActionIcon>
-        }
-    >
-        {name}
-    </Badge>
-);
+const ConnectionChip: FC<Props> = ({ name, onRemove }) => {
+    const { t } = useTranslation('apps');
+    return (
+        <Badge
+            size="md"
+            leftSection={<MantineIcon icon={IconPlugConnected} size={12} />}
+            rightSection={
+                <ActionIcon
+                    size="xs"
+                    variant="transparent"
+                    onClick={onRemove}
+                    aria-label={t('common.removeNamed', { name })}
+                >
+                    <MantineIcon icon={IconX} size={10} />
+                </ActionIcon>
+            }
+        >
+            {name}
+        </Badge>
+    );
+};
 
 export default ConnectionChip;

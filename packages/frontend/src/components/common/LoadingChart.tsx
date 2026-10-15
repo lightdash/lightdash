@@ -2,6 +2,7 @@ import { LOADING_CHART_CLASS } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { clsx } from 'clsx';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import EmptyStateLoader from './EmptyStateLoader';
 
 type LoadingChartProps = {
@@ -16,6 +17,7 @@ type LoadingChartProps = {
  * to ensure the unfurl service can properly detect when charts are loading.
  */
 const LoadingChart: FC<LoadingChartProps> = ({ className }) => {
+    const { t } = useTranslation('commonUi');
     return (
         <Box
             h="100%"
@@ -23,7 +25,7 @@ const LoadingChart: FC<LoadingChartProps> = ({ className }) => {
             py="50px"
             className={clsx(LOADING_CHART_CLASS, className)}
         >
-            <EmptyStateLoader title="Loading chart" />
+            <EmptyStateLoader title={t('loadingChart.title')} />
         </Box>
     );
 };

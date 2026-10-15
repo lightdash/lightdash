@@ -27,6 +27,7 @@ import {
 } from '@tabler/icons-react';
 import chunk from 'lodash/chunk';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useUpdateMutation } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
 import { LightdashUserAvatar } from '../../Avatar';
@@ -40,10 +41,10 @@ import classes from './ShareSpaceModalShared.module.css';
 import {
     getAccessColor,
     InheritanceType,
-    NestedInheritanceOptions,
-    RootInheritanceOptions,
+    getNestedInheritanceOptions,
+    getRootInheritanceOptions,
 } from './ShareSpaceModalUtils';
-import { UserAccessAction, UserAccessOptions } from './ShareSpaceSelect';
+import { getUserAccessOptions, UserAccessAction } from './ShareSpaceSelect';
 import { getInitials, getUserNameOrEmail } from './Utils';
 
 type UserAccessListProps = {
@@ -67,6 +68,9 @@ export const UserAccessList: FC<UserAccessListProps> = ({
     totalPages,
     onPageChange,
 }) => {
+    const { t } = useTranslation('modals');
+    const userAccessOptions = useMemo(() => getUserAccessOptions(t), [t]);
+
     const handleNextPage = useCallback(() => {
         if (page < totalPages) onPageChange(page + 1);
     }, [page, totalPages, onPageChange]);
@@ -84,20 +88,26 @@ export const UserAccessList: FC<UserAccessListProps> = ({
                 const isSessionUser =
                     sharedUser.userUuid === sessionUser?.userUuid;
 
-                const userAccessTypes = UserAccessOptions.filter(
-                    (t) =>
-                        t.value !== UserAccessAction.DELETE ||
-                        sharedUser.hasDirectAccess,
-                ).map((t) =>
-                    t.value === UserAccessAction.DELETE &&
-                    inheritParentPermissions
-                        ? {
-                              ...t,
-                              title: 'Reset access',
-                              selectDescription: `Reset user's access`,
-                          }
-                        : t,
-                );
+                const userAccessTypes = userAccessOptions
+                    .filter(
+                        (o) =>
+                            o.value !== UserAccessAction.DELETE ||
+                            sharedUser.hasDirectAccess,
+                    )
+                    .map((o) =>
+                        o.value === UserAccessAction.DELETE &&
+                        inheritParentPermissions
+                            ? {
+                                  ...o,
+                                  title: t(
+                                      'shareSpace.accessOptions.resetAccess',
+                                  ),
+                                  selectDescription: t(
+                                      'shareSpace.accessOptions.resetUserAccessDescription',
+                                  ),
+                              }
+                            : o,
+                    );
 
                 return (
                     <Group
@@ -134,7 +144,7 @@ export const UserAccessList: FC<UserAccessListProps> = ({
                                 {isSessionUser ? (
                                     <Text fw={400} fz="sm" span c="dimmed">
                                         {' '}
-                                        (you)
+                                        {t('shareSpace.you')}
                                     </Text>
                                 ) : null}
                             </Text>
@@ -150,14 +160,14 @@ export const UserAccessList: FC<UserAccessListProps> = ({
                                 radius="xl"
                                 mr="xs"
                             >
-                                {UserAccessOptions.find(
+                                {userAccessOptions.find(
                                     (o) => o.value === sharedUser.role,
                                 )?.title ?? sharedUser.role}
                             </Badge>
                         ) : (
                             <Tooltip
                                 disabled={!needsPromotion}
-                                label="User needs to be promoted to interactive viewer to have this space access"
+                                label={t('shareSpace.needsPromotion')}
                                 maw={350}
                             >
                                 <Select
@@ -244,6 +254,7 @@ export const GroupsAccessList: FC<GroupAccessListProps> = ({
     groupsAccess,
     pageSize,
 }) => {
+    const { t } = useTranslation('modals');
     const [page, setPage] = useState(1);
 
     const paginatedList: SpaceGroup[][] = useMemo(() => {
@@ -264,18 +275,22 @@ export const GroupsAccessList: FC<GroupAccessListProps> = ({
     return (
         <Stack gap="sm">
             {paginatedList[page - 1]?.map((group) => {
-                const groupAccessTypes = UserAccessOptions.map((t) =>
-                    t.value === UserAccessAction.DELETE
+                const groupAccessTypes = getUserAccessOptions(t).map((o) =>
+                    o.value === UserAccessAction.DELETE
                         ? {
-                              ...t,
+                              ...o,
                               title: inheritParentPermissions
-                                  ? 'Reset access'
-                                  : 'Remove access',
+                                  ? t('shareSpace.accessOptions.resetAccess')
+                                  : t('shareSpace.accessOptions.removeAccess'),
                               selectDescription: inheritParentPermissions
-                                  ? `Reset group's access`
-                                  : `Remove group's access`,
+                                  ? t(
+                                        'shareSpace.accessOptions.resetGroupAccessDescription',
+                                    )
+                                  : t(
+                                        'shareSpace.accessOptions.removeGroupAccessDescription',
+                                    ),
                           }
-                        : t,
+                        : o,
                 );
 
                 return (
@@ -361,6 +376,7 @@ export const AccessModelToggle: FC<AccessModelToggleProps> = ({
     projectUuid,
     isNestedSpace,
 }) => {
+    const { t } = useTranslation('modals');
     const { user: sessionUser } = useApp();
     const { mutate: spaceMutation, isLoading: isMutating } = useUpdateMutation(
         projectUuid,
@@ -379,8 +395,8 @@ export const AccessModelToggle: FC<AccessModelToggleProps> = ({
     }, [space.access, sessionUser.data?.userUuid, sessionUser.data?.role]);
 
     const options = isNestedSpace
-        ? NestedInheritanceOptions
-        : RootInheritanceOptions;
+        ? getNestedInheritanceOptions(t)
+        : getRootInheritanceOptions(t);
 
     const currentValue = space.inheritParentPermissions
         ? InheritanceType.INHERIT
@@ -398,10 +414,12 @@ export const AccessModelToggle: FC<AccessModelToggleProps> = ({
                 ? breadcrumbs[breadcrumbs.length - 2]
                 : undefined;
         if (parent) {
-            return `Inherits access from "${parent.name}"`;
+            return t('shareSpace.inheritance.inheritsFromParent', {
+                name: parent.name,
+            });
         }
-        return 'Inherits access from the project';
-    }, [currentValue, space.breadcrumbs]);
+        return t('shareSpace.inheritance.inheritsFromProject');
+    }, [currentValue, space.breadcrumbs, t]);
 
     return (
         <>
@@ -499,7 +517,7 @@ export const AccessModelToggle: FC<AccessModelToggleProps> = ({
             <MantineModal
                 opened={confirmOpened}
                 onClose={closeConfirm}
-                title="Restrict access?"
+                title={t('shareSpace.restrictConfirm.title')}
                 onConfirm={() => {
                     spaceMutation({
                         name: space.name,
@@ -507,19 +525,14 @@ export const AccessModelToggle: FC<AccessModelToggleProps> = ({
                     });
                     closeConfirm();
                 }}
-                confirmLabel="Restrict access"
+                confirmLabel={t('shareSpace.restrictConfirm.confirm')}
                 confirmLoading={isMutating}
             >
                 <Stack gap="sm">
-                    <Text fz="sm">
-                        Users with direct access will keep their access. Project
-                        members will lose access unless specifically invited.
-                    </Text>
+                    <Text fz="sm">{t('shareSpace.restrictConfirm.body')}</Text>
                     {showLockoutWarning && (
                         <Callout variant="warning">
-                            You don't have direct access to this space. Once
-                            it's restricted, you won't be able to change this
-                            setting again.
+                            {t('shareSpace.restrictConfirm.lockoutWarning')}
                         </Callout>
                     )}
                 </Stack>

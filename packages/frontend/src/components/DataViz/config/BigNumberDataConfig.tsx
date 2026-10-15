@@ -1,5 +1,6 @@
 import { type VizColumn } from '@lightdash/common';
 import { Stack } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import {
     useAppDispatch as useVizDispatch,
     useAppSelector as useVizSelector,
@@ -14,6 +15,7 @@ import { DataVizAggregationConfig } from './DataVizAggregationConfig';
 import { useBigNumberFieldOptions } from './useBigNumberFieldOptions';
 
 export const BigNumberDataConfig = ({ columns }: { columns: VizColumn[] }) => {
+    const { t } = useTranslation('dataViz');
     const dispatch = useVizDispatch();
     const valueField = useVizSelector(
         (state) => state.bigNumberConfig.fieldConfig?.y[0],
@@ -23,20 +25,22 @@ export const BigNumberDataConfig = ({ columns }: { columns: VizColumn[] }) => {
         useBigNumberFieldOptions(columns);
 
     const errorMessage = errors?.metricFieldError?.references?.[0]
-        ? `Column "${errors.metricFieldError.references[0]}" not in SQL query`
+        ? t('errors.columnNotInQuery', {
+              column: errors.metricFieldError.references[0],
+          })
         : undefined;
 
     return (
         <Stack gap="sm" mb="lg">
             <Config.Section>
-                <Config.Heading>Value</Config.Heading>
+                <Config.Heading>{t('bigNumber.value')}</Config.Heading>
 
                 <FieldReferenceSelect
                     data={selectData}
                     disabled={fieldOptions.length === 0}
                     value={valueField?.reference}
                     error={errorMessage}
-                    placeholder="Select a value"
+                    placeholder={t('bigNumber.selectValue')}
                     onChange={(value) => {
                         if (!value) return;
                         dispatch(setValueReference(value));
@@ -45,7 +49,7 @@ export const BigNumberDataConfig = ({ columns }: { columns: VizColumn[] }) => {
                 />
 
                 <Config.Group>
-                    <Config.Label>Aggregation</Config.Label>
+                    <Config.Label>{t('common.aggregation')}</Config.Label>
 
                     <DataVizAggregationConfig
                         options={aggregationOptionsFor(valueField?.reference)}

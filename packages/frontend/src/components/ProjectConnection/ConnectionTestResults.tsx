@@ -11,6 +11,7 @@ import {
     IconCircleX,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../common/MantineIcon';
 
 const HopIcon: FC<{ status: WarehouseConnectionHop['status'] }> = ({
@@ -30,35 +31,44 @@ const HopIcon: FC<{ status: WarehouseConnectionHop['status'] }> = ({
 
 const ConnectionTestResults: FC<{
     results: WarehouseConnectionTestResults;
-}> = ({ results }) => (
-    <Paper p="md" withBorder>
-        <Stack gap="xs">
-            <Text fw={600}>
-                {results.ok
-                    ? 'Connection test passed'
-                    : 'Connection test failed'}
-            </Text>
-            {results.hops.map((hop) => (
-                <Stack key={hop.stage} gap={2}>
-                    <Group gap="xs" wrap="nowrap">
-                        <HopIcon status={hop.status} />
-                        <Text
-                            fz="sm"
-                            c={hop.status === 'skipped' ? 'dimmed' : undefined}
-                        >
-                            {WAREHOUSE_CONNECTION_HOP_LABELS[hop.stage]}
-                            {hop.status === 'skipped' ? ' (not run)' : ''}
-                        </Text>
-                    </Group>
-                    {hop.message && (
-                        <Text fz="sm" c="red" pl="xl">
-                            {hop.message}
-                        </Text>
-                    )}
-                </Stack>
-            ))}
-        </Stack>
-    </Paper>
-);
+}> = ({ results }) => {
+    const { t } = useTranslation('projectConnection');
+    return (
+        <Paper p="md" withBorder>
+            <Stack gap="xs">
+                <Text fw={600}>
+                    {results.ok
+                        ? t('connectionTest.passed')
+                        : t('connectionTest.failed')}
+                </Text>
+                {results.hops.map((hop) => (
+                    <Stack key={hop.stage} gap={2}>
+                        <Group gap="xs" wrap="nowrap">
+                            <HopIcon status={hop.status} />
+                            <Text
+                                fz="sm"
+                                c={
+                                    hop.status === 'skipped'
+                                        ? 'dimmed'
+                                        : undefined
+                                }
+                            >
+                                {WAREHOUSE_CONNECTION_HOP_LABELS[hop.stage]}
+                                {hop.status === 'skipped'
+                                    ? ` ${t('connectionTest.notRun')}`
+                                    : ''}
+                            </Text>
+                        </Group>
+                        {hop.message && (
+                            <Text fz="sm" c="red" pl="xl">
+                                {hop.message}
+                            </Text>
+                        )}
+                    </Stack>
+                ))}
+            </Stack>
+        </Paper>
+    );
+};
 
 export default ConnectionTestResults;

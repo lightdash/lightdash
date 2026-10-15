@@ -11,6 +11,7 @@ import {
 } from '@lightdash/common';
 import { Stack, Text, SegmentedControl } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FieldSelect from '../../common/FieldSelect';
 import { isSankeyVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -18,6 +19,7 @@ import { Config } from '../common/Config';
 import { VisualizationConfigTabs } from '../common/VisualizationConfigTabs';
 
 export const ConfigTabs: FC = memo(() => {
+    const { t } = useTranslation('vizConfig');
     const { visualizationConfig } = useVisualizationContext();
 
     const isSankey = isSankeyVisualizationConfig(visualizationConfig);
@@ -93,14 +95,18 @@ export const ConfigTabs: FC = memo(() => {
             tabs={[
                 {
                     value: 'general',
-                    label: 'General',
+                    label: t('sankey.tabs.general'),
                     panel: (
                         <Stack>
                             <Config>
                                 <Config.Section>
-                                    <Config.Heading>Source</Config.Heading>
+                                    <Config.Heading>
+                                        {t('sankey.source')}
+                                    </Config.Heading>
                                     <FieldSelect<Dimension | CustomDimension>
-                                        placeholder="Select source dimension"
+                                        placeholder={t(
+                                            'sankey.selectSourceDimension',
+                                        )}
                                         disabled={allDimensions.length === 0}
                                         item={selectedSource}
                                         items={allDimensions}
@@ -124,9 +130,13 @@ export const ConfigTabs: FC = memo(() => {
                             </Config>
                             <Config>
                                 <Config.Section>
-                                    <Config.Heading>Target</Config.Heading>
+                                    <Config.Heading>
+                                        {t('sankey.target')}
+                                    </Config.Heading>
                                     <FieldSelect<Dimension | CustomDimension>
-                                        placeholder="Select target dimension"
+                                        placeholder={t(
+                                            'sankey.selectTargetDimension',
+                                        )}
                                         disabled={allDimensions.length === 0}
                                         item={selectedTarget}
                                         items={allDimensions}
@@ -150,9 +160,11 @@ export const ConfigTabs: FC = memo(() => {
                             </Config>
                             <Config>
                                 <Config.Section>
-                                    <Config.Heading>Value</Config.Heading>
+                                    <Config.Heading>
+                                        {t('sankey.value')}
+                                    </Config.Heading>
                                     <FieldSelect<Metric | TableCalculation>
-                                        placeholder="Select metric"
+                                        placeholder={t('sankey.selectMetric')}
                                         disabled={numericFields.length === 0}
                                         item={selectedMetric}
                                         items={numericFields}
@@ -179,23 +191,25 @@ export const ConfigTabs: FC = memo(() => {
                 },
                 {
                     value: 'display',
-                    label: 'Display',
+                    label: t('sankey.tabs.display'),
                     panel: (
                         <Stack>
                             <Config>
                                 <Config.Section>
-                                    <Config.Heading>Orientation</Config.Heading>
+                                    <Config.Heading>
+                                        {t('sankey.orientation')}
+                                    </Config.Heading>
                                     <SegmentedControl
                                         size="xs"
                                         value={orient}
                                         data={[
                                             {
                                                 value: 'horizontal',
-                                                label: 'Horizontal',
+                                                label: t('sankey.horizontal'),
                                             },
                                             {
                                                 value: 'vertical',
-                                                label: 'Vertical',
+                                                label: t('sankey.vertical'),
                                             },
                                         ]}
                                         onChange={(value) =>
@@ -210,23 +224,25 @@ export const ConfigTabs: FC = memo(() => {
                             </Config>
                             <Config>
                                 <Config.Section>
-                                    <Config.Heading>Node layout</Config.Heading>
+                                    <Config.Heading>
+                                        {t('sankey.nodeLayout')}
+                                    </Config.Heading>
                                     <SegmentedControl
                                         size="xs"
                                         value={effectiveLayout}
                                         data={[
                                             {
                                                 value: 'multi-step',
-                                                label: 'Multi-step',
+                                                label: t('sankey.multiStep'),
                                             },
                                             {
                                                 value: 'merged',
-                                                label: 'Merged',
+                                                label: t('sankey.merged'),
                                                 disabled: data.hasCycle,
                                             },
                                             {
                                                 value: 'direct',
-                                                label: 'Direct',
+                                                label: t('sankey.direct'),
                                             },
                                         ]}
                                         onChange={(value) =>
@@ -237,8 +253,7 @@ export const ConfigTabs: FC = memo(() => {
                                     />
                                     {data.hasCycle && (
                                         <Text size="xs" c="dimmed" mt="xs">
-                                            Merging isn't available for flows
-                                            that loop back on themselves.
+                                            {t('sankey.mergingUnavailable')}
                                         </Text>
                                     )}
                                 </Config.Section>
@@ -247,7 +262,7 @@ export const ConfigTabs: FC = memo(() => {
                                 <Config>
                                     <Config.Section>
                                         <Config.Heading>
-                                            Node alignment
+                                            {t('sankey.nodeAlignment')}
                                         </Config.Heading>
                                         <SegmentedControl
                                             size="xs"
@@ -257,19 +272,19 @@ export const ConfigTabs: FC = memo(() => {
                                                     value: 'left',
                                                     label:
                                                         orient === 'vertical'
-                                                            ? 'Top'
-                                                            : 'Left',
+                                                            ? t('sankey.top')
+                                                            : t('sankey.left'),
                                                 },
                                                 {
                                                     value: 'right',
                                                     label:
                                                         orient === 'vertical'
-                                                            ? 'Bottom'
-                                                            : 'Right',
+                                                            ? t('sankey.bottom')
+                                                            : t('sankey.right'),
                                                 },
                                                 {
                                                     value: 'justify',
-                                                    label: 'Justify',
+                                                    label: t('sankey.justify'),
                                                 },
                                             ]}
                                             onChange={(value) =>

@@ -13,6 +13,7 @@ import {
     type SchedulerAndTargets,
     type ThresholdOptions,
 } from '@lightdash/common'; // pragma: allowlist secret
+import i18n from '../../../../../i18n/i18n';
 
 export type ConditionSummary = {
     field: string;
@@ -20,11 +21,11 @@ export type ConditionSummary = {
     value: string;
 };
 
-const THRESHOLD_OPERATOR_TEXT: Record<ThresholdOperator, string> = {
-    [ThresholdOperator.GREATER_THAN]: 'is greater than',
-    [ThresholdOperator.LESS_THAN]: 'is less than',
-    [ThresholdOperator.INCREASED_BY]: 'increased by',
-    [ThresholdOperator.DECREASED_BY]: 'decreased by',
+export const THRESHOLD_OPERATOR_KEYS: Record<ThresholdOperator, string> = {
+    [ThresholdOperator.GREATER_THAN]: 'thresholdOperators.greaterThan',
+    [ThresholdOperator.LESS_THAN]: 'thresholdOperators.lessThan',
+    [ThresholdOperator.INCREASED_BY]: 'thresholdOperators.increasedBy',
+    [ThresholdOperator.DECREASED_BY]: 'thresholdOperators.decreasedBy',
 };
 
 export const getAlertConditionSummaries = (
@@ -38,9 +39,11 @@ export const getAlertConditionSummaries = (
             threshold.operator === ThresholdOperator.DECREASED_BY;
         return {
             field: friendlyName(threshold.fieldId),
-            operator:
-                THRESHOLD_OPERATOR_TEXT[threshold.operator] ??
-                threshold.operator,
+            operator: THRESHOLD_OPERATOR_KEYS[threshold.operator]
+                ? i18n.t(THRESHOLD_OPERATOR_KEYS[threshold.operator], {
+                      ns: 'scheduler',
+                  })
+                : threshold.operator,
             value: `${threshold.value}${isPercent ? '%' : ''}`,
         };
     });
@@ -105,7 +108,7 @@ export const getSchedulerParameterSummaries = (
 
     return Object.entries(parameters).map(([key, value]) => ({
         field: friendlyName(key),
-        operator: 'is',
+        operator: i18n.t('detail.parameterOperator', { ns: 'scheduler' }),
         value: Array.isArray(value) ? value.join(', ') : String(value),
     }));
 };

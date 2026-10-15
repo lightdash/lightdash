@@ -1,0 +1,15 @@
+{
+    "generateFailed": "Failed to generate. Please try again.",
+    "tooltip": {
+        "improveTitle": "Improve your tooltip code with AI",
+        "generateTitle": "Generate tooltip with AI",
+        "placeholder": "Describe what you want to show in the tooltip..."
+    },
+    "tableCalculation": {
+        "placeholder": "Describe your calculation (type @ to reference fields)..."
+    },
+    "customDimension": {
+        "placeholder": "Describe your dimension (type @ to reference fields)...",
+        "generate": "Generate custom dimension"
+    }
+}

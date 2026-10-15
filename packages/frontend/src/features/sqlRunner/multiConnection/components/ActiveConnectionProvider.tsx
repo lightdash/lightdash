@@ -8,6 +8,7 @@ import {
     type FC,
     type PropsWithChildren,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import {
     ActiveConnectionContext,
@@ -39,6 +40,7 @@ export const ActiveConnectionProvider: FC<
     isSharedLink = false,
     children,
 }) => {
+    const { t } = useTranslation('sqlRunner');
     const { showToastInfo } = useToaster();
     const [selectedConnectionUuid, setSelectedConnectionUuid] = useState<
         string | undefined
@@ -162,10 +164,9 @@ export const ActiveConnectionProvider: FC<
         showToastInfo({
             key: REMOVED_NOTICE_KEY,
             title: removedName
-                ? `"${removedName}" was removed from this project`
-                : 'This connection was removed from this project',
-            subtitle:
-                'Your SQL is still here. Choose another connection to browse its tables.',
+                ? t('connection.namedRemoved', { name: removedName })
+                : t('connection.removed'),
+            subtitle: t('connection.removedSubtitle'),
             autoClose: false,
         });
     }, [
@@ -173,6 +174,7 @@ export const ActiveConnectionProvider: FC<
         selectedConnectionUuid,
         projectUuid,
         showToastInfo,
+        t,
     ]);
 
     const connectionNameFor = useCallback(

@@ -15,6 +15,7 @@ import {
 import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable/constants';
 import MantineIcon from '../../common/MantineIcon';
 import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
@@ -43,6 +44,7 @@ export const ChartDataTable = ({
     thSortConfig,
     onTHClick,
 }: TableProps) => {
+    const { t } = useTranslation('dataViz');
     const theme = useMantineTheme();
     const { tableWrapperRef, getTableData, paddingTop, paddingBottom } =
         useVirtualTable({ columnNames, rows, config: columnsConfig });
@@ -101,7 +103,9 @@ export const ChartDataTable = ({
                                             }
                                         >
                                             <Tooltip
-                                                label="You cannot sort by a group column"
+                                                label={t(
+                                                    'table.cannotSortGroupColumn',
+                                                )}
                                                 disabled={!!onClick}
                                                 position="top"
                                             >

@@ -12,6 +12,7 @@ import {
     IconTerminal2,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SaveSqlChartModalContent } from '../../../../../features/sqlRunner/components/SaveSqlChartModal';
@@ -30,8 +31,6 @@ import { AiSqlArtifactDownloadModal } from './AiSqlArtifactDownloadModal';
 import { AiVizSwitchedResult } from './AiVizSwitchedResult';
 import { pickVizKind } from './AiVizSwitchedResult.utils';
 import { useArtifactResultRows } from './useArtifactResultRows';
-
-const LOADING_MESSAGE = 'Loading SQL results...';
 
 type ContentProps = {
     projectUuid: string;
@@ -69,6 +68,7 @@ export const AiSqlArtifactActions: FC<ActionsProps> = ({
     description,
     columns,
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const { user } = useApp();
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
@@ -98,18 +98,18 @@ export const AiSqlArtifactActions: FC<ActionsProps> = ({
                     <ActionIcon
                         size="sm"
                         color="ldGray.9"
-                        aria-label="SQL artifact actions"
+                        aria-label={t('sqlArtifact.actions')}
                     >
                         <MantineIcon icon={IconDots} size="lg" />
                     </ActionIcon>
                 </Menu.Target>
                 <Menu.Dropdown>
-                    <Menu.Label>Quick actions</Menu.Label>
+                    <Menu.Label>{t('chartOptions.quickActions')}</Menu.Label>
                     <Menu.Item
                         onClick={() => setIsDownloadModalOpen(true)}
                         leftSection={<MantineIcon icon={IconDownload} />}
                     >
-                        Download results
+                        {t('chartOptions.downloadResults')}
                     </Menu.Item>
                     <Menu.Item
                         component={Link}
@@ -119,14 +119,16 @@ export const AiSqlArtifactActions: FC<ActionsProps> = ({
                         state={{ sql, limit }}
                         leftSection={<MantineIcon icon={IconTerminal2} />}
                     >
-                        Continue exploring in SQL Runner
+                        {t('sqlArtifact.continueInSqlRunner')}
                     </Menu.Item>
                     <Menu.Item
                         disabled={!canSave || columns.length === 0}
                         onClick={() => setIsSaveModalOpen(true)}
                         leftSection={<MantineIcon icon={IconDeviceFloppy} />}
                     >
-                        {savedSqlUuid ? 'Save another copy' : 'Save'}
+                        {savedSqlUuid
+                            ? t('sqlArtifact.saveAnotherCopy')
+                            : t('actions.save', { ns: 'common' })}
                     </Menu.Item>
                 </Menu.Dropdown>
             </Menu>
@@ -168,6 +170,7 @@ export const AiSqlArtifactVisualization: FC<ContentProps> = ({
     headerContent,
     flush = false,
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const { columns, rows } = useArtifactResultRows(results);
     const plan = useMemo(
         () =>
@@ -185,7 +188,7 @@ export const AiSqlArtifactVisualization: FC<ContentProps> = ({
             kind={pickVizKind(plan, chosenKind ?? 'table')}
             onKindChange={setChosenKind}
             headerContent={headerContent}
-            loadingMessage={LOADING_MESSAGE}
+            loadingMessage={t('sqlArtifact.loadingResults')}
             flush={flush}
         />
     );

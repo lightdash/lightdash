@@ -3,6 +3,7 @@ import { ActionIcon, Box } from '@mantine/core';
 import { IconArrowUp, IconSparkles, IconX } from '@tabler/icons-react';
 import { type Editor } from '@tiptap/react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { AiPromptEditor } from '../../../../ee/features/ambientAi/components/tableCalculation/components/AiPromptInput';
 import { AiSlot } from '../../../../ee/features/ambientAi/components/tableCalculation/components/AiSlot/AiSlot';
@@ -23,6 +24,7 @@ export const ImproveWithAiSlot: FC<Props> = ({
     isGenerating,
     onSubmit,
 }) => {
+    const { t } = useTranslation('tableCalculation');
     const [opened, setOpened] = useState(false);
     const [shouldClearEditor, setShouldClearEditor] = useState(false);
     const editorRef = useRef<Editor | null>(null);
@@ -70,11 +72,11 @@ export const ImproveWithAiSlot: FC<Props> = ({
                 type="button"
                 className={styles.trigger}
                 onClick={open}
-                aria-label="Improve with AI"
+                aria-label={t('formula.improveWithAi.label')}
                 disabled={triggerDisabled}
             >
                 <MantineIcon icon={IconSparkles} size="xs" />
-                Improve with AI
+                {t('formula.improveWithAi.label')}
             </button>
         );
     }
@@ -83,12 +85,12 @@ export const ImproveWithAiSlot: FC<Props> = ({
         <AiSlot
             icon={IconSparkles}
             iconColor="indigo.4"
-            title="Describe the change"
+            title={t('formula.improveWithAi.describeChange')}
             rightSlot={
                 <ActionIcon
                     size="xs"
                     onClick={close}
-                    aria-label="Close AI prompt"
+                    aria-label={t('formula.improveWithAi.closePrompt')}
                 >
                     <MantineIcon icon={IconX} size="sm" />
                 </ActionIcon>
@@ -111,7 +113,7 @@ export const ImproveWithAiSlot: FC<Props> = ({
                     disabled={isGenerating}
                     loading={isGenerating}
                     className={styles.generateButton}
-                    aria-label="Submit"
+                    aria-label={t('formula.improveWithAi.submit')}
                 >
                     <MantineIcon
                         icon={IconArrowUp}

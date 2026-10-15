@@ -14,6 +14,7 @@ import {
 import { type FormValidateInput } from '@mantine/form';
 import { type UseMutationResult } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAiAgentButtonVisibility } from '../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -104,6 +105,7 @@ export const useSchedulerFormModal = ({
     const { data: user } = useUser(true);
     const { track } = useTracking();
     const { showToastApiError } = useToaster();
+    const { t } = useTranslation('scheduler');
     const { mutate: sendNow, isLoading: isLoadingSendNow } =
         useSendNowScheduler();
 
@@ -183,13 +185,15 @@ export const useSchedulerFormModal = ({
     const validate = useMemo<FormValidateInput<SchedulerFormValues>>(
         () => ({
             name: (value) => {
-                return value.length > 0 ? null : 'Name is required';
+                return value.length > 0
+                    ? null
+                    : t('form.validation.nameRequired');
             },
             options: {
                 customLimit: (value, values) => {
                     return values.options.limit === Limit.CUSTOM &&
                         !Number.isInteger(value)
-                        ? 'Custom limit must be an integer'
+                        ? t('form.validation.customLimitInteger')
                         : null;
                 },
             },
@@ -211,8 +215,8 @@ export const useSchedulerFormModal = ({
                     return unmetRequirements.every(
                         (requirement) => requirement.type === 'group',
                     )
-                        ? 'Set a value for at least one filter in each requirement group'
-                        : 'Required filters must have values';
+                        ? t('form.validation.requirementGroupsUnmet')
+                        : t('form.validation.requiredFiltersMissing');
                 }
                 return null;
             },
@@ -224,26 +228,27 @@ export const useSchedulerFormModal = ({
                     savedChart?.metricQuery.filters,
                     value,
                 ).length > 0
-                    ? 'Required filters must have values'
+                    ? t('form.validation.requiredFiltersMissing')
                     : null;
             },
             cron: (cronExpression) => {
-                return isInvalidCronExpression('Cron expression')(
+                return isInvalidCronExpression(t('cronInput.cronExpression'))(
                     cronExpression,
                 );
             },
             thresholds: {
-                fieldId: (value) => (value ? null : 'Alert field is required'),
+                fieldId: (value) =>
+                    value ? null : t('form.validation.alertFieldRequired'),
             },
             selectedTabs: (value) => {
                 if (value && value.length === 0) {
-                    return 'Selected tabs should not be empty';
+                    return t('form.validation.selectedTabsEmpty');
                 }
                 return null;
             },
             aiAugmentation: (value) =>
                 value && value.prompt.trim().length === 0
-                    ? 'Instructions are required'
+                    ? t('form.validation.instructionsRequired')
                     : null,
         }),
         [
@@ -252,6 +257,7 @@ export const useSchedulerFormModal = ({
             filterableTiles,
             isChartResource,
             savedChart?.metricQuery.filters,
+            t,
         ],
     );
 
@@ -406,7 +412,7 @@ export const useSchedulerFormModal = ({
                 }
             } catch (e) {
                 showToastApiError({
-                    title: 'Failed to save the AI settings for this delivery',
+                    title: t('toasts.aiSettingsSaveFailed'),
                     apiError: (e as ApiError).error,
                 });
             }
@@ -418,6 +424,7 @@ export const useSchedulerFormModal = ({
             resourceUuid,
             formResource?.type,
             showToastApiError,
+            t,
             aiAugmentation.data,
             upsertAiAugmentationMutation,
             deleteAiAugmentationMutation,
@@ -542,10 +549,10 @@ export const useSchedulerFormModal = ({
         : createMutation.isLoading;
 
     const confirmText = isEditMode
-        ? 'Save'
+        ? t('actions.save', { ns: 'common' })
         : isThresholdAlert
-          ? 'Create alert'
-          : 'Create schedule';
+          ? t('form.createAlert')
+          : t('form.createSchedule');
 
     return {
         isEditMode,

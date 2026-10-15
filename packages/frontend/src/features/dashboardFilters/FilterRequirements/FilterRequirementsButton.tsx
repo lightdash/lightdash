@@ -17,6 +17,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconInfoCircle, IconPlus, IconTrash } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { Fragment, useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { v4 as uuidv4 } from 'uuid';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -43,19 +44,22 @@ type MemberChipProps = {
     onRemove: () => void;
 };
 
-const MemberChip: FC<MemberChipProps> = ({ item, label, onRemove }) => (
-    <Group gap={4} wrap="nowrap" className={classes.memberChip}>
-        {item && <FieldIcon item={item} size="sm" />}
-        <Text size="xs" truncate>
-            {label}
-        </Text>
-        <CloseButton
-            size="xs"
-            aria-label={`Remove ${label}`}
-            onClick={onRemove}
-        />
-    </Group>
-);
+const MemberChip: FC<MemberChipProps> = ({ item, label, onRemove }) => {
+    const { t } = useTranslation('dashboardFilters');
+    return (
+        <Group gap={4} wrap="nowrap" className={classes.memberChip}>
+            {item && <FieldIcon item={item} size="sm" />}
+            <Text size="xs" truncate>
+                {label}
+            </Text>
+            <CloseButton
+                size="xs"
+                aria-label={t('requirements.removeMember', { label })}
+                onClick={onRemove}
+            />
+        </Group>
+    );
+};
 
 type RuleCardProps = {
     members: DashboardFilterRule[];
@@ -77,43 +81,49 @@ const RuleCard: FC<RuleCardProps> = ({
     onAddMember,
     onRemoveMember,
     onDeleteRule,
-}) => (
-    <Stack gap="xs" className={classes.ruleRow}>
-        <Text size="xs" fw={500}>
-            {members.length > 1
-                ? 'Viewers must set at least one of:'
-                : 'Viewers must set:'}
-        </Text>
-        <Group gap="xs">
-            {members.map((member) => (
-                <MemberChip
-                    key={member.id}
-                    item={getFilterItem(member)}
-                    label={getFilterLabel(member)}
-                    onRemove={() => onRemoveMember(member.id)}
+}) => {
+    const { t } = useTranslation('dashboardFilters');
+    return (
+        <Stack gap="xs" className={classes.ruleRow}>
+            <Text size="xs" fw={500}>
+                {members.length > 1
+                    ? t('requirements.mustSetOneOf')
+                    : t('requirements.mustSet')}
+            </Text>
+            <Group gap="xs">
+                {members.map((member) => (
+                    <MemberChip
+                        key={member.id}
+                        item={getFilterItem(member)}
+                        label={getFilterLabel(member)}
+                        onRemove={() => onRemoveMember(member.id)}
+                    />
+                ))}
+                <FilterSelect
+                    selectableFilters={selectableFilters}
+                    placeholder={
+                        members.length > 0
+                            ? t('requirements.orAnotherFilter')
+                            : t('requirements.addFilter')
+                    }
+                    onSelect={onAddMember}
                 />
-            ))}
-            <FilterSelect
-                selectableFilters={selectableFilters}
-                placeholder={
-                    members.length > 0 ? '+ or another filter' : '+ Add filter'
-                }
-                onSelect={onAddMember}
-            />
-            <Button
-                size="compact-xs"
-                variant="subtle"
-                ml="auto"
-                leftSection={<MantineIcon icon={IconTrash} />}
-                onClick={onDeleteRule}
-            >
-                Delete rule
-            </Button>
-        </Group>
-    </Stack>
-);
+                <Button
+                    size="compact-xs"
+                    variant="subtle"
+                    ml="auto"
+                    leftSection={<MantineIcon icon={IconTrash} />}
+                    onClick={onDeleteRule}
+                >
+                    {t('requirements.deleteRule')}
+                </Button>
+            </Group>
+        </Stack>
+    );
+};
 
 const FilterRequirementsButton: FC = () => {
+    const { t } = useTranslation('dashboardFilters');
     const [isLocalPopoverOpen, { open: openLocal, close: closeLocal }] =
         useDisclosure(false);
     const popovers = useFilterBarPopovers();
@@ -371,7 +381,7 @@ const FilterRequirementsButton: FC = () => {
                     }
                     onClick={() => (isPopoverOpen ? handleClose() : open())}
                 >
-                    Filter rules
+                    {t('requirements.filterRules')}
                 </Button>
             </Popover.Target>
 
@@ -379,17 +389,15 @@ const FilterRequirementsButton: FC = () => {
                 <Stack w={400} gap="sm" p="md">
                     <Stack gap={2}>
                         <Text size="sm" fw={600}>
-                            Filter rules
+                            {t('requirements.filterRules')}
                         </Text>
                         <Text size="xs" c="dimmed">
-                            Dashboard won't load until all rules are met.
+                            {t('requirements.wontLoadUntilMet')}
                         </Text>
                     </Stack>
                     {!hasRuleRows && (
                         <Text size="xs" c="dimmed">
-                            Require viewers to set filters before the dashboard
-                            loads, either individually or at least one from a
-                            set.
+                            {t('requirements.emptyDescription')}
                         </Text>
                     )}
                     {requirementRules.map((rule, index) => (
@@ -439,13 +447,15 @@ const FilterRequirementsButton: FC = () => {
                         leftSection={<MantineIcon icon={IconPlus} />}
                         onClick={handleAddRule}
                     >
-                        {hasRuleRows ? 'Add another rule' : 'Add rule'}
+                        {hasRuleRows
+                            ? t('requirements.addAnotherRule')
+                            : t('requirements.addRule')}
                     </Button>
                     {hasRuleRows && (
                         <Textarea
                             size="xs"
-                            label="Note for viewers"
-                            placeholder="Explain why these filters are required, e.g. pick your region to keep this dashboard fast"
+                            label={t('requirements.noteLabel')}
+                            placeholder={t('requirements.notePlaceholder')}
                             autosize
                             minRows={2}
                             maxRows={4}
@@ -465,7 +475,7 @@ const FilterRequirementsButton: FC = () => {
                         <Group gap={6} wrap="nowrap">
                             <MantineIcon icon={IconInfoCircle} color="dimmed" />
                             <Text size="xs" c="dimmed">
-                                Tiles stay locked until every rule is satisfied.
+                                {t('requirements.tilesLockedHint')}
                             </Text>
                         </Group>
                         <Button
@@ -481,21 +491,21 @@ const FilterRequirementsButton: FC = () => {
                             }}
                             onClick={handleSave}
                         >
-                            Save
+                            {t('actions.save', { ns: 'common' })}
                         </Button>
                     </Group>
                 )}
                 <MantineModal
                     opened={memberIdPendingRemoval !== null}
                     onClose={() => setMemberIdPendingRemoval(null)}
-                    title="Remove filter rule?"
+                    title={t('requirements.removeRuleModal.title')}
                     variant="delete"
                     // Modals default below popovers; lift it above the
                     // rules popover it is opened from
                     modalRootProps={{ zIndex: getDefaultZIndex('popover') }}
                     size="md"
-                    confirmLabel="Remove rule"
-                    description="This is the only filter in this rule. Removing it deletes the rule, so viewers will no longer be required to set a filter before this dashboard loads."
+                    confirmLabel={t('requirements.removeRuleModal.confirm')}
+                    description={t('requirements.removeRuleModal.description')}
                     onConfirm={() => {
                         if (memberIdPendingRemoval) {
                             stageMemberRemoval(memberIdPendingRemoval);

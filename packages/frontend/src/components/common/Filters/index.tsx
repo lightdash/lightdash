@@ -28,6 +28,7 @@ import {
 } from '@mantine/core';
 import { IconAlertTriangle, IconPlus, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, useRef, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -115,6 +116,7 @@ const AddFilterSection: FC<AddFilterSectionProps> = ({
     clearAllFilters,
     addFieldRule,
 }) => {
+    const { t } = useTranslation('filters');
     return (
         <Box
             pos="relative"
@@ -133,10 +135,13 @@ const AddFilterSection: FC<AddFilterSectionProps> = ({
                         onClick={toggleFieldInput}
                         data-testid="FiltersForm/add-filter-button"
                     >
-                        Add filter
+                        {t('form.addFilter')}
                     </Button>
                     {totalFilterRules > 0 && (
-                        <Tooltip label="Clear all filters" position="bottom">
+                        <Tooltip
+                            label={t('form.clearAllFilters')}
+                            position="bottom"
+                        >
                             <Button
                                 variant="light"
                                 size="xs"
@@ -144,7 +149,7 @@ const AddFilterSection: FC<AddFilterSectionProps> = ({
                                 onClick={clearAllFilters}
                                 disabled={totalFilterRules === 0}
                             >
-                                Clear all
+                                {t('form.clearAll')}
                             </Button>
                         </Tooltip>
                     )}
@@ -174,7 +179,7 @@ const AddFilterSection: FC<AddFilterSectionProps> = ({
 };
 
 const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
-    // const theme = useMantineTheme();
+    const { t } = useTranslation('filters');
     const { itemsMap, baseTable } = useFiltersContext<FieldsWithSuggestions>();
     const [isOpen, toggleFieldInput] = useToggle(false);
     const fields = useMemo<FieldWithSuggestions[]>(() => {
@@ -343,24 +348,28 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
                             />
                             <Text c="yellow.6" fz="xs" flex={1}>
                                 {entry.reason === 'unknown_field' ? (
-                                    <>
-                                        Tried to reference field with unknown
-                                        id:{' '}
-                                        <Code fw={500} fz="xs">
-                                            {entry.rule.target.fieldId}
-                                        </Code>
-                                    </>
+                                    <Trans
+                                        t={t}
+                                        i18nKey="form.unknownField"
+                                        values={{
+                                            fieldId: entry.rule.target.fieldId,
+                                        }}
+                                        components={{
+                                            code: <Code fw={500} fz="xs" />,
+                                        }}
+                                    />
                                 ) : (
-                                    <>
-                                        Filter on{' '}
-                                        <Code fw={500} fz="xs">
-                                            {entry.fieldLabel}
-                                        </Code>{' '}
-                                        uses an invalid operator:{' '}
-                                        <Code fw={500} fz="xs">
-                                            {entry.rule.operator}
-                                        </Code>
-                                    </>
+                                    <Trans
+                                        t={t}
+                                        i18nKey="form.invalidOperator"
+                                        values={{
+                                            fieldLabel: entry.fieldLabel,
+                                            operator: entry.rule.operator,
+                                        }}
+                                        components={{
+                                            code: <Code fw={500} fz="xs" />,
+                                        }}
+                                    />
                                 )}
                             </Text>
                             <ActionIcon

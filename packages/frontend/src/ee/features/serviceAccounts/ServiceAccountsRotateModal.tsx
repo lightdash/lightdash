@@ -3,6 +3,7 @@ import { Button, Select, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconRefresh } from '@tabler/icons-react';
 import { useCallback, useEffect, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../../components/common/Callout';
 import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
 import MantineModal from '../../../components/common/MantineModal';
@@ -20,6 +21,7 @@ const RotateForm: FC<{
     serviceAccount: ServiceAccount;
     onStateChange: (state: RotateFormState) => void;
 }> = ({ serviceAccount, onStateChange }) => {
+    const { t } = useTranslation('serviceAccounts');
     const { rotateAccount } = useServiceAccounts();
     const { mutate, isLoading, isSuccess, data: rotatedData } = rotateAccount;
 
@@ -53,12 +55,15 @@ const RotateForm: FC<{
     if (isSuccess && rotatedData) {
         return (
             <Stack gap="md">
-                <Callout variant="success" title="Token rotated successfully!">
-                    Your old token is now invalid.
+                <Callout
+                    variant="success"
+                    title={t('rotateModal.successTitle')}
+                >
+                    {t('rotateModal.oldTokenInvalid')}
                 </Callout>
 
                 <TextInput
-                    label="New Token"
+                    label={t('rotateModal.newToken')}
                     readOnly
                     className="sentry-block ph-no-capture"
                     value={rotatedData.token}
@@ -70,12 +75,8 @@ const RotateForm: FC<{
                     }
                 />
 
-                <Callout
-                    variant="info"
-                    title="Make sure to copy your new token now"
-                >
-                    You won't be able to see it again! Your old token is now
-                    invalid.
+                <Callout variant="info" title={t('rotateModal.copyNowTitle')}>
+                    {t('rotateModal.copyNowBody')}
                 </Callout>
             </Stack>
         );
@@ -86,14 +87,15 @@ const RotateForm: FC<{
             <Stack gap="md">
                 <Callout
                     variant="info"
-                    title={`Rotating token for "${serviceAccount.description}"`}
+                    title={t('rotateModal.rotatingFor', {
+                        name: serviceAccount.description,
+                    })}
                 >
-                    This will generate a new token and invalidate the current
-                    one. You must specify a new expiration date.
+                    {t('rotateModal.description')}
                 </Callout>
 
                 <Select
-                    label="New Expiration"
+                    label={t('rotateModal.newExpiration')}
                     data={expireOptions}
                     required
                     disabled={isLoading}
@@ -115,6 +117,7 @@ export const ServiceAccountsRotateModal: FC<Props> = ({
     onClose,
     serviceAccount,
 }) => {
+    const { t } = useTranslation('serviceAccounts');
     const [formState, setFormState] = useState<RotateFormState>({
         isLoading: false,
         isSuccess: false,
@@ -130,21 +133,27 @@ export const ServiceAccountsRotateModal: FC<Props> = ({
             opened={isOpen}
             onClose={handleClose}
             role="alertdialog"
-            title="Rotate token"
+            title={t('rotateModal.title')}
             icon={IconRefresh}
             size="md"
-            cancelLabel={formState.isSuccess ? false : 'Cancel'}
+            cancelLabel={
+                formState.isSuccess
+                    ? false
+                    : t('actions.cancel', { ns: 'common' })
+            }
             cancelDisabled={formState.isLoading}
             actions={
                 formState.isSuccess ? (
-                    <Button onClick={handleClose}>Done</Button>
+                    <Button onClick={handleClose}>
+                        {t('createModal.done')}
+                    </Button>
                 ) : (
                     <Button
                         type="submit"
                         form={ROTATE_FORM_ID}
                         loading={formState.isLoading}
                     >
-                        Rotate Token
+                        {t('rotateModal.rotate')}
                     </Button>
                 )
             }

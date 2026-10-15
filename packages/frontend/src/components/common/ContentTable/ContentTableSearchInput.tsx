@@ -6,6 +6,7 @@ import {
 } from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import { memo, type CSSProperties } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../MantineIcon';
 import classes from './ContentTable.module.css';
 
@@ -36,12 +37,13 @@ const ContentTableSearchInputComponent = ({
     collapsedWidth,
     expandedWidth,
     onChange,
-    placeholder = 'Search...',
+    placeholder,
     style,
     tooltipLabel,
     value,
     ...rest
 }: ContentTableSearchInputProps) => {
+    const { t } = useTranslation('commonUi');
     const hasValue = value.length > 0;
     const input = (
         <TextInput
@@ -50,7 +52,7 @@ const ContentTableSearchInputComponent = ({
             radius={rest.radius ?? 'md'}
             type="search"
             variant={rest.variant ?? 'default'}
-            placeholder={placeholder}
+            placeholder={placeholder ?? t('contentTable.searchPlaceholder')}
             value={value}
             classNames={{
                 input: hasValue
@@ -63,7 +65,7 @@ const ContentTableSearchInputComponent = ({
             rightSection={
                 hasValue ? (
                     <ActionIcon
-                        aria-label="Clear search"
+                        aria-label={t('contentTable.clearSearch')}
                         onClick={() => onChange('')}
                         variant="transparent"
                         size="xs"

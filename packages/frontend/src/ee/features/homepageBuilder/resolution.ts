@@ -3,8 +3,15 @@ import {
     ProjectMemberRoleLabels,
     type HomepageViewAsReason,
 } from '@lightdash/common';
+import i18n from '../../../i18n/i18n';
 
-export const RESOLUTION_STEPS = ['Group priority', 'Role', 'Project default'];
+const ns = 'homepageBuilder';
+
+export const getResolutionSteps = (): string[] => [
+    i18n.t('resolution.steps.groupPriority', { ns }),
+    i18n.t('resolution.steps.role', { ns }),
+    i18n.t('resolution.steps.projectDefault', { ns }),
+];
 
 export const reasonLabel = (
     reason: HomepageViewAsReason,
@@ -12,11 +19,20 @@ export const reasonLabel = (
 ): string => {
     switch (reason.type) {
         case 'group':
-            return `via group ${groupNames.get(reason.groupUuid) ?? 'unknown'} (priority ${reason.priority})`;
+            return i18n.t('resolution.reason.group', {
+                ns,
+                group:
+                    groupNames.get(reason.groupUuid) ??
+                    i18n.t('resolution.reason.unknownGroup', { ns }),
+                priority: reason.priority,
+            });
         case 'role':
-            return `via role ${ProjectMemberRoleLabels[reason.role]}`;
+            return i18n.t('resolution.reason.role', {
+                ns,
+                role: ProjectMemberRoleLabels[reason.role],
+            });
         case 'default':
-            return 'project default';
+            return i18n.t('resolution.reason.default', { ns });
         default:
             return assertUnreachable(reason, 'Unknown view-as reason');
     }

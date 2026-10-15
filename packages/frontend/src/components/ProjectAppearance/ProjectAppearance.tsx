@@ -9,6 +9,7 @@ import {
 } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useColorPalettes } from '../../hooks/appearance/useOrganizationAppearance';
 import useHealth from '../../hooks/health/useHealth';
@@ -26,6 +27,7 @@ import classes from './ProjectAppearance.module.css';
 type Props = { projectUuid: string };
 
 const ProjectAppearance: FC<Props> = ({ projectUuid }) => {
+    const { t } = useTranslation('projectSettings');
     const { user } = useApp();
     const { data: project, isInitialLoading: isProjectLoading } =
         useProject(projectUuid);
@@ -54,35 +56,35 @@ const ProjectAppearance: FC<Props> = ({ projectUuid }) => {
             <LoadingOverlay visible={isLoading} />
             <SettingsGridCard>
                 <Stack gap="xs">
-                    <Title order={5}>Color palette</Title>
+                    <Title order={5}>{t('appearance.colorPalette')}</Title>
                     <Text c="dimmed" fz="sm">
-                        Choose which organization color palette charts in this
-                        project should use, or inherit the organization's active
-                        palette.
+                        {t('appearance.description')}
                     </Text>
                     <Text c="dimmed" fz="xs">
-                        Palettes are managed at the{' '}
-                        <Anchor
-                            component={Link}
-                            to="/generalSettings/appearance"
-                            fz="xs"
-                        >
-                            organization level
-                        </Anchor>
-                        .
+                        <Trans
+                            t={t}
+                            i18nKey="appearance.managedAt"
+                            components={{
+                                link: (
+                                    <Anchor
+                                        component={Link}
+                                        to="/generalSettings/appearance"
+                                        fz="xs"
+                                    />
+                                ),
+                            }}
+                        />
                     </Text>
                 </Stack>
                 <Stack gap="md">
                     {overrideActive && (
                         <Callout variant="info">
-                            A color palette override is set in your instance
-                            configuration. Project-level selection is disabled
-                            while the override is active.
+                            {t('appearance.overrideActive')}
                         </Callout>
                     )}
 
                     <PalettePicker
-                        label="Color palette"
+                        label={t('appearance.colorPalette')}
                         value={project?.colorPaletteUuid ?? null}
                         onChange={(next) => updateColorPalette.mutate(next)}
                         palettes={palettes}
@@ -103,7 +105,7 @@ const ProjectAppearance: FC<Props> = ({ projectUuid }) => {
                             }
                             className={classes.managePalettesLink}
                         >
-                            Manage organization palettes
+                            {t('appearance.manageOrgPalettes')}
                         </Button>
                     )}
                 </Stack>

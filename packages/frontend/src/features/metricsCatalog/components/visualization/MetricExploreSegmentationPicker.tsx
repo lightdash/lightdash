@@ -19,6 +19,7 @@ import {
 import { IconInfoCircle, IconX } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { groupComboboxItems } from '../../../../components/common/Select/utils';
 import { Blocks } from '../../../../svgs/metricsCatalog';
@@ -41,6 +42,7 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
     segmentDimensionsQuery,
     hasFilteredSeries,
 }) => {
+    const { t } = useTranslation('metricsCatalog');
     const segmentByData = useMemo(
         () =>
             groupComboboxItems(
@@ -57,7 +59,7 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
         <Stack gap="xs">
             <Group justify="space-between">
                 <Text fw={500} c="ldGray.7">
-                    Segment
+                    {t('segmentation.title')}
                 </Text>
 
                 <Button
@@ -81,19 +83,19 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
                     }}
                     onClick={() => onSegmentDimensionChange(null)}
                 >
-                    Clear
+                    {t('segmentation.clear')}
                 </Button>
             </Group>
 
             <Tooltip
-                label="There are no available fields to segment this metric by"
+                label={t('segmentation.noFields')}
                 disabled={segmentByData.length > 0}
                 position="right"
             >
                 <Box>
                     <Select
                         allowDeselect={false}
-                        placeholder="Segment by"
+                        placeholder={t('segmentation.placeholder')}
                         leftSection={<Blocks />}
                         searchable
                         size="xs"
@@ -138,9 +140,9 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
                     icon={<MantineIcon icon={IconInfoCircle} />}
                 >
                     <Text size="xs" span>
-                        Only the first {MAX_SEGMENT_DIMENSION_UNIQUE_VALUES}{' '}
-                        series are displayed to maintain a clear and readable
-                        chart.
+                        {t('segmentation.limited', {
+                            count: MAX_SEGMENT_DIMENSION_UNIQUE_VALUES,
+                        })}
                     </Text>
                 </Alert>
             )}

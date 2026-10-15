@@ -1,15 +1,13 @@
 import { Text } from '@mantine/core';
 import { useEffect, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import classes from './ToolActivityBadge.module.css';
-
-const FALLBACK_LABEL = 'Autopilot is working';
 
 const stripTrailingEllipsis = (s: string) => s.replace(/[…\.]+$/, '').trimEnd();
 
 // Between tool calls the label falls back to a single word instead of the
 // last activity, which would otherwise look stuck.
 const IDLE_THRESHOLD_MS = 4000;
-const THINKING_LABEL = 'Thinking';
 
 const AnimatedDots: FC = () => (
     <span className={classes.dots} aria-hidden>
@@ -22,6 +20,7 @@ const AnimatedDots: FC = () => (
 export const ToolActivityBadge: FC<{ currentActivity: string | null }> = ({
     currentActivity,
 }) => {
+    const { t } = useTranslation('managedAgent');
     const [isIdle, setIsIdle] = useState(false);
 
     useEffect(() => {
@@ -34,8 +33,8 @@ export const ToolActivityBadge: FC<{ currentActivity: string | null }> = ({
     }, [currentActivity]);
 
     const label = isIdle
-        ? THINKING_LABEL
-        : stripTrailingEllipsis(currentActivity ?? FALLBACK_LABEL);
+        ? t('toolActivity.thinking')
+        : stripTrailingEllipsis(currentActivity ?? t('toolActivity.working'));
     return (
         <Text fz={13} c="dimmed" role="status" aria-live="polite">
             <span key={label} className={classes.activityText}>

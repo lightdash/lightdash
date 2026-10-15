@@ -17,6 +17,7 @@ import {
     IconMessageChatbot,
     IconPlus,
 } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useSearchParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -37,30 +38,22 @@ const AGENT_FEATURES = [
     {
         icon: IconClipboardData,
         color: 'cyan',
-        title: 'Analyze your data',
-        description:
-            'Ask questions about sales, revenue, customers, and performance metrics',
+        key: 'analyze',
     },
     {
         icon: IconBulb,
         color: 'grape',
-        title: 'Get insights',
-        description:
-            'Discover trends, patterns, and actionable recommendations from your business data',
+        key: 'insights',
     },
     {
         icon: IconChartHistogram,
         color: 'lime',
-        title: 'Create visualizations',
-        description:
-            'Generate charts, graphs, and tables to visualize your business metrics',
+        key: 'visualizations',
     },
     {
         icon: IconMessageChatbot,
         color: 'orange',
-        title: 'Specialized agents',
-        description:
-            'Create custom AI agents trained for specific departments like Finance, Sales, or Marketing',
+        key: 'specialized',
     },
 ] as const;
 
@@ -84,6 +77,7 @@ const AiPageLoading = () => (
  * 5. Otherwise — open the first agent in the list.
  */
 const AgentsWelcome = () => {
+    const { t } = useTranslation('eeMisc');
     const projectUuid = useProjectUuid();
     const [searchParams] = useSearchParams();
     const forceRouter =
@@ -119,7 +113,7 @@ const AgentsWelcome = () => {
     }
 
     if (agentsQuery.isError || userAgentPreferencesQuery.isError) {
-        return <div>something went wrong...</div>;
+        return <div>{t('agents.welcome.error')}</div>;
     }
 
     if (
@@ -171,16 +165,16 @@ const AgentsWelcome = () => {
                 <Stack gap={32}>
                     <Stack align="center" gap="xxs">
                         <AiAgentIcon size={48} />
-                        <Title order={2}>Welcome to AI Agents</Title>
+                        <Title order={2}>{t('agents.welcome.title')}</Title>
                         <Text c="dimmed" size="sm">
-                            Your AI-powered BI assistants
+                            {t('agents.welcome.subtitle')}
                         </Text>
                     </Stack>
 
                     <Paper p="xl">
                         <Stack>
                             <Title order={5}>
-                                What you can do with AI Agents:
+                                {t('agents.welcome.whatYouCanDo')}
                             </Title>
 
                             <List
@@ -193,7 +187,7 @@ const AgentsWelcome = () => {
                             >
                                 {AGENT_FEATURES.map((agentFeature) => (
                                     <List.Item
-                                        key={agentFeature.title}
+                                        key={agentFeature.key}
                                         icon={
                                             <Avatar
                                                 c="gray"
@@ -213,10 +207,14 @@ const AgentsWelcome = () => {
                                                 fw="bold"
                                                 c="ldGray.7"
                                             >
-                                                {agentFeature.title}
+                                                {t(
+                                                    `agents.welcome.features.${agentFeature.key}.title`,
+                                                )}
                                             </Text>
                                             <Text c="dimmed" size="xs">
-                                                {agentFeature.description}
+                                                {t(
+                                                    `agents.welcome.features.${agentFeature.key}.description`,
+                                                )}
                                             </Text>
                                         </Stack>
                                     </List.Item>
@@ -231,10 +229,9 @@ const AgentsWelcome = () => {
                         gap="xxs"
                         align="center"
                     >
-                        <Title order={5}>Ready to get started?</Title>
+                        <Title order={5}>{t('agents.welcome.ready')}</Title>
                         <Text size="sm" c="dimmed">
-                            Create your first AI agent to begin analyzing your
-                            business data and unlock powerful insights.
+                            {t('agents.welcome.readyDescription')}
                         </Text>
                         <Box mt="lg">
                             {canCreateAgent ? (
@@ -245,13 +242,11 @@ const AgentsWelcome = () => {
                                     component={Link}
                                     to={`/projects/${projectUuid}/ai-agents/new`}
                                 >
-                                    Create your first Agent
+                                    {t('agents.welcome.createFirst')}
                                 </Button>
                             ) : (
                                 <Text size="sm" c="dimmed" fs="italic">
-                                    You don’t have permission to create agents.
-                                    Please contact your workspace admin if you
-                                    need access.
+                                    {t('agents.welcome.noPermission')}
                                 </Text>
                             )}
                         </Box>

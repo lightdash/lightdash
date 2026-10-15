@@ -12,6 +12,7 @@ import {
     type Icon,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../../../components/common/PolymorphicGroupButton';
 import classes from './SchedulerDeliveryModal.module.css';
@@ -57,6 +58,7 @@ const ConditionSection: FC<{
     expandable: boolean;
     footnote?: string;
 }> = ({ icon, label, items, expandable, footnote }) => {
+    const { t } = useTranslation('scheduler');
     const [expanded, setExpanded] = useState(false);
     const extraItems = expandable ? items.slice(SUMMARY_PREVIEW_COUNT) : [];
     const previewItems = extraItems.length
@@ -99,8 +101,10 @@ const ConditionSection: FC<{
                         >
                             <Text size="xs" c="dimmed">
                                 {expanded
-                                    ? 'Show less'
-                                    : `and ${extraItems.length} more`}
+                                    ? t('detail.showLess')
+                                    : t('detail.andMore', {
+                                          count: extraItems.length,
+                                      })}
                             </Text>
                             <MantineIcon
                                 icon={
@@ -129,6 +133,7 @@ type Props = {
 };
 
 export const SchedulerDetailConditions: FC<Props> = ({ scheduler }) => {
+    const { t } = useTranslation('scheduler');
     const alertSummaries = getAlertConditionSummaries(scheduler.thresholds);
     const filterSummaries = getSchedulerFilterSummaries(scheduler);
     const parameterSummaries = getSchedulerParameterSummaries(
@@ -148,13 +153,13 @@ export const SchedulerDetailConditions: FC<Props> = ({ scheduler }) => {
             {alertSummaries.length > 0 && (
                 <ConditionSection
                     icon={IconBell}
-                    label="Alert"
+                    label={t('detail.alert')}
                     items={alertSummaries}
                     expandable={false}
                     footnote={
                         scheduler.notificationFrequency ===
                         NotificationFrequency.ONCE
-                            ? 'Notifies only once'
+                            ? t('detail.notifiesOnce')
                             : undefined
                     }
                 />
@@ -163,11 +168,9 @@ export const SchedulerDetailConditions: FC<Props> = ({ scheduler }) => {
             {filterSummaries.length > 0 && (
                 <ConditionSection
                     icon={IconFilter}
-                    label={
-                        filterSummaries.length === 1
-                            ? '1 filter'
-                            : `${filterSummaries.length} filters`
-                    }
+                    label={t('detail.filterCount', {
+                        count: filterSummaries.length,
+                    })}
                     items={filterSummaries}
                     expandable
                 />
@@ -176,11 +179,9 @@ export const SchedulerDetailConditions: FC<Props> = ({ scheduler }) => {
             {parameterSummaries.length > 0 && (
                 <ConditionSection
                     icon={IconVariable}
-                    label={
-                        parameterSummaries.length === 1
-                            ? '1 parameter'
-                            : `${parameterSummaries.length} parameters`
-                    }
+                    label={t('detail.parameterCount', {
+                        count: parameterSummaries.length,
+                    })}
                     items={parameterSummaries}
                     expandable
                 />

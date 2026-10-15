@@ -1,5 +1,6 @@
 import { Stack, Text, TextInput, type ModalProps } from '@mantine/core';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useLeaveOrganizationMutation } from '../../../hooks/user/useLeaveOrganizationMutation';
 import MantineModal from '../../common/MantineModal';
@@ -7,6 +8,7 @@ import MantineModal from '../../common/MantineModal';
 export const LeaveOrganizationModal: FC<
     Pick<ModalProps, 'opened' | 'onClose'>
 > = ({ opened, onClose }) => {
+    const { t } = useTranslation('userSettings');
     const { isInitialLoading, data: organization } = useOrganization();
     const { mutateAsync, isLoading: isLeaving } =
         useLeaveOrganizationMutation();
@@ -32,9 +34,13 @@ export const LeaveOrganizationModal: FC<
         <MantineModal
             opened={opened}
             onClose={handleOnClose}
-            title={`Leave “${organizationName || 'Unnamed organization'}”?`}
+            title={t('leaveOrganizationPanel.modal.title', {
+                name:
+                    organizationName ||
+                    t('leaveOrganizationPanel.unnamedOrganization'),
+            })}
             variant="delete"
-            confirmLabel="Leave"
+            confirmLabel={t('leaveOrganizationPanel.modal.confirmLabel')}
             size="md"
             onConfirm={handleConfirm}
             confirmDisabled={
@@ -44,14 +50,14 @@ export const LeaveOrganizationModal: FC<
         >
             <Stack gap="sm">
                 <Text fz="sm" c="dimmed">
-                    You will lose access to all projects in this organization
-                    and will be signed out. The organization and its content
-                    will remain available to other members.
+                    {t('leaveOrganizationPanel.modal.description')}
                 </Text>
 
                 <TextInput
                     name="confirmOrgName"
-                    label={`Type ${confirmationText} to confirm`}
+                    label={t('leaveOrganizationPanel.modal.typeToConfirm', {
+                        text: confirmationText,
+                    })}
                     placeholder={confirmationText}
                     value={confirmOrgName}
                     onChange={(e) => setConfirmOrgName(e.target.value)}

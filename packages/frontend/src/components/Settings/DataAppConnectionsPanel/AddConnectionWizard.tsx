@@ -22,7 +22,9 @@ import {
 import { useForm, type UseFormReturnType } from '@mantine/form';
 import { IconPlugConnected } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
+import { type TFunction } from 'i18next';
 import { type FC, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { BuilderLinkingField } from '../../../features/externalConnections/components/BuilderLinkingField';
 import { CustomHeadersField } from '../../../features/externalConnections/components/CustomHeadersField';
 import { ForwardUserIdentityField } from '../../../features/externalConnections/components/ForwardUserIdentityField';
@@ -78,18 +80,21 @@ export type ConnectionTestResult = {
     response: ExternalFetchResponse;
 };
 
-const validateOrigin = (value: string): string | null => {
+const validateOrigin = (
+    value: string,
+    t: TFunction<'settings'>,
+): string | null => {
     let url: URL;
     try {
         url = new URL(value);
     } catch {
-        return 'Enter a valid URL, e.g. https://api.example.com';
+        return t('dataAppConnections.validation.invalidUrl');
     }
     if (url.protocol !== 'https:') {
-        return 'URL must start with https://';
+        return t('dataAppConnections.validation.urlHttps');
     }
     if ((url.pathname && url.pathname !== '/') || url.search || url.hash) {
-        return 'Enter just the base URL, with no path or query';
+        return t('dataAppConnections.validation.baseUrlOnly');
     }
     return null;
 };
@@ -135,50 +140,69 @@ const toCreatePayload = (values: WizardValues): CreateExternalConnection => ({
 
 const ConnectStep: FC<{ form: UseFormReturnType<WizardValues> }> = ({
     form,
-}) => (
-    <Stack gap="sm" mt="xl">
-        <Text c="dimmed" fz="sm">
-            Give your connection a name and the base URL of the API your data
-            apps should be able to call.
-        </Text>
-        <TextInput
-            required
-            label="Name"
-            placeholder="My API"
-            data-autofocus
-            {...form.getInputProps('name')}
-        />
-        <TextInput
-            required
-            label="Base URL"
-            description="The remote origin apps may call (https only, no path)"
-            placeholder="https://api.example.com"
-            {...form.getInputProps('origin')}
-        />
-    </Stack>
-);
+}) => {
+    const { t } = useTranslation('settings');
+    return (
+        <Stack gap="sm" mt="xl">
+            <Text c="dimmed" fz="sm">
+                {t('dataAppConnections.wizard.connect.intro')}
+            </Text>
+            <TextInput
+                required
+                label={t('dataAppConnections.fields.name')}
+                placeholder={t('dataAppConnections.fields.namePlaceholder')}
+                data-autofocus
+                {...form.getInputProps('name')}
+            />
+            <TextInput
+                required
+                label={t('dataAppConnections.wizard.connect.baseUrl')}
+                description={t(
+                    'dataAppConnections.wizard.connect.baseUrlDescription',
+                )}
+                placeholder="https://api.example.com"
+                {...form.getInputProps('origin')}
+            />
+        </Stack>
+    );
+};
 
 const AuthStep: FC<{
     form: UseFormReturnType<WizardValues>;
     proposal: ExternalConnectionConfigProposal | null;
 }> = ({ form, proposal }) => {
+    const { t } = useTranslation('settings');
     const { type } = form.values;
     return (
         <Stack gap="sm" mt="xl">
             <Stack gap={4}>
                 <Text fz="sm" fw={500}>
-                    How should we authenticate?
+                    {t('dataAppConnections.wizard.auth.prompt')}
                 </Text>
                 <SegmentedControl
                     fullWidth
                     data={[
-                        { value: 'none', label: 'None' },
-                        { value: 'api_key', label: 'API key' },
-                        { value: 'bearer_token', label: 'Bearer token' },
-                        { value: 'google_service_account', label: 'Google' },
+                        {
+                            value: 'none',
+                            label: t('dataAppConnections.authTypes.none'),
+                        },
+                        {
+                            value: 'api_key',
+                            label: t('dataAppConnections.authTypes.apiKey'),
+                        },
+                        {
+                            value: 'bearer_token',
+                            label: t(
+                                'dataAppConnections.authTypes.bearerToken',
+                            ),
+                        },
+                        {
+                            value: 'google_service_account',
+                            label: t('dataAppConnections.authTypes.google'),
+                        },
                         {
                             value: 'oauth_client_credentials',
-                            label: 'OAuth 2',
+                            label: t('dataAppConnections.authTypes.oauth2'),
                         },
                     ]}
                     value={type}
@@ -192,7 +216,12 @@ const AuthStep: FC<{
             </Stack>
 
             {proposal?.credentialGuide && (
-                <Callout variant="info" title="How to get your credential">
+                <Callout
+                    variant="info"
+                    title={t(
+                        'dataAppConnections.wizard.auth.credentialGuideTitle',
+                    )}
+                >
                     <Stack gap="xs" align="flex-start">
                         <MarkdownPreview
                             source={proposal.credentialGuide}
@@ -209,7 +238,9 @@ const AuthStep: FC<{
                                 rel="noopener noreferrer"
                                 fz="sm"
                             >
-                                Open the provider's docs
+                                {t(
+                                    'dataAppConnections.wizard.auth.openProviderDocs',
+                                )}
                             </Anchor>
                         )}
                     </Stack>
@@ -217,7 +248,10 @@ const AuthStep: FC<{
             )}
 
             {proposal?.notes && (
-                <Callout variant="warning" title="Double-check">
+                <Callout
+                    variant="warning"
+                    title={t('dataAppConnections.wizard.auth.doubleCheck')}
+                >
                     {proposal.notes}
                 </Callout>
             )}
@@ -225,11 +259,19 @@ const AuthStep: FC<{
             {(type === 'api_key' || type === 'bearer_token') && (
                 <PasswordInput
                     required
-                    label={type === 'api_key' ? 'API key' : 'Bearer token'}
+                    label={
+                        type === 'api_key'
+                            ? t('dataAppConnections.authTypes.apiKey')
+                            : t('dataAppConnections.authTypes.bearerToken')
+                    }
                     placeholder={
                         type === 'api_key'
-                            ? 'Your secret API key'
-                            : 'Your bearer token'
+                            ? t(
+                                  'dataAppConnections.wizard.auth.apiKeyPlaceholder',
+                              )
+                            : t(
+                                  'dataAppConnections.wizard.auth.bearerTokenPlaceholder',
+                              )
                     }
                     {...form.getInputProps('secret')}
                 />
@@ -239,37 +281,59 @@ const AuthStep: FC<{
                 <>
                     <TextInput
                         required
-                        label="Token URL"
-                        description="The OAuth server endpoint used to obtain access tokens"
+                        label={t('dataAppConnections.fields.tokenUrl')}
+                        description={t(
+                            'dataAppConnections.fields.tokenUrlDescription',
+                        )}
                         placeholder="https://api.example.com/oauth/token"
                         {...form.getInputProps('oauthTokenUrl')}
                     />
                     <TextInput
                         required
-                        label="Client ID"
-                        placeholder="Your OAuth client ID"
+                        label={t('dataAppConnections.fields.clientId')}
+                        placeholder={t(
+                            'dataAppConnections.fields.clientIdPlaceholder',
+                        )}
                         {...form.getInputProps('oauthClientId')}
                     />
                     <PasswordInput
                         required
-                        label="Client secret"
-                        placeholder="Your OAuth client secret"
+                        label={t('dataAppConnections.fields.clientSecret')}
+                        placeholder={t(
+                            'dataAppConnections.fields.clientSecretPlaceholder',
+                        )}
                         {...form.getInputProps('secret')}
                     />
                     <Select
                         required
                         allowDeselect={false}
-                        label="Send client credentials as"
+                        label={t(
+                            'dataAppConnections.fields.sendClientCredentialsAs',
+                        )}
                         data={[
-                            { value: 'basic', label: 'Authorization header' },
-                            { value: 'body', label: 'Request body' },
+                            {
+                                value: 'basic',
+                                label: t(
+                                    'dataAppConnections.fields.authorizationHeader',
+                                ),
+                            },
+                            {
+                                value: 'body',
+                                label: t(
+                                    'dataAppConnections.fields.requestBody',
+                                ),
+                            },
                         ]}
                         {...form.getInputProps('oauthClientAuthMethod')}
                     />
                     <TagsInput
-                        label="OAuth scopes (optional)"
-                        description="Sent as a space-separated token request parameter"
-                        placeholder="Add a scope"
+                        label={t(
+                            'dataAppConnections.fields.oauthScopesOptional',
+                        )}
+                        description={t(
+                            'dataAppConnections.fields.oauthScopesDescription',
+                        )}
+                        placeholder={t('dataAppConnections.fields.addScope')}
                         {...form.getInputProps('oauthScopes')}
                     />
                 </>
@@ -279,8 +343,12 @@ const AuthStep: FC<{
                 <>
                     <JsonInput
                         required
-                        label="Service account JSON"
-                        description="Paste the full service account key file"
+                        label={t(
+                            'dataAppConnections.fields.serviceAccountJson',
+                        )}
+                        description={t(
+                            'dataAppConnections.fields.serviceAccountJsonDescription',
+                        )}
                         placeholder='{ "type": "service_account", ... }'
                         formatOnBlur
                         autosize
@@ -289,8 +357,10 @@ const AuthStep: FC<{
                     />
                     <TagsInput
                         required
-                        label="OAuth scopes"
-                        description="e.g. https://www.googleapis.com/auth/bigquery"
+                        label={t('dataAppConnections.fields.oauthScopes')}
+                        description={t(
+                            'dataAppConnections.fields.googleScopesDescription',
+                        )}
                         data={SUGGESTED_GOOGLE_SCOPES}
                         {...form.getInputProps('oauthScopes')}
                     />
@@ -301,18 +371,30 @@ const AuthStep: FC<{
                 <>
                     <TextInput
                         required
-                        label="API key name"
-                        description="The header or query parameter the key is sent in"
+                        label={t('dataAppConnections.fields.apiKeyName')}
+                        description={t(
+                            'dataAppConnections.fields.apiKeyNameDescription',
+                        )}
                         placeholder="X-Api-Key"
                         {...form.getInputProps('apiKeyName')}
                     />
                     <Select
                         required
                         allowDeselect={false}
-                        label="Send key as"
+                        label={t('dataAppConnections.wizard.auth.sendKeyAs')}
                         data={[
-                            { value: 'header', label: 'Request header' },
-                            { value: 'query', label: 'Query parameter' },
+                            {
+                                value: 'header',
+                                label: t(
+                                    'dataAppConnections.wizard.auth.requestHeader',
+                                ),
+                            },
+                            {
+                                value: 'query',
+                                label: t(
+                                    'dataAppConnections.fields.queryParameter',
+                                ),
+                            },
                         ]}
                         {...form.getInputProps('apiKeyLocation')}
                     />
@@ -320,7 +402,7 @@ const AuthStep: FC<{
             )}
 
             <CustomHeadersField
-                label="Custom headers (optional)"
+                label={t('dataAppConnections.fields.customHeadersOptional')}
                 value={form.values.customHeaders}
                 onChange={(value) => form.setFieldValue('customHeaders', value)}
                 error={form.errors.customHeaders}
@@ -337,48 +419,60 @@ const AuthStep: FC<{
 
 const AccessStep: FC<{ form: UseFormReturnType<WizardValues> }> = ({
     form,
-}) => (
-    <Stack gap="lg" mt="xl">
-        <MethodsField
-            label="Which methods can apps use?"
-            value={form.values.allowedMethods}
-            onChange={(value) => form.setFieldValue('allowedMethods', value)}
-            error={form.errors.allowedMethods}
-        />
-        <PathRulesField
-            label="Which paths can apps call?"
-            mode={form.values.pathMode}
-            onModeChange={(mode) => form.setFieldValue('pathMode', mode)}
-            prefixes={form.values.allowedPathPrefixes}
-            onPrefixesChange={(prefixes) =>
-                form.setFieldValue('allowedPathPrefixes', prefixes)
-            }
-            error={form.errors.allowedPathPrefixes}
-        />
-        <BuilderLinkingField
-            value={form.values.allowDataAppBuilderLinking}
-            onChange={(value) =>
-                form.setFieldValue('allowDataAppBuilderLinking', value)
-            }
-        />
-        <Switch
-            label="Allow public images in linked apps"
-            description="Linked apps and chart types can load public images from this origin. Enable only for trusted public image or tile hosts."
-            disabled={
-                form.values.type !== 'none' && !form.values.allowBrowserImages
-            }
-            {...form.getInputProps('allowBrowserImages', { type: 'checkbox' })}
-        />
-        <Textarea
-            label="Usage notes for app generation (optional)"
-            description="Helps the AI use this API correctly when building apps: key endpoints, pagination, quirks"
-            autosize
-            minRows={2}
-            maxRows={6}
-            {...form.getInputProps('instructions')}
-        />
-    </Stack>
-);
+}) => {
+    const { t } = useTranslation('settings');
+    return (
+        <Stack gap="lg" mt="xl">
+            <MethodsField
+                label={t('dataAppConnections.wizard.access.methodsLabel')}
+                value={form.values.allowedMethods}
+                onChange={(value) =>
+                    form.setFieldValue('allowedMethods', value)
+                }
+                error={form.errors.allowedMethods}
+            />
+            <PathRulesField
+                label={t('dataAppConnections.fields.pathsLabel')}
+                mode={form.values.pathMode}
+                onModeChange={(mode) => form.setFieldValue('pathMode', mode)}
+                prefixes={form.values.allowedPathPrefixes}
+                onPrefixesChange={(prefixes) =>
+                    form.setFieldValue('allowedPathPrefixes', prefixes)
+                }
+                error={form.errors.allowedPathPrefixes}
+            />
+            <BuilderLinkingField
+                value={form.values.allowDataAppBuilderLinking}
+                onChange={(value) =>
+                    form.setFieldValue('allowDataAppBuilderLinking', value)
+                }
+            />
+            <Switch
+                label={t('dataAppConnections.fields.publicImagesLabel')}
+                description={t(
+                    'dataAppConnections.fields.publicImagesDescription',
+                )}
+                disabled={
+                    form.values.type !== 'none' &&
+                    !form.values.allowBrowserImages
+                }
+                {...form.getInputProps('allowBrowserImages', {
+                    type: 'checkbox',
+                })}
+            />
+            <Textarea
+                label={t('dataAppConnections.wizard.access.usageNotes')}
+                description={t(
+                    'dataAppConnections.wizard.access.usageNotesDescription',
+                )}
+                autosize
+                minRows={2}
+                maxRows={6}
+                {...form.getInputProps('instructions')}
+            />
+        </Stack>
+    );
+};
 
 type Props = Pick<MantineModalProps, 'opened' | 'onClose'> & {
     projectUuid: string;
@@ -389,6 +483,7 @@ export const AddConnectionWizard: FC<Props> = ({
     onClose,
     projectUuid,
 }) => {
+    const { t } = useTranslation('settings');
     const [mode, setMode] = useState<'choose' | ConnectionWizardMode>('choose');
     const [description, setDescription] = useState('');
     const [proposal, setProposal] =
@@ -430,17 +525,21 @@ export const AddConnectionWizard: FC<Props> = ({
         },
         validate: {
             name: (value) =>
-                value.trim().length === 0 ? 'Name is required' : null,
-            origin: validateOrigin,
+                value.trim().length === 0
+                    ? t('dataAppConnections.validation.nameRequired')
+                    : null,
+            origin: (value) => validateOrigin(value, t),
             secret: (value, values) => {
                 if (values.type === 'none') return null;
                 if (value.length === 0)
-                    return 'A secret is required for this auth method';
+                    return t('dataAppConnections.validation.secretRequired');
                 if (values.type === 'google_service_account') {
                     try {
                         JSON.parse(value);
                     } catch {
-                        return 'Paste valid service account JSON';
+                        return t(
+                            'dataAppConnections.validation.invalidServiceAccountJson',
+                        );
                     }
                 }
                 return null;
@@ -455,13 +554,17 @@ export const AddConnectionWizard: FC<Props> = ({
                     values.type === 'google_service_account' &&
                     value.length === 0
                 )
-                    return 'Add at least one OAuth scope';
+                    return t('dataAppConnections.validation.scopeRequired');
                 const isValid =
                     values.type === 'google_service_account'
                         ? isValidGoogleOAuthScope
                         : isValidOAuthScope;
                 const invalid = value.find((s) => !isValid(s));
-                return invalid ? `Invalid OAuth scope: ${invalid}` : null;
+                return invalid
+                    ? t('dataAppConnections.validation.invalidScope', {
+                          scope: invalid,
+                      })
+                    : null;
             },
             oauthTokenUrl: (value, values) =>
                 values.type === 'oauth_client_credentials'
@@ -470,24 +573,28 @@ export const AddConnectionWizard: FC<Props> = ({
             oauthClientId: (value, values) =>
                 values.type === 'oauth_client_credentials' &&
                 value.trim().length === 0
-                    ? 'Client ID is required'
+                    ? t('dataAppConnections.validation.clientIdRequired')
                     : null,
             apiKeyName: (value, values) => {
                 if (values.type !== 'api_key') return null;
                 if (value.trim().length === 0)
-                    return 'API key name is required';
+                    return t(
+                        'dataAppConnections.validation.apiKeyNameRequired',
+                    );
                 return HTTP_TOKEN.test(value.trim())
                     ? null
-                    : 'Use a valid header or query parameter name';
+                    : t('dataAppConnections.validation.invalidApiKeyName');
             },
             customHeaders: validateCustomHeaderRows,
             allowedMethods: (value, values) =>
                 value.length === 0 && !values.allowBrowserImages
-                    ? 'Select at least one method or allow public images'
+                    ? t('dataAppConnections.validation.methodRequired')
                     : null,
             allowBrowserImages: (value, values) => {
                 if (value && values.type !== 'none') {
-                    return 'Public browser images require no authentication';
+                    return t(
+                        'dataAppConnections.validation.publicImagesNoAuth',
+                    );
                 }
                 return null;
             },
@@ -497,7 +604,7 @@ export const AddConnectionWizard: FC<Props> = ({
                     .map((p) => p.value.trim())
                     .filter(Boolean);
                 return nonEmpty.length === 0
-                    ? 'Add at least one path, or allow all paths'
+                    ? t('dataAppConnections.validation.pathRequired')
                     : null;
             },
         },
@@ -618,16 +725,16 @@ export const AddConnectionWizard: FC<Props> = ({
         | 'onCancel'
     > = (() => {
         if (mode === 'choose') {
-            return { cancelLabel: 'Cancel' };
+            return { cancelLabel: t('actions.cancel', { ns: 'common' }) };
         }
         if (mode === 'automatic') {
             return {
                 onConfirm: handleGenerate,
                 confirmLabel: proposeMutation.isLoading
-                    ? 'Generating…'
-                    : 'Generate',
+                    ? t('dataAppConnections.wizard.generating')
+                    : t('dataAppConnections.wizard.generate'),
                 confirmLoading: proposeMutation.isLoading,
-                cancelLabel: 'Back',
+                cancelLabel: t('actions.back', { ns: 'common' }),
                 cancelDisabled: proposeMutation.isLoading,
                 onCancel: () => setMode('choose'),
             };
@@ -636,30 +743,32 @@ export const AddConnectionWizard: FC<Props> = ({
             case 0:
                 return {
                     onConfirm: goToAuth,
-                    confirmLabel: 'Next',
-                    cancelLabel: 'Back',
+                    confirmLabel: t('actions.next', { ns: 'common' }),
+                    cancelLabel: t('actions.back', { ns: 'common' }),
                     onCancel: () => setMode('choose'),
                 };
             case 1:
                 return {
                     onConfirm: goToAccess,
-                    confirmLabel: 'Next',
-                    cancelLabel: 'Back',
+                    confirmLabel: t('actions.next', { ns: 'common' }),
+                    cancelLabel: t('actions.back', { ns: 'common' }),
                     onCancel: () => goBackTo(0),
                 };
             case 2:
                 return {
                     onConfirm: goToTest,
-                    confirmLabel: 'Next',
-                    cancelLabel: 'Back',
+                    confirmLabel: t('actions.next', { ns: 'common' }),
+                    cancelLabel: t('actions.back', { ns: 'common' }),
                     onCancel: () => goBackTo(1),
                 };
             default:
                 return {
                     onConfirm: handleCreate,
-                    confirmLabel: 'Create connection',
+                    confirmLabel: t(
+                        'dataAppConnections.wizard.createConnection',
+                    ),
                     confirmLoading: isCreating || isSavingSample,
-                    cancelLabel: 'Back',
+                    cancelLabel: t('actions.back', { ns: 'common' }),
                     cancelDisabled: isCreating || isSavingSample,
                     onCancel: () => goBackTo(2),
                 };
@@ -670,7 +779,7 @@ export const AddConnectionWizard: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Add data app connection"
+            title={t('dataAppConnections.wizard.title')}
             icon={IconPlugConnected}
             size="lg"
             modalRootProps={{ closeOnClickOutside: false }}
@@ -700,16 +809,24 @@ export const AddConnectionWizard: FC<Props> = ({
                     wrap={false}
                     size="sm"
                 >
-                    <Stepper.Step label="Basics">
+                    <Stepper.Step
+                        label={t('dataAppConnections.wizard.steps.basics')}
+                    >
                         <ConnectStep form={form} />
                     </Stepper.Step>
-                    <Stepper.Step label="Auth">
+                    <Stepper.Step
+                        label={t('dataAppConnections.wizard.steps.auth')}
+                    >
                         <AuthStep form={form} proposal={proposal} />
                     </Stepper.Step>
-                    <Stepper.Step label="Rules">
+                    <Stepper.Step
+                        label={t('dataAppConnections.wizard.steps.rules')}
+                    >
                         <AccessStep form={form} />
                     </Stepper.Step>
-                    <Stepper.Step label="Test">
+                    <Stepper.Step
+                        label={t('dataAppConnections.wizard.steps.test')}
+                    >
                         <WizardTestStep
                             projectUuid={projectUuid}
                             config={config}

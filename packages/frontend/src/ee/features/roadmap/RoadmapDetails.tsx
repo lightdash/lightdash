@@ -1,6 +1,7 @@
 import { Box, Group, Stack, Text } from '@mantine/core';
 import { clsx } from 'clsx';
 import { type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../../components/common/MantineModal';
 import styles from './RoadmapDetails.module.css';
 
@@ -47,6 +48,7 @@ export function RoadmapDetails({
     propertiesLabel: string;
     children: ReactNode;
 }) {
+    const { t } = useTranslation('eeMisc');
     return (
         <MantineModal
             opened={opened}
@@ -81,7 +83,7 @@ export function RoadmapDetails({
                     <Stack className={styles.detailMain} gap={0}>
                         <Stack gap="md">
                             <Text className={styles.detailSectionLabel}>
-                                Description
+                                {t('roadmap.details.description')}
                             </Text>
                             {description}
                         </Stack>

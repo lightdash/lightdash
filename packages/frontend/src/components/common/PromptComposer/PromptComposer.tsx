@@ -19,6 +19,7 @@ import {
     type KeyboardEvent as ReactKeyboardEvent,
     type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import classes from './PromptComposer.module.css';
 
 const RESIZE_KEYBOARD_STEP = 16;
@@ -150,6 +151,7 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
         },
         ref,
     ) {
+        const { t } = useTranslation('commonUi');
         // Handlers are wired into the editor once at mount; refs keep them
         // pointing at the latest closures.
         const onSubmitRef = useRef(onSubmit);
@@ -350,7 +352,7 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
                     <Box
                         ref={resizeHandleRef}
                         role="separator"
-                        aria-label="Resize composer"
+                        aria-label={t('promptComposer.resizeComposer')}
                         aria-orientation="horizontal"
                         tabIndex={0}
                         className={classes.resizeHandle}

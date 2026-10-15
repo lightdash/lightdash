@@ -17,6 +17,7 @@ import {
 import { IconPoint, IconPointFilled, IconTarget } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import {
     ContentTable,
@@ -44,6 +45,7 @@ export const EvalRunDetails: FC<Props> = ({
     evalUuid,
     runUuid,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const navigate = useNavigate();
     const theme = useMantineTheme();
     const { setSelectedThreadUuid, selectedThreadUuid } =
@@ -122,12 +124,15 @@ export const EvalRunDetails: FC<Props> = ({
                 },
                 {
                     accessorKey: 'prompt',
-                    header: 'Prompt',
+                    header: t('evals.runDetails.columns.prompt'),
                     enableSorting: false,
                     size: 300,
                     Cell: ({ row }) => {
                         const promptText =
-                            row.original.prompt || `Prompt ${row.index + 1}`;
+                            row.original.prompt ||
+                            t('evals.runDetails.promptFallback', {
+                                number: row.index + 1,
+                            });
                         return (
                             <Text fz="sm" title={promptText} truncate maw={300}>
                                 {promptText}
@@ -137,7 +142,7 @@ export const EvalRunDetails: FC<Props> = ({
                 },
                 {
                     accessorKey: 'status',
-                    header: 'Eval Status',
+                    header: t('evals.runDetails.columns.evalStatus'),
                     enableSorting: false,
                     size: 115,
                     Cell: ({ row }) => {
@@ -164,7 +169,7 @@ export const EvalRunDetails: FC<Props> = ({
                 },
                 {
                     accessorKey: 'assessment',
-                    header: 'Assessment',
+                    header: t('evals.runDetails.columns.assessment'),
                     enableSorting: false,
                     size: 120,
                     Cell: ({ row }) => {
@@ -186,13 +191,13 @@ export const EvalRunDetails: FC<Props> = ({
                                 color={assessmentConfig.color}
                                 variant="transparent"
                             >
-                                {assessmentConfig.label}
+                                {t(assessmentConfig.labelKey)}
                             </Badge>
                         );
                     },
                 },
             ],
-            [],
+            [t],
         );
 
     const table = useContentTable({
@@ -290,9 +295,9 @@ export const EvalRunDetails: FC<Props> = ({
         return (
             <Stack gap="md">
                 <Button variant="subtle" onClick={handleBack} size="sm">
-                    ← Back to Evaluation
+                    {t('evals.runDetails.backToEvaluation')}
                 </Button>
-                <Text>Evaluation run not found</Text>
+                <Text>{t('evals.runDetails.runNotFound')}</Text>
             </Stack>
         );
     }
@@ -322,7 +327,9 @@ export const EvalRunDetails: FC<Props> = ({
                         <Paper p="xxs" radius="sm">
                             <MantineIcon icon={IconTarget} size="md" />
                         </Paper>
-                        <Title order={5}>Run Overview</Title>
+                        <Title order={5}>
+                            {t('evals.runDetails.runOverview')}
+                        </Title>
                     </Group>
 
                     <Group>
@@ -330,24 +337,31 @@ export const EvalRunDetails: FC<Props> = ({
                             <Tooltip
                                 label={
                                     <Text size="xs">
-                                        Started{' '}
-                                        {new Date(
-                                            runData.createdAt,
-                                        ).toLocaleString()}
+                                        {t('evals.runDetails.started', {
+                                            date: new Date(
+                                                runData.createdAt,
+                                            ).toLocaleString(),
+                                        })}
                                         {runData.completedAt && (
                                             <>
-                                                {' '}
-                                                • Completed{' '}
-                                                {new Date(
-                                                    runData.completedAt,
-                                                ).toLocaleString()}
+                                                {' • '}
+                                                {t(
+                                                    'evals.runDetails.completed',
+                                                    {
+                                                        date: new Date(
+                                                            runData.completedAt,
+                                                        ).toLocaleString(),
+                                                    },
+                                                )}
                                             </>
                                         )}
                                     </Text>
                                 }
                             >
                                 <Text size="xs" c="dimmed">
-                                    Duration: {runDuration}
+                                    {t('evals.runDetails.duration', {
+                                        duration: runDuration,
+                                    })}
                                 </Text>
                             </Tooltip>
                         )}
@@ -357,7 +371,7 @@ export const EvalRunDetails: FC<Props> = ({
                             size="lg"
                             c="ldGray.7"
                         >
-                            {evalStatus.label}
+                            {t(evalStatus.labelKey)}
                         </Badge>
                     </Group>
                 </Group>
@@ -371,8 +385,12 @@ export const EvalRunDetails: FC<Props> = ({
                 <Group justify="flex-end" pr="sm" py="sm">
                     {summaryStats && (
                         <Text size="xs" fw={500} fs="italic" c="dimmed">
-                            {summaryStats.completed + summaryStats.failed} /{' '}
-                            {summaryStats.total} completed
+                            {t('evals.runDetails.completedCount', {
+                                done:
+                                    summaryStats.completed +
+                                    summaryStats.failed,
+                                total: summaryStats.total,
+                            })}
                         </Text>
                     )}
                 </Group>
@@ -381,7 +399,7 @@ export const EvalRunDetails: FC<Props> = ({
             {(!runData.results || runData.results.length === 0) && (
                 <Paper variant="dotted" p="xl">
                     <Text size="sm" c="dimmed" ta="center">
-                        No results available for this run.
+                        {t('evals.runDetails.noResults')}
                     </Text>
                 </Paper>
             )}

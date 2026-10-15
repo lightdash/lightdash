@@ -30,6 +30,7 @@ import {
 } from '@mantine/core';
 import { IconKey } from '@tabler/icons-react';
 import { useState, type ComponentType, type FC, type SVGProps } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../../../../../components/common/Callout';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { filterDeprecatedModelsForPicker } from '../../../../../../components/common/ModelSelector/utils';
@@ -118,6 +119,7 @@ const GatewayUrlInput: FC<{
     disabled: boolean;
     onSave: (baseUrl: string | null) => void;
 }> = ({ baseUrl, placeholder, disabled, onSave }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const [value, setValue] = useState(baseUrl ?? '');
     const trimmed = value.trim();
     const isValid = isValidGatewayBaseUrl(trimmed);
@@ -127,14 +129,14 @@ const GatewayUrlInput: FC<{
             <TextInput
                 flex={1}
                 size="xs"
-                label="Custom base URL"
-                description="Optional. Send requests for this key to a proxy or gateway that speaks this provider's API. Model names are passed through unchanged."
+                label={t('settings.providers.gatewayLabel')}
+                description={t('settings.providers.gatewayDescription')}
                 placeholder={placeholder}
                 value={value}
                 disabled={disabled}
                 error={
                     trimmed.length > 0 && !isValid
-                        ? 'Enter an http(s) URL without credentials, query parameters or a fragment'
+                        ? t('settings.providers.gatewayError')
                         : undefined
                 }
                 onChange={(event) => setValue(event.currentTarget.value)}
@@ -148,7 +150,7 @@ const GatewayUrlInput: FC<{
                 disabled={!canSave}
                 onClick={() => onSave(trimmed)}
             >
-                Save
+                {t('actions.save', { ns: 'common' })}
             </Button>
             {baseUrl && (
                 <Button
@@ -158,7 +160,7 @@ const GatewayUrlInput: FC<{
                     disabled={disabled}
                     onClick={() => onSave(null)}
                 >
-                    Remove
+                    {t('actions.remove', { ns: 'common' })}
                 </Button>
             )}
         </Group>
@@ -188,6 +190,7 @@ const ProviderRow: FC<ProviderRowProps> = ({
         placeholder,
         baseUrlPlaceholder,
     } = PROVIDER_META[provider];
+    const { t } = useTranslation('aiCopilotAdmin');
     const [value, setValue] = useState('');
 
     // Availability controls only make sense once the org brings its own key —
@@ -210,14 +213,16 @@ const ProviderRow: FC<ProviderRowProps> = ({
                                 <MantineIcon icon={IconKey} size={12} />
                             }
                         >
-                            Active
+                            {t('settings.providers.active')}
                         </Badge>
                     )}
                 </Group>
                 {showAvailability && (
                     <Switch
                         size="md"
-                        aria-label={`${label} available to users`}
+                        aria-label={t('settings.providers.availableAria', {
+                            label,
+                        })}
                         checked={isEnabled}
                         disabled={disabled || locked}
                         onChange={(event) =>
@@ -251,7 +256,9 @@ const ProviderRow: FC<ProviderRowProps> = ({
                         setValue('');
                     }}
                 >
-                    {isSet ? 'Update' : 'Set key'}
+                    {isSet
+                        ? t('actions.update', { ns: 'common' })
+                        : t('settings.providers.setKey')}
                 </Button>
                 {isSet && (
                     <Button
@@ -261,7 +268,7 @@ const ProviderRow: FC<ProviderRowProps> = ({
                         disabled={disabled}
                         onClick={onRemoveKey}
                     >
-                        Remove
+                        {t('actions.remove', { ns: 'common' })}
                     </Button>
                 )}
             </Group>
@@ -279,12 +286,14 @@ const ProviderRow: FC<ProviderRowProps> = ({
             {showAvailability && isEnabled && (
                 <MultiSelect
                     size="xs"
-                    label="Ask AI models"
-                    aria-label={`${label} Ask AI models`}
+                    label={t('settings.providers.askAiModels')}
+                    aria-label={t('settings.providers.askAiModelsAria', {
+                        label,
+                    })}
                     placeholder={
                         visibility?.allowedModels?.length
                             ? undefined
-                            : 'All models'
+                            : t('settings.providers.allModels')
                     }
                     disabled={disabled}
                     data={providerModels.map((model) => ({
@@ -308,19 +317,13 @@ const ProviderRow: FC<ProviderRowProps> = ({
 
             {locked && (
                 <Text c="dimmed" fz="xs">
-                    Disabled while your organization uses another provider key —{' '}
-                    {label} models can&apos;t be selected, so AI agents never
-                    fall back to the instance&apos;s {label} key. Add your own{' '}
-                    {label} API key to make these models available.
+                    {t('settings.providers.lockedNote', { label })}
                 </Text>
             )}
 
             {usesInstanceKey && (
                 <Text c="dimmed" fz="xs">
-                    AI agents using {label} models currently run on the
-                    instance&apos;s default key. Add your organization&apos;s{' '}
-                    {label} key — or turn off availability above — to keep all
-                    AI agent usage on your own keys.
+                    {t('settings.providers.instanceKeyNote', { label })}
                 </Text>
             )}
         </Stack>
@@ -358,6 +361,7 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
     onUpdateVisibility,
     onUpdateDataAppVisibility,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const hasAnyByoKey = BYO_AI_PROVIDERS.some(
         (provider) => providerApiKeysSet[provider],
     );
@@ -396,16 +400,10 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
             <Stack gap="md">
                 <Box maw={620}>
                     <Title order={5} mb={4}>
-                        AI providers &amp; models
+                        {t('settings.providers.title')}
                     </Title>
                     <Text c="dimmed" fz="xs">
-                        Use your organization&apos;s own Anthropic, Google
-                        Gemini, or OpenAI API key for AI features, and control
-                        which models users can pick. Keys are stored encrypted
-                        and never shown again after saving; when set, they take
-                        precedence over the instance-level keys. Agents already
-                        using a hidden model keep working — it just can&apos;t
-                        be selected again.
+                        {t('settings.providers.description')}
                     </Text>
                 </Box>
 
@@ -413,20 +411,17 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
                     <Callout
                         variant="success"
                         icon={<MantineIcon icon={IconKey} />}
-                        title={`AI agents run on your organization's API ${
-                            setKeyCount > 1 ? 'keys' : 'key'
-                        }`}
+                        title={t('settings.providers.orgKeysTitle', {
+                            count: setKeyCount,
+                        })}
                     >
-                        Agent responses and background agent tasks (thread
-                        titles, suggestions, summaries) use the{' '}
-                        {setKeyCount > 1 ? 'keys' : 'key'} configured below —
-                        never the instance&apos;s default keys.
+                        {t('settings.providers.orgKeysBody', {
+                            count: setKeyCount,
+                        })}
                     </Callout>
                 )}
                 <Text fz="sm" c="dimmed">
-                    Autopilot setup shows which provider, model, and key it
-                    uses. Scheduled runs can make multiple model calls and incur
-                    usage on that key.
+                    {t('settings.providers.autopilotNote')}
                 </Text>
                 {BYO_AI_API_KEY_PROVIDERS.map((provider, index) => (
                     <Stack gap="md" key={provider}>

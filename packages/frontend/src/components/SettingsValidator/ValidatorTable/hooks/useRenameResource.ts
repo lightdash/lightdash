@@ -12,6 +12,7 @@ import {
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../../api';
 import { pollJobStatus } from '../../../../features/scheduler/hooks/useScheduler';
 import useToaster from '../../../../hooks/toaster/useToaster';
@@ -64,6 +65,7 @@ const renameChart = async ({
 };
 
 export const useRenameChart = () => {
+    const { t } = useTranslation('projectSettings');
     const { showToastSuccess, showToastError, showToastInfo } = useToaster();
     return useMutation<
         ApiRenameChartResponse['results'],
@@ -82,9 +84,12 @@ export const useRenameChart = () => {
         onSuccess: async (job, { fixAll, from, type, resourceUrl }) => {
             showToastSuccess({
                 key: 'rename_chart_toast',
-                title: `Success! ${type} "${from}" was renamed on chart.`,
+                title: t('validatorFix.toasts.renamedOnChart', {
+                    context: type,
+                    from,
+                }),
                 action: {
-                    children: 'Open',
+                    children: t('validatorFix.toasts.open'),
                     icon: IconArrowRight,
                     onClick: () => {
                         window.open(
@@ -99,7 +104,10 @@ export const useRenameChart = () => {
             if (fixAll && job?.jobId) {
                 showToastInfo({
                     key: 'rename_references_toast',
-                    title: `Updating ${type} "${from}" in other charts...`,
+                    title: t('validatorFix.toasts.updatingInCharts', {
+                        context: type,
+                        from,
+                    }),
                 });
                 pollJobStatus(job.jobId)
                     .then((status) => {
@@ -107,14 +115,20 @@ export const useRenameChart = () => {
                             status?.results?.charts?.length || 0;
                         showToastSuccess({
                             key: 'rename_references_toast',
-                            title: `Success! ${type} "${from}" was renamed on ${totalCharts} charts`,
+                            title: t('validatorFix.toasts.renamedOnCharts', {
+                                context: type,
+                                from,
+                                chartCount: totalCharts,
+                            }),
                         });
                     })
                     .catch((e) => {
                         console.error(e);
                         showToastError({
                             key: 'rename_references_toast',
-                            title: `Unable to rename other ${type}s`,
+                            title: t('validatorFix.toasts.renameOthersFailed', {
+                                context: type,
+                            }),
                             subtitle: getErrorMessage(e),
                         });
                     });
@@ -124,7 +138,7 @@ export const useRenameChart = () => {
             console.error(error);
             showToastError({
                 key: 'rename_chart_toast',
-                title: `Unable to rename chart`,
+                title: t('validatorFix.toasts.renameChartFailed'),
                 subtitle: error.error.message,
             });
         },
@@ -214,6 +228,7 @@ const renameDashboard = async ({
 };
 
 export const useRenameDashboard = () => {
+    const { t } = useTranslation('projectSettings');
     const { showToastSuccess, showToastError, showToastInfo } = useToaster();
     return useMutation<
         ApiRenameDashboardResponse['results'],
@@ -232,9 +247,12 @@ export const useRenameDashboard = () => {
         onSuccess: async (job, { fixAll, from, type, resourceUrl }) => {
             showToastSuccess({
                 key: 'rename_dashboard_toast',
-                title: `Success! ${type} "${from}" was renamed on dashboard.`,
+                title: t('validatorFix.toasts.renamedOnDashboard', {
+                    context: type,
+                    from,
+                }),
                 action: {
-                    children: 'Open',
+                    children: t('validatorFix.toasts.open'),
                     icon: IconArrowRight,
                     onClick: () => {
                         window.open(
@@ -249,7 +267,10 @@ export const useRenameDashboard = () => {
             if (fixAll && job?.jobId) {
                 showToastInfo({
                     key: 'rename_dashboard_references_toast',
-                    title: `Updating ${type} "${from}" in other charts and dashboards...`,
+                    title: t(
+                        'validatorFix.toasts.updatingInChartsAndDashboards',
+                        { context: type, from },
+                    ),
                 });
                 pollJobStatus(job.jobId)
                     .then((status) => {
@@ -259,14 +280,24 @@ export const useRenameDashboard = () => {
                             status?.results?.dashboards?.length || 0;
                         showToastSuccess({
                             key: 'rename_dashboard_references_toast',
-                            title: `Success! ${type} "${from}" was renamed on ${totalCharts} charts and ${totalDashboards} dashboards`,
+                            title: t(
+                                'validatorFix.toasts.renamedOnChartsAndDashboards',
+                                {
+                                    context: type,
+                                    from,
+                                    chartCount: totalCharts,
+                                    dashboardCount: totalDashboards,
+                                },
+                            ),
                         });
                     })
                     .catch((e) => {
                         console.error(e);
                         showToastError({
                             key: 'rename_dashboard_references_toast',
-                            title: `Unable to rename other ${type}s`,
+                            title: t('validatorFix.toasts.renameOthersFailed', {
+                                context: type,
+                            }),
                             subtitle: getErrorMessage(e),
                         });
                     });
@@ -276,7 +307,7 @@ export const useRenameDashboard = () => {
             console.error(error);
             showToastError({
                 key: 'rename_dashboard_toast',
-                title: `Unable to rename dashboard filter`,
+                title: t('validatorFix.toasts.renameDashboardFilterFailed'),
                 subtitle: error.error.message,
             });
         },

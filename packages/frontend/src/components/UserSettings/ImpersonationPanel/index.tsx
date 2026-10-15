@@ -1,5 +1,6 @@
 import { Group, Stack, Switch, Text } from '@mantine/core';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import {
     useImpersonationSettings,
     useUpdateImpersonationSettings,
@@ -7,6 +8,7 @@ import {
 import Callout from '../../common/Callout';
 
 const ImpersonationPanel: FC = () => {
+    const { t } = useTranslation('userSettings');
     const { data: settings, isLoading } = useImpersonationSettings();
     const { mutate: updateSettings, isLoading: isUpdating } =
         useUpdateImpersonationSettings();
@@ -16,11 +18,10 @@ const ImpersonationPanel: FC = () => {
             <Group justify="space-between" wrap="nowrap">
                 <Stack gap="xxs">
                     <Text fw={500} fz="sm">
-                        Enable user impersonation
+                        {t('impersonationPanel.title')}
                     </Text>
                     <Text fz="xs" c="dimmed">
-                        Allow organization admins to impersonate other users to
-                        see Lightdash from their perspective.
+                        {t('impersonationPanel.description')}
                     </Text>
                 </Stack>
                 <Switch
@@ -35,12 +36,13 @@ const ImpersonationPanel: FC = () => {
             </Group>
             <Callout variant="warning">
                 <Text fz="xs">
-                    If the project requires users to provide their own warehouse
-                    credentials, queries run with the impersonated user's{' '}
-                    <Text span inherit fw={600}>
-                        personal warehouse credentials
-                    </Text>{' '}
-                    (including SSO-backed credentials).
+                    <Trans
+                        t={t}
+                        i18nKey="impersonationPanel.credentialsWarning"
+                        components={{
+                            bold: <Text span inherit fw={600} />,
+                        }}
+                    />
                 </Text>
             </Callout>
         </Stack>

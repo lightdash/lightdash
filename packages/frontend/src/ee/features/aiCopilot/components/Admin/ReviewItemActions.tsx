@@ -20,6 +20,7 @@ import {
     IconLicense,
 } from '@tabler/icons-react';
 import { type FC, type SyntheticEvent, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
@@ -56,6 +57,7 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
     hideWorkspaceLink = false,
     hideBlockedReason = false,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const createWriteback = useCreateAiAgentReviewItemWriteback();
     const updateStatus = useUpdateAiAgentReviewItemStatus();
     const navigate = useNavigate();
@@ -119,7 +121,7 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
           }
         : null;
 
-    const phase = current.prWritebackMessage ?? 'Opening pull request…';
+    const phase = current.prWritebackMessage ?? t('reviewActions.openingPr');
     const remediationError =
         current.remediation?.status === 'failed'
             ? current.remediation.errorMessage
@@ -135,10 +137,7 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
     // action wherever the card is, triage included.
     const createSkillButton =
         skillDraftFiles && !isTerminal ? (
-            <Tooltip
-                label="Review the drafted skill and save it to this agent"
-                maw={260}
-            >
+            <Tooltip label={t('reviewActions.createSkillTooltip')} maw={260}>
                 <Button
                     size={buttonSize}
                     radius={isHeader ? 'md' : undefined}
@@ -149,7 +148,7 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                         setSkillModalOpen(true);
                     }}
                 >
-                    Create skill
+                    {t('reviewActions.createSkill')}
                 </Button>
             </Tooltip>
         ) : null;
@@ -187,7 +186,7 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                                 });
                             }}
                         >
-                            Accept
+                            {t('reviewActions.accept')}
                         </Button>
                     )}
                     <Button
@@ -205,7 +204,7 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                             });
                         }}
                     >
-                        Dismiss
+                        {t('reviewActions.dismiss')}
                     </Button>
                 </Group>
             ) : (
@@ -232,7 +231,7 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                                           />
                                       }
                                   >
-                                      Open workspace
+                                      {t('reviewActions.openWorkspace')}
                                   </Button>
                               )
                             : current.linkedPrUrl && (
@@ -248,7 +247,7 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                                       variant="subtle"
                                       color="gray"
                                   >
-                                      View PR
+                                      {t('reviewActions.viewPr')}
                                   </Button>
                               )}
 
@@ -256,7 +255,7 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
 
                         {canCreatePr && !current.linkedPrUrl && (
                             <Tooltip
-                                label="Open a pull request against the connected project (runs in the background, may take a few minutes)"
+                                label={t('reviewActions.createPrTooltip')}
                                 maw={260}
                             >
                                 <Button
@@ -278,7 +277,7 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                                         }
                                     }}
                                 >
-                                    Create PR
+                                    {t('reviewActions.createPr')}
                                 </Button>
                             </Tooltip>
                         )}
@@ -290,7 +289,7 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                                 maw={320}
                             >
                                 <ActionIcon
-                                    aria-label="Show writeback error"
+                                    aria-label={t('reviewActions.showError')}
                                     color="red"
                                     variant="transparent"
                                     size={20}
@@ -325,7 +324,7 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                                     });
                                 }}
                             >
-                                Dismiss
+                                {t('reviewActions.dismiss')}
                             </Button>
                         )}
                     </Group>

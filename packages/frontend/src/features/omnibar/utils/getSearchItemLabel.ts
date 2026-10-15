@@ -1,29 +1,33 @@
 import { assertUnreachable, SearchItemType } from '@lightdash/common';
+import i18n from '../../../i18n/i18n';
+import { type SearchItem } from '../types/searchItem';
 
-export const getSearchItemLabel = (itemType: SearchItemType) => {
+const ns = 'omnibar';
+
+const getSearchItemTypeKey = (itemType: SearchItemType) => {
     switch (itemType) {
         case SearchItemType.FIELD:
-            return 'Fields';
+            return 'field';
         case SearchItemType.DOCUMENT:
-            return 'Documents';
+            return 'document';
         case SearchItemType.DASHBOARD:
-            return 'Dashboards';
+            return 'dashboard';
         case SearchItemType.DASHBOARD_TAB:
-            return 'Dashboard Tabs';
+            return 'dashboardTab';
         case SearchItemType.CHART:
-            return 'Charts';
+            return 'chart';
         case SearchItemType.SPACE:
-            return 'Spaces';
+            return 'space';
         case SearchItemType.TABLE:
-            return 'Tables';
+            return 'table';
         case SearchItemType.PAGE:
-            return 'Pages';
+            return 'page';
         case SearchItemType.SQL_CHART:
-            return 'SQL Charts';
+            return 'sqlChart';
         case SearchItemType.DATA_APP:
-            return 'Data apps';
+            return 'dataApp';
         case SearchItemType.SETTINGS:
-            return 'Settings';
+            return 'settings';
         default:
             return assertUnreachable(
                 itemType,
@@ -32,16 +36,40 @@ export const getSearchItemLabel = (itemType: SearchItemType) => {
     }
 };
 
+export const getSearchItemLabel = (itemType: SearchItemType) =>
+    i18n.t(`itemTypes.plural.${getSearchItemTypeKey(itemType)}`, { ns });
+
+/** Names a single item, e.g. the preview kicker. */
+export const getSearchItemSingularLabel = (itemType: SearchItemType) =>
+    i18n.t(`itemTypes.singular.${getSearchItemTypeKey(itemType)}`, { ns });
+
+export const getSearchItemTypeLabel = (
+    typeLabel: NonNullable<SearchItem['typeLabel']>,
+) => {
+    switch (typeLabel) {
+        case 'Table':
+            return i18n.t('typeLabels.table', { ns });
+        case 'Joined table':
+            return i18n.t('typeLabels.joinedTable', { ns });
+        case 'Dimension':
+            return i18n.t('typeLabels.dimension', { ns });
+        case 'Metric':
+            return i18n.t('typeLabels.metric', { ns });
+        default:
+            return assertUnreachable(typeLabel, 'Unknown type label');
+    }
+};
+
 export const getSearchItemErrorLabel = (itemType: SearchItemType) => {
     switch (itemType) {
         case SearchItemType.FIELD:
-            return 'field';
+            return i18n.t('itemTypes.error.field', { ns });
         case SearchItemType.DASHBOARD:
-            return 'dashboard';
+            return i18n.t('itemTypes.error.dashboard', { ns });
         case SearchItemType.DASHBOARD_TAB:
-            return 'dashboard tab';
+            return i18n.t('itemTypes.error.dashboardTab', { ns });
         case SearchItemType.CHART:
-            return 'chart';
+            return i18n.t('itemTypes.error.chart', { ns });
         case SearchItemType.SPACE:
         case SearchItemType.TABLE:
         case SearchItemType.PAGE:

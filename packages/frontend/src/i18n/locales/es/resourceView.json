@@ -1,0 +1,155 @@
+{
+    "contentViewFilter": {
+        "ariaLabel": "Vista de contenido",
+        "spaces": "Espacios",
+        "sharedWithMe": "Compartido conmigo",
+        "adminContentView": "Vista de contenido de administrador",
+        "adminContentViewTooltip": "Ver todos los espacios públicos y privados de tu organización"
+    },
+    "contentTypeFilter": {
+        "ariaLabel": "Tipo de contenido",
+        "all": "Todo",
+        "documents": "Documentos",
+        "dashboards": "Dashboards",
+        "charts": "Gráficos",
+        "dataApps": "Apps de datos"
+    },
+    "dataAppBuildStatus": {
+        "noPreviewYet": "Aún sin vista previa",
+        "previewVersion": "Vista previa v{{version}}",
+        "buildingNoPreviewTooltip": "La versión {{version}} se está compilando. Habrá una vista previa disponible cuando esté lista.",
+        "buildingWithPreviewTooltip": "La versión {{version}} se está compilando. La vista previa abre la última versión lista, v{{readyVersion}}.",
+        "badge": "Compilando v{{version}} · {{preview}}"
+    },
+    "actionMenu": {
+        "menu": "Menú",
+        "documentActions": "Acciones del documento",
+        "addToFavorites": "Añadir a favoritos",
+        "removeFromFavorites": "Quitar de favoritos",
+        "pinToHomepage": "Fijar en la página de inicio",
+        "unpinFromHomepage": "Desfijar de la página de inicio",
+        "continueBuilding": "Seguir construyendo",
+        "updateSpace": "Actualizar espacio",
+        "rename": "Renombrar",
+        "duplicate": "Duplicar",
+        "addToDashboard": "Añadir al dashboard",
+        "promoteRequiresUpstream": "Primero debes habilitar un proyecto upstream en configuración > Data ops",
+        "promoteChart": "Promover gráfico",
+        "promoteDashboard": "Promover dashboard",
+        "promoteDataApp": "Promover app de datos",
+        "verify": "Verificar",
+        "removeVerification": "Quitar verificación",
+        "requestReview": "Solicitar revisión",
+        "move": "Mover",
+        "moveToSpace": "Mover a espacio",
+        "addToSpace": "Añadir a espacio",
+        "saveToSpace": "Guardar en espacio",
+        "share": "Compartir",
+        "deleteChart": "Eliminar gráfico",
+        "deleteDashboard": "Eliminar dashboard",
+        "deleteSpace": "Eliminar espacio",
+        "deleteDataApp": "Eliminar app de datos",
+        "deleteDocument": "Eliminar documento"
+    },
+    "actionHandlers": {
+        "updateSpace": "Actualizar espacio",
+        "deleteSpace": "Eliminar espacio",
+        "createNewSpace": "Crear nuevo espacio"
+    },
+    "accessInfo": {
+        "status": {
+            "private": "Privado",
+            "inherited": "Acceso heredado",
+            "restricted": "Acceso restringido"
+        },
+        "tooltip": {
+            "inheritsFromParent": "Hereda el acceso del espacio principal",
+            "allProjectMembers": "Todos los miembros del proyecto tienen acceso",
+            "onlyYouAndAdmins": "Solo tú y los administradores tienen acceso",
+            "sharedWithMembers_one": "Compartido con {{count}} miembro",
+            "sharedWithMembers_other": "Compartido con {{count}} miembros"
+        }
+    },
+    "emptyState": {
+        "noItems": "Sin elementos"
+    },
+    "lastEdited": {
+        "byUser": "por {{firstName}} {{lastName}}"
+    },
+    "validation": {
+        "brokenContent": "Este contenido está roto. Más información sobre los errores de validación <link>aquí</link>.",
+        "chartError": "Hay un error en este gráfico.",
+        "dashboardError": "Hay un error en este dashboard."
+    },
+    "verification": {
+        "verifiedByOn": "Verificado por {{firstName}} {{lastName}} el {{date}}"
+    },
+    "views": {
+        "count_one": "{{count}} vista",
+        "count_other": "{{count}} vistas",
+        "sinceDate_one": "{{count}} vista desde {{date}}",
+        "sinceDate_other": "{{count}} vistas desde {{date}}"
+    },
+    "attributeCount": {
+        "documents": "Documentos",
+        "dashboards": "Dashboards",
+        "charts": "Gráficos",
+        "dataApps": "Apps de datos",
+        "spaces": "Espacios"
+    },
+    "columns": {
+        "name": "Nombre",
+        "space": "Espacio",
+        "lastModified": "Última modificación",
+        "lastUpdated": "Última actualización",
+        "lastEdited": "Última edición",
+        "owner": "Propietario",
+        "views": "Vistas",
+        "access": "Acceso",
+        "content": "Contenido"
+    },
+    "table": {
+        "searchByName": "Buscar por nombre",
+        "clearSearch": "Borrar búsqueda",
+        "columns": "Columnas",
+        "filterByOwner": "Filtrar por propietario",
+        "personal": "Personal",
+        "loadingMore": "Cargando más...",
+        "scrollForMore": "Desplázate para ver más resultados",
+        "allResultsLoaded": "Todos los resultados cargados",
+        "loadedOfTotal": "({{loaded}} de {{total}} cargados)",
+        "loadedCount": "({{loaded}})"
+    },
+    "grid": {
+        "groupName": "{{list}} y {{last}}"
+    },
+    "resourceType": {
+        "dashboard": "Dashboard",
+        "space": "Espacio",
+        "dataApp": "App de datos",
+        "document": "Documento",
+        "chart": "Gráfico",
+        "barChart": "Gráfico de barras",
+        "horizontalBarChart": "Gráfico de barras horizontales",
+        "lineChart": "Gráfico de líneas",
+        "scatterChart": "Gráfico de dispersión",
+        "areaChart": "Gráfico de áreas",
+        "mixedChart": "Gráfico mixto",
+        "pieChart": "Gráfico circular",
+        "funnelChart": "Gráfico de embudo",
+        "treemap": "Treemap",
+        "gauge": "Indicador",
+        "table": "Tabla",
+        "bigNumber": "Número grande",
+        "customChart": "Gráfico personalizado",
+        "map": "Mapa",
+        "sankey": "Sankey"
+    },
+    "resourceTypePlural": {
+        "dashboard": "Dashboards",
+        "chart": "Gráficos",
+        "space": "Espacios",
+        "dataApp": "Apps de datos",
+        "document": "Documentos"
+    }
+}

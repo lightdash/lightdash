@@ -15,7 +15,9 @@ import {
     IconNetwork,
     IconServer,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../common/MantineIcon';
@@ -34,19 +36,21 @@ type TileExecutionInfoProps = {
 // `cacheMetadata.preAggregate.hit` is the plan-time match; `preAggregate` from
 // results metadata is the post-execution truth, including warehouse fallback.
 function getResultSource(
+    t: TFunction,
     cacheMetadata: CacheMetadata,
     preAggregate: QueryResultsPreAggregate | null,
 ): string {
-    if (cacheMetadata.cacheHit) return 'Result cache';
+    if (cacheMetadata.cacheHit) return t('executionInfo.source.resultCache');
     if (preAggregate) {
         if (preAggregate.fallbackReason !== null)
-            return 'Warehouse (pre-aggregate failed)';
+            return t('executionInfo.source.warehousePreAggregateFailed');
         return preAggregate.execution === 'duckdb'
-            ? 'DuckDB pre-aggregate'
-            : 'External pre-aggregate';
+            ? t('executionInfo.source.duckdbPreAggregate')
+            : t('executionInfo.source.externalPreAggregate');
     }
-    if (cacheMetadata.preAggregate?.hit) return 'DuckDB pre-aggregate';
-    return 'Warehouse';
+    if (cacheMetadata.preAggregate?.hit)
+        return t('executionInfo.source.duckdbPreAggregate');
+    return t('executionInfo.source.warehouse');
 }
 
 function isServedFromPreAggregate(
@@ -65,6 +69,7 @@ const TileExecutionInfo: FC<TileExecutionInfoProps> = ({
     totalResults,
     targetVariant = 'actionIcon',
 }) => {
+    const { t } = useTranslation('dashboard');
     const getUiString = useUiStrings();
     const { data: showExecutionTimeFlag } = useServerFeatureFlag(
         FeatureFlags.ShowExecutionTime,
@@ -95,37 +100,55 @@ const TileExecutionInfo: FC<TileExecutionInfoProps> = ({
                 style={{ overflowY: 'auto' }}
             >
                 <Stack gap={10} w={240} p={4}>
-                    <InfoRow icon={IconLayoutRows} label="Rows">
+                    <InfoRow
+                        icon={IconLayoutRows}
+                        label={t('executionInfo.rows')}
+                    >
                         {(totalResults ?? 0).toLocaleString()}
                     </InfoRow>
 
-                    <InfoRow icon={IconDatabase} label="Source">
-                        {getResultSource(cacheMetadata, preAggregate)}
+                    <InfoRow
+                        icon={IconDatabase}
+                        label={t('executionInfo.source.label')}
+                    >
+                        {getResultSource(t, cacheMetadata, preAggregate)}
                     </InfoRow>
 
                     <Divider />
 
                     {performance.queueTimeMs !== null && (
-                        <InfoRow icon={IconHourglass} label="Queue">
+                        <InfoRow
+                            icon={IconHourglass}
+                            label={t('executionInfo.queue')}
+                        >
                             {performance.queueTimeMs}ms
                         </InfoRow>
                     )}
 
                     {performance.initialQueryExecutionMs !== null && (
-                        <InfoRow icon={IconServer} label="Execution">
+                        <InfoRow
+                            icon={IconServer}
+                            label={t('executionInfo.execution')}
+                        >
                             {performance.initialQueryExecutionMs}ms
                         </InfoRow>
                     )}
 
                     {networkOverheadMs > 0 && (
-                        <InfoRow icon={IconNetwork} label="Network">
+                        <InfoRow
+                            icon={IconNetwork}
+                            label={t('executionInfo.network')}
+                        >
                             {Math.round(networkOverheadMs)}ms
                         </InfoRow>
                     )}
 
                     <Divider />
 
-                    <InfoRow icon={IconClockPlay} label="Total">
+                    <InfoRow
+                        icon={IconClockPlay}
+                        label={t('executionInfo.total')}
+                    >
                         {totalClientFetchTimeMs}ms
                     </InfoRow>
                 </Stack>

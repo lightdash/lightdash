@@ -1,6 +1,7 @@
 import { WarehouseTypes } from '@lightdash/common';
 import { Select, Stack } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { EgressIpNotice } from './EgressIpNotice';
 import { useFormContext } from './formContext';
 import AthenaForm from './WarehouseForms/AthenaForm';
@@ -50,6 +51,7 @@ const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
     isProjectUpdate,
     children,
 }) => {
+    const { t } = useTranslation('projectConnection');
     const form = useFormContext();
 
     const warehouseType: WarehouseTypes =
@@ -64,7 +66,7 @@ const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
                     <Select
                         allowDeselect={false}
                         defaultValue={WarehouseTypes.BIGQUERY}
-                        label="Type"
+                        label={t('warehouseSettings.type')}
                         data={Object.entries(WarehouseTypeLabels).map(
                             ([value, label]) => ({
                                 value,

@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import { Group, Stack, Text, Title } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { EventName } from '../../../types/Events';
@@ -17,18 +18,18 @@ const LandingPanel: FC<Props> = ({
     projectUuid,
     projectUrlIdentifier,
 }) => {
+    const { t } = useTranslation('home');
     const { user } = useApp();
     return (
         <Group justify="space-between" my="xl">
             <Stack justify="flex-start" gap="xs">
                 <Title order={3}>
-                    {`Welcome${userName ? ', ' + userName : ' to Lightdash'}!`}{' '}
+                    {userName
+                        ? t('landing.welcomeUser', { name: userName })
+                        : t('landing.welcome')}{' '}
                     ⚡️
                 </Title>
-                <Text c="ldGray.7">
-                    Run a query to ask a business question or browse your data
-                    below:
-                </Text>
+                <Text c="ldGray.7">{t('landing.subtitle')}</Text>
             </Stack>
             <Can
                 I="manage"
@@ -47,7 +48,7 @@ const LandingPanel: FC<Props> = ({
                         },
                     }}
                 >
-                    Run a query
+                    {t('landing.runQuery')}
                 </MantineLinkButton>
             </Can>
         </Group>

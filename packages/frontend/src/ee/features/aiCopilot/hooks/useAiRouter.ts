@@ -12,6 +12,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import i18n from '../../../../i18n/i18n';
 import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
 
 const ROUTER_BASE = '/org/aiRouter';
@@ -57,7 +58,7 @@ export const useUpsertAiRouterConfig = () => {
         },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Failed to update AI router configuration',
+                title: i18n.t('toasts.router.updateFailed', { ns: 'aiAgent' }),
                 apiError: error,
             }),
     });
@@ -135,11 +136,17 @@ export const useUpsertAiRouterInstruction = (projectUuid: string) => {
         mutationFn: (body) => upsertAiRouterInstruction(projectUuid, body),
         onSuccess: (data) => {
             queryClient.setQueryData(instructionQueryKey(projectUuid), data);
-            showToastSuccess({ title: 'Routing instructions saved' });
+            showToastSuccess({
+                title: i18n.t('toasts.router.instructionsSaved', {
+                    ns: 'aiAgent',
+                }),
+            });
         },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Failed to save routing instructions',
+                title: i18n.t('toasts.router.instructionsSaveFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             }),
     });

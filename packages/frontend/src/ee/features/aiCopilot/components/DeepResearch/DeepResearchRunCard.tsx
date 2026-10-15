@@ -25,10 +25,12 @@ import {
     type FC,
     type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { type StreamdownProps } from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import i18n from '../../../../../i18n/i18n';
 import { DeepResearchBetaBadge } from '../../deepResearch/DeepResearchBetaBadge';
 import {
     getDeepResearchReportPreview,
@@ -53,31 +55,35 @@ const PREVIEW_MARKDOWN_COMPONENTS: StreamdownProps['components'] = {
     img: () => null,
 };
 
-const STATUS_CONFIG: Record<DeepResearchRunView['status'], { label: string }> =
-    {
-        queued: { label: 'Queued' },
-        running: { label: 'Running' },
-        waiting_for_permission: {
-            label: 'Permission required',
-        },
-        waiting_for_reconnection: {
-            label: 'Reconnect required',
-        },
-        completed: { label: 'Completed' },
-        partially_completed: { label: 'Partially completed' },
-        failed: { label: 'Couldn’t complete' },
-        cancelled: { label: 'Stopped' },
-    };
+const STATUS_LABEL_KEYS: Record<DeepResearchRunView['status'], string> = {
+    queued: 'deepResearch.status.queued',
+    running: 'deepResearch.status.running',
+    waiting_for_permission: 'deepResearch.status.waitingForPermission',
+    waiting_for_reconnection: 'deepResearch.status.waitingForReconnection',
+    completed: 'deepResearch.status.completed',
+    partially_completed: 'deepResearch.status.partiallyCompleted',
+    failed: 'deepResearch.status.failed',
+    cancelled: 'deepResearch.status.cancelled',
+};
 
 const getElapsedLabel = (elapsedMs: number) => {
     const elapsedSeconds = Math.floor(Math.max(0, elapsedMs) / 1_000);
     if (elapsedSeconds < 60) {
-        return `${elapsedSeconds}s`;
+        return i18n.t('deepResearch.elapsed.seconds', {
+            ns: 'aiAgent',
+            seconds: elapsedSeconds,
+        });
     }
 
     const minutes = Math.floor(elapsedSeconds / 60);
     const seconds = elapsedSeconds % 60;
-    return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+    return seconds > 0
+        ? i18n.t('deepResearch.elapsed.minutesSeconds', {
+              ns: 'aiAgent',
+              minutes,
+              seconds,
+          })
+        : i18n.t('deepResearch.elapsed.minutes', { ns: 'aiAgent', minutes });
 };
 
 const useElapsedMs = (run: DeepResearchRunView, isTerminal: boolean) => {
@@ -122,55 +128,58 @@ export const DeepResearchRunHeading = ({
     statusLabel: string;
     elapsedLabel?: string;
     action?: ReactNode;
-}) => (
-    <Group
-        className={styles.header}
-        justify="space-between"
-        align="center"
-        wrap="nowrap"
-    >
-        <Stack className={styles.headingGroup}>
-            <Group className={styles.runMeta} gap="xs" wrap="wrap">
-                <MantineIcon
-                    icon={IconTelescope}
-                    size={16}
-                    stroke={1.8}
-                    color="currentColor"
-                    className={styles.metaText}
-                />
-                <Group gap="xs" align="baseline" wrap="nowrap">
-                    <Text
-                        size="xs"
-                        fw={600}
-                        ff="monospace"
-                        tt="uppercase"
-                        className={styles.eyebrow}
-                    >
-                        Deep research
-                    </Text>
-                    <DeepResearchBetaBadge />
+}) => {
+    const { t } = useTranslation('aiAgent');
+    return (
+        <Group
+            className={styles.header}
+            justify="space-between"
+            align="center"
+            wrap="nowrap"
+        >
+            <Stack className={styles.headingGroup}>
+                <Group className={styles.runMeta} gap="xs" wrap="wrap">
+                    <MantineIcon
+                        icon={IconTelescope}
+                        size={16}
+                        stroke={1.8}
+                        color="currentColor"
+                        className={styles.metaText}
+                    />
+                    <Group gap="xs" align="baseline" wrap="nowrap">
+                        <Text
+                            size="xs"
+                            fw={600}
+                            ff="monospace"
+                            tt="uppercase"
+                            className={styles.eyebrow}
+                        >
+                            {t('deepResearch.eyebrow')}
+                        </Text>
+                        <DeepResearchBetaBadge />
+                    </Group>
+                    <Box className={styles.metaSeparator} />
+                    <Group className={styles.statusMeta} gap={6} wrap="nowrap">
+                        <Text size="xs" className={styles.metaText}>
+                            {statusLabel}
+                        </Text>
+                        {elapsedLabel && (
+                            <>
+                                <Text size="xs" className={styles.metaText}>
+                                    ·
+                                </Text>
+                                <Text size="xs" className={styles.metaText}>
+                                    {elapsedLabel}
+                                </Text>
+                            </>
+                        )}
+                    </Group>
                 </Group>
-                <Box className={styles.metaSeparator} />
-                <Group className={styles.statusMeta} gap={6} wrap="nowrap">
-                    <Text size="xs" className={styles.metaText}>
-                        {statusLabel}
-                    </Text>
-                    {elapsedLabel && (
-                        <>
-                            <Text size="xs" className={styles.metaText}>
-                                ·
-                            </Text>
-                            <Text size="xs" className={styles.metaText}>
-                                {elapsedLabel}
-                            </Text>
-                        </>
-                    )}
-                </Group>
-            </Group>
-        </Stack>
-        {action}
-    </Group>
-);
+            </Stack>
+            {action}
+        </Group>
+    );
+};
 
 type Props = {
     run: DeepResearchRunView;
@@ -189,7 +198,8 @@ export const DeepResearchRunCard = ({
     onReconnect,
     onContinueWithoutSource,
 }: Props) => {
-    const status = STATUS_CONFIG[run.status];
+    const { t } = useTranslation('aiAgent');
+    const status = { label: t(STATUS_LABEL_KEYS[run.status]) };
     const cancelMutation = useCancelDeepResearchMutation(projectUuid, run.uuid);
     const [isActivityOpen, setIsActivityOpen] = useState(false);
     const activityId = useId();
@@ -197,7 +207,9 @@ export const DeepResearchRunCard = ({
     const [announcedStatus, setAnnouncedStatus] = useState(run.status);
     const hasNoRelevantData =
         run.status === 'failed' && run.terminalReason === 'no_relevant_data';
-    const statusLabel = hasNoRelevantData ? 'No relevant data' : status.label;
+    const statusLabel = hasNoRelevantData
+        ? t('deepResearch.status.noRelevantData')
+        : status.label;
 
     useEffect(() => {
         if (announcedStatus !== run.status) {
@@ -236,14 +248,19 @@ export const DeepResearchRunCard = ({
         !!(onReconnect || onContinueWithoutSource);
     const elapsedLabel = getElapsedLabel(elapsedMs);
     const isCompleted = run.status === 'completed';
-    const completedStatusLabel = `${status.label} in ${elapsedLabel} · ${run.queryCount} ${run.queryCount === 1 ? 'query' : 'queries'} · ${run.findingCount} ${run.findingCount === 1 ? 'finding' : 'findings'}`;
+    const completedStatusLabel = t('deepResearch.completedSummary', {
+        status: status.label,
+        elapsed: elapsedLabel,
+        queries: t('deepResearch.queryCount', { count: run.queryCount }),
+        findings: t('deepResearch.findingCount', { count: run.findingCount }),
+    });
 
     return (
         <Paper
             className={styles.card}
             p="lg"
             radius="md"
-            aria-label="Deep research run"
+            aria-label={t('deepResearch.runAria')}
             // Walkthrough look at the run card once the thread opens.
             data-tour-scope="create:AiDeepResearch"
             data-tour-look="1"
@@ -272,14 +289,14 @@ export const DeepResearchRunCard = ({
                                 loading={cancelMutation.isLoading}
                                 onClick={() => cancelMutation.mutate()}
                             >
-                                Stop research
+                                {t('deepResearch.stop')}
                             </Button>
                         ) : undefined
                     }
                 />
 
                 <Text className={styles.liveRegion} aria-live="polite">
-                    Research status changed to {statusLabel}
+                    {t('deepResearch.statusChanged', { status: statusLabel })}
                 </Text>
 
                 {run.phase && !isTerminal && (
@@ -294,19 +311,25 @@ export const DeepResearchRunCard = ({
                 {!isCompleted && (
                     <Group className={styles.metrics} gap="md" wrap="wrap">
                         <Group gap={5} wrap="nowrap">
-                            <Text size="xs">Queries</Text>
+                            <Text size="xs">
+                                {t('deepResearch.metrics.queries')}
+                            </Text>
                             <Text size="sm" fw={600} ff="monospace">
                                 {run.queryCount}
                             </Text>
                         </Group>
                         <Group gap={5} wrap="nowrap">
-                            <Text size="xs">Sources</Text>
+                            <Text size="xs">
+                                {t('deepResearch.metrics.sources')}
+                            </Text>
                             <Text size="sm" fw={600} ff="monospace">
                                 {run.sourceCount ?? '—'}
                             </Text>
                         </Group>
                         <Group gap={5} wrap="nowrap">
-                            <Text size="xs">Findings</Text>
+                            <Text size="xs">
+                                {t('deepResearch.metrics.findings')}
+                            </Text>
                             <Text size="sm" fw={600} ff="monospace">
                                 {run.findingCount}
                             </Text>
@@ -316,7 +339,7 @@ export const DeepResearchRunCard = ({
 
                 {!isTerminal && (
                     <Text size="xs" c="dimmed">
-                        Research continues if you leave this page.
+                        {t('deepResearch.continuesInBackground')}
                     </Text>
                 )}
 
@@ -340,8 +363,20 @@ export const DeepResearchRunCard = ({
                                     >
                                         {run.actionRequired.type ===
                                         'permission'
-                                            ? 'Review permissions'
-                                            : `Reconnect ${run.actionRequired.integrationName ?? 'source'}`}
+                                            ? t(
+                                                  'deepResearch.reviewPermissions',
+                                              )
+                                            : run.actionRequired.integrationName
+                                              ? t(
+                                                    'deepResearch.reconnectNamed',
+                                                    {
+                                                        name: run.actionRequired
+                                                            .integrationName,
+                                                    },
+                                                )
+                                              : t(
+                                                    'deepResearch.reconnectSource',
+                                                )}
                                     </Button>
                                 )}
                                 {onContinueWithoutSource && (
@@ -355,9 +390,17 @@ export const DeepResearchRunCard = ({
                                             )
                                         }
                                     >
-                                        Continue without{' '}
-                                        {run.actionRequired.integrationName ??
-                                            'source'}
+                                        {run.actionRequired.integrationName
+                                            ? t(
+                                                  'deepResearch.continueWithoutNamed',
+                                                  {
+                                                      name: run.actionRequired
+                                                          .integrationName,
+                                                  },
+                                              )
+                                            : t(
+                                                  'deepResearch.continueWithoutSource',
+                                              )}
                                     </Button>
                                 )}
                             </Group>
@@ -370,23 +413,19 @@ export const DeepResearchRunCard = ({
                         <Stack gap="sm">
                             <Text size="sm">
                                 {run.errorMessage ??
-                                    'Research stopped before the report was ready.'}
+                                    t('deepResearch.stoppedBeforeReady')}
                             </Text>
                             {hasNoRelevantData ? (
                                 <Text size="sm">
-                                    Try refining your question or choosing data
-                                    that covers the topic.
+                                    {t('deepResearch.tryRefining')}
                                 </Text>
                             ) : (
                                 <>
                                     <Text size="sm">
-                                        Any completed queries and findings are
-                                        saved below.
+                                        {t('deepResearch.completedSaved')}
                                     </Text>
                                     <Text size="sm">
-                                        Starting over creates a new research
-                                        run. Previous queries won&apos;t be
-                                        reused.
+                                        {t('deepResearch.startOverNote')}
                                     </Text>
                                 </>
                             )}
@@ -397,7 +436,7 @@ export const DeepResearchRunCard = ({
                                     w="fit-content"
                                     onClick={onRunAgain}
                                 >
-                                    Start over
+                                    {t('deepResearch.startOver')}
                                 </Button>
                             )}
                         </Stack>
@@ -406,8 +445,7 @@ export const DeepResearchRunCard = ({
 
                 {run.status === 'partially_completed' && !isReportExpired && (
                     <Alert color="orange" icon={<IconAlertCircle size={16} />}>
-                        This report is incomplete. Completed queries and
-                        available findings are saved below.
+                        {t('deepResearch.incomplete')}
                     </Alert>
                 )}
 
@@ -415,18 +453,19 @@ export const DeepResearchRunCard = ({
                     <Paper variant="dotted" p="md" radius="sm">
                         <Stack gap="xs">
                             <Text size="sm" fw={600}>
-                                This report is no longer available.
+                                {t('deepResearch.expired')}
                             </Text>
                             <Text size="sm" c="dimmed">
-                                Deep Research reports are available for 30 days.
+                                {t('deepResearch.retention')}
                             </Text>
                             <Text size="sm">{run.question}</Text>
                             {run.completedAt && (
                                 <Text size="xs" c="dimmed">
-                                    Completed{' '}
-                                    {new Date(
-                                        run.completedAt,
-                                    ).toLocaleDateString()}
+                                    {t('deepResearch.completedOn', {
+                                        date: new Date(
+                                            run.completedAt,
+                                        ).toLocaleDateString(),
+                                    })}
                                 </Text>
                             )}
                             <Button
@@ -435,7 +474,7 @@ export const DeepResearchRunCard = ({
                                 disabled={!canRunAgain || !onRunAgain}
                                 onClick={onRunAgain}
                             >
-                                Run research again
+                                {t('deepResearch.runAgain')}
                             </Button>
                         </Stack>
                     </Paper>
@@ -470,7 +509,7 @@ export const DeepResearchRunCard = ({
                                     color="dimmed"
                                 />
                                 <Text size="sm" fw={600}>
-                                    Research summary
+                                    {t('deepResearch.summary')}
                                 </Text>
                             </Group>
                             {run.resultMarkdown && (
@@ -494,7 +533,7 @@ export const DeepResearchRunCard = ({
                                 data-tour-hint="Open the full report"
                                 onClick={trackReportOpened}
                             >
-                                View full report
+                                {t('deepResearch.viewFullReport')}
                             </Button>
                         </Stack>
                     </Paper>
@@ -525,13 +564,15 @@ export const DeepResearchRunCard = ({
                             aria-expanded={isActivityOpen}
                             aria-controls={activityId}
                         >
-                            {isActivityOpen ? 'Hide activity' : 'View activity'}
+                            {isActivityOpen
+                                ? t('deepResearch.hideActivity')
+                                : t('deepResearch.viewActivity')}
                         </Button>
                         <Collapse id={activityId} expanded={isActivityOpen}>
                             <Box
                                 component="ul"
                                 className={styles.timeline}
-                                aria-label="Research activity"
+                                aria-label={t('deepResearch.activityAria')}
                             >
                                 {run.latestEvents.map((event, index) => (
                                     <Box

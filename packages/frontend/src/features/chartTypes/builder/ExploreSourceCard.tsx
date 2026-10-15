@@ -16,6 +16,7 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { EXPLORE_PREVIEW_ROW_LIMIT } from '../utils/explorePreviewQuery';
 import DataSourcePicker from './DataSourcePicker';
@@ -30,6 +31,7 @@ type Props = { source: ExploreSourceControls };
  * inputs decide which of its fields the query selects.
  */
 const ExploreSourceCard: FC<Props> = ({ source }) => {
+    const { t } = useTranslation('chartTypes');
     const [pickerOpened, setPickerOpened] = useState(false);
     const attached = source.attached;
 
@@ -42,10 +44,10 @@ const ExploreSourceCard: FC<Props> = ({ source }) => {
                     </Box>
                     <Stack gap={2} flex={1} miw={0}>
                         <Text fz="sm" fw={500} c="ldGray.8">
-                            Use a table
+                            {t('source.useTable')}
                         </Text>
                         <Text fz="xs" c="dimmed" lh={1.5}>
-                            Preview with fields from one of your tables.
+                            {t('source.useTableDescription')}
                         </Text>
                     </Stack>
                     <DataSourcePicker
@@ -64,7 +66,7 @@ const ExploreSourceCard: FC<Props> = ({ source }) => {
                             }
                             onClick={() => setPickerOpened((opened) => !opened)}
                         >
-                            Choose table
+                            {t('source.chooseTable')}
                         </Button>
                     </DataSourcePicker>
                 </Group>
@@ -86,20 +88,21 @@ const ExploreSourceCard: FC<Props> = ({ source }) => {
                         {attached.status === 'loading' && <Loader size={12} />}
                         <Text fz="xs" c="dimmed" truncate>
                             {attached.status === 'loading'
-                                ? 'Table'
+                                ? t('source.table')
                                 : exploreSummary(attached)}
                         </Text>
                     </Group>
                 </Group>
                 {attached.status === 'error' ? (
                     <Text fz="xs" c="red" lh={1.4}>
-                        {attached.message ?? 'Couldn’t load this table.'}
+                        {attached.message ?? t('source.couldNotLoadTable')}
                     </Text>
                 ) : (
                     <Text fz="xs" c="dimmed" lh={1.5}>
-                        The first version picks its fields from {attached.label}{' '}
-                        and runs the query, up to {EXPLORE_PREVIEW_ROW_LIMIT}{' '}
-                        rows.
+                        {t('source.firstVersionPicks', {
+                            label: attached.label,
+                            limit: EXPLORE_PREVIEW_ROW_LIMIT,
+                        })}
                     </Text>
                 )}
             </Stack>
@@ -113,7 +116,7 @@ const ExploreSourceCard: FC<Props> = ({ source }) => {
                         }
                         onClick={source.retry}
                     >
-                        Try again
+                        {t('upgrade.tryAgain')}
                     </Button>
                 )}
                 <DataSourcePicker
@@ -135,12 +138,12 @@ const ExploreSourceCard: FC<Props> = ({ source }) => {
                         }
                         onClick={() => setPickerOpened((opened) => !opened)}
                     >
-                        Change
+                        {t('source.change')}
                     </Button>
                 </DataSourcePicker>
-                <Tooltip label="Use sample data instead">
+                <Tooltip label={t('source.useSampleData')}>
                     <CloseButton
-                        aria-label="Use sample data instead"
+                        aria-label={t('source.useSampleData')}
                         onClick={source.detach}
                     />
                 </Tooltip>

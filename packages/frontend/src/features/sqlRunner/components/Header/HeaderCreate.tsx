@@ -18,6 +18,7 @@ import {
     IconTableAlias,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { cartesianChartSelectors } from '../../../../components/DataViz/store/selectors';
 import { useGitIntegration } from '../../../../hooks/gitIntegration/useGitIntegration';
@@ -54,6 +55,7 @@ const virtualViewAnchor = {
 };
 
 export const HeaderCreate: FC = () => {
+    const { t } = useTranslation('sqlRunner');
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const { data: project } = useProject(projectUuid);
 
@@ -100,25 +102,19 @@ export const HeaderCreate: FC = () => {
 
     const [writeBackDisabledMessage, writeBackOpenUrl] = useMemo(() => {
         if (!canWriteBackToDbt) {
-            return [
-                "You don't have permission to write back to dbt in this project.",
-                undefined,
-            ];
+            return [t('header.writeBack.noPermission'), undefined];
         }
         if (
             project?.dbtConnection.type === DbtProjectType.GITHUB &&
             project.dbtConnection.semanticLayer === 'lightdash'
         ) {
-            return [
-                'SQL Runner model creation is only supported for dbt projects.',
-                undefined,
-            ];
+            return [t('header.writeBack.onlyDbtProjects'), undefined];
         }
         if (project?.dbtConnection.type === DbtProjectType.BITBUCKET) {
             return isBitbucketCloudConnection(project.dbtConnection)
                 ? [undefined, undefined]
                 : [
-                      'SQL writeback supports Bitbucket Cloud only. Update the project connection.',
+                      t('header.writeBack.bitbucketCloudOnly'),
                       `${health?.data?.siteUrl}/generalSettings/projectManagement/${projectUuid}/settings`,
                   ];
         }
@@ -131,25 +127,25 @@ export const HeaderCreate: FC = () => {
 
         if (!hasGithubIntegration) {
             return [
-                'Github integration is not enabled on this instance, click here to see more details ',
+                t('header.writeBack.githubNotEnabled'),
                 'https://docs.lightdash.com/self-host/customize-deployment/environment-variables#github-integration',
             ];
         }
         if (!hasGithubEnabled) {
             return [
-                `Github integration is not active on this organization, click here to open integrations page`,
+                t('header.writeBack.githubNotActive'),
                 `${health?.data?.siteUrl}/generalSettings/integrations`,
             ];
         }
         if (!hasGitProject) {
             return [
                 <Text key="writeBackDisabledMessage">
-                    This project{' '}
-                    <Text span fw={600}>
-                        {project?.name}
-                    </Text>{' '}
-                    is not connected to a GitHub, GitLab or Bitbucket Cloud
-                    repository, click here to open project settings page
+                    <Trans
+                        t={t}
+                        i18nKey="header.writeBack.notConnectedToRepo"
+                        values={{ projectName: project?.name }}
+                        components={{ project: <Text span fw={600} /> }}
+                    />
                 </Text>,
                 `${health?.data?.siteUrl}/generalSettings/projectManagement/${projectUuid}/settings`,
             ];
@@ -163,6 +159,7 @@ export const HeaderCreate: FC = () => {
         project?.dbtConnection,
         project?.name,
         projectUuid,
+        t,
     ]);
 
     const isCreateVirtualViewModalOpen = useAppSelector(
@@ -233,25 +230,30 @@ export const HeaderCreate: FC = () => {
         }
     }, [ctaAction, dispatch, hasErrors]);
 
-    const getCtaLabels = useCallback((action: CtaAction) => {
-        switch (action) {
-            case 'save':
-                return {
-                    label: 'Save chart',
-                    description: 'Save as an adhoc query',
-                };
-            case 'createVirtualView':
-                return {
-                    label: 'Create virtual view',
-                    description: 'Save as a reusable query',
-                };
-            case 'writeBackToDbt':
-                return {
-                    label: 'Write back to dbt',
-                    description: 'Save as a model in dbt',
-                };
-        }
-    }, []);
+    const getCtaLabels = useCallback(
+        (action: CtaAction) => {
+            switch (action) {
+                case 'save':
+                    return {
+                        label: t('header.cta.saveChart'),
+                        description: t('header.cta.saveChartDescription'),
+                    };
+                case 'createVirtualView':
+                    return {
+                        label: t('header.cta.createVirtualView'),
+                        description: t(
+                            'header.cta.createVirtualViewDescription',
+                        ),
+                    };
+                case 'writeBackToDbt':
+                    return {
+                        label: t('header.cta.writeBackToDbt'),
+                        description: t('header.cta.writeBackToDbtDescription'),
+                    };
+            }
+        },
+        [t],
+    );
 
     const getCtaIcon = useCallback((action: CtaAction) => {
         switch (action) {
@@ -271,8 +273,8 @@ export const HeaderCreate: FC = () => {
     const handleCreateShareUrl = useCallback(async () => {
         const fullUrl = await createShareUrl();
         clipboard.copy(fullUrl);
-        showToastSuccess({ title: 'Shared URL copied to clipboard!' });
-    }, [createShareUrl, clipboard, showToastSuccess]);
+        showToastSuccess({ title: t('header.shareUrlCopied') });
+    }, [createShareUrl, clipboard, showToastSuccess, t]);
 
     const isCtaDisabled =
         needsRun ||
@@ -307,10 +309,7 @@ export const HeaderCreate: FC = () => {
         <>
             <Group gap="xs" wrap="nowrap">
                 {hasAnyAction && (
-                    <Tooltip
-                        label="Run the query to save it"
-                        disabled={!needsRun}
-                    >
+                    <Tooltip label={t('header.runToSave')} disabled={!needsRun}>
                         <Button.Group>
                             <Button
                                 variant="default"
@@ -352,7 +351,7 @@ export const HeaderCreate: FC = () => {
 
                                 <Menu.Dropdown>
                                     <Tooltip
-                                        label="You don't have permission to save SQL charts in this project."
+                                        label={t('header.noSavePermission')}
                                         maw={400}
                                         position="top"
                                         disabled={canSaveChart}
@@ -395,7 +394,9 @@ export const HeaderCreate: FC = () => {
                                     </Tooltip>
 
                                     <Tooltip
-                                        label="You don't have permission to create virtual views in this project."
+                                        label={t(
+                                            'header.noVirtualViewPermission',
+                                        )}
                                         maw={400}
                                         position="top"
                                         disabled={canCreateVirtualView}
@@ -505,10 +506,10 @@ export const HeaderCreate: FC = () => {
                         </Button.Group>
                     </Tooltip>
                 )}
-                <Tooltip label="Copy link to this query">
+                <Tooltip label={t('header.copyLink')}>
                     <ActionIcon
                         variant="default"
-                        aria-label="Copy link to this query"
+                        aria-label={t('header.copyLink')}
                         onClick={handleCreateShareUrl}
                     >
                         <MantineIcon icon={IconLink} />

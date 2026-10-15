@@ -1,5 +1,6 @@
 import { FileInput } from '@mantine/core';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 type KeyFileContents = Record<string, string>;
 
@@ -14,6 +15,7 @@ export const BigQueryKeyFileInput = ({
     onKeyfileChange: (contents: KeyFileContents | null) => void;
     disabled?: boolean;
 }) => {
+    const { t } = useTranslation('projectConnection');
     const [error, setError] = useState<string | null>(null);
     const readerRef = useRef<FileReader | null>(null);
     useEffect(() => () => readerRef.current?.abort(), []);
@@ -36,7 +38,7 @@ export const BigQueryKeyFileInput = ({
                     !('type' in contents) ||
                     contents.type !== 'service_account'
                 ) {
-                    setError('Use a service account key file.');
+                    setError(t('bigQueryKeyFile.notServiceAccount'));
                     return;
                 }
                 if (
@@ -44,22 +46,22 @@ export const BigQueryKeyFileInput = ({
                         (item) => typeof item === 'string',
                     )
                 ) {
-                    setError('Use a valid service account key file.');
+                    setError(t('bigQueryKeyFile.invalidServiceAccount'));
                     return;
                 }
                 onKeyfileChange(contents as KeyFileContents);
             } catch {
-                setError('Use a valid JSON key file.');
+                setError(t('bigQueryKeyFile.invalidJson'));
             }
         };
-        reader.onerror = () => setError('Could not read the key file.');
+        reader.onerror = () => setError(t('bigQueryKeyFile.readFailed'));
         reader.readAsText(file);
     };
 
     return (
         <FileInput
-            label="Service account key file"
-            placeholder="Select a JSON key file"
+            label={t('bigQueryKeyFile.label')}
+            placeholder={t('bigQueryKeyFile.placeholder')}
             accept="application/json,.json"
             value={value}
             onChange={readFile}

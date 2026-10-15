@@ -1,10 +1,10 @@
 import { ProjectMemberRole } from '@lightdash/common';
-import { reasonLabel, RESOLUTION_STEPS } from './resolution';
+import { getResolutionSteps, reasonLabel } from './resolution';
 
 const groupNames = new Map([['group-1', 'Finance']]);
 
 it('labels the last resolution tier as the project default', () => {
-    expect(RESOLUTION_STEPS).toEqual([
+    expect(getResolutionSteps()).toEqual([
         'Group priority',
         'Role',
         'Project default',

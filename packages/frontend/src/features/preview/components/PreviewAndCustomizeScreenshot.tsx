@@ -17,6 +17,7 @@ import {
     IconEyeClosed,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { CUSTOM_WIDTH_OPTIONS } from '../../scheduler/constants';
 import classes from './PreviewAndCustomizeScreenshot.module.css';
@@ -44,6 +45,7 @@ export const PreviewAndCustomizeScreenshot: FC<
     currentPreview,
     disabled = false,
 }) => {
+    const { t } = useTranslation('app');
     const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
     return (
@@ -54,7 +56,7 @@ export const PreviewAndCustomizeScreenshot: FC<
                 <Flex align="flex-start" justify="space-between">
                     <Radio.Group
                         name="customWidth"
-                        label="Custom width configuration"
+                        label={t('previewScreenshot.customWidth')}
                         defaultValue=""
                         onChange={(value) => {
                             setPreviewChoice(value);
@@ -66,7 +68,10 @@ export const PreviewAndCustomizeScreenshot: FC<
                                 containerWidth
                                     ? [
                                           {
-                                              label: `Current view (${containerWidth}px)`,
+                                              label: t(
+                                                  'previewScreenshot.currentView',
+                                                  { width: containerWidth },
+                                              ),
                                               value: containerWidth.toString(),
                                           },
                                       ]
@@ -113,7 +118,9 @@ export const PreviewAndCustomizeScreenshot: FC<
                                             icon={IconEyeClosed}
                                             size={30}
                                         />
-                                        <Text>No preview yet</Text>
+                                        <Text>
+                                            {t('previewScreenshot.noPreview')}
+                                        </Text>
                                     </Flex>
                                 )}
                                 {currentPreview && (
@@ -148,7 +155,7 @@ export const PreviewAndCustomizeScreenshot: FC<
                                 }
                             }}
                         >
-                            Generate preview
+                            {t('previewScreenshot.generate')}
                         </Button>
                     </Stack>
                 </Flex>

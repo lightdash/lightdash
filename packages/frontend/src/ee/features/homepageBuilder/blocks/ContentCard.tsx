@@ -7,6 +7,7 @@ import {
 import { ActionIcon, Box, Group, Text, Tooltip } from '@mantine/core';
 import { IconCircleCheckFilled, IconEye, IconX } from '@tabler/icons-react';
 import { type FC, type PropsWithChildren } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { FavoriteActionIcon } from '../../../../components/common/FavoriteActionIcon';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -34,27 +35,31 @@ type Props = {
     tourAnchor?: string;
 };
 
-const VerifiedBadge: FC<{ content: SummaryContent }> = ({ content }) =>
-    content.verification ? (
-        <Tooltip label="Verified by the data team">
+const VerifiedBadge: FC<{ content: SummaryContent }> = ({ content }) => {
+    const { t } = useTranslation('homepageBuilder');
+    return content.verification ? (
+        <Tooltip label={t('contentCard.verified')}>
             <Box component="span" lh={0} c="green.6">
                 <MantineIcon icon={IconCircleCheckFilled} size={15} />
             </Box>
         </Tooltip>
     ) : null;
+};
 
 const TileUpdated: FC<{ date: Date | string }> = ({ date }) => {
+    const { t } = useTranslation('homepageBuilder');
     const timeAgo = useTimeAgo(date, 60000);
-    return <>updated {timeAgo}</>;
+    return <>{t('contentCard.updated', { timeAgo })}</>;
 };
 
 const TileExtra: FC<{ content: SummaryContent }> = ({ content }) => {
+    const { t } = useTranslation('homepageBuilder');
     const spaceName =
         'space' in content && content.space ? content.space.name : null;
     if (!spaceName && !content.lastUpdatedAt) return null;
     return (
         <Box className={classes.tileExtra}>
-            {spaceName ? `in ${spaceName}` : null}
+            {spaceName ? t('contentCard.inSpace', { space: spaceName }) : null}
             {spaceName && content.lastUpdatedAt ? ' · ' : null}
             {content.lastUpdatedAt ? (
                 <TileUpdated date={content.lastUpdatedAt} />
@@ -63,12 +68,12 @@ const TileExtra: FC<{ content: SummaryContent }> = ({ content }) => {
     );
 };
 
-const CONTENT_KIND_LABEL: Record<SummaryContent['contentType'], string> = {
-    [ContentType.CHART]: 'Chart',
-    [ContentType.DASHBOARD]: 'Dashboard',
-    [ContentType.SPACE]: 'Space',
-    [ContentType.DATA_APP]: 'Data app',
-    [ContentType.DOCUMENT]: 'Document',
+const CONTENT_KIND_LABEL_KEYS: Record<SummaryContent['contentType'], string> = {
+    [ContentType.CHART]: 'contentCard.kinds.chart',
+    [ContentType.DASHBOARD]: 'contentCard.kinds.dashboard',
+    [ContentType.SPACE]: 'contentCard.kinds.space',
+    [ContentType.DATA_APP]: 'contentCard.kinds.dataApp',
+    [ContentType.DOCUMENT]: 'contentCard.kinds.document',
 };
 
 const ViewsCount: FC<{ content: SummaryContent; projectUuid: string }> = ({
@@ -104,21 +109,24 @@ const ViewsCount: FC<{ content: SummaryContent; projectUuid: string }> = ({
 const KindAndViews: FC<{ content: SummaryContent; projectUuid: string }> = ({
     content,
     projectUuid,
-}) => (
-    <Group gap={5} wrap="nowrap" className={classes.rowMeta}>
-        <Text size="xs" c="dimmed" span>
-            {CONTENT_KIND_LABEL[content.contentType]}
-        </Text>
-        {content.contentType !== ContentType.DOCUMENT && (
-            <>
-                <Text size="xs" c="dimmed" span>
-                    ·
-                </Text>
-                <ViewsCount content={content} projectUuid={projectUuid} />
-            </>
-        )}
-    </Group>
-);
+}) => {
+    const { t } = useTranslation('homepageBuilder');
+    return (
+        <Group gap={5} wrap="nowrap" className={classes.rowMeta}>
+            <Text size="xs" c="dimmed" span>
+                {t(CONTENT_KIND_LABEL_KEYS[content.contentType])}
+            </Text>
+            {content.contentType !== ContentType.DOCUMENT && (
+                <>
+                    <Text size="xs" c="dimmed" span>
+                        ·
+                    </Text>
+                    <ViewsCount content={content} projectUuid={projectUuid} />
+                </>
+            )}
+        </Group>
+    );
+};
 
 const ContentTitle: FC<Pick<Props, 'content' | 'star'>> = ({
     content,
@@ -149,22 +157,27 @@ const ContentTitle: FC<Pick<Props, 'content' | 'star'>> = ({
 const CardActions: FC<Pick<Props, 'content' | 'onRemove'>> = ({
     content,
     onRemove,
-}) => (
-    <>
-        {onRemove && (
-            <ActionIcon
-                size="sm"
-                aria-label={`Remove ${content.name} from collection`}
-                onClick={(e) => {
-                    e.preventDefault();
-                    onRemove();
-                }}
-            >
-                <MantineIcon icon={IconX} />
-            </ActionIcon>
-        )}
-    </>
-);
+}) => {
+    const { t } = useTranslation('homepageBuilder');
+    return (
+        <>
+            {onRemove && (
+                <ActionIcon
+                    size="sm"
+                    aria-label={t('contentCard.removeFromCollection', {
+                        name: content.name,
+                    })}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        onRemove();
+                    }}
+                >
+                    <MantineIcon icon={IconX} />
+                </ActionIcon>
+            )}
+        </>
+    );
+};
 
 const MaybeLink: FC<
     PropsWithChildren<{

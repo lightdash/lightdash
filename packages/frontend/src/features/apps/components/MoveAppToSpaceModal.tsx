@@ -6,6 +6,7 @@ import {
 import { Box, Checkbox, Tooltip } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import TransferItemsModal from '../../../components/common/TransferItemsModal/TransferItemsModal';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useContentAction } from '../../../hooks/useContent';
@@ -84,6 +85,7 @@ export const MoveAppToSpaceModal: FC<Props> = ({
     previewVersion,
 }) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('apps');
     const { showToastWarning } = useToaster();
     const { mutateAsync: contentAction, isLoading: isMovingToSpace } =
         useContentAction(projectUuid);
@@ -163,9 +165,7 @@ export const MoveAppToSpaceModal: FC<Props> = ({
         }
         const capture = previewRef.current?.captureScreenshot;
         if (!screenshotAvailableRef.current || !capture) {
-            throw new Error(
-                "This app version doesn't support screenshot capture — iterate on it once to update it",
-            );
+            throw new Error(t('moveToSpace.screenshotUnsupported'));
         }
         return capture();
     };
@@ -195,8 +195,11 @@ export const MoveAppToSpaceModal: FC<Props> = ({
             if (closedRef.current) return;
             // The move is the primary action — a failed capture only warns.
             showToastWarning({
-                title: 'Thumbnail not captured',
-                subtitle: err instanceof Error ? err.message : 'Unknown error',
+                title: t('moveToSpace.thumbnailNotCaptured'),
+                subtitle:
+                    err instanceof Error
+                        ? err.message
+                        : t('common.unknownError'),
             });
         } finally {
             setIsCapturing(false);
@@ -204,10 +207,10 @@ export const MoveAppToSpaceModal: FC<Props> = ({
     };
 
     const checkboxTooltip = !hasReadyVersion
-        ? 'The app needs a finished build before a thumbnail can be captured.'
+        ? t('moveToSpace.tooltip.needsBuild')
         : hasThumbnail
-          ? 'Capture a fresh screenshot of the app and replace its current thumbnail as part of the move.'
-          : 'Capture a screenshot of the app and save it as its thumbnail as part of the move.';
+          ? t('moveToSpace.tooltip.replace')
+          : t('moveToSpace.tooltip.include');
 
     return (
         <>
@@ -252,8 +255,8 @@ export const MoveAppToSpaceModal: FC<Props> = ({
                                 }
                                 label={
                                     hasThumbnail
-                                        ? 'Replace app thumbnail'
-                                        : 'Include app thumbnail'
+                                        ? t('moveToSpace.replaceThumbnail')
+                                        : t('moveToSpace.includeThumbnail')
                                 }
                             />
                         </Box>

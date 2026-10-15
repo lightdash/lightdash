@@ -1,4 +1,5 @@
 import { type FilterFacetOption } from '../../../../../components/common/FilterFacet';
+import i18n from '../../../../../i18n/i18n';
 
 // Sentinel facet value for items with no assignee.
 export const UNASSIGNED_FILTER_VALUE = '__unassigned__';
@@ -45,7 +46,9 @@ export const buildAssigneeFacetOptions = ({
 
     const nameFor = (uuid: string): string => {
         const user = usersByUuid.get(uuid);
-        return user ? displayName(user) : 'Unknown user';
+        return user
+            ? displayName(user)
+            : i18n.t('reviews.assignee.unknownUser', { ns: 'aiCopilotAdmin' });
     };
 
     const options: FilterFacetOption[] = Array.from(counts.entries())
@@ -62,14 +65,18 @@ export const buildAssigneeFacetOptions = ({
         })
         .map(({ uuid, count, name, isCurrentUser }) => ({
             value: uuid,
-            label: isCurrentUser ? `${name} (you)` : name,
+            label: isCurrentUser
+                ? i18n.t('reviews.assignee.you', { ns: 'aiCopilotAdmin', name })
+                : name,
             count,
         }));
 
     if (unassigned > 0) {
         options.push({
             value: UNASSIGNED_FILTER_VALUE,
-            label: 'Unassigned',
+            label: i18n.t('reviews.assignee.unassigned', {
+                ns: 'aiCopilotAdmin',
+            }),
             count: unassigned,
         });
     }

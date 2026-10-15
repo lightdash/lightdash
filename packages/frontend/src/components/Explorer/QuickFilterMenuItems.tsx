@@ -8,6 +8,7 @@ import {
 import { Group, Menu, Text } from '@mantine/core';
 import { IconFilter, IconFilterX } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useFilters } from '../../hooks/useFilters';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
@@ -34,6 +35,7 @@ type Props = {
  * visualization is in edit mode with an explorer store available.
  */
 const QuickFilterMenuItems: FC<Props> = ({ item, value, onAddFilter }) => {
+    const { t } = useTranslation('explorer');
     const { addFilter: defaultAddFilter } = useFilters();
     const { resolvedTimezone } = useMetricQueryDataContext();
     const { track } = useTracking();
@@ -65,12 +67,12 @@ const QuickFilterMenuItems: FC<Props> = ({ item, value, onAddFilter }) => {
             {(
                 [
                     {
-                        label: 'Show only',
+                        label: t('quickFilter.showOnly'),
                         icon: IconFilter,
                         operator: FilterOperator.EQUALS,
                     },
                     {
-                        label: 'Exclude',
+                        label: t('quickFilter.exclude'),
                         icon: IconFilterX,
                         operator: FilterOperator.NOT_EQUALS,
                     },

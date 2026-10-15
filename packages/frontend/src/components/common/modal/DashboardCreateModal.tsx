@@ -11,6 +11,7 @@ import {
 import { useForm } from '@mantine/form';
 import { IconLayoutDashboard, IconPlus } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
 import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
 import { useModalSteps } from '../../../hooks/useModalSteps';
@@ -42,6 +43,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
     onClose,
     ...modalProps
 }) => {
+    const { t } = useTranslation('modals');
     const authoringEnabled = useContentAuthoringEnabled();
     const { user } = useApp();
     const { mutateAsync: createDashboard, isLoading: isCreatingDashboard } =
@@ -188,7 +190,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
         <MantineBaseProvider>
             <MantineModal
                 {...modalProps}
-                title="Create Dashboard"
+                title={t('dashboardCreate.title')}
                 icon={IconLayoutDashboard}
                 onClose={() => handleClose()}
                 modalRootProps={{ keepMounted: false }}
@@ -200,7 +202,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                             leftSection={<MantineIcon icon={IconPlus} />}
                             onClick={openCreateSpaceForm}
                         >
-                            New Space
+                            {t('newSpace')}
                         </Button>
                     ) : null
                 }
@@ -213,12 +215,12 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                             data-tour-anchor="dashboard-create-next"
                             data-tour-hint="Click Next"
                         >
-                            Next
+                            {t('actions.next', { ns: 'common' })}
                         </Button>
                     ) : (
                         <>
                             <Button variant="default" onClick={handleBack}>
-                                Back
+                                {t('actions.back', { ns: 'common' })}
                             </Button>
                             <Button
                                 disabled={!isFormReadyToSave}
@@ -228,7 +230,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                                 data-tour-anchor="dashboard-create-submit"
                                 data-tour-hint="Click Create"
                             >
-                                Create
+                                {t('actions.create', { ns: 'common' })}
                             </Button>
                         </>
                     )
@@ -237,14 +239,16 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                 <LoadingOverlay visible={isLoading} />
                 <form
                     id="dashboard-create-modal"
-                    title="Create Dashboard"
+                    title={t('dashboardCreate.title')}
                     onSubmit={form.onSubmit((values) => handleConfirm(values))}
                 >
                     {modalSteps.currentStep === ModalStep.InitialInfo && (
                         <Stack>
                             <TextInput
-                                label="Name your dashboard"
-                                placeholder="eg. KPI Dashboard"
+                                label={t('dashboardCreate.nameLabel')}
+                                placeholder={t(
+                                    'dashboardCreate.namePlaceholder',
+                                )}
                                 disabled={isCreatingDashboard}
                                 required
                                 // Walkthrough: a typed step; the card offers
@@ -256,8 +260,8 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                                 {...form.getInputProps('dashboardName')}
                             />
                             <Textarea
-                                label="Dashboard description"
-                                placeholder="A few words to give your team some context"
+                                label={t('dashboardCreate.descriptionLabel')}
+                                placeholder={t('descriptionPlaceholder')}
                                 disabled={isCreatingDashboard}
                                 autosize
                                 maxRows={3}

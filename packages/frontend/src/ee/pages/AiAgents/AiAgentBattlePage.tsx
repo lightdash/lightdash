@@ -1,6 +1,7 @@
 import type { AiAgentBattleProfile } from '@lightdash/common';
 import { Box, Center, Divider, Flex, Loader, Stack } from '@mantine/core';
 import { useCallback, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useOutletContext, useParams } from 'react-router';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { BattleMessageContext } from '../../features/aiCopilot/components/Battle/BattleMessageContext';
@@ -35,6 +36,7 @@ type BattleMessageInput = Parameters<
 >[0];
 
 const AiAgentBattlePage: FC = () => {
+    const { t } = useTranslation('eeMisc');
     const { agentUuid, threadUuidA, threadUuidB } = useParams();
     const projectUuid = useProjectUuid();
     const { agent } = useOutletContext<AgentContext>();
@@ -174,8 +176,8 @@ const AiAgentBattlePage: FC = () => {
                     onSubmit={handleSubmit}
                     placeholder={
                         queuedCount > 0
-                            ? `${queuedCount} queued, keep asking...`
-                            : 'Ask both sides a follow-up...'
+                            ? t('agents.battle.queued', { count: queuedCount })
+                            : t('agents.battle.followUp')
                     }
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}

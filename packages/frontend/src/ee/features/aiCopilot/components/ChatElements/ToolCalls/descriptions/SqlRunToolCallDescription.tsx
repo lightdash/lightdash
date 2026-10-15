@@ -2,6 +2,7 @@ import { Group, Stack, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconTerminal2 } from '@tabler/icons-react';
 import type { FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AiSqlModal } from '../../AiSqlModal';
 import {
     SqlApprovalActions,
@@ -24,24 +25,24 @@ export const SqlRunToolCallDescription: FC<SqlRunToolCallDescriptionProps> = ({
     limit,
     approval,
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const autoApprove = useSqlAutoApprove(approval?.threadUuid ?? null);
     const [expanded, { open, close }] = useDisclosure(false);
-    const limitLabel = limit ? `Row limit: ${limit}` : null;
+    const limitLabel = limit ? t('sqlRun.rowLimit', { limit }) : null;
     const review: SqlApprovalReview = approval
         ? {
               opened: expanded,
               onClose: close,
               sql,
-              title: 'Run SQL',
+              title: t('sqlRun.runSql'),
               icon: IconTerminal2,
-              subtitle:
-                  limitLabel ?? 'Review the query, then approve to execute',
+              subtitle: limitLabel ?? t('sqlRun.reviewPrompt'),
           }
         : {
               opened: expanded,
               onClose: close,
               sql,
-              title: 'SQL query',
+              title: t('sqlRun.sqlQuery'),
               icon: IconTerminal2,
               subtitle: limitLabel,
           };

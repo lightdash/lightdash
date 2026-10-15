@@ -5,6 +5,7 @@ import type {
 import { Box, Button, Group, Menu, Text, UnstyledButton } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useUpdateAiAgentMemoryStatus } from '../../hooks/useAiAgentMemory';
 import { MEMORY_STATUS_LABELS } from '../Admin/memoryStatus';
 import styles from './MemoryDetails.module.css';
@@ -28,6 +29,7 @@ export const MemoryStatusMenu: FC<Props> = ({
     slug,
     status,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const updateStatus = useUpdateAiAgentMemoryStatus();
 
     if (!isEditableStatus(status)) {
@@ -46,7 +48,7 @@ export const MemoryStatusMenu: FC<Props> = ({
             <Menu.Target>
                 <UnstyledButton
                     className={styles.statusTrigger}
-                    aria-label="Change memory status"
+                    aria-label={t('memory.changeStatus')}
                     onClick={(event) => event.stopPropagation()}
                     onPointerDown={(event) => event.stopPropagation()}
                 >
@@ -95,12 +97,14 @@ export const MemoryStatusAction: FC<Props> = ({
     slug,
     status,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const updateStatus = useUpdateAiAgentMemoryStatus();
 
     if (!isEditableStatus(status)) return null;
 
     const nextStatus = status === 'active' ? 'retired' : 'active';
-    const label = status === 'active' ? 'Retire memory' : 'Reactivate memory';
+    const label =
+        status === 'active' ? t('memory.retire') : t('memory.reactivate');
 
     return (
         <Button

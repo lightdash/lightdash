@@ -20,8 +20,10 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import { Box, Checkbox, Group, Stack, Select, Switch } from '@mantine/core';
-import React, { useCallback, type FC } from 'react';
+import { type TFunction } from 'i18next';
+import React, { useCallback, useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { usePortalTarget } from '../../../../providers/PortalTarget/usePortalTarget';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
@@ -35,23 +37,23 @@ import {
 import drawOrderStyles from './seriesDrawOrder.module.css';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
 
-const VALUE_LABELS_OPTIONS = [
-    { value: 'hidden', label: 'Hidden' },
-    { value: 'top', label: 'Top' },
-    { value: 'bottom', label: 'Bottom' },
-    { value: 'left', label: 'Left' },
-    { value: 'right', label: 'Right' },
-    { value: 'inside', label: 'Inside' },
+const getValueLabelsOptions = (t: TFunction) => [
+    { value: 'hidden', label: t('series.position.hidden') },
+    { value: 'top', label: t('series.position.top') },
+    { value: 'bottom', label: t('series.position.bottom') },
+    { value: 'left', label: t('series.position.left') },
+    { value: 'right', label: t('series.position.right') },
+    { value: 'inside', label: t('series.position.inside') },
 ];
 
-const AXIS_OPTIONS = [
-    { value: '0', label: 'Left' },
-    { value: '1', label: 'Right' },
+const getAxisOptions = (t: TFunction) => [
+    { value: '0', label: t('series.position.left') },
+    { value: '1', label: t('series.position.right') },
 ];
 
-const FLIPPED_AXIS_OPTIONS = [
-    { value: '0', label: 'Bottom' },
-    { value: '1', label: 'Top' },
+const getFlippedAxisOptions = (t: TFunction) => [
+    { value: '0', label: t('series.position.bottom') },
+    { value: '1', label: t('series.position.top') },
 ];
 
 const getFormatterValue = (
@@ -105,7 +107,11 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     updateSeries,
     series,
 }) => {
+    const { t } = useTranslation('vizConfig');
     const { resolvedTimezone } = useVisualizationContext();
+    const VALUE_LABELS_OPTIONS = useMemo(() => getValueLabelsOptions(t), [t]);
+    const AXIS_OPTIONS = useMemo(() => getAxisOptions(t), [t]);
+    const FLIPPED_AXIS_OPTIONS = useMemo(() => getFlippedAxisOptions(t), [t]);
 
     const [openSeriesId, setOpenSeriesId] = React.useState<
         string | undefined
@@ -169,11 +175,13 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                     <GrabIcon
                         dragHandleProps={dragHandleProps}
                         disabled={isDragDisabled}
-                        disabledTooltip="Series order is automatically determined by the sort applied to the grouped dimension"
+                        disabledTooltip={t('series.orderDeterminedBySort')}
                     />
 
                     <Config.Heading>
-                        {getItemLabelWithoutTableName(item)} (grouped)
+                        {t('series.grouped', {
+                            label: getItemLabelWithoutTableName(item),
+                        })}
                     </Config.Heading>
                     {drawOrder && <SeriesDepthControl control={drawOrder} />}
                 </Group>
@@ -199,7 +207,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
 
                         <Select
                             allowDeselect={false}
-                            label="Axis"
+                            label={t('series.axis')}
                             value={
                                 isAxisTheSameForAllSeries
                                     ? String(seriesGroup[0].yAxisIndex)
@@ -216,7 +224,9 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                               : AXIS_OPTIONS),
                                           {
                                               value: 'mixed',
-                                              label: 'Mixed',
+                                              label: t(
+                                                  'series.chartType.mixed',
+                                              ),
                                           },
                                       ]
                             }
@@ -228,7 +238,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                         />
                         <Select
                             allowDeselect={false}
-                            label="Value labels"
+                            label={t('series.valueLabels')}
                             value={
                                 isLabelTheSameForAllSeries
                                     ? seriesGroup[0].label?.position || 'hidden'
@@ -241,7 +251,9 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                           ...VALUE_LABELS_OPTIONS,
                                           {
                                               value: 'mixed',
-                                              label: 'Mixed',
+                                              label: t(
+                                                  'series.chartType.mixed',
+                                              ),
                                           },
                                       ]
                             }
@@ -264,7 +276,9 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                         {seriesGroup[0].stack &&
                             chartValue === CartesianSeriesType.BAR && (
                                 <Stack gap="xs" mt="two">
-                                    <Config.Label>Total</Config.Label>
+                                    <Config.Label>
+                                        {t('series.total')}
+                                    </Config.Label>
                                     <Switch
                                         size="xs"
                                         checked={
@@ -288,7 +302,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                             <Checkbox
                                 size="xs"
                                 checked={Boolean(seriesGroup[0].showSymbol)}
-                                label="Show symbol"
+                                label={t('series.showSymbol')}
                                 onChange={() => {
                                     updateAllGroupedSeries(fieldKey, {
                                         showSymbol: !Boolean(
@@ -300,7 +314,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                             <Checkbox
                                 size="xs"
                                 checked={seriesGroup[0].smooth}
-                                label="Smooth"
+                                label={t('series.smooth')}
                                 onChange={() => {
                                     updateAllGroupedSeries(fieldKey, {
                                         smooth: !(

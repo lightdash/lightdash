@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { Box, Group, Paper, Stack, Text } from '@mantine/core';
 import { useEffect, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 // TODO: re-enable browser chrome + nav header preview
 // import { IconSearch } from '@tabler/icons-react';
 // import MantineIcon from '../../common/MantineIcon';
@@ -123,6 +124,7 @@ export const BrandPreview: FC<BrandPreviewProps> = ({
     bodyFont,
     paletteColors,
 }) => {
+    const { t } = useTranslation('userSettings');
     const primary = pickPrimaryColor(colors);
     // TODO: re-enable browser chrome + nav header preview
     // const navLogo = pickNavLogo(logos);
@@ -203,10 +205,10 @@ export const BrandPreview: FC<BrandPreviewProps> = ({
                             ff={titleFamily}
                             className={classes.title}
                         >
-                            Revenue overview
+                            {t('appearanceSettingsPanel.brandPreview.title')}
                         </Text>
                         <Text size="xs" c="dimmed" ff={bodyFamily}>
-                            Performance across every channel this quarter.
+                            {t('appearanceSettingsPanel.brandPreview.subtitle')}
                         </Text>
                     </Stack>
                     {/* TODO: re-enable "+ New chart" button preview
@@ -221,18 +223,25 @@ export const BrandPreview: FC<BrandPreviewProps> = ({
                 <Group gap="sm" grow align="stretch" wrap="nowrap">
                     <Paper radius="md" className={classes.card}>
                         <Text size="xs" c="dimmed" ff={bodyFamily}>
-                            Total revenue
+                            {t(
+                                'appearanceSettingsPanel.brandPreview.totalRevenue',
+                            )}
                         </Text>
                         <Text fw={600} fz={24} ff={titleFamily}>
                             $1.24M
                         </Text>
                         <Text size="xs" c="teal" ff={bodyFamily}>
-                            +12.8% vs last quarter
+                            {t(
+                                'appearanceSettingsPanel.brandPreview.vsLastQuarter',
+                                { change: '+12.8%' },
+                            )}
                         </Text>
                     </Paper>
                     <Paper radius="md" className={classes.card}>
                         <Text size="xs" c="dimmed" mb={6} ff={bodyFamily}>
-                            Weekly trend
+                            {t(
+                                'appearanceSettingsPanel.brandPreview.weeklyTrend',
+                            )}
                         </Text>
                         <svg viewBox="0 0 300 60" width="100%" height="52">
                             <path
@@ -250,7 +259,9 @@ export const BrandPreview: FC<BrandPreviewProps> = ({
                 <Group gap="sm" grow align="stretch" wrap="nowrap">
                     <Paper radius="md" className={classes.card}>
                         <Text size="xs" c="dimmed" mb="xs" ff={bodyFamily}>
-                            Revenue by channel
+                            {t(
+                                'appearanceSettingsPanel.brandPreview.revenueByChannel',
+                            )}
                         </Text>
                         <Box className={classes.barsRow}>
                             {BAR_VALUES.map((value, index) => (
@@ -265,7 +276,9 @@ export const BrandPreview: FC<BrandPreviewProps> = ({
                     </Paper>
                     <Paper radius="md" className={classes.card}>
                         <Text size="xs" c="dimmed" mb="xs" ff={bodyFamily}>
-                            Revenue share
+                            {t(
+                                'appearanceSettingsPanel.brandPreview.revenueShare',
+                            )}
                         </Text>
                         <svg viewBox="0 0 100 100" width="100%" height={90}>
                             {pieSlicePaths(PIE_VALUES, 50, 50, 46).map(

@@ -17,6 +17,7 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconAppWindow, IconSearch } from '@tabler/icons-react';
 import { useMemo, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { ResourceIcon } from '../../../../components/common/ResourceIcon';
@@ -44,26 +45,29 @@ const AppRow: FC<{
     checked: boolean;
     alreadyAdded: boolean;
     onToggle: () => void;
-}> = ({ content, checked, alreadyAdded, onToggle }) => (
-    <Group
-        gap="sm"
-        wrap="nowrap"
-        className={classes.pickerRow}
-        onClick={alreadyAdded ? undefined : onToggle}
-        data-disabled={alreadyAdded || undefined}
-    >
-        <Checkbox size="xs" checked={checked || alreadyAdded} readOnly />
-        <ResourceIcon item={contentToResourceViewItem(content)} />
-        <Text size="sm" truncate flex={1}>
-            {content.name}
-        </Text>
-        {alreadyAdded && (
-            <Text size="xs" c="dimmed">
-                Added
+}> = ({ content, checked, alreadyAdded, onToggle }) => {
+    const { t } = useTranslation('homepageBuilder');
+    return (
+        <Group
+            gap="sm"
+            wrap="nowrap"
+            className={classes.pickerRow}
+            onClick={alreadyAdded ? undefined : onToggle}
+            data-disabled={alreadyAdded || undefined}
+        >
+            <Checkbox size="xs" checked={checked || alreadyAdded} readOnly />
+            <ResourceIcon item={contentToResourceViewItem(content)} />
+            <Text size="sm" truncate flex={1}>
+                {content.name}
             </Text>
-        )}
-    </Group>
-);
+            {alreadyAdded && (
+                <Text size="xs" c="dimmed">
+                    {t('dataAppPicker.added')}
+                </Text>
+            )}
+        </Group>
+    );
+};
 
 const DataAppPicker: FC<{
     projectUuid: string;
@@ -73,6 +77,7 @@ const DataAppPicker: FC<{
      * selection — the footer lives in MantineModal, outside this component. */
     registerApply: (commit: () => void) => void;
 }> = ({ projectUuid, existingAppUuids, onApply, registerApply }) => {
+    const { t } = useTranslation('homepageBuilder');
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const [selected, setSelected] = useState<Map<string, SummaryContent>>(
@@ -127,7 +132,7 @@ const DataAppPicker: FC<{
         <Stack gap="sm">
             <TextInput
                 size="xs"
-                placeholder="Search data apps..."
+                placeholder={t('dataAppPicker.search')}
                 leftSection={<MantineIcon icon={IconSearch} size={14} />}
                 value={search}
                 onChange={(e) => setSearch(e.currentTarget.value)}
@@ -140,7 +145,7 @@ const DataAppPicker: FC<{
                     </Group>
                 ) : apps.length === 0 ? (
                     <Text size="sm" c="dimmed" p="sm">
-                        No data apps found.
+                        {t('dataAppPicker.empty')}
                     </Text>
                 ) : (
                     <Stack gap={2}>
@@ -161,7 +166,7 @@ const DataAppPicker: FC<{
                                 loading={isFetchingNextPage}
                                 onClick={() => void fetchNextPage()}
                             >
-                                Load more
+                                {t('dataAppPicker.loadMore')}
                             </Button>
                         )}
                     </Stack>
@@ -178,6 +183,7 @@ export const DataAppPickerModal: FC<{
     existingAppUuids: string[];
     onAdd: (items: HomepageResourceItem[]) => void;
 }> = ({ opened, onClose, projectUuid, existingAppUuids, onAdd }) => {
+    const { t } = useTranslation('homepageBuilder');
     // The Add/Cancel footer is MantineModal's own — it lives outside the
     // remountable picker body, so the picker hands its commit fn up via ref.
     const applyRef = useRef<() => void>(() => {});
@@ -185,10 +191,10 @@ export const DataAppPickerModal: FC<{
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Add data apps"
+            title={t('dataAppPicker.title')}
             icon={IconAppWindow}
             size="lg"
-            confirmLabel="Add"
+            confirmLabel={t('actions.add', { ns: 'common' })}
             onConfirm={() => {
                 applyRef.current();
                 onClose();

@@ -41,6 +41,7 @@ import {
     type PropsWithChildren,
     type ReactNode,
 } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import { useLocalStorage } from 'react-use';
 import { LightdashUserAvatar } from '../../../../components/Avatar';
@@ -92,13 +93,14 @@ const RejectModal: FC<{
     onConfirm: (note: string) => Promise<void>;
     isLoading: boolean;
 }> = ({ opened, onClose, onConfirm, isLoading }) => {
+    const { t } = useTranslation('eeMisc');
     const [note, setNote] = useState('');
     const canConfirm = note.trim().length > 0;
     return (
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Reject request"
+            title={t('contentReview.reject.title')}
             icon={IconX}
             actions={
                 <Button
@@ -110,14 +112,14 @@ const RejectModal: FC<{
                         setNote('');
                     }}
                 >
-                    Reject
+                    {t('contentReview.reject.confirm')}
                 </Button>
             }
         >
             <Textarea
-                label="Tell the requester why"
-                description="They will see this note and can resubmit after changes"
-                placeholder="Duplicate of Orders in June in Jaffle shop, use that one instead"
+                label={t('contentReview.reject.noteLabel')}
+                description={t('contentReview.reject.noteDescription')}
+                placeholder={t('contentReview.reject.notePlaceholder')}
                 autosize
                 minRows={3}
                 value={note}
@@ -132,6 +134,7 @@ const DecisionCard: FC<{
     request: ContentReviewRequestDetail;
     projectUuid: string;
 }> = ({ request, projectUuid }) => {
+    const { t } = useTranslation('eeMisc');
     const [verify, setVerify] = useState(
         request.verifyByDefault && request.canVerify,
     );
@@ -141,51 +144,56 @@ const DecisionCard: FC<{
     const { mutateAsync: reject, isLoading: isRejecting } =
         useRejectContentReviewRequest(projectUuid);
     const itemCount = request.moveSet.length;
-    const target = request.targetSpaceName ?? 'the target space';
+    const target = request.targetSpaceName ?? t('contentReview.theTargetSpace');
     const noun = getContentTypeNoun(request.contentType);
-    const what = itemCount === 1 ? `this ${noun}` : `these ${itemCount} items`;
+    const what =
+        itemCount === 1
+            ? t('contentReview.decision.thisNoun', { noun })
+            : t('contentReview.decision.theseItems', { count: itemCount });
     const requester = request.requestedBy.firstName;
 
     return (
         <Paper p="md">
             <Stack gap="md">
                 <Stack gap={4}>
-                    <Title order={5}>Your decision</Title>
+                    <Title order={5}>{t('contentReview.decision.title')}</Title>
                     <Text fz="sm" c="dimmed">
-                        You have temporary access to {what} so you can check it.
-                        Open the {noun}, check the numbers and the name, then
-                        decide.
+                        {t('contentReview.decision.access', { what, noun })}
                     </Text>
                 </Stack>
                 <Stack gap={4}>
                     <Text fz="sm">
-                        <Text span fw={500}>
-                            Approve
-                        </Text>{' '}
-                        moves {what} into {target}, where everyone with access
-                        to that space can find it.
+                        <Trans
+                            t={t}
+                            i18nKey="contentReview.decision.approveExplain"
+                            values={{ what, target }}
+                            components={{ bold: <Text span fw={500} /> }}
+                        />
                     </Text>
                     <Text fz="sm">
-                        <Text span fw={500}>
-                            Reject
-                        </Text>{' '}
-                        keeps it in {requester}&apos;s personal space. They see
-                        your note and can ask again after changes.
+                        <Trans
+                            t={t}
+                            i18nKey="contentReview.decision.rejectExplain"
+                            values={{ requester }}
+                            components={{ bold: <Text span fw={500} /> }}
+                        />
                     </Text>
                 </Stack>
                 <Tooltip
                     label={
                         request.contentType ===
                         ContentReviewContentType.SQL_CHART
-                            ? 'SQL charts cannot be verified yet'
-                            : 'You need permission to verify content'
+                            ? t('contentReview.decision.sqlCannotVerify')
+                            : t('contentReview.decision.noVerifyPermission')
                     }
                     disabled={request.canVerify}
                     withArrow
                 >
                     <Checkbox
-                        label="Verify on approve"
-                        description="Adds a verified badge and ranks it first for Ask AI and search"
+                        label={t('contentReview.decision.verifyOnApprove')}
+                        description={t(
+                            'contentReview.decision.verifyOnApproveDescription',
+                        )}
                         checked={verify}
                         disabled={!request.canVerify}
                         onChange={(event) =>
@@ -204,7 +212,7 @@ const DecisionCard: FC<{
                             })
                         }
                     >
-                        Approve and move
+                        {t('contentReview.decision.approveAndMove')}
                     </Button>
                     <Button
                         variant="default"
@@ -212,7 +220,7 @@ const DecisionCard: FC<{
                         onClick={rejectHandlers.open}
                         disabled={isApproving}
                     >
-                        Reject
+                        {t('contentReview.reject.confirm')}
                     </Button>
                 </Group>
             </Stack>
@@ -236,18 +244,20 @@ const WaitingCard: FC<{
     request: ContentReviewRequestDetail;
     projectUuid: string;
 }> = ({ request, projectUuid }) => {
+    const { t } = useTranslation('eeMisc');
     const { mutate: cancel, isLoading: isCancelling } =
         useCancelContentReviewRequest(projectUuid);
     return (
         <Paper p="md">
             <Group justify="space-between" align="flex-start" wrap="nowrap">
                 <Stack gap={4}>
-                    <Title order={5}>Waiting for a reviewer</Title>
+                    <Title order={5}>{t('contentReview.waiting.title')}</Title>
                     <Text fz="sm" c="dimmed">
-                        Reviewers for{' '}
-                        {request.targetSpaceName ?? 'the target space'} were
-                        notified and will see your note. You can cancel the
-                        request at any time.
+                        {t('contentReview.waiting.description', {
+                            space:
+                                request.targetSpaceName ??
+                                t('contentReview.theTargetSpace'),
+                        })}
                     </Text>
                 </Stack>
                 <Button
@@ -256,7 +266,7 @@ const WaitingCard: FC<{
                     onClick={() => cancel(request.uuid)}
                     flex="0 0 auto"
                 >
-                    Cancel request
+                    {t('contentReview.cancelRequest')}
                 </Button>
             </Group>
         </Paper>
@@ -268,17 +278,24 @@ const MoveRoute: FC<{
     request: ContentReviewRequestDetail;
     isRequester: boolean;
 }> = ({ request, isRequester }) => {
+    const { t } = useTranslation('eeMisc');
     const owner = isRequester
-        ? 'your personal space'
-        : `${request.requestedBy.firstName}'s personal space`;
+        ? t('contentReview.route.yourSpace')
+        : t('contentReview.route.userSpace', {
+              name: request.requestedBy.firstName,
+          });
     const typeLabel = getContentTypeLabel(request.contentType);
-    const target = request.targetSpaceName ?? 'a deleted space';
+    const target =
+        request.targetSpaceName ?? t('contentReview.route.deletedSpace');
     switch (request.status) {
         case ContentReviewRequestStatus.PENDING:
             return (
                 <Group gap={6} wrap="nowrap">
                     <Text fz="sm" c="dimmed">
-                        {typeLabel} in {owner}
+                        {t('contentReview.route.typeIn', {
+                            type: typeLabel,
+                            owner,
+                        })}
                     </Text>
                     <MantineIcon
                         icon={IconArrowRight}
@@ -293,14 +310,21 @@ const MoveRoute: FC<{
         case ContentReviewRequestStatus.APPROVED:
             return (
                 <Text fz="sm" c="dimmed">
-                    {typeLabel} in {target}, moved from {owner}
+                    {t('contentReview.route.moved', {
+                        type: typeLabel,
+                        target,
+                        owner,
+                    })}
                 </Text>
             );
         case ContentReviewRequestStatus.REJECTED:
         case ContentReviewRequestStatus.CANCELLED:
             return (
                 <Text fz="sm" c="dimmed">
-                    {typeLabel} in {owner}, not moved
+                    {t('contentReview.route.notMoved', {
+                        type: typeLabel,
+                        owner,
+                    })}
                 </Text>
             );
         default:
@@ -313,6 +337,7 @@ const MoveRoute: FC<{
 
 // Shown once per user, the first time they land on a request they can review
 const FirstReviewCallout: FC<{ userUuid: string }> = ({ userUuid }) => {
+    const { t } = useTranslation('eeMisc');
     const [dismissed, setDismissed] = useLocalStorage(
         `content-review-first-review-dismissed-${userUuid}`,
         false,
@@ -322,13 +347,11 @@ const FirstReviewCallout: FC<{ userUuid: string }> = ({ userUuid }) => {
         <Callout
             variant="info"
             icon={<MantineIcon icon={IconEye} />}
-            title="You are reviewing a request"
+            title={t('contentReview.firstReview.title')}
             withCloseButton
             onClose={() => setDismissed(true)}
         >
-            Editors build charts and dashboards in their own space and ask to
-            move them into a shared space. You decide whether this one is ready
-            for everyone.
+            {t('contentReview.firstReview.description')}
         </Callout>
     );
 };
@@ -337,6 +360,7 @@ const FirstReviewCallout: FC<{ userUuid: string }> = ({ userUuid }) => {
 const RequesterNextStep: FC<{ request: ContentReviewRequestDetail }> = ({
     request,
 }) => {
+    const { t } = useTranslation('eeMisc');
     const noun = getContentTypeNoun(request.contentType);
     switch (request.status) {
         case ContentReviewRequestStatus.APPROVED:
@@ -344,13 +368,15 @@ const RequesterNextStep: FC<{ request: ContentReviewRequestDetail }> = ({
                 <Paper p="md">
                     <Stack gap={4}>
                         <Title order={5}>
-                            Your {noun} is live in{' '}
-                            {request.targetSpaceName ?? 'the shared space'}
+                            {t('contentReview.nextStep.liveTitle', {
+                                noun,
+                                space:
+                                    request.targetSpaceName ??
+                                    t('contentReview.nextStep.theSharedSpace'),
+                            })}
                         </Title>
                         <Text fz="sm" c="dimmed">
-                            Everyone with access to that space can find it now.
-                            Edits from here on follow that space&apos;s
-                            permissions.
+                            {t('contentReview.nextStep.liveDescription')}
                         </Text>
                     </Stack>
                 </Paper>
@@ -359,10 +385,13 @@ const RequesterNextStep: FC<{ request: ContentReviewRequestDetail }> = ({
             return (
                 <Paper p="md">
                     <Stack gap={4}>
-                        <Title order={5}>What next</Title>
+                        <Title order={5}>
+                            {t('contentReview.nextStep.whatNext')}
+                        </Title>
                         <Text fz="sm" c="dimmed">
-                            The note above says what to change. Open the {noun},
-                            edit it, then request a review again from its menu.
+                            {t('contentReview.nextStep.rejectedDescription', {
+                                noun,
+                            })}
                         </Text>
                     </Stack>
                 </Paper>
@@ -414,9 +443,6 @@ const isChartType = (contentType: ContentReviewContentType): boolean =>
     contentType === ContentReviewContentType.CHART ||
     contentType === ContentReviewContentType.SQL_CHART;
 
-const pluralise = (count: number, noun: string): string =>
-    `${count} ${noun}${count === 1 ? '' : 's'}`;
-
 const RequestMessage: FC<{
     request: ContentReviewRequestDetail;
     extraItems: ContentReviewMovedItem[];
@@ -424,16 +450,23 @@ const RequestMessage: FC<{
     isRequester: boolean;
     projectUuid: string;
 }> = ({ request, extraItems, isPending, isRequester, projectUuid }) => {
+    const { t } = useTranslation('eeMisc');
     const noun = getContentTypeNoun(request.contentType);
-    const target = request.targetSpaceName ?? 'a deleted space';
-    const extrasNoun = extraItems.every((item) => isChartType(item.contentType))
-        ? 'chart'
-        : 'item';
-    const extrasCount = pluralise(extraItems.length, extrasNoun);
+    const target =
+        request.targetSpaceName ?? t('contentReview.route.deletedSpace');
+    const extrasCount = extraItems.every((item) =>
+        isChartType(item.contentType),
+    )
+        ? t('contentReview.count.charts', { count: extraItems.length })
+        : t('contentReview.count.items', { count: extraItems.length });
     const action =
         extraItems.length > 0
-            ? `asked to move this ${noun} and ${extrasCount} it uses into ${target}`
-            : `asked to move this ${noun} into ${target}`;
+            ? t('contentReview.thread.askedWithExtras', {
+                  noun,
+                  extras: extrasCount,
+                  target,
+              })
+            : t('contentReview.thread.asked', { noun, target });
 
     return (
         <ThreadMessage
@@ -449,7 +482,13 @@ const RequestMessage: FC<{
             {extraItems.length > 0 && (
                 <Stack gap={4}>
                     <Text fz="xs" fw={500} c="dimmed">
-                        {isPending ? 'Also moves' : 'Also moved'} {extrasCount}
+                        {isPending
+                            ? t('contentReview.thread.alsoMoves', {
+                                  extras: extrasCount,
+                              })
+                            : t('contentReview.thread.alsoMoved', {
+                                  extras: extrasCount,
+                              })}
                     </Text>
                     <Stack gap={0} className={classes.list}>
                         {extraItems.map((item) => (
@@ -475,6 +514,7 @@ const RequestMessage: FC<{
 const OutcomeMessage: FC<{ request: ContentReviewRequestDetail }> = ({
     request,
 }) => {
+    const { t } = useTranslation('eeMisc');
     if (request.reviewedAt === null) return null;
     const note = request.reviewNote && (
         <Text fz="sm" className={classes.noteText}>
@@ -488,7 +528,7 @@ const OutcomeMessage: FC<{ request: ContentReviewRequestDetail }> = ({
             return (
                 <ThreadMessage
                     user={request.requestedBy}
-                    action="cancelled this request"
+                    action={t('contentReview.thread.cancelled')}
                     date={request.reviewedAt}
                 >
                     {note}
@@ -510,8 +550,8 @@ const OutcomeMessage: FC<{ request: ContentReviewRequestDetail }> = ({
                                 size="sm"
                             />
                             {isApproved
-                                ? 'approved and moved it'
-                                : 'rejected this request'}
+                                ? t('contentReview.thread.approved')
+                                : t('contentReview.thread.rejected')}
                             {request.verifiedOnApprove && (
                                 <Badge
                                     size="xs"
@@ -524,7 +564,7 @@ const OutcomeMessage: FC<{ request: ContentReviewRequestDetail }> = ({
                                         />
                                     }
                                 >
-                                    Verified
+                                    {t('contentReview.verified')}
                                 </Badge>
                             )}
                         </Group>
@@ -549,37 +589,47 @@ const SimilarContentFooter: FC<{
     projectUuid: string;
     isRequester: boolean;
 }> = ({ request, projectUuid, isRequester }) => {
+    const { t } = useTranslation('eeMisc');
     const [opened, { toggle }] = useDisclosure(false);
     const items = request.similarContent;
     if (items.length === 0) return null;
-    const noun = items.every((item) => isChartType(item.contentType))
-        ? 'chart'
-        : 'item';
+    const allCharts = items.every((item) => isChartType(item.contentType));
     const verifiedCount = items.filter((item) => item.isVerified).length;
     const isPending = request.status === ContentReviewRequestStatus.PENDING;
     const hint = isRequester
-        ? 'Related content found when you submitted.'
+        ? t('contentReview.similarFooter.hintRequester')
         : isPending
-          ? `If one of these already answers the question, reject and point ${request.requestedBy.firstName} to it.`
-          : 'Related content found when this request was submitted.';
+          ? t('contentReview.similarFooter.hintReviewer', {
+                name: request.requestedBy.firstName,
+            })
+          : t('contentReview.similarFooter.hintPast');
     const verifiedHint =
         verifiedCount > 0
-            ? ` ${verifiedCount === 1 ? 'One is' : `${verifiedCount} are`} verified.`
+            ? t('contentReview.similarFooter.verified', {
+                  count: verifiedCount,
+              })
             : '';
     return (
         <Stack gap="xs" className={classes.footer}>
             <Group gap={6} wrap="nowrap">
                 <MantineIcon icon={IconCopy} color="dimmed" size="sm" />
                 <Text fz="xs" c="dimmed">
-                    {pluralise(items.length, `similar ${noun}`)} already in
-                    shared spaces.
+                    {allCharts
+                        ? t('contentReview.similarFooter.chartsInShared', {
+                              count: items.length,
+                          })
+                        : t('contentReview.similarFooter.itemsInShared', {
+                              count: items.length,
+                          })}
                 </Text>
                 <UnstyledButton
                     onClick={toggle}
                     aria-expanded={opened}
                     className={classes.inlineToggle}
                 >
-                    {opened ? 'Hide' : 'Show'}
+                    {opened
+                        ? t('contentReview.similarFooter.hide')
+                        : t('contentReview.similarFooter.show')}
                 </UnstyledButton>
             </Group>
             <Collapse expanded={opened}>
@@ -594,7 +644,12 @@ const SimilarContentFooter: FC<{
                                 key={item.contentUuid}
                                 contentType={item.contentType}
                                 name={item.name}
-                                meta={`${getSimilarityMatchLabel(item.matchReason)} · in ${item.spaceName}`}
+                                meta={t('contentReview.similar.meta', {
+                                    match: getSimilarityMatchLabel(
+                                        item.matchReason,
+                                    ),
+                                    space: item.spaceName,
+                                })}
                                 description={item.explanation}
                                 href={getContentHref(
                                     projectUuid,
@@ -616,11 +671,13 @@ export const ContentReviewRequestDetailView: FC<{
     projectUuid: string;
     request: ContentReviewRequestDetail;
 }> = ({ projectUuid, request }) => {
+    const { t } = useTranslation('eeMisc');
     const { user } = useApp();
     const isPending = request.status === ContentReviewRequestStatus.PENDING;
     const isApproved = request.status === ContentReviewRequestStatus.APPROVED;
     const isRequester = user.data?.userUuid === request.requestedBy.userUuid;
-    const contentName = request.content?.name ?? 'Deleted content';
+    const contentName =
+        request.content?.name ?? t('contentReview.deletedContent');
     // Nothing moved on a rejected or cancelled request
     const moveItems = isPending
         ? request.moveSet
@@ -670,7 +727,9 @@ export const ContentReviewRequestDetailView: FC<{
                         leftSection={<MantineIcon icon={IconExternalLink} />}
                         flex="0 0 auto"
                     >
-                        Open {getContentTypeNoun(request.contentType)}
+                        {t('contentReview.openNoun', {
+                            noun: getContentTypeNoun(request.contentType),
+                        })}
                     </Button>
                 )}
             </Group>
@@ -696,8 +755,11 @@ export const ContentReviewRequestDetailView: FC<{
                     <Group gap="xs">
                         <MantineIcon icon={IconClockHour4} color="dimmed" />
                         <Text fz="sm" c="dimmed">
-                            Waiting for a reviewer from{' '}
-                            {request.targetSpaceName ?? 'the target space'}.
+                            {t('contentReview.waiting.fromSpace', {
+                                space:
+                                    request.targetSpaceName ??
+                                    t('contentReview.theTargetSpace'),
+                            })}
                         </Text>
                     </Group>
                 </Paper>
@@ -707,6 +769,7 @@ export const ContentReviewRequestDetailView: FC<{
 };
 
 const ContentReviewRequestPage: FC = () => {
+    const { t } = useTranslation('eeMisc');
     const projectUuid = useProjectUuid();
     const { requestUuid } = useParams<{ requestUuid: string }>();
     const {
@@ -719,7 +782,7 @@ const ContentReviewRequestPage: FC = () => {
 
     return (
         <Page
-            title="Review request"
+            title={t('contentReview.requestPage.title')}
             withCenteredContent
             withXLargePaddedContent
         >
@@ -732,13 +795,13 @@ const ContentReviewRequestPage: FC = () => {
                     leftSection={<MantineIcon icon={IconArrowLeft} />}
                     className={classes.backLink}
                 >
-                    Review requests
+                    {t('contentReview.reviewRequests')}
                 </Button>
                 {isInitialLoading && <EmptyStateLoader />}
                 {error && (
                     <SettingsEmptyState
                         icon={IconAlertCircle}
-                        title="Request not available"
+                        title={t('contentReview.requestPage.notAvailable')}
                         description={error.error.message}
                     />
                 )}

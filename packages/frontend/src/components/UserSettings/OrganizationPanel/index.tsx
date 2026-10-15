@@ -3,6 +3,7 @@ import { Button, Flex, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
@@ -14,6 +15,7 @@ const validationSchema = z.object({
 type FormValues = z.infer<typeof validationSchema>;
 
 const OrganizationPanel: FC = () => {
+    const { t } = useTranslation('userSettings');
     const { isLoading: isOrganizationLoading, data: organizationData } =
         useOrganization();
 
@@ -53,7 +55,7 @@ const OrganizationPanel: FC = () => {
         <form onSubmit={handleOnSubmit}>
             <Stack>
                 <TextInput
-                    label="Organization name"
+                    label={t('organizationPanel.nameLabel')}
                     required
                     placeholder="Lightdash"
                     disabled={isLoading}
@@ -63,7 +65,7 @@ const OrganizationPanel: FC = () => {
                 <Flex justify="flex-end" gap="sm">
                     {form.isDirty() && !isOrganizationUpdateLoading && (
                         <Button variant="outline" onClick={() => form.reset()}>
-                            Cancel
+                            {t('actions.cancel', { ns: 'common' })}
                         </Button>
                     )}
 
@@ -72,7 +74,7 @@ const OrganizationPanel: FC = () => {
                         disabled={isLoading || !form.isDirty()}
                         loading={isLoading}
                     >
-                        Update
+                        {t('actions.update', { ns: 'common' })}
                     </Button>
                 </Flex>
             </Stack>

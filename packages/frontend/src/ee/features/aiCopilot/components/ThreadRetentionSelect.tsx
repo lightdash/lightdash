@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { Group, Select } from '@mantine/core';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { NumberInput } from '../../../../components/common/NumberInput';
 import {
     formatRetentionHours,
@@ -24,6 +25,7 @@ export const ThreadRetentionSelect: FC<Props> = ({
     disabled,
     ceilingHours = null,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const [customPicked, setCustomPicked] = useState(false);
     const [draftHours, setDraftHours] = useState<number | undefined>(undefined);
 
@@ -35,8 +37,10 @@ export const ThreadRetentionSelect: FC<Props> = ({
 
     const noneLabel =
         ceilingHours !== null
-            ? `Inherit org default (${formatRetentionHours(ceilingHours)})`
-            : 'Keep forever';
+            ? t('retention.inheritOrgDefault', {
+                  duration: formatRetentionHours(ceilingHours),
+              })
+            : t('retention.keepForever');
 
     const presets = THREAD_RETENTION_PRESETS.filter(
         (p) => ceilingHours === null || p.hours <= ceilingHours,
@@ -66,9 +70,9 @@ export const ThreadRetentionSelect: FC<Props> = ({
                     { value: 'none', label: noneLabel },
                     ...presets.map((p) => ({
                         value: String(p.hours),
-                        label: p.label,
+                        label: formatRetentionHours(p.hours),
                     })),
-                    { value: 'custom', label: 'Custom…' },
+                    { value: 'custom', label: t('retention.custom') },
                 ]}
                 onChange={(selected) => {
                     if (selected === null) return;
@@ -89,7 +93,7 @@ export const ThreadRetentionSelect: FC<Props> = ({
                     max={ceilingHours ?? MAX_RETENTION_WINDOW_HOURS}
                     disabled={disabled}
                     value={draftHours ?? value ?? undefined}
-                    placeholder="Hours"
+                    placeholder={t('retention.hoursPlaceholder')}
                     suffix=" h"
                     onNumberChange={setDraftHours}
                     onBlur={commitDraft}

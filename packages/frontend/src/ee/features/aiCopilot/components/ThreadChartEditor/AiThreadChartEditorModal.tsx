@@ -3,6 +3,7 @@ import { canMutateVerifiedContent, type SavedChart } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { IconChartBar, IconPencil } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Provider } from 'react-redux';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
@@ -58,6 +59,7 @@ const ThreadChartModalInner: FC<{ chart: SavedChart; onClose: () => void }> = ({
     chart,
     onClose,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const [mode, setMode] = useState<'view' | 'edit'>('view');
     const { user } = useApp();
 
@@ -110,7 +112,7 @@ const ThreadChartModalInner: FC<{ chart: SavedChart; onClose: () => void }> = ({
                         leftSection={<MantineIcon icon={IconPencil} />}
                         onClick={() => setMode('edit')}
                     >
-                        Edit chart
+                        {t('editChart')}
                     </Button>
                 ) : undefined
             }

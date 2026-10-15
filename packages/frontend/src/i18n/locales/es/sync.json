@@ -1,0 +1,224 @@
+{
+    "modal": {
+        "title": "Sincronizar con Google Sheets",
+        "loadingSync": "Cargando sincronización",
+        "deleteConfirm": "¿Seguro que quieres eliminar \"{{name}}\"?"
+    },
+    "view": {
+        "toggleOffTooltip": "Desactívala para pausar temporalmente la sincronización",
+        "pausedTooltip": "Sincronización en pausa. Actívala para reanudarla",
+        "pauseDescription": "Esto pausará la sincronización. No se ejecutará hasta que se vuelva a activar.",
+        "syncNow": "Sincronizar ahora",
+        "emptyTitle_chart": "Este gráfico aún no tiene sincronizaciones configuradas",
+        "emptyTitle_app": "Esta app aún no tiene sincronizaciones configuradas",
+        "emptyDescription_chart": "Empieza haciendo clic en 'Crear nueva sincronización' para integrar los datos de tu gráfico con Google Sheets",
+        "emptyDescription_app": "Empieza haciendo clic en 'Crear nueva sincronización' para integrar los datos de tu app con Google Sheets"
+    },
+    "form": {
+        "nameLabel": "Nombre de la sincronización",
+        "nameRequired": "El nombre es obligatorio",
+        "cronFieldName": "Expresión cron",
+        "frequencyLabel": "Define la frecuencia",
+        "timezoneDefault": "Predeterminada del proyecto",
+        "timezoneDefaultWithOffset": "Predeterminada del proyecto (UTC {{offset}})",
+        "showFiltersLabel": "Mostrar filtros aplicados",
+        "showFiltersDescription": "Añade un resumen fijo de filtros de tres filas encima de los datos sincronizados",
+        "appTabsHint": "Cada consulta de la app se escribe en su propia pestaña, con el nombre de la consulta.",
+        "saveInNewTab": "Guardar en una pestaña nueva",
+        "saveInNewTabTooltip": "Escribe el nombre de una pestaña en la que guardar la sincronización, en lugar de sobrescribir la primera pestaña existente de la hoja de Google. Se creará una pestaña nueva si no existe. Seguiremos creando una pestaña llamada metadata con la información de la sincronización.",
+        "tabNameLabel": "Nombre de la pestaña",
+        "tabNameRequired": "El nombre de la pestaña es obligatorio",
+        "tabNameReserved": "El nombre de la pestaña no puede ser \"metadata\"",
+        "saveChanges": "Guardar cambios"
+    },
+    "googleSheet": {
+        "open": "Abrir en Google Sheets",
+        "selectTooltip": "Asegúrate de tener ya una hoja de Google creada en tu Drive para usarla como destino de tus resultados",
+        "select": "Seleccionar hoja de Google"
+    },
+    "googleSheetsInfo": {
+        "policyName": "Política de datos de usuario de los servicios de API de Google",
+        "statement": "El uso y la transferencia por parte de Lightdash de la información recibida de las API de Google cumplen la <policyLink>Política de datos de usuario de los servicios de API de Google</policyLink>, incluidos los requisitos de uso limitado."
+    },
+    "toasts": {
+        "scheduledDeliveryCreated": "¡Listo! Se creó la entrega programada.",
+        "scheduledDeliveryCreateFailed": "No se pudo crear la entrega programada"
+    },
+    "externalSources": {
+        "sourceType": {
+            "csv": "Archivo CSV",
+            "googleSheets": "Hoja de Google"
+        },
+        "joinWithWarehouse": "Unir con los datos de tu almacén",
+        "importFailedTitle": "No pudimos importar este archivo",
+        "tryAnotherFile": "Probar con otro archivo",
+        "delete": {
+            "title": "Eliminar {{table}}",
+            "description": "Esto elimina de forma permanente la tabla y sus datos subidos. Los gráficos basados en ella dejarán de funcionar."
+        },
+        "rename": {
+            "title": "Renombrar tabla",
+            "nameLabel": "Nombre",
+            "nameRequired": "Ponle un nombre a la tabla",
+            "hint": "Renombrar cambia cómo aparece la tabla; los gráficos existentes siguen funcionando.",
+            "submit": "Renombrar"
+        },
+        "replace": {
+            "title": "Reemplazar archivo",
+            "reimported": "{{table}} reimportada",
+            "warningTitle": "Reemplazar vuelve a importar la tabla",
+            "warningDescription": "Los gráficos basados en columnas que el nuevo archivo elimine dejarán de funcionar.",
+            "genericError": "Algo salió mal al reimportar la tabla.",
+            "reimporting": "Reimportando {{table}}…"
+        },
+        "dropzone": {
+            "unsupportedTitle": "Archivo no compatible: {{file}}",
+            "unsupportedSubtitle": "Sube un archivo .csv o .tsv.",
+            "tooLargeTitle": "{{file}} es demasiado grande",
+            "tooLargeSubtitle": "Los archivos deben ocupar menos de {{size}}.",
+            "emptyTitle": "{{file}} está vacío",
+            "emptySubtitle": "Sube un archivo con al menos una fila de encabezado.",
+            "uploading": "Subiendo y analizando…",
+            "prompt": "Suelta un CSV aquí o haz clic para buscarlo",
+            "hint": ".csv o .tsv, hasta {{size}}",
+            "ariaLabel": "Subir un archivo CSV"
+        },
+        "preview": {
+            "loadFailed": "No se pudo cargar la vista previa",
+            "dataTab": "Vista previa de datos",
+            "columnsTab": "Columnas · {{count}}",
+            "firstRows_one": "Primera {{count}} fila",
+            "firstRows_other": "Primeras {{count}} filas",
+            "readOnly": "Solo lectura",
+            "column": "Columna",
+            "type": "Tipo"
+        },
+        "status": {
+            "ready": "Lista",
+            "syncing": "Sincronizando",
+            "error": "Error"
+        },
+        "panel": {
+            "addSource": "Añadir fuente",
+            "emptyTitle": "Aún no hay fuentes externas",
+            "emptyDescription": "Sube un CSV para consultarlo junto a tu almacén de datos.",
+            "columns": {
+                "source": "Fuente",
+                "type": "Tipo",
+                "rows": "Filas",
+                "lastRefreshed": "Última actualización",
+                "status": "Estado"
+            },
+            "actionsFor": "Acciones para {{label}}",
+            "openInExplorer": "Abrir en el explorador",
+            "viewDetails": "Ver detalles",
+            "refresh": "Actualizar",
+            "reconnect": "Reconectar",
+            "rename": "Renombrar"
+        },
+        "menu": {
+            "ariaLabel": "Acciones de la fuente externa",
+            "mergeAnotherQuery": "Combinar otra consulta",
+            "replaceFile": "Reemplazar archivo",
+            "refreshFromSheets": "Actualizar desde Google Sheets",
+            "reconnectGoogle": "Reconectar cuenta de Google",
+            "renameTable": "Renombrar tabla",
+            "viewDetails": "Ver detalles de la fuente"
+        },
+        "add": {
+            "csvTitle": "Subir un CSV",
+            "sheetsTitle": "Conectar una hoja de Google",
+            "switchToSheets": "Conectar una hoja de Google en su lugar",
+            "tableNameLabel": "Nombre de la tabla",
+            "willAppearAs": "Aparecerá como {{slug}}",
+            "tableNameDescription": "Cómo aparecerá esta tabla en la barra lateral",
+            "autoMetricsHint": "El recuento de filas, junto con métricas de suma y media para las columnas numéricas, se añaden automáticamente.",
+            "createTable": "Crear tabla",
+            "sheetUrlLabel": "URL de Google Sheets",
+            "sheetUrlInvalid": "Pega la URL de la hoja desde tu navegador",
+            "sheetConnectFailed": "No se pudo conectar la hoja",
+            "connectGoogle": "Conectar cuenta de Google",
+            "sheetAuthHint": "Copia tu autorización de Google en esta fuente del proyecto para que las actualizaciones sigan funcionando si tu usuario se va. Reconecta desde el menú de la fuente para transferir la propiedad.",
+            "connectSheet": "Conectar hoja",
+            "preparingError": "Algo salió mal al preparar la tabla.",
+            "preparing": "Preparando tu tabla…",
+            "preparingHint": "Irás a la nueva tabla en cuanto esté lista."
+        },
+        "toasts": {
+            "uploadFailed": "No se pudo subir el archivo",
+            "refreshing": "Actualizando desde Google Sheets",
+            "refreshingSubtitle": "La tabla se actualiza cuando termina la ingesta.",
+            "refreshFailed": "No se pudo actualizar la fuente",
+            "reconnected": "Hoja de Google reconectada",
+            "reconnectedSubtitle": "Ahora el proyecto es propietario de esta conexión.",
+            "reconnectFailed": "No se pudo reconectar la fuente",
+            "renamed": "Tabla renombrada",
+            "renameFailed": "No se pudo renombrar la tabla",
+            "replaceFailed": "No se pudo reemplazar el archivo",
+            "deleted": "Fuente externa eliminada",
+            "deleteFailed": "No se pudo eliminar la fuente externa",
+            "created": "Tabla creada",
+            "createdSubtitle": "Elige campos para crear tu primer gráfico."
+        }
+    },
+    "externalConnections": {
+        "builderLinking": {
+            "label": "¿Quién puede vincular esta conexión?",
+            "adminsOnly": "Solo administradores",
+            "builders": "Creadores de apps de datos y tipos de gráfico"
+        },
+        "testResult": {
+            "truncated": "truncado"
+        },
+        "customHeaders": {
+            "description": "Se envían con cada solicitud, p. ej. anthropic-version o X-GitHub-Api-Version. Nunca pongas secretos aquí; usa la autenticación de la conexión.",
+            "nameAriaLabel": "Nombre del encabezado",
+            "valueAriaLabel": "Valor del encabezado",
+            "remove": "Eliminar encabezado",
+            "add": "Añadir encabezado",
+            "errors": {
+                "invalidName": "\"{{name}}\" no es un nombre de encabezado válido",
+                "reserved": "El encabezado \"{{name}}\" está reservado por el proxy o se usa para credenciales",
+                "missingValue": "El encabezado \"{{name}}\" necesita un valor",
+                "valueTooLong": "El valor de \"{{name}}\" es demasiado largo (máx. {{max}} caracteres)",
+                "unsupportedCharacters": "El valor de \"{{name}}\" contiene caracteres no admitidos",
+                "duplicate": "Encabezado duplicado \"{{name}}\"",
+                "tooMany": "Se permiten como máximo {{max}} encabezados personalizados"
+            }
+        },
+        "forwardIdentity": {
+            "label": "Reenviar la identidad del espectador",
+            "description": "Comparte el correo y el ID de usuario de Lightdash del espectador, cuando estén disponibles, junto con los ID de la app, la organización y el proyecto. Actívalo solo para un servicio al que confíes esta información."
+        },
+        "pathRules": {
+            "allowAll": "Permitir todas las rutas",
+            "restrict": "Restringir a rutas específicas",
+            "hint": "Las apps solo pueden llamar a rutas que empiecen por uno de estos prefijos.",
+            "add": "Añadir prefijo de ruta"
+        },
+        "validation": {
+            "tokenUrlInvalid": "Introduce una URL de token válida",
+            "tokenUrlHttps": "La URL del token debe empezar por https://",
+            "tokenUrlCredentials": "La URL del token no debe contener credenciales ni un fragmento"
+        },
+        "toasts": {
+            "sampleDeleted": "Ejemplo eliminado",
+            "sampleDeleteFailed": "No se pudo eliminar el ejemplo",
+            "created": "Conexión creada",
+            "createFailed": "No se pudo crear la conexión",
+            "deleted": "Conexión eliminada",
+            "deleteFailed": "No se pudo eliminar la conexión",
+            "sampleSaved": "Ejemplo guardado",
+            "sampleSaveFailed": "No se pudo guardar el ejemplo",
+            "testFailed": "La solicitud de prueba falló",
+            "updated": "Conexión actualizada",
+            "updateFailed": "No se pudo actualizar la conexión",
+            "linked": "{{connection}} vinculada",
+            "linkedSubtitle": "{{app}} puede usar esta conexión de inmediato. No se creó ninguna versión nueva.",
+            "linkFailed": "No se pudo vincular la conexión",
+            "unlinked": "{{name}} desvinculada",
+            "unlinkedSubtitle": "El código generado seguirá llamándola hasta que pidas un cambio.",
+            "unlinkFailed": "No se pudo desvincular la conexión"
+        }
+    }
+}

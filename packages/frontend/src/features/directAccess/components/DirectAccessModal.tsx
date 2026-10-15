@@ -17,7 +17,9 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconTrash, IconUsers } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -39,10 +41,10 @@ import {
 } from '../hooks/useDirectAccess';
 import classes from './DirectAccessModal.module.css';
 
-const ROLE_OPTIONS = [
-    { value: SpaceMemberRole.VIEWER, label: 'Can view' },
-    { value: SpaceMemberRole.EDITOR, label: 'Can edit' },
-    { value: SpaceMemberRole.ADMIN, label: 'Full access' },
+const getRoleOptions = (t: TFunction) => [
+    { value: SpaceMemberRole.VIEWER, label: t('directAccess.roles.viewer') },
+    { value: SpaceMemberRole.EDITOR, label: t('directAccess.roles.editor') },
+    { value: SpaceMemberRole.ADMIN, label: t('directAccess.roles.admin') },
 ];
 
 const userDisplayName = (principal: {
@@ -84,6 +86,7 @@ const AssignmentRow: FC<AssignmentRowProps> = ({
     onRoleChange,
     onRevoke,
 }) => {
+    const { t } = useTranslation('app');
     const { principal, role } = assignment;
     const isUser = principal.type === DirectAccessPrincipalType.USER;
 
@@ -115,7 +118,7 @@ const AssignmentRow: FC<AssignmentRowProps> = ({
                         {isSelf ? (
                             <Text fw={400} fz="sm" span c="dimmed">
                                 {' '}
-                                (you)
+                                {t('directAccess.you')}
                             </Text>
                         ) : null}
                     </Text>
@@ -125,7 +128,9 @@ const AssignmentRow: FC<AssignmentRowProps> = ({
                         </Text>
                     ) : (
                         <Text fz="xs" c="dimmed">
-                            {isUser ? 'User' : 'Group'}
+                            {isUser
+                                ? t('directAccess.user')
+                                : t('directAccess.group')}
                         </Text>
                     )}
                 </Stack>
@@ -135,10 +140,12 @@ const AssignmentRow: FC<AssignmentRowProps> = ({
                 <Select
                     size="xs"
                     w={120}
-                    aria-label={`Role for ${
-                        isUser ? userDisplayName(principal) : principal.name
-                    }`}
-                    data={ROLE_OPTIONS}
+                    aria-label={t('directAccess.roleFor', {
+                        name: isUser
+                            ? userDisplayName(principal)
+                            : principal.name,
+                    })}
+                    data={getRoleOptions(t)}
                     value={role}
                     disabled={isMutating}
                     allowDeselect={false}
@@ -148,12 +155,14 @@ const AssignmentRow: FC<AssignmentRowProps> = ({
                         }
                     }}
                 />
-                <Tooltip label="Remove access">
+                <Tooltip label={t('directAccess.removeAccess')}>
                     <ActionIcon
                         color="red"
-                        aria-label={`Remove access for ${
-                            isUser ? userDisplayName(principal) : principal.name
-                        }`}
+                        aria-label={t('directAccess.removeAccessFor', {
+                            name: isUser
+                                ? userDisplayName(principal)
+                                : principal.name,
+                        })}
                         disabled={isMutating}
                         onClick={onRevoke}
                     >
@@ -184,6 +193,7 @@ const AddDirectAccess: FC<AddDirectAccessProps> = ({
     isMutating,
     onAdd,
 }) => {
+    const { t } = useTranslation('app');
     const [selectedPrincipal, setSelectedPrincipal] = useState<string | null>(
         null,
     );
@@ -207,10 +217,10 @@ const AddDirectAccess: FC<AddDirectAccessProps> = ({
             }))
             .filter((option) => !assignedKeys.has(option.value));
         return [
-            { group: 'Users', items: userOptions },
-            { group: 'Groups', items: groupOptions },
+            { group: t('directAccess.users'), items: userOptions },
+            { group: t('directAccess.groups'), items: groupOptions },
         ].filter((section) => section.items.length > 0);
-    }, [users.data, groups.data, assignedKeys]);
+    }, [users.data, groups.data, assignedKeys, t]);
 
     const handleAdd = () => {
         if (!selectedPrincipal) return;
@@ -225,16 +235,16 @@ const AddDirectAccess: FC<AddDirectAccessProps> = ({
                 flex={1}
                 miw={0}
                 size="xs"
-                label="Share with"
+                label={t('directAccess.shareWith')}
                 autoFocus
-                placeholder="Select users or groups to share with"
+                placeholder={t('directAccess.shareWithPlaceholder')}
                 searchable
                 clearable
-                aria-label="Select a user or group to share with"
-                nothingFoundMessage="No matching users or groups"
+                aria-label={t('directAccess.shareWithAria')}
+                nothingFoundMessage={t('directAccess.noMatches')}
                 error={
                     users.isError || groups.isError
-                        ? 'Unable to load users and groups. Close and reopen this dialog to retry.'
+                        ? t('directAccess.loadPrincipalsError')
                         : undefined
                 }
                 data={options}
@@ -246,8 +256,8 @@ const AddDirectAccess: FC<AddDirectAccessProps> = ({
                 size="xs"
                 w={120}
                 flex="0 0 auto"
-                aria-label="Role for new assignment"
-                data={ROLE_OPTIONS}
+                aria-label={t('directAccess.roleForNew')}
+                data={getRoleOptions(t)}
                 value={selectedRole}
                 allowDeselect={false}
                 onChange={(value) => {
@@ -260,7 +270,7 @@ const AddDirectAccess: FC<AddDirectAccessProps> = ({
                 disabled={!selectedPrincipal || isMutating}
                 onClick={handleAdd}
             >
-                Share
+                {t('directAccess.share')}
             </Button>
         </Group>
     );
@@ -283,6 +293,7 @@ const DirectAccessModal: FC<DirectAccessModalProps> = ({
     projectUuid,
     resource,
 }) => {
+    const { t } = useTranslation('app');
     const { user } = useApp();
     const sessionUserUuid = user.data?.userUuid;
     const ref = useMemo(
@@ -361,7 +372,7 @@ const DirectAccessModal: FC<DirectAccessModalProps> = ({
                     opened && (confirmation === null || !canManageAssignments)
                 }
                 onClose={onClose}
-                title={`Share "${resource.name}"`}
+                title={t('directAccess.title', { name: resource.name })}
                 icon={IconUsers}
                 size="lg"
                 leftActions={
@@ -373,13 +384,13 @@ const DirectAccessModal: FC<DirectAccessModalProps> = ({
                             disabled={isMutating}
                             onClick={() => setConfirmation({ kind: 'reset' })}
                         >
-                            Remove all access
+                            {t('directAccess.removeAll')}
                         </Button>
                     ) : undefined
                 }
                 actions={
                     <Button variant="default" onClick={onClose}>
-                        Done
+                        {t('directAccess.done')}
                     </Button>
                 }
             >
@@ -387,17 +398,16 @@ const DirectAccessModal: FC<DirectAccessModalProps> = ({
                     {resource.resourceType ===
                         DirectAccessResourceType.DASHBOARD && (
                         <Text fz="sm" c="dimmed">
-                            Can edit allows changes to dashboard contents. Full
-                            access also allows deleting the dashboard and
-                            managing sharing. Permissions from other roles still
-                            apply.
+                            {t('directAccess.dashboardRolesHint')}
                         </Text>
                     )}
                     {isUnavailable ? (
-                        <Callout variant="info" title="Sharing isn't available">
+                        <Callout
+                            variant="info"
+                            title={t('directAccess.unavailableTitle')}
+                        >
                             <Text fz="sm">
-                                Content sharing isn't enabled for this
-                                organization.
+                                {t('directAccess.unavailableDescription')}
                             </Text>
                         </Callout>
                     ) : null}
@@ -422,11 +432,14 @@ const DirectAccessModal: FC<DirectAccessModalProps> = ({
                             <Loader size="sm" />
                         </Center>
                     ) : assignmentsQuery.isError ? (
-                        <Callout variant="danger" title="Could not load access">
+                        <Callout
+                            variant="danger"
+                            title={t('directAccess.loadError')}
+                        >
                             <Stack gap="xs" align="flex-start">
                                 <Text fz="sm">
                                     {assignmentsQuery.error.error?.message ??
-                                        'Something went wrong.'}
+                                        t('errorBoundary.somethingWentWrong')}
                                 </Text>
                                 <Button
                                     size="xs"
@@ -437,7 +450,7 @@ const DirectAccessModal: FC<DirectAccessModalProps> = ({
                                         void assignmentsQuery.refetch();
                                     }}
                                 >
-                                    Retry
+                                    {t('actions.retry', { ns: 'common' })}
                                 </Button>
                             </Stack>
                         </Callout>
@@ -446,11 +459,15 @@ const DirectAccessModal: FC<DirectAccessModalProps> = ({
                         <Text fz="sm" c="dimmed" ta="center" py="md">
                             {resource.resourceType ===
                             DirectAccessResourceType.APP
-                                ? 'Not shared with anyone yet.'
-                                : 'Not shared with anyone yet. People with access to the space can still see it.'}
+                                ? t('directAccess.notShared')
+                                : t('directAccess.notSharedSpace')}
                         </Text>
                     ) : (
-                        <Stack gap="sm" role="list" aria-label="Direct access">
+                        <Stack
+                            gap="sm"
+                            role="list"
+                            aria-label={t('directAccess.listLabel')}
+                        >
                             {assignments.map((assignment) => (
                                 <AssignmentRow
                                     key={principalKey(assignment.principal)}
@@ -487,15 +504,19 @@ const DirectAccessModal: FC<DirectAccessModalProps> = ({
                 size="sm"
                 title={
                     confirmation?.kind === 'reset'
-                        ? 'Remove all access'
-                        : 'Remove your own access'
+                        ? t('directAccess.removeAll')
+                        : t('directAccess.removeOwn')
                 }
                 description={
                     confirmation?.kind === 'reset'
-                        ? `This removes everyone "${resource.name}" was shared with. People will keep any access they have through spaces.`
-                        : `You may lose access to "${resource.name}" once it is no longer shared with you.`
+                        ? t('directAccess.removeAllDescription', {
+                              name: resource.name,
+                          })
+                        : t('directAccess.removeOwnDescription', {
+                              name: resource.name,
+                          })
                 }
-                confirmLabel="Remove"
+                confirmLabel={t('actions.remove', { ns: 'common' })}
                 onConfirm={handleConfirm}
             />
         </>

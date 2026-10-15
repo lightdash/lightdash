@@ -14,6 +14,7 @@ import {
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import i18n from '../../../../i18n/i18n';
 import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
 
 export const USER_AGENT_PREFERENCES = 'userAgentPreferences';
@@ -92,7 +93,9 @@ export const useUpdateUserAgentPreferences = (projectUuid: string) => {
                 );
             }
             showToastApiError({
-                title: 'Failed to set agent as default',
+                title: i18n.t('toasts.preferences.setDefaultFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },
@@ -147,7 +150,9 @@ export const useDeleteUserAgentPreferences = (projectUuid: string) => {
                 );
             }
             showToastApiError({
-                title: 'Failed to remove agent preferences',
+                title: i18n.t('toasts.preferences.removeFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },

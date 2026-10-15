@@ -10,6 +10,7 @@ import { Button, Group, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useEffect, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { z } from 'zod';
@@ -21,6 +22,7 @@ import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useOptionalProjectRoute } from '../../../../hooks/useProjectRoute';
 import { useCreateMutation } from '../../../../hooks/useSavedQuery';
+import i18n from '../../../../i18n/i18n';
 import {
     useIsModalHosted,
     useModalHostedChartSaved,
@@ -42,7 +44,9 @@ type Props = {
 type SaveToDashboardFormValues = { name: string; description: string };
 
 const validationSchema = z.object({
-    name: z.string().min(1, 'Name is required'),
+    name: z.string().min(1, {
+        error: () => i18n.t('validation.nameRequired', { ns: 'modals' }),
+    }),
     description: z.string(),
 });
 
@@ -57,6 +61,7 @@ export const SaveToDashboard: FC<Props> = ({
     defaults = DEFAULT_CHART_METADATA,
     colorPaletteUuid,
 }) => {
+    const { t } = useTranslation('modals');
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
         projectRoute?.projectUrlIdentifier ?? projectUuid;
@@ -141,7 +146,10 @@ export const SaveToDashboard: FC<Props> = ({
             if (isModalHosted) {
                 onModalHostChartSaved?.(chart);
                 showToastSuccess({
-                    title: `Success! ${values.name} was added to ${dashboardName}`,
+                    title: t('saveToDashboard.addedToast', {
+                        chartName: values.name,
+                        dashboardName,
+                    }),
                 });
                 onClose();
                 return;
@@ -166,7 +174,10 @@ export const SaveToDashboard: FC<Props> = ({
                     : `/projects/${projectUrlIdentifier}/dashboards/${selectedDashboard?.slug ?? dashboardUuid}/edit`,
             );
             showToastSuccess({
-                title: `Success! ${values.name} was added to ${dashboardName}`,
+                title: t('saveToDashboard.addedToast', {
+                    chartName: values.name,
+                    dashboardName,
+                }),
             });
         },
         [
@@ -187,6 +198,7 @@ export const SaveToDashboard: FC<Props> = ({
             isModalHosted,
             onModalHostChartSaved,
             onClose,
+            t,
         ],
     );
     return (
@@ -198,36 +210,39 @@ export const SaveToDashboard: FC<Props> = ({
             <Stack gap="md" p="md">
                 <Stack gap="xs">
                     <TextInput
-                        label="Chart name"
-                        placeholder="eg. How many weekly active users do we have?"
+                        label={t('chartForm.nameLabel')}
+                        placeholder={t('chartForm.namePlaceholder')}
                         required
                         {...form.getInputProps('name')}
                         data-testid="ChartCreateModal/NameInput"
                     />
                     <Textarea
-                        label="Chart description"
-                        placeholder="A few words to give your team some context"
+                        label={t('chartForm.descriptionLabel')}
+                        placeholder={t('descriptionPlaceholder')}
                         autosize
                         maxRows={3}
                         {...form.getInputProps('description')}
                     />
                 </Stack>
                 <Stack gap={4}>
-                    <Text fw={500}>Saving to "{dashboardName}" dashboard</Text>
+                    <Text fw={500}>
+                        {t('saveToDashboard.savingTo', { dashboardName })}
+                    </Text>
                     <Text fw={400} c="dimmed" fz="xs">
-                        This chart will be saved exclusively to the dashboard "
-                        {dashboardName}", keeping your space clutter-free.
+                        {t('saveToDashboard.exclusiveDescription', {
+                            dashboardName,
+                        })}
                     </Text>
                 </Stack>
             </Stack>
 
             <Group justify="flex-end" gap="sm" className={classes.footer}>
                 <Button onClick={onClose} variant="default">
-                    Cancel
+                    {t('actions.cancel', { ns: 'common' })}
                 </Button>
 
                 <Button type="submit" disabled={!form.values.name}>
-                    Save
+                    {t('actions.save', { ns: 'common' })}
                 </Button>
             </Group>
         </form>

@@ -3,6 +3,7 @@ import { Button, getDefaultZIndex, Menu, Text } from '@mantine/core';
 import { IconCheck, IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { matchRoutes, useLocation } from 'react-router';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProject } from '../../hooks/useProject';
@@ -20,6 +21,7 @@ import { useNavBarMenuProps } from './NavBarPortalContext';
 import { routesThatNeedWarehouseCredentials } from './routesThatNeedWarehouseCredentials';
 
 const UserCredentialsSwitcher = () => {
+    const { t } = useTranslation('navigation');
     const menuProps = useNavBarMenuProps();
     const { user } = useApp();
     const location = useLocation();
@@ -186,7 +188,7 @@ const UserCredentialsSwitcher = () => {
             >
                 <Menu.Target>
                     <Button
-                        aria-label="Warehouse credentials"
+                        aria-label={t('credentials.label')}
                         variant="default"
                         size="xs"
                     >
@@ -224,7 +226,7 @@ const UserCredentialsSwitcher = () => {
                             setIsCreatingCredentials(true);
                         }}
                     >
-                        Create new
+                        {t('credentials.createNew')}
                     </Menu.Item>
                 </Menu.Dropdown>
             </Menu>
@@ -234,26 +236,32 @@ const UserCredentialsSwitcher = () => {
                         opened={isCreatingCredentials}
                         title={
                             showCreateModalOnPageLoad
-                                ? `Login to ${getWarehouseLabel(
-                                      activeProject.warehouseConnection?.type,
-                                  )}`
+                                ? t('credentials.loginTo', {
+                                      warehouse: getWarehouseLabel(
+                                          activeProject.warehouseConnection
+                                              ?.type,
+                                      ),
+                                  })
                                 : undefined
                         }
                         description={
                             showCreateModalOnPageLoad ? (
                                 <Text>
-                                    The admin of your organization "
-                                    {user.data?.organizationName}" requires that
-                                    you login to{' '}
-                                    {getWarehouseLabel(
-                                        activeProject.warehouseConnection?.type,
-                                    )}{' '}
-                                    to continue.
+                                    {t('credentials.loginRequired', {
+                                        organization:
+                                            user.data?.organizationName,
+                                        warehouse: getWarehouseLabel(
+                                            activeProject.warehouseConnection
+                                                ?.type,
+                                        ),
+                                    })}
                                 </Text>
                             ) : undefined
                         }
                         nameValue={
-                            showCreateModalOnPageLoad ? 'Default' : undefined
+                            showCreateModalOnPageLoad
+                                ? t('credentials.defaultName')
+                                : undefined
                         }
                         warehouseType={activeProject.warehouseConnection?.type}
                         projectUuid={activeProjectUuid}

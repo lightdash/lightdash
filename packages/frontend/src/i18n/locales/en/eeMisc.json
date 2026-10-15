@@ -1,0 +1,591 @@
+{
+    "labels": {
+        "other": "Other",
+        "features": {
+            "agent": "Ask AI",
+            "agentSubtask": "Ask AI Tool",
+            "compaction": "Compaction",
+            "deepResearch": "Deep Research",
+            "dataApp": "Data App"
+        },
+        "channels": {
+            "web": "Web app",
+            "slack": "Slack",
+            "embed": "Embedded",
+            "api": "API",
+            "mcp": "MCP",
+            "evals": "Evals",
+            "scheduler": "Scheduled deliveries",
+            "data_app": "Data apps"
+        },
+        "breakdowns": {
+            "feature": "Feature",
+            "channel": "Channel",
+            "user": "User",
+            "project": "Project",
+            "agent": "Agent"
+        },
+        "unattributed": {
+            "user": "No user",
+            "project": "No project",
+            "agent": "No agent"
+        },
+        "deleted": {
+            "feature": "Deleted feature",
+            "channel": "Deleted channel",
+            "user": "Deleted user",
+            "project": "Deleted project",
+            "agent": "Deleted agent"
+        },
+        "embeddedViewers": "Embedded viewers"
+    },
+    "chart": {
+        "weekOf": "Week of {{date}}",
+        "credits": "{{credits}} credits",
+        "total": "Total"
+    },
+    "aiCredits": {
+        "period": {
+            "monthly": "Monthly",
+            "quarterly": "Quarterly",
+            "yearly": "Yearly",
+            "everyMonths_one": "Every {{count}} month",
+            "everyMonths_other": "Every {{count}} months"
+        },
+        "contractEndsOn": "Your contract ends on {{date}}.",
+        "resetsOn": "It resets on {{date}}.",
+        "ofAllowanceUsed": "of {{allowance}} credits used",
+        "creditsUsed": "credits used",
+        "noAllowance": "No allowance is set for this contract yet, so usage isn't measured against one.",
+        "contractEndsOnNoPeriod": "Your contract ends on {{date}}",
+        "loading": "Loading AI credit usage",
+        "title": "AI credits",
+        "description": "Credits your organization has used on AI features in the current period.",
+        "loadError": "AI credit usage could not be loaded.",
+        "bar": {
+            "label": "Credits used",
+            "valueText": "{{used}} of {{allowance}} credits used, {{percent}}%"
+        },
+        "contactUs": "{{lead}} contact us at <anchor>{{email}}</anchor> or in your usual support channel.",
+        "contactLead": {
+            "keepUsing": "To keep using AI,",
+            "keepUsingBefore": "To keep using AI before then,",
+            "raiseCap": "To raise the cap,",
+            "resume": "To resume AI,",
+            "overageQuestions": "For questions about usage past the allowance,"
+        },
+        "notice": {
+            "paused": "AI features that use credits are paused",
+            "pausedUntil": "AI features that use credits are paused until {{date}}",
+            "allowanceUsed": "This period's allowance is used up",
+            "keepsWorking": "AI keeps working. ",
+            "overage": "You're {{credits}} credits past the allowance. "
+        },
+        "breakdown": {
+            "rowLabel": "{{label}}: {{credits}} credits",
+            "title": "Usage breakdown",
+            "showingBy": {
+                "feature": "Showing usage by feature",
+                "channel": "Showing usage by channel",
+                "user": "Showing usage by user",
+                "project": "Showing usage by project",
+                "agent": "Showing usage by agent"
+            },
+            "loadError": "Daily AI credit usage could not be loaded.",
+            "noUsage": "No usage yet this period"
+        }
+    },
+    "whatsNew": {
+        "title": "What's new",
+        "close": "Close what's new",
+        "opensInNewTab": "(opens in a new tab)",
+        "requested": "Requested",
+        "addedIn": "Added in v{{version}}",
+        "viewPullRequest": "View pull request",
+        "viewRelease": "View release",
+        "loading": "Loading release highlights",
+        "requestedByOrganization": "Requested by your organization",
+        "highlights": "Highlights",
+        "aiSummary": "AI summary",
+        "summaryNote": "Summarised by your configured AI model from public release notes. Check the full changelog for fixes and breaking changes.",
+        "turnOnAi": "Turn on AI to see a summary of new features here.",
+        "unavailable": "Highlights aren't available right now.",
+        "noHighlights": "No feature highlights for this range.",
+        "latestVersion": "You're on the latest version",
+        "versionStatus": "You're on v{{current}} · latest is v{{latest}}",
+        "whatsNewSince": "What's new since v{{version}}",
+        "howToUpdate": "How to update",
+        "changesSince": "Changes since v{{version}}",
+        "openFullPage": "Open full page",
+        "releaseNotes": "Release notes"
+    },
+    "roadmap": {
+        "follow": {
+            "sent": "Request sent",
+            "follow": "Follow",
+            "modalTitle": "Follow \"{{title}}\"",
+            "sendRequest": "Send request",
+            "noteLabel": "Why are you interested in this feature?",
+            "notePlaceholder": "Tell us how your team would use it.",
+            "privacyNote": "Your organization and user details, including your name and email address, will be shared with the Lightdash team along with your note.",
+            "sendFailed": "Could not send request",
+            "noteKept": "Your note has been kept. Please try again."
+        },
+        "details": {
+            "description": "Description",
+            "projectFallback": "Roadmap project",
+            "projectProperties": "Roadmap project properties",
+            "openBoard": "Open project board",
+            "noProjectDetail": "No further detail is available for this project.",
+            "status": "Status",
+            "priority": "Priority",
+            "progress": "Progress",
+            "lastTicketUpdate": "Last ticket update",
+            "following": "Following",
+            "ticketCount_one": "{{count}} ticket",
+            "ticketCount_other": "{{count}} tickets",
+            "interest": "Interest",
+            "requestFallback": "Roadmap request",
+            "requestProperties": "Roadmap request properties",
+            "noRequestDetail": "No further detail is available for this request.",
+            "ticketId": "Ticket ID",
+            "copyTicketId": "Copy ticket ID",
+            "created": "Created",
+            "updated": "Updated",
+            "issue": "Issue",
+            "viewGithubIssue": "View GitHub issue",
+            "pullRequest": "Pull request"
+        },
+        "slack": {
+            "viewThread": "View Slack thread",
+            "threadNumber": "Slack thread {{number}}",
+            "viewThreads_one": "View {{count}} Slack thread",
+            "viewThreads_other": "View {{count}} Slack threads",
+            "threads": "Slack threads"
+        },
+        "priority": {
+            "urgent": "Urgent",
+            "high": "High",
+            "medium": "Medium",
+            "low": "Low",
+            "none": "No priority"
+        },
+        "columns": {
+            "backlog": "Backlog",
+            "inProgress": "In progress",
+            "done": "Done",
+            "canceled": "Canceled"
+        },
+        "board": {
+            "columnTickets": "{{column}} tickets",
+            "columnItems": "{{column}} roadmap items",
+            "totalTickets_one": "{{count}} total ticket",
+            "totalTickets_other": "{{count}} total tickets",
+            "thisMonth": "this month",
+            "onlyFollowedShown": "Only followed tickets are shown individually.",
+            "otherTickets_one": "{{count}} other ticket",
+            "otherTickets_other": "{{count}} other tickets",
+            "showAll": "Show all ({{count}})",
+            "noItems": "No items"
+        },
+        "progress": {
+            "unavailableAria": "Overall project progress unavailable",
+            "aria": "{{value}}% overall project progress",
+            "unavailable": "Progress unavailable",
+            "percent": "{{value}}%"
+        },
+        "priorityAria": "Priority: {{priority}}",
+        "open": "Open {{title}}",
+        "openTicket": "Open ticket {{title}}",
+        "openBoardFor": "Open project board for {{title}}",
+        "interested": "Interested",
+        "ticketsFollowed_one": "{{count}} ticket followed",
+        "ticketsFollowed_other": "{{count}} tickets followed",
+        "table": {
+            "label": "Roadmap items",
+            "name": "Name",
+            "typeId": "Type / ID",
+            "project": "Project"
+        },
+        "error": {
+            "unreachableTitle": "Cannot reach the roadmap service",
+            "loadTitle": "Could not load the roadmap",
+            "unreachableDescription": "The server cannot reach roadmap.lightdash.com. If you self-host, ask your administrator to allow outbound HTTPS (port 443) to roadmap.lightdash.com.",
+            "unavailable": "The roadmap is currently unavailable.",
+            "egressGuidance": "View network-egress guidance"
+        },
+        "loadMoreProjects": "Load more projects",
+        "loadMoreTickets": "Load more tickets",
+        "page": {
+            "projectBoard": "Project board",
+            "title": "Roadmap",
+            "projectBoardDescription": "Tickets your organization follows in this project.",
+            "description": "Explore the Lightdash roadmap and track your organization’s feature requests.",
+            "notSetUpTitle": "Your roadmap isn't set up yet",
+            "notSetUpDescription": "Reach out to your Lightdash contact to get it switched on.",
+            "loadingProjectTickets": "Loading project tickets",
+            "loading": "Loading roadmap"
+        },
+        "toolbar": {
+            "searchTooltip": "Search by title, description, or ticket ID",
+            "searchProjectTickets": "Search project tickets",
+            "searchRoadmap": "Search roadmap",
+            "interest": "Roadmap interest",
+            "all": "All",
+            "type": "Type",
+            "projects": "Projects",
+            "tickets": "Tickets",
+            "filterByType": "Filter by item type",
+            "filterByStatus": "Filter by status",
+            "filterByPriority": "Filter by priority",
+            "view": "Roadmap view",
+            "board": "Board",
+            "table": "Table"
+        },
+        "empty": {
+            "noMatchingTickets": "No matching tickets",
+            "noFollowedTickets": "No followed tickets in this project",
+            "noRequests": "No feature requests yet",
+            "noMatchingItems": "No matching projects or tickets",
+            "noItems": "No roadmap items yet",
+            "projectDescription": "Only your organization’s visible requests in this project appear here.",
+            "noRequestsDescription": "Your organization has no feature requests yet.",
+            "followDescription": "Projects and tickets you follow will appear here.",
+            "clearFilters": "Clear filters"
+        },
+        "status": {
+            "backlog": "Backlog",
+            "building": "Building",
+            "shipped": "Shipped",
+            "canceled": "Canceled"
+        }
+    },
+    "contentReview": {
+        "noun": {
+            "chart": "chart",
+            "sqlChart": "SQL chart",
+            "dashboard": "dashboard",
+            "document": "Document"
+        },
+        "type": {
+            "chart": "Chart",
+            "sqlChart": "SQL chart",
+            "dashboard": "Dashboard",
+            "document": "Document"
+        },
+        "match": {
+            "potentialDuplicate": "Potential duplicate",
+            "related": "Related analysis",
+            "sameName": "Same name",
+            "similarName": "Similar name"
+        },
+        "status": {
+            "pending": "Waiting for review",
+            "approved": "Approved",
+            "rejected": "Rejected",
+            "cancelled": "Cancelled",
+            "all": "All statuses"
+        },
+        "pendingBadge": {
+            "label": "Review pending",
+            "youAsked": "You asked {{ago}}. It moves to the shared space once a reviewer approves.",
+            "userAsked": "{{name}} asked {{ago}}. It moves to the shared space once a reviewer approves.",
+            "openRequest": "Open request"
+        },
+        "cancelRequest": "Cancel request",
+        "reviewRequests": "Review requests",
+        "toasts": {
+            "requested": "Review requested",
+            "reviewersNotified": "Reviewers for {{space}} have been notified",
+            "requestFailed": "Failed to request a review",
+            "cancelled": "Review request cancelled",
+            "cancelFailed": "Failed to cancel the review request",
+            "approvedVerified": "Request approved and content verified",
+            "approved": "Request approved",
+            "movedTo": "Moved to {{space}}",
+            "approveFailed": "Failed to approve the request",
+            "rejected": "Request rejected",
+            "rejectFailed": "Failed to reject the request",
+            "settingsSaved": "Review settings saved",
+            "settingsSaveFailed": "Failed to save review settings"
+        },
+        "verified": "Verified",
+        "settings": {
+            "defaultGroup": "Default",
+            "spaceEditors": "Editors of the target space",
+            "organizationGroups": "Organization groups",
+            "whoReviews": "Who reviews requests",
+            "whoReviewsDescription": "A group needs access to this project, and its members must be able to edit the target space.",
+            "verifyOnApprove": "Verify content when approving",
+            "verifyOnApproveDescription": "Ticked by default on every request. Reviewers can still untick it.",
+            "slackChannel": "Slack channel for new requests",
+            "slackChannelPlaceholder": "Organization notification channel",
+            "connectSlack": "<anchor>Connect Slack</anchor> to post new requests to a channel and send decisions as direct messages.",
+            "openQueue": "Open the review queue",
+            "description": "People submit charts and dashboards from their personal space. Approving moves the content to the shared space they picked."
+        },
+        "similar": {
+            "dashboardsFound_one": "{{count}} similar dashboard found",
+            "dashboardsFound_other": "{{count}} similar dashboards found",
+            "chartsFound_one": "{{count}} similar chart found",
+            "chartsFound_other": "{{count}} similar charts found",
+            "meta": "{{match}} · in {{space}}",
+            "showFewer": "Show fewer",
+            "showMore": "Show {{count}} more"
+        },
+        "requestModal": {
+            "title": "Request review",
+            "step1": "Step 1 of 2. Where it belongs",
+            "step2": "Step 2 of 2. Why it belongs there",
+            "spaceDescription": "The people who can edit the space you pick will review this {{noun}} and move it there when they approve.",
+            "sharedSpace": "Shared space",
+            "checkingSimilar": "Checking for related content…",
+            "noteLabel": "Note for reviewers",
+            "noteSimilar": "What does yours add that the existing content does not?",
+            "noteDefault": "What does it show, and who is it for?"
+        },
+        "deletedContent": "Deleted content",
+        "deletedSpace": "Deleted space",
+        "list": {
+            "content": "Content",
+            "requestedBy": "Requested by",
+            "movingTo": "Moving to",
+            "requested": "Requested",
+            "emptyToReview": "Nothing waiting for your review",
+            "emptyMine": "You have not requested any reviews yet",
+            "emptyToReviewDescription": "Requests to move content into spaces you can edit will show up here.",
+            "emptyMineDescription": "Open a chart or dashboard in your personal space and choose Request review.",
+            "description": "Charts and dashboards waiting to move from a personal space into a shared one.",
+            "settings": "Review settings",
+            "toReview": "To review",
+            "mine": "My requests",
+            "statusFilter": "Review status"
+        },
+        "theTargetSpace": "the target space",
+        "openNoun": "Open {{noun}}",
+        "reject": {
+            "title": "Reject request",
+            "confirm": "Reject",
+            "noteLabel": "Tell the requester why",
+            "noteDescription": "They will see this note and can resubmit after changes",
+            "notePlaceholder": "Duplicate of Orders in June in Jaffle shop, use that one instead"
+        },
+        "decision": {
+            "thisNoun": "this {{noun}}",
+            "theseItems_one": "these {{count}} items",
+            "theseItems_other": "these {{count}} items",
+            "title": "Your decision",
+            "access": "You have temporary access to {{what}} so you can check it. Open the {{noun}}, check the numbers and the name, then decide.",
+            "approveExplain": "<bold>Approve</bold> moves {{what}} into {{target}}, where everyone with access to that space can find it.",
+            "rejectExplain": "<bold>Reject</bold> keeps it in {{requester}}'s personal space. They see your note and can ask again after changes.",
+            "sqlCannotVerify": "SQL charts cannot be verified yet",
+            "noVerifyPermission": "You need permission to verify content",
+            "verifyOnApprove": "Verify on approve",
+            "verifyOnApproveDescription": "Adds a verified badge and ranks it first for Ask AI and search",
+            "approveAndMove": "Approve and move"
+        },
+        "waiting": {
+            "title": "Waiting for a reviewer",
+            "description": "Reviewers for {{space}} were notified and will see your note. You can cancel the request at any time.",
+            "fromSpace": "Waiting for a reviewer from {{space}}."
+        },
+        "route": {
+            "yourSpace": "your personal space",
+            "userSpace": "{{name}}'s personal space",
+            "deletedSpace": "a deleted space",
+            "typeIn": "{{type}} in {{owner}}",
+            "moved": "{{type}} in {{target}}, moved from {{owner}}",
+            "notMoved": "{{type}} in {{owner}}, not moved"
+        },
+        "firstReview": {
+            "title": "You are reviewing a request",
+            "description": "Editors build charts and dashboards in their own space and ask to move them into a shared space. You decide whether this one is ready for everyone."
+        },
+        "nextStep": {
+            "liveTitle": "Your {{noun}} is live in {{space}}",
+            "theSharedSpace": "the shared space",
+            "liveDescription": "Everyone with access to that space can find it now. Edits from here on follow that space's permissions.",
+            "whatNext": "What next",
+            "rejectedDescription": "The note above says what to change. Open the {{noun}}, edit it, then request a review again from its menu."
+        },
+        "count": {
+            "charts_one": "{{count}} chart",
+            "charts_other": "{{count}} charts",
+            "items_one": "{{count}} item",
+            "items_other": "{{count}} items"
+        },
+        "thread": {
+            "askedWithExtras": "asked to move this {{noun}} and {{extras}} it uses into {{target}}",
+            "asked": "asked to move this {{noun}} into {{target}}",
+            "alsoMoves": "Also moves {{extras}}",
+            "alsoMoved": "Also moved {{extras}}",
+            "cancelled": "cancelled this request",
+            "approved": "approved and moved it",
+            "rejected": "rejected this request"
+        },
+        "similarFooter": {
+            "hintRequester": "Related content found when you submitted.",
+            "hintReviewer": "If one of these already answers the question, reject and point {{name}} to it.",
+            "hintPast": "Related content found when this request was submitted.",
+            "verified_one": " One is verified.",
+            "verified_other": " {{count}} are verified.",
+            "chartsInShared_one": "{{count}} similar chart already in shared spaces.",
+            "chartsInShared_other": "{{count}} similar charts already in shared spaces.",
+            "itemsInShared_one": "{{count}} similar item already in shared spaces.",
+            "itemsInShared_other": "{{count}} similar items already in shared spaces.",
+            "hide": "Hide",
+            "show": "Show"
+        },
+        "requestPage": {
+            "title": "Review request",
+            "notAvailable": "Request not available"
+        }
+    },
+    "agentAccess": {
+        "customRole": "Custom role"
+    },
+    "aiSearch": {
+        "reviewsPromoPrs": "Review issues, ship PRs, improve agents",
+        "reviewsPromo": "Review AI issues to improve future answers",
+        "placeholderAuto": "Ask AI or search your data",
+        "placeholderAgent": "Ask {{name}} or search your data",
+        "placeholderSearch": "Search your data",
+        "trialing": "You are trialing the AI Agents feature.",
+        "setUpFirstAgent": "Set up your first agent to get started",
+        "openCount_one": "{{count}} open",
+        "openCount_other": "{{count}} open",
+        "prReadyCount_one": "{{count}} PR-ready",
+        "prReadyCount_other": "{{count}} PR-ready",
+        "linkedCount_one": "{{count}} linked",
+        "linkedCount_other": "{{count}} linked",
+        "adminSettings": "Admin Settings",
+        "loadingResults": "Loading search results",
+        "noResults": "No matching search results"
+    },
+    "userAccess": {
+        "noUsers": "No users found",
+        "label": "User Access",
+        "tooltip": "Admins and developers (Manage AI Agents scope) will always have access.",
+        "descriptionWithGroups": "Select specific users from this project who can access this agent. If no users or groups are selected, all users will have access.",
+        "description": "Select specific users from this project who can access this agent. If no users are selected, all users will have access.",
+        "placeholder": "Search users"
+    },
+    "slackAuth": {
+        "title": "Slack connected successfully!",
+        "description": "Your Slack account is now connected to Lightdash. You can now use AI Agent by mentioning the bot in your Slack channels.",
+        "openSlack": "Open Slack"
+    },
+    "artifact": {
+        "unsupported": "This artifact is not a custom chart type answer.",
+        "loadError": "Failed to load artifact visualization."
+    },
+    "agents": {
+        "conversation": "Conversation",
+        "share": {
+            "title": "Share thread",
+            "description": "Anyone with the link and access to this AI agent can open this conversation as their own copy.",
+            "laterMessages": "New messages you send later won't be included.",
+            "creating": "Creating link..."
+        },
+        "thread": {
+            "readOnlySlack": "This thread is read-only. To continue the conversation, reply in Slack.",
+            "readOnlyOtherUser": "This thread is read-only. It belongs to another user."
+        },
+        "askAgentAnything": "Ask {{name}} anything about your data...",
+        "notAllowed": "You are not allowed to access this view",
+        "pinnedContext": "Pinned context",
+        "router": {
+            "finding": "Finding the right agent…",
+            "opening": "Opening the conversation…",
+            "askProject": "Ask {{name}}",
+            "askThisProject": "Ask this project",
+            "askProjectAnything": "Ask {{name}} anything...",
+            "askAnything": "Ask anything about your data...",
+            "memories": "Memories",
+            "whichAgent": "Which agent should answer?",
+            "whyAgents": "Why these agents?",
+            "sendTo": "Send to {{name}}",
+            "recommended": "Recommended"
+        },
+        "welcome": {
+            "title": "Welcome to AI Agents",
+            "subtitle": "Your AI-powered BI assistants",
+            "whatYouCanDo": "What you can do with AI Agents:",
+            "features": {
+                "analyze": {
+                    "title": "Analyze your data",
+                    "description": "Ask questions about sales, revenue, customers, and performance metrics"
+                },
+                "insights": {
+                    "title": "Get insights",
+                    "description": "Discover trends, patterns, and actionable recommendations from your business data"
+                },
+                "visualizations": {
+                    "title": "Create visualizations",
+                    "description": "Generate charts, graphs, and tables to visualize your business metrics"
+                },
+                "specialized": {
+                    "title": "Specialized agents",
+                    "description": "Create custom AI agents trained for specific departments like Finance, Sales, or Marketing"
+                }
+            },
+            "ready": "Ready to get started?",
+            "readyDescription": "Create your first AI agent to begin analyzing your business data and unlock powerful insights.",
+            "createFirst": "Create your first Agent",
+            "noPermission": "You don’t have permission to create agents. Please contact your workspace admin if you need access.",
+            "error": "something went wrong..."
+        },
+        "battle": {
+            "queued_one": "{{count}} queued, keep asking...",
+            "queued_other": "{{count}} queued, keep asking...",
+            "followUp": "Ask both sides a follow-up..."
+        },
+        "backToAgents": "Back to AI agents",
+        "askBothModels": "Ask both models anything about your data...",
+        "accessTree": {
+            "dimensions": "Dimensions",
+            "metrics": "Metrics",
+            "joins": "Joins"
+        },
+        "sharePage": {
+            "notFound": "Shared AI thread link does not exist",
+            "loading": "Loading..."
+        },
+        "notAuthorized": {
+            "title": "You're not authorized to interact with this AI agent",
+            "description": "To gain access, please contact your organization administrator.",
+            "goHome": "Go back to project home"
+        },
+        "deepResearch": {
+            "expiredTitle": "This report is no longer available",
+            "notReadyTitle": "This report is not ready yet",
+            "expiredDescription": "Deep Research reports are available for 30 days.",
+            "notReadyDescription": "Return to the conversation to check its progress.",
+            "backToChat": "Back to chat"
+        },
+        "evals": {
+            "emptyTitle": "No evaluations found",
+            "emptyDescription": "Create an evaluation to start testing your AI agent with predefined prompts and measure its performance.",
+            "create": "Create Evaluation"
+        },
+        "edit": {
+            "nameRequired": "Name is required",
+            "channelRequired": "Channel is required",
+            "backToAgents": "Back to Agents",
+            "notFoundTitle": "Agent not found",
+            "notFoundDescription": "The agent you are looking for does not exist.",
+            "newAgent": "New agent",
+            "agent": "Agent",
+            "setup": "Setup",
+            "evals": "Evals",
+            "verifiedAnswers": "Verified Answers",
+            "conversations": "Conversations",
+            "settings": "Agent settings",
+            "closeNavigation": "Close agent settings navigation",
+            "discardTitle": "Discard unsaved changes?",
+            "discardDescription": "Your changes to this agent have not been saved. Leaving now will discard them.",
+            "discardConfirm": "Discard changes",
+            "keepEditing": "Keep editing"
+        }
+    }
+}

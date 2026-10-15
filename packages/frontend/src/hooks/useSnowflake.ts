@@ -8,6 +8,7 @@ import { useMemo } from 'react';
 import { lightdashApi } from '../api';
 import { useUiStrings } from '../ee/providers/Embed/useUiStrings';
 import { getAiAccessRefusal } from '../features/aiAccess/errors';
+import i18n from '../i18n/i18n';
 import useHealth from './health/useHealth';
 import useToaster from './toaster/useToaster';
 
@@ -100,8 +101,12 @@ export function useSnowflakeLoginPopup({
         },
         onError: (error: Error) => {
             showToastError({
-                title: 'Authentication failed',
-                subtitle: error.message || 'Please try again',
+                title: i18n.t('useSnowflake.authenticationFailed', {
+                    ns: 'app',
+                }),
+                subtitle:
+                    error.message ||
+                    i18n.t('common.pleaseTryAgain', { ns: 'app' }),
             });
         },
     });

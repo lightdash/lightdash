@@ -26,6 +26,7 @@ import {
     type FC,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import {
@@ -89,6 +90,7 @@ type Props = {
 };
 
 const VisualizationCard: FC<Props> = memo((props) => {
+    const { t } = useTranslation('explorer');
     const {
         projectUuid: fallBackUUid,
         renderVisualization,
@@ -274,7 +276,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
             ? queryError
             : // Mimicking an API Error Detail so it can be used in the EmptyState component
               ({
-                  message: 'Missing required parameters',
+                  message: t('emptyStates.missingParameters.title'),
                   name: 'Error',
                   statusCode: 400,
                   data: {},
@@ -286,12 +288,15 @@ const VisualizationCard: FC<Props> = memo((props) => {
         merge?.runError,
         merge?.runErrors,
         merge?.replacesQuery,
+        t,
     ]);
 
     const dirtyPivotConfiguration = useDirtyPivotConfiguration();
 
     if (!unsavedChartVersion.tableName) {
-        return <CollapsableCard title="Charts" disabled />;
+        return (
+            <CollapsableCard title={t('visualizationCard.charts')} disabled />
+        );
     }
 
     const getGsheetLink = async (
@@ -364,7 +369,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                 invalidateCache={validQueryArgs?.invalidateCache}
             >
                 <CollapsableCard
-                    title="Chart"
+                    title={t('visualizationCard.chart')}
                     isOpen={isOpen}
                     isVisualizationCard
                     // Walkthrough look for view:SavedChart: the chart is
@@ -438,8 +443,10 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                         }
                                     >
                                         {isVisualizationConfigOpen
-                                            ? 'Close configure'
-                                            : 'Configure'}
+                                            ? t(
+                                                  'visualizationCard.closeConfigure',
+                                              )
+                                            : t('visualizationCard.configure')}
                                     </Button>
                                 ) : null}
 

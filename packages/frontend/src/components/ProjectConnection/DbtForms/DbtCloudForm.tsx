@@ -10,6 +10,7 @@ import {
 } from '@mantine/core';
 import { IconInfoCircle, IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import useApp from '../../../providers/App/useApp';
 import { CopyActionIcon } from '../../common/CopyActionIcon';
 import MantineIcon from '../../common/MantineIcon';
@@ -20,6 +21,7 @@ import DbtVersionSelect from '../Inputs/DbtVersion';
 import { useProjectFormContext } from '../useProjectFormContext';
 
 const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
+    const { t } = useTranslation('projectConnection');
     const { health } = useApp();
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
@@ -41,24 +43,24 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
 
             <Alert
                 icon={<MantineIcon icon={IconInfoCircle} size={'md'} />}
-                title="Requirements"
+                title={t('dbtForms.cloud.requirements')}
             >
                 <p>
-                    The dbt job that builds your project must{' '}
-                    <b>generate docs</b>.
+                    <Trans
+                        t={t}
+                        i18nKey="dbtForms.cloud.generateDocs"
+                        components={{ b: <b /> }}
+                    />
                 </p>
-                <p>
-                    After your job finish you need to click the "refresh dbt"
-                    button in Lightdash to sync your project.
-                </p>
+                <p>{t('dbtForms.cloud.refreshAfterJob')}</p>
             </Alert>
             <PasswordInput
                 name="dbt.api_key"
                 {...form.getInputProps('dbt.api_key')}
-                label="Service token"
+                label={t('dbtForms.cloud.serviceToken')}
                 description={
                     <p>
-                        Needs the "Metadata Only" and "Job Viewer" permissions.
+                        {t('dbtForms.cloud.serviceTokenDescription')}
                         <DocumentationHelpButton href="https://docs.getdbt.com/docs/dbt-cloud-apis/service-tokens" />
                     </p>
                 }
@@ -71,12 +73,10 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             <TextInput
                 name="dbt.environment_id"
                 {...form.getInputProps('dbt.environment_id')}
-                label="Environment ID"
+                label={t('dbtForms.cloud.environmentId')}
                 description={
                     <p>
-                        The unique identifier for the dbt production
-                        environment, you can retrieve this from the dbt Cloud
-                        URL when you navigate to Environments under Deploy.
+                        {t('dbtForms.cloud.environmentIdDescription')}
                         <DocumentationHelpButton href="https://docs.getdbt.com/docs/dbt-cloud-apis/sl-jdbc#connection-parameters" />
                     </p>
                 }
@@ -85,12 +85,10 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             />
             {webhookUrl && (
                 <TextInput
-                    label="Webhook for dbt"
+                    label={t('dbtForms.cloud.webhook')}
                     description={
                         <p>
-                            Add this URL as a webhook in dbt Cloud (triggered on
-                            job completion) so Lightdash can build a preview
-                            when your dbt job finishes.
+                            {t('dbtForms.cloud.webhookDescription')}
                             <DocumentationHelpButton href="https://docs.getdbt.com/docs/deploy/webhooks" />
                         </p>
                     }
@@ -101,7 +99,7 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         <CopyActionIcon
                             value={webhookUrl}
                             tooltipPosition="left"
-                            aria-label="Copy webhook URL"
+                            aria-label={t('dbtForms.cloud.copyWebhook')}
                             onMouseDown={(event) => event.preventDefault()}
                         />
                     }
@@ -110,13 +108,10 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             <PasswordInput
                 name="dbt.webhook_hmac_secret"
                 {...form.getInputProps('dbt.webhook_hmac_secret')}
-                label="Webhook secret"
+                label={t('dbtForms.cloud.webhookSecret')}
                 description={
                     <p>
-                        Recommended if you use the dbt webhook above. Paste the
-                        secret that dbt Cloud generated for the webhook so
-                        Lightdash can verify that incoming requests are genuine.
-                        Without it, webhook requests cannot be authenticated.
+                        {t('dbtForms.cloud.webhookSecretDescription')}
                         <DocumentationHelpButton href="https://docs.getdbt.com/docs/deploy/webhooks#validate-a-webhook" />
                     </p>
                 }
@@ -128,19 +123,23 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             <TextInput
                 name="dbt.discovery_api_endpoint"
                 {...form.getInputProps('dbt.discovery_api_endpoint')}
-                label="Discovery API endpoint"
+                label={t('dbtForms.cloud.discoveryEndpoint')}
                 description={
                     <p>
-                        Use the endpoint that's appropriate for your{' '}
-                        <Anchor
-                            inherit
-                            target="_blank"
-                            href="https://docs.getdbt.com/docs/dbt-cloud-apis/discovery-querying#discovery-api-endpoints"
-                            rel="noreferrer"
-                        >
-                            region and plan
-                        </Anchor>
-                        .
+                        <Trans
+                            t={t}
+                            i18nKey="dbtForms.cloud.discoveryEndpointDescription"
+                            components={{
+                                docsLink: (
+                                    <Anchor
+                                        inherit
+                                        target="_blank"
+                                        href="https://docs.getdbt.com/docs/dbt-cloud-apis/discovery-querying#discovery-api-endpoints"
+                                        rel="noreferrer"
+                                    />
+                                ),
+                            }}
+                        />
                     </p>
                 }
                 placeholder="https://metadata.cloud.getdbt.com/graphql"
@@ -148,15 +147,19 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
             />
             <MultiSelectCombobox
                 name="dbt.tags"
-                label="Tags"
+                label={t('dbtForms.cloud.tags')}
                 disabled={disabled}
                 error={dbtTagsField.error}
                 description={
                     <p>
-                        Only models with <b>all</b> these tags will be synced.
+                        <Trans
+                            t={t}
+                            i18nKey="dbtForms.cloud.tagsDescription"
+                            components={{ b: <b /> }}
+                        />
                     </p>
                 }
-                placeholder="e.g lightdash, prod"
+                placeholder={t('dbtForms.cloud.tagsPlaceholder')}
                 options={dbtTags.map((tag: string) => ({
                     value: tag,
                     label: tag,
@@ -194,7 +197,9 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     <Group gap="xxs">
                         <MantineIcon icon={IconPlus} color="blue.7" size="sm" />
                         <Text c="blue.7" fz="sm" fw={500}>
-                            Add "{tagsSearch.trim()}"
+                            {t('dbtForms.cloud.addTag', {
+                                tag: tagsSearch.trim(),
+                            })}
                         </Text>
                     </Group>
                 }

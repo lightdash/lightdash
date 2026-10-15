@@ -1,9 +1,12 @@
-import { SearchItemType } from '@lightdash/common';
 import { Badge, Box, Group, Stack, Text } from '@mantine/core';
 import { IconAlertTriangle, IconCircleCheckFilled } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type SearchItem } from '../types/searchItem';
-import { getSearchItemLabel } from '../utils/getSearchItemLabel';
+import {
+    getSearchItemSingularLabel,
+    getSearchItemTypeLabel,
+} from '../utils/getSearchItemLabel';
 import { OmnibarItemIcon } from './OmnibarItemIcon';
 import classes from './OmnibarPreview.module.css';
 import { itemHasValidationError, itemHasVerification } from './utils';
@@ -14,12 +17,8 @@ type Props = {
 };
 
 const getKickerLabel = (item: SearchItem) => {
-    if (item.typeLabel) return item.typeLabel;
-    const label = getSearchItemLabel(item.type);
-    // Group labels are plural; the kicker names a single item.
-    return item.type === SearchItemType.SETTINGS
-        ? label
-        : label.replace(/s$/, '');
+    if (item.typeLabel) return getSearchItemTypeLabel(item.typeLabel);
+    return getSearchItemSingularLabel(item.type);
 };
 
 const Fact: FC<{ label: string; children: ReactNode }> = ({
@@ -37,11 +36,12 @@ const Fact: FC<{ label: string; children: ReactNode }> = ({
 );
 
 const OmnibarPreview: FC<Props> = ({ item, spaceName }) => {
+    const { t } = useTranslation('omnibar');
     if (!item) {
         return (
             <Box className={`${classes.container} ${classes.empty}`}>
                 <Text size="xs" c="dimmed" ta="center">
-                    Hover or navigate to a result to preview it here.
+                    {t('preview.empty')}
                 </Text>
             </Box>
         );
@@ -90,13 +90,15 @@ const OmnibarPreview: FC<Props> = ({ item, spaceName }) => {
             {hasFacts && (
                 <Stack gap={6} mt="md" className={classes.facts}>
                     {displaySpaceName !== undefined && (
-                        <Fact label="Space">{displaySpaceName}</Fact>
+                        <Fact label={t('preview.space')}>
+                            {displaySpaceName}
+                        </Fact>
                     )}
                     {viewsCount !== undefined && (
-                        <Fact label="Views">{viewsCount}</Fact>
+                        <Fact label={t('preview.views')}>{viewsCount}</Fact>
                     )}
                     {createdBy !== undefined && (
-                        <Fact label="Created by">{createdBy}</Fact>
+                        <Fact label={t('preview.createdBy')}>{createdBy}</Fact>
                     )}
                 </Stack>
             )}
@@ -110,7 +112,7 @@ const OmnibarPreview: FC<Props> = ({ item, spaceName }) => {
                             leftSection={<IconCircleCheckFilled size={10} />}
                             className={classes.flagBadge}
                         >
-                            Verified
+                            {t('preview.verified')}
                         </Badge>
                     )}
                     {hasError && (
@@ -120,7 +122,7 @@ const OmnibarPreview: FC<Props> = ({ item, spaceName }) => {
                                 color="var(--mantine-color-red-6)"
                             />
                             <Text size="xs" c="red">
-                                Has a validation error
+                                {t('preview.validationError')}
                             </Text>
                         </Group>
                     )}

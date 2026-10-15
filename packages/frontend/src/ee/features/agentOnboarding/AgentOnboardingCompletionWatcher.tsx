@@ -1,5 +1,6 @@
 import { isAgentOnboardingRunTerminal } from '@lightdash/common';
 import { useEffect, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -15,6 +16,7 @@ import {
 const toastedRunUuids = new Set<string>();
 
 export const AgentOnboardingCompletionWatcher: FC = () => {
+    const { t } = useTranslation('agentOnboarding');
     const watched = useWatchedAgentOnboardingRun();
     const navigate = useNavigate();
     const location = useLocation();
@@ -63,11 +65,10 @@ export const AgentOnboardingCompletionWatcher: FC = () => {
         showToastSuccess({
             key: `agent-onboarding-complete-${agentOnboardingRunUuid}`,
             autoClose: false,
-            title: 'Your Lightdash project is ready',
-            subtitle:
-                'The semantic layer and starter dashboard have been generated.',
+            title: t('completion.title'),
+            subtitle: t('completion.subtitle'),
             action: {
-                children: 'Open project',
+                children: t('run.openProject'),
                 onClick: () => {
                     track({
                         name: EventName.AGENT_ONBOARDING_COMPLETION_TOAST_CLICKED,
@@ -89,6 +90,7 @@ export const AgentOnboardingCompletionWatcher: FC = () => {
         showToastSuccess,
         track,
         navigate,
+        t,
     ]);
 
     return null;

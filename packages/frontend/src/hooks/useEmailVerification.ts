@@ -4,6 +4,7 @@ import {
     type EmailStatusExpiring,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
@@ -46,6 +47,7 @@ export const useEmailStatus = (enabled: boolean) =>
 
 export const useOneTimePassword = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError } = useToaster();
     return useMutation<EmailStatusExpiring, ApiError>(
         () => sendOneTimePasscodeQuery(),
@@ -56,7 +58,7 @@ export const useOneTimePassword = () => {
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `We couldn't send a verification e-mail to your inbox.`,
+                    title: t('useEmailVerification.weCouldnTSendAVerification'),
                     apiError: error,
                 });
             },
@@ -66,6 +68,7 @@ export const useOneTimePassword = () => {
 
 export const useVerifyEmail = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess } = useToaster();
     const emailOnlySignupFlag = useServerFeatureFlag(
         FeatureFlags.NewOnboarding,
@@ -82,7 +85,9 @@ export const useVerifyEmail = () => {
                     !(emailOnlySignupFlag.data?.enabled ?? false)
                 )
                     showToastSuccess({
-                        title: 'Success! Your e-mail has been verified.',
+                        title: t(
+                            'useEmailVerification.successYourEMailHasBeen',
+                        ),
                     });
             },
         },

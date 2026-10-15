@@ -7,6 +7,7 @@ import {
 } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import rehypeExternalLinks from 'rehype-external-links';
 import rehypeSanitize from 'rehype-sanitize';
 import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
@@ -18,119 +19,137 @@ import {
 } from '../../pages/roadmapUtils';
 import { RoadmapDetails, RoadmapRailRow } from './RoadmapDetails';
 import styles from './RoadmapDetails.module.css';
+import {
+    getRoadmapPriorityLabel,
+    getRoadmapStatusLabel,
+} from './roadmapPresentation';
 import { RoadmapSlackThreadsRow } from './RoadmapSlackThreads';
 
 export const RoadmapRequestDetails: FC<{
     item: RoadmapItem | null;
     onClose: () => void;
-}> = ({ item, onClose }) => (
-    <RoadmapDetails
-        opened={item !== null}
-        onClose={onClose}
-        title={item?.title ?? 'Roadmap request'}
-        propertiesLabel="Roadmap request properties"
-        actions={null}
-        description={
-            item?.description ? (
-                <Box className={styles.markdown}>
-                    <MarkdownPreview
-                        source={item.description}
-                        rehypePlugins={[
-                            rehypeSanitize,
-                            [
-                                rehypeExternalLinks,
-                                {
-                                    target: '_blank',
-                                    rel: ['noopener', 'noreferrer'],
-                                },
-                            ],
-                        ]}
-                    />
-                </Box>
-            ) : (
-                <Text c="dimmed" fz="sm">
-                    No further detail is available for this request.
-                </Text>
-            )
-        }
-    >
-        {item && (
-            <>
-                <RoadmapRailRow label="Status">
-                    <Group gap={6} wrap="nowrap">
-                        <Box
-                            className={styles.detailPropertyDot}
-                            bg={`${getStatusColor(item.status)}.6`}
+}> = ({ item, onClose }) => {
+    const { t } = useTranslation('eeMisc');
+    return (
+        <RoadmapDetails
+            opened={item !== null}
+            onClose={onClose}
+            title={item?.title ?? t('roadmap.details.requestFallback')}
+            propertiesLabel={t('roadmap.details.requestProperties')}
+            actions={null}
+            description={
+                item?.description ? (
+                    <Box className={styles.markdown}>
+                        <MarkdownPreview
+                            source={item.description}
+                            rehypePlugins={[
+                                rehypeSanitize,
+                                [
+                                    rehypeExternalLinks,
+                                    {
+                                        target: '_blank',
+                                        rel: ['noopener', 'noreferrer'],
+                                    },
+                                ],
+                            ]}
                         />
-                        <Text className={styles.detailRailText}>
-                            {item.status}
-                        </Text>
-                    </Group>
-                </RoadmapRailRow>
-                <RoadmapRailRow label="Priority">
-                    <Group gap={6} wrap="nowrap">
-                        <Box
-                            className={styles.detailPropertyDot}
-                            bg={`${getPriorityColor(item.priority)}.6`}
-                        />
-                        <Text className={styles.detailRailText}>
-                            {item.priority}
-                        </Text>
-                    </Group>
-                </RoadmapRailRow>
-                <RoadmapRailRow label="Ticket ID">
-                    <Group gap={4} wrap="nowrap">
-                        <Text className={styles.detailTicketId}>
-                            {item.ticketId}
-                        </Text>
-                        <CopyActionIcon
-                            value={item.ticketId}
-                            copyLabel="Copy ticket ID"
-                            size="xs"
-                            variant="transparent"
-                        />
-                    </Group>
-                </RoadmapRailRow>
-                <RoadmapRailRow label="Created">
-                    <Text className={styles.detailRailText}>
-                        {formatRoadmapDetailDate(item.createdAt)}
+                    </Box>
+                ) : (
+                    <Text c="dimmed" fz="sm">
+                        {t('roadmap.details.noRequestDetail')}
                     </Text>
-                </RoadmapRailRow>
-                <RoadmapRailRow label="Updated">
-                    <Text className={styles.detailRailText}>
-                        {formatRoadmapDetailDate(item.updatedAt)}
-                    </Text>
-                </RoadmapRailRow>
-                {item.issueUrl && (
-                    <RoadmapRailRow label="Issue">
-                        <Anchor
-                            href={item.issueUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={styles.detailRailLink}
-                        >
-                            <MantineIcon icon={IconBrandGithub} size={14} />
-                            View GitHub issue
-                            <MantineIcon icon={IconArrowUpRight} size={13} />
-                        </Anchor>
+                )
+            }
+        >
+            {item && (
+                <>
+                    <RoadmapRailRow label={t('roadmap.details.status')}>
+                        <Group gap={6} wrap="nowrap">
+                            <Box
+                                className={styles.detailPropertyDot}
+                                bg={`${getStatusColor(item.status)}.6`}
+                            />
+                            <Text className={styles.detailRailText}>
+                                {getRoadmapStatusLabel(item.status)}
+                            </Text>
+                        </Group>
                     </RoadmapRailRow>
-                )}
-                {item.pullRequestUrl && (
-                    <RoadmapRailRow label="Pull request">
-                        <Anchor
-                            href={item.pullRequestUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={styles.detailRailLink}
-                        >
-                            <MantineIcon icon={IconGitPullRequest} size={14} />
-                            View pull request
-                            <MantineIcon icon={IconArrowUpRight} size={13} />
-                        </Anchor>
+                    <RoadmapRailRow label={t('roadmap.details.priority')}>
+                        <Group gap={6} wrap="nowrap">
+                            <Box
+                                className={styles.detailPropertyDot}
+                                bg={`${getPriorityColor(item.priority)}.6`}
+                            />
+                            <Text className={styles.detailRailText}>
+                                {getRoadmapPriorityLabel(item.priority)}
+                            </Text>
+                        </Group>
                     </RoadmapRailRow>
-                )}
-                <RoadmapSlackThreadsRow urls={item.slackThreadUrls} />
-            </>
-        )}
-    </RoadmapDetails>
-);
+                    <RoadmapRailRow label={t('roadmap.details.ticketId')}>
+                        <Group gap={4} wrap="nowrap">
+                            <Text className={styles.detailTicketId}>
+                                {item.ticketId}
+                            </Text>
+                            <CopyActionIcon
+                                value={item.ticketId}
+                                copyLabel={t('roadmap.details.copyTicketId')}
+                                size="xs"
+                                variant="transparent"
+                            />
+                        </Group>
+                    </RoadmapRailRow>
+                    <RoadmapRailRow label={t('roadmap.details.created')}>
+                        <Text className={styles.detailRailText}>
+                            {formatRoadmapDetailDate(item.createdAt)}
+                        </Text>
+                    </RoadmapRailRow>
+                    <RoadmapRailRow label={t('roadmap.details.updated')}>
+                        <Text className={styles.detailRailText}>
+                            {formatRoadmapDetailDate(item.updatedAt)}
+                        </Text>
+                    </RoadmapRailRow>
+                    {item.issueUrl && (
+                        <RoadmapRailRow label={t('roadmap.details.issue')}>
+                            <Anchor
+                                href={item.issueUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={styles.detailRailLink}
+                            >
+                                <MantineIcon icon={IconBrandGithub} size={14} />
+                                {t('roadmap.details.viewGithubIssue')}
+                                <MantineIcon
+                                    icon={IconArrowUpRight}
+                                    size={13}
+                                />
+                            </Anchor>
+                        </RoadmapRailRow>
+                    )}
+                    {item.pullRequestUrl && (
+                        <RoadmapRailRow
+                            label={t('roadmap.details.pullRequest')}
+                        >
+                            <Anchor
+                                href={item.pullRequestUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={styles.detailRailLink}
+                            >
+                                <MantineIcon
+                                    icon={IconGitPullRequest}
+                                    size={14}
+                                />
+                                {t('whatsNew.viewPullRequest')}
+                                <MantineIcon
+                                    icon={IconArrowUpRight}
+                                    size={13}
+                                />
+                            </Anchor>
+                        </RoadmapRailRow>
+                    )}
+                    <RoadmapSlackThreadsRow urls={item.slackThreadUrls} />
+                </>
+            )}
+        </RoadmapDetails>
+    );
+};

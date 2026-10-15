@@ -12,6 +12,7 @@ import {
     useMutation,
     useQueryClient,
 } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { invalidateContent } from '../../../hooks/useContent';
@@ -81,18 +82,19 @@ export function useRestoreDeletedContent(projectUuid: string) {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('settings');
 
     return useMutation<undefined, ApiError, RestoreDeletedContentItem>({
         mutationFn: ({ isChartType, ...item }) =>
             restoreDeletedContent(projectUuid, item),
         onSuccess: async (_data, item) => {
             showToastSuccess({
-                title: 'Content restored',
-                subtitle: 'The item has been restored successfully.',
+                title: t('recentlyDeleted.toast.restored'),
+                subtitle: t('recentlyDeleted.toast.restoredSubtitle'),
                 action:
                     item.contentType === ContentType.CHART
                         ? {
-                              children: 'Go to chart',
+                              children: t('recentlyDeleted.toast.goToChart'),
                               icon: IconArrowRight,
                               onClick: () =>
                                   navigate(
@@ -101,7 +103,9 @@ export function useRestoreDeletedContent(projectUuid: string) {
                           }
                         : item.contentType === ContentType.DASHBOARD
                           ? {
-                                children: 'Go to dashboard',
+                                children: t(
+                                    'recentlyDeleted.toast.goToDashboard',
+                                ),
                                 icon: IconArrowRight,
                                 onClick: () =>
                                     navigate(
@@ -110,7 +114,9 @@ export function useRestoreDeletedContent(projectUuid: string) {
                             }
                           : item.contentType === ContentType.SPACE
                             ? {
-                                  children: 'Go to space',
+                                  children: t(
+                                      'recentlyDeleted.toast.goToSpace',
+                                  ),
                                   icon: IconArrowRight,
                                   onClick: () =>
                                       navigate(
@@ -120,8 +126,10 @@ export function useRestoreDeletedContent(projectUuid: string) {
                             : item.contentType === ContentType.DATA_APP
                               ? {
                                     children: item.isChartType
-                                        ? 'Go to chart type'
-                                        : 'Go to app',
+                                        ? t(
+                                              'recentlyDeleted.toast.goToChartType',
+                                          )
+                                        : t('recentlyDeleted.toast.goToApp'),
                                     icon: IconArrowRight,
                                     onClick: () =>
                                         navigate(
@@ -132,7 +140,9 @@ export function useRestoreDeletedContent(projectUuid: string) {
                                 }
                               : item.contentType === ContentType.DOCUMENT
                                 ? {
-                                      children: 'Go to document',
+                                      children: t(
+                                          'recentlyDeleted.toast.goToDocument',
+                                      ),
                                       icon: IconArrowRight,
                                       onClick: () =>
                                           navigate(
@@ -146,7 +156,7 @@ export function useRestoreDeletedContent(projectUuid: string) {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to restore content',
+                title: t('recentlyDeleted.toast.restoreFailed'),
                 apiError: error,
             });
         },
@@ -156,20 +166,21 @@ export function useRestoreDeletedContent(projectUuid: string) {
 export function usePermanentlyDeleteContent(projectUuid: string) {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('settings');
 
     return useMutation<undefined, ApiError, DeletedContentItem>({
         mutationFn: (item) => permanentlyDeleteContent(projectUuid, item),
         onSuccess: async () => {
             showToastSuccess({
-                title: 'Content permanently deleted',
-                subtitle: 'The item has been permanently deleted.',
+                title: t('recentlyDeleted.toast.deleted'),
+                subtitle: t('recentlyDeleted.toast.deletedSubtitle'),
             });
             await invalidateContent(queryClient, projectUuid);
             await queryClient.invalidateQueries(['deletedContent']);
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to delete content',
+                title: t('recentlyDeleted.toast.deleteFailed'),
                 apiError: error,
             });
         },

@@ -1,0 +1,591 @@
+{
+    "labels": {
+        "other": "Otros",
+        "features": {
+            "agent": "Ask AI",
+            "agentSubtask": "Herramienta de Ask AI",
+            "compaction": "Compactación",
+            "deepResearch": "Deep Research",
+            "dataApp": "App de datos"
+        },
+        "channels": {
+            "web": "App web",
+            "slack": "Slack",
+            "embed": "Insertado",
+            "api": "API",
+            "mcp": "MCP",
+            "evals": "Evaluaciones",
+            "scheduler": "Envíos programados",
+            "data_app": "Apps de datos"
+        },
+        "breakdowns": {
+            "feature": "Función",
+            "channel": "Canal",
+            "user": "Usuario",
+            "project": "Proyecto",
+            "agent": "Agente"
+        },
+        "unattributed": {
+            "user": "Sin usuario",
+            "project": "Sin proyecto",
+            "agent": "Sin agente"
+        },
+        "deleted": {
+            "feature": "Función eliminada",
+            "channel": "Canal eliminado",
+            "user": "Usuario eliminado",
+            "project": "Proyecto eliminado",
+            "agent": "Agente eliminado"
+        },
+        "embeddedViewers": "Lectores insertados"
+    },
+    "chart": {
+        "weekOf": "Semana del {{date}}",
+        "credits": "{{credits}} créditos",
+        "total": "Total"
+    },
+    "aiCredits": {
+        "period": {
+            "monthly": "Mensual",
+            "quarterly": "Trimestral",
+            "yearly": "Anual",
+            "everyMonths_one": "Cada {{count}} mes",
+            "everyMonths_other": "Cada {{count}} meses"
+        },
+        "contractEndsOn": "Tu contrato termina el {{date}}.",
+        "resetsOn": "Se restablece el {{date}}.",
+        "ofAllowanceUsed": "de {{allowance}} créditos usados",
+        "creditsUsed": "créditos usados",
+        "noAllowance": "Aún no hay una asignación definida para este contrato, así que el uso no se mide contra ninguna.",
+        "contractEndsOnNoPeriod": "Tu contrato termina el {{date}}",
+        "loading": "Cargando el uso de créditos de IA",
+        "title": "Créditos de IA",
+        "description": "Créditos que tu organización ha usado en funciones de IA en el periodo actual.",
+        "loadError": "No se pudo cargar el uso de créditos de IA.",
+        "bar": {
+            "label": "Créditos usados",
+            "valueText": "{{used}} de {{allowance}} créditos usados, {{percent}} %"
+        },
+        "contactUs": "{{lead}} contáctanos en <anchor>{{email}}</anchor> o en tu canal de soporte habitual.",
+        "contactLead": {
+            "keepUsing": "Para seguir usando la IA,",
+            "keepUsingBefore": "Para seguir usando la IA antes de esa fecha,",
+            "raiseCap": "Para aumentar el límite,",
+            "resume": "Para reanudar la IA,",
+            "overageQuestions": "Si tienes preguntas sobre el uso por encima de la asignación,"
+        },
+        "notice": {
+            "paused": "Las funciones de IA que usan créditos están en pausa",
+            "pausedUntil": "Las funciones de IA que usan créditos están en pausa hasta el {{date}}",
+            "allowanceUsed": "Se ha agotado la asignación de este periodo",
+            "keepsWorking": "La IA sigue funcionando. ",
+            "overage": "Has superado la asignación en {{credits}} créditos. "
+        },
+        "breakdown": {
+            "rowLabel": "{{label}}: {{credits}} créditos",
+            "title": "Desglose del uso",
+            "showingBy": {
+                "feature": "Mostrando el uso por función",
+                "channel": "Mostrando el uso por canal",
+                "user": "Mostrando el uso por usuario",
+                "project": "Mostrando el uso por proyecto",
+                "agent": "Mostrando el uso por agente"
+            },
+            "loadError": "No se pudo cargar el uso diario de créditos de IA.",
+            "noUsage": "Aún no hay uso en este periodo"
+        }
+    },
+    "whatsNew": {
+        "title": "Novedades",
+        "close": "Cerrar novedades",
+        "opensInNewTab": "(se abre en una pestaña nueva)",
+        "requested": "Solicitado",
+        "addedIn": "Añadido en la v{{version}}",
+        "viewPullRequest": "Ver pull request",
+        "viewRelease": "Ver versión",
+        "loading": "Cargando novedades destacadas",
+        "requestedByOrganization": "Solicitado por tu organización",
+        "highlights": "Destacados",
+        "aiSummary": "Resumen con IA",
+        "summaryNote": "Resumido por el modelo de IA que tienes configurado a partir de las notas de versión públicas. Consulta el registro de cambios completo para ver correcciones y cambios incompatibles.",
+        "turnOnAi": "Activa la IA para ver aquí un resumen de las nuevas funciones.",
+        "unavailable": "Los destacados no están disponibles en este momento.",
+        "noHighlights": "No hay funciones destacadas para este rango.",
+        "latestVersion": "Tienes la versión más reciente",
+        "versionStatus": "Tienes la v{{current}} · la más reciente es la v{{latest}}",
+        "whatsNewSince": "Novedades desde la v{{version}}",
+        "howToUpdate": "Cómo actualizar",
+        "changesSince": "Cambios desde la v{{version}}",
+        "openFullPage": "Abrir página completa",
+        "releaseNotes": "Notas de versión"
+    },
+    "roadmap": {
+        "follow": {
+            "sent": "Solicitud enviada",
+            "follow": "Seguir",
+            "modalTitle": "Seguir \"{{title}}\"",
+            "sendRequest": "Enviar solicitud",
+            "noteLabel": "¿Por qué te interesa esta función?",
+            "notePlaceholder": "Cuéntanos cómo la usaría tu equipo.",
+            "privacyNote": "Los datos de tu organización y de usuario, incluidos tu nombre y correo electrónico, se compartirán con el equipo de Lightdash junto con tu nota.",
+            "sendFailed": "No se pudo enviar la solicitud",
+            "noteKept": "Hemos conservado tu nota. Inténtalo de nuevo."
+        },
+        "details": {
+            "description": "Descripción",
+            "projectFallback": "Proyecto de la hoja de ruta",
+            "projectProperties": "Propiedades del proyecto de la hoja de ruta",
+            "openBoard": "Abrir tablero del proyecto",
+            "noProjectDetail": "No hay más detalles disponibles para este proyecto.",
+            "status": "Estado",
+            "priority": "Prioridad",
+            "progress": "Progreso",
+            "lastTicketUpdate": "Última actualización de ticket",
+            "following": "Siguiendo",
+            "ticketCount_one": "{{count}} ticket",
+            "ticketCount_other": "{{count}} tickets",
+            "interest": "Interés",
+            "requestFallback": "Solicitud de la hoja de ruta",
+            "requestProperties": "Propiedades de la solicitud de la hoja de ruta",
+            "noRequestDetail": "No hay más detalles disponibles para esta solicitud.",
+            "ticketId": "ID del ticket",
+            "copyTicketId": "Copiar ID del ticket",
+            "created": "Creado",
+            "updated": "Actualizado",
+            "issue": "Incidencia",
+            "viewGithubIssue": "Ver incidencia en GitHub",
+            "pullRequest": "Pull request"
+        },
+        "slack": {
+            "viewThread": "Ver hilo de Slack",
+            "threadNumber": "Hilo de Slack {{number}}",
+            "viewThreads_one": "Ver {{count}} hilo de Slack",
+            "viewThreads_other": "Ver {{count}} hilos de Slack",
+            "threads": "Hilos de Slack"
+        },
+        "priority": {
+            "urgent": "Urgente",
+            "high": "Alta",
+            "medium": "Media",
+            "low": "Baja",
+            "none": "Sin prioridad"
+        },
+        "columns": {
+            "backlog": "Pendiente",
+            "inProgress": "En curso",
+            "done": "Hecho",
+            "canceled": "Cancelado"
+        },
+        "board": {
+            "columnTickets": "Tickets: {{column}}",
+            "columnItems": "Elementos de la hoja de ruta: {{column}}",
+            "totalTickets_one": "{{count}} ticket en total",
+            "totalTickets_other": "{{count}} tickets en total",
+            "thisMonth": "este mes",
+            "onlyFollowedShown": "Solo se muestran individualmente los tickets que sigues.",
+            "otherTickets_one": "{{count}} ticket más",
+            "otherTickets_other": "{{count}} tickets más",
+            "showAll": "Mostrar todo ({{count}})",
+            "noItems": "Sin elementos"
+        },
+        "progress": {
+            "unavailableAria": "Progreso general del proyecto no disponible",
+            "aria": "{{value}} % de progreso general del proyecto",
+            "unavailable": "Progreso no disponible",
+            "percent": "{{value}} %"
+        },
+        "priorityAria": "Prioridad: {{priority}}",
+        "open": "Abrir {{title}}",
+        "openTicket": "Abrir el ticket {{title}}",
+        "openBoardFor": "Abrir el tablero del proyecto {{title}}",
+        "interested": "Interesado",
+        "ticketsFollowed_one": "{{count}} ticket seguido",
+        "ticketsFollowed_other": "{{count}} tickets seguidos",
+        "table": {
+            "label": "Elementos de la hoja de ruta",
+            "name": "Nombre",
+            "typeId": "Tipo / ID",
+            "project": "Proyecto"
+        },
+        "error": {
+            "unreachableTitle": "No se puede acceder al servicio de la hoja de ruta",
+            "loadTitle": "No se pudo cargar la hoja de ruta",
+            "unreachableDescription": "El servidor no puede acceder a roadmap.lightdash.com. Si lo alojas tú mismo, pide a tu administrador que permita HTTPS saliente (puerto 443) hacia roadmap.lightdash.com.",
+            "unavailable": "La hoja de ruta no está disponible en este momento.",
+            "egressGuidance": "Ver guía de tráfico de salida"
+        },
+        "loadMoreProjects": "Cargar más proyectos",
+        "loadMoreTickets": "Cargar más tickets",
+        "page": {
+            "projectBoard": "Tablero del proyecto",
+            "title": "Hoja de ruta",
+            "projectBoardDescription": "Tickets que sigue tu organización en este proyecto.",
+            "description": "Explora la hoja de ruta de Lightdash y haz seguimiento de las solicitudes de funciones de tu organización.",
+            "notSetUpTitle": "Tu hoja de ruta aún no está configurada",
+            "notSetUpDescription": "Contacta con tu interlocutor de Lightdash para activarla.",
+            "loadingProjectTickets": "Cargando tickets del proyecto",
+            "loading": "Cargando hoja de ruta"
+        },
+        "toolbar": {
+            "searchTooltip": "Buscar por título, descripción o ID del ticket",
+            "searchProjectTickets": "Buscar tickets del proyecto",
+            "searchRoadmap": "Buscar en la hoja de ruta",
+            "interest": "Interés en la hoja de ruta",
+            "all": "Todo",
+            "type": "Tipo",
+            "projects": "Proyectos",
+            "tickets": "Tickets",
+            "filterByType": "Filtrar por tipo de elemento",
+            "filterByStatus": "Filtrar por estado",
+            "filterByPriority": "Filtrar por prioridad",
+            "view": "Vista de la hoja de ruta",
+            "board": "Tablero",
+            "table": "Tabla"
+        },
+        "empty": {
+            "noMatchingTickets": "No hay tickets que coincidan",
+            "noFollowedTickets": "No sigues ningún ticket de este proyecto",
+            "noRequests": "Aún no hay solicitudes de funciones",
+            "noMatchingItems": "No hay proyectos ni tickets que coincidan",
+            "noItems": "Aún no hay elementos en la hoja de ruta",
+            "projectDescription": "Aquí solo aparecen las solicitudes visibles de tu organización en este proyecto.",
+            "noRequestsDescription": "Tu organización aún no tiene solicitudes de funciones.",
+            "followDescription": "Aquí aparecerán los proyectos y tickets que sigues.",
+            "clearFilters": "Borrar filtros"
+        },
+        "status": {
+            "backlog": "Pendiente",
+            "building": "En desarrollo",
+            "shipped": "Publicado",
+            "canceled": "Cancelado"
+        }
+    },
+    "contentReview": {
+        "noun": {
+            "chart": "gráfico",
+            "sqlChart": "gráfico SQL",
+            "dashboard": "panel",
+            "document": "documento"
+        },
+        "type": {
+            "chart": "Gráfico",
+            "sqlChart": "Gráfico SQL",
+            "dashboard": "Panel",
+            "document": "Documento"
+        },
+        "match": {
+            "potentialDuplicate": "Posible duplicado",
+            "related": "Análisis relacionado",
+            "sameName": "Mismo nombre",
+            "similarName": "Nombre similar"
+        },
+        "status": {
+            "pending": "Pendiente de revisión",
+            "approved": "Aprobada",
+            "rejected": "Rechazada",
+            "cancelled": "Cancelada",
+            "all": "Todos los estados"
+        },
+        "pendingBadge": {
+            "label": "Revisión pendiente",
+            "youAsked": "Lo solicitaste {{ago}}. Se moverá al espacio compartido cuando un revisor lo apruebe.",
+            "userAsked": "{{name}} lo solicitó {{ago}}. Se moverá al espacio compartido cuando un revisor lo apruebe.",
+            "openRequest": "Abrir solicitud"
+        },
+        "cancelRequest": "Cancelar solicitud",
+        "reviewRequests": "Solicitudes de revisión",
+        "toasts": {
+            "requested": "Revisión solicitada",
+            "reviewersNotified": "Se ha avisado a los revisores de {{space}}",
+            "requestFailed": "No se pudo solicitar la revisión",
+            "cancelled": "Solicitud de revisión cancelada",
+            "cancelFailed": "No se pudo cancelar la solicitud de revisión",
+            "approvedVerified": "Solicitud aprobada y contenido verificado",
+            "approved": "Solicitud aprobada",
+            "movedTo": "Movido a {{space}}",
+            "approveFailed": "No se pudo aprobar la solicitud",
+            "rejected": "Solicitud rechazada",
+            "rejectFailed": "No se pudo rechazar la solicitud",
+            "settingsSaved": "Configuración de revisión guardada",
+            "settingsSaveFailed": "No se pudo guardar la configuración de revisión"
+        },
+        "verified": "Verificado",
+        "settings": {
+            "defaultGroup": "Predeterminado",
+            "spaceEditors": "Editores del espacio de destino",
+            "organizationGroups": "Grupos de la organización",
+            "whoReviews": "Quién revisa las solicitudes",
+            "whoReviewsDescription": "El grupo necesita acceso a este proyecto y sus miembros deben poder editar el espacio de destino.",
+            "verifyOnApprove": "Verificar el contenido al aprobar",
+            "verifyOnApproveDescription": "Marcado de forma predeterminada en todas las solicitudes. Los revisores pueden desmarcarlo.",
+            "slackChannel": "Canal de Slack para nuevas solicitudes",
+            "slackChannelPlaceholder": "Canal de notificaciones de la organización",
+            "connectSlack": "<anchor>Conecta Slack</anchor> para publicar las nuevas solicitudes en un canal y enviar las decisiones como mensajes directos.",
+            "openQueue": "Abrir la cola de revisión",
+            "description": "Las personas envían gráficos y paneles desde su espacio personal. Al aprobar, el contenido se mueve al espacio compartido que eligieron."
+        },
+        "similar": {
+            "dashboardsFound_one": "{{count}} panel similar encontrado",
+            "dashboardsFound_other": "{{count}} paneles similares encontrados",
+            "chartsFound_one": "{{count}} gráfico similar encontrado",
+            "chartsFound_other": "{{count}} gráficos similares encontrados",
+            "meta": "{{match}} · en {{space}}",
+            "showFewer": "Mostrar menos",
+            "showMore": "Mostrar {{count}} más"
+        },
+        "requestModal": {
+            "title": "Solicitar revisión",
+            "step1": "Paso 1 de 2. Dónde debe ir",
+            "step2": "Paso 2 de 2. Por qué debe ir ahí",
+            "spaceDescription": "Las personas que pueden editar el espacio que elijas revisarán este {{noun}} y lo moverán allí cuando lo aprueben.",
+            "sharedSpace": "Espacio compartido",
+            "checkingSimilar": "Buscando contenido relacionado…",
+            "noteLabel": "Nota para los revisores",
+            "noteSimilar": "¿Qué aporta el tuyo que no aporte el contenido existente?",
+            "noteDefault": "¿Qué muestra y para quién es?"
+        },
+        "deletedContent": "Contenido eliminado",
+        "deletedSpace": "Espacio eliminado",
+        "list": {
+            "content": "Contenido",
+            "requestedBy": "Solicitado por",
+            "movingTo": "Se mueve a",
+            "requested": "Solicitado",
+            "emptyToReview": "No hay nada pendiente de tu revisión",
+            "emptyMine": "Aún no has solicitado ninguna revisión",
+            "emptyToReviewDescription": "Aquí aparecerán las solicitudes para mover contenido a espacios que puedes editar.",
+            "emptyMineDescription": "Abre un gráfico o panel de tu espacio personal y elige Solicitar revisión.",
+            "description": "Gráficos y paneles a la espera de pasar de un espacio personal a uno compartido.",
+            "settings": "Configuración de revisión",
+            "toReview": "Por revisar",
+            "mine": "Mis solicitudes",
+            "statusFilter": "Estado de la revisión"
+        },
+        "theTargetSpace": "el espacio de destino",
+        "openNoun": "Abrir {{noun}}",
+        "reject": {
+            "title": "Rechazar solicitud",
+            "confirm": "Rechazar",
+            "noteLabel": "Explica el motivo al solicitante",
+            "noteDescription": "Verá esta nota y podrá volver a enviarlo tras hacer cambios",
+            "notePlaceholder": "Duplicado de Pedidos de junio en Jaffle shop, usa ese en su lugar"
+        },
+        "decision": {
+            "thisNoun": "este {{noun}}",
+            "theseItems_one": "estos {{count}} elementos",
+            "theseItems_other": "estos {{count}} elementos",
+            "title": "Tu decisión",
+            "access": "Tienes acceso temporal a {{what}} para que puedas revisarlo. Abre el {{noun}}, comprueba los números y el nombre, y decide.",
+            "approveExplain": "<bold>Aprobar</bold> mueve {{what}} a {{target}}, donde cualquiera con acceso a ese espacio podrá encontrarlo.",
+            "rejectExplain": "<bold>Rechazar</bold> lo mantiene en el espacio personal de {{requester}}. Verá tu nota y podrá volver a solicitarlo tras hacer cambios.",
+            "sqlCannotVerify": "Los gráficos SQL aún no se pueden verificar",
+            "noVerifyPermission": "Necesitas permiso para verificar contenido",
+            "verifyOnApprove": "Verificar al aprobar",
+            "verifyOnApproveDescription": "Añade una insignia de verificado y lo prioriza en Ask AI y en la búsqueda",
+            "approveAndMove": "Aprobar y mover"
+        },
+        "waiting": {
+            "title": "A la espera de un revisor",
+            "description": "Se ha avisado a los revisores de {{space}} y verán tu nota. Puedes cancelar la solicitud en cualquier momento.",
+            "fromSpace": "A la espera de un revisor de {{space}}."
+        },
+        "route": {
+            "yourSpace": "tu espacio personal",
+            "userSpace": "el espacio personal de {{name}}",
+            "deletedSpace": "un espacio eliminado",
+            "typeIn": "{{type}} en {{owner}}",
+            "moved": "{{type}} en {{target}}, movido desde {{owner}}",
+            "notMoved": "{{type}} en {{owner}}, sin mover"
+        },
+        "firstReview": {
+            "title": "Estás revisando una solicitud",
+            "description": "Los editores crean gráficos y paneles en su propio espacio y piden moverlos a un espacio compartido. Tú decides si este está listo para todos."
+        },
+        "nextStep": {
+            "liveTitle": "Tu {{noun}} ya está publicado en {{space}}",
+            "theSharedSpace": "el espacio compartido",
+            "liveDescription": "Cualquiera con acceso a ese espacio ya puede encontrarlo. A partir de ahora, las ediciones siguen los permisos de ese espacio.",
+            "whatNext": "Siguientes pasos",
+            "rejectedDescription": "La nota anterior indica qué cambiar. Abre el {{noun}}, edítalo y vuelve a solicitar una revisión desde su menú."
+        },
+        "count": {
+            "charts_one": "{{count}} gráfico",
+            "charts_other": "{{count}} gráficos",
+            "items_one": "{{count}} elemento",
+            "items_other": "{{count}} elementos"
+        },
+        "thread": {
+            "askedWithExtras": "pidió mover este {{noun}} y {{extras}} que usa a {{target}}",
+            "asked": "pidió mover este {{noun}} a {{target}}",
+            "alsoMoves": "También mueve {{extras}}",
+            "alsoMoved": "También movió {{extras}}",
+            "cancelled": "canceló esta solicitud",
+            "approved": "lo aprobó y lo movió",
+            "rejected": "rechazó esta solicitud"
+        },
+        "similarFooter": {
+            "hintRequester": "Contenido relacionado encontrado cuando lo enviaste.",
+            "hintReviewer": "Si alguno de estos ya responde a la pregunta, rechaza y remite a {{name}} a él.",
+            "hintPast": "Contenido relacionado encontrado cuando se envió esta solicitud.",
+            "verified_one": " Uno está verificado.",
+            "verified_other": " {{count}} están verificados.",
+            "chartsInShared_one": "{{count}} gráfico similar ya está en espacios compartidos.",
+            "chartsInShared_other": "{{count}} gráficos similares ya están en espacios compartidos.",
+            "itemsInShared_one": "{{count}} elemento similar ya está en espacios compartidos.",
+            "itemsInShared_other": "{{count}} elementos similares ya están en espacios compartidos.",
+            "hide": "Ocultar",
+            "show": "Mostrar"
+        },
+        "requestPage": {
+            "title": "Solicitud de revisión",
+            "notAvailable": "Solicitud no disponible"
+        }
+    },
+    "agentAccess": {
+        "customRole": "Rol personalizado"
+    },
+    "aiSearch": {
+        "reviewsPromoPrs": "Revisa incidencias, publica PR y mejora los agentes",
+        "reviewsPromo": "Revisa incidencias de IA para mejorar las respuestas futuras",
+        "placeholderAuto": "Pregunta a la IA o busca en tus datos",
+        "placeholderAgent": "Pregunta a {{name}} o busca en tus datos",
+        "placeholderSearch": "Busca en tus datos",
+        "trialing": "Estás probando la función de agentes de IA.",
+        "setUpFirstAgent": "Configura tu primer agente para empezar",
+        "openCount_one": "{{count}} abierta",
+        "openCount_other": "{{count}} abiertas",
+        "prReadyCount_one": "{{count}} lista para PR",
+        "prReadyCount_other": "{{count}} listas para PR",
+        "linkedCount_one": "{{count}} vinculada",
+        "linkedCount_other": "{{count}} vinculadas",
+        "adminSettings": "Configuración de administración",
+        "loadingResults": "Cargando resultados de búsqueda",
+        "noResults": "No hay resultados que coincidan"
+    },
+    "userAccess": {
+        "noUsers": "No se encontraron usuarios",
+        "label": "Acceso de usuarios",
+        "tooltip": "Los administradores y desarrolladores (permiso Gestionar agentes de IA) siempre tendrán acceso.",
+        "descriptionWithGroups": "Selecciona usuarios concretos de este proyecto que pueden acceder a este agente. Si no se selecciona ningún usuario ni grupo, todos los usuarios tendrán acceso.",
+        "description": "Selecciona usuarios concretos de este proyecto que pueden acceder a este agente. Si no se selecciona ningún usuario, todos los usuarios tendrán acceso.",
+        "placeholder": "Buscar usuarios"
+    },
+    "slackAuth": {
+        "title": "¡Slack se ha conectado correctamente!",
+        "description": "Tu cuenta de Slack ya está conectada a Lightdash. Ahora puedes usar el agente de IA mencionando al bot en tus canales de Slack.",
+        "openSlack": "Abrir Slack"
+    },
+    "artifact": {
+        "unsupported": "Este artefacto no es una respuesta de tipo de gráfico personalizado.",
+        "loadError": "No se pudo cargar la visualización del artefacto."
+    },
+    "agents": {
+        "conversation": "Conversación",
+        "share": {
+            "title": "Compartir hilo",
+            "description": "Cualquiera con el enlace y acceso a este agente de IA puede abrir esta conversación como su propia copia.",
+            "laterMessages": "Los mensajes que envíes después no se incluirán.",
+            "creating": "Creando enlace..."
+        },
+        "thread": {
+            "readOnlySlack": "Este hilo es de solo lectura. Para continuar la conversación, responde en Slack.",
+            "readOnlyOtherUser": "Este hilo es de solo lectura. Pertenece a otro usuario."
+        },
+        "askAgentAnything": "Pregunta a {{name}} lo que quieras sobre tus datos...",
+        "notAllowed": "No tienes permiso para acceder a esta vista",
+        "pinnedContext": "Contexto fijado",
+        "router": {
+            "finding": "Buscando el agente adecuado…",
+            "opening": "Abriendo la conversación…",
+            "askProject": "Pregunta a {{name}}",
+            "askThisProject": "Pregunta a este proyecto",
+            "askProjectAnything": "Pregunta a {{name}} lo que quieras...",
+            "askAnything": "Pregunta lo que quieras sobre tus datos...",
+            "memories": "Recuerdos",
+            "whichAgent": "¿Qué agente debería responder?",
+            "whyAgents": "¿Por qué estos agentes?",
+            "sendTo": "Enviar a {{name}}",
+            "recommended": "Recomendado"
+        },
+        "welcome": {
+            "title": "Te damos la bienvenida a los agentes de IA",
+            "subtitle": "Tus asistentes de BI con IA",
+            "whatYouCanDo": "Qué puedes hacer con los agentes de IA:",
+            "features": {
+                "analyze": {
+                    "title": "Analiza tus datos",
+                    "description": "Haz preguntas sobre ventas, ingresos, clientes y métricas de rendimiento"
+                },
+                "insights": {
+                    "title": "Obtén información",
+                    "description": "Descubre tendencias, patrones y recomendaciones accionables a partir de los datos de tu negocio"
+                },
+                "visualizations": {
+                    "title": "Crea visualizaciones",
+                    "description": "Genera gráficos, diagramas y tablas para visualizar las métricas de tu negocio"
+                },
+                "specialized": {
+                    "title": "Agentes especializados",
+                    "description": "Crea agentes de IA personalizados para departamentos concretos como Finanzas, Ventas o Marketing"
+                }
+            },
+            "ready": "¿Listo para empezar?",
+            "readyDescription": "Crea tu primer agente de IA para empezar a analizar los datos de tu negocio y obtener información valiosa.",
+            "createFirst": "Crea tu primer agente",
+            "noPermission": "No tienes permiso para crear agentes. Contacta con el administrador de tu espacio de trabajo si necesitas acceso.",
+            "error": "algo salió mal..."
+        },
+        "battle": {
+            "queued_one": "{{count}} en cola, sigue preguntando...",
+            "queued_other": "{{count}} en cola, sigue preguntando...",
+            "followUp": "Haz una pregunta de seguimiento a ambos lados..."
+        },
+        "backToAgents": "Volver a los agentes de IA",
+        "askBothModels": "Pregunta a ambos modelos lo que quieras sobre tus datos...",
+        "accessTree": {
+            "dimensions": "Dimensiones",
+            "metrics": "Métricas",
+            "joins": "Uniones"
+        },
+        "sharePage": {
+            "notFound": "El enlace al hilo de IA compartido no existe",
+            "loading": "Cargando..."
+        },
+        "notAuthorized": {
+            "title": "No tienes autorización para interactuar con este agente de IA",
+            "description": "Para obtener acceso, contacta con el administrador de tu organización.",
+            "goHome": "Volver al inicio del proyecto"
+        },
+        "deepResearch": {
+            "expiredTitle": "Este informe ya no está disponible",
+            "notReadyTitle": "Este informe aún no está listo",
+            "expiredDescription": "Los informes de Deep Research están disponibles durante 30 días.",
+            "notReadyDescription": "Vuelve a la conversación para comprobar su progreso.",
+            "backToChat": "Volver al chat"
+        },
+        "evals": {
+            "emptyTitle": "No se encontraron evaluaciones",
+            "emptyDescription": "Crea una evaluación para empezar a probar tu agente de IA con prompts predefinidos y medir su rendimiento.",
+            "create": "Crear evaluación"
+        },
+        "edit": {
+            "nameRequired": "El nombre es obligatorio",
+            "channelRequired": "El canal es obligatorio",
+            "backToAgents": "Volver a los agentes",
+            "notFoundTitle": "Agente no encontrado",
+            "notFoundDescription": "El agente que buscas no existe.",
+            "newAgent": "Nuevo agente",
+            "agent": "Agente",
+            "setup": "Configuración",
+            "evals": "Evaluaciones",
+            "verifiedAnswers": "Respuestas verificadas",
+            "conversations": "Conversaciones",
+            "settings": "Configuración del agente",
+            "closeNavigation": "Cerrar la navegación de la configuración del agente",
+            "discardTitle": "¿Descartar los cambios sin guardar?",
+            "discardDescription": "Los cambios en este agente no se han guardado. Si sales ahora, se descartarán.",
+            "discardConfirm": "Descartar cambios",
+            "keepEditing": "Seguir editando"
+        }
+    }
+}

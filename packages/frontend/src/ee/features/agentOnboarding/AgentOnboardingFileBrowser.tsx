@@ -27,6 +27,7 @@ import {
 } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import CodeBlock from '../../../components/common/CodeBlock/CodeBlock';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -86,6 +87,7 @@ const FilePreview: FC<{
     encoding: 'utf8' | 'base64';
     path: string;
 }> = ({ content, encoding, path }) => {
+    const { t } = useTranslation('agentOnboarding');
     const { colorScheme } = useMantineColorScheme();
 
     if (encoding !== 'utf8') {
@@ -93,9 +95,9 @@ const FilePreview: FC<{
             <Center h="100%" p="xl">
                 <Stack gap="xs" align="center">
                     <MantineIcon icon={IconFile} size="lg" />
-                    <Text fw={600}>Preview unavailable</Text>
+                    <Text fw={600}>{t('files.previewUnavailable')}</Text>
                     <Text c="dimmed" fz="sm" ta="center">
-                        This file is binary or uses an unsupported encoding.
+                        {t('files.binaryFile')}
                     </Text>
                 </Stack>
             </Center>
@@ -141,6 +143,7 @@ export const AgentOnboardingFileBrowser: FC<{
     isLive: boolean;
     latestActivity: string | null;
 }> = ({ projectUuid, runUuid, files, isLive, latestActivity }) => {
+    const { t } = useTranslation('agentOnboarding');
     const [selectedPath, setSelectedPath] = useState<string>();
     const [isExpanded, setIsExpanded] = useState(false);
     const [isFollowing, setIsFollowing] = useState(true);
@@ -255,7 +258,7 @@ export const AgentOnboardingFileBrowser: FC<{
     ) : fileQuery.isError ? (
         <Center h="100%" p="lg">
             <Text c="red" fz="sm" ta="center">
-                This file could not be loaded.
+                {t('files.loadFailed')}
             </Text>
         </Center>
     ) : fileQuery.data ? (
@@ -267,7 +270,7 @@ export const AgentOnboardingFileBrowser: FC<{
     ) : (
         <Center h="100%" p="lg">
             <Text c="dimmed" fz="sm" ta="center">
-                Select a file to preview it.
+                {t('files.selectFile')}
             </Text>
         </Center>
     );
@@ -285,13 +288,13 @@ export const AgentOnboardingFileBrowser: FC<{
                             />
                             <Text fw={500}>
                                 {isLive
-                                    ? 'Exploring your warehouse'
-                                    : 'No files were generated'}
+                                    ? t('files.empty.liveTitle')
+                                    : t('files.empty.doneTitle')}
                             </Text>
                             <Text c="dimmed" fz="sm" ta="center">
                                 {isLive
-                                    ? 'Your semantic layer files appear here the moment the agent starts writing them.'
-                                    : 'The run ended before any project files were written.'}
+                                    ? t('files.empty.liveDescription')
+                                    : t('files.empty.doneDescription')}
                             </Text>
                             {isLive && latestActivity ? (
                                 <Text
@@ -315,7 +318,7 @@ export const AgentOnboardingFileBrowser: FC<{
     return (
         <>
             <ResizableSplitter
-                handleLabel="Resize file tree and preview"
+                handleLabel={t('files.resize')}
                 classNames={{ handle: classes.fileResizeHandle }}
                 orientation="horizontal"
                 className={classes.fileBrowser}
@@ -377,13 +380,15 @@ export const AgentOnboardingFileBrowser: FC<{
                                         }
                                     >
                                         {isFollowing
-                                            ? 'Following latest'
-                                            : 'Follow latest'}
+                                            ? t('files.followingLatest')
+                                            : t('files.followLatest')}
                                     </Button>
                                 ) : null}
-                                <Tooltip label="Expand preview">
+                                <Tooltip label={t('files.expandPreview')}>
                                     <ActionIcon
-                                        aria-label="Expand file preview"
+                                        aria-label={t(
+                                            'files.expandFilePreview',
+                                        )}
                                         size="sm"
                                         onClick={() => setIsExpanded(true)}
                                         disabled={!fileQuery.data}
@@ -405,7 +410,7 @@ export const AgentOnboardingFileBrowser: FC<{
             <MantineModal
                 opened={isExpanded}
                 onClose={() => setIsExpanded(false)}
-                title={selectedPath ?? 'File preview'}
+                title={selectedPath ?? t('files.filePreview')}
                 fullScreen
                 modalBodyProps={{ px: 0, py: 0 }}
             >

@@ -2,6 +2,7 @@ import { Kbd, Text } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
 import { type CSSProperties, type FC, type MouseEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../components/common/PolymorphicGroupButton';
 import classes from './OmnibarTarget.module.css';
@@ -13,6 +14,7 @@ type Props = {
 };
 
 const OmnibarTarget: FC<Props> = ({ placeholder, style, onOpen }) => {
+    const { t } = useTranslation('omnibar');
     const os = useOs();
 
     return (
@@ -20,7 +22,7 @@ const OmnibarTarget: FC<Props> = ({ placeholder, style, onOpen }) => {
             px="xs"
             gap="xs"
             role="search"
-            aria-label="Search content and settings"
+            aria-label={t('ariaLabel')}
             onClick={onOpen}
             style={style}
             wrap="nowrap"

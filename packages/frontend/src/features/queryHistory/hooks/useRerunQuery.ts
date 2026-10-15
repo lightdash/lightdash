@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
+import i18n from '../../../i18n/i18n';
 
 /**
  * Maps a persisted request-parameters union back to the execute endpoint that
@@ -49,7 +50,9 @@ export const useRerunQuery = (projectUuid: string | undefined) => {
         mutationFn: async (item) => {
             const endpoint = getExecuteEndpoint(item.requestParameters);
             if (!projectUuid || !endpoint) {
-                throw new Error('This query cannot be re-run');
+                throw new Error(
+                    i18n.t('rerun.cannotRerun', { ns: 'queryHistory' }),
+                );
             }
             return lightdashApi<RerunResults>({
                 version: 'v2',

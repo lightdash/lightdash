@@ -1,0 +1,751 @@
+{
+    "bigNumber": {
+        "tabs": {
+            "layout": "Layout",
+            "comparison": "Comparison",
+            "conditionalFormatting": "Conditional formatting"
+        },
+        "layout": {
+            "field": "Field",
+            "selectedField": "Selected field",
+            "format": "Format",
+            "label": "Label",
+            "clearCustomLabel": "Clear custom label to toggle table names",
+            "hideTableNames": "Hide table names in label",
+            "showTableNames": "Show table names in label"
+        },
+        "comparison": {
+            "showComparison": "Show comparison",
+            "compareTo": "Compare to",
+            "previousRow": "Previous row",
+            "sameRow": "Same row",
+            "field": "Field",
+            "format": "Format",
+            "rawValue": "Raw value",
+            "percentage": "Percentage",
+            "flipPositiveColor": "Flip positive color",
+            "style": "Style",
+            "comparisonLabel": "Comparison label",
+            "comparisonLabelPlaceholder": "Add an optional label"
+        },
+        "conditionalFormatting": {
+            "rulesAndConditions": "Rules and Conditions",
+            "conditionNumber": "Condition {{number}}",
+            "condition": "Condition",
+            "valuesPlaceholder": "Value(s)",
+            "values": "Values",
+            "ruleNumber": "Rule {{number}}",
+            "auto": "auto",
+            "rangeSummary": "Range {{min}}–{{max}}",
+            "ruleSummaryWithExtra_one": "{{rule}} +{{count}} rule",
+            "ruleSummaryWithExtra_other": "{{rule}} +{{count}} rules",
+            "light": "Light",
+            "dark": "Dark",
+            "conditions": "Conditions"
+        }
+    },
+    "common": {
+        "removeItem": "Remove {{label}}",
+        "rangeBound": {
+            "type": "{{label}} type",
+            "custom": "Custom",
+            "auto": "Auto"
+        },
+        "rowLimit": {
+            "label": "Limit displayed rows",
+            "show": "Show",
+            "hide": "Hide",
+            "the": "the",
+            "first": "First",
+            "last": "Last",
+            "rows": "rows"
+        },
+        "gradient": {
+            "low": "Low",
+            "high": "High",
+            "itemColor": "{{label}} color",
+            "intermediateColor": "Intermediate color",
+            "removeColor": "Remove color",
+            "addColor": "Add color"
+        },
+        "insertDateGranularity": "Insert date granularity",
+        "dateGranularityDetail": "Date granularity (day, week, month...)",
+        "colorPalette": {
+            "heading": "Color palette",
+            "orgDefault": "Org default",
+            "overrideActive": "A color palette override is set in your instance configuration. Chart-level selection is disabled while the override is active.",
+            "fixedColorsOne": "\"{{label}}\" has fixed colors defined in the data model.",
+            "fixedColorsMany": "{{count}} pivoted dimensions have fixed colors defined in the data model.",
+            "fixedColorsKept": "Those values will keep their assigned colors regardless of the palette selected here."
+        }
+    },
+    "colorSelector": {
+        "resetColor": "Reset color",
+        "selectColor": "Select color",
+        "customColorPlaceholder": "Type in a custom {{format}} color",
+        "invalidColor": "Invalid {{format}} color"
+    },
+    "configTabs": {
+        "layout": "Layout",
+        "series": "Series",
+        "axes": "Axes",
+        "display": "Display",
+        "margins": "Margins"
+    },
+    "grid": {
+        "margin": "Margin"
+    },
+    "axes": {
+        "auto": "Auto",
+        "min": "Min",
+        "max": "Max",
+        "showGrid": "Show grid",
+        "xAxis": "X-axis",
+        "yAxis": "Y-axis",
+        "leftYAxis": "Left Y-axis",
+        "rightYAxis": "Right Y-axis",
+        "showAxis": "Show axis",
+        "showTickLines": "Show tick lines",
+        "showTickLinesOnAxes": "Show tick lines on axes",
+        "connectNulls": "Connect nulls",
+        "connectNullsLabel": "Connect null values in line series",
+        "tickLabelSize": "Tick label size (px)",
+        "axisTitleSize": "Axis title size (px)",
+        "reset": "Reset",
+        "sort": {
+            "label": "Sort",
+            "default": "Default",
+            "defaultReversed": "Default (reversed)",
+            "ascending": "Ascending",
+            "descending": "Descending",
+            "barsAscending": "Bars ascending",
+            "barsDescending": "Bars descending"
+        },
+        "axisLabel": "{{axis}}-axis label",
+        "axisLabelWithPosition": "{{axis}}-axis label ({{position}})",
+        "position": {
+            "bottom": "bottom",
+            "left": "left",
+            "top": "top",
+            "right": "right"
+        },
+        "enterAxisLabel": "Enter axis label",
+        "treatAsCategory": "Treat as category",
+        "treatAsCategoryDescription": "Space values evenly instead of on a continuous scale",
+        "autoAxisRange": "Auto {{axis}}-axis range",
+        "minTickInterval": "Min tick interval",
+        "truncateXAxis": "Truncate x-axis",
+        "rotation": "Rotation",
+        "enableScrollableChart": "Enable scrollable chart",
+        "initialScrollPosition": "Initial scroll position",
+        "scrollStart": "Start",
+        "scrollEnd": "End",
+        "visibleItems": "Visible items"
+    },
+    "layout": {
+        "axisHeading": "{{axis}}-axis",
+        "flipAxes": "Flip Axes",
+        "clearXAxisField": "Clear x-axis field",
+        "removeYAxisField": "Remove y-axis field",
+        "group": "Group",
+        "needMetricToGroup": "You need at least one metric in your chart to add a group",
+        "removePivotDimension": "Remove pivot dimension",
+        "invalidReference": "Invalid reference",
+        "selectFieldToGroupBy": "Select a field to group by",
+        "stackingDisabledTooltip": "x-axis must be non-numeric to enable stacking",
+        "stacking": "Stacking",
+        "stackNone": "None",
+        "stack": "Stack",
+        "stackPercent": "100%",
+        "data": "Data",
+        "columnLimit": "Column limit",
+        "noLimit": "No limit"
+    },
+    "customVis": {
+        "ai": "AI",
+        "aiPlaceholder": "Create a heatmap with detailed tooltips and clear values for fast insights",
+        "generating": "Generating...",
+        "generate": "Generate",
+        "generateFailed": "Failed to generate custom visualization",
+        "insertTemplate": "Insert template",
+        "templateResetWarning": "Selecting a new template will reset the config. Use \"ctrl+z\" to undo.",
+        "templates": {
+            "barChart": "Bar chart",
+            "heatmap": "Heatmap",
+            "bubblePlots": "Bubble plots",
+            "funnelChart": "Funnel chart",
+            "waterfallChart": "Waterfall chart",
+            "worldMap": "World map"
+        },
+        "vegaLiteJson": "Vega-Lite JSON",
+        "editorPlaceholder": "Start by entering your Vega-Lite JSON code or choose from our pre-built templates to create your chart."
+    },
+    "legend": {
+        "customPosition": "Custom position",
+        "position": "Position",
+        "legend": "Legend",
+        "placement": "Placement",
+        "chartArea": "Chart area",
+        "outsideRight": "Outside right",
+        "outsideLeft": "Outside left",
+        "scrollBehavior": "Scroll behavior",
+        "scroll": "Scroll",
+        "wrap": "Wrap",
+        "orientation": "Orientation",
+        "horizontal": "Horizontal",
+        "vertical": "Vertical",
+        "legendAreaWidth": "Legend area width",
+        "tooltips": "Tooltips"
+    },
+    "tooltipConfig": {
+        "sortBy": "Sort by",
+        "sortDefault": "Default",
+        "sortAlphabetical": "Alphabetical",
+        "sortValueDescending": "Value (descending)",
+        "sortValueAscending": "Value (ascending)",
+        "custom": "Custom",
+        "customHelp": "Use this input to enhance chart tooltips with additional content. You can incorporate HTML code and include dynamic values using the format ${variable_name}. Click here to read more about this on our docs.",
+        "placeholderExample": "- Total orders: ${orders_total_amount}"
+    },
+    "referenceLines": {
+        "heading": "Reference lines",
+        "fieldMustBeNumber": "Selected field must be of type Number",
+        "lineValue": "Line value",
+        "lineLabel": "Line {{index}}",
+        "description": "{{field}} is {{value}}",
+        "field": "Field",
+        "searchField": "Search field...",
+        "value": "Value",
+        "label": "Label",
+        "average": "Average",
+        "useSeriesAverage": "Use series average",
+        "position": "Position"
+    },
+    "dataAppViz": {
+        "aboutField": "About {{label}}",
+        "libraryUpgrade": {
+            "title": "Update available: v{{version}}",
+            "description": "Charts pinned to an earlier version keep rendering it until each chart is upgraded; charts without a pinned version switch to v{{version}} right away.",
+            "upgradeTo": "Upgrade to v{{version}}"
+        },
+        "upgradeModal": {
+            "title": "Upgrade chart type",
+            "confirm": "Upgrade",
+            "onlyThisChart": "Only this chart moves to the latest version. Nothing is saved until you save the chart.",
+            "removedWarning": "Removed fields lose their mapping and removed options lose their values.",
+            "onlyRenderingChanged": "Same fields and options; only the rendering changed."
+        },
+        "upgradeNotice": {
+            "newerVersion": "Newer version available",
+            "reviewUpgrade": "Review upgrade"
+        },
+        "inputGuidance": {
+            "title": "How to use this chart type"
+        },
+        "optionTabs": {
+            "general": "General",
+            "display": "Display"
+        },
+        "gradient": {
+            "start": "Start",
+            "end": "End",
+            "low": "Low",
+            "high": "High",
+            "minimum": "Minimum",
+            "maximum": "Maximum",
+            "auto": "Auto"
+        },
+        "fieldSelect": {
+            "noFieldsAvailable": "No fields available",
+            "addItem": "Add {{label}}",
+            "itemAriaLabel": "{{label}}: {{item}}",
+            "selectItem": "Select {{label}}",
+            "addingFieldToQuery": "Adding field to query",
+            "removeItem": "Remove {{item}}"
+        },
+        "settings": {
+            "noFieldsToMap": "This chart type has no fields to map.",
+            "needAtLeastOne": {
+                "dimension": "You need at least one dimension in your chart to set this field",
+                "metric": "You need at least one metric in your chart to set this field",
+                "column": "You need at least one column in your chart to set this field"
+            },
+            "selectField": "Select {{label}}"
+        },
+        "configTabs": {
+            "noDescription": "No description",
+            "edit": "Edit ↗",
+            "typeRemoved": "This chart type has been removed. Pick another chart type above.",
+            "authoringHint": "Describe the chart type you need. Its bindings and options appear here once the first version is ready.",
+            "pickTypeAbove": "Pick a chart type above.",
+            "pickTypeOrCreate": "Pick a chart type above, or create a new one in the <builder>builder</builder>."
+        }
+    },
+    "pie": {
+        "tabs": {
+            "layout": "Layout",
+            "series": "Series",
+            "display": "Display"
+        },
+        "valueOptions": {
+            "valuePosition": "Value position",
+            "mixed": "Mixed",
+            "positions": {
+                "hidden": "Hidden",
+                "inside": "Inside",
+                "outside": "Outside"
+            },
+            "showValue": "Show value",
+            "showPercentage": "Show percentage",
+            "labelColor": "Label color",
+            "selectValueLabelColor": "Select value label color",
+            "useAutomaticColor": "Use automatic color"
+        },
+        "display": {
+            "showLegend": "Show legend",
+            "orientation": "Orientation",
+            "legendPositions": {
+                "horizontal": "Horizontal",
+                "vertical": "Vertical"
+            },
+            "labelMaxLength": "Label max length"
+        },
+        "groupItem": {
+            "overrideValueLabelOptions": "Override value label options"
+        },
+        "layout": {
+            "groups": "Groups",
+            "needDimension": "You must select at least one dimension to create a pie chart",
+            "allDimensionsUsed": "All dimensions are already used as groups",
+            "selectDimension": "Select dimension",
+            "metric": "Metric",
+            "needMetric": "You must select at least one numeric metric to create a pie chart",
+            "selectMetric": "Select metric",
+            "displayAs": "Display as",
+            "pie": "Pie",
+            "donut": "Donut"
+        },
+        "series": {
+            "label": "Label",
+            "series": "Series"
+        }
+    },
+    "map": {
+        "tabs": {
+            "general": "General",
+            "mapDisplay": "Map display"
+        },
+        "field": {
+            "hideInTooltip": "Hide in tooltip",
+            "showInTooltip": "Show in tooltip"
+        },
+        "layout": {
+            "regionField": {
+                "stateLabel": "State field",
+                "stateDescription": "Field containing state codes (e.g., \"CA\", \"NY\")",
+                "customLabel": "Data join field",
+                "customDescription": "Field containing values that match the selected map join field",
+                "worldLabel": "Country code field (ISO3)",
+                "worldDescription": "Field containing ISO 3166-1 alpha-3 codes (e.g., \"USA\", \"GBR\")"
+            },
+            "world": "World",
+            "us": "US",
+            "scatter": "Scatter",
+            "area": "Area",
+            "heatmap": "Heatmap",
+            "hexbin": "Hexbin",
+            "mapType": "Map Type",
+            "coordinates": "Coordinates",
+            "latitude": "Latitude",
+            "longitude": "Longitude",
+            "selectField": "Select field",
+            "location": "Location",
+            "customRegion": "Custom region",
+            "customGeoJsonUrl": "Custom GeoJSON URL",
+            "mapJoinField": "Map join field",
+            "mapJoinFieldDescription": "Property from geojson file to join on",
+            "enterUrlFirst": "Enter URL first",
+            "loading": "Loading...",
+            "noPropertiesFound": "No properties found",
+            "selectProperty": "Select property",
+            "failedToLoad": "Failed to load: {{message}}",
+            "mapRegion": "Map region",
+            "values": "Values"
+        },
+        "display": {
+            "cellScale": "Cell scale: {{size}}",
+            "hexbinSizes": {
+                "block": "Block",
+                "neighborhood": "Neighborhood",
+                "district": "District",
+                "city": "City",
+                "metro": "Metro",
+                "region": "Region",
+                "country": "Country",
+                "continent": "Continent"
+            },
+            "tileBackground": {
+                "none": "None",
+                "openStreetMap": "OpenStreetMap",
+                "light": "Light",
+                "dark": "Dark",
+                "voyager": "Voyager (clean)",
+                "satellite": "Satellite"
+            },
+            "cells": "Cells",
+            "colorBasedOn": "Color based on",
+            "selectFieldOptional": "Select field (optional)",
+            "valueBasedOn": "Value based on",
+            "count": "Count",
+            "fieldValues": "Field values",
+            "field": "Field",
+            "selectField": "Select field",
+            "aggregation": "Aggregation",
+            "sum": "Sum",
+            "avg": "Avg",
+            "min": "Min",
+            "max": "Max",
+            "noDataColor": "No data color",
+            "colorRange": "Color range",
+            "opacity": "Opacity",
+            "valueColors": "Value colors",
+            "color": "Color",
+            "dataLayerOpacity": "Data layer opacity",
+            "backgroundColor": "Background color",
+            "showEmptyCells": "Show empty cells",
+            "emptyCellFill": "Empty cell fill",
+            "cellSize": "Cell size",
+            "fixed": "Fixed",
+            "dynamic": "Dynamic",
+            "bubbles": "Bubbles",
+            "sizeBasedOn": "Size based on",
+            "sizeRange": "Size range",
+            "size": "Size",
+            "heatmap": "Heatmap",
+            "radius": "Radius",
+            "blur": "Blur",
+            "mapExtent": "Map extent",
+            "saveMapExtent": "Save current map extent",
+            "legend": "Legend",
+            "showLegend": "Show legend",
+            "backgroundMap": "Background map",
+            "lightMode": "Light mode",
+            "darkMode": "Dark mode"
+        }
+    },
+    "gauge": {
+        "tabs": {
+            "layout": "Layout",
+            "display": "Display"
+        },
+        "fields": {
+            "field": "Field",
+            "selectedField": "Selected field",
+            "selectedFieldDescription": "Select a metric to display on the gauge"
+        },
+        "sections": {
+            "heading": "Sections",
+            "sectionNumber": "Section {{number}}",
+            "minValue": "Min value",
+            "minValueDescription": "Set the minimum value for the section",
+            "minFieldDescription": "Select a field to use as the minimum value",
+            "maxValue": "Max value",
+            "maxValueDescription": "Set the maximum value for the section",
+            "maxFieldDescription": "Select a field to use as the maximum value",
+            "setMinValue": "Set the minimum value",
+            "setMaxValue": "Set the maximum value",
+            "value": "Value",
+            "field": "Field"
+        },
+        "display": {
+            "scale": "Scale",
+            "minimumValue": "Minimum value",
+            "minimumValueDescription": "Set the minimum value for the gauge scale",
+            "maximumValue": "Maximum value",
+            "maximumValueDescription": "Set the maximum value for the gauge scale",
+            "maximumFieldDescription": "Select a field to use as the maximum value",
+            "setMaxValue": "Set the maximum value",
+            "value": "Value",
+            "field": "Field",
+            "appearance": "Appearance",
+            "showAxisLabels": "Show axis labels",
+            "showAxisLabelsDescription": "Display axis labels and tick marks",
+            "showAsPercentage": "Show as percentage",
+            "showAsPercentageDescription": "Display the value as a percentage of the scale",
+            "customPercentageLabel": "Custom percentage label",
+            "customPercentageLabelDescription": "Add a custom label after the percentage",
+            "customPercentageLabelPlaceholder": "e.g. 'completed'",
+            "customLabel": "Custom label",
+            "customLabelDescription": "Override the default field label",
+            "customLabelPlaceholder": "e.g. 'Sales'"
+        }
+    },
+    "treemap": {
+        "tabs": {
+            "layout": "Layout",
+            "display": "Display"
+        },
+        "display": {
+            "minimumSectionSize": "Minimum section size",
+            "minimumSectionSizeHelp": "Any sections smaller than this will not be displayed. You can zoom in to see smaller sections.",
+            "maxLeafDepth": "Max leaf depth",
+            "maxLeafDepthHelp": "The maximum depth of the treemap. If set, deeper levels can be viewed by clicking on nodes.",
+            "noLimit": "No limit"
+        },
+        "layout": {
+            "dimensionHierarchy": "Dimension hierarchy",
+            "dimensionHierarchyHelp": "Drag and drop your dimensions to order them hierarchically.",
+            "sizeMetric": "Size metric",
+            "sizeMetricHelp": "Determines how large each block is.",
+            "selectMetric": "Select metric",
+            "colorMetric": "Color metric",
+            "colorMetricHelp": "Dynamically set the color of the nodes based on a metric. If not set, the treemap will use a default color scheme.",
+            "minColor": "Min color",
+            "maxColor": "Max color",
+            "threshold": "Threshold",
+            "thresholdPlaceholder": "Auto (per-level)"
+        }
+    },
+    "sankey": {
+        "tabs": {
+            "general": "General",
+            "display": "Display"
+        },
+        "source": "Source",
+        "selectSourceDimension": "Select source dimension",
+        "target": "Target",
+        "selectTargetDimension": "Select target dimension",
+        "value": "Value",
+        "selectMetric": "Select metric",
+        "orientation": "Orientation",
+        "horizontal": "Horizontal",
+        "vertical": "Vertical",
+        "nodeLayout": "Node layout",
+        "multiStep": "Multi-step",
+        "merged": "Merged",
+        "direct": "Direct",
+        "mergingUnavailable": "Merging isn't available for flows that loop back on themselves.",
+        "nodeAlignment": "Node alignment",
+        "top": "Top",
+        "left": "Left",
+        "bottom": "Bottom",
+        "right": "Right",
+        "justify": "Justify"
+    },
+    "funnel": {
+        "tabs": {
+            "general": "General",
+            "steps": "Steps",
+            "display": "Display"
+        },
+        "dataOrientation": "Data orientation",
+        "stepsAre": "Steps are",
+        "rows": "Rows",
+        "columns": "Columns",
+        "dataField": "Data field",
+        "needMetric": "You must select at least one numeric metric to create a pie chart",
+        "selectMetric": "Select metric",
+        "labels": "Labels",
+        "position": "Position",
+        "left": "Left",
+        "inside": "Inside",
+        "right": "Right",
+        "hidden": "Hidden",
+        "showValue": "Show value",
+        "showPercentage": "Show percentage",
+        "steps": "Steps",
+        "showLegend": "Show legend",
+        "orientation": "Orientation",
+        "horizontal": "Horizontal",
+        "vertical": "Vertical"
+    },
+    "customChartType": {
+        "heading": "Custom chart type",
+        "runQueryHint": "Run your query to pick a custom chart type.",
+        "builtInVegaLabel": "Vega (JSON editor)",
+        "builtInVegaDescription": "Write Vega-Lite JSON by hand",
+        "builtInGroup": "Built in",
+        "projectGroup": "Custom",
+        "createNew": "Create new chart type",
+        "browse": "Browse chart types",
+        "fieldCount_one": "{{count}} field",
+        "fieldCount_other": "{{count}} fields",
+        "clear": "Clear custom chart type",
+        "searchPlaceholder": "Search custom chart types…",
+        "loadFailed": "Failed to load custom chart types",
+        "noMatches": "No custom chart types match your search"
+    },
+    "series": {
+        "chartType": {
+            "type": "Type",
+            "bar": "Bar",
+            "line": "Line",
+            "area": "Area",
+            "scatter": "Scatter",
+            "mixed": "Mixed"
+        },
+        "drawOrder": {
+            "label": "Draw order",
+            "back": "Back",
+            "front": "Front",
+            "reverseTooltip": "Flip the order of every series",
+            "reverse": "Reverse",
+            "bringToFront": "Bring to front"
+        },
+        "invalidField": "Tried to reference field with unknown id: {{itemId}}",
+        "orderDeterminedBySort": "Series order is automatically determined by the sort applied to the grouped dimension",
+        "grouped": "{{label}} (grouped)",
+        "axis": "Axis",
+        "valueLabels": "Value labels",
+        "total": "Total",
+        "showSymbol": "Show symbol",
+        "smooth": "Smooth",
+        "position": {
+            "hidden": "Hidden",
+            "top": "Top",
+            "bottom": "Bottom",
+            "left": "Left",
+            "right": "Right",
+            "inside": "Inside"
+        },
+        "showValue": "Show value",
+        "showLabel": "Show label",
+        "showMetricName": "Show metric name",
+        "selectValueLabelColor": "Select value label color",
+        "useAutomaticColor": "Use automatic color",
+        "applyCustomColors": "Apply custom colors",
+        "showOverlappingLabels": "Show overlapping labels",
+        "customColors": {
+            "category": "Category",
+            "conditionalFormatting": "Conditional formatting",
+            "setAll": "Set all",
+            "moreColoredAutomatically": "{{count}} more colored automatically"
+        }
+    },
+    "chartConditionalFormatting": {
+        "operator": {
+            "equals": "Equals",
+            "notEquals": "Does not equal",
+            "contains": "Contains"
+        },
+        "conditionNumber": "Condition {{number}}",
+        "removeCondition": "Remove condition",
+        "condition": "Condition",
+        "valuesPlaceholder": "Value(s)",
+        "values": "Values",
+        "noConditionSet": "No condition set",
+        "ruleSummaryWithExtra_one": "{{rule}} +{{count}} rule",
+        "ruleSummaryWithExtra_other": "{{rule}} +{{count}} rules",
+        "ruleNumber": "Rule {{number}}",
+        "selectField": "Select Field",
+        "color": "Color",
+        "and": "AND",
+        "addCondition": "Add condition",
+        "rulesAndConditions": "Rules and Conditions"
+    },
+    "table": {
+        "tabs": {
+            "general": "General",
+            "conditionalFormatting": "Conditional formatting",
+            "cellDisplay": "Cell display"
+        },
+        "cellDisplay": {
+            "noNumericColumns": "No numeric columns available for bar chart display",
+            "barsInCells": "Bars in cells",
+            "barsInCellsTooltip": "Display numeric values as bars in cells",
+            "selectPositiveBarColor": "Select positive bar color",
+            "positiveValues": "Positive values",
+            "negativeValues": "Negative values",
+            "selectNegativeBarColor": "Select negative bar color",
+            "matchPositiveColor": "Match positive color"
+        },
+        "column": {
+            "cannotHideSubtotal": "Cannot hide while it's a subtotal grouping level",
+            "hideColumn": "Hide column",
+            "showColumn": "Show column",
+            "unfreezeColumn": "Unfreeze column",
+            "freezeColumn": "Freeze column",
+            "resetWidth": "Reset column width to auto",
+            "widthPx": "{{width}}px"
+        },
+        "general": {
+            "maxPivotsReached": "Maximum number of pivots reached",
+            "columns": "Columns",
+            "columnsPlaceholder": "Drag dimensions into this area to pivot your table",
+            "rows": "Rows",
+            "rowsPlaceholder": "Drag dimensions, metrics, or table calculations into this area",
+            "metrics": "Metrics",
+            "metricsPlaceholder": "Drag metrics or table calculations into this area",
+            "metricLayout": "Metric layout",
+            "metricsAsRowsPivotDisabled": "Move a metric or table calculation back to Metrics to use this layout",
+            "metricsAsRowsNeedColumn": "To use metrics as rows, you need to move a dimension to \"Columns\"",
+            "showMetricsAsRows": "Show metrics as rows",
+            "display": "Display",
+            "showTableNames": "Show table names",
+            "showRowNumbers": "Show row numbers",
+            "data": "Data",
+            "results": "Results",
+            "showRowTotals": "Show row totals",
+            "showColumnTotals": "Show column totals",
+            "showNumberOfResults": "Show number of results",
+            "subtotalsRequireDimensions": "Subtotals can only be used on tables with at least two dimensions",
+            "subtotalsRequireUnpivotedDimensions": "Subtotals can only be used on tables with at least two un-pivoted dimensions",
+            "showSubtotals": "Show subtotals",
+            "expandSubtotals": "Expand subtotals by default",
+            "rowGroupingAlwaysOn": "Row grouping is always on when subtotals are enabled.",
+            "rowGroupingMetricsAsRows": "Row grouping cannot be used with metrics as rows",
+            "rowGroupingRequireDimensions": "Row grouping can only be used on tables with at least two dimensions",
+            "rowGroupingRequireUnpivotedDimensions": "Row grouping can only be used on tables with at least two un-pivoted dimensions",
+            "groupRepeatedRowValues": "Group repeated row values"
+        }
+    },
+    "tableConditionalFormatting": {
+        "colorRange": {
+            "minValue": "Min value",
+            "maxValue": "Max value",
+            "minValueInTable": "Min value in table",
+            "maxValueInTable": "Max value in table"
+        },
+        "rulesAndConditions": "Rules and Conditions",
+        "configType": {
+            "single": "Single",
+            "range": "Range"
+        },
+        "textStyle": {
+            "label": "Text style",
+            "bold": "Bold",
+            "italic": "Italic",
+            "underline": "Underline"
+        },
+        "ruleNumber": "Rule {{number}}",
+        "noConditionSet": "No condition set",
+        "minInTable": "min. in table",
+        "maxInTable": "max. in table",
+        "rangeSummary": "Range {{min}} – {{max}}",
+        "ruleSummaryWithExtra_one": "{{rule}} +{{count}} rule",
+        "ruleSummaryWithExtra_other": "{{rule}} +{{count}} rules",
+        "selectField": "Select field",
+        "colorMode": "Color mode",
+        "color": "Color",
+        "applyTo": "Apply to",
+        "applyToCell": "Cell",
+        "applyToText": "Text",
+        "applyToRow": "Row",
+        "conditions": "Conditions",
+        "selectFieldFirst": "Select a field first",
+        "rule": {
+            "conditionNumber": "Condition {{number}}",
+            "compare": "Compare:",
+            "compareValuesTooltip": "Compare selected field to values",
+            "compareValues": "Values",
+            "compareFieldTooltip": "Compare selected field to another field",
+            "compareField": "Field",
+            "compareFieldValuesTooltip": "Compare another field to values",
+            "compareFieldValues": "Field values",
+            "compareFieldPlaceholder": "Compare field",
+            "condition": "Condition",
+            "valuesPlaceholder": "Value(s)",
+            "values": "Values"
+        }
+    }
+}

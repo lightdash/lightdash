@@ -14,6 +14,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useId, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../components/common/Callout';
 import { useSaveSnowflakeAgentClient } from './api';
 
@@ -30,6 +31,7 @@ const SnowflakeAgentClientForm = ({
     onCancel: (() => void) | null;
     onSaved: () => void;
 }) => {
+    const { t } = useTranslation('aiAccess');
     const save = useSaveSnowflakeAgentClient();
     const secretHintId = useId();
     const form = useForm<UpdateOrganizationSnowflakeAgentClient>({
@@ -63,27 +65,28 @@ const SnowflakeAgentClientForm = ({
                 {client.source === 'organization' &&
                     !client.hasClientSecret && (
                         <Callout variant="warning">
-                            The saved client secret could not be read. Replace
-                            it to use agent sign-in.
+                            {t('snowflakeClient.unreadableSecret')}
                         </Callout>
                     )}
                 <TextInput
-                    label="Snowflake account URL"
-                    description="We work out the sign-in and token addresses from this."
+                    label={t('snowflakeClient.accountUrl')}
+                    description={t('snowflakeClient.accountUrlDescription')}
                     placeholder="https://myorg-myaccount.snowflakecomputing.com"
                     disabled={save.isLoading}
                     {...form.getInputProps('accountUrl')}
                 />
                 <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
                     <TextInput
-                        label="Client ID"
-                        placeholder="OAUTH_CLIENT_ID from the query above"
+                        label={t('databricksForm.clientId')}
+                        placeholder={t('snowflakeClient.clientIdPlaceholder')}
                         disabled={save.isLoading}
                         {...form.getInputProps('clientId')}
                     />
                     <PasswordInput
-                        label="Client secret"
-                        placeholder="OAUTH_CLIENT_SECRET from the query above"
+                        label={t('databricksForm.clientSecret')}
+                        placeholder={t(
+                            'snowflakeClient.clientSecretPlaceholder',
+                        )}
                         autoComplete="new-password"
                         aria-describedby={secretHintId}
                         disabled={save.isLoading}
@@ -91,8 +94,7 @@ const SnowflakeAgentClientForm = ({
                     />
                 </SimpleGrid>
                 <Text id={secretHintId} size="xs" c="dimmed">
-                    Stored encrypted for your organization. Only organization
-                    admins can replace it; it is never shown again.
+                    {t('snowflakeClient.secretHint')}
                 </Text>
                 {save.error && (
                     <Callout variant="danger">
@@ -105,7 +107,7 @@ const SnowflakeAgentClientForm = ({
                         disabled={!canSave}
                         loading={save.isLoading}
                     >
-                        Save
+                        {t('actions.save', { ns: 'common' })}
                     </Button>
                     {onCancel && (
                         <Button
@@ -117,7 +119,7 @@ const SnowflakeAgentClientForm = ({
                                 onCancel();
                             }}
                         >
-                            Cancel
+                            {t('actions.cancel', { ns: 'common' })}
                         </Button>
                     )}
                 </Group>
@@ -133,6 +135,7 @@ export const SnowflakeAgentClient = ({
     client: Client;
     onSave: () => void;
 }) => {
+    const { t } = useTranslation('aiAccess');
     const [replacing, setReplacing] = useState(false);
     const saved = client.source === 'organization' && client.hasClientSecret;
     return (
@@ -140,22 +143,22 @@ export const SnowflakeAgentClient = ({
             {saved && !replacing ? (
                 <>
                     <TextInput
-                        label="Snowflake account URL"
+                        label={t('snowflakeClient.accountUrl')}
                         value={client.accountUrl ?? ''}
                         readOnly
                     />
                     <TextInput
-                        label="Client ID"
+                        label={t('databricksForm.clientId')}
                         value={client.clientId ?? ''}
                         readOnly
                     />
-                    <Text size="sm">Client secret saved</Text>
+                    <Text size="sm">{t('snowflakeClient.secretSaved')}</Text>
                     <Group>
                         <Button
                             variant="default"
                             onClick={() => setReplacing(true)}
                         >
-                            Replace client
+                            {t('snowflakeClient.replaceClient')}
                         </Button>
                     </Group>
                 </>

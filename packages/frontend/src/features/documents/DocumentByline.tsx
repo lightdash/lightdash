@@ -2,6 +2,7 @@ import { type Document } from '@lightdash/common';
 import { Badge, Group, Text, Tooltip } from '@mantine/core';
 import { IconLock } from '@tabler/icons-react';
 import { type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LightdashUserAvatar } from '../../components/Avatar';
 import MantineIcon from '../../components/common/MantineIcon';
 import { UpdatedInfo } from '../../components/common/PageHeader/UpdatedInfo';
@@ -15,14 +16,15 @@ const DocumentByline = ({
     /** A short marker shown after the timestamp, e.g. the editing state. */
     status?: ReactNode;
 }) => {
+    const { t } = useTranslation('documents');
     const creatorName = document.createdBy
         ? `${document.createdBy.firstName} ${document.createdBy.lastName}`.trim() ||
-          'Unknown user'
+          t('byline.unknownUser')
         : null;
     const ownerName = document.owner
         ? `${document.owner.firstName} ${document.owner.lastName}`.trim() ||
           document.owner.email ||
-          'Unknown user'
+          t('byline.unknownUser')
         : null;
     return (
         <Group
@@ -37,12 +39,12 @@ const DocumentByline = ({
             data-tour-docs="explore/documents.mdx#read-a-document:3"
         >
             {document.spaceUuid === null && (
-                <Tooltip label="Only its creator and admins can see this document until it's saved to a space">
+                <Tooltip label={t('byline.personalTooltip')}>
                     <Badge
                         size="sm"
                         leftSection={<MantineIcon icon={IconLock} size={12} />}
                     >
-                        Personal
+                        {t('byline.personal')}
                     </Badge>
                 </Tooltip>
             )}
@@ -52,7 +54,7 @@ const DocumentByline = ({
                         gap="xs"
                         wrap="nowrap"
                         role="group"
-                        aria-label="Created by"
+                        aria-label={t('byline.createdBy')}
                     >
                         <LightdashUserAvatar
                             userUuid={document.createdBy.userUuid}
@@ -74,7 +76,7 @@ const DocumentByline = ({
             {ownerName && (
                 <>
                     <Text fz="xs" c="dimmed">
-                        Owned by {ownerName}
+                        {t('byline.ownedBy', { name: ownerName })}
                     </Text>
                     <Text fz="xs" c="dimmed" aria-hidden>
                         ·

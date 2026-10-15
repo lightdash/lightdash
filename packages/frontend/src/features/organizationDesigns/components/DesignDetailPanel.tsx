@@ -25,6 +25,7 @@ import {
 import { useForm } from '@mantine/form';
 import { IconCheck, IconDownload, IconTrash } from '@tabler/icons-react';
 import { useEffect, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
@@ -63,6 +64,7 @@ const FileRow: FC<{
     onDelete: () => void;
     deleting: boolean;
 }> = ({ designUuid, file, onDelete, deleting }) => {
+    const { t } = useTranslation('settings');
     const downloadUrl = `/api/v1/org/designs/${designUuid}/files/${file.fileUuid}`;
     return (
         <Group justify="space-between" wrap="nowrap" gap="sm">
@@ -82,23 +84,27 @@ const FileRow: FC<{
                 </Text>
             </Group>
             <Group gap={4} wrap="nowrap">
-                <Tooltip label="Download" position="top">
+                <Tooltip label={t('designs.detail.download')} position="top">
                     <ActionIcon
                         component="a"
                         href={downloadUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        aria-label={`Download ${file.filename}`}
+                        aria-label={t('designs.detail.downloadFile', {
+                            filename: file.filename,
+                        })}
                     >
                         <MantineIcon icon={IconDownload} />
                     </ActionIcon>
                 </Tooltip>
-                <Tooltip label="Delete" position="top">
+                <Tooltip label={t('designs.detail.delete')} position="top">
                     <ActionIcon
                         color="red"
                         onClick={onDelete}
                         loading={deleting}
-                        aria-label={`Delete ${file.filename}`}
+                        aria-label={t('designs.detail.deleteFile', {
+                            filename: file.filename,
+                        })}
                     >
                         <MantineIcon icon={IconTrash} />
                     </ActionIcon>
@@ -112,6 +118,7 @@ const FileRow: FC<{
 // the form from server state) only when the user switches to a different
 // theme — not on every refetch triggered by file uploads or default toggles.
 const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
+    const { t } = useTranslation('settings');
     const updateDesign = useUpdateOrganizationDesign();
     const setDefault = useSetDefaultOrganizationDesign();
     const clearDefault = useClearDefaultOrganizationDesign();
@@ -223,7 +230,7 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
                 <>
                     <Loader size={12} />
                     <Text size="xs" c="dimmed">
-                        Saving…
+                        {t('designs.detail.saving')}
                     </Text>
                 </>
             );
@@ -231,7 +238,7 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
         if (hasUnsavedChanges) {
             return (
                 <Text size="xs" c="dimmed">
-                    Unsaved changes
+                    {t('designs.detail.unsavedChanges')}
                 </Text>
             );
         }
@@ -240,7 +247,7 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
                 <>
                     <MantineIcon icon={IconCheck} size={14} color="green.6" />
                     <Text size="xs" c="dimmed">
-                        Saved
+                        {t('designs.detail.saved')}
                     </Text>
                 </>
             );
@@ -253,27 +260,29 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
             {/* Left column: metadata + actions */}
             <Stack gap="md" flex={1}>
                 <Group justify="space-between" align="center">
-                    <Title order={6}>Details</Title>
+                    <Title order={6}>{t('designs.detail.details')}</Title>
                     <Group gap="xxs" align="center" h={16}>
                         {renderSaveStatus()}
                     </Group>
                 </Group>
                 <TextInput
-                    label="Name"
+                    label={t('designs.detail.nameLabel')}
                     required
                     {...form.getInputProps('name')}
                 />
                 <Textarea
-                    label="Description"
+                    label={t('designs.detail.descriptionLabel')}
                     minRows={3}
                     autosize
-                    description="For users selecting a theme"
+                    description={t('designs.detail.descriptionHelp')}
                     {...form.getInputProps('description')}
                 />
                 <Textarea
-                    label="Extra instructions"
-                    description="These will be passed to the agent alongside any markdown files. These can be any instructions you want included."
-                    placeholder="e.g. Use sentence case for all headings. Prefer dense layouts over generous whitespace."
+                    label={t('designs.detail.extraInstructionsLabel')}
+                    description={t('designs.detail.extraInstructionsHelp')}
+                    placeholder={t(
+                        'designs.detail.extraInstructionsPlaceholder',
+                    )}
                     minRows={4}
                     autosize
                     {...form.getInputProps('extraInstructions')}
@@ -282,14 +291,13 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
                 <Divider />
 
                 <Box>
-                    <Title order={6}>Default</Title>
+                    <Title order={6}>{t('designs.detail.defaultTitle')}</Title>
                     <Text size="sm" c="dimmed" mt={4}>
-                        The default theme is automatically applied to new
-                        content. Individual items can override it.
+                        {t('designs.detail.defaultDescription')}
                     </Text>
                 </Box>
                 <Switch
-                    label="Use as default theme"
+                    label={t('designs.detail.useAsDefault')}
                     checked={design.isDefault}
                     disabled={setDefault.isLoading || clearDefault.isLoading}
                     onChange={(e) => {
@@ -311,15 +319,19 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
             <Stack gap="md" flex={1}>
                 <Box>
                     <Group justify="space-between" align="baseline">
-                        <Title order={6}>Files</Title>
+                        <Title order={6}>
+                            {t('designs.detail.filesTitle')}
+                        </Title>
                         <Group gap="xs" align="baseline">
                             <Text
                                 size="xs"
                                 c={limitViolation ? 'red.6' : 'ldGray.6'}
                             >
-                                {design.files.length} files ·{' '}
-                                {formatBytes(totalBytes)} /{' '}
-                                {formatBytes(MAX_THEME_TOTAL_BYTES)}
+                                {t('designs.detail.filesUsage', {
+                                    count: design.files.length,
+                                    used: formatBytes(totalBytes),
+                                    max: formatBytes(MAX_THEME_TOTAL_BYTES),
+                                })}
                             </Text>
                             {design.files.length > 0 && (
                                 <Button
@@ -334,31 +346,27 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
                                     }
                                     onClick={() => setClearFilesOpen(true)}
                                 >
-                                    Delete all
+                                    {t('designs.detail.deleteAll')}
                                 </Button>
                             )}
                         </Group>
                     </Group>
                     <Text size="sm" c="dimmed" mt={4}>
-                        Drag &amp; drop CSS, font, image, or markdown
-                        instruction files. They&apos;ll be picked up
-                        automatically wherever this theme is applied.
+                        {t('designs.detail.filesHelp')}
                     </Text>
                 </Box>
 
                 {(limitViolation || nearLimit) && (
                     <Callout variant="warning">
-                        {limitViolation
-                            ? `This theme is over the ${formatBytes(
-                                  MAX_THEME_TOTAL_BYTES,
-                              )} limit (currently ${formatBytes(
-                                  totalBytes,
-                              )}). Apps won't apply it until you remove some assets.`
-                            : `This theme is getting large (${formatBytes(
-                                  totalBytes,
-                              )} of ${formatBytes(
-                                  MAX_THEME_TOTAL_BYTES,
-                              )}). Large themes are slower to generate and can fail to apply — keep only the assets you need.`}
+                        {t(
+                            limitViolation
+                                ? 'designs.detail.overLimit'
+                                : 'designs.detail.nearLimit',
+                            {
+                                used: formatBytes(totalBytes),
+                                max: formatBytes(MAX_THEME_TOTAL_BYTES),
+                            },
+                        )}
                     </Callout>
                 )}
 
@@ -370,7 +378,7 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
 
                 {design.files.length === 0 ? (
                     <Text size="sm" c="dimmed" ta="center" py="md">
-                        No files yet.
+                        {t('designs.detail.noFiles')}
                     </Text>
                 ) : (
                     <Stack gap="xs">
@@ -406,8 +414,11 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
                 opened={clearFilesOpen}
                 onClose={() => setClearFilesOpen(false)}
                 variant="delete"
-                title="Delete all files"
-                description={`Are you sure you want to delete all ${design.files.length} files from "${design.name}"?`}
+                title={t('designs.detail.deleteAllTitle')}
+                description={t('designs.detail.deleteAllDescription', {
+                    count: design.files.length,
+                    name: design.name,
+                })}
                 size="md"
                 confirmLoading={deleteAllFiles.isLoading}
                 onConfirm={() =>
@@ -416,16 +427,14 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
                     })
                 }
             >
-                <span>
-                    The theme itself is kept, along with its description, extra
-                    instructions, and anything already using it.
-                </span>
+                <span>{t('designs.detail.deleteAllBody')}</span>
             </MantineModal>
         </Group>
     );
 };
 
 export const DesignDetailPanel: FC<Props> = ({ designUuid }) => {
+    const { t } = useTranslation('settings');
     const { data: design, isInitialLoading } =
         useOrganizationDesign(designUuid);
 
@@ -438,7 +447,7 @@ export const DesignDetailPanel: FC<Props> = ({ designUuid }) => {
     }
 
     if (!design) {
-        return <Text c="dimmed">Theme not found.</Text>;
+        return <Text c="dimmed">{t('designs.detail.notFound')}</Text>;
     }
 
     return <DesignForm key={design.designUuid} design={design} />;

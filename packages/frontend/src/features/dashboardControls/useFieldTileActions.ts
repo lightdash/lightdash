@@ -7,6 +7,7 @@ import {
     type DashboardTile,
 } from '@lightdash/common';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { useFilterableItemsMap } from '../dashboardFilters/FilterRequirements/useFilterableItemsMap';
 import {
@@ -27,8 +28,6 @@ import {
 } from './peers';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { toDashboardFilterableField } from './useFilterRuleField';
-
-const SQL_COLUMN_LABEL = 'SQL column';
 
 // Which tiles an action is over. Without tabs there is only 'every-tab';
 // 'other-tabs' is every tab but the active one
@@ -159,6 +158,7 @@ export type FieldTileActions = {
 export const useFieldTileActions = (
     sqlColumnsByTile: SqlColumnsByTile,
 ): FieldTileActions | null => {
+    const { t } = useTranslation('dashboardFilters');
     const editingRule = useControlsSidebarSelector((c) => c.editingRule);
     const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
     const removeLastField = useControlsSidebarSelector(
@@ -228,7 +228,7 @@ export const useFieldTileActions = (
                 // Each time grain is a field of its own, so the name says which one
                 label: field?.label ?? fieldId,
                 tableLabel: isSqlColumn
-                    ? SQL_COLUMN_LABEL
+                    ? t('controls.sqlColumn')
                     : (field?.tableLabel ?? target?.tableName ?? ''),
                 isWaiting,
                 thisTabScope,
@@ -343,5 +343,6 @@ export const useFieldTileActions = (
         updateFilter,
         removeLastField,
         removeWaitingField,
+        t,
     ]);
 };

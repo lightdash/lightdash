@@ -4,6 +4,7 @@ import {
     type UpdateOrganizationSettings,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
@@ -34,6 +35,7 @@ export const useOrganizationSettings = ({
 
 export const useUpdateOrganizationSettings = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<
         OrganizationSettings,
@@ -43,11 +45,15 @@ export const useUpdateOrganizationSettings = () => {
         mutationKey: ['organization_settings', 'update'],
         onSuccess: async () => {
             await queryClient.invalidateQueries(QUERY_KEY);
-            showToastSuccess({ title: 'Organization settings saved' });
+            showToastSuccess({
+                title: t('useOrganizationSettings.organizationSettingsSaved'),
+            });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to save organization settings',
+                title: t(
+                    'useOrganizationSettings.failedToSaveOrganizationSettings',
+                ),
                 apiError: error,
             });
         },

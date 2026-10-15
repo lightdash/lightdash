@@ -2,12 +2,14 @@ import { subject } from '@casl/ability';
 import { Box, Button, Group, Paper, Stack, Text } from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 import classes from './InviteExpertFooter.module.css';
 
 const InviteExpertFooter: FC = () => {
+    const { t } = useTranslation('projectConnection');
     const location = useLocation();
     const { user } = useApp();
 
@@ -34,10 +36,10 @@ const InviteExpertFooter: FC = () => {
                     </Box>
                     <Stack gap={2}>
                         <Text fw={600} size="sm">
-                            Not the right person?
+                            {t('connectFlow.inviteExpert.title')}
                         </Text>
                         <Text size="sm" c="dimmed">
-                            Connecting the warehouse is usually a data-team job.
+                            {t('connectFlow.inviteExpert.description')}
                         </Text>
                     </Stack>
                 </Group>
@@ -48,7 +50,7 @@ const InviteExpertFooter: FC = () => {
                     variant="default"
                     className={classes.button}
                 >
-                    Invite an expert
+                    {t('connectFlow.inviteExpert.button')}
                 </Button>
             </Group>
         </Paper>

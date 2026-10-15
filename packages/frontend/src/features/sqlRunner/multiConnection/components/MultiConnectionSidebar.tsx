@@ -1,6 +1,7 @@
 import { ChartKind } from '@lightdash/common';
 import { ScrollArea, Stack, Title } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { VisualizationConfigPanel } from '../../../../components/DataViz/VisualizationConfigPanel';
 import scrollAreaClasses from '../../../../styles/ScrollArea.module.css';
 import { ConnectionHeader } from '../../components/ConnectionHeader';
@@ -13,6 +14,7 @@ import { ConnectionPicker } from './ConnectionPicker';
 import { MultiConnectionTablesPanel } from './MultiConnectionTablesPanel';
 
 export const MultiConnectionSidebar: FC = () => {
+    const { t } = useTranslation('sqlRunner');
     const dispatch = useAppDispatch();
     const {
         projectUuid,
@@ -37,7 +39,7 @@ export const MultiConnectionSidebar: FC = () => {
 
     return (
         <Stack gap="sm" className={classes.root}>
-            {!isTablesTab && <Title order={4}>Chart</Title>}
+            {!isTablesTab && <Title order={4}>{t('sidebar.chartTitle')}</Title>}
 
             <Stack gap="xs" className={classes.panel} data-active={isTablesTab}>
                 {hasSeveralConnections ? (

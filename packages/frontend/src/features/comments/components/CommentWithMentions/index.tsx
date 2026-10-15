@@ -4,6 +4,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { useEditor, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect, useRef, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type SuggestionsItem } from '../../types';
 import styles from './CommentWithMentions.module.css';
 import { generateAsyncSuggestionWrapper } from './generateSuggestionWrapper';
@@ -23,6 +24,7 @@ export const CommentWithMentions: FC<Props> = ({
     shouldClearEditor,
     setShouldClearEditor,
 }) => {
+    const { t } = useTranslation('comments');
     const fetchSuggestionsRef = useRef(fetchSuggestions);
     useEffect(() => {
         fetchSuggestionsRef.current = fetchSuggestions;
@@ -47,7 +49,7 @@ export const CommentWithMentions: FC<Props> = ({
                 ),
             }),
             Placeholder.configure({
-                placeholder: 'Add comment (type @ to tag someone)',
+                placeholder: t('form.placeholder'),
             }),
         ],
         content,

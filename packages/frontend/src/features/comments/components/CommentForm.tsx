@@ -3,6 +3,7 @@ import { Button, Grid, Group, Skeleton, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type Editor, type JSONContent } from '@tiptap/react';
 import { useCallback, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import { useSearchSpaceAccess } from '../../../hooks/useSpaceAccess';
 import useApp from '../../../providers/App/useApp';
@@ -42,6 +43,7 @@ export const CommentForm: FC<Props> = ({
     onCancel,
     mode = 'new',
 }) => {
+    const { t } = useTranslation('comments');
     const { user } = useApp();
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const spaceUuid = useDashboardContext((c) => c.dashboard?.spaceUuid);
@@ -129,7 +131,7 @@ export const CommentForm: FC<Props> = ({
                             size="compact-xs"
                             onClick={onCancel}
                         >
-                            Cancel
+                            {t('actions.cancel', { ns: 'common' })}
                         </Button>
                     )}
 
@@ -157,7 +159,9 @@ export const CommentForm: FC<Props> = ({
                               }
                             : {})}
                     >
-                        {mode === 'reply' ? 'Reply' : 'Add comment'}
+                        {mode === 'reply'
+                            ? t('form.reply')
+                            : t('form.addComment')}
                     </Button>
                 </Group>
             </Stack>

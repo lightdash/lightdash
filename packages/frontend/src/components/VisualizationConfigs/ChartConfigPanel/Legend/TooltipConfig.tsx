@@ -13,6 +13,7 @@ import { useDebouncedValue } from '@mantine/hooks';
 import { IconHelpCircle } from '@tabler/icons-react';
 import { type editor, type IDisposable, type languages } from 'monaco-editor';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDeepCompareEffect } from 'react-use';
 import { AiTooltipInput } from '../../../../ee/features/ambientAi/components/tooltip';
 import { useAmbientAiEnabled } from '../../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
@@ -112,6 +113,7 @@ const calculateEditorHeight = (lineCount: number): number => {
     return lines * MONACO_LINE_HEIGHT + MONACO_PADDING;
 };
 export const TooltipConfig: FC<Props> = ({ fields }) => {
+    const { t } = useTranslation('vizConfig');
     const { visualizationConfig } = useVisualizationContext();
     const { colorScheme } = useMantineColorScheme();
     const projectUuid = useProjectUuid();
@@ -264,13 +266,9 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
     return (
         <Stack gap="xs">
             <Group gap="xs" align="center">
-                <Config.Label>Custom</Config.Label>
+                <Config.Label>{t('tooltipConfig.custom')}</Config.Label>
                 {!isEmbedded && (
-                    <Tooltip
-                        maw={350}
-                        label="Use this input to enhance chart tooltips with additional content. You can incorporate HTML code and include dynamic values using the format ${variable_name}.
-                                Click here to read more about this on our docs."
-                    >
+                    <Tooltip maw={350} label={t('tooltipConfig.customHelp')}>
                         <MantineIcon
                             onClick={() => {
                                 window.open(
@@ -314,7 +312,7 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
                                 zIndex: getDefaultZIndex('overlay'),
                             }}
                         >
-                            {`- Total orders: \${orders_total_amount}`}
+                            {t('tooltipConfig.placeholderExample')}
                         </Text>
                     ) : null}
                     <Editor

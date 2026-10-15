@@ -7,6 +7,7 @@ import {
     IconRefreshAlert,
 } from '@tabler/icons-react';
 import { memo, useEffect, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type EmbedBackDestination } from '../../../ee/providers/Embed/types';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import { useUiString } from '../../../ee/providers/Embed/useUiStrings';
@@ -58,6 +59,7 @@ const getBackButtonLabelKey = (
 };
 
 const ExplorerHeader: FC = memo(() => {
+    const { t } = useTranslation('explorer');
     const projectUuid = useProjectUuid();
     const { user } = useApp();
     const { backDestination, onBackToDashboard } = useEmbed();
@@ -78,8 +80,8 @@ const ExplorerHeader: FC = memo(() => {
         [resultsData.totalResults, reachedLimit],
     );
     const limitWarning = mergeResults
-        ? `The merged result reached its limit of ${reachedLimit} rows, so this is the first ${reachedLimit} rows of the merge. Each query ran whole; only the merged result is cut. To see more, increase the row limit or narrow the filters on either query.`
-        : `Query limit of ${limit} reached. There may be additional results that have not been displayed. To see more, increase the query limit or try narrowing filters.`;
+        ? t('explorerHeader.mergeLimitWarning', { limit: reachedLimit })
+        : t('explorerHeader.limitWarning', { limit });
     const queryWarnings = query.data?.warnings;
     // A merge whose join changed re-runs itself; one whose legs changed
     // waits for the user, and the rows on screen have to say so.
@@ -126,13 +128,13 @@ const ExplorerHeader: FC = memo(() => {
 
     const buttonDisabledMessage = useMemo(() => {
         if (isChartTypeAuthoring) {
-            return 'Finish editing the chart type first';
+            return t('explorerHeader.saveDisabled.finishChartType');
         }
 
         if (isEmbedded) {
             return canCreateEmbedSavedChart
                 ? null
-                : 'This embed token does not allow saving charts';
+                : t('explorerHeader.saveDisabled.embedNotAllowed');
         }
 
         // A chart always needs a space to be saved to (a public space or one the user can create)
@@ -140,8 +142,9 @@ const ExplorerHeader: FC = memo(() => {
         if (userCanCreateSpace) return null;
 
         // The user lacks permission to save a chart in any space
-        return "You don't have permission to save charts in this project";
+        return t('explorerHeader.saveDisabled.noPermission');
     }, [
+        t,
         canCreateEmbedSavedChart,
         isChartTypeAuthoring,
         isEmbedded,
@@ -166,8 +169,7 @@ const ExplorerHeader: FC = memo(() => {
     useEffect(() => {
         const checkReload = (event: BeforeUnloadEvent) => {
             if (getHasDashboardChanges()) {
-                const message =
-                    'You have unsaved changes to your dashboard! Are you sure you want to leave without saving?';
+                const message = t('explorerHeader.unsavedDashboardChanges');
                 event.returnValue = message;
                 return message;
             }
@@ -176,7 +178,7 @@ const ExplorerHeader: FC = memo(() => {
         return () => {
             window.removeEventListener('beforeunload', checkReload);
         };
-    }, [getHasDashboardChanges]);
+    }, [getHasDashboardChanges, t]);
 
     const userCanManageCompileProject = ability.can('manage', 'CompileProject');
 
@@ -201,7 +203,7 @@ const ExplorerHeader: FC = memo(() => {
                 {showMergeOutOfDate && (
                     <Tooltip
                         w={400}
-                        label="A query in this merge changed since it last ran. Run the query to see the merged result for the current queries."
+                        label={t('explorerHeader.mergeOutOfDate.tooltip')}
                         position="bottom"
                     >
                         <Badge
@@ -215,7 +217,7 @@ const ExplorerHeader: FC = memo(() => {
                             variant="outline"
                             style={{ cursor: 'help' }}
                         >
-                            Results out of date
+                            {t('explorerHeader.mergeOutOfDate.badge')}
                         </Badge>
                     </Tooltip>
                 )}
@@ -233,7 +235,7 @@ const ExplorerHeader: FC = memo(() => {
                             variant="outline"
                             style={{ cursor: 'help' }}
                         >
-                            Results may be incomplete
+                            {t('explorerHeader.resultsMayBeIncomplete')}
                         </Badge>
                     </Tooltip>
                 )}

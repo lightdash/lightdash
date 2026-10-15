@@ -11,6 +11,7 @@ import {
 } from '@mantine/core';
 import { IconBrandGithub, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import githubIcon from '../../../svgs/github-icon.svg';
 import {
     GITHUB_USER_AUTHORIZE_URL,
@@ -21,6 +22,7 @@ import MantineIcon from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
 
 const GithubUserSettingsPanel: FC = () => {
+    const { t } = useTranslation('userSettings');
     const { data: credential, isInitialLoading } = useGithubUserCredential();
     const unlinkGithubUserMutation = useUnlinkGithubUserMutation();
 
@@ -33,15 +35,15 @@ const GithubUserSettingsPanel: FC = () => {
             <Box>
                 <Group gap="sm">
                     <Avatar src={githubIcon} size="md" />
-                    <Title order={5}>My GitHub account</Title>
+                    <Title order={5}>
+                        {t('githubUserSettingsPanel.title')}
+                    </Title>
                 </Group>
             </Box>
 
             <Stack>
                 <Text c="dimmed" fz="xs">
-                    Link your personal GitHub account so commits and pull
-                    requests created by Lightdash are authored as you. Without a
-                    linked account they are created by the Lightdash bot.
+                    {t('githubUserSettingsPanel.description')}
                 </Text>
 
                 {credential ? (
@@ -60,7 +62,7 @@ const GithubUserSettingsPanel: FC = () => {
                             loading={unlinkGithubUserMutation.isLoading}
                             onClick={() => unlinkGithubUserMutation.mutate()}
                         >
-                            Unlink
+                            {t('githubUserSettingsPanel.unlink')}
                         </Button>
                     </Group>
                 ) : (
@@ -72,7 +74,7 @@ const GithubUserSettingsPanel: FC = () => {
                             href={`${GITHUB_USER_AUTHORIZE_URL}?redirect=/generalSettings/profile`}
                             leftSection={<MantineIcon icon={IconBrandGithub} />}
                         >
-                            Connect GitHub account
+                            {t('githubUserSettingsPanel.connect')}
                         </Button>
                     </Flex>
                 )}

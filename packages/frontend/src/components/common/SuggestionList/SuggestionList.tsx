@@ -10,6 +10,7 @@ import {
     useState,
     type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import styles from './SuggestionList.module.css';
 
 export type SuggestionItem = {
@@ -38,6 +39,7 @@ export const SuggestionList = forwardRef<
     SuggestionListRef,
     SuggestionListProps<SuggestionItem>
 >((props, ref) => {
+    const { t } = useTranslation('commonUi');
     const [selectedIndex, setSelectedIndex] = useState(0);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -105,7 +107,7 @@ export const SuggestionList = forwardRef<
         return (
             <Card shadow="md" p="xs" className={styles.container}>
                 <Text size="xs" c="dimmed">
-                    {props.emptyMessage ?? 'No results found'}
+                    {props.emptyMessage ?? t('suggestionList.noResults')}
                 </Text>
             </Card>
         );
@@ -140,19 +142,19 @@ export const SuggestionList = forwardRef<
                     <kbd className={styles.kbd}>↑</kbd>
                     <kbd className={styles.kbd}>↓</kbd>
                     <Text size="xs" inherit>
-                        navigate
+                        {t('suggestionList.navigate')}
                     </Text>
                 </Group>
                 <Group gap={4} wrap="nowrap">
                     <kbd className={styles.kbd}>↵</kbd>
                     <Text size="xs" inherit>
-                        select
+                        {t('suggestionList.select')}
                     </Text>
                 </Group>
                 <Group gap={4} wrap="nowrap">
                     <kbd className={styles.kbd}>esc</kbd>
                     <Text size="xs" inherit>
-                        close
+                        {t('suggestionList.close')}
                     </Text>
                 </Group>
             </Group>

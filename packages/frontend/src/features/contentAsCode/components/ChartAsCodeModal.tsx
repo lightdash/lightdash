@@ -1,4 +1,5 @@
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useChartAsCode } from '../hooks/useChartAsCode';
 import ContentAsCodeModal from './ContentAsCodeModal';
 
@@ -17,6 +18,7 @@ const ChartAsCodeModal: FC<ChartAsCodeModalProps> = ({
     chartUuid,
     hasUnsavedChanges,
 }) => {
+    const { t } = useTranslation('contentAsCode');
     const chartAsCode = useChartAsCode({
         projectUuid,
         chartUuid,
@@ -27,11 +29,11 @@ const ChartAsCodeModal: FC<ChartAsCodeModalProps> = ({
         <ContentAsCodeModal
             opened={opened}
             onClose={onClose}
-            resourceLabel="chart"
+            resourceLabel={t('resources.chart')}
             contentAsCode={chartAsCode}
             warning={
                 hasUnsavedChanges
-                    ? 'This YAML contains the last saved version. Save the chart to include your current changes.'
+                    ? t('asCodeModal.unsavedChartWarning')
                     : undefined
             }
         />

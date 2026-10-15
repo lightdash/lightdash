@@ -1,9 +1,9 @@
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FilterFacet, { type FilterFacetOption } from '../common/FilterFacet';
 import {
     ALL_QUERY_TYPES,
     formatMissReason,
-    QUERY_TYPE_LABELS,
     type QueryType,
 } from './preAggregateHelpers';
 
@@ -20,24 +20,30 @@ type QueryTypeFilterProps = {
     onChange: (value: QueryType | null) => void;
 };
 
-const QUERY_TYPE_OPTIONS: FilterFacetOption[] = ALL_QUERY_TYPES.map((type) => ({
-    value: type,
-    label: QUERY_TYPE_LABELS[type],
-}));
-
 export const QueryTypeFilter: FC<QueryTypeFilterProps> = ({
     selected,
     onChange,
-}) => (
-    <FilterFacet
-        label="Type"
-        mode="single"
-        options={QUERY_TYPE_OPTIONS}
-        selected={fromSingleValue(selected)}
-        onChange={(values) => onChange(toSingleValue<QueryType>(values))}
-        tooltipLabel="Filter by query type"
-    />
-);
+}) => {
+    const { t } = useTranslation('app');
+    const options = useMemo<FilterFacetOption[]>(
+        () =>
+            ALL_QUERY_TYPES.map((type) => ({
+                value: type,
+                label: t(`preAggregateAudit.queryTypes.${type}`),
+            })),
+        [t],
+    );
+    return (
+        <FilterFacet
+            label={t('preAggregateAudit.filters.type')}
+            mode="single"
+            options={options}
+            selected={fromSingleValue(selected)}
+            onChange={(values) => onChange(toSingleValue<QueryType>(values))}
+            tooltipLabel={t('preAggregateAudit.filters.typeTooltip')}
+        />
+    );
+};
 
 // --- Explore Filter ---
 
@@ -52,18 +58,19 @@ export const ExploreFilter: FC<ExploreFilterProps> = ({
     selected,
     onChange,
 }) => {
+    const { t } = useTranslation('app');
     const options = useMemo<FilterFacetOption[]>(
         () => explores.map((explore) => ({ value: explore, label: explore })),
         [explores],
     );
     return (
         <FilterFacet
-            label="Explore"
+            label={t('preAggregateAudit.filters.explore')}
             mode="single"
             options={options}
             selected={fromSingleValue(selected)}
             onChange={(values) => onChange(toSingleValue(values))}
-            tooltipLabel="Filter by explore"
+            tooltipLabel={t('preAggregateAudit.filters.exploreTooltip')}
         />
     );
 };
@@ -81,18 +88,19 @@ export const PreAggregateFilter: FC<PreAggregateFilterProps> = ({
     selected,
     onChange,
 }) => {
+    const { t } = useTranslation('app');
     const options = useMemo<FilterFacetOption[]>(
         () => names.map((name) => ({ value: name, label: name })),
         [names],
     );
     return (
         <FilterFacet
-            label="Pre-aggregate"
+            label={t('preAggregateAudit.filters.preAggregate')}
             mode="single"
             options={options}
             selected={fromSingleValue(selected)}
             onChange={(values) => onChange(toSingleValue(values))}
-            tooltipLabel="Filter by pre-aggregate"
+            tooltipLabel={t('preAggregateAudit.filters.preAggregateTooltip')}
         />
     );
 };
@@ -110,6 +118,7 @@ export const MissReasonFilter: FC<MissReasonFilterProps> = ({
     selected,
     onChange,
 }) => {
+    const { t } = useTranslation('app');
     const options = useMemo<FilterFacetOption[]>(
         () =>
             reasons.map((reason) => ({
@@ -120,12 +129,12 @@ export const MissReasonFilter: FC<MissReasonFilterProps> = ({
     );
     return (
         <FilterFacet
-            label="Reason"
+            label={t('preAggregateAudit.filters.reason')}
             mode="single"
             options={options}
             selected={fromSingleValue(selected)}
             onChange={(values) => onChange(toSingleValue(values))}
-            tooltipLabel="Filter by miss reason"
+            tooltipLabel={t('preAggregateAudit.filters.reasonTooltip')}
         />
     );
 };

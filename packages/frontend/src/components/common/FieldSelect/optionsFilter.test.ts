@@ -1,7 +1,7 @@
 import { type ComboboxParsedItem } from '@mantine/core';
 import { describe, expect, it } from 'vitest';
 import {
-    ADD_TO_QUERY_GROUP_LABEL,
+    getAddToQueryGroupLabel,
     MORE_OPTIONS_VALUE,
     optionsFilter,
 } from './optionsFilter';
@@ -119,7 +119,7 @@ describe('FieldSelect optionsFilter', () => {
 
     it('does not match synthetic group labels', () => {
         const result = optionsFilter({
-            options: [table(ADD_TO_QUERY_GROUP_LABEL, ['Amount'])],
+            options: [table(getAddToQueryGroupLabel(), ['Amount'])],
             search: 'query',
             limit: 50,
         });

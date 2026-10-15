@@ -30,34 +30,39 @@ import {
     IconSparkles,
     IconTable,
 } from '@tabler/icons-react';
-import { useCallback, useState, type FC, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useExportDashboardContentPreview } from '../../../../../hooks/dashboard/useDashboard';
-import { CUSTOM_WIDTH_OPTIONS } from '../../../constants';
+import { getCustomWidthOptions } from '../../../constants';
 import { useSchedulerFormContext } from '../schedulerFormContext';
 import classes from './SchedulerDeliveryModal.module.css';
+import { THRESHOLD_OPERATOR_KEYS } from './schedulerDetailSummary';
 import { SchedulerNextRuns } from './SchedulerNextRuns';
 
 const DEFAULT_WIDTH = '1400';
 
-const AiSummaryChip: FC = () => (
-    <Paper radius="md" p="sm" bg="var(--mantine-color-default-hover)">
-        <Stack gap={6}>
-            <Text size="xs" fw={600}>
-                <MantineIcon
-                    icon={IconSparkles}
-                    size="sm"
-                    display="inline"
-                    style={{ marginRight: 4, marginBottom: -2 }}
-                />
-                AI summary
-            </Text>
-            <Skeleton height={6} width="90%" animate={false} />
-            <Skeleton height={6} width="75%" animate={false} />
-            <Skeleton height={6} width="55%" animate={false} />
-        </Stack>
-    </Paper>
-);
+const AiSummaryChip: FC = () => {
+    const { t } = useTranslation('scheduler');
+    return (
+        <Paper radius="md" p="sm" bg="var(--mantine-color-default-hover)">
+            <Stack gap={6}>
+                <Text size="xs" fw={600}>
+                    <MantineIcon
+                        icon={IconSparkles}
+                        size="sm"
+                        display="inline"
+                        style={{ marginRight: 4, marginBottom: -2 }}
+                    />
+                    {t('preview.aiSummary')}
+                </Text>
+                <Skeleton height={6} width="90%" animate={false} />
+                <Skeleton height={6} width="75%" animate={false} />
+                <Skeleton height={6} width="55%" animate={false} />
+            </Stack>
+        </Paper>
+    );
+};
 
 const BentoPlaceholder: FC<{ cta?: ReactNode }> = ({ cta }) => (
     <div className={classes.previewBento}>
@@ -82,19 +87,13 @@ const AttachmentChip: FC<{ filename: string }> = ({ filename }) => (
     </Paper>
 );
 
-const OPERATOR_TEXT: Record<ThresholdOperator, string> = {
-    [ThresholdOperator.GREATER_THAN]: 'is greater than',
-    [ThresholdOperator.LESS_THAN]: 'is less than',
-    [ThresholdOperator.INCREASED_BY]: 'increased by',
-    [ThresholdOperator.DECREASED_BY]: 'decreased by',
-};
-
 const AlertConditionCard: FC<{
     numericMetrics: Record<
         string,
         TableCalculation | Metric | Field | CustomDimension
     >;
 }> = ({ numericMetrics }) => {
+    const { t } = useTranslation('scheduler');
     const form = useSchedulerFormContext();
     const threshold = form.values.thresholds?.[0];
     const field = threshold
@@ -112,28 +111,29 @@ const AlertConditionCard: FC<{
     const googleChatCount = form.values.googleChatTargets?.length || 0;
     const destinationParts = [
         emailCount > 0 &&
-            `${emailCount} email recipient${emailCount > 1 ? 's' : ''}`,
+            t('alertSummary.emailRecipients', { count: emailCount }),
         slackCount > 0 &&
-            `${slackCount} Slack channel${slackCount > 1 ? 's' : ''}`,
+            t('alertSummary.slackChannels', { count: slackCount }),
         msTeamsCount > 0 &&
-            `${msTeamsCount} Teams webhook${msTeamsCount > 1 ? 's' : ''}`,
+            t('alertSummary.teamsWebhooks', { count: msTeamsCount }),
         googleChatCount > 0 &&
-            `${googleChatCount} Google Chat webhook${
-                googleChatCount > 1 ? 's' : ''
-            }`,
-    ].filter(Boolean);
+            t('alertSummary.googleChatWebhooks', { count: googleChatCount }),
+    ].filter((part): part is string => Boolean(part));
     const destinations =
         destinationParts.length > 1
-            ? `${destinationParts.slice(0, -1).join(', ')} and ${
-                  destinationParts[destinationParts.length - 1]
-              }`
+            ? t('alertSummary.listWithLast', {
+                  list: destinationParts
+                      .slice(0, -1)
+                      .join(t('alertSummary.listSeparator')),
+                  last: destinationParts[destinationParts.length - 1],
+              })
             : (destinationParts[0] ?? '');
 
     return (
         <Paper radius="md" p="md" bg="var(--mantine-color-body)">
             <Stack gap="sm">
                 <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-                    Alert summary
+                    {t('alertSummary.title')}
                 </Text>
                 <Text fw={600} size="sm">
                     <MantineIcon
@@ -142,14 +142,14 @@ const AlertConditionCard: FC<{
                         display="inline"
                         style={{ marginRight: 6, marginBottom: -2 }}
                     />
-                    Fires when…
+                    {t('alertSummary.firesWhen')}
                 </Text>
                 {field && threshold ? (
                     <Text size="sm">
                         <Text span fw={600}>
                             {getItemLabelWithoutTableName(field)}
                         </Text>{' '}
-                        {OPERATOR_TEXT[threshold.operator]}{' '}
+                        {t(THRESHOLD_OPERATOR_KEYS[threshold.operator])}{' '}
                         <Text span fw={600}>
                             {threshold.value}
                             {isPercent ? '%' : ''}
@@ -157,14 +157,13 @@ const AlertConditionCard: FC<{
                     </Text>
                 ) : (
                     <Text size="sm" c="dimmed">
-                        Pick an alert field and threshold to see the condition
-                        here.
+                        {t('alertSummary.empty')}
                     </Text>
                 )}
                 <Text size="xs" c="dimmed">
                     {destinations
-                        ? `You'll be notified via ${destinations}.`
-                        : 'Add a recipient to get notified.'}
+                        ? t('alertSummary.notifiedVia', { destinations })
+                        : t('alertSummary.addRecipient')}
                 </Text>
             </Stack>
         </Paper>
@@ -185,7 +184,9 @@ export const SchedulerPreviewPanel: FC<Props> = ({
     isThresholdAlert,
     numericMetrics,
 }) => {
+    const { t } = useTranslation('scheduler');
     const form = useSchedulerFormContext();
+    const customWidthOptions = useMemo(() => getCustomWidthOptions(t), [t]);
     const format = form.values.format;
     const isDashboard = dashboard !== undefined;
     const isImageLike =
@@ -236,7 +237,9 @@ export const SchedulerPreviewPanel: FC<Props> = ({
     return (
         <aside className={classes.preview}>
             <div className={classes.previewHeader}>
-                <span className={classes.previewLabel}>Preview</span>
+                <span className={classes.previewLabel}>
+                    {t('preview.title')}
+                </span>
                 {canRender && previewUrl && (
                     <Button
                         variant="subtle"
@@ -247,7 +250,7 @@ export const SchedulerPreviewPanel: FC<Props> = ({
                         loading={exportPreviewMutation.isLoading}
                         onClick={handleGenerate}
                     >
-                        Regenerate
+                        {t('preview.regenerate')}
                     </Button>
                 )}
             </div>
@@ -258,7 +261,7 @@ export const SchedulerPreviewPanel: FC<Props> = ({
                     <Paper radius="md" p="md" bg="var(--mantine-color-body)">
                         <Stack gap="sm">
                             <Text fw={600} size="sm" lineClamp={2}>
-                                {form.values.name || 'Your scheduled delivery'}
+                                {form.values.name || t('preview.defaultName')}
                             </Text>
                             {withAi && <AiSummaryChip />}
                             {isImageLike ? (
@@ -289,7 +292,9 @@ export const SchedulerPreviewPanel: FC<Props> = ({
                                                                 handleGenerate
                                                             }
                                                         >
-                                                            Generate preview
+                                                            {t(
+                                                                'preview.generate',
+                                                            )}
                                                         </Button>
                                                     ) : undefined
                                                 }
@@ -343,8 +348,8 @@ export const SchedulerPreviewPanel: FC<Props> = ({
             {canRender && (
                 <div className={classes.previewFooter}>
                     <Select
-                        label="Render width"
-                        data={CUSTOM_WIDTH_OPTIONS}
+                        label={t('preview.renderWidth')}
+                        data={customWidthOptions}
                         value={widthChoice}
                         onChange={(value) => {
                             form.setFieldValue(

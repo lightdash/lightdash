@@ -18,6 +18,7 @@ import { IconRefresh, IconX } from '@tabler/icons-react';
 import compact from 'lodash/compact';
 import uniq from 'lodash/uniq';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useSlackChannelLookup,
     useSlackChannels,
@@ -62,9 +63,10 @@ const normalizeValues = (
 export const SlackChannelSelect: FC<
     SingleSelectProps | MultiSelectComponentProps
 > = (props) => {
+    const { t } = useTranslation('commonUi');
     const {
         disabled = false,
-        placeholder = 'Select a channel',
+        placeholder = t('slackChannelSelect.placeholder'),
         label,
         size = 'xs',
         radius = 'md',
@@ -180,7 +182,7 @@ export const SlackChannelSelect: FC<
         isBusy ? (
             <Loader size="xs" color="gray" />
         ) : (
-            <Tooltip label="Refresh Slack channels">
+            <Tooltip label={t('slackChannelSelect.refresh')}>
                 <ActionIcon variant="transparent" onClick={refresh}>
                     <MantineIcon icon={IconRefresh} color="gray" />
                 </ActionIcon>
@@ -214,9 +216,7 @@ export const SlackChannelSelect: FC<
         return (
             <Tooltip
                 key={value}
-                label={
-                    "We couldn't find this channel and the integration may not be installed correctly. Please use the channel ID instead."
-                }
+                label={t('slackChannelSelect.uncachedChannel')}
                 disabled={!isUncached}
             >
                 <Pill
@@ -242,8 +242,11 @@ export const SlackChannelSelect: FC<
                         handleValueSelect(channel.id);
                     } else {
                         showToastInfo({
-                            title: 'Channel not found',
-                            subtitle: `Could not find channel with ID "${trimmedSearch}". If it's a private channel, make sure the Slack app is added to it first.`,
+                            title: t('slackChannelSelect.channelNotFound'),
+                            subtitle: t(
+                                'slackChannelSelect.channelNotFoundSubtitle',
+                                { channelId: trimmedSearch },
+                            ),
                         });
                     }
                 },
@@ -282,7 +285,9 @@ export const SlackChannelSelect: FC<
                                     placeholder={
                                         values.length === 0
                                             ? isBusy
-                                                ? 'Loading channels...'
+                                                ? t(
+                                                      'slackChannelSelect.loadingChannels',
+                                                  )
                                                 : placeholder
                                             : undefined
                                     }
@@ -324,13 +329,14 @@ export const SlackChannelSelect: FC<
                                 ))
                             ) : showLookup ? null : (
                                 <Combobox.Empty>
-                                    No channels found, try using Channel ID
-                                    instead?
+                                    {t('slackChannelSelect.noChannels')}
                                 </Combobox.Empty>
                             )}
                             {showLookup && (
                                 <Combobox.Option value="__lookup__">
-                                    Look up channel ID: {search}
+                                    {t('slackChannelSelect.lookUpChannelId', {
+                                        search,
+                                    })}
                                 </Combobox.Option>
                             )}
                         </Combobox.Options>
@@ -339,13 +345,12 @@ export const SlackChannelSelect: FC<
             </Combobox>
             {includeGroups && (
                 <Text size="xs" c="dimmed">
-                    To add a private channel, first add the Lightdash
-                    integration to that channel and use the Channel ID.{' '}
+                    {t('slackChannelSelect.privateChannelHelp')}{' '}
                     <Anchor
                         href="https://docs.lightdash.com/references/integrations/slack-integration#using-lightdash-in-private-channels"
                         target="_blank"
                     >
-                        Learn more
+                        {t('slackChannelSelect.learnMore')}
                     </Anchor>
                 </Text>
             )}

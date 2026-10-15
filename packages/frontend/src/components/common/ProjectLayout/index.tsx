@@ -1,6 +1,7 @@
 import { Box, VisuallyHidden } from '@mantine/core';
 import * as Sentry from '@sentry/react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Outlet, useLocation, useMatches, useNavigation } from 'react-router';
 import ScopeTourHost from '../../../features/scopeTours/ScopeTourHost';
 import SourceCodeDrawer from '../../../features/sourceCodeEditor/components/SourceCodeDrawer';
@@ -23,6 +24,7 @@ import classes from './ProjectLayout.module.css';
  * so that drawer errors don't break the rest of the app.
  */
 const ProjectLayout: FC = () => {
+    const { t } = useTranslation('commonUi');
     const matches = useMatches();
     const location = useLocation();
     const navigation = useNavigation();
@@ -52,7 +54,9 @@ const ProjectLayout: FC = () => {
             </Box>
             {isNavigating && (
                 <Box className={classes.loading} role="status">
-                    <VisuallyHidden>Loading page</VisuallyHidden>
+                    <VisuallyHidden>
+                        {t('projectLayout.loadingPage')}
+                    </VisuallyHidden>
                     <PageSpinner />
                 </Box>
             )}

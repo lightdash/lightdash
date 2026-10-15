@@ -18,6 +18,7 @@ import {
 import { IconAlertCircle, IconKey } from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../../api';
 import { EmptyState } from '../../../../components/common/EmptyState';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -31,6 +32,7 @@ import { useDashboards } from '../../../../hooks/dashboard/useDashboards';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useCharts } from '../../../../hooks/useCharts';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
+import i18n from '../../../../i18n/i18n';
 import useApp from '../../../../providers/App/useApp';
 import { useAiOrganizationSettings } from '../../aiCopilot/hooks/useAiOrganizationSettings';
 import { useProjectAiAgents } from '../../aiCopilot/hooks/useProjectAiAgents';
@@ -72,12 +74,16 @@ const useEmbedConfigCreateMutation = (projectUuid: string) => {
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['embed-config']);
                 showToastSuccess({
-                    title: 'Success! Your embed secret was created.',
+                    title: i18n.t('settings.toasts.secretCreated', {
+                        ns: 'embed',
+                    }),
                 });
             },
             onError: (error) => {
                 showToastError({
-                    title: `We couldn't create your embed secret.`,
+                    title: i18n.t('settings.toasts.secretCreateFailed', {
+                        ns: 'embed',
+                    }),
                     subtitle: error.error.message,
                 });
             },
@@ -114,12 +120,16 @@ const useEmbedConfigUpdateMutation = (projectUuid: string) => {
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['embed-config']);
                 showToastSuccess({
-                    title: 'Success! Your embed configuration was updated.',
+                    title: i18n.t('settings.toasts.configUpdated', {
+                        ns: 'embed',
+                    }),
                 });
             },
             onError: (error) => {
                 showToastError({
-                    title: `We couldn't update your embed configuration.`,
+                    title: i18n.t('settings.toasts.configUpdateFailed', {
+                        ns: 'embed',
+                    }),
                     subtitle: error.error.message,
                 });
             },
@@ -128,6 +138,7 @@ const useEmbedConfigUpdateMutation = (projectUuid: string) => {
 };
 
 const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
+    const { t } = useTranslation('embed');
     const { health } = useApp();
     const { isLoading, data: embedConfig, error } = useEmbedConfig(projectUuid);
     const { isLoading: isLoadingDashboards, data: dashboards } = useDashboards(
@@ -202,7 +213,7 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     ) {
         return (
             <div style={{ marginTop: '20px' }}>
-                <SuboptimalState title="Loading embed config" loading />
+                <SuboptimalState title={t('settings.loading')} loading />
             </div>
         );
     }
@@ -211,7 +222,7 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         return (
             <div style={{ marginTop: '20px' }}>
                 <SuboptimalState
-                    title="Embed configuration not available"
+                    title={t('settings.notAvailable')}
                     description={error.error.message}
                     icon={IconAlertCircle}
                 />
@@ -231,8 +242,8 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                             size="5xl"
                         />
                     }
-                    title="No embed secret"
-                    description="You haven't generated any secret yet!"
+                    title={t('settings.noSecret')}
+                    description={t('settings.noSecretDescription')}
                 >
                     <Button
                         disabled={isSaving}
@@ -240,7 +251,7 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                             createEmbedConfig({ dashboardUuids: [] })
                         }
                     >
-                        Generate embed secret
+                        {t('settings.generateSecret')}
                     </Button>
                 </EmptyState>
             </Stack>
@@ -252,28 +263,31 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             <SettingsGridCard>
                 <Stack gap="sm">
                     <Stack gap="xs">
-                        <Title order={4}>Embed secret</Title>
+                        <Title order={4}>{t('settings.secretTitle')}</Title>
                         <Text c="dimmed" fz="sm">
-                            Use this secret to generate embed tokens for
-                            embedding dashboards and charts.
+                            {t('settings.secretDescription')}
                         </Text>
                     </Stack>
                     <Text c="dimmed" fz="xs">
-                        Learn more on how to use your embed secret in our{' '}
-                        <Anchor
-                            href="https://docs.lightdash.com/references/embedding"
-                            fz="xs"
-                            target="_blank"
-                        >
-                            docs guide
-                        </Anchor>
-                        .
+                        <Trans
+                            t={t}
+                            i18nKey="settings.learnMore"
+                            components={{
+                                anchor: (
+                                    <Anchor
+                                        href="https://docs.lightdash.com/references/embedding"
+                                        fz="xs"
+                                        target="_blank"
+                                    />
+                                ),
+                            }}
+                        />
                     </Text>
                 </Stack>
                 <Stack>
                     <PasswordInput
                         value={embedConfig.secret}
-                        label={'Secret'}
+                        label={t('settings.secret')}
                         readOnly
                     />
                     <Flex justify="flex-end" gap="sm">
@@ -285,16 +299,16 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                 })
                             }
                         >
-                            Generate new secret
+                            {t('settings.generateNewSecret')}
                         </Button>
                     </Flex>
                 </Stack>
             </SettingsGridCard>
             <SettingsCard>
                 <Stack gap="xs" mb="md">
-                    <Title order={4}>Allowed content</Title>
+                    <Title order={4}>{t('settings.allowedContent')}</Title>
                     <Text c="dimmed" fz="sm">
-                        Select the content you want to allow to be embedded.
+                        {t('settings.allowedContentDescription')}
                     </Text>
                 </Stack>
                 <EmbedAllowListForm
@@ -309,10 +323,9 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             </SettingsCard>
             <SettingsCard>
                 <Stack gap="xs" mb="md">
-                    <Title order={4}>Preview & embed code</Title>
+                    <Title order={4}>{t('settings.previewTitle')}</Title>
                     <Text c="dimmed" fz="sm">
-                        Configure your content, preview it, and copy the right
-                        embed code for your integration method.
+                        {t('settings.previewDescription')}
                     </Text>
                 </Stack>
                 <Tabs
@@ -329,13 +342,21 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     keepMounted
                 >
                     <Tabs.List>
-                        <Tabs.Tab value="dashboards">Dashboards</Tabs.Tab>
-                        <Tabs.Tab value="charts">Charts</Tabs.Tab>
+                        <Tabs.Tab value="dashboards">
+                            {t('settings.tabs.dashboards')}
+                        </Tabs.Tab>
+                        <Tabs.Tab value="charts">
+                            {t('settings.tabs.charts')}
+                        </Tabs.Tab>
                         {dataAppsEnabled && (
-                            <Tabs.Tab value="apps">Data apps</Tabs.Tab>
+                            <Tabs.Tab value="apps">
+                                {t('settings.tabs.apps')}
+                            </Tabs.Tab>
                         )}
                         {aiAgentsEnabled && (
-                            <Tabs.Tab value="aiAgents">AI agents</Tabs.Tab>
+                            <Tabs.Tab value="aiAgents">
+                                {t('settings.tabs.aiAgents')}
+                            </Tabs.Tab>
                         )}
                     </Tabs.List>
                     <Tabs.Panel value="dashboards">

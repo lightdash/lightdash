@@ -2,6 +2,7 @@ import { FeatureFlags, type GroupWithMembers } from '@lightdash/common';
 import { Button, Tabs } from '@mantine/core';
 import { IconPlus, IconUsers, IconUsersGroup } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
@@ -17,6 +18,7 @@ import InvitesModal from './InvitesModal';
 import UsersView from './UsersView';
 
 const UsersAndGroupsPanel: FC = () => {
+    const { t } = useTranslation('userSettings');
     const { user } = useApp();
     const userGroupsFeatureFlagQuery = useServerFeatureFlag(
         FeatureFlags.UserGroupsEnabled,
@@ -39,8 +41,8 @@ const UsersAndGroupsPanel: FC = () => {
         userGroupsFeatureFlagQuery.data?.enabled ?? false;
 
     const title = isGroupManagementEnabled
-        ? 'Users & groups'
-        : 'User management';
+        ? t('usersAndGroupsPanel.title.usersAndGroups')
+        : t('usersAndGroupsPanel.title.userManagement');
     const canInvite = user.data.ability.can('create', 'InviteLink');
     const canManageGroups = user.data.ability.can('manage', 'Group');
 
@@ -52,12 +54,12 @@ const UsersAndGroupsPanel: FC = () => {
     return (
         <SettingsPage
             title={title}
-            description="Manage organization members, roles, and group membership."
+            description={t('usersAndGroupsPanel.description')}
             actions={
                 <SettingsPageActions>
                     <SettingsPageDocumentationLink
                         href="https://docs.lightdash.com/references/roles"
-                        label="Roles documentation"
+                        label={t('usersAndGroupsPanel.rolesDocumentation')}
                     />
                     {activeTab === 'users' && canInvite ? (
                         <Button
@@ -65,7 +67,7 @@ const UsersAndGroupsPanel: FC = () => {
                             leftSection={<MantineIcon icon={IconPlus} />}
                             onClick={() => setShowInviteModal(true)}
                         >
-                            Add user
+                            {t('usersAndGroupsPanel.addUser')}
                         </Button>
                     ) : null}
                     {activeTab === 'groups' && canManageGroups ? (
@@ -74,7 +76,7 @@ const UsersAndGroupsPanel: FC = () => {
                             leftSection={<MantineIcon icon={IconPlus} />}
                             onClick={() => setShowCreateAndEditGroupModal(true)}
                         >
-                            Add group
+                            {t('usersAndGroupsPanel.addGroup')}
                         </Button>
                     ) : null}
                 </SettingsPageActions>
@@ -96,13 +98,13 @@ const UsersAndGroupsPanel: FC = () => {
                             value="users"
                             leftSection={<MantineIcon icon={IconUsers} />}
                         >
-                            Users
+                            {t('usersAndGroupsPanel.tabs.users')}
                         </Tabs.Tab>
                         <Tabs.Tab
                             value="groups"
                             leftSection={<MantineIcon icon={IconUsersGroup} />}
                         >
-                            Groups
+                            {t('usersAndGroupsPanel.tabs.groups')}
                         </Tabs.Tab>
                     </Tabs.List>
                 )}

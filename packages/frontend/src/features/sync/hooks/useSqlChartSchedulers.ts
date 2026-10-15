@@ -4,6 +4,7 @@ import {
     type SchedulerAndTargets,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -43,6 +44,7 @@ export const useSqlChartSchedulerCreateMutation = (
 ) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('sync');
     return useMutation<
         SchedulerAndTargets,
         ApiError,
@@ -62,12 +64,12 @@ export const useSqlChartSchedulerCreateMutation = (
                     variables.resourceUuid,
                 ]);
                 showToastSuccess({
-                    title: `Success! Scheduled delivery was created.`,
+                    title: t('toasts.scheduledDeliveryCreated'),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to create scheduled delivery`,
+                    title: t('toasts.scheduledDeliveryCreateFailed'),
                     apiError: error,
                 });
             },

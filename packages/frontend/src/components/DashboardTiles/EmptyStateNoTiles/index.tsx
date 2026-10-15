@@ -6,6 +6,7 @@ import {
     IconPlayerPlay,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useProjectSavedChartStatus } from '../../../hooks/useOnboardingStatus';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -42,6 +43,7 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
     activeTabUuid,
     dashboardTabs,
 }) => {
+    const { t } = useTranslation('dashboard');
     const projectUuid = useProjectUuid();
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
@@ -60,14 +62,14 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
         switch (emptyContainerType) {
             case 'dashboard':
                 return userCanCreateDashboard && isEditMode
-                    ? 'Start building your dashboard!'
-                    : 'Dashboard is empty.';
+                    ? t('emptyState.startBuilding')
+                    : t('emptyState.dashboardEmpty');
             case 'tab':
                 return userCanCreateDashboard && isEditMode
-                    ? 'Add tiles to this tab'
-                    : 'Tab is empty';
+                    ? t('emptyState.addTilesToTab')
+                    : t('emptyState.tabEmpty');
             default:
-                return 'Dashboard is empty.';
+                return t('emptyState.dashboardEmpty');
         }
     };
 
@@ -93,7 +95,7 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
                 ) : (
                     <SuboptimalState
                         icon={IconChartBarOff}
-                        title="You haven’t saved any charts yet."
+                        title={t('emptyState.noSavedCharts')}
                         action={
                             <Can
                                 I="manage"
@@ -110,7 +112,7 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
                                     }
                                     href={`/projects/${projectUrlIdentifier}/tables`}
                                 >
-                                    Run a query
+                                    {t('emptyState.runQuery')}
                                 </MantineLinkButton>
                             </Can>
                         }

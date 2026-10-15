@@ -9,6 +9,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router';
 import AuthLayout from '../components/common/AuthLayout';
 import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
@@ -23,6 +24,7 @@ import useApp from '../providers/App/useApp';
 type ResetPasswordForm = { password: string };
 
 const PasswordReset: FC = () => {
+    const { t } = useTranslation('auth');
     const navigate = useNavigate();
     const { code } = useParams<{ code: string }>();
     const { health } = useApp();
@@ -42,7 +44,7 @@ const PasswordReset: FC = () => {
     }
 
     return (
-        <AuthLayout pageTitle="Reset password">
+        <AuthLayout pageTitle={t('passwordReset.pageTitle')}>
             {error ? (
                 <ErrorState error={error.error} hasMarginTop={false} />
             ) : (
@@ -50,7 +52,7 @@ const PasswordReset: FC = () => {
                     {!passwordResetMutation.isSuccess ? (
                         <>
                             <Title order={3} ta={textAlign} mb="md">
-                                Reset your password
+                                {t('passwordReset.title')}
                             </Title>
                             <form
                                 name="password-reset"
@@ -64,9 +66,11 @@ const PasswordReset: FC = () => {
                             >
                                 <Stack gap="lg">
                                     <PasswordInput
-                                        label="Password"
+                                        label={t('login.password')}
                                         name="password"
-                                        placeholder="Enter a new password"
+                                        placeholder={t(
+                                            'passwordReset.newPasswordPlaceholder',
+                                        )}
                                         autoComplete="new-password"
                                         disabled={
                                             passwordResetMutation.isLoading
@@ -82,7 +86,7 @@ const PasswordReset: FC = () => {
                                         }
                                         fullWidth={isNewLayout}
                                     >
-                                        Save
+                                        {t('actions.save', { ns: 'common' })}
                                     </Button>
 
                                     <Center>
@@ -91,7 +95,9 @@ const PasswordReset: FC = () => {
                                             component={Link}
                                             to="/login"
                                         >
-                                            Cancel
+                                            {t('actions.cancel', {
+                                                ns: 'common',
+                                            })}
                                         </Anchor>
                                     </Center>
                                 </Stack>
@@ -100,18 +106,21 @@ const PasswordReset: FC = () => {
                     ) : (
                         <>
                             <Title order={3} ta={textAlign} mb="md">
-                                Success!
+                                {t('passwordReset.successTitle')}
                             </Title>
                             <Text ta={textAlign} mb="lg" c="dimmed">
-                                Your password has been successfully updated.
-                                <br /> Use your new password to log in.
+                                <Trans
+                                    t={t}
+                                    i18nKey="passwordReset.successMessage"
+                                    components={{ br: <br /> }}
+                                />
                             </Text>
 
                             <Button
                                 fullWidth
                                 onClick={() => navigate('/login')}
                             >
-                                Log in
+                                {t('login.title')}
                             </Button>
                         </>
                     )}

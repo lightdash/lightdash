@@ -15,6 +15,7 @@ import {
     IconFileDescription,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { PolymorphicPaperButton } from '../../../../../components/common/PolymorphicPaperButton';
 import { useAiAgentMemory } from '../../hooks/useAiAgentMemory';
@@ -25,24 +26,27 @@ export const MessageSourcesToggle: FC<{
     count: number;
     expanded: boolean;
     onToggle: () => void;
-}> = ({ count, expanded, onToggle }) => (
-    <Button
-        variant="subtle"
-        color="gray"
-        size="compact-xs"
-        className={styles.toggle}
-        onClick={onToggle}
-        leftSection={<MantineIcon icon={IconFileDescription} size={16} />}
-        rightSection={
-            <MantineIcon
-                icon={expanded ? IconChevronUp : IconChevronDown}
-                size={12}
-            />
-        }
-    >
-        {count} {count === 1 ? 'source' : 'sources'}
-    </Button>
-);
+}> = ({ count, expanded, onToggle }) => {
+    const { t } = useTranslation('aiCopilotChat');
+    return (
+        <Button
+            variant="subtle"
+            color="gray"
+            size="compact-xs"
+            className={styles.toggle}
+            onClick={onToggle}
+            leftSection={<MantineIcon icon={IconFileDescription} size={16} />}
+            rightSection={
+                <MantineIcon
+                    icon={expanded ? IconChevronUp : IconChevronDown}
+                    size={12}
+                />
+            }
+        >
+            {t('memory.sources', { count })}
+        </Button>
+    );
+};
 
 const MemorySourceCard: FC<{
     slug: string;
@@ -50,6 +54,7 @@ const MemorySourceCard: FC<{
     projectUuid: string;
     agentUuid: string;
 }> = ({ slug, index, projectUuid, agentUuid }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const [detailsOpened, { open: openDetails, close: closeDetails }] =
         useDisclosure(false);
     const memoryQuery = useAiAgentMemory({ projectUuid, agentUuid, slug });
@@ -74,7 +79,7 @@ const MemorySourceCard: FC<{
                 <Group gap="sm" wrap="nowrap">
                     <Box className={styles.indexChip}>{index}</Box>
                     <Text size="sm" c="dimmed">
-                        Memory unavailable
+                        {t('memory.cardUnavailable')}
                     </Text>
                 </Group>
             </Paper>
@@ -92,7 +97,7 @@ const MemorySourceCard: FC<{
                 radius="md"
                 p="sm"
                 className={styles.card}
-                aria-label={`Show memory ${memory.title}`}
+                aria-label={t('memory.showWithSlug', { slug: memory.title })}
                 onClick={openDetails}
             >
                 <Group gap="sm" wrap="nowrap" align="flex-start">
@@ -108,8 +113,11 @@ const MemorySourceCard: FC<{
                             {memory.title}
                         </Text>
                         <Text size="xs" c="dimmed" ta="left">
-                            Saved{' '}
-                            {new Date(memory.generatedAt).toLocaleDateString()}
+                            {t('memory.saved', {
+                                date: new Date(
+                                    memory.generatedAt,
+                                ).toLocaleDateString(),
+                            })}
                         </Text>
                     </Stack>
                 </Group>

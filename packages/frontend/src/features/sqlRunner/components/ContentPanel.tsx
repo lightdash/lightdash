@@ -52,6 +52,7 @@ import {
     type FC,
     type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
 import ResizableSplitter from '../../../components/common/ResizableSplitter';
@@ -125,18 +126,19 @@ const useQueryErrorToast = (
     queryError: ApiErrorDetail | SerializedError | Error | undefined,
     projectUuid: string | undefined,
 ) => {
+    const { t } = useTranslation('sqlRunner');
     const { showToastApiError } = useToaster();
     useEffect(() => {
         if (queryError && isPreviewWarehouseSignInExpiredError(queryError)) {
             showToastApiError({
-                title: 'Could not fetch SQL query results',
+                title: t('content.couldNotFetchResults'),
                 apiError: queryError,
                 projectUuid,
             });
         } else {
             notifications.clean();
         }
-    }, [queryError, projectUuid, showToastApiError]);
+    }, [queryError, projectUuid, showToastApiError, t]);
 };
 
 const ElapsedTime: FC = () => {
@@ -176,6 +178,7 @@ const ResultsSkeleton: FC = () => (
 );
 
 const EmptyResultsHints: FC = () => {
+    const { t } = useTranslation('sqlRunner');
     const os = useOs();
     const modifierKey = os === 'macos' || os === 'ios' ? '⌘' : 'Ctrl';
     return (
@@ -183,11 +186,11 @@ const EmptyResultsHints: FC = () => {
             <Kbd size="xs">{modifierKey}</Kbd>
             <Kbd size="xs">↵</Kbd>
             <Text fz="xs" c="dimmed" mr="xs">
-                run
+                {t('content.hints.run')}
             </Text>
             <Kbd size="xs">⇧{modifierKey}↵</Kbd>
             <Text fz="xs" c="dimmed">
-                selection
+                {t('content.hints.selection')}
             </Text>
         </Group>
     );
@@ -197,39 +200,45 @@ const QueryErrorBlock: FC<{
     message: string;
     position: MonacoHighlightChar | undefined;
     onReveal: (position: MonacoHighlightChar) => void;
-}> = ({ message, position, onReveal }) => (
-    <Stack gap="xs" className={styles.errorBlock}>
-        <Group gap="xs" wrap="nowrap" align="flex-start">
-            <MantineIcon icon={IconAlertCircle} color="red" />
-            <Text fz="xs" fw={500} c="red" flex={1}>
-                {message}
-            </Text>
-            {position && (
-                <Anchor
-                    component="button"
-                    type="button"
-                    fz="xs"
-                    onClick={() => onReveal(position)}
-                >
-                    Line {position.line}
-                </Anchor>
-            )}
-        </Group>
-        <Group gap="xs">
-            <CopyButton value={message}>
-                {({ copied, copy }) => (
-                    <Button size="xs" variant="default" onClick={copy}>
-                        {copied ? 'Copied' : 'Copy error'}
-                    </Button>
+}> = ({ message, position, onReveal }) => {
+    const { t } = useTranslation('sqlRunner');
+    return (
+        <Stack gap="xs" className={styles.errorBlock}>
+            <Group gap="xs" wrap="nowrap" align="flex-start">
+                <MantineIcon icon={IconAlertCircle} color="red" />
+                <Text fz="xs" fw={500} c="red" flex={1}>
+                    {message}
+                </Text>
+                {position && (
+                    <Anchor
+                        component="button"
+                        type="button"
+                        fz="xs"
+                        onClick={() => onReveal(position)}
+                    >
+                        {t('content.errorLine', { line: position.line })}
+                    </Anchor>
                 )}
-            </CopyButton>
-        </Group>
-    </Stack>
-);
+            </Group>
+            <Group gap="xs">
+                <CopyButton value={message}>
+                    {({ copied, copy }) => (
+                        <Button size="xs" variant="default" onClick={copy}>
+                            {copied
+                                ? t('feedback.copiedShort', { ns: 'common' })
+                                : t('content.copyError')}
+                        </Button>
+                    )}
+                </CopyButton>
+            </Group>
+        </Stack>
+    );
+};
 
 export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
     toolbarActions,
 }) => {
+    const { t } = useTranslation('sqlRunner');
     // State we need from redux
     const savedSqlChart = useAppSelector(selectSavedSqlChart);
     const projectUuid = useAppSelector(selectProjectUuid);
@@ -608,10 +617,18 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
 
     const resultsSummary = useMemo(() => {
         if (!queryResults) return '';
+        const rowCount = queryResults.results.length;
         const parts = [
-            `${queryResults.results.length.toLocaleString()} rows${
-                showLimitText ? `, limited to ${defaultQueryLimit}` : ''
-            }`,
+            showLimitText
+                ? t('content.resultsRowsLimited', {
+                      count: rowCount,
+                      formattedCount: rowCount.toLocaleString(),
+                      limit: defaultQueryLimit,
+                  })
+                : t('content.resultsRows', {
+                      count: rowCount,
+                      formattedCount: rowCount.toLocaleString(),
+                  }),
         ];
         if (queryResults.durationMs !== null) {
             parts.push(
@@ -621,7 +638,7 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
             );
         }
         return parts.join(' · ');
-    }, [queryResults, showLimitText, defaultQueryLimit]);
+    }, [queryResults, showLimitText, defaultQueryLimit, t]);
 
     const resultsColumnTypes = useMemo(
         () =>
@@ -796,7 +813,9 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                                                             disabled={
                                                                 !hasUnrunChanges
                                                             }
-                                                            label="You haven't run this query yet."
+                                                            label={t(
+                                                                'content.tabs.notRunYet',
+                                                            )}
                                                         >
                                                             <Group
                                                                 gap={4}
@@ -809,7 +828,9 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                                                                     }
                                                                 />
                                                                 <Text fz="sm">
-                                                                    SQL
+                                                                    {t(
+                                                                        'content.tabs.sql',
+                                                                    )}
                                                                 </Text>
                                                             </Group>
                                                         </Tooltip>
@@ -823,7 +844,9 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                                                             disabled={
                                                                 !!queryResults?.results
                                                             }
-                                                            label="Run a query to see the chart"
+                                                            label={t(
+                                                                'content.tabs.runToSeeChart',
+                                                            )}
                                                         >
                                                             <Group
                                                                 gap={4}
@@ -836,7 +859,9 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                                                                     }
                                                                 />
                                                                 <Text fz="sm">
-                                                                    Chart
+                                                                    {t(
+                                                                        'content.tabs.chart',
+                                                                    )}
                                                                 </Text>
                                                             </Group>
                                                         </Tooltip>
@@ -885,11 +910,15 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                                         <>
                                             <SqlQueryHistory />
                                             <Tooltip
-                                                label="Format SQL"
+                                                label={t(
+                                                    'editorActions.formatSql',
+                                                )}
                                                 position="bottom"
                                             >
                                                 <ActionIcon
-                                                    aria-label="Format SQL"
+                                                    aria-label={t(
+                                                        'editorActions.formatSql',
+                                                    )}
                                                     onClick={handleFormatSql}
                                                     disabled={!sql}
                                                 >
@@ -1157,7 +1186,8 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                                                 color="ldGray.9"
                                             />
                                             <Text fz="xs" c="ldGray.7">
-                                                Running · <ElapsedTime />
+                                                {t('content.running')} ·{' '}
+                                                <ElapsedTime />
                                             </Text>
                                         </Group>
                                         {runPromiseRef.current && (
@@ -1166,13 +1196,17 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                                                 variant="default"
                                                 onClick={handleCancelQuery}
                                             >
-                                                Cancel
+                                                {t('actions.cancel', {
+                                                    ns: 'common',
+                                                })}
                                             </Button>
                                         )}
                                     </>
                                 ) : (
                                     <Group gap="sm">
-                                        <Title order={6}>Results</Title>
+                                        <Title order={6}>
+                                            {t('content.results')}
+                                        </Title>
                                         {queryResults?.results && (
                                             <Text fz="xs" c="dimmed">
                                                 {resultsSummary}
@@ -1192,7 +1226,7 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                                     <QueryErrorBlock
                                         message={
                                             queryError.message ??
-                                            'Unknown error'
+                                            t('content.unknownError')
                                         }
                                         position={editorHighlightError}
                                         onReveal={handleRevealError}
@@ -1252,26 +1286,12 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                                                                         c="ldGray.7"
                                                                         ta="center"
                                                                     >
-                                                                        This
-                                                                        query
-                                                                        exceeds
-                                                                        the
-                                                                        maximum
-                                                                        number
-                                                                        of
-                                                                        columns
-                                                                        (
-                                                                        {
-                                                                            maxColumnLimit
-                                                                        }
-                                                                        ).
-                                                                        Showing
-                                                                        the
-                                                                        first{' '}
-                                                                        {
-                                                                            maxColumnLimit
-                                                                        }{' '}
-                                                                        columns.
+                                                                        {t(
+                                                                            'content.pivotColumnLimit',
+                                                                            {
+                                                                                limit: maxColumnLimit,
+                                                                            },
+                                                                        )}
                                                                     </Text>
                                                                 </Group>
                                                             )}

@@ -1,0 +1,218 @@
+{
+    "addButton": {
+        "label": "Cálculo de tabla"
+    },
+    "templateTypes": {
+        "percentChangeFromPrevious": {
+            "label": "Cambio porcentual respecto al anterior",
+            "description": "Calcula el cambio porcentual respecto al valor de la fila anterior."
+        },
+        "differenceFromPrevious": {
+            "label": "Diferencia respecto al anterior",
+            "description": "Resta el valor de la fila anterior al valor de la fila actual."
+        },
+        "percentOfPreviousValue": {
+            "label": "Porcentaje del valor anterior",
+            "description": "Muestra el valor actual como porcentaje del valor de la fila anterior."
+        },
+        "percentOfColumnTotal": {
+            "label": "Porcentaje del total de la columna",
+            "description": "Muestra cada valor como porcentaje del total de la columna."
+        },
+        "rankInColumn": {
+            "label": "Posición en la columna",
+            "description": "Clasifica los valores de la columna de mayor a menor."
+        },
+        "runningTotal": {
+            "label": "Total acumulado",
+            "description": "Calcula una suma acumulada a lo largo de las filas."
+        },
+        "windowFunction": {
+            "label": "Función de ventana",
+            "description": "Aplica funciones de ventana SQL (p. ej., ROW_NUMBER, PERCENT_RANK) al conjunto de resultados."
+        }
+    },
+    "deleteModal": {
+        "title": "Eliminar cálculo de tabla",
+        "resourceType": "cálculo de tabla"
+    },
+    "templateViewer": {
+        "noTemplate": "No hay ninguna plantilla disponible",
+        "type": "Tipo:",
+        "windowFunction": "Función de ventana:",
+        "field": "Campo:",
+        "orderBy": "Ordenar por:",
+        "partitionBy": "Particionar por:",
+        "ascending": "Ascendente",
+        "descending": "Descendente",
+        "moveUp": "Subir",
+        "moveDown": "Bajar",
+        "removeSort": "Quitar orden",
+        "addSortField": "Añadir campo de ordenación",
+        "noSortFields": "No hay campos disponibles para ordenar",
+        "noPartitioning": "Sin particiones (todas las filas)"
+    },
+    "formatRow": {
+        "title": "Formato",
+        "dataTypes": {
+            "number": "Número",
+            "string": "Texto",
+            "date": "Fecha",
+            "timestamp": "Marca de tiempo",
+            "boolean": "Booleano"
+        },
+        "pills": {
+            "plain": "Simple",
+            "number": "Número",
+            "currency": "Moneda",
+            "percent": "Porcentaje",
+            "bytes": "Bytes",
+            "custom": "Personalizado",
+            "default": "Predeterminado"
+        },
+        "defaultSeparator": "Separador predeterminado",
+        "sampleText": "Texto de ejemplo",
+        "invalidFormat": "Formato no válido",
+        "noOptionsForType": "No hay opciones de formato para este tipo",
+        "noOptionsForPreset": "No hay más opciones para este ajuste",
+        "decimals": "Decimales",
+        "auto": "Automático",
+        "compact": "Compacto",
+        "none": "Ninguno",
+        "prefix": "Prefijo",
+        "suffix": "Sufijo",
+        "suffixPlaceholder": "km/h",
+        "separator": "Separador",
+        "currency": "Moneda",
+        "currencyPlaceholder": "Elige una moneda",
+        "unitSystem": "Sistema de unidades",
+        "expressionPlaceholder": "p. ej. #,##0.00",
+        "formatExpression": "Expresión de formato",
+        "buildAtCustomFormats": "Créala en customformats.com",
+        "dateFormatPlaceholder": "p. ej. dd/mm/yyyy o mmmm d, yyyy",
+        "timestampFormat": "Formato de marca de tiempo",
+        "dateFormat": "Formato de fecha",
+        "pickPreset": "Elegir un ajuste predefinido"
+    },
+    "modal": {
+        "totalModes": {
+            "formula": {
+                "label": "Aplicar el cálculo a los totales",
+                "description": "Ejecuta la fórmula sobre los totales de las columnas a las que hace referencia. Ideal para ratios y porcentajes."
+            },
+            "sumOfRows": {
+                "label": "Suma de los valores de las filas",
+                "description": "Suma el valor del cálculo de cada fila. Ideal para transformaciones a nivel de fila."
+            },
+            "none": {
+                "label": "Sin totales",
+                "description": "No muestra totales para este cálculo."
+            }
+        },
+        "accessRequest": {
+            "thisCalculation": "este cálculo de tabla SQL",
+            "customRoleMessage": "¡Hola! ¿Podrías concederme 'Manage custom SQL table calculations' mediante un rol personalizado? Lo necesito para editar '{{tcLabel}}' en este gráfico: {{chartUrl}}",
+            "sqlAccessMessage": "¡Hola! ¿Podrías concederme acceso SQL para los cálculos de tabla? Necesito editar '{{tcLabel}}' en este gráfico: {{chartUrl}}",
+            "changeMessage": "¡Hola! ¿Podrías actualizar el SQL de '{{tcLabel}}' en este gráfico? {{chartUrl}}"
+        },
+        "nameRequired": "El nombre es obligatorio",
+        "nameExists": "Ya existe un cálculo de tabla o una dimensión con esta etiqueta",
+        "errorSaving": "Error al guardar",
+        "editor": {
+            "formula": "Fórmula",
+            "sql": "SQL",
+            "useSqlInstead": "Usar SQL en su lugar",
+            "useFormulaInstead": "Usar fórmula en su lugar"
+        },
+        "saveChanges": "Guardar cambios",
+        "createFormula": "Crear fórmula",
+        "createSqlCalculation": "Crear cálculo SQL",
+        "editTitle": "Editar cálculo de tabla",
+        "createTitle": "Crear cálculo de tabla",
+        "collapse": "Contraer",
+        "expand": "Expandir",
+        "fixWithAi": "Corregir con IA",
+        "convertToFormula": {
+            "tooltip": "Usa la IA para sugerir una fórmula equivalente a tu SQL. Puedes revisarla y editarla antes de guardar.",
+            "button": "Convertir a fórmula"
+        },
+        "sqlReadOnly": {
+            "viewOnly": "Solo lectura",
+            "noPermission": "No tienes permiso para editar SQL aquí.",
+            "useFormulas": "Usa fórmulas en su lugar: no requieren SQL, se validan mientras escribes y funcionan en cualquier almacén de datos.",
+            "or": "o",
+            "askAdminCustomRole": "Pide a un administrador o desarrollador que te conceda <scope>Manage custom SQL table calculations</scope> mediante un rol personalizado.",
+            "askAdminSqlAccess": "Pide acceso SQL a un administrador o desarrollador.",
+            "copied": "¡Copiado!",
+            "copyAccessRequest": "Copiar solicitud de acceso",
+            "copyChangeRequest": "Copiar solicitud de cambio de SQL"
+        },
+        "loadingSqlEditor": "Cargando editor SQL...",
+        "totals": "Totales",
+        "nameLabel": "Nombre",
+        "namePlaceholder": "P. ej. Recuento acumulado de pedidos"
+    },
+    "conversionPreview": {
+        "genericError": "Algo salió mal. Inténtalo de nuevo o escribe la fórmula tú mismo."
+    },
+    "sqlForm": {
+        "conversion": {
+            "failed": "No se pudo convertir a fórmula",
+            "generating": "Generando sugerencia…",
+            "suggested": "Fórmula sugerida",
+            "dismiss": "Descartar",
+            "tryAgain": "Reintentar",
+            "discard": "Descartar",
+            "apply": "Aplicar"
+        },
+        "aiTitle": "Genera y mejora tu cálculo de tabla con IA",
+        "needInspiration": "¿Necesitas inspiración? <anchor>¡Consulta nuestras plantillas!</anchor>"
+    },
+    "formula": {
+        "categories": {
+            "aggregate": "Agregación",
+            "logical": "Lógica",
+            "math": "Matemáticas",
+            "string": "Texto",
+            "date": "Fecha",
+            "window": "Ventana",
+            "null": "Manejo de nulos",
+            "type": "Tipo"
+        },
+        "noFunctionsFound": "No se encontraron funciones",
+        "improveWithAi": {
+            "label": "Mejorar con IA",
+            "describeChange": "Describe el cambio",
+            "closePrompt": "Cerrar indicación de IA",
+            "submit": "Enviar"
+        },
+        "reference": {
+            "searchFunctions": "Buscar funciones",
+            "closeEsc": "Cerrar (Esc)",
+            "close": "Cerrar referencia de funciones",
+            "noMatch": "Ninguna función coincide con “{{query}}”",
+            "fieldHint": "campo",
+            "functionHint": "función",
+            "needHelp": "¿Necesitas ayuda?",
+            "docs": "Documentación"
+        },
+        "availableFields": {
+            "show": "Mostrar campos disponibles",
+            "count_one": "{{count}} campo disponible",
+            "count_other": "{{count}} campos disponibles",
+            "title": "Campos disponibles",
+            "hint": "Haz clic para insertar o escribe <kbd>@</kbd> en la fórmula.",
+            "empty": "Aún no hay campos seleccionados: añade primero dimensiones o métricas a tu consulta."
+        },
+        "editor": {
+            "retryKey": "⇥ Reintentar",
+            "tabKey": "⇥ Tab",
+            "placeholder": "Escribe @ para usar los campos seleccionados o # para funciones. Ejemplo: =IF(@Revenue > 1000, \"high\", \"low\")",
+            "placeholderWithAi": "Describe el cálculo o escribe @ para usar los campos seleccionados; p. ej. =SUM(@Revenue)",
+            "resizeReference": "Redimensionar la referencia de fórmulas"
+        },
+        "aiGenericError": "No se pudo generar una fórmula: intenta reformularla o escríbela tú mismo.",
+        "generatingFrom": "Generando a partir de “{{prompt}}”…",
+        "generatedFrom": "Generado a partir de “{{prompt}}”"
+    }
+}

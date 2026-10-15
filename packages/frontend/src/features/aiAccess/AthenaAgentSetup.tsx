@@ -3,6 +3,7 @@ import {
     type AthenaCredentials,
 } from '@lightdash/common';
 import { Stack, Text } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import CodeBlock from '../../components/common/CodeBlock/CodeBlock';
 import { AiServiceAccountSetupGuide } from './AiServiceAccountSetupGuide';
 
@@ -11,6 +12,7 @@ export const AthenaAgentSetup = ({
 }: {
     connection: AthenaCredentials;
 }) => {
+    const { t } = useTranslation('aiAccess');
     const commands = buildAthenaAiServiceAccountCommands({
         region: connection.region,
         catalog: connection.database,
@@ -22,40 +24,31 @@ export const AthenaAgentSetup = ({
             createContent={
                 <Stack gap="xs">
                     <Text size="sm" c="dimmed">
-                        Create an Athena workgroup and an S3 results location
-                        for agents.
+                        {t('athenaSetup.createWorkgroup')}
                     </Text>
                     <Text size="sm" c="dimmed">
-                        Use a dedicated IAM user for agents, with only the
-                        permissions agents need, and rotate its keys regularly.
-                        Keys from an assumed role expire within hours and
-                        Lightdash can't renew them yet, so agents would be
-                        refused until you paste new keys.
+                        {t('athenaSetup.iamUser')}
                     </Text>
                     <Text size="sm" fw={500}>
-                        Permission policy
+                        {t('athenaSetup.permissionPolicy')}
                     </Text>
                     <CodeBlock
                         language="json"
-                        copyLabel="Copy permission policy"
+                        copyLabel={t('athenaSetup.copyPermissionPolicy')}
                         code={commands.permissionPolicy}
                     />
                     <Text size="sm" c="dimmed">
-                        Attach this policy to the IAM user. KMS keys and
-                        cross-account catalogs need extra permissions.
+                        {t('athenaSetup.attachPolicy')}
                     </Text>
                     <Text size="sm" fw={500}>
-                        Role trust policy (optional)
+                        {t('athenaSetup.roleTrustPolicy')}
                     </Text>
                     <Text size="sm" c="dimmed">
-                        If you rotate keys automatically, you can use an IAM
-                        role instead. Attach the permission policy to the role
-                        and use this trust policy. The trusted caller also needs
-                        permission to assume the role.
+                        {t('athenaSetup.roleInstead')}
                     </Text>
                     <CodeBlock
                         language="json"
-                        copyLabel="Copy role trust policy"
+                        copyLabel={t('athenaSetup.copyRoleTrustPolicy')}
                         code={commands.roleTrustPolicy}
                     />
                 </Stack>
@@ -63,33 +56,30 @@ export const AthenaAgentSetup = ({
             grantContent={
                 <Stack gap="xs">
                     <Text size="sm" c="dimmed">
-                        Run as a Lake Formation administrator. Use the IAM user
-                        ARN, or the role ARN and not the session ARN. Repeat for
-                        each permitted table.
+                        {t('athenaSetup.lakeFormationAdmin')}
                     </Text>
                     <Text size="sm" fw={500}>
-                        Lake Formation grant
+                        {t('athenaSetup.lakeFormationGrant')}
                     </Text>
                     <CodeBlock
                         language="bash"
-                        copyLabel="Copy Lake Formation grant"
+                        copyLabel={t('athenaSetup.copyLakeFormationGrant')}
                         code={commands.lakeFormationGrants}
                     />
                     <Text size="sm" c="dimmed">
-                        To limit rows or columns, grant a data filter instead.
-                        Other grants on the table can still allow more.
+                        {t('athenaSetup.dataFilter')}
                     </Text>
                     <Text size="sm" fw={500}>
-                        Filtered table grant
+                        {t('athenaSetup.filteredTableGrant')}
                     </Text>
                     <CodeBlock
                         language="bash"
-                        copyLabel="Copy filtered table grant"
+                        copyLabel={t('athenaSetup.copyFilteredTableGrant')}
                         code={commands.filteredTableGrant}
                     />
                 </Stack>
             }
-            addHelp="Add the access keys, workgroup and results location. Test checks the AWS identity and runs a simple query."
+            addHelp={t('athenaSetup.addHelp')}
         />
     );
 };

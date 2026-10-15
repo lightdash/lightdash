@@ -1,0 +1,415 @@
+{
+    "detail": {
+        "uninstall": "Uninstall",
+        "forkToCustomize": "Fork to customize",
+        "previewInExplorer": "Preview in explorer",
+        "noDescription": "No description",
+        "updateAvailable": "Update available: v{{version}}",
+        "updateExplanation": "Charts pinned to an earlier version keep rendering it until each chart is upgraded; charts without a pinned version switch to v{{version}} right away.",
+        "upgradeTo": "Upgrade to v{{version}}",
+        "builtBy": "Built by",
+        "lastUpdated": "Last updated",
+        "version": "Version",
+        "noFinishedVersion": "No finished version yet. Open the builder to generate one.",
+        "forkDefaultName": "{{name}} (custom)"
+    },
+    "library": {
+        "install": "Install",
+        "requiresVersion": "Requires Lightdash v{{version}} or later",
+        "pinnedVersionTitle": "Existing charts keep their pinned version",
+        "published": "Published",
+        "changelog": "Changelog",
+        "title": "Chart type library",
+        "updatesAvailable_one": "Updates available for {{count}} already installed chart",
+        "updatesAvailable_other": "Updates available for {{count}} already installed charts",
+        "upgradeAll": "Upgrade all",
+        "availableCallout": "These chart types are available to add to your instance. Once installed, they can be used by anyone building charts in your organization.",
+        "loading": "Loading chart type library…",
+        "offline": "The chart type library can't be reached right now. It may be a temporary outage or a network restriction on this instance.",
+        "allInstalled": "Every chart type from the library is installed — find them in your installed chart types.",
+        "empty": "No chart types available in the registry yet."
+    },
+    "gallery": {
+        "updateAvailable": "Update available",
+        "forkNamed": "Fork {{name}}",
+        "editNamed": "Edit {{name}}",
+        "actionsFor": "Actions for {{name}}"
+    },
+    "testInputs": {
+        "testWithData": "Test with data",
+        "selectTable": "Select a table",
+        "needAtLeastOne": {
+            "metric": "You need at least one metric in the selected table",
+            "dimension": "You need at least one dimension in the selected table",
+            "column": "You need at least one column in the selected table"
+        },
+        "selectField": "Select {{label}}"
+    },
+    "upgrade": {
+        "nonePinned": "None of them pin a version, so they all switch to the new version right away.",
+        "allPinned_one": "It is pinned and keeps rendering its pinned version until it is upgraded.",
+        "allPinned_other": "All of them are pinned and keep rendering their pinned version until each chart is upgraded.",
+        "somePinned_one": "{{count}} of them is pinned and keeps rendering their pinned version until each chart is upgraded.",
+        "somePinned_other": "{{count}} of them are pinned and keep rendering their pinned version until each chart is upgraded.",
+        "confirm": "Upgrade",
+        "checkingImpact": "Checking saved charts that use this chart type…",
+        "impactErrorTitle": "Could not check affected charts",
+        "impactErrorDescription": "Try again to see the impact before continuing.",
+        "tryAgain": "Try again",
+        "noCharts": "No saved charts use this chart type.",
+        "chartsUsing_one": "{{count}} saved chart uses this chart type",
+        "chartsUsing_other": "{{count}} saved charts use this chart type",
+        "alsoMove_one": "Also move the pinned chart to v{{version}}",
+        "alsoMove_other": "Also move all {{count}} pinned charts to v{{version}}",
+        "alsoMoveDescription": "Deliberately overrides each chart's pin. Charts without a pin always follow the latest version."
+    },
+    "iconPicker": {
+        "chooseIcon": "Choose an icon",
+        "ariaLabel": "Chart type icon",
+        "search": "Search icons",
+        "noMatch": "No icons match",
+        "noIcon": "No icon"
+    },
+    "libraryCard": {
+        "installed": "Installed v{{version}}",
+        "requiresNewer": "Requires newer Lightdash"
+    },
+    "schemaChanges": {
+        "added": "Added",
+        "updated": "Updated",
+        "removed": "Removed",
+        "field": "{{type}} field",
+        "multipleField": "multiple {{type}} field",
+        "withRequired": "{{description}}, required",
+        "nowRequired": "now required",
+        "nowOptional": "now optional",
+        "nowMultiple": "now accepts multiple fields",
+        "nowSingle": "now accepts one field",
+        "renamedFrom": "renamed from \"{{label}}\"",
+        "gradientDefault": "{{colors}} ({{min}} to {{max}})",
+        "defaultChanged": "default changed",
+        "defaultFromTo": "default {{before}} → {{after}}",
+        "boundsHidden": "bounds hidden",
+        "boundsShown": "bounds shown",
+        "addsChoices": "adds {{choices}}",
+        "dropsChoices": "drops {{choices}}",
+        "rangeChanged": "range changed",
+        "option": "{{type}} option",
+        "colorPalette": "Color palette",
+        "hierarchy": "Hierarchy",
+        "fieldChanged": "field changed"
+    },
+    "upgradeAll": {
+        "title_one": "Upgrade {{count}} chart type",
+        "title_other": "Upgrade {{count}} chart types",
+        "explanation": "Saved charts without a pinned version switch to the new versions right away. Charts pinned to an earlier version keep rendering it until each chart is upgraded.",
+        "alsoMove": "Also move pinned saved charts to the new versions",
+        "alsoMoveDescription": "Deliberately overrides each chart's pin."
+    },
+    "delete": {
+        "softDeleteDescription_one": "The chart type moves to Recently deleted and is permanently removed after {{count}} day.",
+        "softDeleteDescription_other": "The chart type moves to Recently deleted and is permanently removed after {{count}} days.",
+        "hardDeleteDescription": "The chart type and all of its versions will be permanently deleted, including any built artifacts in storage. This cannot be undone.",
+        "uninstallTitle": "Uninstall chart type",
+        "deleteTitle": "Delete chart type",
+        "uninstalledToast": "Chart type uninstalled",
+        "deletedToast": "Chart type deleted",
+        "chartsAffected_one": "{{count}} saved chart is built on this chart type and will show an error.",
+        "chartsAffected_other": "{{count}} saved charts are built on this chart type and will show an error.",
+        "chartsKeptSoft": "The saved charts are kept, but will show an error wherever they appear, including on dashboards, until the chart type is restored.",
+        "chartsKeptHard": "The saved charts are kept, but this chart type cannot be restored. Update the affected charts to use a different chart type to make them work again."
+    },
+    "fork": {
+        "nameRequired": "Name is required",
+        "forkedToast": "Chart type forked",
+        "description": "Forking creates your own copy on its own version path. It won't receive registry updates.",
+        "fork": "Fork",
+        "name": "Name",
+        "namePlaceholder": "eg. Radial gauge (custom)"
+    },
+    "preview": {
+        "unavailable": "Preview unavailable",
+        "loading": "Loading preview…",
+        "generating": "Still generating…",
+        "noFinishedVersion": "No finished version yet"
+    },
+    "testPanel": {
+        "visualizationReady": "Visualization ready",
+        "projectDefault": "Project default",
+        "runTestQuery": "Run test query"
+    },
+    "emptyState": {
+        "title": "No chart types yet",
+        "description": "Chart types are custom visualizations you build once and reuse across your project.",
+        "newChartType": "New chart type"
+    },
+    "fieldsList": {
+        "title": "Fields"
+    },
+    "previewTable": {
+        "openInExplorer": "Open in explorer",
+        "table": "Table",
+        "description": "Choose the table to preview this chart type with."
+    },
+    "libraryModal": {
+        "title": "Find new chart types",
+        "openChartStudio": "Open Chart Studio"
+    },
+    "releaseStage": {
+        "beta": "Beta",
+        "preRelease": "Pre-release"
+    },
+    "officialBadge": "Built by Lightdash",
+    "fieldType": {
+        "dimension": "dimension",
+        "metric": "metric",
+        "series": "series",
+        "column": "column"
+    },
+    "promptBar": {
+        "editQueued": "Edit queued prompt: {{description}}",
+        "removeQueued": "Remove queued prompt: {{description}}",
+        "sending": "Sending…",
+        "nextUp": "Next up",
+        "queued": "Queued",
+        "sendNow": "Send now",
+        "themesUnavailable": "Themes unavailable",
+        "loadingThemes": "Loading themes…",
+        "noTheme": "No theme",
+        "selectedTheme": "Selected theme",
+        "screenshotFailed": "Failed to capture screenshot",
+        "readingPrompt": "Reading your prompt…",
+        "building": "Building…",
+        "buildingElapsed": "Building… {{elapsed}}",
+        "couldNotCancel": "Could not cancel: {{error}}",
+        "queuedCount_one": "{{count}} queued",
+        "queuedCount_other": "{{count}} queued",
+        "cancelling": "Cancelling…",
+        "queuedPrompts_one": "{{count}} queued prompt",
+        "queuedPrompts_other": "{{count}} queued prompts",
+        "placeholders": {
+            "answerQuestions": "Answer the questions, or skip, to build…",
+            "anotherChange": "Ask for another change…",
+            "change": "Ask for a change…",
+            "newChartType": "Describe a new chart type…"
+        },
+        "attachScreenshotTooltip": "Attach screenshot of current render",
+        "attachScreenshot": "Attach screenshot",
+        "selectedContext": "Selected chart context",
+        "themeRebuildHint": "Selecting a theme rebuilds this chart type.",
+        "retryThemes": "Retry themes",
+        "manageConnection": "Manage connection: {{name}}",
+        "removeConnection": "Remove connection: {{name}}",
+        "answerOrSkipFirst": "Answer or skip first",
+        "cancellingGeneration": "Cancelling generation",
+        "stopGeneration": "Stop generation",
+        "queueMessage": "Queue message",
+        "send": "Send"
+    },
+    "source": {
+        "savedCharts": "Saved charts",
+        "savedChartRunning": "Saved chart · {{space}} · running query",
+        "savedChartFailed": "Saved chart · {{space}} · query failed",
+        "savedChartReady_one": "Saved chart · {{space}} · {{count}} row",
+        "savedChartReady_other": "Saved chart · {{space}} · {{count}} rows",
+        "useSavedChart": "Use a saved chart",
+        "useSavedChartDescription": "Preview with its query results.",
+        "chooseSavedChart": "Choose saved chart",
+        "couldNotRunChart": "Couldn’t run this chart.",
+        "viewQueryResults": "View query results",
+        "change": "Change",
+        "useSampleData": "Use sample data instead",
+        "rowsIncluded": "Rows included · sends up to {{max}} rows with your prompt.",
+        "rowsNotSent": "Rows aren’t sent with your prompt. <include>Include rows</include> to send up to {{max}}.",
+        "useTable": "Use a table",
+        "useTableDescription": "Preview with fields from one of your tables.",
+        "chooseTable": "Choose table",
+        "table": "Table",
+        "couldNotLoadTable": "Couldn’t load this table.",
+        "firstVersionPicks": "The first version picks its fields from {{label}} and runs the query, up to {{limit}} rows."
+    },
+    "exploreSource": {
+        "fields_one": "{{count}} field",
+        "fields_other": "{{count}} fields",
+        "rows_one": "{{count}} row",
+        "rows_other": "{{count}} rows",
+        "summary": "Table · {{fields}}",
+        "summaryJoined": "Table · {{fields}}, {{joined}} joined",
+        "queryFailed": "query failed",
+        "runningQuery": "running query",
+        "chipPicking": "{{label}} · picking fields",
+        "chipError": "{{label}} · {{state}}",
+        "chip": "{{label}} · {{fields}} · {{state}}",
+        "metaLoading": "Table · loading",
+        "metaPicking": "Table · picking fields",
+        "metaNoFields": "Table · no fields picked yet",
+        "metaError": "Table · {{state}}",
+        "meta": "Table · {{fields}} · {{state}}",
+        "metaRan": "Table · {{fields}} · {{state}} · ran {{ran}}"
+    },
+    "picker": {
+        "tablesError": "Couldn’t load your tables.",
+        "chartsError": "Couldn’t load your saved charts.",
+        "noMatch": {
+            "both": "No tables or saved charts match “{{search}}”",
+            "tables": "No tables match “{{search}}”",
+            "charts": "No saved charts match “{{search}}”"
+        },
+        "none": {
+            "both": "No tables or saved charts",
+            "tables": "No tables",
+            "charts": "No saved charts"
+        },
+        "suggested": "Suggested for this chart",
+        "tables": "Tables",
+        "moreTables_one": "Type to search {{count}} more table",
+        "moreTables_other": "Type to search {{count}} more tables",
+        "savedChartsCount": "Saved charts · {{total}}",
+        "search": {
+            "both": "Search tables and saved charts",
+            "tables": "Search tables",
+            "charts": "Search saved charts"
+        }
+    },
+    "inputs": {
+        "alsoFits": "{{reason}} Also fits: {{fields}}.",
+        "pickedForPrompt": "Picked for your prompt. {{tooltip}}",
+        "pickingField": "Picking a field",
+        "noneToPick": {
+            "metric": "This query has no metric to pick",
+            "dimension": "This query has no dimension to pick",
+            "column": "This query has no column to pick"
+        },
+        "title": "Chart inputs",
+        "about": "About {{label}}",
+        "required": "Required",
+        "notMapped": "not mapped",
+        "rendersWithout": "Preview renders without {{label}} until a field is chosen."
+    },
+    "configure": {
+        "pickedFrom": "Picked from {{source}} for your prompt. Changing one re-runs the query.",
+        "fieldsFrom": "Fields from {{source}}. Changing one re-runs the query.",
+        "generatedOptions": "Generated options",
+        "general": "General",
+        "noDisplayOptions": "This chart type declares no display options."
+    },
+    "canvas": {
+        "building": "Building your chart type…",
+        "clarifierUnavailable": "Couldn’t reach the clarifier, so this is building from your prompt as written.",
+        "buildFailed": "The build failed",
+        "askForChange": "Ask for a change below to try again.",
+        "createTitle": "Create with Chart Studio",
+        "createDescription": "Describe the chart you’ve always wanted, or start from an example.",
+        "previewData": "Preview data",
+        "previewDataOptional": "Preview data (optional)"
+    },
+    "rowsPeek": {
+        "series": "Series",
+        "rows_one": "{{count}} row",
+        "rows_other": "{{count}} rows",
+        "series_count_one": "{{count}} series",
+        "series_count_other": "{{count}} series",
+        "values_one": "{{count}} value",
+        "values_other": "{{count}} values",
+        "pivotedRows_one": "{{count}} pivoted row",
+        "pivotedRows_other": "{{count}} pivoted rows",
+        "rowsRan": "{{rows}} · ran {{ran}}",
+        "queryResults": "Query results",
+        "sampleData": "Sample data",
+        "queryResultsPreview": "Query results preview",
+        "sampleDataPreview": "Sample data preview",
+        "viewAll": "View all",
+        "sampleDataSubtitle": "Rows generated from the chart inputs, used until a table or saved chart is attached."
+    },
+    "header": {
+        "chartStudio": "Chart Studio",
+        "description": "Chart type description",
+        "editDetails": "Edit details",
+        "editDetailsAria": "Edit chart type details",
+        "upgradeAvailable": "Upgrade available",
+        "history": "History"
+    },
+    "sourceSection": {
+        "withRan": "{{meta}} · ran {{ran}}",
+        "savedChartQueryFailed": "The saved chart’s query failed.",
+        "tableQueryFailed": "The table query failed.",
+        "sampleMeta": "Generated from the chart inputs",
+        "changePreviewData": "Change preview data: {{title}}"
+    },
+    "composer": {
+        "options": "Composer options",
+        "attachFile": "Attach an image or file",
+        "addConnections": "Add external connections",
+        "backToOptions": "Back to composer options"
+    },
+    "clarifying": {
+        "aria": "Questions before building",
+        "editPrompt": "Edit the prompt instead",
+        "skip": "Skip and build anyway",
+        "answered": "{{answered}} of {{total}} answered",
+        "build": "Build"
+    },
+    "chip": {
+        "running": "{{name}} · running query",
+        "failed": "{{name}} · query failed",
+        "ready_one": "{{name}} · {{count}} row",
+        "ready_other": "{{name}} · {{count}} rows",
+        "previewData": "Preview data: {{label}}",
+        "addPreviewData": "Add preview data"
+    },
+    "workspace": {
+        "resizeHistory": "Resize version history"
+    },
+    "examples": {
+        "stream": "A stream graph of share over time",
+        "funnel": "A funnel of signup steps",
+        "heatmap": "A calendar heatmap of daily orders",
+        "waterfall": "A waterfall of revenue changes"
+    },
+    "sampleData": {
+        "rowsAria": "Generated sample data rows",
+        "tableAria": "Generated sample data",
+        "viewData_one": "View data · {{count}} row",
+        "viewData_other": "View data · {{count}} rows",
+        "viewSampleData_one": "View sample data · {{count}} row",
+        "viewSampleData_other": "View sample data · {{count}} rows",
+        "liveSubtitle": "Rows returned by the saved chart this chart runs on.",
+        "sampleSubtitle": "Generated example values used in this preview."
+    },
+    "history": {
+        "whatChanged": "What changed",
+        "whatChangedIn": "What changed in v{{version}}",
+        "uploadedFromSource": "Uploaded from source"
+    },
+    "restore": {
+        "title": "Restore version {{version}}?",
+        "confirm": "Restore version",
+        "description": "Restoring creates a new version. Saved charts will keep their current version.",
+        "failed": "Failed to restore version."
+    },
+    "errors": {
+        "previewQueryFailed": "The preview query failed",
+        "buildFailed": "That build could not be completed. Please try again.",
+        "exploreQueryDidNotFinish": "The explore query did not finish",
+        "savedChartQueryDidNotFinish": "The saved chart query did not finish"
+    },
+    "install": {
+        "upgradedToast": "Chart type upgraded",
+        "installedToast": "Chart type installed",
+        "chartsMoved_one": "{{count}} saved chart moved to the new version",
+        "chartsMoved_other": "{{count}} saved charts moved to the new version",
+        "failed": "Failed to install chart type",
+        "typesUpgraded_one": "{{count}} chart type upgraded",
+        "typesUpgraded_other": "{{count}} chart types upgraded",
+        "chartsMovedPlural_one": "{{count}} saved chart moved to the new versions",
+        "chartsMovedPlural_other": "{{count}} saved charts moved to the new versions",
+        "upgradeFailed_one": "Failed to upgrade {{count}} chart type",
+        "upgradeFailed_other": "Failed to upgrade {{count}} chart types"
+    },
+    "attachments": {
+        "limitReached": "Attachment limit reached",
+        "limitDescription": "You can attach up to {{max}} files per message.",
+        "uploadFailed": "Upload failed",
+        "uploadFailedDescription": "Please try again or contact support."
+    }
+}

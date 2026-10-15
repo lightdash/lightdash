@@ -9,6 +9,7 @@ import {
 import { IconHelpCircle, IconPlus, IconTrash } from '@tabler/icons-react';
 import get from 'lodash/get';
 import { useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../common/MantineIcon';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
@@ -28,6 +29,7 @@ export const MultiKeyValuePairsInput = ({
     documentationUrl,
     labelHelp,
 }: Props) => {
+    const { t } = useTranslation('projectConnection');
     const form = useFormContext();
 
     const values: { id: string; key: string; value: string }[] =
@@ -87,13 +89,13 @@ export const MultiKeyValuePairsInput = ({
                     <Flex key={value.id} gap="xs" align="center">
                         <TextInput
                             {...form.getInputProps(`${name}.${index}.key`)}
-                            placeholder="Key"
+                            placeholder={t('inputs.key')}
                             disabled={disabled}
                         />
 
                         <TextInput
                             {...form.getInputProps(`${name}.${index}.value`)}
-                            placeholder="Value"
+                            placeholder={t('inputs.value')}
                             disabled={disabled}
                         />
 
@@ -112,7 +114,7 @@ export const MultiKeyValuePairsInput = ({
                     leftSection={<MantineIcon icon={IconPlus} />}
                     disabled={disabled}
                 >
-                    Add variable
+                    {t('inputs.addVariable')}
                 </Button>
             </Stack>
         </InputWrapper>

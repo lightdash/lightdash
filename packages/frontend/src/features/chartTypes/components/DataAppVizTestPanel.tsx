@@ -1,6 +1,7 @@
 import { getErrorMessage, type DataAppVizSchema } from '@lightdash/common';
 import { Button, Card, Group, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../../components/common/Callout';
 import { PalettePicker } from '../../../components/common/PalettePicker/PalettePicker';
 import DataAppVizOptionTabs from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizOptionTabs';
@@ -25,6 +26,7 @@ const DataAppVizTestPanel: FC<Props> = ({
     schema,
     onContextChange,
 }) => {
+    const { t } = useTranslation('chartTypes');
     const state = useDataAppVizTestContext({
         projectUuid,
         schema,
@@ -48,7 +50,7 @@ const DataAppVizTestPanel: FC<Props> = ({
         <Card radius="md" p="sm">
             <Stack gap="xs">
                 <Text size="sm" fw={600}>
-                    Visualization ready
+                    {t('testPanel.visualizationReady')}
                 </Text>
 
                 <DataAppVizOptionTabs
@@ -62,11 +64,11 @@ const DataAppVizTestPanel: FC<Props> = ({
                     resolvedColorPalette={colorPalette}
                     paletteControl={
                         <PalettePicker
-                            label="Color palette"
+                            label={t('schemaChanges.colorPalette')}
                             value={colorPaletteUuid}
                             onChange={setColorPaletteUuid}
                             palettes={palettes}
-                            parentLabel="Project default"
+                            parentLabel={t('testPanel.projectDefault')}
                             showPreview={false}
                         />
                     }
@@ -84,7 +86,7 @@ const DataAppVizTestPanel: FC<Props> = ({
                             disabled={!complete || isRunning}
                             loading={isRunning}
                         >
-                            Run test query
+                            {t('testPanel.runTestQuery')}
                         </Button>
                     </Group>
                 )}

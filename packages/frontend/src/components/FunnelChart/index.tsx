@@ -12,6 +12,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import useEchartsFunnelConfig, {
     type FunnelSeriesDataPoint,
 } from '../../hooks/echarts/useEchartsFunnelConfig';
@@ -25,15 +26,18 @@ import FunnelChartContextMenu, {
     type FunnelChartContextMenuProps,
 } from './FunnelChartContextMenu';
 
-const EmptyChart = () => (
-    <Box h="100%" w="100%" py="xl">
-        <SuboptimalState
-            title="No data available"
-            description="Query metrics and dimensions with results."
-            icon={IconFilterOff}
-        />
-    </Box>
-);
+const EmptyChart = () => {
+    const { t } = useTranslation('visualization');
+    return (
+        <Box h="100%" w="100%" py="xl">
+            <SuboptimalState
+                title={t('emptyState.noDataTitle')}
+                description={t('emptyState.noDataDescription')}
+                icon={IconFilterOff}
+            />
+        </Box>
+    );
+};
 
 type FunnelChartProps = Omit<EChartsReactProps, 'option'> & {
     isInDashboard: boolean;

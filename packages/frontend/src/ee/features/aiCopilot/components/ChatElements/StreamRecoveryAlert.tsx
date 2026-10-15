@@ -1,10 +1,12 @@
 import { Box, Button, Group, Loader, Text } from '@mantine/core';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const RECOVERY_TIMER_INTERVAL_MS = 1_000;
 const RECOVERY_REFRESH_OFFER_DELAY_SECONDS = 10;
 
 export const StreamRecoveryAlert = () => {
+    const { t } = useTranslation('aiCopilotChat');
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
     useEffect(() => {
@@ -25,7 +27,7 @@ export const StreamRecoveryAlert = () => {
         <Box bg="yellow.0" px="sm" py={7} bdrs="md">
             <Group gap={8} wrap="nowrap" h={22}>
                 <Loader
-                    aria-label="Connection lost. Reconnecting"
+                    aria-label={t('streamRecovery.ariaLabel')}
                     color="yellow.7"
                     size={14}
                     flex="0 0 auto"
@@ -41,11 +43,13 @@ export const StreamRecoveryAlert = () => {
                         }}
                     >
                         {elapsedSeconds > 0
-                            ? `Connection lost. Reconnecting… ${elapsedSeconds}s`
-                            : 'Connection lost. Reconnecting…'}
+                            ? t('streamRecovery.reconnectingElapsed', {
+                                  seconds: elapsedSeconds,
+                              })
+                            : t('streamRecovery.reconnecting')}
                     </Text>
                     <Text size="xs" c="dimmed" truncate>
-                        Your agent is still working
+                        {t('streamRecovery.stillWorking')}
                     </Text>
                 </Group>
                 {showRefresh && (
@@ -62,7 +66,7 @@ export const StreamRecoveryAlert = () => {
                         }}
                         onClick={() => window.location.reload()}
                     >
-                        Refresh page
+                        {t('streamRecovery.refreshPage')}
                     </Button>
                 )}
             </Group>

@@ -1,11 +1,13 @@
 import { type RoleLevel } from '@lightdash/common';
 import { Center, Loader, Stack } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
 import PageBreadcrumbs from '../../../components/common/PageBreadcrumbs';
 import { RoleBuilder } from '../../features/customRoles/components/RoleBuilder';
 import { useCustomRole } from '../../features/customRoles/useCustomRole';
 
 export const CustomRoleEdit = () => {
+    const { t } = useTranslation('customRoles');
     const navigate = useNavigate();
     const { roleId } = useParams<{ roleId: string }>();
     const {
@@ -64,7 +66,7 @@ export const CustomRoleEdit = () => {
             <PageBreadcrumbs
                 items={[
                     {
-                        title: 'Custom roles',
+                        title: t('page.title'),
                         to: '/generalSettings/customRoles',
                     },
                     {

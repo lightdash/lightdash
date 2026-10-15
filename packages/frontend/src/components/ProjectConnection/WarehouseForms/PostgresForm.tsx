@@ -9,6 +9,7 @@ import {
     Text,
 } from '@mantine/core';
 import React, { type FC, type ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
 import { CopyActionIcon } from '../../common/CopyActionIcon';
 import { NumberInput } from '../../common/NumberInput';
@@ -28,13 +29,14 @@ export const PostgresSchemaInput: FC<{
     disabled: boolean;
     description?: ReactNode;
 }> = ({ disabled, description }) => {
+    const { t } = useTranslation('projectConnection');
     const form = useFormContext();
 
     return (
         <TextInput
             name="warehouse.schema"
-            label="Schema"
-            description={description ?? 'This is the schema name.'}
+            label={t('warehouseFields.schema')}
+            description={description ?? t('warehouseFields.schemaDescription')}
             required
             {...form.getInputProps('warehouse.schema')}
             disabled={disabled}
@@ -45,6 +47,7 @@ export const PostgresSchemaInput: FC<{
 const PostgresForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
+    const { t } = useTranslation('projectConnection');
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject, isProjectExtraConnection } = useProjectFormContext();
     const requireSecrets: boolean =
@@ -84,8 +87,8 @@ const PostgresForm: FC<{
         <>
             <Stack mt="xs">
                 <TextInput
-                    label="Host"
-                    description="This is the host where the database is running."
+                    label={t('warehouseFields.host')}
+                    description={t('warehouseFields.hostDescription')}
                     required
                     name="warehouse.host"
                     {...form.getInputProps('warehouse.host')}
@@ -93,8 +96,8 @@ const PostgresForm: FC<{
                     labelProps={{ style: { marginTop: '8px' } }}
                 />
                 <TextInput
-                    label="User"
-                    description="This is the database user name."
+                    label={t('warehouseFields.user')}
+                    description={t('warehouseFields.userDescription')}
                     required={requireSecrets}
                     name="warehouse.user"
                     {...form.getInputProps('warehouse.user')}
@@ -106,8 +109,8 @@ const PostgresForm: FC<{
                     disabled={disabled}
                 />
                 <PasswordInput
-                    label="Password"
-                    description="This is the database user password."
+                    label={t('warehouseFields.password')}
+                    description={t('warehouseFields.passwordDescription')}
                     required={requireSecrets}
                     name="warehouse.password"
                     placeholder={
@@ -119,8 +122,8 @@ const PostgresForm: FC<{
                     disabled={disabled}
                 />
                 <TextInput
-                    label="DB name"
-                    description="This is the database name."
+                    label={t('warehouseFields.dbName')}
+                    description={t('warehouseFields.databaseNameDescription')}
                     required
                     name="warehouse.dbname"
                     {...form.getInputProps('warehouse.dbname')}
@@ -130,8 +133,9 @@ const PostgresForm: FC<{
                     <Stack mt="xs">
                         {isProjectExtraConnection ? (
                             <Text size="sm" c="dimmed">
-                                Require users to provide their own credentials
-                                follows the primary connection.
+                                {t(
+                                    'warehouseFields.requireUserCredentialsInherited',
+                                )}
                             </Text>
                         ) : (
                             <BooleanSwitch
@@ -142,7 +146,9 @@ const PostgresForm: FC<{
                                         type: 'checkbox',
                                     },
                                 )}
-                                label="Require users to provide their own credentials"
+                                label={t(
+                                    'warehouseFields.requireUserCredentials',
+                                )}
                                 disabled={disabled}
                                 defaultChecked={
                                     PostgresDefaultValues.requireUserCredentials
@@ -153,8 +159,8 @@ const PostgresForm: FC<{
                             name="warehouse.port"
                             {...form.getInputProps('warehouse.port')}
                             defaultValue={PostgresDefaultValues.port}
-                            label="Port"
-                            description="This is the port where the database is running."
+                            label={t('warehouseFields.port')}
+                            description={t('warehouseFields.portDescription')}
                             required
                             disabled={disabled}
                         />
@@ -163,22 +169,23 @@ const PostgresForm: FC<{
                             name="warehouse.keepalivesIdle"
                             {...form.getInputProps('warehouse.keepalivesIdle')}
                             defaultValue={PostgresDefaultValues.keepalivesIdle}
-                            label="Keep alive idle (seconds)"
+                            label={t('warehouseFields.keepAliveIdle')}
                             description={
                                 <p>
-                                    This specifies the amount of seconds with no
-                                    network activity after which the operating
-                                    system should send a TCP keepalive message
-                                    to the client. You can see more details in{' '}
-                                    <Anchor
-                                        inherit
-                                        target="_blank"
-                                        href="https://postgresqlco.nf/doc/en/param/tcp_keepalives_idle/"
-                                        rel="noreferrer"
-                                    >
-                                        postgresqlco documentation
-                                    </Anchor>
-                                    .
+                                    <Trans
+                                        t={t}
+                                        i18nKey="warehouseFields.keepAliveIdleDescription"
+                                        components={{
+                                            docsLink: (
+                                                <Anchor
+                                                    inherit
+                                                    target="_blank"
+                                                    href="https://postgresqlco.nf/doc/en/param/tcp_keepalives_idle/"
+                                                    rel="noreferrer"
+                                                />
+                                            ),
+                                        }}
+                                    />
                                 </p>
                             }
                             required
@@ -188,20 +195,23 @@ const PostgresForm: FC<{
                         <TextInput
                             name="warehouse.searchPath"
                             {...form.getInputProps('warehouse.searchPath')}
-                            label="Search path"
+                            label={t('warehouseFields.searchPath')}
                             description={
                                 <p>
-                                    This controls the Postgres "search path".
-                                    You can see more details in{' '}
-                                    <Anchor
-                                        inherit
-                                        target="_blank"
-                                        href="https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#search_path"
-                                        rel="noreferrer"
-                                    >
-                                        dbt documentation
-                                    </Anchor>
-                                    .
+                                    <Trans
+                                        t={t}
+                                        i18nKey="warehouseFields.searchPathDescription"
+                                        components={{
+                                            docsLink: (
+                                                <Anchor
+                                                    inherit
+                                                    target="_blank"
+                                                    href="https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#search_path"
+                                                    rel="noreferrer"
+                                                />
+                                            ),
+                                        }}
+                                    />
                                 </p>
                             }
                             disabled={disabled}
@@ -212,21 +222,23 @@ const PostgresForm: FC<{
                             name="warehouse.sslmode"
                             {...form.getInputProps('warehouse.sslmode')}
                             defaultValue={PostgresDefaultValues.sslmode}
-                            label="SSL mode"
+                            label={t('warehouseFields.sslMode')}
                             description={
                                 <p>
-                                    This controls how dbt connects to Postgres
-                                    databases using SSL. You can see more
-                                    details in{' '}
-                                    <Anchor
-                                        inherit
-                                        target="_blank"
-                                        href="https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#sslmode"
-                                        rel="noreferrer"
-                                    >
-                                        dbt documentation
-                                    </Anchor>
-                                    .
+                                    <Trans
+                                        t={t}
+                                        i18nKey="warehouseFields.postgresSslModeDescription"
+                                        components={{
+                                            docsLink: (
+                                                <Anchor
+                                                    inherit
+                                                    target="_blank"
+                                                    href="https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#sslmode"
+                                                    rel="noreferrer"
+                                                />
+                                            ),
+                                        }}
+                                    />
                                 </p>
                             }
                             data={[
@@ -253,9 +265,9 @@ const PostgresForm: FC<{
                                     accept=".crt,.pem"
                                     description={
                                         <p>
-                                            The client certificate used to
-                                            authenticate your connection to the
-                                            database.
+                                            {t(
+                                                'warehouseFields.sslCertDescription',
+                                            )}
                                         </p>
                                     }
                                 />
@@ -269,9 +281,9 @@ const PostgresForm: FC<{
                                     accept=".key,.pem"
                                     description={
                                         <p>
-                                            The private key associated with your
-                                            certificate, required for secure
-                                            authentication.
+                                            {t(
+                                                'warehouseFields.sslKeyDescription',
+                                            )}
                                         </p>
                                     }
                                 />
@@ -285,9 +297,9 @@ const PostgresForm: FC<{
                                     accept=".crt,.pem"
                                     description={
                                         <p>
-                                            The trusted certificate authority
-                                            (CA) certificate used to verify the
-                                            database server’s identity.
+                                            {t(
+                                                'warehouseFields.sslRootCertDescription',
+                                            )}
                                         </p>
                                     }
                                 />
@@ -296,7 +308,7 @@ const PostgresForm: FC<{
 
                         <TextInput
                             name="warehouse.role"
-                            label="Role"
+                            label={t('warehouseFields.role')}
                             disabled={disabled}
                             {...form.getInputProps('warehouse.role')}
                         />
@@ -308,11 +320,12 @@ const PostgresForm: FC<{
                             name="warehouse.timeoutSeconds"
                             defaultValue={PostgresDefaultValues.timeoutSeconds}
                             {...form.getInputProps('warehouse.timeoutSeconds')}
-                            label="Timeout in seconds"
+                            label={t('warehouseFields.timeoutSeconds')}
                             description={
                                 <p>
-                                    If a query takes longer than this timeout to
-                                    complete, then the query will be cancelled.
+                                    {t(
+                                        'warehouseFields.queryTimeoutDescription',
+                                    )}
                                 </p>
                             }
                             required
@@ -324,7 +337,7 @@ const PostgresForm: FC<{
                             {...form.getInputProps('warehouse.useSshTunnel', {
                                 type: 'checkbox',
                             })}
-                            label="Use SSH tunnel"
+                            label={t('warehouseFields.useSshTunnel')}
                             disabled={disabled}
                         />
 
@@ -334,7 +347,7 @@ const PostgresForm: FC<{
                         >
                             <Stack mb="xs">
                                 <TextInput
-                                    label="SSH Remote Host"
+                                    label={t('warehouseFields.sshRemoteHost')}
                                     disabled={disabled}
                                     name="warehouse.sshTunnelHost"
                                     {...form.getInputProps(
@@ -352,13 +365,13 @@ const PostgresForm: FC<{
                                     defaultValue={
                                         PostgresDefaultValues.sshTunnelPort
                                     }
-                                    label="SSH Remote Port"
+                                    label={t('warehouseFields.sshRemotePort')}
                                     disabled={disabled}
                                 />
 
                                 <TextInput
                                     name="warehouse.sshTunnelUser"
-                                    label="SSH Username"
+                                    label={t('warehouseFields.sshUsername')}
                                     disabled={disabled}
                                     {...form.getInputProps(
                                         'warehouse.sshTunnelUser',
@@ -371,9 +384,13 @@ const PostgresForm: FC<{
                                         'warehouse.sshTunnelPublicKey',
                                     )}
                                     value={sshTunnelPublicKey ?? ''}
-                                    label="Generated SSH Public Key"
-                                    description="Generate a key and add it to your SSH host before saving."
-                                    placeholder="No key generated yet"
+                                    label={t('warehouseFields.sshPublicKey')}
+                                    description={t(
+                                        'warehouseFields.sshPublicKeyDescription',
+                                    )}
+                                    placeholder={t(
+                                        'warehouseFields.noKeyGenerated',
+                                    )}
                                     readOnly={true}
                                     disabled={disabled}
                                     rightSectionPointerEvents="all"
@@ -382,7 +399,9 @@ const PostgresForm: FC<{
                                             <CopyActionIcon
                                                 value={sshTunnelPublicKey}
                                                 tooltipPosition="right"
-                                                aria-label="Copy SSH tunnel public key"
+                                                aria-label={t(
+                                                    'warehouseFields.copySshPublicKey',
+                                                )}
                                                 onMouseDown={(event) =>
                                                     event.preventDefault()
                                                 }
@@ -396,15 +415,17 @@ const PostgresForm: FC<{
                                     disabled={disabled || isLoading}
                                 >
                                     {sshTunnelPublicKey
-                                        ? 'Regenerate key'
-                                        : 'Generate public key'}
+                                        ? t('warehouseFields.regenerateKey')
+                                        : t(
+                                              'warehouseFields.generatePublicKey',
+                                          )}
                                 </Button>
                             </Stack>
                         </FormSection>
                     </Stack>
                 </FormSection>
                 <FormCollapseButton isSectionOpen={isOpen} onClick={toggleOpen}>
-                    Advanced configuration options
+                    {t('dbtSettings.advancedOptions')}
                 </FormCollapseButton>
             </Stack>
         </>

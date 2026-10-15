@@ -7,15 +7,21 @@ import {
 } from '@lightdash/common';
 import { notifications } from '@mantine/notifications';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { type TFunction } from 'i18next';
+import { useTranslation } from 'react-i18next';
 import { getCsvFileUrl } from '../../../api/csv';
 import useToaster from '../../../hooks/toaster/useToaster';
 
-const getProgressSubtitle = (progress: GsheetExportProgress | null): string => {
-    if (!progress) return 'This may take a few minutes...';
-    if (progress.phase === 'query') return 'Running query...';
+const getProgressSubtitle = (
+    t: TFunction,
+    progress: GsheetExportProgress | null,
+): string => {
+    if (!progress) return t('googleSheets.progress.mayTakeMinutes');
+    if (progress.phase === 'query')
+        return t('googleSheets.progress.runningQuery');
     return progress.attempt > 1
-        ? `Writing to Google Sheets... (retry ${progress.attempt})`
-        : 'Writing to Google Sheets...';
+        ? t('googleSheets.progress.writingRetry', { attempt: progress.attempt })
+        : t('googleSheets.progress.writing');
 };
 
 const useExportToGoogleSheetStart = ({
@@ -23,6 +29,7 @@ const useExportToGoogleSheetStart = ({
 }: {
     getGsheetLink: () => Promise<ApiScheduledDownloadCsv>;
 }) => {
+    const { t } = useTranslation('export');
     const { showToastApiError, showToastInfo } = useToaster();
 
     return useMutation<ApiScheduledDownloadCsv | undefined, ApiError>(
@@ -31,8 +38,8 @@ const useExportToGoogleSheetStart = ({
         {
             onMutate: () => {
                 showToastInfo({
-                    title: 'Exporting Google Sheets',
-                    subtitle: 'This may take a few minutes...',
+                    title: t('googleSheets.toast.exporting'),
+                    subtitle: t('googleSheets.progress.mayTakeMinutes'),
                     loading: true,
                     key: 'exporting-gsheets',
                     autoClose: false,
@@ -41,7 +48,7 @@ const useExportToGoogleSheetStart = ({
             onError: ({ error }) => {
                 notifications.hide('exporting-gsheets');
                 showToastApiError({
-                    title: `Unable to upload to Google Sheets`,
+                    title: t('googleSheets.toast.uploadFailed'),
                     apiError: error,
                 });
             },
@@ -54,6 +61,7 @@ export const useExportToGoogleSheet = ({
 }: {
     getGsheetLink: () => Promise<ApiScheduledDownloadCsv>;
 }) => {
+    const { t } = useTranslation('export');
     const { showToastApiError, showToastInfo } = useToaster();
 
     const exportToGoogleSheetStartMutation = useExportToGoogleSheetStart({
@@ -74,14 +82,14 @@ export const useExportToGoogleSheet = ({
                 ? getCsvFileUrl(startGoogleSheetExportData)
                 : Promise.reject({
                       error: new Error(
-                          "Couldn't create scheduler job for google sheets export",
+                          t('googleSheets.errors.schedulerJobFailed'),
                       ),
                   }),
         retry: (failureCount, { error }) => {
             if (failureCount === 5) {
                 resetStartGoogleSheetExport();
                 showToastApiError({
-                    title: 'Unable to export to Google Sheets',
+                    title: t('googleSheets.toast.exportFailed'),
                     apiError: error,
                 });
                 return false;
@@ -99,8 +107,8 @@ export const useExportToGoogleSheet = ({
                 return;
             }
             showToastInfo({
-                title: 'Exporting Google Sheets',
-                subtitle: getProgressSubtitle(data?.progress ?? null),
+                title: t('googleSheets.toast.exporting'),
+                subtitle: getProgressSubtitle(t, data?.progress ?? null),
                 loading: true,
                 key: 'exporting-gsheets',
                 autoClose: false,

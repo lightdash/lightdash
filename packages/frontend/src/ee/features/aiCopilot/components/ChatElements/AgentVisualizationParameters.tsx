@@ -1,6 +1,7 @@
 import { friendlyName, type ParametersValuesMap } from '@lightdash/common';
 import { Badge, Flex, Text } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import classes from './AgentVisualizationParameters.module.css';
 
 const formatParameterValue = (value: ParametersValuesMap[string]): string =>
@@ -16,6 +17,7 @@ type Props = {
 };
 
 const AgentVisualizationParameters: FC<Props> = ({ parameterValues }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const entries = Object.entries(parameterValues);
     if (entries.length === 0) return null;
 
@@ -33,7 +35,7 @@ const AgentVisualizationParameters: FC<Props> = ({ parameterValues }) => {
                             {parameterLabel(name)}
                         </Text>{' '}
                         <Text span c="dimmed" fz="xs">
-                            is
+                            {t('parameters.is')}
                         </Text>{' '}
                         <Text fw={600} span fz="xs">
                             {formatParameterValue(value)}

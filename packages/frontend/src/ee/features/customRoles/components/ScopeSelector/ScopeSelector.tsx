@@ -30,6 +30,7 @@ import {
     IconSearch,
 } from '@tabler/icons-react';
 import { Fragment, useMemo, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../../../components/common/PolymorphicGroupButton';
 import { agentCapabilityGroups } from '../../../../../features/aiAccess/agentCapabilityLabels';
@@ -114,12 +115,13 @@ const AgentScopeHeading = ({
                 AGENT_CAPABILITY_SCOPES[capability] === previousScopeName,
         ),
     );
+    const { t } = useTranslation('customRoles');
     if (!group) return null;
     return (
         <>
             {!previousGroup && (
                 <Title order={5} mt="md">
-                    Agent permissions
+                    {t('scopeSelector.agentPermissions')}
                 </Title>
             )}
             {group !== previousGroup && (
@@ -141,22 +143,30 @@ const ScopeGroupHeader = ({
     fullySelected: boolean;
     partiallySelected: boolean;
     onToggle: () => void;
-}) => (
-    <Group justify="space-between" flex="0 0 auto">
-        <Title order={5}>{name}</Title>
-        <Checkbox
-            label={fullySelected ? 'Deselect all' : 'Select all'}
-            checked={fullySelected}
-            indeterminate={partiallySelected}
-            onChange={onToggle}
-        />
-    </Group>
-);
+}) => {
+    const { t } = useTranslation('customRoles');
+    return (
+        <Group justify="space-between" flex="0 0 auto">
+            <Title order={5}>{name}</Title>
+            <Checkbox
+                label={
+                    fullySelected
+                        ? t('scopeSelector.deselectAll')
+                        : t('scopeSelector.selectAll')
+                }
+                checked={fullySelected}
+                indeterminate={partiallySelected}
+                onChange={onToggle}
+            />
+        </Group>
+    );
+};
 
 const ScopePanel: FC<{
     group: GroupedScopes;
     form: UseFormReturnType<RoleFormValues>;
 }> = ({ group, form }) => {
+    const { t } = useTranslation('customRoles');
     const [openDependencyScopes, setOpenDependencyScopes] = useState<
         Set<string>
     >(new Set());
@@ -322,14 +332,14 @@ const ScopePanel: FC<{
                                                                     c="dimmed"
                                                                     fw={500}
                                                                 >
-                                                                    {
-                                                                        selectedDependencyCount
-                                                                    }{' '}
-                                                                    /{' '}
-                                                                    {
-                                                                        dependencies.length
-                                                                    }{' '}
-                                                                    dependencies
+                                                                    {t(
+                                                                        'scopeSelector.dependencyCount',
+                                                                        {
+                                                                            selected:
+                                                                                selectedDependencyCount,
+                                                                            count: dependencies.length,
+                                                                        },
+                                                                    )}
                                                                 </Text>
                                                                 {isSelected ? (
                                                                     <MantineIcon
@@ -453,6 +463,7 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
     dependencyStatus,
     agentCapabilitiesEnabled,
 }) => {
+    const { t } = useTranslation('customRoles');
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearchTerm] = useDebouncedValue(searchTerm, 300);
     // Store the selected group's key, not the object. The group objects are
@@ -561,17 +572,19 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
             <Stack gap="sm" flex="0 0 auto">
                 <Group justify="space-between">
                     <Stack gap="two">
-                        <Title order={5}>Permissions</Title>
+                        <Title order={5}>
+                            {t('scopeSelector.permissions')}
+                        </Title>
                         <Text
                             c={form.errors.scopes ? 'red' : 'default'}
                             fz="sm"
                         >
-                            Select at least one permission for this role
+                            {t('scopeSelector.selectAtLeastOne')}
                         </Text>
                     </Stack>
 
                     <TextInput
-                        placeholder="Search permissions by name or group..."
+                        placeholder={t('scopeSelector.searchPlaceholder')}
                         w={300}
                         leftSection={
                             <MantineIcon icon={IconSearch} size="sm" />
@@ -583,18 +596,26 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
                 <Group justify="space-between">
                     <Stack gap="xs">
                         <Text fz="sm" c="dimmed">
-                            {selectedCount} of {totalScopes}{' '}
-                            <Text span fw={600} inherit>
-                                {level}
-                            </Text>{' '}
-                            permissions selected
+                            <Trans
+                                t={t}
+                                i18nKey="scopeSelector.selectedCount"
+                                values={{
+                                    selected: selectedCount,
+                                    total: totalScopes,
+                                    level: t(
+                                        `scopeSelector.levelAdjective.${level}`,
+                                    ),
+                                }}
+                                components={{
+                                    bold: <Text span fw={600} inherit />,
+                                }}
+                            />
                         </Text>
                         {level === 'project' ? (
                             <Text fz="xs" c="dimmed">
-                                {organizationOnlyScopeCount} organization-level
-                                permissions are hidden here. They only take
-                                effect on an organization-level role assigned at
-                                the organization level.
+                                {t('scopeSelector.orgOnlyHidden', {
+                                    count: organizationOnlyScopeCount,
+                                })}
                             </Text>
                         ) : null}
                     </Stack>
@@ -605,7 +626,7 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
                             onClick={handleClickClearScopes}
                             disabled={selectedCount === 0}
                         >
-                            Clear all
+                            {t('scopeSelector.clearAll')}
                         </Button>
                         <Button
                             variant="subtle"
@@ -613,7 +634,7 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
                             onClick={handleClickSelectAllScopes}
                             disabled={selectedCount === totalScopes}
                         >
-                            Select all
+                            {t('scopeSelector.selectAll')}
                         </Button>
                     </Group>
                 </Group>
@@ -622,7 +643,7 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
             {filteredScopes.length === 0 ? (
                 <Paper p="xl" flex="0 0 auto">
                     <Text ta="center" fz="sm">
-                        No permissions found matching your search.
+                        {t('scopeSelector.noResults')}
                     </Text>
                 </Paper>
             ) : (
@@ -681,7 +702,7 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
                                 />
                             ) : (
                                 <Text ta="center" c="dimmed" fz="sm">
-                                    Select a group to view its permissions
+                                    {t('scopeSelector.selectGroup')}
                                 </Text>
                             )}
                         </Flex>

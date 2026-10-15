@@ -11,6 +11,7 @@ import {
 } from '@mantine/core';
 import { IconCheck, IconCode, IconCopy, IconEye } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReactJson, { type OnSelectProps } from 'react-json-view';
 import { useRjvTheme } from '../../../hooks/useRjvTheme';
 import { CopyActionIcon } from '../CopyActionIcon';
@@ -78,6 +79,7 @@ export const JsonCellPreview: FC<Props> = ({ value }) => {
 };
 
 export const JsonCellModal: FC<ModalProps> = ({ value, opened, onClose }) => {
+    const { t } = useTranslation('table');
     const [selectedPath, setSelectedPath] = useState('$');
     const theme = useRjvTheme();
     const formattedJson = useMemo(
@@ -89,7 +91,7 @@ export const JsonCellModal: FC<ModalProps> = ({ value, opened, onClose }) => {
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="JSON cell"
+            title={t('jsonViewer.title')}
             icon={IconCode}
             size="80vw"
             cancelLabel={false}
@@ -97,8 +99,8 @@ export const JsonCellModal: FC<ModalProps> = ({ value, opened, onClose }) => {
             headerActions={
                 <CopyActionIcon
                     value={formattedJson}
-                    copyLabel="Copy JSON"
-                    copiedLabel="Copied JSON"
+                    copyLabel={t('jsonViewer.copyJson')}
+                    copiedLabel={t('jsonViewer.copiedJson')}
                 />
             }
         >
@@ -106,7 +108,7 @@ export const JsonCellModal: FC<ModalProps> = ({ value, opened, onClose }) => {
                 <Group justify="space-between" wrap="nowrap" align="flex-end">
                     <Stack gap={2} miw={0}>
                         <Text size="xs" c="dimmed">
-                            Selected path
+                            {t('jsonViewer.selectedPath')}
                         </Text>
                         <Text size="xs" ff="monospace" truncate>
                             {selectedPath}
@@ -125,7 +127,7 @@ export const JsonCellModal: FC<ModalProps> = ({ value, opened, onClose }) => {
                                 }
                                 onClick={copy}
                             >
-                                Copy path
+                                {t('jsonViewer.copyPath')}
                             </Button>
                         )}
                     </CopyButton>
@@ -133,8 +135,12 @@ export const JsonCellModal: FC<ModalProps> = ({ value, opened, onClose }) => {
 
                 <Tabs defaultValue="tree" keepMounted={false}>
                     <Tabs.List>
-                        <Tabs.Tab value="tree">Tree</Tabs.Tab>
-                        <Tabs.Tab value="text">Text</Tabs.Tab>
+                        <Tabs.Tab value="tree">
+                            {t('jsonViewer.treeTab')}
+                        </Tabs.Tab>
+                        <Tabs.Tab value="text">
+                            {t('jsonViewer.textTab')}
+                        </Tabs.Tab>
                     </Tabs.List>
 
                     <Tabs.Panel value="tree" pt="sm">
@@ -173,8 +179,14 @@ export const JsonCellModal: FC<ModalProps> = ({ value, opened, onClose }) => {
     );
 };
 
-export const JsonCellMenuItem: FC<MenuItemProps> = ({ onClick }) => (
-    <Menu.Item leftSection={<MantineIcon icon={IconEye} />} onClick={onClick}>
-        View JSON
-    </Menu.Item>
-);
+export const JsonCellMenuItem: FC<MenuItemProps> = ({ onClick }) => {
+    const { t } = useTranslation('table');
+    return (
+        <Menu.Item
+            leftSection={<MantineIcon icon={IconEye} />}
+            onClick={onClick}
+        >
+            {t('jsonViewer.viewJson')}
+        </Menu.Item>
+    );
+};

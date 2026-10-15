@@ -1,14 +1,16 @@
 import { friendlyName } from '@lightdash/common';
 import { type FormErrors } from '@mantine/form';
+import { useTranslation } from 'react-i18next';
 import useToaster from '../../hooks/toaster/useToaster';
 
 export const useOnProjectError = () => {
     const { showToastError } = useToaster();
+    const { t } = useTranslation('projectConnection');
     return (errors: FormErrors) => {
         if (!errors) {
             showToastError({
-                title: 'Form error',
-                subtitle: 'Unexpected error, please contact support',
+                title: t('projectErrors.formError'),
+                subtitle: t('projectErrors.unexpected'),
             });
         } else {
             const errorMessages: string[] = Object.entries(errors).reduce<any>(
@@ -24,7 +26,7 @@ export const useOnProjectError = () => {
                 [],
             );
             showToastError({
-                title: 'Form errors',
+                title: t('projectErrors.formErrors'),
                 subtitle: errorMessages.join('\n\n'),
             });
         }

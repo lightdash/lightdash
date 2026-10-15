@@ -1,21 +1,22 @@
 import { Alert, Text } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 
 export const SqlQueryBeforeSaveAlert: FC<{ withDescription?: boolean }> = ({
     withDescription = true,
 }) => {
+    const { t } = useTranslation('sqlRunner');
     return (
         <Alert
             icon={<MantineIcon icon={IconAlertCircle} />}
             color="orange"
-            title="You haven't run your query yet"
+            title={t('beforeSaveAlert.title')}
         >
             {withDescription && (
                 <Text fw={500} fz="xs">
-                    You can verify your query before saving or you can review it
-                    later.
+                    {t('beforeSaveAlert.description')}
                 </Text>
             )}
         </Alert>

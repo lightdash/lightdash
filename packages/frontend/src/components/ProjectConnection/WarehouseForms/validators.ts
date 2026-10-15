@@ -6,6 +6,7 @@ import {
     SnowflakeAuthenticationType,
     WarehouseTypes,
 } from '@lightdash/common';
+import i18n from '../../../i18n/i18n';
 import {
     everyValidator,
     hasNoWhiteSpaces,
@@ -27,12 +28,14 @@ const sshTunnelEnabled = (values: ProjectConnectionForm) =>
         values.warehouse.type === WarehouseTypes.REDSHIFT) &&
     values.warehouse.useSshTunnel === true;
 
-export const SSH_TUNNEL_PUBLIC_KEY_REQUIRED_MESSAGE =
-    'SSH tunnel is enabled but no public key has been generated. Click "Generate public key" and add it to your SSH host before saving.';
+export const getSshTunnelPublicKeyRequiredMessage = () =>
+    i18n.t('warehouseValidators.sshPublicKeyRequired', {
+        ns: 'projectConnection',
+    });
 
 const sshTunnelPublicKeyValidator: Validator = (value, values) =>
     sshTunnelEnabled(values) && (!value || value.trim() === '')
-        ? SSH_TUNNEL_PUBLIC_KEY_REQUIRED_MESSAGE
+        ? getSshTunnelPublicKeyRequiredMessage()
         : undefined;
 
 const requiredWhen =
@@ -63,7 +66,9 @@ const athenaWebIdentityValidators = {
     ),
     webIdentityAudience: ((value, values) =>
         athenaAuthIs(AthenaAuthenticationType.WEB_IDENTITY)(values) && !value
-            ? 'Generate an audience to continue.'
+            ? i18n.t('warehouseValidators.audienceRequired', {
+                  ns: 'projectConnection',
+              })
             : undefined) satisfies CreateValidator,
 };
 

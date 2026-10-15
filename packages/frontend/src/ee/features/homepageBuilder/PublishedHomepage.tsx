@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { Box, Paper, Text } from '@mantine/core';
 import { useMemo, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { TIER_CLASS } from './blockLayout';
 import { getBlockDefinition } from './blocks/registry';
 import layout from './homepageLayout.module.css';
@@ -39,17 +40,17 @@ const BlockRenderer: FC<{
     itemSpan: number | null;
     standalone: boolean;
 }> = ({ block, projectUuid, personalPlaceholders, itemSpan, standalone }) => {
+    const { t } = useTranslation('homepageBuilder');
     const definition = getBlockDefinition(block.type);
     if (!definition) return null;
     if (personalPlaceholders && definition.personal) {
         return (
             <Paper p="md" h="100%">
                 <Text size="sm" fw={600}>
-                    {definition.label}
+                    {t(definition.labelKey)}
                 </Text>
                 <Text size="xs" c="dimmed">
-                    Personal to each viewer — the target user sees their own
-                    content here.
+                    {t('published.personalPlaceholder')}
                 </Text>
             </Paper>
         );

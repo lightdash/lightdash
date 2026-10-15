@@ -16,6 +16,7 @@ import {
 import { ActionIcon, Box, Menu } from '@mantine/core';
 import { IconCopy, IconDots } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router';
 import { useContentReviewEligibility } from '../../../ee/features/contentReview';
 import { FavoritePersonalDataAppModal } from '../../../features/apps/components/FavoritePersonalDataAppModal';
@@ -250,6 +251,7 @@ const ExistingResourceViewActionMenu: FC<
     onClose,
     onAction,
 }) => {
+    const { t } = useTranslation('resourceView');
     const { user } = useApp();
     const authoringEnabled = useContentAuthoringEnabled();
     const location = useLocation();
@@ -376,9 +378,9 @@ const ExistingResourceViewActionMenu: FC<
     const moveActionLabel =
         item.type === ResourceViewItemType.DATA_APP
             ? isPersonalDataApp
-                ? 'Add to space'
-                : 'Move to space'
-            : 'Move';
+                ? t('actionMenu.addToSpace')
+                : t('actionMenu.moveToSpace')
+            : t('actionMenu.move');
 
     const directAccessResourceType =
         item.type === ResourceViewItemType.DASHBOARD
@@ -453,7 +455,7 @@ const ExistingResourceViewActionMenu: FC<
                 );
             }}
         >
-            Duplicate
+            {t('actionMenu.duplicate')}
         </Menu.Item>
     );
 
@@ -475,7 +477,7 @@ const ExistingResourceViewActionMenu: FC<
                     <Box onClick={isOpen ? onClose : onOpen}>
                         <ActionIcon
                             disabled={disabled}
-                            aria-label="Menu"
+                            aria-label={t('actionMenu.menu')}
                             data-testid={`ResourceViewActionMenu/${item.data.name}`}
                             // Anchor for scope walkthroughs (data-tour-via)
                             data-tour-anchor="resource-actions"

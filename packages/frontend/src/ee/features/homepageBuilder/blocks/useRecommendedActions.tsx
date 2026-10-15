@@ -22,6 +22,7 @@ import { useGetSlack } from '../../../../hooks/slack/useSlack';
 import { useProject } from '../../../../hooks/useProject';
 import { useProjects } from '../../../../hooks/useProjects';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
+import i18n from '../../../../i18n/i18n';
 import useApp from '../../../../providers/App/useApp';
 import { isPlaygroundProvisioningSource } from '../../../../utils/playgroundProject';
 import { useActiveAgentOnboardingRun } from '../../agentOnboarding/hooks/useAgentOnboarding';
@@ -30,7 +31,8 @@ import { useCanManageProject } from '../hooks/useHomepageAbilities';
 import { useHomepageRecommendedActionSkips } from '../hooks/useHomepageRecommendedActionSkips';
 import { RECOMMENDED_ACTION_KEYS } from './recommendedActionDefaults';
 
-const DEFAULT_CTA_LABEL = 'Set up';
+const ns = 'homepageBuilder';
+const defaultCtaLabel = () => i18n.t('checklist.setUp', { ns });
 
 // A query whose `enabled` comes from another query's answer sits idle — not
 // loading, not resolved — until that answer lands, and an idle query reports
@@ -111,7 +113,7 @@ const warehouseStatus = ({
     annotation: warehouseType ? getWarehouseLabel(warehouseType) : null,
     doneIcon: warehouseType ? getWarehouseIcon(warehouseType, 'sm') : null,
     url: '/onboarding/data-source',
-    ctaLabel: DEFAULT_CTA_LABEL,
+    ctaLabel: defaultCtaLabel(),
 });
 
 // An agent run left mid-flight is resumable, so the step points at the run
@@ -153,7 +155,9 @@ const semanticLayerStatus = ({
         activeAgentRun,
         hasAgentSemanticLayerEntry,
     ),
-    ctaLabel: activeAgentRun ? 'Resume' : DEFAULT_CTA_LABEL,
+    ctaLabel: activeAgentRun
+        ? i18n.t('checklist.resume', { ns })
+        : defaultCtaLabel(),
 });
 
 const sourceControlAnnotation = (
@@ -194,7 +198,7 @@ const sourceControlStatus = ({
     ),
     doneIcon: null,
     url: '/onboarding/dbt',
-    ctaLabel: DEFAULT_CTA_LABEL,
+    ctaLabel: defaultCtaLabel(),
 });
 
 const slackStatus = (
@@ -205,10 +209,11 @@ const slackStatus = (
     return {
         isVisible: hasSlack,
         isComplete: isSuccess && !!slack && slack.hasRequiredScopes !== false,
-        annotation: slack?.slackTeamName ?? 'Connected',
+        annotation:
+            slack?.slackTeamName ?? i18n.t('checklist.connected', { ns }),
         doneIcon: null,
         url: '/generalSettings/integrations',
-        ctaLabel: DEFAULT_CTA_LABEL,
+        ctaLabel: defaultCtaLabel(),
     };
 };
 

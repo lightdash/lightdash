@@ -9,6 +9,7 @@ import {
 } from '@mantine/core';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { NumberInput } from '../../../components/common/NumberInput';
 import { useAppDispatch, useAppSelector } from '../store';
 import {
@@ -25,6 +26,7 @@ import {
 } from '../store/funnelBuilderSlice';
 
 export const FunnelStepsTab: FC = () => {
+    const { t } = useTranslation('metricsCatalog');
     const dispatch = useAppDispatch();
 
     const steps = useAppSelector(selectSteps);
@@ -36,7 +38,7 @@ export const FunnelStepsTab: FC = () => {
     return (
         <Stack gap="md">
             <Text fw={600} size="sm">
-                Funnel Steps
+                {t('funnelBuilder.steps.title')}
             </Text>
 
             {isLoadingEventNames && <Loader size="sm" />}
@@ -55,10 +57,12 @@ export const FunnelStepsTab: FC = () => {
                 return (
                     <Group key={step.stepOrder} gap="xs" wrap="nowrap">
                         <Text size="sm" w={50}>
-                            Step {step.stepOrder}
+                            {t('funnelBuilder.steps.step', {
+                                number: step.stepOrder,
+                            })}
                         </Text>
                         <Select
-                            placeholder="Select event"
+                            placeholder={t('funnelBuilder.steps.selectEvent')}
                             searchable
                             data={availableEvents}
                             value={step.eventName || null}
@@ -91,11 +95,11 @@ export const FunnelStepsTab: FC = () => {
                 onClick={() => dispatch(addStep())}
                 disabled={!eventNames.length}
             >
-                Add Step
+                {t('funnelBuilder.steps.addStep')}
             </Button>
 
             <Text fw={600} size="sm" mt="md">
-                Conversion Window
+                {t('funnelBuilder.steps.conversionWindow')}
             </Text>
 
             <Group gap="xs">
@@ -118,9 +122,15 @@ export const FunnelStepsTab: FC = () => {
                         )
                     }
                     data={[
-                        { value: 'hours', label: 'Hours' },
-                        { value: 'days', label: 'Days' },
-                        { value: 'weeks', label: 'Weeks' },
+                        {
+                            value: 'hours',
+                            label: t('funnelBuilder.steps.hours'),
+                        },
+                        { value: 'days', label: t('funnelBuilder.steps.days') },
+                        {
+                            value: 'weeks',
+                            label: t('funnelBuilder.steps.weeks'),
+                        },
                     ]}
                     w={100}
                 />

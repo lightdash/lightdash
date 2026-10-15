@@ -1,4 +1,5 @@
 import { IconCode } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import {
     selectUnsavedChartVersion,
     useExplorerSelector,
@@ -7,6 +8,7 @@ import useEchartsCartesianConfig from '../../../hooks/echarts/useEchartsCartesia
 import { CopyActionIcon } from '../../common/CopyActionIcon';
 
 export const DevCopyChartDebugData = () => {
+    const { t } = useTranslation('explorer');
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
     const echartsOptions = useEchartsCartesianConfig();
 
@@ -18,8 +20,8 @@ export const DevCopyChartDebugData = () => {
                 2,
             )}
             icon={IconCode}
-            copyLabel="Copy chart debug data"
-            copiedLabel="Copied!"
+            copyLabel={t('explorerHeader.copyDebugData')}
+            copiedLabel={t('explorerHeader.copied')}
             tooltipPosition="bottom"
             variant="default"
             size="md"

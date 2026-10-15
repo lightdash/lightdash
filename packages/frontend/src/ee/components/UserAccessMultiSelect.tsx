@@ -14,6 +14,7 @@ import { useDebouncedValue } from '@mantine/hooks';
 import { IconInfoCircle } from '@tabler/icons-react';
 import isEmpty from 'lodash/isEmpty';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LightdashUserAvatar } from '../../components/Avatar';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useProjectUsersWithRoles } from '../../hooks/useProjectUsersWithRoles';
@@ -37,6 +38,7 @@ export const UserAccessMultiSelect: FC<UserAccessMultiSelectProps> = ({
     onChange,
     ...props
 }) => {
+    const { t } = useTranslation('eeMisc');
     const [searchInput, setSearchInput] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(searchInput, 300);
     const allUsersRef = useRef<Map<string, AgentUserAccessOption>>(new Map());
@@ -99,7 +101,7 @@ export const UserAccessMultiSelect: FC<UserAccessMultiSelectProps> = ({
             if (isEmpty(currentSearchResults)) {
                 return (
                     <Text size="sm" c="dimmed">
-                        No users found
+                        {t('userAccess.noUsers')}
                     </Text>
                 );
             }
@@ -147,7 +149,7 @@ export const UserAccessMultiSelect: FC<UserAccessMultiSelectProps> = ({
                 </Group>
             );
         },
-        [currentSearchResults],
+        [currentSearchResults, t],
     );
 
     return (
@@ -158,10 +160,10 @@ export const UserAccessMultiSelect: FC<UserAccessMultiSelectProps> = ({
             label={
                 <Group gap="xs">
                     <Text fz="sm" fw={500}>
-                        User Access
+                        {t('userAccess.label')}
                     </Text>
                     <Tooltip
-                        label="Admins and developers (Manage AI Agents scope) will always have access."
+                        label={t('userAccess.tooltip')}
                         position="right"
                         maw="250px"
                     >
@@ -169,12 +171,12 @@ export const UserAccessMultiSelect: FC<UserAccessMultiSelectProps> = ({
                     </Tooltip>
                 </Group>
             }
-            description={`Select specific users from this project who can access this agent. ${
+            description={
                 isGroupsEnabled
-                    ? 'If no users or groups are selected, all users will have access.'
-                    : 'If no users are selected, all users will have access.'
-            }`}
-            placeholder="Search users"
+                    ? t('userAccess.descriptionWithGroups')
+                    : t('userAccess.description')
+            }
+            placeholder={t('userAccess.placeholder')}
             data={selectData}
             clearable
             searchable

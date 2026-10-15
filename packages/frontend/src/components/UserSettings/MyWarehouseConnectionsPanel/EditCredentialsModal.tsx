@@ -9,6 +9,7 @@ import { Button, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPencil } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useIsDatabricksSsoEnabled } from '../../../hooks/useDatabricks';
 import { useUserWarehouseCredentialsUpdateMutation } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import MantineModal, {
@@ -104,6 +105,7 @@ export const EditCredentialsModal: FC<
         userCredentials: UserWarehouseCredentials;
     }
 > = ({ opened, onClose, userCredentials }) => {
+    const { t } = useTranslation('userSettings');
     const { mutateAsync, isLoading: isSaving } =
         useUserWarehouseCredentialsUpdateMutation(userCredentials.uuid);
     const isDatabricksSsoEnabled = useIsDatabricksSsoEnabled();
@@ -136,7 +138,7 @@ export const EditCredentialsModal: FC<
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Edit credentials"
+            title={t('myWarehouseConnectionsPanel.editCredentialsModal.title')}
             icon={IconPencil}
             cancelDisabled={isSaving}
             actions={
@@ -147,7 +149,7 @@ export const EditCredentialsModal: FC<
                         disabled={isSaving}
                         loading={isSaving}
                     >
-                        Save
+                        {t('actions.save', { ns: 'common' })}
                     </Button>
                 ) : undefined
             }
@@ -172,7 +174,9 @@ export const EditCredentialsModal: FC<
                     <TextInput
                         required
                         size="xs"
-                        label="Name"
+                        label={t(
+                            'myWarehouseConnectionsPanel.editCredentialsModal.nameLabel',
+                        )}
                         disabled={isSaving}
                         {...form.getInputProps('name')}
                     />

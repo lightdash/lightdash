@@ -14,6 +14,7 @@ import {
     IconPlus,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
     ConnectionPickerView,
@@ -43,6 +44,7 @@ const ChartTypeComposerActions: FC<Props> = ({
     onDeselectConnection,
     linkedAppUuid,
 }) => {
+    const { t } = useTranslation('chartTypes');
     const [unlinkConfirmationOpen, setUnlinkConfirmationOpen] = useState(false);
     return (
         <Popover
@@ -62,7 +64,7 @@ const ChartTypeComposerActions: FC<Props> = ({
                 <ActionIcon
                     size={30}
                     radius="xl"
-                    aria-label="Composer options"
+                    aria-label={t('composer.options')}
                     disabled={disabled}
                     onClick={() =>
                         onPanelChange(panel === null ? 'options' : null)
@@ -76,7 +78,7 @@ const ChartTypeComposerActions: FC<Props> = ({
                     <Stack gap={0}>
                         <NavLink
                             component="button"
-                            label="Attach an image or file"
+                            label={t('composer.attachFile')}
                             leftSection={<MantineIcon icon={IconPaperclip} />}
                             onClick={() => {
                                 onPanelChange(null);
@@ -85,7 +87,7 @@ const ChartTypeComposerActions: FC<Props> = ({
                         />
                         <NavLink
                             component="button"
-                            label="Add external connections"
+                            label={t('composer.addConnections')}
                             leftSection={
                                 <MantineIcon icon={IconPlugConnected} />
                             }
@@ -100,14 +102,14 @@ const ChartTypeComposerActions: FC<Props> = ({
                         <Group gap="xs" mb="xs">
                             {panel === 'connections' && (
                                 <ActionIcon
-                                    aria-label="Back to composer options"
+                                    aria-label={t('composer.backToOptions')}
                                     onClick={() => onPanelChange('options')}
                                 >
                                     <MantineIcon icon={IconArrowLeft} />
                                 </ActionIcon>
                             )}
                             <Text size="sm" fw={500}>
-                                Add external connections
+                                {t('composer.addConnections')}
                             </Text>
                         </Group>
                         {panel === 'connections' && (

@@ -36,6 +36,7 @@ import {
     IconSearch,
 } from '@tabler/icons-react';
 import { useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     ContentTable,
     useContentTable,
@@ -258,13 +259,14 @@ const compareFilters = (
 
 // Tiles Table Component
 const TilesTable = ({ data }: { data: any[] }) => {
+    const { t } = useTranslation('pages');
     const theme = useMantineTheme();
     const [search, setSearch] = useState('');
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
     // Calculate totals from original data (not filtered)
     const totals = useMemo(() => {
-        const totalRow = data.find((row) => row.tileType === 'Total');
+        const totalRow = data.find((row) => row.tileType === 'total');
         if (totalRow) {
             return totalRow;
         }
@@ -273,24 +275,28 @@ const TilesTable = ({ data }: { data: any[] }) => {
 
     // Filter out the Total row from table data
     const dataWithoutTotal = useMemo(() => {
-        return data.filter((row) => row.tileType !== 'Total');
+        return data.filter((row) => row.tileType !== 'total');
     }, [data]);
 
     const columns = useMemo<ContentTableColumnDef<any>[]>(
         () => [
             {
                 accessorKey: 'tileType',
-                header: 'Tile Type',
+                header: t('dashboardVersionComparison.columns.tileType'),
                 size: 150,
+                Cell: ({ cell }) =>
+                    t(
+                        `dashboardVersionComparison.tileTypes.${cell.getValue<string>()}`,
+                    ),
                 Footer: () => (
                     <Text size="xs" fw={600}>
-                        Total
+                        {t('dashboardVersionComparison.tileTypes.total')}
                     </Text>
                 ),
             },
             {
                 accessorKey: 'current',
-                header: 'Current',
+                header: t('dashboardVersionComparison.columns.current'),
                 size: 100,
                 Cell: ({ cell }) => (
                     <Text size="xs" ta="right">
@@ -306,7 +312,7 @@ const TilesTable = ({ data }: { data: any[] }) => {
             },
             {
                 accessorKey: 'selected',
-                header: 'Selected',
+                header: t('dashboardVersionComparison.columns.selected'),
                 size: 100,
                 Cell: ({ cell }) => (
                     <Text size="xs" ta="right">
@@ -322,7 +328,7 @@ const TilesTable = ({ data }: { data: any[] }) => {
             },
             {
                 accessorKey: 'difference',
-                header: 'Difference',
+                header: t('dashboardVersionComparison.columns.difference'),
                 size: 120,
                 Cell: ({ cell }) => (
                     <div style={{ textAlign: 'right' }}>
@@ -337,15 +343,17 @@ const TilesTable = ({ data }: { data: any[] }) => {
                     ) : null,
             },
         ],
-        [totals],
+        [totals, t],
     );
 
     const filteredData = useMemo(() => {
         if (!search) return dataWithoutTotal;
         return dataWithoutTotal.filter((row) =>
-            row.tileType.toLowerCase().includes(search.toLowerCase()),
+            t(`dashboardVersionComparison.tileTypes.${row.tileType}`)
+                .toLowerCase()
+                .includes(search.toLowerCase()),
         );
-    }, [dataWithoutTotal, search]);
+    }, [dataWithoutTotal, search, t]);
 
     const table = useContentTable({
         columns,
@@ -410,7 +418,7 @@ const TilesTable = ({ data }: { data: any[] }) => {
             <TableToolbar
                 search={search}
                 setSearch={setSearch}
-                placeholder="Search tile types..."
+                placeholder={t('dashboardVersionComparison.searchTileTypes')}
             />
         ),
     });
@@ -426,6 +434,7 @@ const ChartsTable = ({
     data: any[];
     projectUuid: string | undefined;
 }) => {
+    const { t } = useTranslation('pages');
     const theme = useMantineTheme();
     const [search, setSearch] = useState('');
     const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -434,7 +443,7 @@ const ChartsTable = ({
         () => [
             {
                 accessorKey: 'chartName',
-                header: 'Chart Name',
+                header: t('dashboardVersionComparison.columns.chartName'),
                 size: 250,
                 Cell: ({ row }) => {
                     const { chartUuid, chartName } = row.original;
@@ -460,7 +469,7 @@ const ChartsTable = ({
             {
                 accessorFn: (row) => row.currentVersion?.createdAt,
                 id: 'currentVersion',
-                header: 'Current Version',
+                header: t('dashboardVersionComparison.columns.currentVersion'),
                 size: 200,
                 Cell: ({ row }) => (
                     <Text
@@ -489,7 +498,7 @@ const ChartsTable = ({
             {
                 accessorFn: (row) => row.selectedVersion?.createdAt,
                 id: 'selectedVersion',
-                header: 'Selected Version',
+                header: t('dashboardVersionComparison.columns.selectedVersion'),
                 size: 200,
                 Cell: ({ row }) => (
                     <Text
@@ -529,38 +538,42 @@ const ChartsTable = ({
                     return 'No change';
                 },
                 id: 'rollbackAction',
-                header: 'Rollback Action',
+                header: t('dashboardVersionComparison.columns.rollbackAction'),
                 size: 150,
                 Cell: ({ row }) => (
                     <div style={{ textAlign: 'center' }}>
                         {!row.original.inCurrent && row.original.inVersion && (
                             <Badge color="green" size="sm">
-                                Add
+                                {t('dashboardVersionComparison.actions.add')}
                             </Badge>
                         )}
                         {row.original.inCurrent && !row.original.inVersion && (
                             <Badge color="red" size="sm">
-                                Remove
+                                {t('dashboardVersionComparison.actions.remove')}
                             </Badge>
                         )}
                         {row.original.inCurrent &&
                             row.original.inVersion &&
                             row.original.hasDifferentVersion && (
                                 <Badge color="yellow" size="sm">
-                                    Version update
+                                    {t(
+                                        'dashboardVersionComparison.actions.versionUpdate',
+                                    )}
                                 </Badge>
                             )}
                         {row.original.inCurrent &&
                             row.original.inVersion &&
                             !row.original.hasDifferentVersion && (
-                                <Badge size="sm">No change</Badge>
+                                <Badge size="sm">
+                                    {t('dashboardVersionComparison.noChange')}
+                                </Badge>
                             )}
                     </div>
                 ),
                 enableSorting: true,
             },
         ],
-        [projectUuid],
+        [projectUuid, t],
     );
 
     const filteredData = useMemo(() => {
@@ -624,7 +637,7 @@ const ChartsTable = ({
             <TableToolbar
                 search={search}
                 setSearch={setSearch}
-                placeholder="Search charts by name..."
+                placeholder={t('dashboardVersionComparison.searchCharts')}
             />
         ),
     });
@@ -634,6 +647,7 @@ const ChartsTable = ({
 
 // Filters Table Component
 const FiltersTable = ({ data }: { data: any[] }) => {
+    const { t } = useTranslation('pages');
     const theme = useMantineTheme();
     const [search, setSearch] = useState('');
     const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -643,7 +657,7 @@ const FiltersTable = ({ data }: { data: any[] }) => {
             {
                 accessorFn: (row) => row.currentFilter?.label || '-',
                 id: 'currentVersion',
-                header: 'Current Version',
+                header: t('dashboardVersionComparison.columns.currentVersion'),
                 size: 300,
                 Cell: ({ row }) => (
                     <Text
@@ -657,7 +671,7 @@ const FiltersTable = ({ data }: { data: any[] }) => {
             {
                 accessorFn: (row) => row.versionFilter?.label || '-',
                 id: 'selectedVersion',
-                header: 'Selected Version',
+                header: t('dashboardVersionComparison.columns.selectedVersion'),
                 size: 300,
                 Cell: ({ row }) => (
                     <Text
@@ -683,40 +697,48 @@ const FiltersTable = ({ data }: { data: any[] }) => {
                     return 'No change';
                 },
                 id: 'rollbackAction',
-                header: 'Rollback Action',
+                header: t('dashboardVersionComparison.columns.rollbackAction'),
                 size: 150,
                 Cell: ({ row }) => (
                     <div style={{ textAlign: 'center' }}>
                         {!row.original.currentFilter &&
                             row.original.versionFilter && (
                                 <Badge color="green" size="sm">
-                                    Add
+                                    {t(
+                                        'dashboardVersionComparison.actions.add',
+                                    )}
                                 </Badge>
                             )}
                         {row.original.currentFilter &&
                             !row.original.versionFilter && (
                                 <Badge color="red" size="sm">
-                                    Remove
+                                    {t(
+                                        'dashboardVersionComparison.actions.remove',
+                                    )}
                                 </Badge>
                             )}
                         {row.original.currentFilter &&
                             row.original.versionFilter &&
                             row.original.hasChanged && (
                                 <Badge color="yellow" size="sm">
-                                    Update
+                                    {t(
+                                        'dashboardVersionComparison.actions.update',
+                                    )}
                                 </Badge>
                             )}
                         {row.original.currentFilter &&
                             row.original.versionFilter &&
                             !row.original.hasChanged && (
-                                <Badge size="sm">No change</Badge>
+                                <Badge size="sm">
+                                    {t('dashboardVersionComparison.noChange')}
+                                </Badge>
                             )}
                     </div>
                 ),
                 enableSorting: true,
             },
         ],
-        [],
+        [t],
     );
 
     const filteredData = useMemo(() => {
@@ -786,7 +808,7 @@ const FiltersTable = ({ data }: { data: any[] }) => {
             <TableToolbar
                 search={search}
                 setSearch={setSearch}
-                placeholder="Search filters..."
+                placeholder={t('dashboardVersionComparison.searchFilters')}
             />
         ),
     });
@@ -800,6 +822,7 @@ const DashboardVersionComparison = ({
     projectUuid,
     versionUuid,
 }: DashboardVersionComparisonProps) => {
+    const { t } = useTranslation('pages');
     const versionQuery = useDashboardVersion(dashboardUuid, versionUuid);
 
     const comparison = useMemo(() => {
@@ -920,7 +943,7 @@ const DashboardVersionComparison = ({
                     (versionChart && isDashboardChartTileType(versionChart)
                         ? versionChart.properties.chartName
                         : null) ||
-                    'Unnamed Chart';
+                    t('dashboardVersionComparison.unnamedChart');
 
                 // Use version data from the API when available
                 let currentVersionData = versionDiff?.currentVersion ?? null;
@@ -956,7 +979,7 @@ const DashboardVersionComparison = ({
 
                 return {
                     chartUuid: uuid,
-                    chartName: chartName || 'Unnamed Chart',
+                    chartName,
                     inCurrent: !!currentChart,
                     inVersion: !!versionChart,
                     hasDifferentVersion,
@@ -991,46 +1014,46 @@ const DashboardVersionComparison = ({
         // Prepare tiles data for table
         const tilesData = [
             {
-                tileType: 'Charts',
+                tileType: 'charts',
                 current: currentCharts.length,
                 selected: versionCharts.length,
                 difference: versionCharts.length - currentCharts.length,
             },
             {
-                tileType: 'SQL Charts',
+                tileType: 'sqlCharts',
                 current: currentSqlCharts.length,
                 selected: versionSqlCharts.length,
                 difference: versionSqlCharts.length - currentSqlCharts.length,
             },
             {
-                tileType: 'Markdown',
+                tileType: 'markdown',
                 current: currentMarkdownTiles.length,
                 selected: versionMarkdownTiles.length,
                 difference:
                     versionMarkdownTiles.length - currentMarkdownTiles.length,
             },
             {
-                tileType: 'Loom',
+                tileType: 'loom',
                 current: currentLoomTiles.length,
                 selected: versionLoomTiles.length,
                 difference: versionLoomTiles.length - currentLoomTiles.length,
             },
             {
-                tileType: 'Heading',
+                tileType: 'heading',
                 current: currentHeadingTiles.length,
                 selected: versionHeadingTiles.length,
                 difference:
                     versionHeadingTiles.length - currentHeadingTiles.length,
             },
             {
-                tileType: 'Data App',
+                tileType: 'dataApp',
                 current: currentDataAppTiles.length,
                 selected: versionDataAppTiles.length,
                 difference:
                     versionDataAppTiles.length - currentDataAppTiles.length,
             },
             {
-                tileType: 'Total',
+                tileType: 'total',
                 current: currentTileCount,
                 selected: versionTileCount,
                 difference: tileDiff,
@@ -1073,7 +1096,7 @@ const DashboardVersionComparison = ({
             alignedCharts,
             tilesData,
         };
-    }, [dashboard, versionQuery.data]);
+    }, [dashboard, versionQuery.data, t]);
 
     if (!versionUuid) {
         return null;
@@ -1089,7 +1112,9 @@ const DashboardVersionComparison = ({
                 gap="md"
             >
                 <Loader size="md" />
-                <Text c="dimmed">Loading version details...</Text>
+                <Text c="dimmed">
+                    {t('dashboardVersionComparison.loading')}
+                </Text>
             </Flex>
         );
     }
@@ -1097,7 +1122,9 @@ const DashboardVersionComparison = ({
     if (versionQuery.error || !comparison) {
         return (
             <Flex direction="column" align="center" justify="center" h={300}>
-                <Text c="dimmed">Unable to load version comparison</Text>
+                <Text c="dimmed">
+                    {t('dashboardVersionComparison.loadError')}
+                </Text>
             </Flex>
         );
     }
@@ -1112,30 +1139,31 @@ const DashboardVersionComparison = ({
             <EmptyState
                 maw={500}
                 icon={<NoTableIcon />}
-                title="Select a version to compare"
+                title={t('dashboardHistory.selectVersion')}
             />
         );
     }
 
     return (
         <Stack gap="lg">
-            <Title order={4}>Version Comparison</Title>
+            <Title order={4}>{t('dashboardVersionComparison.title')}</Title>
 
             <Stack gap="md">
                 <ExpandableSection
-                    title="Tiles"
+                    title={t('dashboardVersionComparison.sections.tiles')}
                     icon={IconLayoutDashboard}
                     color="blue"
                     badge={
                         comparison.tileDiff !== 0 ? (
                             <Badge color="yellow" size="lg">
-                                {Math.abs(comparison.tileDiff)}{' '}
-                                {Math.abs(comparison.tileDiff) === 1
-                                    ? 'change'
-                                    : 'changes'}
+                                {t('dashboardVersionComparison.changes', {
+                                    count: Math.abs(comparison.tileDiff),
+                                })}
                             </Badge>
                         ) : (
-                            <Badge size="lg">No change</Badge>
+                            <Badge size="lg">
+                                {t('dashboardVersionComparison.noChange')}
+                            </Badge>
                         )
                     }
                 >
@@ -1143,7 +1171,7 @@ const DashboardVersionComparison = ({
                 </ExpandableSection>
 
                 <ExpandableSection
-                    title="Charts"
+                    title={t('dashboardVersionComparison.sections.charts')}
                     icon={IconChartBar}
                     color="violet"
                     badge={(() => {
@@ -1154,20 +1182,23 @@ const DashboardVersionComparison = ({
                                 !c.inVersion,
                         ).length;
                         if (totalChanges === 0) {
-                            return <Badge size="lg">No change</Badge>;
+                            return (
+                                <Badge size="lg">
+                                    {t('dashboardVersionComparison.noChange')}
+                                </Badge>
+                            );
                         }
                         return (
                             <Badge color="yellow" size="lg">
-                                {totalChanges}{' '}
-                                {totalChanges === 1 ? 'change' : 'changes'}
+                                {t('dashboardVersionComparison.changes', {
+                                    count: totalChanges,
+                                })}
                             </Badge>
                         );
                     })()}
                 >
                     <Text size="xs" c="dimmed" mb="sm">
-                        Only charts created within this dashboard are affected
-                        by a rollback. Charts added from the space will keep
-                        their current version.
+                        {t('dashboardVersionComparison.chartsNote')}
                     </Text>
                     <ChartsTable
                         data={comparison.alignedCharts}
@@ -1176,19 +1207,20 @@ const DashboardVersionComparison = ({
                 </ExpandableSection>
 
                 <ExpandableSection
-                    title="Filters"
+                    title={t('dashboardVersionComparison.sections.filters')}
                     icon={IconFilter}
                     color="teal"
                     badge={
                         comparison.hasFilterChanges ? (
                             <Badge color="yellow" size="lg">
-                                {comparison.changedFilterCount}{' '}
-                                {comparison.changedFilterCount === 1
-                                    ? 'change'
-                                    : 'changes'}
+                                {t('dashboardVersionComparison.changes', {
+                                    count: comparison.changedFilterCount,
+                                })}
                             </Badge>
                         ) : (
-                            <Badge size="lg">No change</Badge>
+                            <Badge size="lg">
+                                {t('dashboardVersionComparison.noChange')}
+                            </Badge>
                         )
                     }
                 >
@@ -1197,7 +1229,7 @@ const DashboardVersionComparison = ({
                         <FiltersTable data={comparison.alignedFilters} />
                     ) : (
                         <Text size="sm" c="dimmed" ta="center">
-                            No filters configured
+                            {t('dashboardVersionComparison.noFilters')}
                         </Text>
                     )}
                 </ExpandableSection>
@@ -1205,7 +1237,7 @@ const DashboardVersionComparison = ({
                 {versionQuery.data?.dashboard.description && (
                     <Paper p="md">
                         <Text fw={600} mb="xs">
-                            Description
+                            {t('dashboardVersionComparison.description')}
                         </Text>
                         <Text size="sm" c="dimmed">
                             {versionQuery.data.dashboard.description}

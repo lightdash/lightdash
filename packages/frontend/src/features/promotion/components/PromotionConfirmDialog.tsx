@@ -14,6 +14,7 @@ import {
     IconRocket,
 } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal, {
@@ -47,13 +48,16 @@ const PromotionChangesAccordion: FC<{
         deleted: PromotionChange[];
     };
 }> = ({ type, items }) => {
+    const { t } = useTranslation('app');
     return (
         <Accordion variant="contained">
             {items.created.length > 0 && (
                 <Accordion.Item key={`${type}-created`} value={'created'}>
                     <Accordion.Control>
                         <Text size="sm">
-                            To be created ({items.created.length})
+                            {t('promotion.toBeCreated', {
+                                count: items.created.length,
+                            })}
                         </Text>
                     </Accordion.Control>
                     <Accordion.Panel>
@@ -73,7 +77,9 @@ const PromotionChangesAccordion: FC<{
                 <Accordion.Item key={`${type}-updated`} value={'updated'}>
                     <Accordion.Control>
                         <Text size="sm">
-                            To be updated ({items.updated.length})
+                            {t('promotion.toBeUpdated', {
+                                count: items.updated.length,
+                            })}
                         </Text>
                     </Accordion.Control>
                     <Accordion.Panel>
@@ -92,7 +98,11 @@ const PromotionChangesAccordion: FC<{
             {items.deleted.length > 0 && (
                 <Accordion.Item key={`${type}-deleted`} value={'deleted'}>
                     <Accordion.Control>
-                        <Text size="sm">Deleted {items.deleted.length}</Text>
+                        <Text size="sm">
+                            {t('promotion.deleted', {
+                                count: items.deleted.length,
+                            })}
+                        </Text>
                     </Accordion.Control>
                     <Accordion.Panel>
                         <ul>
@@ -118,6 +128,7 @@ export const PromotionConfirmDialog: FC<Props> = ({
     onConfirm,
     onClose,
 }) => {
+    const { t } = useTranslation('app');
     const { groupedChanges, totalChanges, withoutChanges } = useMemo(() => {
         if (promotionChanges === undefined) return {};
         const changes = {
@@ -246,7 +257,7 @@ export const PromotionConfirmDialog: FC<Props> = ({
             opened
             onClose={onClose}
             role="alertdialog"
-            title={`Promoting ${type}`}
+            title={t(`promotion.promoting.${type}`)}
             icon={IconRocket}
             size="lg"
             actions={
@@ -258,30 +269,34 @@ export const PromotionConfirmDialog: FC<Props> = ({
                         onClose();
                     }}
                 >
-                    Promote
+                    {t('promotion.promote')}
                 </Button>
             }
-            description={`You are about to promote ${type}: "${resourceName}"`}
+            description={t(`promotion.aboutToPromote.${type}`, {
+                name: resourceName,
+            })}
         >
             <Stack>
                 {groupedChanges === undefined ? (
                     <Flex gap="sm" align="center">
                         <Loader color="gray" size={'sm'} />
-                        <Text>Loading differences...</Text>
+                        <Text>{t('promotion.loadingDifferences')}</Text>
                     </Flex>
                 ) : (
                     <Stack>
                         {groupedChanges.spaces.total > 0 && (
                             <>
                                 <Text fz="sm">
-                                    These changes will be applied:
+                                    {t('promotion.changesApplied')}
                                 </Text>
                                 <Flex gap="xs" align="center">
                                     <MantineIcon
                                         icon={IconFolder}
                                         color="violet.8"
                                     />
-                                    <Text fw={600}>Spaces:</Text>
+                                    <Text fw={600}>
+                                        {t('promotion.sections.spaces')}
+                                    </Text>
                                 </Flex>
                                 <PromotionChangesAccordion
                                     type="spaces"
@@ -293,14 +308,16 @@ export const PromotionConfirmDialog: FC<Props> = ({
                         {groupedChanges.dashboards.total > 0 && (
                             <>
                                 <Text fz="sm">
-                                    These changes will be applied:
+                                    {t('promotion.changesApplied')}
                                 </Text>
                                 <Flex gap="xs" align="center">
                                     <MantineIcon
                                         icon={IconLayoutDashboard}
                                         color="green.8"
                                     />
-                                    <Text fw={600}>Dashboards:</Text>
+                                    <Text fw={600}>
+                                        {t('promotion.sections.dashboards')}
+                                    </Text>
                                 </Flex>
                                 <PromotionChangesAccordion
                                     type="dashboards"
@@ -311,14 +328,16 @@ export const PromotionConfirmDialog: FC<Props> = ({
                         {groupedChanges.documents.total > 0 && (
                             <>
                                 <Text fz="sm">
-                                    These changes will be applied:
+                                    {t('promotion.changesApplied')}
                                 </Text>
                                 <Flex gap="xs" align="center">
                                     <MantineIcon
                                         icon={IconFileText}
                                         color="indigo.7"
                                     />
-                                    <Text fw={600}>Documents:</Text>
+                                    <Text fw={600}>
+                                        {t('promotion.sections.documents')}
+                                    </Text>
                                 </Flex>
                                 <PromotionChangesAccordion
                                     type="documents"
@@ -329,14 +348,16 @@ export const PromotionConfirmDialog: FC<Props> = ({
                         {groupedChanges.charts.total > 0 && (
                             <>
                                 <Text fz="sm">
-                                    These changes will be applied:
+                                    {t('promotion.changesApplied')}
                                 </Text>
                                 <Flex gap="xs" align="center">
                                     <MantineIcon
                                         icon={IconChartAreaLine}
                                         color="blue.7"
                                     />
-                                    <Text fw={600}>Charts:</Text>
+                                    <Text fw={600}>
+                                        {t('promotion.sections.charts')}
+                                    </Text>
                                 </Flex>
                                 <PromotionChangesAccordion
                                     type="charts"
@@ -347,14 +368,16 @@ export const PromotionConfirmDialog: FC<Props> = ({
                         {groupedChanges.sqlCharts.total > 0 && (
                             <>
                                 <Text fz="sm">
-                                    These changes will be applied:
+                                    {t('promotion.changesApplied')}
                                 </Text>
                                 <Flex gap="xs" align="center">
                                     <MantineIcon
                                         icon={IconDatabase}
                                         color="cyan.7"
                                     />
-                                    <Text fw={600}>SQL charts:</Text>
+                                    <Text fw={600}>
+                                        {t('promotion.sections.sqlCharts')}
+                                    </Text>
                                 </Flex>
                                 <PromotionChangesAccordion
                                     type="sqlCharts"
@@ -365,14 +388,16 @@ export const PromotionConfirmDialog: FC<Props> = ({
                         {groupedChanges.dataApps.total > 0 && (
                             <>
                                 <Text fz="sm">
-                                    These changes will be applied:
+                                    {t('promotion.changesApplied')}
                                 </Text>
                                 <Flex gap="xs" align="center">
                                     <MantineIcon
                                         icon={IconAppWindow}
                                         color="orange.6"
                                     />
-                                    <Text fw={600}>Data apps:</Text>
+                                    <Text fw={600}>
+                                        {t('promotion.sections.dataApps')}
+                                    </Text>
                                 </Flex>
                                 <PromotionChangesAccordion
                                     type="dataApps"
@@ -384,13 +409,12 @@ export const PromotionConfirmDialog: FC<Props> = ({
                         {totalChanges === 0 && (
                             <Callout
                                 variant="info"
-                                title="No changes to promote"
+                                title={t('promotion.noChanges')}
                             />
                         )}
                         {totalChanges !== 0 && withoutChanges > 0 && (
                             <Callout variant="info">
-                                We only promote content that is more recent in
-                                this project.
+                                {t('promotion.onlyRecent')}
                             </Callout>
                         )}
                     </Stack>

@@ -6,6 +6,7 @@ import {
     type UserWarehouseCredentials,
 } from '@lightdash/common';
 import { type FormErrors } from '@mantine/form';
+import i18n from '../../../i18n/i18n';
 
 /** The private key file input is controlled, so it renders this error itself. */
 export const PRIVATE_KEY_FIELD_PATH = 'credentials.privateKey';
@@ -69,7 +70,12 @@ export const validateUserWarehouseCredentials = (
         const errors: FormErrors = {};
         const accessKeyId = credentials.accessKeyId?.trim();
         if (!accessKeyId) {
-            errors[ACCESS_KEY_ID_FIELD_PATH] = 'Enter your AWS access key ID.';
+            errors[ACCESS_KEY_ID_FIELD_PATH] = i18n.t(
+                'myWarehouseConnectionsPanel.validation.athenaAccessKeyIdRequired',
+                {
+                    ns: 'userSettings',
+                },
+            );
         }
 
         const existingAccessKeyId =
@@ -80,8 +86,12 @@ export const validateUserWarehouseCredentials = (
             (!existingAccessKeyId || accessKeyId !== existingAccessKeyId) &&
             !credentials.secretAccessKey
         ) {
-            errors[SECRET_ACCESS_KEY_FIELD_PATH] =
-                'Enter the AWS secret access key for this access key ID.';
+            errors[SECRET_ACCESS_KEY_FIELD_PATH] = i18n.t(
+                'myWarehouseConnectionsPanel.validation.athenaSecretAccessKeyRequired',
+                {
+                    ns: 'userSettings',
+                },
+            );
         }
         return errors;
     }
@@ -94,15 +104,24 @@ export const validateUserWarehouseCredentials = (
 
     const errors: FormErrors = {};
     if (!credentials.user.trim()) {
-        errors[USER_FIELD_PATH] = 'Enter your Snowflake username or email.';
+        errors[USER_FIELD_PATH] = i18n.t(
+            'myWarehouseConnectionsPanel.validation.snowflakeUserRequired',
+            {
+                ns: 'userSettings',
+            },
+        );
     }
 
     if (authenticationType === SnowflakeAuthenticationType.PRIVATE_KEY) {
         const privateKey =
             'privateKey' in credentials ? credentials.privateKey : undefined;
         if (!privateKey) {
-            errors[PRIVATE_KEY_FIELD_PATH] =
-                'Upload your Snowflake private key file.';
+            errors[PRIVATE_KEY_FIELD_PATH] = i18n.t(
+                'myWarehouseConnectionsPanel.validation.snowflakePrivateKeyRequired',
+                {
+                    ns: 'userSettings',
+                },
+            );
         }
         return errors;
     }
@@ -110,7 +129,12 @@ export const validateUserWarehouseCredentials = (
     const password =
         'password' in credentials ? credentials.password : undefined;
     if (!password) {
-        errors[PASSWORD_FIELD_PATH] = 'Enter your Snowflake password.';
+        errors[PASSWORD_FIELD_PATH] = i18n.t(
+            'myWarehouseConnectionsPanel.validation.snowflakePasswordRequired',
+            {
+                ns: 'userSettings',
+            },
+        );
     }
     return errors;
 };

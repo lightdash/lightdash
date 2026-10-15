@@ -2,6 +2,7 @@ import { Format } from '@lightdash/common';
 import { Group, Select, Text } from '@mantine/core';
 import { IconClearAll, IconPercentage } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../common/MantineIcon';
 import styles from './CartesianChartFormatConfig.module.css';
 
@@ -27,10 +28,11 @@ export const CartesianChartFormatConfig: FC<Props> = ({
     onChangeFormat,
     format,
 }) => {
+    const { t } = useTranslation('dataViz');
     const formatOptions = [
-        { value: 'none', label: 'None' },
-        { value: Format.PERCENT, label: 'Percent' },
-        { value: Format.SI, label: 'SI' },
+        { value: 'none', label: t('cartesian.format.none') },
+        { value: Format.PERCENT, label: t('cartesian.format.percent') },
+        { value: Format.SI, label: t('cartesian.format.si') },
     ];
 
     return (

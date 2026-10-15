@@ -15,6 +15,7 @@ import {
     type NodeReplaceChange,
 } from '@xyflow/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import {
     DEFAULT_CANVAS_TIME_OPTION,
@@ -68,6 +69,7 @@ export const useCanvasFlow = ({
     const nodesInitialized = useNodesInitialized();
     const [isLayoutReady, setIsLayoutReady] = useState(false);
     const { showToastInfo } = useToaster();
+    const { t } = useTranslation('metricsCatalog');
     const [canvasTimeOption, setCanvasTimeOption] = useState<CanvasTimeOption>(
         DEFAULT_CANVAS_TIME_OPTION,
     );
@@ -319,9 +321,8 @@ export const useCanvasFlow = ({
             );
             if (hasYamlEdges) {
                 showToastInfo({
-                    title: 'Cannot delete YAML-defined edge',
-                    subtitle:
-                        'This connection is defined in your dbt YAML files. Update your YAML to remove it.',
+                    title: t('canvas.cannotDeleteYamlEdgeTitle'),
+                    subtitle: t('canvas.cannotDeleteYamlEdgeSubtitle'),
                 });
             }
             if (onEdgesDeleted) {
@@ -331,7 +332,7 @@ export const useCanvasFlow = ({
                 await onEdgesDeleted(deletableEdges);
             }
         },
-        [onEdgesDeleted, showToastInfo],
+        [onEdgesDeleted, showToastInfo, t],
     );
 
     // Drag-drop handlers

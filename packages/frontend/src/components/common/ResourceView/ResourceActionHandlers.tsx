@@ -15,6 +15,7 @@ import {
     IconFolderX,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { RequestReviewModal } from '../../../ee/features/contentReview';
 import { MoveAppToSpaceModal } from '../../../features/apps/components/MoveAppToSpaceModal';
 import { useAppPinningMutation } from '../../../features/apps/hooks/useAppPinningMutation';
@@ -83,6 +84,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
     action,
     onAction,
 }) => {
+    const { t } = useTranslation('resourceView');
     const projectUuid = useProjectUuid();
 
     const { mutateAsync: contentAction, isLoading: isContentActionLoading } =
@@ -245,8 +247,10 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                             projectUuid={projectUuid}
                             spaceUuid={action.item.data.uuid}
                             actionType={ActionType.UPDATE}
-                            title="Update space"
-                            confirmButtonLabel="Update"
+                            title={t('actionHandlers.updateSpace')}
+                            confirmButtonLabel={t('actions.update', {
+                                ns: 'common',
+                            })}
                             icon={IconFolderCog}
                             onClose={handleReset}
                             onSubmitForm={handleReset}
@@ -324,8 +328,10 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                             projectUuid={projectUuid}
                             spaceUuid={action.item.data.uuid}
                             actionType={ActionType.DELETE}
-                            title="Delete space"
-                            confirmButtonLabel="Delete"
+                            title={t('actionHandlers.deleteSpace')}
+                            confirmButtonLabel={t('actions.delete', {
+                                ns: 'common',
+                            })}
                             confirmButtonColor="red"
                             icon={IconFolderX}
                             onClose={handleReset}
@@ -368,8 +374,8 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                     shouldRedirect={false}
                     projectUuid={projectUuid}
                     actionType={ActionType.CREATE}
-                    title="Create new space"
-                    confirmButtonLabel="Create"
+                    title={t('actionHandlers.createNewSpace')}
+                    confirmButtonLabel={t('actions.create', { ns: 'common' })}
                     icon={IconFolderPlus}
                     onClose={handleReset}
                     onSubmitForm={handleCreateSpace}

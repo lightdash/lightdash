@@ -2,6 +2,7 @@ import { ContentType, FeatureFlags } from '@lightdash/common';
 import { Box, Button, Group, Stack } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Navigate } from 'react-router';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
 import MantineIcon from '../components/common/MantineIcon';
@@ -18,13 +19,14 @@ import { FavoritesProvider } from '../providers/Favorites/FavoritesProvider';
 import classes from './Document.module.css';
 
 const Documents = () => {
+    const { t } = useTranslation('pages');
     const projectUuid = useProjectUuid();
     const flag = useServerFeatureFlag(FeatureFlags.Documents);
     const authoringEnabled = useContentAuthoringEnabled();
     const canCreate = useCreateInAnySpaceAccess(projectUuid, 'Document');
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     if (!projectUuid || flag.isInitialLoading) {
-        return <EmptyStateLoader my="xl" title="Loading documents" />;
+        return <EmptyStateLoader my="xl" title={t('documents.loading')} />;
     }
     if (flag.isError || !flag.data?.enabled) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
@@ -33,7 +35,7 @@ const Documents = () => {
         <FavoritesProvider projectUuid={projectUuid}>
             <Box className={classes.page}>
                 <Page
-                    title="Documents"
+                    title={t('documents.title')}
                     withCenteredRoot
                     withCenteredContent
                     withXLargePaddedContent
@@ -43,8 +45,11 @@ const Documents = () => {
                         <Group justify="space-between">
                             <PageBreadcrumbs
                                 items={[
-                                    { title: 'Home', to: '/home' },
-                                    { title: 'All documents', active: true },
+                                    { title: t('common.home'), to: '/home' },
+                                    {
+                                        title: t('documents.allDocuments'),
+                                        active: true,
+                                    },
                                 ]}
                             />
                             {authoringEnabled && canCreate && (
@@ -54,7 +59,7 @@ const Documents = () => {
                                     }
                                     onClick={() => setIsCreateOpen(true)}
                                 >
-                                    New document
+                                    {t('documents.newDocument')}
                                 </Button>
                             )}
                         </Group>
@@ -70,8 +75,10 @@ const Documents = () => {
                                 [ColumnVisibility.VIEWS]: false,
                                 [ColumnVisibility.OWNER]: true,
                             }}
-                            emptyState={{ entityName: 'documents' }}
-                            errorStateTitle="Unable to load documents"
+                            emptyState={{
+                                entityName: t('documents.entityName'),
+                            }}
+                            errorStateTitle={t('documents.loadError')}
                         />
                     </Stack>
                 </Page>

@@ -20,6 +20,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import dayjs from 'dayjs';
 import isEmpty from 'lodash/isEmpty';
 import { memo, useCallback, useMemo, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
@@ -112,6 +113,7 @@ const TableItem: FC<{
         quotedTable,
         onSelect,
     }) => {
+        const { t } = useTranslation('common');
         const { ref: hoverRef, hovered } = useHover();
         const typeDisplay = getTableTypeDisplay(tableType);
         return (
@@ -141,7 +143,7 @@ const TableItem: FC<{
                 >
                     <CopyActionIcon
                         value={quotedTable}
-                        copiedLabel="Copied to clipboard"
+                        copiedLabel={t('feedback.copiedToClipboard')}
                         tooltipPosition="right"
                         size="xs"
                         bg="body"
@@ -410,6 +412,7 @@ const quoteTableForQuery = (
     );
 
 export const Tables: FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
+    const { t } = useTranslation('sqlRunner');
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const activeTable = useAppSelector((state) => state.sqlRunner.activeTable);
@@ -644,7 +647,7 @@ export const Tables: FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
             {isSuccess && rows.length === 0 && (
                 <Center p="sm">
                     <Text c="dimmed" fz="sm">
-                        No results found
+                        {t('tables.noResults')}
                     </Text>
                 </Center>
             )}

@@ -24,6 +24,7 @@ import {
     IconUser,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     ContentTable,
     useContentTable,
@@ -55,10 +56,8 @@ const SORTABLE_COLUMNS: AiAgentAdminMemorySortField[] = [
 const isSortableColumn = (id: string): id is AiAgentAdminMemorySortField =>
     SORTABLE_COLUMNS.includes(id as AiAgentAdminMemorySortField);
 
-const formatDate = (value: string | null) =>
-    value ? new Date(value).toLocaleDateString() : 'Never';
-
 const AiAgentAdminMemoriesTable = () => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const theme = useMantineTheme();
     const [selectedMemory, setSelectedMemory] =
         useState<MemorySlugSelection | null>(null);
@@ -140,171 +139,182 @@ const AiAgentAdminMemoriesTable = () => {
     });
 
     const getBottomToolbarLabel = () => {
-        if (isFetching) return 'Loading more...';
-        return hasNextPage ? 'Scroll for more results' : 'All results loaded';
+        if (isFetching) return t('memoriesTable.loadingMore');
+        return hasNextPage
+            ? t('memoriesTable.scrollForMore')
+            : t('memoriesTable.allLoaded');
     };
     const bottomToolbarLabel = getBottomToolbarLabel();
 
-    const columns: ContentTableColumnDef<AiAgentAdminMemoryItem>[] = useMemo(
-        () => [
-            {
-                accessorKey: 'title',
-                header: 'Memory',
-                enableSorting: false,
-                size: 320,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconNotebook} color="dimmed" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => {
-                    const memory = row.original;
-                    return (
-                        <Stack gap={2} miw={0}>
-                            <Text fw={600} fz="sm" truncate>
-                                {memory.title}
-                            </Text>
-                            <Text fz="xs" c="dimmed" truncate>
-                                {memory.slug}
+    const columns: ContentTableColumnDef<AiAgentAdminMemoryItem>[] =
+        useMemo(() => {
+            const formatDate = (value: string | null) =>
+                value
+                    ? new Date(value).toLocaleDateString()
+                    : t('memoriesTable.never');
+            return [
+                {
+                    accessorKey: 'title',
+                    header: t('memoriesTable.columns.memory'),
+                    enableSorting: false,
+                    size: 320,
+                    Header: ({ column }) => (
+                        <Group gap="two">
+                            <MantineIcon icon={IconNotebook} color="dimmed" />
+                            {column.columnDef.header}
+                        </Group>
+                    ),
+                    Cell: ({ row }) => {
+                        const memory = row.original;
+                        return (
+                            <Stack gap={2} miw={0}>
+                                <Text fw={600} fz="sm" truncate>
+                                    {memory.title}
+                                </Text>
+                                <Text fz="xs" c="dimmed" truncate>
+                                    {memory.slug}
+                                </Text>
+                            </Stack>
+                        );
+                    },
+                },
+                {
+                    accessorKey: 'status',
+                    header: t('memoriesTable.columns.status'),
+                    enableSorting: false,
+                    size: 120,
+                    Header: ({ column }) => (
+                        <Group gap="two">
+                            <MantineIcon
+                                icon={IconCircleDotted}
+                                color="dimmed"
+                            />
+                            {column.columnDef.header}
+                        </Group>
+                    ),
+                    Cell: ({ row }) => (
+                        <Badge
+                            color={MEMORY_STATUS_COLORS[row.original.status]}
+                        >
+                            {MEMORY_STATUS_LABELS[row.original.status]}
+                        </Badge>
+                    ),
+                },
+                {
+                    accessorKey: 'project.name',
+                    header: t('memoriesTable.columns.project'),
+                    enableSorting: false,
+                    size: 180,
+                    Header: ({ column }) => (
+                        <Group gap="two">
+                            <MantineIcon icon={IconBox} color="dimmed" />
+                            {column.columnDef.header}
+                        </Group>
+                    ),
+                    Cell: ({ row }) => (
+                        <Text fz="sm" truncate>
+                            {row.original.project.name}
+                        </Text>
+                    ),
+                },
+                {
+                    accessorKey: 'agent.name',
+                    header: t('memoriesTable.columns.agent'),
+                    enableSorting: false,
+                    size: 180,
+                    Header: ({ column }) => (
+                        <Group gap="two">
+                            <MantineIcon icon={IconRobotFace} color="dimmed" />
+                            {column.columnDef.header}
+                        </Group>
+                    ),
+                    Cell: ({ row }) => {
+                        const { agent } = row.original;
+                        if (!agent) {
+                            return (
+                                <Text c="ldGray.5" fz="xs" fs="italic">
+                                    {t('memoriesTable.deletedAgent')}
+                                </Text>
+                            );
+                        }
+                        return (
+                            <AgentNamePill
+                                name={agent.name}
+                                imageUrl={agent.imageUrl}
+                            />
+                        );
+                    },
+                },
+                {
+                    accessorKey: 'user.name',
+                    header: t('memoriesTable.columns.user'),
+                    enableSorting: false,
+                    size: 180,
+                    Header: ({ column }) => (
+                        <Group gap="two">
+                            <MantineIcon icon={IconUser} color="dimmed" />
+                            {column.columnDef.header}
+                        </Group>
+                    ),
+                    Cell: ({ row }) => {
+                        const { user } = row.original;
+                        if (!user) {
+                            return (
+                                <Text c="ldGray.5" fz="xs" fs="italic">
+                                    {t('memoriesTable.unknown')}
+                                </Text>
+                            );
+                        }
+                        return (
+                            <Tooltip label={user.email} disabled={!user.email}>
+                                <Text fz="sm" truncate>
+                                    {user.name}
+                                </Text>
+                            </Tooltip>
+                        );
+                    },
+                },
+                {
+                    accessorKey: 'citedCount',
+                    header: t('memoriesTable.columns.cited'),
+                    enableSorting: true,
+                    size: 140,
+                    Header: ({ column }) => (
+                        <Group gap="two">
+                            <MantineIcon icon={IconQuote} color="dimmed" />
+                            {column.columnDef.header}
+                        </Group>
+                    ),
+                    Cell: ({ row }) => (
+                        <Stack gap={2}>
+                            <Badge variant="default">
+                                {row.original.citedCount}
+                            </Badge>
+                            <Text fz="xs" c="dimmed">
+                                {formatDate(row.original.lastCitedAt)}
                             </Text>
                         </Stack>
-                    );
+                    ),
                 },
-            },
-            {
-                accessorKey: 'status',
-                header: 'Status',
-                enableSorting: false,
-                size: 120,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconCircleDotted} color="dimmed" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => (
-                    <Badge color={MEMORY_STATUS_COLORS[row.original.status]}>
-                        {MEMORY_STATUS_LABELS[row.original.status]}
-                    </Badge>
-                ),
-            },
-            {
-                accessorKey: 'project.name',
-                header: 'Project',
-                enableSorting: false,
-                size: 180,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconBox} color="dimmed" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => (
-                    <Text fz="sm" truncate>
-                        {row.original.project.name}
-                    </Text>
-                ),
-            },
-            {
-                accessorKey: 'agent.name',
-                header: 'Agent',
-                enableSorting: false,
-                size: 180,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconRobotFace} color="dimmed" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => {
-                    const { agent } = row.original;
-                    if (!agent) {
-                        return (
-                            <Text c="ldGray.5" fz="xs" fs="italic">
-                                Deleted agent
-                            </Text>
-                        );
-                    }
-                    return (
-                        <AgentNamePill
-                            name={agent.name}
-                            imageUrl={agent.imageUrl}
-                        />
-                    );
-                },
-            },
-            {
-                accessorKey: 'user.name',
-                header: 'User',
-                enableSorting: false,
-                size: 180,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconUser} color="dimmed" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => {
-                    const { user } = row.original;
-                    if (!user) {
-                        return (
-                            <Text c="ldGray.5" fz="xs" fs="italic">
-                                Unknown
-                            </Text>
-                        );
-                    }
-                    return (
-                        <Tooltip label={user.email} disabled={!user.email}>
-                            <Text fz="sm" truncate>
-                                {user.name}
-                            </Text>
-                        </Tooltip>
-                    );
-                },
-            },
-            {
-                accessorKey: 'citedCount',
-                header: 'Cited',
-                enableSorting: true,
-                size: 140,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconQuote} color="dimmed" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => (
-                    <Stack gap={2}>
-                        <Badge variant="default">
-                            {row.original.citedCount}
-                        </Badge>
-                        <Text fz="xs" c="dimmed">
-                            {formatDate(row.original.lastCitedAt)}
+                {
+                    accessorKey: 'generatedAt',
+                    header: t('memoriesTable.columns.generated'),
+                    enableSorting: true,
+                    size: 140,
+                    Header: ({ column }) => (
+                        <Group gap="two">
+                            <MantineIcon icon={IconClock} color="dimmed" />
+                            {column.columnDef.header}
+                        </Group>
+                    ),
+                    Cell: ({ row }) => (
+                        <Text fz="sm" c="ldGray.7">
+                            {formatDate(row.original.generatedAt)}
                         </Text>
-                    </Stack>
-                ),
-            },
-            {
-                accessorKey: 'generatedAt',
-                header: 'Generated',
-                enableSorting: true,
-                size: 140,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconClock} color="dimmed" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => (
-                    <Text fz="sm" c="ldGray.7">
-                        {formatDate(row.original.generatedAt)}
-                    </Text>
-                ),
-            },
-        ],
-        [],
-    );
+                    ),
+                },
+            ];
+        }, [t]);
 
     const table = useContentTable({
         columns,
@@ -367,7 +377,7 @@ const AiAgentAdminMemoriesTable = () => {
                             key={searchInputKey}
                             search={searchInputKey === 0 ? search : undefined}
                             setSearch={setSearch}
-                            placeholder="Search memories"
+                            placeholder={t('memoriesTable.searchPlaceholder')}
                             debounceMs={300}
                         />
 
@@ -380,7 +390,7 @@ const AiAgentAdminMemoriesTable = () => {
                         <ProjectsFilter
                             selectedProjectUuids={selectedProjectUuids}
                             setSelectedProjectUuids={setSelectedProjectUuids}
-                            tooltipLabel="Filter memories by project"
+                            tooltipLabel={t('memoriesTable.filterByProject')}
                             projectScope="all"
                         />
                         <UsersFilter
@@ -415,7 +425,7 @@ const AiAgentAdminMemoriesTable = () => {
                                     }
                                     onClick={handleResetFilters}
                                 >
-                                    Clear all filters
+                                    {t('memoriesTable.clearAllFilters')}
                                 </Button>
                             </>
                         )}
@@ -430,10 +440,11 @@ const AiAgentAdminMemoriesTable = () => {
                     >
                         <Text fz="sm" fw={500}>
                             {isInitialLoading
-                                ? 'Loading...'
-                                : `${tableData.length} of ${totalResults} ${
-                                      totalResults === 1 ? 'memory' : 'memories'
-                                  }`}
+                                ? t('memoriesTable.loading')
+                                : t('memoriesTable.countOf', {
+                                      loaded: tableData.length,
+                                      count: totalResults,
+                                  })}
                         </Text>
                     </Box>
                 </Group>

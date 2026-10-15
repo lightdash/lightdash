@@ -2,6 +2,7 @@ import { type ItemsMap } from '@lightdash/common';
 import { Button, Textarea, Popover } from '@mantine/core';
 import { IconSparkles } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import MantineIcon from '../../../../common/MantineIcon';
 import { useCustomVis } from '../hooks/useCustomVisAi';
@@ -19,6 +20,7 @@ export const GenerateVizWithAi = ({
     editorConfig: string;
     setEditorConfig: (config: string) => void;
 }) => {
+    const { t } = useTranslation('vizConfig');
     const projectUuid = useProjectUuid();
     const [prompt, setPrompt] = useState('');
 
@@ -56,13 +58,13 @@ export const GenerateVizWithAi = ({
                     fz="xs"
                     leftSection={<MantineIcon icon={IconSparkles} />}
                 >
-                    AI
+                    {t('customVis.ai')}
                 </Button>
             </Popover.Target>
 
             <Popover.Dropdown>
                 <Textarea
-                    placeholder="Create a heatmap with detailed tooltips and clear values for fast insights"
+                    placeholder={t('customVis.aiPlaceholder')}
                     autosize
                     autoFocus={true}
                     minRows={1}
@@ -85,7 +87,9 @@ export const GenerateVizWithAi = ({
                     disabled={isLoading}
                     onClick={handleSubmit}
                 >
-                    {isLoading ? 'Generating...' : 'Generate'}
+                    {isLoading
+                        ? t('customVis.generating')
+                        : t('customVis.generate')}
                 </Button>
             </Popover.Dropdown>
         </Popover>

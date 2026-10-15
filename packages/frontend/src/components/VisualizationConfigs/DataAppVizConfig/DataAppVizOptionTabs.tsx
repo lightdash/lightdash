@@ -6,10 +6,14 @@ import {
 } from '@lightdash/common';
 import { Stack, Tabs } from '@mantine/core';
 import { useMemo, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import OverflowTabsList from '../../common/OverflowTabsList/OverflowTabsList';
 import { Config } from '../common/Config';
 import DataAppVizOptionControl from './DataAppVizOptionControl';
-import { groupDataAppVizOptions } from './dataAppVizOptionGroups';
+import {
+    groupDataAppVizOptions,
+    UNGROUPED_OPTIONS_LABEL,
+} from './dataAppVizOptionGroups';
 
 type Props = {
     /** First tab's content — the caller's own viz picker / field mapping. */
@@ -47,6 +51,7 @@ const DataAppVizOptionTabs: FC<Props> = ({
     resolvedColorPalette,
     paletteControl,
 }) => {
+    const { t } = useTranslation('vizConfig');
     const optionGroups = useMemo(
         () => groupDataAppVizOptions(configOptions, colorPalette),
         [configOptions, colorPalette],
@@ -58,11 +63,13 @@ const DataAppVizOptionTabs: FC<Props> = ({
         <Tabs defaultValue="general" keepMounted={false}>
             <OverflowTabsList mb="sm">
                 <Tabs.Tab px="sm" value="general">
-                    General
+                    {t('dataAppViz.optionTabs.general')}
                 </Tabs.Tab>
                 {optionGroups.map((group) => (
                     <Tabs.Tab key={group.id} px="sm" value={group.id}>
-                        {group.label}
+                        {group.label === UNGROUPED_OPTIONS_LABEL
+                            ? t('dataAppViz.optionTabs.display')
+                            : group.label}
                     </Tabs.Tab>
                 ))}
             </OverflowTabsList>

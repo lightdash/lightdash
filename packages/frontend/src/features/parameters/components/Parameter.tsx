@@ -22,6 +22,7 @@ import {
 import { useId } from '@mantine/hooks';
 import { IconGripVertical, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import styles from './Parameter.module.css';
 import { ParameterInput } from './ParameterInput';
@@ -63,6 +64,7 @@ const Parameter: FC<Props> = ({
     shadowedReservedNames = [],
     getUiString,
 }) => {
+    const { t } = useTranslation('explorer');
     const popoverId = useId();
 
     // A value outside the parameter's fixed options is treated as unset
@@ -98,7 +100,7 @@ const Parameter: FC<Props> = ({
                 }
                 return String(defaultVal);
             }
-            return 'any value';
+            return t('parameters.anyValue');
         }
 
         if (parameter.type === 'date' && typeof value === 'string') {
@@ -111,7 +113,7 @@ const Parameter: FC<Props> = ({
         }
 
         return String(value);
-    }, [value, parameter]);
+    }, [value, parameter, t]);
 
     const hasValue = value !== null && value !== undefined && value !== '';
     const hasUnsetRequiredParameter = isRequired && !hasValue;

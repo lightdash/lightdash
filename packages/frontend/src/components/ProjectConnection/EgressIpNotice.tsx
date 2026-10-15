@@ -8,8 +8,10 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import { useTimeout } from '@mantine/hooks';
+import { type TFunction } from 'i18next';
 import { useRef, useState, type FC, type RefObject } from 'react';
-import { describeEgressIps, useEgressIps } from './useEgressIps';
+import { useTranslation } from 'react-i18next';
+import { useEgressIps } from './useEgressIps';
 
 type CopyState = 'idle' | 'copied' | 'selected';
 
@@ -52,19 +54,23 @@ const useCopyWithFallback = (
     return { state, copy };
 };
 
-const tooltipLabel = (state: CopyState, idleLabel: string) => {
-    if (state === 'copied') return 'Copied';
-    if (state === 'selected') return 'Selected. Press Ctrl+C or Cmd+C';
+const tooltipLabel = (t: TFunction, state: CopyState, idleLabel: string) => {
+    if (state === 'copied') return t('egressIp.copied');
+    if (state === 'selected') return t('egressIp.selected');
     return idleLabel;
 };
 
 const CopyIpRow: FC<{ ip: string }> = ({ ip }) => {
+    const { t } = useTranslation('projectConnection');
     const ipRef = useRef<HTMLElement>(null);
     const { state, copy } = useCopyWithFallback(ip, ipRef);
 
     return (
-        <Tooltip label={tooltipLabel(state, 'Copy to clipboard')}>
-            <UnstyledButton aria-label={`Copy ${ip}`} onClick={copy}>
+        <Tooltip label={tooltipLabel(t, state, t('egressIp.copyToClipboard'))}>
+            <UnstyledButton
+                aria-label={t('egressIp.copyIp', { ip })}
+                onClick={copy}
+            >
                 <Code ref={ipRef} c={state === 'copied' ? 'teal' : undefined}>
                     {ip}
                 </Code>
@@ -77,11 +83,12 @@ const CopyAllButton: FC<{
     ips: string[];
     listRef: RefObject<HTMLDivElement | null>;
 }> = ({ ips, listRef }) => {
+    const { t } = useTranslation('projectConnection');
     const { state, copy } = useCopyWithFallback(ips.join(', '), listRef);
 
     return (
         <Tooltip
-            label={tooltipLabel(state, 'Copy all IP addresses')}
+            label={tooltipLabel(t, state, t('egressIp.copyAllTooltip'))}
             disabled={state === 'idle'}
         >
             <Button
@@ -91,7 +98,7 @@ const CopyAllButton: FC<{
                 onClick={copy}
                 w="fit-content"
             >
-                Copy all
+                {t('egressIp.copyAll')}
             </Button>
         </Tooltip>
     );
@@ -113,14 +120,14 @@ const EgressIpList: FC<{ ips: string[] }> = ({ ips }) => {
 };
 
 export const EgressIpNotice: FC = () => {
+    const { t } = useTranslation('projectConnection');
     const ips = useEgressIps();
     if (ips.length === 0) return null;
-    const { noun, pronoun } = describeEgressIps(ips.length);
 
     return (
         <Input.Wrapper
-            label={`Lightdash ${noun}`}
-            description={`Lightdash connects to your warehouse from this instance's ${noun}. Add ${pronoun} to your firewall or allowlist.`}
+            label={t('egressIp.label', { count: ips.length })}
+            description={t('egressIp.description', { count: ips.length })}
             mt="sm"
         >
             <Box mt={6}>

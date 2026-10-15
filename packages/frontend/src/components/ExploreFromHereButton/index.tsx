@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import { Button, Menu } from '@mantine/core';
 import { IconTelescope } from '@tabler/icons-react';
 import { useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import {
     selectSavedChart,
@@ -19,6 +20,7 @@ const ExploreFromHereButton = ({
 }: {
     asMenuItem?: boolean;
 }) => {
+    const { t } = useTranslation('explorer');
     // Get savedChart from Redux
     const authoringEnabled = useContentAuthoringEnabled();
     const savedChart = useExplorerSelector(selectSavedChart);
@@ -62,10 +64,10 @@ const ExploreFromHereButton = ({
     };
 
     return asMenuItem ? (
-        <Menu.Item {...actionProps}>Explore from here</Menu.Item>
+        <Menu.Item {...actionProps}>{t('exploreFromHere.label')}</Menu.Item>
     ) : (
         <Button size="xs" {...actionProps}>
-            Explore from here
+            {t('exploreFromHere.label')}
         </Button>
     );
 };

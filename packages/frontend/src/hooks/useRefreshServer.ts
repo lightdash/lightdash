@@ -8,7 +8,9 @@ import {
     type JobStep,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../api';
+import i18n from '../i18n/i18n';
 import useActiveJob from '../providers/ActiveJob/useActiveJob';
 import useToaster from './toaster/useToaster';
 import { useProjectUuid } from './useProjectUuid';
@@ -16,15 +18,15 @@ import { useProjectUuid } from './useProjectUuid';
 export const jobStepStatusLabel = (status: JobStepStatusType) => {
     switch (status) {
         case JobStepStatusType.DONE:
-            return 'Completed';
+            return i18n.t('useRefreshServer.steps.done', { ns: 'app' });
         case JobStepStatusType.PENDING:
-            return 'Pending';
+            return i18n.t('useRefreshServer.steps.pending', { ns: 'app' });
         case JobStepStatusType.SKIPPED:
-            return 'Skipped';
+            return i18n.t('useRefreshServer.steps.skipped', { ns: 'app' });
         case JobStepStatusType.ERROR:
-            return 'Error';
+            return i18n.t('useRefreshServer.steps.error', { ns: 'app' });
         case JobStepStatusType.RUNNING:
-            return 'Running';
+            return i18n.t('useRefreshServer.steps.running', { ns: 'app' });
         default:
             throw new Error('Unknown job step status');
     }
@@ -33,26 +35,26 @@ export const jobStatusLabel = (status: JobStatusType, jobType?: JobType) => {
     if (jobType === JobType.CREATE_PROJECT) {
         switch (status) {
             case JobStatusType.DONE:
-                return 'Project created!';
+                return i18n.t('useRefreshServer.create.done', { ns: 'app' });
             case JobStatusType.STARTED:
-                return 'Pending project creation';
+                return i18n.t('useRefreshServer.create.started', { ns: 'app' });
             case JobStatusType.ERROR:
-                return 'Error while creating project';
+                return i18n.t('useRefreshServer.create.error', { ns: 'app' });
             case JobStatusType.RUNNING:
-                return 'Creating your project';
+                return i18n.t('useRefreshServer.create.running', { ns: 'app' });
             default:
                 throw new Error('Unknown job status');
         }
     }
     switch (status) {
         case JobStatusType.DONE:
-            return 'Successfully synced project!';
+            return i18n.t('useRefreshServer.sync.done', { ns: 'app' });
         case JobStatusType.STARTED:
-            return 'Pending sync';
+            return i18n.t('useRefreshServer.sync.started', { ns: 'app' });
         case JobStatusType.ERROR:
-            return 'Error while syncing project';
+            return i18n.t('useRefreshServer.sync.error', { ns: 'app' });
         case JobStatusType.RUNNING:
-            return 'Syncing project';
+            return i18n.t('useRefreshServer.sync.running', { ns: 'app' });
         default:
             throw new Error('Unknown job status');
     }
@@ -66,7 +68,11 @@ export const getJobCompletionToast = (
         job.jobResults?.errorCount !== undefined &&
         job.jobResults.errorCount > 0 &&
         job.jobResults.total !== undefined
-            ? `${job.jobResults.errorCount} of ${job.jobResults.total} tables have errors`
+            ? i18n.t('useRefreshServer.tablesWithErrors', {
+                  ns: 'app',
+                  count: job.jobResults.errorCount,
+                  total: job.jobResults.total,
+              })
             : null;
     if (
         job.jobType === JobType.COMPILE_PROJECT &&
@@ -75,8 +81,11 @@ export const getJobCompletionToast = (
         return {
             variant: 'warning',
             title: tableErrors
-                ? `Connections failed to compile; ${tableErrors}`
-                : 'Connections failed to compile',
+                ? i18n.t('useRefreshServer.connectionsFailedWithTables', {
+                      ns: 'app',
+                      tableErrors,
+                  })
+                : i18n.t('useRefreshServer.connectionsFailed', { ns: 'app' }),
             message: job.jobResults.connectionWarnings
                 .map((warning) => `- ${warning}`)
                 .join('\n'),
@@ -85,7 +94,10 @@ export const getJobCompletionToast = (
     if (tableErrors) {
         return {
             variant: 'warning',
-            title: `Synced: ${tableErrors}`,
+            title: i18n.t('useRefreshServer.synced', {
+                ns: 'app',
+                tableErrors,
+            }),
         };
     }
 
@@ -103,10 +115,12 @@ export const runningStepsInfo = (steps: JobStep[]) => {
         return step.stepStatus === 'DONE';
     }).length;
     const completedStepsMessage = `${numberOfCompletedSteps}/${steps.length}`;
-    const runningStepMessage = `Step ${Math.min(
-        numberOfCompletedSteps + 1,
-        steps.length,
-    )}/${steps.length}: ${runningStep?.stepLabel || ''}`;
+    const runningStepMessage = i18n.t('useRefreshServer.runningStep', {
+        ns: 'app',
+        step: Math.min(numberOfCompletedSteps + 1, steps.length),
+        total: steps.length,
+        label: runningStep?.stepLabel || '',
+    });
 
     return {
         runningStep,
@@ -169,6 +183,7 @@ export const useRefreshServer = () => {
     const projectUuid = useProjectUuid();
     const queryClient = useQueryClient();
     const { setActiveJobId } = useActiveJob();
+    const { t } = useTranslation('app');
     const { showToastApiError } = useToaster();
     return useMutation<ApiRefreshResults, ApiError, RefreshServerVariables>({
         mutationKey: ['refresh', projectUuid],
@@ -178,7 +193,7 @@ export const useRefreshServer = () => {
         onSuccess: (data) => setActiveJobId(data.jobUuid),
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Error syncing project',
+                title: t('useRefreshServer.errorSyncingProject'),
                 apiError: error,
             }),
     });

@@ -19,6 +19,7 @@ import {
 import { IconSparkles } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import Callout from '../../../components/common/Callout';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
@@ -45,19 +46,10 @@ const SEVERITY_COLOR: Record<DataAppAnomalySeverity, string> = {
     info: 'gray',
 };
 
-const SEVERITY_LABEL: Record<DataAppAnomalySeverity, string> = {
-    high: 'High',
-    medium: 'Medium',
-    positive: 'Positive',
-    info: 'Info',
-};
-
-const NO_AGENT_COPY =
-    "You don't have access to an AI agent in this project, so notable data points are listed but can't be investigated.";
-
 const Unavailable: FC<{ reason: DataAppAnalysisUnavailableReason }> = ({
     reason,
 }) => {
+    const { t } = useTranslation('apps');
     const { user } = useApp();
     const settingsPath = UNAVAILABLE_SETTINGS_PATH[reason];
     const canManage = user.data?.ability.can('manage', 'Organization') ?? false;
@@ -70,11 +62,11 @@ const Unavailable: FC<{ reason: DataAppAnalysisUnavailableReason }> = ({
                 {settingsPath &&
                     (canManage ? (
                         <Anchor component={Link} to={settingsPath} fz="sm">
-                            Turn it on in settings
+                            {t('analysis.turnOnInSettings')}
                         </Anchor>
                     ) : (
                         <Text fz="sm" c="dimmed">
-                            Ask an organization admin to turn it on.
+                            {t('analysis.askAdmin')}
                         </Text>
                     ))}
             </Stack>
@@ -103,75 +95,81 @@ const AnomalyCard: FC<{
     onHover,
     onInvestigate,
     onContinue,
-}) => (
-    <Paper
-        p="md"
-        className={
-            highlightable ? classes.anomalyHighlightable : classes.anomaly
-        }
-        onMouseEnter={() => highlightable && onHover(anomaly.queryUuid)}
-        onMouseLeave={() => highlightable && onHover(null)}
-    >
-        <Stack gap="xs">
-            <Group gap="xs" justify="space-between" wrap="nowrap">
-                <Badge color={SEVERITY_COLOR[anomaly.severity]}>
-                    {SEVERITY_LABEL[anomaly.severity]}
-                </Badge>
-                {investigable && investigation.status === 'idle' && (
-                    <Tooltip
-                        label="Pick an agent to investigate"
-                        disabled={canInvestigate}
-                    >
-                        <Button
-                            size="xs"
-                            variant="default"
-                            onClick={onInvestigate}
-                            disabled={!canInvestigate}
+}) => {
+    const { t } = useTranslation('apps');
+    return (
+        <Paper
+            p="md"
+            className={
+                highlightable ? classes.anomalyHighlightable : classes.anomaly
+            }
+            onMouseEnter={() => highlightable && onHover(anomaly.queryUuid)}
+            onMouseLeave={() => highlightable && onHover(null)}
+        >
+            <Stack gap="xs">
+                <Group gap="xs" justify="space-between" wrap="nowrap">
+                    <Badge color={SEVERITY_COLOR[anomaly.severity]}>
+                        {t(`analysis.severity.${anomaly.severity}`)}
+                    </Badge>
+                    {investigable && investigation.status === 'idle' && (
+                        <Tooltip
+                            label={t('analysis.pickAgentToInvestigate')}
+                            disabled={canInvestigate}
                         >
-                            Investigate
-                        </Button>
-                    </Tooltip>
-                )}
-            </Group>
-            <Text fz="sm">{anomaly.text}</Text>
-            {investigation.status === 'running' && (
-                <EmptyStateLoader title="Investigating…" py="sm" />
-            )}
-            {investigation.status === 'error' && (
-                <InlineErrorState
-                    message={investigation.message}
-                    onRetry={onInvestigate}
-                />
-            )}
-            {investigation.status === 'ready' && (
-                <Stack gap="xs">
-                    <MDEditor.Markdown
-                        source={investigation.investigation.explanation}
-                        className={classes.markdown}
-                        rehypeRewrite={rehypeRemoveHeaderLinks}
-                    />
-                    {investigation.investigation.partial && (
-                        <Text fz="xs" c="dimmed">
-                            The query budget ran out; this is a partial answer.
-                        </Text>
-                    )}
-                    {canContinue && (
-                        <Group justify="flex-end">
                             <Button
                                 size="xs"
-                                variant="light"
-                                color="indigo"
-                                onClick={onContinue}
+                                variant="default"
+                                onClick={onInvestigate}
+                                disabled={!canInvestigate}
                             >
-                                Continue in Ask AI
+                                {t('analysis.investigate')}
                             </Button>
-                        </Group>
+                        </Tooltip>
                     )}
-                </Stack>
-            )}
-        </Stack>
-    </Paper>
-);
+                </Group>
+                <Text fz="sm">{anomaly.text}</Text>
+                {investigation.status === 'running' && (
+                    <EmptyStateLoader
+                        title={t('analysis.investigating')}
+                        py="sm"
+                    />
+                )}
+                {investigation.status === 'error' && (
+                    <InlineErrorState
+                        message={investigation.message}
+                        onRetry={onInvestigate}
+                    />
+                )}
+                {investigation.status === 'ready' && (
+                    <Stack gap="xs">
+                        <MDEditor.Markdown
+                            source={investigation.investigation.explanation}
+                            className={classes.markdown}
+                            rehypeRewrite={rehypeRemoveHeaderLinks}
+                        />
+                        {investigation.investigation.partial && (
+                            <Text fz="xs" c="dimmed">
+                                {t('analysis.partialAnswer')}
+                            </Text>
+                        )}
+                        {canContinue && (
+                            <Group justify="flex-end">
+                                <Button
+                                    size="xs"
+                                    variant="light"
+                                    color="indigo"
+                                    onClick={onContinue}
+                                >
+                                    {t('analysis.continueInAskAi')}
+                                </Button>
+                            </Group>
+                        )}
+                    </Stack>
+                )}
+            </Stack>
+        </Paper>
+    );
+};
 
 type Props = {
     opened: boolean;
@@ -191,6 +189,7 @@ const DataAppAnalysisPanel: FC<Props> = ({
     lineageAvailable,
     onHoverQuery,
 }) => {
+    const { t } = useTranslation('apps');
     const {
         sources,
         inFlight,
@@ -232,7 +231,7 @@ const DataAppAnalysisPanel: FC<Props> = ({
                     <Drawer.Title>
                         <Group gap="xs">
                             <MantineIcon icon={IconSparkles} color="indigo" />
-                            <Title order={5}>AI analysis</Title>
+                            <Title order={5}>{t('analysis.title')}</Title>
                         </Group>
                     </Drawer.Title>
                     <Drawer.CloseButton />
@@ -252,14 +251,16 @@ const DataAppAnalysisPanel: FC<Props> = ({
                                     >
                                         {agentAccess === 'none' ? (
                                             <Text flex={1} fz="xs" c="dimmed">
-                                                {NO_AGENT_COPY}
+                                                {t('analysis.noAgent')}
                                             </Text>
                                         ) : (
                                             <Select
                                                 size="xs"
                                                 flex={1}
-                                                label="Agent for investigations"
-                                                placeholder="Pick an agent"
+                                                label={t('analysis.agentLabel')}
+                                                placeholder={t(
+                                                    'analysis.agentPlaceholder',
+                                                )}
                                                 data={agents.map((a) => ({
                                                     value: a.uuid,
                                                     label: a.name,
@@ -270,7 +271,9 @@ const DataAppAnalysisPanel: FC<Props> = ({
                                                 }
                                                 error={
                                                     rememberedAgentMissing
-                                                        ? 'The agent you picked is no longer available'
+                                                        ? t(
+                                                              'analysis.agentMissing',
+                                                          )
                                                         : undefined
                                                 }
                                                 disabled={agentsLoading}
@@ -291,24 +294,25 @@ const DataAppAnalysisPanel: FC<Props> = ({
                                             }
                                         >
                                             {state.status === 'idle'
-                                                ? 'Analyse this view'
-                                                : 'Re-analyse'}
+                                                ? t('analysis.analyse')
+                                                : t('analysis.reanalyse')}
                                         </Button>
                                     </Group>
                                     <Text fz="xs" c="dimmed">
-                                        Based on the queries this app ran for
-                                        the current filters
                                         {sources.length > 0
-                                            ? ` (${sources.length})`
-                                            : ''}
-                                        ; hidden tabs may be included.
+                                            ? t('analysis.basedOnCount', {
+                                                  count: sources.length,
+                                              })
+                                            : t('analysis.basedOn')}
                                         {inFlight
-                                            ? ' Waiting for queries to finish.'
+                                            ? ` ${t('analysis.waitingForQueries')}`
                                             : ''}
                                     </Text>
 
                                     {state.status === 'analysing' && (
-                                        <EmptyStateLoader title="Reading the data on this page…" />
+                                        <EmptyStateLoader
+                                            title={t('analysis.reading')}
+                                        />
                                     )}
                                     {state.status === 'error' && (
                                         <InlineErrorState
@@ -321,11 +325,11 @@ const DataAppAnalysisPanel: FC<Props> = ({
                                             {state.stale && (
                                                 <Callout
                                                     variant="warning"
-                                                    title="The view changed"
+                                                    title={t(
+                                                        'analysis.stale.title',
+                                                    )}
                                                 >
-                                                    This analysis covers an
-                                                    earlier set of queries.
-                                                    Re-analyse to refresh it.
+                                                    {t('analysis.stale.body')}
                                                 </Callout>
                                             )}
                                             <Stack gap="xs">
@@ -340,8 +344,9 @@ const DataAppAnalysisPanel: FC<Props> = ({
                                             0 ? (
                                                 <Paper variant="dotted" p="md">
                                                     <Text fz="sm" c="dimmed">
-                                                        Nothing notable found in
-                                                        the current view.
+                                                        {t(
+                                                            'analysis.nothingNotable',
+                                                        )}
                                                     </Text>
                                                 </Paper>
                                             ) : (
@@ -398,7 +403,9 @@ const DataAppAnalysisPanel: FC<Props> = ({
                                                 0 && (
                                                 <Callout
                                                     variant="info"
-                                                    title="Limitations"
+                                                    title={t(
+                                                        'analysis.limitations',
+                                                    )}
                                                 >
                                                     <Stack gap={4}>
                                                         {state.analysis.limitations.map(
@@ -417,14 +424,19 @@ const DataAppAnalysisPanel: FC<Props> = ({
                                                 </Callout>
                                             )}
                                             <Text fz="xs" c="dimmed">
-                                                AI-generated from the data on
-                                                this page
+                                                {t('analysis.footer')}
                                                 {state.analysis.dataAsOf
-                                                    ? ` · Data as of ${state.analysis.dataAsOf}`
+                                                    ? ` · ${t('analysis.dataAsOf', { date: state.analysis.dataAsOf })}`
                                                     : ''}
-                                                {` · Generated ${new Date(
-                                                    state.analysis.generatedAt,
-                                                ).toLocaleString()}`}
+                                                {` · ${t(
+                                                    'analysis.generatedAt',
+                                                    {
+                                                        date: new Date(
+                                                            state.analysis
+                                                                .generatedAt,
+                                                        ).toLocaleString(),
+                                                    },
+                                                )}`}
                                             </Text>
                                         </>
                                     )}

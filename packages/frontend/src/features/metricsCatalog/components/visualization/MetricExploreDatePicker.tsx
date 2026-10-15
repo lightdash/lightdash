@@ -19,6 +19,7 @@ import {
     useMatches,
 } from '@mantine/core';
 import { useCallback, useEffect, useRef, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import CalendarRangePicker from '../../../../components/common/DatePickers/CalendarRangePicker';
 import MonthRangePicker from '../../../../components/common/DatePickers/MonthRangePicker';
 import YearRangePicker from '../../../../components/common/DatePickers/YearRangePicker';
@@ -58,6 +59,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
 }) => {
     const compact = useMatches({ base: true, sm: false });
     const getUiString = useUiStrings();
+    const { t } = useTranslation('metricsCatalog');
     const { track } = useTracking();
     const userUuid = useAppSelector(
         (state) => state.metricsCatalog.user?.userUuid,
@@ -116,7 +118,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
     const customWithPresets = [
         {
             label: effectiveMatchingPresetLabel ? (
-                'Custom'
+                t('datePicker.custom')
             ) : (
                 <UnstyledButton
                     onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
@@ -125,10 +127,16 @@ export const MetricExploreDatePicker: FC<Props> = ({
                     }}
                 >
                     <Text size="sm" fw={500} c="ldDark.8">
-                        Custom:{' '}
-                        <Text size="sm" fw={500} c="dimmed" span>
-                            {buttonLabel}
-                        </Text>
+                        <Trans
+                            t={t}
+                            i18nKey="datePicker.customWithRange"
+                            values={{ range: buttonLabel }}
+                            components={{
+                                range: (
+                                    <Text size="sm" fw={500} c="dimmed" span />
+                                ),
+                            }}
+                        />
                     </Text>
                 </UnstyledButton>
             ),
@@ -137,9 +145,10 @@ export const MetricExploreDatePicker: FC<Props> = ({
         ...presets.map((preset) => ({
             label: (
                 <Tooltip
-                    label={`${formatDate(preset.getValue()[0])} to ${formatDate(
-                        preset.getValue()[1],
-                    )}`}
+                    label={t('datePicker.presetRange', {
+                        from: formatDate(preset.getValue()[0]),
+                        to: formatDate(preset.getValue()[1]),
+                    })}
                 >
                     <Box>{preset.controlLabel}</Box>
                 </Tooltip>
@@ -226,7 +235,10 @@ export const MetricExploreDatePicker: FC<Props> = ({
                     )}
                     {showTimeDimensionIntervalPicker &&
                         timeDimensionBaseField && (
-                            <Tooltip label="Change granularity" position="top">
+                            <Tooltip
+                                label={t('datePicker.changeGranularity')}
+                                position="top"
+                            >
                                 <Box>
                                     <TimeDimensionIntervalPicker
                                         dimension={timeDimensionBaseField}
@@ -341,7 +353,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                             border: `1px solid ${theme.colors.ldGray[2]}`,
                                         })}
                                     >
-                                        Cancel
+                                        {t('datePicker.cancel')}
                                     </Button>
                                     <Button
                                         size="xs"
@@ -354,7 +366,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                             boxShadow: theme.shadows.subtle,
                                         })}
                                     >
-                                        Apply
+                                        {t('datePicker.apply')}
                                     </Button>
                                 </Group>
                             </Group>

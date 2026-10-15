@@ -1,4 +1,5 @@
 import { SpaceMemberRole } from '@lightdash/common';
+import { type TFunction } from 'i18next';
 import { UserAccessAction, type AccessOption } from './ShareSpaceSelect';
 
 export const enum InheritanceType {
@@ -6,36 +7,42 @@ export const enum InheritanceType {
     OWN_ONLY = 'own_only',
 }
 
-export const RootInheritanceOptions: AccessOption[] = [
+export const getRootInheritanceOptions = (
+    t: TFunction<'modals'>,
+): AccessOption[] => [
     {
-        title: 'Inherited access',
-        description: 'All members of this project can access this space',
-        selectDescription: 'All members of this project can access this space',
+        title: t('shareSpace.inheritance.inheritedTitle'),
+        description: t('shareSpace.inheritance.rootInheritedDescription'),
+        selectDescription: t('shareSpace.inheritance.rootInheritedDescription'),
         value: InheritanceType.INHERIT,
     },
     {
-        title: 'Restricted access',
-        description: 'Only invited users & groups can access this space',
-        selectDescription: 'Only invited users & groups can access this space',
+        title: t('shareSpace.inheritance.restrictedTitle'),
+        description: t('shareSpace.inheritance.rootRestrictedDescription'),
+        selectDescription: t(
+            'shareSpace.inheritance.rootRestrictedDescription',
+        ),
         value: InheritanceType.OWN_ONLY,
     },
 ];
 
-export const NestedInheritanceOptions: AccessOption[] = [
+export const getNestedInheritanceOptions = (
+    t: TFunction<'modals'>,
+): AccessOption[] => [
     {
-        title: 'Inherited access',
-        description:
-            'Users with access to the parent space also have access here',
-        selectDescription:
-            "Access from parent spaces is added to this space's own access",
+        title: t('shareSpace.inheritance.inheritedTitle'),
+        description: t('shareSpace.inheritance.nestedInheritedDescription'),
+        selectDescription: t(
+            'shareSpace.inheritance.nestedInheritedSelectDescription',
+        ),
         value: InheritanceType.INHERIT,
     },
     {
-        title: 'Restricted access',
-        description:
-            'Only invited users & groups, as well as admins, can access this space',
-        selectDescription:
-            'This space ignores parent space permissions and uses only its own access list',
+        title: t('shareSpace.inheritance.restrictedTitle'),
+        description: t('shareSpace.inheritance.nestedRestrictedDescription'),
+        selectDescription: t(
+            'shareSpace.inheritance.nestedRestrictedSelectDescription',
+        ),
         value: InheritanceType.OWN_ONLY,
     },
 ];

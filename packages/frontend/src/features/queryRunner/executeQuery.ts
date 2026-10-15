@@ -9,6 +9,7 @@ import {
     type RawResultRow,
 } from '@lightdash/common';
 import { lightdashApi } from '../../api';
+import i18n from '../../i18n/i18n';
 import { getResultsFromStream } from '../../utils/request';
 import type { ResultsAndColumns } from '../sqlRunner/hooks/useSqlQueryRun';
 
@@ -102,11 +103,16 @@ export const executeSqlQuery = async (
         query.status === QueryHistoryStatus.ERROR ||
         query.status === QueryHistoryStatus.EXPIRED
     ) {
-        throw new Error(query.error || 'Error executing SQL query');
+        throw new Error(
+            query.error ||
+                i18n.t('queryRunner.errors.sqlQueryFailed', { ns: 'explorer' }),
+        );
     }
 
     if (query.status !== QueryHistoryStatus.READY) {
-        throw new Error('Unexpected query status');
+        throw new Error(
+            i18n.t('queryRunner.errors.unexpectedStatus', { ns: 'explorer' }),
+        );
     }
 
     const fileUrl = `/api/v2/projects/${projectUuid}/query/${response.queryUuid}/results`;
@@ -141,11 +147,16 @@ export const readPivotQueryResults = async (
         query.status === QueryHistoryStatus.ERROR ||
         query.status === QueryHistoryStatus.EXPIRED
     ) {
-        throw new Error(query.error || 'Error executing SQL query');
+        throw new Error(
+            query.error ||
+                i18n.t('queryRunner.errors.sqlQueryFailed', { ns: 'explorer' }),
+        );
     }
 
     if (query.status !== QueryHistoryStatus.READY) {
-        throw new Error('Unexpected query status');
+        throw new Error(
+            i18n.t('queryRunner.errors.unexpectedStatus', { ns: 'explorer' }),
+        );
     }
 
     const fileUrl = `/api/v2/projects/${projectUuid}/query/${queryUuid}/results`;
@@ -171,7 +182,11 @@ export const executeSqlPivotQuery = async (
     payload: ExecuteAsyncSqlQueryRequestParams,
 ) => {
     if (!payload.pivotConfiguration) {
-        throw new Error('Pivot configuration is required');
+        throw new Error(
+            i18n.t('queryRunner.errors.pivotConfigRequired', {
+                ns: 'explorer',
+            }),
+        );
     }
 
     const response = await lightdashApi<ApiExecuteAsyncSqlQueryResults>({

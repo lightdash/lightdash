@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import { Text } from '@mantine/core';
 import { IconArrowBackUp, IconEdit, IconPlus } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
@@ -24,6 +25,7 @@ type Props = {
 const SwitchBackButton: FC<{ organizationUuid: string | undefined }> = ({
     organizationUuid,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const settings = useOrgHomepageSettings();
     const updateSettings = useUpdateOrgHomepageSettings();
@@ -35,20 +37,20 @@ const SwitchBackButton: FC<{ organizationUuid: string | undefined }> = ({
             <button
                 type="button"
                 className={classes.tbBtn}
-                aria-label="Switch back to classic homepage"
+                aria-label={t('adminControls.switchBack.ariaLabel')}
                 onClick={() => setIsConfirmOpen(true)}
             >
                 <MantineIcon icon={IconArrowBackUp} size={15} />
                 <span className={classes.tbBtnLabel} aria-hidden="true">
-                    Classic homepage
+                    {t('adminControls.switchBack.label')}
                 </span>
             </button>
             <MantineModal
                 opened={isConfirmOpen}
                 onClose={() => setIsConfirmOpen(false)}
                 role="alertdialog"
-                title="Switch back to the classic homepage?"
-                confirmLabel="Switch back"
+                title={t('adminControls.switchBack.title')}
+                confirmLabel={t('adminControls.switchBack.confirm')}
                 confirmLoading={updateSettings.isLoading}
                 onConfirm={() =>
                     updateSettings.mutate(
@@ -61,9 +63,7 @@ const SwitchBackButton: FC<{ organizationUuid: string | undefined }> = ({
                 }
             >
                 <Text size="sm">
-                    This turns the new homepage off for every project in your
-                    organization. Published homepages are kept, and everything
-                    comes back exactly as it was if you turn it on again.
+                    {t('adminControls.switchBack.description')}
                 </Text>
             </MantineModal>
         </Can>
@@ -77,6 +77,7 @@ export const AdminHomepageControls: FC<Props> = ({
     organizationUuid,
     showNewHomepage = false,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const navigate = useNavigate();
     const contentAuthoringEnabled = useContentAuthoringEnabled();
     const [isPageScrolled, setIsPageScrolled] = useState(false);
@@ -114,7 +115,7 @@ export const AdminHomepageControls: FC<Props> = ({
                     <button
                         type="button"
                         className={classes.tbBtn}
-                        aria-label="New homepage"
+                        aria-label={t('adminControls.newHomepage')}
                         onClick={() =>
                             navigate(
                                 `/projects/${projectUuid}/homepage-builder?create=1`,
@@ -123,14 +124,14 @@ export const AdminHomepageControls: FC<Props> = ({
                     >
                         <MantineIcon icon={IconPlus} size={15} />
                         <span className={classes.tbBtnLabel} aria-hidden="true">
-                            New homepage
+                            {t('adminControls.newHomepage')}
                         </span>
                     </button>
                 )}
                 <button
                     type="button"
                     className={classes.tbBtn}
-                    aria-label="Customize homepage"
+                    aria-label={t('adminControls.customize')}
                     // Anchor for scope walkthroughs (data-tour-via)
                     data-tour-anchor="customize-homepage"
                     data-tour-hint="Click Customize homepage"
@@ -140,7 +141,7 @@ export const AdminHomepageControls: FC<Props> = ({
                 >
                     <MantineIcon icon={IconEdit} size={15} />
                     <span className={classes.tbBtnLabel} aria-hidden="true">
-                        Customize homepage
+                        {t('adminControls.customize')}
                     </span>
                 </button>
             </Can>

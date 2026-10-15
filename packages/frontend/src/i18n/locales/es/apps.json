@@ -1,0 +1,543 @@
+{
+    "models": {
+        "opus": "Máxima calidad. Ideal para construcciones complejas. El más lento.",
+        "sonnet": "Equilibrio entre calidad y velocidad. Adecuado para la mayoría del trabajo.",
+        "haiku": "El más rápido. Ideal para iteraciones rápidas y ajustes sencillos.",
+        "sol": "Máxima calidad. Ideal para construcciones complejas.",
+        "terra": "Equilibrio entre inteligencia y coste. Adecuado para la mayoría del trabajo.",
+        "luna": "El coste más bajo. Ideal para iteraciones sencillas y grandes volúmenes."
+    },
+    "resourcePicker": {
+        "screenshot": {
+            "tooltip": "Capturar una imagen de la vista previa y adjuntarla",
+            "ariaLabel": "Capturar imagen"
+        },
+        "searchOrPaste": "Busca o pega un enlace...",
+        "loadMore": "Cargar más",
+        "done": "Listo",
+        "queries": {
+            "empty": "No se encontraron gráficos"
+        },
+        "attachedImageAlt": "Adjunto",
+        "sampleData": {
+            "tooltip": "Incluir datos de muestra: ejecuta esta consulta y comparte hasta 10 filas con el generador de apps para que vea valores reales (rangos de fechas, etiquetas, magnitudes). Desactivado por defecto porque las filas pueden ser sensibles.",
+            "include": "Incluir datos de muestra",
+            "includedTooltip": "Datos de muestra incluidos: haz clic para quitarlos.",
+            "on": "Datos de muestra: activados",
+            "dashboardSuffix": "Se aplica a todos los gráficos de este dashboard."
+        },
+        "linkLive": {
+            "tooltip": "Enlazar en vivo: ejecuta este gráfico por referencia para que la app se actualice cuando el gráfico cambie en Lightdash.",
+            "ariaLabel": "Enlazar en vivo",
+            "linkedTooltip": "Enlazado en vivo: haz clic para desenlazar (volver a una consulta copiada).",
+            "on": "Enlazado: activado"
+        },
+        "dashboard": {
+            "empty": "No se encontraron dashboards"
+        },
+        "connections": {
+            "noMatches": "Ninguna conexión coincide con tu búsqueda",
+            "noneYet": "Aún no hay conexiones externas",
+            "noneAvailable": "No hay conexiones externas disponibles",
+            "search": "Buscar conexiones...",
+            "askAdmin": "Pide a un administrador del proyecto que habilite una conexión para enlazarla desde el constructor.",
+            "new": "Nueva conexión",
+            "unlink": {
+                "title": "¿Desenlazar {{name}}?",
+                "titleFallback": "¿Desenlazar la conexión?",
+                "description": "Desenlazar elimina el acceso a esta conexión. Es posible que no puedas volver a enlazarla sin la ayuda de un administrador del proyecto.",
+                "confirm": "Desenlazar conexión",
+                "cancel": "Mantener conexión"
+            },
+            "attachedCount_one": "{{count}} conexión externa adjunta",
+            "attachedCount_other": "{{count}} conexiones externas adjuntas",
+            "attachedTooltip": "{{label}}: {{names}}"
+        },
+        "header": {
+            "queries": {
+                "title": "Añadir consultas",
+                "subtitle": "Selecciona las consultas que incluir en la app"
+            },
+            "connections": {
+                "title": "Añadir conexiones externas",
+                "subtitle": "Permite que la app obtenga datos de estas API externas"
+            },
+            "dashboard": {
+                "title": "Añadir un dashboard",
+                "subtitle": "Todos los mosaicos de gráficos se incluirán como referencias"
+            }
+        },
+        "attach": {
+            "tooltip": "Añadir gráficos, dashboards, conexiones o archivos",
+            "ariaLabel": "Adjuntar recursos",
+            "button": "Adjuntar"
+        },
+        "menu": {
+            "queries": {
+                "title": "Consultas",
+                "description": "Adjuntar gráficos guardados"
+            },
+            "dashboard": {
+                "title": "Dashboard",
+                "description": "Adjuntar todos los mosaicos de un dashboard"
+            },
+            "files": {
+                "title": "Archivos",
+                "limit": "Se alcanzó el límite de adjuntos",
+                "description": "Sube imágenes, PDF o archivos de texto"
+            },
+            "connections": {
+                "title": "Conexiones externas",
+                "description": "Permite que la app obtenga datos de API externas"
+            }
+        },
+        "backToMenu": "Volver al menú de adjuntos"
+    },
+    "common": {
+        "unknownError": "Error desconocido",
+        "removeNamed": "Quitar {{name}}",
+        "somethingWentWrong": "Algo salió mal"
+    },
+    "actionsMenu": {
+        "thumbnailRemoved": "Miniatura eliminada",
+        "thumbnailRemoveFailed": "No se pudo eliminar la miniatura",
+        "ariaLabel": "Acciones de la app",
+        "refresh": "Actualizar",
+        "scheduleDelivery": "Programar envío",
+        "googleSheetsSync": "Sincronización con Google Sheets",
+        "removeVerification": "Quitar verificación",
+        "verify": "Verificar",
+        "new": "Nuevo",
+        "upgrade": "Actualizar app",
+        "rename": "Renombrar",
+        "autoAnalysis": {
+            "title": "Analizar al cargar",
+            "inheritOn": "Usar valor predeterminado de la organización (activado)",
+            "inheritOff": "Usar valor predeterminado de la organización (desactivado)",
+            "on": "Activado",
+            "off": "Desactivado"
+        },
+        "captureThumbnail": "Capturar miniatura",
+        "removeThumbnail": "Eliminar miniatura",
+        "duplicate": "Duplicar",
+        "moveToSpace": "Mover a un espacio",
+        "addToSpace": "Añadir a un espacio",
+        "promote": "Promocionar",
+        "share": "Compartir"
+    },
+    "versionHistory": {
+        "buildDetails": "Detalles de la compilación",
+        "buildDetailsFor": "Detalles de la compilación de v{{version}}",
+        "contextCleared": "Contexto del agente borrado",
+        "buildFailed": "La compilación falló y no se publicó nada",
+        "building": "Compilando…",
+        "restore": "Restaurar",
+        "previewing": "Previsualizando",
+        "preview": "Previsualizar",
+        "upgradeSummary": "Resumen de la actualización",
+        "title": "Historial de versiones",
+        "backToChat": "Volver al chat",
+        "collapse": "Contraer historial de versiones",
+        "empty": "Aún no hay versiones",
+        "loadEarlier": "Cargar versiones anteriores",
+        "viewVersion": "Ver v{{version}}",
+        "thumbnailAlt": "Miniatura de v{{version}}"
+    },
+    "moveToSpace": {
+        "screenshotUnsupported": "Esta versión de la app no admite capturas de pantalla: itera sobre ella una vez para actualizarla",
+        "thumbnailNotCaptured": "No se capturó la miniatura",
+        "tooltip": {
+            "needsBuild": "La app necesita una compilación terminada antes de poder capturar una miniatura.",
+            "replace": "Captura una imagen nueva de la app y reemplaza su miniatura actual como parte del traslado.",
+            "include": "Captura una imagen de la app y guárdala como su miniatura como parte del traslado."
+        },
+        "replaceThumbnail": "Reemplazar miniatura de la app",
+        "includeThumbnail": "Incluir miniatura de la app"
+    },
+    "upgrade": {
+        "start": "Iniciar actualización",
+        "features": "Funciones",
+        "fixes": "Correcciones",
+        "app": {
+            "title": "Actualizar app",
+            "followUpFixes": "Cuando esté lista, el chat mostrará la actualización del SDK completada.",
+            "followUpFeatures": "Cuando esté lista, el chat mostrará qué está activo ahora y qué funciones puedes pedir al constructor que añada. Pide funciones en el chat; no se añade automáticamente nada que cambie tu app.",
+            "newSince": "Esto crea una nueva versión de la app con el SDK más reciente. Novedades desde que se compiló esta versión:",
+            "stale": "Esta app usa un SDK antiguo. La actualización incluye correcciones del SDK y mejoras de compatibilidad.",
+            "current": "Esta app ya incluye las funciones y correcciones disponibles del SDK. Actualizar de nuevo crea una nueva versión a partir de la plantilla actual.",
+            "legacy": "Esta app se compiló con un SDK antiguo que no puede informar de sus capacidades exactas. Actualizar crea una nueva versión a partir de la plantilla más reciente."
+        },
+        "chartType": {
+            "title": "Actualizar tipo de gráfico",
+            "followUpFixes": "Cuando esté listo, el historial de versiones mostrará la actualización del SDK completada.",
+            "followUpFeatures": "Cuando esté listo, el historial de versiones mostrará qué está activo ahora y qué funciones puedes pedir al constructor que añada. Pide funciones en la barra de instrucciones; no se añade automáticamente nada que cambie tu gráfico.",
+            "newSince": "Esto crea una nueva versión del tipo de gráfico con el SDK más reciente. Novedades desde que se compiló esta versión:",
+            "stale": "Este tipo de gráfico usa un SDK antiguo. La actualización incluye correcciones del SDK y mejoras de compatibilidad.",
+            "current": "Este tipo de gráfico ya incluye las funciones y correcciones disponibles del SDK. Actualizar de nuevo crea una nueva versión a partir de la plantilla actual.",
+            "legacy": "Este tipo de gráfico se compiló con un SDK antiguo que no puede informar de sus capacidades exactas. Actualizar crea una nueva versión a partir de la plantilla más reciente.",
+            "remainsAvailable": "El gráfico actual sigue disponible mientras se compila la actualización. Sus campos, opciones y valores predeterminados no cambian."
+        }
+    },
+    "header": {
+        "continueBuilding": "Seguir construyendo",
+        "refreshTooltip": "Actualizar para volver a ejecutar las consultas",
+        "copyLink": "Copiar enlace a la app",
+        "viewNetwork": "Ver red",
+        "info": "Información de la app",
+        "verifiedBy": "Verificado por {{name}}"
+    },
+    "info": {
+        "lastModified": "Última modificación",
+        "views": "Vistas",
+        "space": "Espacio",
+        "personal": "Personal",
+        "slug": "Slug"
+    },
+    "favoritePersonal": {
+        "title": "Añadir la app de datos a un espacio",
+        "mustBeInSpace": "Las apps de datos deben estar en un espacio para marcarse como favoritas.",
+        "question": "¿Quieres mover esta app de datos a un espacio y marcarla como favorita?",
+        "confirm": "Mover y marcar como favorita",
+        "createSpaceConfirm": "Crear espacio, mover y marcar como favorita"
+    },
+    "preview": {
+        "loading": "Cargando vista previa...",
+        "loadFailed": "No se pudo cargar la vista previa: {{message}}",
+        "iframeTitle": "Vista previa de la app"
+    },
+    "recent": {
+        "continueBuildingTitle": "Seguir construyendo: {{name}}",
+        "continueBuildingPrefix": "Seguir construyendo:",
+        "building": "· Compilando",
+        "buildingVersion": "· Compilando v{{version}}",
+        "buildFailed": "· La compilación falló"
+    },
+    "clearContext": {
+        "title": "Borrar contexto del agente",
+        "tooltip": "Empezar una conversación nueva con el agente",
+        "modalTitle": "¿Borrar el contexto del agente?",
+        "description": "El agente olvidará la conversación actual y empezará de cero desde tu última versión lista. Se descartan los cambios sin terminar de una compilación cancelada.",
+        "confirm": "Borrar contexto"
+    },
+    "elementPicker": {
+        "on": "Selector de elementos activado: haz clic en un elemento de la vista previa",
+        "off": "Elige un elemento de la vista previa para referenciarlo",
+        "toggle": "Activar o desactivar el selector de elementos"
+    },
+    "sampleDataButton": {
+        "on": "Datos de muestra incluidos para la próxima compilación. Haz clic para quitarlos.",
+        "off": "Comparte hasta 10 filas de los resultados actuales con el agente de código para la próxima compilación."
+    },
+    "promote": {
+        "title": "Promocionar app de datos",
+        "update": "Esto añadirá una nueva versión a la app existente en <b>{{project}}</b>.",
+        "create": "Esto creará una nueva app en <b>{{project}}</b> a partir de la última versión.",
+        "space": "Espacio: {{name}}",
+        "personal": "App personal (sin espacio)"
+    },
+    "restore": {
+        "title": "¿Restaurar la versión {{version}}?",
+        "confirm": "Restaurar versión",
+        "description": "Esto creará una nueva versión al final de la línea de tiempo que duplica el contenido de la versión {{version}}. Tu próxima instrucción iterará desde ahí.",
+        "failed": "No se pudo restaurar la versión."
+    },
+    "olderVersion": {
+        "title": "Estás viendo la versión {{version}}",
+        "description": "Las nuevas instrucciones siempre continúan desde la última compilación. Vuelve a la versión {{latest}} o restaura esta versión como la más reciente para seguir iterando desde aquí.",
+        "restore": "Restaurar esta versión",
+        "returnToLatest": "Volver a la última (v{{latest}})"
+    },
+    "threadDivider": {
+        "cleared": "Contexto borrado, empezando de cero desde <code>v{{version}}</code>"
+    },
+    "builder": {
+        "showPanel": "Mostrar panel de compilación",
+        "hidePanel": "Ocultar panel de compilación"
+    },
+    "historyDrawer": {
+        "ariaLabel": "Historial del proyecto"
+    },
+    "narration": {
+        "activity": "Actividad"
+    },
+    "clarification": {
+        "answerPlaceholder": "Tu respuesta"
+    },
+    "elementRef": {
+        "source": "Origen: {{loc}}"
+    },
+    "inspector": {
+        "queriesTab": "Consultas ({{count}})",
+        "requestsTab": "Solicitudes ({{count}})",
+        "clearRequests": "Borrar solicitudes externas",
+        "clearQueries": "Borrar consultas",
+        "lineage": {
+            "notWired": "La inspección de datos aún no está conectada en esta app: pide al agente que la añada",
+            "unsupported": "La inspección de datos no está disponible en esta versión de la app: actualiza la app para habilitarla",
+            "on": "Inspeccionar datos: activado",
+            "off": "Inspeccionar datos",
+            "toggle": "Activar o desactivar el inspector de linaje de datos"
+        },
+        "persistTooltip": "Conservar los registros al recargar el iframe y entre nuevas versiones de la app",
+        "persist": "Conservar",
+        "close": "Cerrar panel del inspector",
+        "interruptedByReload": "Interrumpido por recarga"
+    },
+    "queryInspector": {
+        "rows_one": "{{count}} fila",
+        "rows_other": "{{count}} filas",
+        "openInExplore": "Abrir en Explore",
+        "saveToLightdash": "Guardar en Lightdash",
+        "explore": "Explore",
+        "dimensions": "Dimensiones",
+        "metrics": "Métricas",
+        "tableCalculations": "Cálculos de tabla",
+        "additionalMetrics": "Métricas adicionales",
+        "error": "Error",
+        "limit": "Límite",
+        "queryUuid": "UUID de la consulta",
+        "executionTime": "Tiempo de ejecución en el almacén de datos",
+        "rawJson": "JSON sin procesar",
+        "empty": "Aún no hay consultas"
+    },
+    "requestInspector": {
+        "truncatedBadge": "truncada",
+        "connection": "Conexión",
+        "request": "Solicitud",
+        "queryParams": "Parámetros de consulta",
+        "requestBody": "Cuerpo de la solicitud",
+        "responseStatus": "Estado de la respuesta",
+        "contentType": "Tipo de contenido",
+        "truncatedTitle": "Respuesta truncada",
+        "truncatedBody": "La respuesta del servicio superó el límite de tamaño de la conexión y se truncó.",
+        "duration": "Duración",
+        "responseBody": "Cuerpo de la respuesta",
+        "empty": "Aún no hay solicitudes externas"
+    },
+    "saveQuery": {
+        "untitled": "Consulta sin título",
+        "nameLabel": "Nombre del gráfico",
+        "namePlaceholder": "p. ej. Ingresos semanales",
+        "loadingSpaces": "Cargando espacios…",
+        "selectSpace": "Selecciona un espacio",
+        "noSpaces": "No se encontraron espacios"
+    },
+    "templates": {
+        "dashboard": {
+            "title": "Dashboard",
+            "description": "Una cuadrícula de KPI y gráficos para informes de un vistazo."
+        },
+        "slideshow": {
+            "title": "Presentación",
+            "description": "Una narrativa guiada: un gráfico por diapositiva, con navegación lineal."
+        },
+        "pdf": {
+            "title": "Informe PDF",
+            "description": "Un documento apto para imprimir con secciones y gráficos de apoyo."
+        },
+        "custom": {
+            "title": "Desde cero",
+            "description": "Empieza desde cero y describe lo que quieras."
+        },
+        "dataAppViz": {
+            "title": "Visualización de app de datos",
+            "description": "Un gráfico reutilizable de un solo mosaico que puedes aplicar a cualquier consulta como un tipo de gráfico."
+        }
+    },
+    "viz": {
+        "exportPng": "Exportar PNG"
+    },
+    "chat": {
+        "previewVersion": "Previsualizar esta versión",
+        "appReady": "¡Tu app está lista!",
+        "versionReady": "¡La versión {{version}} está lista!"
+    },
+    "generation": {
+        "failed": "La generación falló. Inténtalo de nuevo."
+    },
+    "analysis": {
+        "unavailable": {
+            "notRolledOut": "El análisis con IA aún no está disponible para esta organización.",
+            "copilotOff": "La IA no está habilitada para esta organización.",
+            "orgSettingOff": "El análisis con IA en apps de datos está desactivado para esta organización."
+        },
+        "offChip": {
+            "tooltip": "Esta app muestra análisis con IA. {{reason}} Los lectores no verán nada hasta que se active. {{action}}",
+            "clickToTurnOn": "Haz clic para activarlo.",
+            "label": "Análisis con IA desactivado"
+        },
+        "askAdmin": "Pide a un administrador de la organización que lo active.",
+        "turnOnInSettings": "Actívalo en la configuración",
+        "severity": {
+            "high": "Alta",
+            "medium": "Media",
+            "positive": "Positiva",
+            "info": "Información"
+        },
+        "pickAgentToInvestigate": "Elige un agente para investigar",
+        "investigate": "Investigar",
+        "investigating": "Investigando…",
+        "partialAnswer": "Se agotó el presupuesto de consultas; esta es una respuesta parcial.",
+        "continueInAskAi": "Continuar en Ask AI",
+        "title": "Análisis con IA",
+        "noAgent": "No tienes acceso a ningún agente de IA en este proyecto, así que los datos destacados se muestran pero no se pueden investigar.",
+        "agentLabel": "Agente para investigaciones",
+        "agentPlaceholder": "Elige un agente",
+        "agentMissing": "El agente que elegiste ya no está disponible",
+        "analyse": "Analizar esta vista",
+        "reanalyse": "Volver a analizar",
+        "basedOn": "Basado en las consultas que esta app ejecutó con los filtros actuales; puede incluir pestañas ocultas.",
+        "basedOnCount": "Basado en las consultas que esta app ejecutó con los filtros actuales ({{count}}); puede incluir pestañas ocultas.",
+        "waitingForQueries": "Esperando a que terminen las consultas.",
+        "reading": "Leyendo los datos de esta página…",
+        "stale": {
+            "title": "La vista cambió",
+            "body": "Este análisis cubre un conjunto anterior de consultas. Vuelve a analizar para actualizarlo."
+        },
+        "nothingNotable": "No se encontró nada destacable en la vista actual.",
+        "limitations": "Limitaciones",
+        "footer": "Generado por IA a partir de los datos de esta página",
+        "dataAsOf": "Datos a fecha de {{date}}",
+        "generatedAt": "Generado el {{date}}",
+        "expiredTwice": "Los datos de esta vista caducaron. Actualiza la app y vuelve a analizar.",
+        "investigationNoResult": "La investigación terminó sin resultado",
+        "unexpectedType": "Tipo de análisis inesperado"
+    },
+    "aiAnalysisSettings": {
+        "title": "Análisis con IA",
+        "description": "Permite a los lectores analizar lo que muestra una app de datos e investigar los datos destacados.",
+        "aiOff": {
+            "title": "La IA no está habilitada",
+            "body": "El análisis con IA necesita Ask AI habilitado para la organización. Actívalo en <link>Ask AI · General</link>."
+        },
+        "enable": {
+            "name": "Análisis con IA",
+            "description": "Permite a los lectores analizar la vista actual de cualquier app de datos. Envía a tu proveedor de IA configurado resultados de consultas a los que el lector ya tiene acceso."
+        },
+        "auto": {
+            "name": "Analizar automáticamente al cargar",
+            "description": "Valor predeterminado para las apps: ejecuta el análisis cuando un lector abre una app, sin hacer clic. Se reutilizan los análisis guardados de resultados idénticos."
+        },
+        "continue": {
+            "name": "Continuar investigaciones en Ask AI",
+            "description": "Permite a los lectores continuar una investigación como un hilo de Ask AI. El hilo es de solo lectura. Si se desactiva, los lectores se quedan en la explicación."
+        },
+        "limits": {
+            "title": "Límites",
+            "description": "Límites de cuánto análisis con IA puede ejecutar tu organización. Con la clave de IA de Lightdash, los límites diarios no pueden superar {{analyses}} análisis y {{investigations}} investigaciones; con tu propia clave se aplican tal como los configures.",
+            "required": "Introduce un valor de 1 o más",
+            "noCap": "Sin límite",
+            "fields": {
+                "dailyDetectCap": {
+                    "label": "Análisis por día",
+                    "description": "Ejecuciones del modelo de análisis en todas las apps y lectores de tu organización por día UTC. Los análisis guardados de resultados idénticos se reutilizan y no cuentan. Déjalo vacío para no limitar."
+                },
+                "dailyInvestigateCap": {
+                    "label": "Investigaciones por día",
+                    "description": "Investigaciones del agente en todas las apps y lectores de tu organización por día UTC. Déjalo vacío para no limitar."
+                },
+                "dailyPromptCap": {
+                    "label": "Instrucciones por día",
+                    "description": "Respuestas a instrucciones de IA dentro de las apps en todas las apps y lectores de tu organización por día UTC. Déjalo vacío para no limitar."
+                },
+                "investigateMaxSteps": {
+                    "label": "Máximo de pasos por investigación",
+                    "description": "Pasos del modelo que el agente puede dar antes de tener que responder."
+                },
+                "investigateMaxWarehouseQueries": {
+                    "label": "Máximo de consultas al almacén de datos por investigación",
+                    "description": "Consultas que el agente puede ejecutar; al alcanzarlas explica lo que ha encontrado hasta ese momento y el resultado se marca como parcial."
+                }
+            }
+        }
+    },
+    "generalSettings": {
+        "title": "General",
+        "description": "Comportamiento de las apps de datos en toda la organización.",
+        "tryAgain": "Reintentar",
+        "noBrowser": {
+            "title": "No hay ningún navegador headless configurado",
+            "body": "Las miniaturas se capturan en un navegador headless y esta instancia no tiene uno. La captura automática se omite hasta que se configure uno."
+        },
+        "thumbnails": {
+            "title": "Capturar miniaturas automáticamente",
+            "description": "Cada versión de una app de datos obtiene una miniatura cuando está lista, renderizada como el usuario que la creó. El texto se difumina para que los valores no sean legibles. Al desactivarlo se conservan las miniaturas existentes, y se pueden seguir capturando a mano.",
+            "ariaLabel": "Capturar miniaturas automáticamente para las versiones de apps de datos"
+        }
+    },
+    "toasts": {
+        "duplicated": "App de datos duplicada",
+        "duplicateFailed": "No se pudo duplicar la app",
+        "promotedUpdate": "App de datos actualizada en producción",
+        "promoted": "App de datos promocionada a producción",
+        "promoteFailed": "No se pudo promocionar la app",
+        "upgradeFailed": "No se pudo actualizar la app",
+        "clearContextFailed": "No se pudo borrar el contexto del agente",
+        "defaultResource": "App",
+        "updated": {
+            "name": "Nombre de {{resource}} actualizado correctamente",
+            "description": "Descripción de {{resource}} actualizada correctamente",
+            "metadata": "Metadatos de {{resource}} actualizados correctamente"
+        },
+        "updateFailed": "No se pudo actualizar {{resource}}",
+        "thumbnailUpdated": "Miniatura actualizada",
+        "thumbnailCaptureFailed": "No se pudo capturar la miniatura",
+        "deleted": "App de datos eliminada",
+        "deleteFailed": "No se pudo eliminar la app",
+        "pinned": "¡Listo! La app de datos se ancló a la página de inicio",
+        "unpinned": "¡Listo! La app de datos se desancló de la página de inicio",
+        "pinFailed": "No se pudo anclar la app de datos"
+    },
+    "attachLink": {
+        "chartLink": {
+            "title": "Es un enlace a un gráfico",
+            "subtitle": "Adjúntalo desde el menú Consultas."
+        },
+        "dashboardLink": {
+            "title": "Es un enlace a un dashboard",
+            "subtitle": "Adjúntalo desde el menú Dashboard."
+        },
+        "shortLink": {
+            "title": "Aún no se pueden adjuntar enlaces cortos",
+            "subtitle": "Abre el gráfico o el dashboard y pega la URL de la barra de direcciones del navegador."
+        },
+        "exploration": {
+            "title": "Ese enlace apunta a una exploración",
+            "subtitle": "Solo se pueden adjuntar gráficos y dashboards guardados. Guarda primero el gráfico y luego pega su enlace."
+        },
+        "otherProject": {
+            "chart": "Ese gráfico está en otro proyecto",
+            "dashboard": "Ese dashboard está en otro proyecto",
+            "subtitle": "Las apps de datos solo pueden usar contenido del proyecto en el que se crean."
+        },
+        "chartFailed": "No se pudo adjuntar ese gráfico",
+        "dashboardFailed": "No se pudo adjuntar ese dashboard"
+    },
+    "upload": {
+        "failed": "La subida falló: {{status}}",
+        "tooLarge": {
+            "title": "Archivo demasiado grande",
+            "subtitle": "{{name}} supera el límite de 10 MB."
+        },
+        "unsupported": {
+            "title": "Tipo de archivo no compatible",
+            "subtitle": "{{name}}: adjunta imágenes (PNG, JPEG, GIF, WEBP), PDF o archivos de texto (JSON, CSV, Markdown, TWB, código, …)."
+        },
+        "thumbnailFailed": "La subida de la miniatura falló: {{status}}"
+    },
+    "notification": {
+        "ready": {
+            "title": "{{app}}: ¡versión lista!",
+            "body": "La versión {{version}} terminó de compilarse."
+        },
+        "failed": {
+            "title": "{{app}}: la compilación falló",
+            "body": "La versión {{version}} no se pudo compilar."
+        }
+    },
+    "screenshot": {
+        "missingBlob": "Falta el blob en la respuesta de la captura",
+        "iframeUnavailable": "El iframe no está disponible",
+        "timedOut": "Se agotó el tiempo de la captura"
+    }
+}

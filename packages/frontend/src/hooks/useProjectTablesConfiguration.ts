@@ -1,5 +1,6 @@
 import { type ApiError, type TablesConfiguration } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
@@ -31,6 +32,7 @@ export const useProjectTablesConfiguration = (projectUuid: string) => {
 };
 
 export const useUpdateProjectTablesConfiguration = (projectUuid: string) => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<TablesConfiguration, ApiError, TablesConfiguration>(
@@ -44,12 +46,16 @@ export const useUpdateProjectTablesConfiguration = (projectUuid: string) => {
                     data,
                 );
                 showToastSuccess({
-                    title: `Saved project configuration`,
+                    title: t(
+                        'useProjectTablesConfiguration.savedProjectConfiguration',
+                    ),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to save tables configuration`,
+                    title: t(
+                        'useProjectTablesConfiguration.failedToSaveTablesConfiguration',
+                    ),
                     apiError: error,
                 });
             },

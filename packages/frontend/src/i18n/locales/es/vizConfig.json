@@ -1,0 +1,751 @@
+{
+    "bigNumber": {
+        "tabs": {
+            "layout": "Diseño",
+            "comparison": "Comparación",
+            "conditionalFormatting": "Formato condicional"
+        },
+        "layout": {
+            "field": "Campo",
+            "selectedField": "Campo seleccionado",
+            "format": "Formato",
+            "label": "Etiqueta",
+            "clearCustomLabel": "Borra la etiqueta personalizada para alternar los nombres de tabla",
+            "hideTableNames": "Ocultar nombres de tabla en la etiqueta",
+            "showTableNames": "Mostrar nombres de tabla en la etiqueta"
+        },
+        "comparison": {
+            "showComparison": "Mostrar comparación",
+            "compareTo": "Comparar con",
+            "previousRow": "Fila anterior",
+            "sameRow": "Misma fila",
+            "field": "Campo",
+            "format": "Formato",
+            "rawValue": "Valor bruto",
+            "percentage": "Porcentaje",
+            "flipPositiveColor": "Invertir color positivo",
+            "style": "Estilo",
+            "comparisonLabel": "Etiqueta de comparación",
+            "comparisonLabelPlaceholder": "Añade una etiqueta opcional"
+        },
+        "conditionalFormatting": {
+            "rulesAndConditions": "Reglas y condiciones",
+            "conditionNumber": "Condición {{number}}",
+            "condition": "Condición",
+            "valuesPlaceholder": "Valor(es)",
+            "values": "Valores",
+            "ruleNumber": "Regla {{number}}",
+            "auto": "auto",
+            "rangeSummary": "Rango {{min}}–{{max}}",
+            "ruleSummaryWithExtra_one": "{{rule}} +{{count}} regla",
+            "ruleSummaryWithExtra_other": "{{rule}} +{{count}} reglas",
+            "light": "Claro",
+            "dark": "Oscuro",
+            "conditions": "Condiciones"
+        }
+    },
+    "common": {
+        "removeItem": "Eliminar {{label}}",
+        "rangeBound": {
+            "type": "Tipo de {{label}}",
+            "custom": "Personalizado",
+            "auto": "Auto"
+        },
+        "rowLimit": {
+            "label": "Limitar filas mostradas",
+            "show": "Mostrar",
+            "hide": "Ocultar",
+            "the": "las",
+            "first": "Primeras",
+            "last": "Últimas",
+            "rows": "filas"
+        },
+        "gradient": {
+            "low": "Bajo",
+            "high": "Alto",
+            "itemColor": "Color {{label}}",
+            "intermediateColor": "Color intermedio",
+            "removeColor": "Eliminar color",
+            "addColor": "Añadir color"
+        },
+        "insertDateGranularity": "Insertar granularidad de fecha",
+        "dateGranularityDetail": "Granularidad de fecha (día, semana, mes...)",
+        "colorPalette": {
+            "heading": "Paleta de colores",
+            "orgDefault": "Predeterminada de la organización",
+            "overrideActive": "Hay una paleta de colores forzada en la configuración de la instancia. La selección a nivel de gráfico está deshabilitada mientras esté activa.",
+            "fixedColorsOne": "\"{{label}}\" tiene colores fijos definidos en el modelo de datos.",
+            "fixedColorsMany": "{{count}} dimensiones pivotadas tienen colores fijos definidos en el modelo de datos.",
+            "fixedColorsKept": "Esos valores mantendrán sus colores asignados independientemente de la paleta seleccionada aquí."
+        }
+    },
+    "colorSelector": {
+        "resetColor": "Restablecer color",
+        "selectColor": "Seleccionar color",
+        "customColorPlaceholder": "Escribe un color {{format}} personalizado",
+        "invalidColor": "Color {{format}} no válido"
+    },
+    "configTabs": {
+        "layout": "Diseño",
+        "series": "Series",
+        "axes": "Ejes",
+        "display": "Visualización",
+        "margins": "Márgenes"
+    },
+    "grid": {
+        "margin": "Margen"
+    },
+    "axes": {
+        "auto": "Auto",
+        "min": "Mín",
+        "max": "Máx",
+        "showGrid": "Mostrar cuadrícula",
+        "xAxis": "Eje X",
+        "yAxis": "Eje Y",
+        "leftYAxis": "Eje Y izquierdo",
+        "rightYAxis": "Eje Y derecho",
+        "showAxis": "Mostrar eje",
+        "showTickLines": "Mostrar marcas",
+        "showTickLinesOnAxes": "Mostrar marcas en los ejes",
+        "connectNulls": "Conectar nulos",
+        "connectNullsLabel": "Conectar valores nulos en series de líneas",
+        "tickLabelSize": "Tamaño de etiquetas de marca (px)",
+        "axisTitleSize": "Tamaño del título del eje (px)",
+        "reset": "Restablecer",
+        "sort": {
+            "label": "Ordenar",
+            "default": "Predeterminado",
+            "defaultReversed": "Predeterminado (invertido)",
+            "ascending": "Ascendente",
+            "descending": "Descendente",
+            "barsAscending": "Barras ascendente",
+            "barsDescending": "Barras descendente"
+        },
+        "axisLabel": "Etiqueta del eje {{axis}}",
+        "axisLabelWithPosition": "Etiqueta del eje {{axis}} ({{position}})",
+        "position": {
+            "bottom": "abajo",
+            "left": "izquierda",
+            "top": "arriba",
+            "right": "derecha"
+        },
+        "enterAxisLabel": "Introduce la etiqueta del eje",
+        "treatAsCategory": "Tratar como categoría",
+        "treatAsCategoryDescription": "Espaciar los valores uniformemente en lugar de en una escala continua",
+        "autoAxisRange": "Rango automático del eje {{axis}}",
+        "minTickInterval": "Intervalo mínimo de marcas",
+        "truncateXAxis": "Truncar eje x",
+        "rotation": "Rotación",
+        "enableScrollableChart": "Habilitar gráfico desplazable",
+        "initialScrollPosition": "Posición inicial de desplazamiento",
+        "scrollStart": "Inicio",
+        "scrollEnd": "Fin",
+        "visibleItems": "Elementos visibles"
+    },
+    "layout": {
+        "axisHeading": "Eje {{axis}}",
+        "flipAxes": "Invertir ejes",
+        "clearXAxisField": "Quitar campo del eje x",
+        "removeYAxisField": "Eliminar campo del eje y",
+        "group": "Grupo",
+        "needMetricToGroup": "Necesitas al menos una métrica en el gráfico para añadir un grupo",
+        "removePivotDimension": "Eliminar dimensión de pivote",
+        "invalidReference": "Referencia no válida",
+        "selectFieldToGroupBy": "Selecciona un campo para agrupar",
+        "stackingDisabledTooltip": "El eje x debe ser no numérico para habilitar el apilado",
+        "stacking": "Apilado",
+        "stackNone": "Ninguno",
+        "stack": "Apilar",
+        "stackPercent": "100%",
+        "data": "Datos",
+        "columnLimit": "Límite de columnas",
+        "noLimit": "Sin límite"
+    },
+    "customVis": {
+        "ai": "IA",
+        "aiPlaceholder": "Crea un mapa de calor con tooltips detallados y valores claros para obtener información rápida",
+        "generating": "Generando...",
+        "generate": "Generar",
+        "generateFailed": "No se pudo generar la visualización personalizada",
+        "insertTemplate": "Insertar plantilla",
+        "templateResetWarning": "Seleccionar una nueva plantilla restablecerá la configuración. Usa \"ctrl+z\" para deshacer.",
+        "templates": {
+            "barChart": "Gráfico de barras",
+            "heatmap": "Mapa de calor",
+            "bubblePlots": "Gráficos de burbujas",
+            "funnelChart": "Gráfico de embudo",
+            "waterfallChart": "Gráfico de cascada",
+            "worldMap": "Mapa mundial"
+        },
+        "vegaLiteJson": "JSON de Vega-Lite",
+        "editorPlaceholder": "Empieza introduciendo tu código JSON de Vega-Lite o elige una de nuestras plantillas para crear tu gráfico."
+    },
+    "legend": {
+        "customPosition": "Posición personalizada",
+        "position": "Posición",
+        "legend": "Leyenda",
+        "placement": "Ubicación",
+        "chartArea": "Área del gráfico",
+        "outsideRight": "Fuera a la derecha",
+        "outsideLeft": "Fuera a la izquierda",
+        "scrollBehavior": "Comportamiento de desplazamiento",
+        "scroll": "Desplazar",
+        "wrap": "Ajustar",
+        "orientation": "Orientación",
+        "horizontal": "Horizontal",
+        "vertical": "Vertical",
+        "legendAreaWidth": "Ancho del área de leyenda",
+        "tooltips": "Tooltips"
+    },
+    "tooltipConfig": {
+        "sortBy": "Ordenar por",
+        "sortDefault": "Predeterminado",
+        "sortAlphabetical": "Alfabético",
+        "sortValueDescending": "Valor (descendente)",
+        "sortValueAscending": "Valor (ascendente)",
+        "custom": "Personalizado",
+        "customHelp": "Usa este campo para enriquecer los tooltips del gráfico con contenido adicional. Puedes incluir código HTML y valores dinámicos usando el formato ${variable_name}. Haz clic aquí para leer más en nuestra documentación.",
+        "placeholderExample": "- Pedidos totales: ${orders_total_amount}"
+    },
+    "referenceLines": {
+        "heading": "Líneas de referencia",
+        "fieldMustBeNumber": "El campo seleccionado debe ser de tipo número",
+        "lineValue": "Valor de la línea",
+        "lineLabel": "Línea {{index}}",
+        "description": "{{field}} es {{value}}",
+        "field": "Campo",
+        "searchField": "Buscar campo...",
+        "value": "Valor",
+        "label": "Etiqueta",
+        "average": "Promedio",
+        "useSeriesAverage": "Usar promedio de la serie",
+        "position": "Posición"
+    },
+    "dataAppViz": {
+        "aboutField": "Acerca de {{label}}",
+        "libraryUpgrade": {
+            "title": "Actualización disponible: v{{version}}",
+            "description": "Los gráficos fijados a una versión anterior la siguen usando hasta que se actualice cada gráfico; los gráficos sin versión fijada pasan a v{{version}} de inmediato.",
+            "upgradeTo": "Actualizar a v{{version}}"
+        },
+        "upgradeModal": {
+            "title": "Actualizar tipo de gráfico",
+            "confirm": "Actualizar",
+            "onlyThisChart": "Solo este gráfico pasa a la última versión. No se guarda nada hasta que guardes el gráfico.",
+            "removedWarning": "Los campos eliminados pierden su asignación y las opciones eliminadas pierden sus valores.",
+            "onlyRenderingChanged": "Mismos campos y opciones; solo cambió la representación."
+        },
+        "upgradeNotice": {
+            "newerVersion": "Hay una versión más reciente disponible",
+            "reviewUpgrade": "Revisar actualización"
+        },
+        "inputGuidance": {
+            "title": "Cómo usar este tipo de gráfico"
+        },
+        "optionTabs": {
+            "general": "General",
+            "display": "Visualización"
+        },
+        "gradient": {
+            "start": "Inicio",
+            "end": "Fin",
+            "low": "Bajo",
+            "high": "Alto",
+            "minimum": "Mínimo",
+            "maximum": "Máximo",
+            "auto": "Auto"
+        },
+        "fieldSelect": {
+            "noFieldsAvailable": "No hay campos disponibles",
+            "addItem": "Añadir {{label}}",
+            "itemAriaLabel": "{{label}}: {{item}}",
+            "selectItem": "Seleccionar {{label}}",
+            "addingFieldToQuery": "Añadiendo campo a la consulta",
+            "removeItem": "Eliminar {{item}}"
+        },
+        "settings": {
+            "noFieldsToMap": "Este tipo de gráfico no tiene campos que asignar.",
+            "needAtLeastOne": {
+                "dimension": "Necesitas al menos una dimensión en el gráfico para definir este campo",
+                "metric": "Necesitas al menos una métrica en el gráfico para definir este campo",
+                "column": "Necesitas al menos una columna en el gráfico para definir este campo"
+            },
+            "selectField": "Seleccionar {{label}}"
+        },
+        "configTabs": {
+            "noDescription": "Sin descripción",
+            "edit": "Editar ↗",
+            "typeRemoved": "Este tipo de gráfico ha sido eliminado. Elige otro tipo de gráfico arriba.",
+            "authoringHint": "Describe el tipo de gráfico que necesitas. Sus asignaciones y opciones aparecerán aquí cuando la primera versión esté lista.",
+            "pickTypeAbove": "Elige un tipo de gráfico arriba.",
+            "pickTypeOrCreate": "Elige un tipo de gráfico arriba o crea uno nuevo en el <builder>constructor</builder>."
+        }
+    },
+    "pie": {
+        "tabs": {
+            "layout": "Diseño",
+            "series": "Series",
+            "display": "Visualización"
+        },
+        "valueOptions": {
+            "valuePosition": "Posición del valor",
+            "mixed": "Mixto",
+            "positions": {
+                "hidden": "Oculto",
+                "inside": "Dentro",
+                "outside": "Fuera"
+            },
+            "showValue": "Mostrar valor",
+            "showPercentage": "Mostrar porcentaje",
+            "labelColor": "Color de etiqueta",
+            "selectValueLabelColor": "Seleccionar color de la etiqueta de valor",
+            "useAutomaticColor": "Usar color automático"
+        },
+        "display": {
+            "showLegend": "Mostrar leyenda",
+            "orientation": "Orientación",
+            "legendPositions": {
+                "horizontal": "Horizontal",
+                "vertical": "Vertical"
+            },
+            "labelMaxLength": "Longitud máxima de etiqueta"
+        },
+        "groupItem": {
+            "overrideValueLabelOptions": "Sobrescribir opciones de etiqueta de valor"
+        },
+        "layout": {
+            "groups": "Grupos",
+            "needDimension": "Debes seleccionar al menos una dimensión para crear un gráfico circular",
+            "allDimensionsUsed": "Todas las dimensiones ya se usan como grupos",
+            "selectDimension": "Seleccionar dimensión",
+            "metric": "Métrica",
+            "needMetric": "Debes seleccionar al menos una métrica numérica para crear un gráfico circular",
+            "selectMetric": "Seleccionar métrica",
+            "displayAs": "Mostrar como",
+            "pie": "Circular",
+            "donut": "Anillo"
+        },
+        "series": {
+            "label": "Etiqueta",
+            "series": "Series"
+        }
+    },
+    "map": {
+        "tabs": {
+            "general": "General",
+            "mapDisplay": "Visualización del mapa"
+        },
+        "field": {
+            "hideInTooltip": "Ocultar en el tooltip",
+            "showInTooltip": "Mostrar en el tooltip"
+        },
+        "layout": {
+            "regionField": {
+                "stateLabel": "Campo de estado",
+                "stateDescription": "Campo que contiene códigos de estado (p. ej., \"CA\", \"NY\")",
+                "customLabel": "Campo de unión de datos",
+                "customDescription": "Campo que contiene valores que coinciden con el campo de unión del mapa seleccionado",
+                "worldLabel": "Campo de código de país (ISO3)",
+                "worldDescription": "Campo que contiene códigos ISO 3166-1 alfa-3 (p. ej., \"USA\", \"GBR\")"
+            },
+            "world": "Mundo",
+            "us": "EE. UU.",
+            "scatter": "Dispersión",
+            "area": "Área",
+            "heatmap": "Mapa de calor",
+            "hexbin": "Hexágonos",
+            "mapType": "Tipo de mapa",
+            "coordinates": "Coordenadas",
+            "latitude": "Latitud",
+            "longitude": "Longitud",
+            "selectField": "Seleccionar campo",
+            "location": "Ubicación",
+            "customRegion": "Región personalizada",
+            "customGeoJsonUrl": "URL de GeoJSON personalizado",
+            "mapJoinField": "Campo de unión del mapa",
+            "mapJoinFieldDescription": "Propiedad del archivo geojson con la que unir",
+            "enterUrlFirst": "Introduce primero la URL",
+            "loading": "Cargando...",
+            "noPropertiesFound": "No se encontraron propiedades",
+            "selectProperty": "Seleccionar propiedad",
+            "failedToLoad": "Error al cargar: {{message}}",
+            "mapRegion": "Región del mapa",
+            "values": "Valores"
+        },
+        "display": {
+            "cellScale": "Escala de celda: {{size}}",
+            "hexbinSizes": {
+                "block": "Manzana",
+                "neighborhood": "Barrio",
+                "district": "Distrito",
+                "city": "Ciudad",
+                "metro": "Área metropolitana",
+                "region": "Región",
+                "country": "País",
+                "continent": "Continente"
+            },
+            "tileBackground": {
+                "none": "Ninguno",
+                "openStreetMap": "OpenStreetMap",
+                "light": "Claro",
+                "dark": "Oscuro",
+                "voyager": "Voyager (limpio)",
+                "satellite": "Satélite"
+            },
+            "cells": "Celdas",
+            "colorBasedOn": "Color basado en",
+            "selectFieldOptional": "Seleccionar campo (opcional)",
+            "valueBasedOn": "Valor basado en",
+            "count": "Recuento",
+            "fieldValues": "Valores del campo",
+            "field": "Campo",
+            "selectField": "Seleccionar campo",
+            "aggregation": "Agregación",
+            "sum": "Suma",
+            "avg": "Prom.",
+            "min": "Mín",
+            "max": "Máx",
+            "noDataColor": "Color sin datos",
+            "colorRange": "Rango de colores",
+            "opacity": "Opacidad",
+            "valueColors": "Colores de valores",
+            "color": "Color",
+            "dataLayerOpacity": "Opacidad de la capa de datos",
+            "backgroundColor": "Color de fondo",
+            "showEmptyCells": "Mostrar celdas vacías",
+            "emptyCellFill": "Relleno de celdas vacías",
+            "cellSize": "Tamaño de celda",
+            "fixed": "Fijo",
+            "dynamic": "Dinámico",
+            "bubbles": "Burbujas",
+            "sizeBasedOn": "Tamaño basado en",
+            "sizeRange": "Rango de tamaño",
+            "size": "Tamaño",
+            "heatmap": "Mapa de calor",
+            "radius": "Radio",
+            "blur": "Desenfoque",
+            "mapExtent": "Extensión del mapa",
+            "saveMapExtent": "Guardar la extensión actual del mapa",
+            "legend": "Leyenda",
+            "showLegend": "Mostrar leyenda",
+            "backgroundMap": "Mapa de fondo",
+            "lightMode": "Modo claro",
+            "darkMode": "Modo oscuro"
+        }
+    },
+    "gauge": {
+        "tabs": {
+            "layout": "Diseño",
+            "display": "Visualización"
+        },
+        "fields": {
+            "field": "Campo",
+            "selectedField": "Campo seleccionado",
+            "selectedFieldDescription": "Selecciona una métrica para mostrar en el indicador"
+        },
+        "sections": {
+            "heading": "Secciones",
+            "sectionNumber": "Sección {{number}}",
+            "minValue": "Valor mínimo",
+            "minValueDescription": "Define el valor mínimo de la sección",
+            "minFieldDescription": "Selecciona un campo para usar como valor mínimo",
+            "maxValue": "Valor máximo",
+            "maxValueDescription": "Define el valor máximo de la sección",
+            "maxFieldDescription": "Selecciona un campo para usar como valor máximo",
+            "setMinValue": "Definir el valor mínimo",
+            "setMaxValue": "Definir el valor máximo",
+            "value": "Valor",
+            "field": "Campo"
+        },
+        "display": {
+            "scale": "Escala",
+            "minimumValue": "Valor mínimo",
+            "minimumValueDescription": "Define el valor mínimo de la escala del indicador",
+            "maximumValue": "Valor máximo",
+            "maximumValueDescription": "Define el valor máximo de la escala del indicador",
+            "maximumFieldDescription": "Selecciona un campo para usar como valor máximo",
+            "setMaxValue": "Definir el valor máximo",
+            "value": "Valor",
+            "field": "Campo",
+            "appearance": "Apariencia",
+            "showAxisLabels": "Mostrar etiquetas del eje",
+            "showAxisLabelsDescription": "Mostrar etiquetas del eje y marcas",
+            "showAsPercentage": "Mostrar como porcentaje",
+            "showAsPercentageDescription": "Mostrar el valor como porcentaje de la escala",
+            "customPercentageLabel": "Etiqueta de porcentaje personalizada",
+            "customPercentageLabelDescription": "Añade una etiqueta personalizada después del porcentaje",
+            "customPercentageLabelPlaceholder": "p. ej. 'completado'",
+            "customLabel": "Etiqueta personalizada",
+            "customLabelDescription": "Sobrescribe la etiqueta predeterminada del campo",
+            "customLabelPlaceholder": "p. ej. 'Ventas'"
+        }
+    },
+    "treemap": {
+        "tabs": {
+            "layout": "Diseño",
+            "display": "Visualización"
+        },
+        "display": {
+            "minimumSectionSize": "Tamaño mínimo de sección",
+            "minimumSectionSizeHelp": "Las secciones más pequeñas que esto no se mostrarán. Puedes hacer zoom para ver secciones más pequeñas.",
+            "maxLeafDepth": "Profundidad máxima de hojas",
+            "maxLeafDepthHelp": "La profundidad máxima del treemap. Si se define, los niveles más profundos se pueden ver haciendo clic en los nodos.",
+            "noLimit": "Sin límite"
+        },
+        "layout": {
+            "dimensionHierarchy": "Jerarquía de dimensiones",
+            "dimensionHierarchyHelp": "Arrastra y suelta tus dimensiones para ordenarlas jerárquicamente.",
+            "sizeMetric": "Métrica de tamaño",
+            "sizeMetricHelp": "Determina el tamaño de cada bloque.",
+            "selectMetric": "Seleccionar métrica",
+            "colorMetric": "Métrica de color",
+            "colorMetricHelp": "Define dinámicamente el color de los nodos según una métrica. Si no se define, el treemap usará un esquema de colores predeterminado.",
+            "minColor": "Color mínimo",
+            "maxColor": "Color máximo",
+            "threshold": "Umbral",
+            "thresholdPlaceholder": "Auto (por nivel)"
+        }
+    },
+    "sankey": {
+        "tabs": {
+            "general": "General",
+            "display": "Visualización"
+        },
+        "source": "Origen",
+        "selectSourceDimension": "Seleccionar dimensión de origen",
+        "target": "Destino",
+        "selectTargetDimension": "Seleccionar dimensión de destino",
+        "value": "Valor",
+        "selectMetric": "Seleccionar métrica",
+        "orientation": "Orientación",
+        "horizontal": "Horizontal",
+        "vertical": "Vertical",
+        "nodeLayout": "Disposición de nodos",
+        "multiStep": "Varios pasos",
+        "merged": "Combinado",
+        "direct": "Directo",
+        "mergingUnavailable": "La combinación no está disponible para flujos que vuelven sobre sí mismos.",
+        "nodeAlignment": "Alineación de nodos",
+        "top": "Arriba",
+        "left": "Izquierda",
+        "bottom": "Abajo",
+        "right": "Derecha",
+        "justify": "Justificar"
+    },
+    "funnel": {
+        "tabs": {
+            "general": "General",
+            "steps": "Pasos",
+            "display": "Visualización"
+        },
+        "dataOrientation": "Orientación de los datos",
+        "stepsAre": "Los pasos son",
+        "rows": "Filas",
+        "columns": "Columnas",
+        "dataField": "Campo de datos",
+        "needMetric": "Debes seleccionar al menos una métrica numérica para crear un gráfico",
+        "selectMetric": "Seleccionar métrica",
+        "labels": "Etiquetas",
+        "position": "Posición",
+        "left": "Izquierda",
+        "inside": "Dentro",
+        "right": "Derecha",
+        "hidden": "Oculto",
+        "showValue": "Mostrar valor",
+        "showPercentage": "Mostrar porcentaje",
+        "steps": "Pasos",
+        "showLegend": "Mostrar leyenda",
+        "orientation": "Orientación",
+        "horizontal": "Horizontal",
+        "vertical": "Vertical"
+    },
+    "customChartType": {
+        "heading": "Tipo de gráfico personalizado",
+        "runQueryHint": "Ejecuta tu consulta para elegir un tipo de gráfico personalizado.",
+        "builtInVegaLabel": "Vega (editor JSON)",
+        "builtInVegaDescription": "Escribe JSON de Vega-Lite a mano",
+        "builtInGroup": "Integrados",
+        "projectGroup": "Personalizados",
+        "createNew": "Crear nuevo tipo de gráfico",
+        "browse": "Explorar tipos de gráfico",
+        "fieldCount_one": "{{count}} campo",
+        "fieldCount_other": "{{count}} campos",
+        "clear": "Quitar tipo de gráfico personalizado",
+        "searchPlaceholder": "Buscar tipos de gráfico personalizados…",
+        "loadFailed": "No se pudieron cargar los tipos de gráfico personalizados",
+        "noMatches": "Ningún tipo de gráfico personalizado coincide con tu búsqueda"
+    },
+    "series": {
+        "chartType": {
+            "type": "Tipo",
+            "bar": "Barras",
+            "line": "Línea",
+            "area": "Área",
+            "scatter": "Dispersión",
+            "mixed": "Mixto"
+        },
+        "drawOrder": {
+            "label": "Orden de dibujo",
+            "back": "Atrás",
+            "front": "Delante",
+            "reverseTooltip": "Invertir el orden de todas las series",
+            "reverse": "Invertir",
+            "bringToFront": "Traer al frente"
+        },
+        "invalidField": "Se intentó hacer referencia a un campo con id desconocido: {{itemId}}",
+        "orderDeterminedBySort": "El orden de las series se determina automáticamente según la ordenación aplicada a la dimensión agrupada",
+        "grouped": "{{label}} (agrupado)",
+        "axis": "Eje",
+        "valueLabels": "Etiquetas de valor",
+        "total": "Total",
+        "showSymbol": "Mostrar símbolo",
+        "smooth": "Suavizar",
+        "position": {
+            "hidden": "Oculto",
+            "top": "Arriba",
+            "bottom": "Abajo",
+            "left": "Izquierda",
+            "right": "Derecha",
+            "inside": "Dentro"
+        },
+        "showValue": "Mostrar valor",
+        "showLabel": "Mostrar etiqueta",
+        "showMetricName": "Mostrar nombre de la métrica",
+        "selectValueLabelColor": "Seleccionar color de la etiqueta de valor",
+        "useAutomaticColor": "Usar color automático",
+        "applyCustomColors": "Aplicar colores personalizados",
+        "showOverlappingLabels": "Mostrar etiquetas superpuestas",
+        "customColors": {
+            "category": "Categoría",
+            "conditionalFormatting": "Formato condicional",
+            "setAll": "Aplicar a todos",
+            "moreColoredAutomatically": "{{count}} más coloreados automáticamente"
+        }
+    },
+    "chartConditionalFormatting": {
+        "operator": {
+            "equals": "Es igual a",
+            "notEquals": "No es igual a",
+            "contains": "Contiene"
+        },
+        "conditionNumber": "Condición {{number}}",
+        "removeCondition": "Eliminar condición",
+        "condition": "Condición",
+        "valuesPlaceholder": "Valor(es)",
+        "values": "Valores",
+        "noConditionSet": "Sin condición definida",
+        "ruleSummaryWithExtra_one": "{{rule}} +{{count}} regla",
+        "ruleSummaryWithExtra_other": "{{rule}} +{{count}} reglas",
+        "ruleNumber": "Regla {{number}}",
+        "selectField": "Seleccionar campo",
+        "color": "Color",
+        "and": "Y",
+        "addCondition": "Añadir condición",
+        "rulesAndConditions": "Reglas y condiciones"
+    },
+    "table": {
+        "tabs": {
+            "general": "General",
+            "conditionalFormatting": "Formato condicional",
+            "cellDisplay": "Visualización de celdas"
+        },
+        "cellDisplay": {
+            "noNumericColumns": "No hay columnas numéricas disponibles para mostrar como barras",
+            "barsInCells": "Barras en celdas",
+            "barsInCellsTooltip": "Mostrar valores numéricos como barras en las celdas",
+            "selectPositiveBarColor": "Seleccionar color de barra positiva",
+            "positiveValues": "Valores positivos",
+            "negativeValues": "Valores negativos",
+            "selectNegativeBarColor": "Seleccionar color de barra negativa",
+            "matchPositiveColor": "Igualar al color positivo"
+        },
+        "column": {
+            "cannotHideSubtotal": "No se puede ocultar mientras sea un nivel de agrupación de subtotales",
+            "hideColumn": "Ocultar columna",
+            "showColumn": "Mostrar columna",
+            "unfreezeColumn": "Descongelar columna",
+            "freezeColumn": "Congelar columna",
+            "resetWidth": "Restablecer ancho de columna a automático",
+            "widthPx": "{{width}}px"
+        },
+        "general": {
+            "maxPivotsReached": "Se alcanzó el número máximo de pivotes",
+            "columns": "Columnas",
+            "columnsPlaceholder": "Arrastra dimensiones a esta área para pivotar la tabla",
+            "rows": "Filas",
+            "rowsPlaceholder": "Arrastra dimensiones, métricas o cálculos de tabla a esta área",
+            "metrics": "Métricas",
+            "metricsPlaceholder": "Arrastra métricas o cálculos de tabla a esta área",
+            "metricLayout": "Disposición de métricas",
+            "metricsAsRowsPivotDisabled": "Mueve una métrica o cálculo de tabla de vuelta a Métricas para usar esta disposición",
+            "metricsAsRowsNeedColumn": "Para usar métricas como filas, debes mover una dimensión a \"Columnas\"",
+            "showMetricsAsRows": "Mostrar métricas como filas",
+            "display": "Visualización",
+            "showTableNames": "Mostrar nombres de tabla",
+            "showRowNumbers": "Mostrar números de fila",
+            "data": "Datos",
+            "results": "Resultados",
+            "showRowTotals": "Mostrar totales de fila",
+            "showColumnTotals": "Mostrar totales de columna",
+            "showNumberOfResults": "Mostrar número de resultados",
+            "subtotalsRequireDimensions": "Los subtotales solo se pueden usar en tablas con al menos dos dimensiones",
+            "subtotalsRequireUnpivotedDimensions": "Los subtotales solo se pueden usar en tablas con al menos dos dimensiones no pivotadas",
+            "showSubtotals": "Mostrar subtotales",
+            "expandSubtotals": "Expandir subtotales por defecto",
+            "rowGroupingAlwaysOn": "La agrupación de filas siempre está activa cuando los subtotales están habilitados.",
+            "rowGroupingMetricsAsRows": "La agrupación de filas no se puede usar con métricas como filas",
+            "rowGroupingRequireDimensions": "La agrupación de filas solo se puede usar en tablas con al menos dos dimensiones",
+            "rowGroupingRequireUnpivotedDimensions": "La agrupación de filas solo se puede usar en tablas con al menos dos dimensiones no pivotadas",
+            "groupRepeatedRowValues": "Agrupar valores de fila repetidos"
+        }
+    },
+    "tableConditionalFormatting": {
+        "colorRange": {
+            "minValue": "Valor mínimo",
+            "maxValue": "Valor máximo",
+            "minValueInTable": "Valor mínimo en la tabla",
+            "maxValueInTable": "Valor máximo en la tabla"
+        },
+        "rulesAndConditions": "Reglas y condiciones",
+        "configType": {
+            "single": "Único",
+            "range": "Rango"
+        },
+        "textStyle": {
+            "label": "Estilo de texto",
+            "bold": "Negrita",
+            "italic": "Cursiva",
+            "underline": "Subrayado"
+        },
+        "ruleNumber": "Regla {{number}}",
+        "noConditionSet": "Sin condición definida",
+        "minInTable": "mín. en la tabla",
+        "maxInTable": "máx. en la tabla",
+        "rangeSummary": "Rango {{min}} – {{max}}",
+        "ruleSummaryWithExtra_one": "{{rule}} +{{count}} regla",
+        "ruleSummaryWithExtra_other": "{{rule}} +{{count}} reglas",
+        "selectField": "Seleccionar campo",
+        "colorMode": "Modo de color",
+        "color": "Color",
+        "applyTo": "Aplicar a",
+        "applyToCell": "Celda",
+        "applyToText": "Texto",
+        "applyToRow": "Fila",
+        "conditions": "Condiciones",
+        "selectFieldFirst": "Selecciona primero un campo",
+        "rule": {
+            "conditionNumber": "Condición {{number}}",
+            "compare": "Comparar:",
+            "compareValuesTooltip": "Comparar el campo seleccionado con valores",
+            "compareValues": "Valores",
+            "compareFieldTooltip": "Comparar el campo seleccionado con otro campo",
+            "compareField": "Campo",
+            "compareFieldValuesTooltip": "Comparar otro campo con valores",
+            "compareFieldValues": "Valores de campo",
+            "compareFieldPlaceholder": "Campo a comparar",
+            "condition": "Condición",
+            "valuesPlaceholder": "Valor(es)",
+            "values": "Valores"
+        }
+    }
+}

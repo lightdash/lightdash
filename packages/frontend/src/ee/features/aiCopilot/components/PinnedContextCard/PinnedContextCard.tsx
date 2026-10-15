@@ -6,8 +6,10 @@ import {
 } from '@lightdash/common';
 import { IconTable, IconWindowMaximize, type Icon } from '@tabler/icons-react';
 import { type FC, type MouseEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { dataAppHref } from '../../../../../features/apps/utils/appUrls';
 import { elementRefChipLabel } from '../../../../../features/apps/utils/elementRefs';
+import i18n from '../../../../../i18n/i18n';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { useEmbedAiAgentDashboardOpener } from '../../hooks/useEmbedAiAgentDashboardOpener';
 import { ContentReferenceLink } from '../ChatElements/ContentReferenceLink';
@@ -69,7 +71,11 @@ const getItemMeta = (
         case 'thread':
             return {
                 kind: 'thread',
-                label: item.displayName ?? 'Conversation',
+                label:
+                    item.displayName ??
+                    i18n.t('pinnedContext.conversationFallback', {
+                        ns: 'aiAgent',
+                    }),
                 href: null,
             };
         case 'file':
@@ -110,6 +116,7 @@ const PinnedChartCard: FC<{
     item: Extract<AiPromptContextItem, { type: 'chart' }>;
     projectUuid: string;
 }> = ({ item, projectUuid }) => {
+    const { t } = useTranslation('aiAgent');
     const openChartEditor = useAiThreadChartEdit();
     const isEmbed = useIsEmbedded();
     const handleClick = openChartEditor
@@ -129,7 +136,7 @@ const PinnedChartCard: FC<{
                 chartKind={item.chartKind ?? undefined}
                 showArrow={false}
             >
-                {item.displayName ?? 'Chart'}
+                {item.displayName ?? t('pinnedContext.chartFallback')}
             </ContentReferenceLink>
         );
     }
@@ -145,7 +152,7 @@ const PinnedChartCard: FC<{
             showArrow
             trailingIcon={handleClick ? IconWindowMaximize : undefined}
         >
-            {item.displayName ?? 'Chart'}
+            {item.displayName ?? t('pinnedContext.chartFallback')}
         </ContentReferenceLink>
     );
 };
@@ -154,8 +161,9 @@ const PinnedDashboardCard: FC<{
     item: Extract<AiPromptContextItem, { type: 'dashboard' }>;
     projectUuid: string;
 }> = ({ item, projectUuid }) => {
+    const { t } = useTranslation('aiAgent');
     const openEmbedDashboard = useEmbedAiAgentDashboardOpener(projectUuid);
-    const label = item.displayName ?? 'Dashboard';
+    const label = item.displayName ?? t('pinnedContext.dashboardFallback');
 
     if (openEmbedDashboard) {
         return (
@@ -212,6 +220,7 @@ export const PinnedContextCard: FC<Props> = ({
     projectUuid,
     previewScope,
 }) => {
+    const { t } = useTranslation('aiAgent');
     switch (item.type) {
         case 'chart':
             return <PinnedChartCard item={item} projectUuid={projectUuid} />;
@@ -259,7 +268,9 @@ export const PinnedContextCard: FC<Props> = ({
                     )}
                     target="_blank"
                 >
-                    {item.displayName ?? item.documentSlug ?? 'Document'}
+                    {item.displayName ??
+                        item.documentSlug ??
+                        t('pinnedContext.documentFallback')}
                 </ContentReferenceLink>
             );
         case 'pull_request':

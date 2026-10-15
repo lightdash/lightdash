@@ -10,6 +10,7 @@ import { type UseFormReturnType } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 
@@ -38,6 +39,7 @@ const useProjectDataApps = (projectUuid: string | undefined, search: string) =>
     });
 
 const DataAppTileForm = ({ form }: DataAppTileFormProps) => {
+    const { t } = useTranslation('dashboard');
     const projectUuid = useProjectUuid();
     const [searchValue, setSearchValue] = useState('');
     const [debouncedSearch] = useDebouncedValue(searchValue, 300);
@@ -59,16 +61,20 @@ const DataAppTileForm = ({ form }: DataAppTileFormProps) => {
     return (
         <Stack gap="md">
             <TextInput
-                label="Title"
-                placeholder="Tile title"
+                label={t('tileForms.title')}
+                placeholder={t('tileForms.titlePlaceholder')}
                 required
                 {...form.getInputProps('title')}
             />
 
             <Select
-                label="Data app"
-                description="Only apps that were moved to a space can be added to a dashboard."
-                placeholder={isLoading ? 'Loading apps...' : 'Pick a data app'}
+                label={t('tileForms.dataApp.label')}
+                description={t('tileForms.dataApp.description')}
+                placeholder={
+                    isLoading
+                        ? t('tileForms.dataApp.loading')
+                        : t('tileForms.dataApp.placeholder')
+                }
                 searchable
                 required
                 data={options}
@@ -78,7 +84,7 @@ const DataAppTileForm = ({ form }: DataAppTileFormProps) => {
                 rightSection={
                     isLoading || isFetching ? <Loader size="xs" /> : undefined
                 }
-                nothingFoundMessage="No matching data apps"
+                nothingFoundMessage={t('tileForms.dataApp.nothingFound')}
                 // Spreading `form.getInputProps('appUuid')` here breaks the
                 // controlled `searchValue` — Mantine's Select forcibly syncs
                 // the search input to the selected option's label whenever
@@ -92,7 +98,7 @@ const DataAppTileForm = ({ form }: DataAppTileFormProps) => {
 
             {error && (
                 <Text c="red" size="sm">
-                    Failed to load apps
+                    {t('tileForms.dataApp.loadFailed')}
                 </Text>
             )}
         </Stack>

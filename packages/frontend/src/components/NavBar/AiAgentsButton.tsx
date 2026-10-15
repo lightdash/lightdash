@@ -1,6 +1,7 @@
 import { Anchor, Button, HoverCard, Stack, Text } from '@mantine/core';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import { AiAgentIcon } from '../../ee/features/aiCopilot/components/AiAgentIcon';
 import { ReviewFindingsPreview } from '../../ee/features/aiCopilot/components/ReviewFindingsPreview';
@@ -22,6 +23,7 @@ type Props = {
 };
 
 export const AiAgentsButton = ({ projectUuid }: Props) => {
+    const { t } = useTranslation('navigation');
     const portalTarget = useNavBarPortalTarget();
     const navigate = useNavigate();
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -72,7 +74,7 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
     if (!showReviews) {
         return (
             <Button
-                aria-label="Ask AI"
+                aria-label={t('askAi.label')}
                 size="xs"
                 variant="default"
                 fz="sm"
@@ -82,7 +84,7 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
                 data-tour-hint="Click Ask AI"
             >
                 <Text span truncate="end" maw={150} size="sm">
-                    Ask AI
+                    {t('askAi.label')}
                 </Text>
             </Button>
         );
@@ -102,7 +104,7 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
             >
                 <HoverCard.Target>
                     <Button
-                        aria-label="Ask AI"
+                        aria-label={t('askAi.label')}
                         size="xs"
                         variant="default"
                         fz="sm"
@@ -112,15 +114,14 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
                         data-tour-hint="Click Ask AI"
                     >
                         <Text span truncate="end" maw={150} size="sm">
-                            Ask AI
+                            {t('askAi.label')}
                         </Text>
                     </Button>
                 </HoverCard.Target>
                 <HoverCard.Dropdown p="sm">
                     <Stack gap={6}>
                         <Text fz="xs" c="dimmed">
-                            No open issues yet. Track a data gap, correction, or
-                            request from a chart, dashboard, or the board.
+                            {t('askAi.noOpenIssues')}
                         </Text>
                         <Anchor
                             component={Link}
@@ -129,7 +130,7 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
                             fw={500}
                         >
                             <Text span fz="xs" fw={500}>
-                                Go to the issues board
+                                {t('askAi.goToIssuesBoard')}
                             </Text>{' '}
                             <MantineIcon
                                 icon={IconArrowRight}
@@ -156,7 +157,7 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
         >
             <HoverCard.Target>
                 <Button
-                    aria-label="Ask AI"
+                    aria-label={t('askAi.label')}
                     size="xs"
                     variant="default"
                     fz="sm"
@@ -166,7 +167,7 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
                     data-tour-hint="Click Ask AI"
                 >
                     <Text span truncate="end" maw={150} size="sm">
-                        Ask AI
+                        {t('askAi.label')}
                     </Text>
                 </Button>
             </HoverCard.Target>

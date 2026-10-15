@@ -1,8 +1,11 @@
 import { type MergeFieldOrigin } from '@lightdash/common';
+import i18n from '../../../i18n/i18n';
+
+const ns = 'mergeQuery';
 
 const fallbackSourceLabel = (sourceId: string) => {
-    if (sourceId === 'a') return 'First result';
-    if (sourceId === 'b') return 'Second result';
+    if (sourceId === 'a') return i18n.t('provenance.firstResult', { ns });
+    if (sourceId === 'b') return i18n.t('provenance.secondResult', { ns });
     return sourceId;
 };
 
@@ -11,7 +14,12 @@ export const getMergeFieldProvenance = (
     sourceLabels: Record<string, string>,
 ): string => {
     if (origin.kind === 'source') {
-        return `From ${sourceLabels[origin.sourceId] ?? fallbackSourceLabel(origin.sourceId)}`;
+        return i18n.t('provenance.from', {
+            ns,
+            source:
+                sourceLabels[origin.sourceId] ??
+                fallbackSourceLabel(origin.sourceId),
+        });
     }
 
     if (origin.kind === 'joinKey') {
@@ -19,8 +27,11 @@ export const getMergeFieldProvenance = (
             (sourceId) =>
                 sourceLabels[sourceId] ?? fallbackSourceLabel(sourceId),
         );
-        return `Shared join key: ${labels.join(' ↔ ')}`;
+        return i18n.t('provenance.sharedJoinKey', {
+            ns,
+            labels: labels.join(' ↔ '),
+        });
     }
 
-    return 'Calculated after merging both queries';
+    return i18n.t('provenance.calculated', { ns });
 };

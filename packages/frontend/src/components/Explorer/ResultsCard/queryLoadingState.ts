@@ -1,4 +1,5 @@
 import { QueryHistoryStatus } from '@lightdash/common';
+import i18n from '../../../i18n/i18n';
 
 export const getQueryLoadingStateCopy = (
     queryStatus?: QueryHistoryStatus,
@@ -6,17 +7,22 @@ export const getQueryLoadingStateCopy = (
     switch (queryStatus) {
         case QueryHistoryStatus.QUEUED:
             return {
-                title: 'Your query is queued...',
-                description:
-                    'We’ll start processing your query as soon as possible.',
+                title: i18n.t('queryLoadingState.queued.title', {
+                    ns: 'explorer',
+                }),
+                description: i18n.t('queryLoadingState.queued.description', {
+                    ns: 'explorer',
+                }),
             };
         case QueryHistoryStatus.EXECUTING:
             return {
-                title: 'Executing query...',
+                title: i18n.t('queryLoadingState.executing', {
+                    ns: 'explorer',
+                }),
             };
         default:
             return {
-                title: 'Loading results',
+                title: i18n.t('queryLoadingState.loading', { ns: 'explorer' }),
             };
     }
 };

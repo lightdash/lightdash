@@ -21,6 +21,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PillTagsInput } from '../../../components/common/TagsInput/PillTagsInput';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -51,6 +52,7 @@ const isCategoryDefinedInUI = (
 export const MetricsCatalogCategoryForm: FC<Props> = memo(
     ({ catalogSearchUuid, metricCategories, opened, onClose }) => {
         const getUiString = useUiStrings();
+        const { t } = useTranslation('metricsCatalog');
         const { track } = useTracking();
         const { colors } = useMantineTheme();
         const userUuid = useAppSelector(
@@ -130,8 +132,8 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                     });
                 } catch (error) {
                     showToastError({
-                        title: 'Error adding category',
-                        subtitle: 'Unable to add category to metric.',
+                        title: t('categoryForm.addErrorTitle'),
+                        subtitle: t('categoryForm.addErrorSubtitle'),
                     });
                 }
             },
@@ -146,6 +148,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                 tagColor,
                 createTagMutation,
                 showToastError,
+                t,
             ],
         );
 
@@ -161,8 +164,8 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                     });
                 } catch (error) {
                     showToastError({
-                        title: 'Error removing category',
-                        subtitle: 'Unable to remove category from metric.',
+                        title: t('categoryForm.removeErrorTitle'),
+                        subtitle: t('categoryForm.removeErrorSubtitle'),
                     });
                 }
             },
@@ -171,6 +174,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                 untagCatalogItemMutation,
                 catalogSearchUuid,
                 showToastError,
+                t,
             ],
         );
 
@@ -273,7 +277,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
             >
                 <Popover.Target>
                     <UnstyledButton
-                        aria-label="Edit metric categories"
+                        aria-label={t('categoryForm.editAriaLabel')}
                         aria-expanded={opened}
                         w="100%"
                         pos="absolute"
@@ -310,7 +314,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                             onSearchChange={handleSearchChange}
                             searchValue={search}
                             renderPill={renderValueComponent}
-                            placeholder="Search"
+                            placeholder={t('categoryForm.searchPlaceholder')}
                             size="xs"
                             mb="xs"
                             radius="md"
@@ -328,7 +332,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                             }}
                         />
                         <Text size="xs" fw={500} c="dimmed">
-                            Select a category or create a new one
+                            {t('categoryForm.selectOrCreate')}
                         </Text>
                     </Stack>
                     <Stack gap="xs" align="flex-start" px="xs" pb="sm">
@@ -371,7 +375,9 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                                 }}
                             >
                                 <Group gap={4}>
-                                    <Text fz="sm">Create</Text>
+                                    <Text fz="sm">
+                                        {t('categoryForm.create')}
+                                    </Text>
                                     {tagColor && (
                                         <CatalogCategory
                                             category={{

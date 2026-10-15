@@ -1,0 +1,257 @@
+{
+    "controls": {
+        "editor": {
+            "clickAgainToRemove": "Haz clic de nuevo para eliminar",
+            "removeFilter": "Eliminar filtro",
+            "newFilter": "Nuevo filtro",
+            "filterFallbackTitle": "Filtro",
+            "selectFieldToKeep": "Selecciona un campo para conservar este filtro",
+            "noDefaultValue": "No hay valor predeterminado, así que el predeterminado queda desactivado",
+            "discardFilter": "Descartar filtro",
+            "discardChanges": "Descartar cambios",
+            "subtitle": {
+                "tabReach": " en {{applied}} de {{total}} pestañas",
+                "noField": "Aún sin campo",
+                "fieldsFilterTiles_one": "{{fieldCount}} campos · filtra {{applied}} de {{count}} tile{{tabReach}}",
+                "fieldsFilterTiles_other": "{{fieldCount}} campos · filtra {{applied}} de {{count}} tiles{{tabReach}}",
+                "filtersTiles_one": "Filtra {{applied}} de {{count}} tile{{tabReach}}",
+                "filtersTiles_other": "Filtra {{applied}} de {{count}} tiles{{tabReach}}"
+            },
+            "tabs": {
+                "fieldsAndTiles": "Campos y tiles",
+                "settings": "Configuración",
+                "selectFieldFirst": "Selecciona primero un campo"
+            },
+            "filterLabel": "Etiqueta del filtro",
+            "filterLabelPlaceholder": "Nombre que verán los lectores",
+            "suggestions": "Sugerencias",
+            "moreActions": "Más acciones",
+            "fieldCount_one": "{{count}} campo",
+            "fieldCount_other": "{{count}} campos",
+            "changedFromDefault": "Cambiado respecto al predeterminado",
+            "done": "Listo",
+            "editFilter": "Editar filtro"
+        },
+        "fields": {
+            "selectFieldHint": "Selecciona el campo por el que filtrar los tiles.",
+            "selectColumnHint": "Selecciona la columna por la que filtrar los tiles.",
+            "tilesFilteredBy": "Los tiles se filtran por",
+            "selectToSeeTiles": "Selecciona un campo para ver y cambiar sus tiles.",
+            "noOtherField": "Ningún tile tiene otro campo que este filtro pueda usar",
+            "addAnotherField": "Añadir otro campo"
+        },
+        "labelList": "{{items}} y {{last}}",
+        "fieldRow": {
+            "removeField": "Quitar campo",
+            "removeFieldNamed": "Quitar campo {{label}}",
+            "count_one": "{{table}} · {{applied}} de {{count}} tile",
+            "count_other": "{{table}} · {{applied}} de {{count}} tiles"
+        },
+        "bar": {
+            "filterUnfiltered_one": "Filtrar {{count}} tile sin filtrar",
+            "filterUnfiltered_other": "Filtrar {{count}} tiles sin filtrar",
+            "filterOther": "Filtrar los otros {{count}}",
+            "filterAll": "Filtrar los {{count}}",
+            "filterUnfilteredName_one": "Filtrar {{count}} tile sin filtrar por {{label}}",
+            "filterUnfilteredName_other": "Filtrar {{count}} tiles sin filtrar por {{label}}",
+            "filterUnfilteredName_tab_one": "Filtrar {{count}} tile sin filtrar en esta pestaña por {{label}}",
+            "filterUnfilteredName_tab_other": "Filtrar {{count}} tiles sin filtrar en esta pestaña por {{label}}",
+            "filterOtherName_one": "Filtrar el otro {{count}} tile por {{label}}",
+            "filterOtherName_other": "Filtrar los otros {{count}} tiles por {{label}}",
+            "filterOtherName_tab_one": "Filtrar el otro {{count}} tile en esta pestaña por {{label}}",
+            "filterOtherName_tab_other": "Filtrar los otros {{count}} tiles en esta pestaña por {{label}}",
+            "filterAllName_one": "Filtrar {{count}} tile por {{label}}",
+            "filterAllName_other": "Filtrar los {{count}} tiles por {{label}}",
+            "filterAllName_tab_one": "Filtrar {{count}} tile en esta pestaña por {{label}}",
+            "filterAllName_tab_other": "Filtrar los {{count}} tiles en esta pestaña por {{label}}",
+            "replace_one": "Reemplazar {{names}} en {{count}} tile",
+            "replace_other": "Reemplazar {{names}} en {{count}} tiles",
+            "replaceName_one": "Reemplazar {{names}} en {{count}} tile por {{label}}",
+            "replaceName_other": "Reemplazar {{names}} en {{count}} tiles por {{label}}",
+            "replaceName_tab_one": "Reemplazar {{names}} en {{count}} tile por {{label}} en esta pestaña",
+            "replaceName_tab_other": "Reemplazar {{names}} en {{count}} tiles por {{label}} en esta pestaña",
+            "regionLabel": "Tiles filtrados por {{label}}",
+            "noTileOnTab": "Ningún tile de esta pestaña tiene este campo",
+            "noTile": "Ningún tile tiene este campo",
+            "onTiles_one": "en <count>{{applied}} de {{count}}</count> tile",
+            "onTiles_other": "en <count>{{applied}} de {{count}}</count> tiles",
+            "onTiles_tab_one": "en <count>{{applied}} de {{count}}</count> tile de esta pestaña",
+            "onTiles_tab_other": "en <count>{{applied}} de {{count}}</count> tiles de esta pestaña",
+            "clearFromTab": "Quitar {{label}} de esta pestaña",
+            "clearFromTiles": "Quitar {{label}} de los tiles",
+            "clear": "Quitar",
+            "filterOtherTabsName": "Filtrar {{count}} en otras pestañas por {{label}}",
+            "filterOtherTabs": "Filtrar {{count}} en otras pestañas"
+        },
+        "settings": {
+            "defaultValue": "Valor predeterminado",
+            "viewerAccess": "Acceso de los lectores",
+            "setValueHint": "Define un valor o el predeterminado quedará desactivado.",
+            "noDefaultHint": "Sin predeterminado: cada tile mantiene sus propios valores hasta que un lector defina uno."
+        },
+        "link": {
+            "fieldFor": "Campo para {{label}} en este tile",
+            "selectField": "Selecciona un campo",
+            "apply": "Aplicar",
+            "skip": "Omitir",
+            "tileCanUse_one": "Este tile puede usar un filtro",
+            "tileCanUse_other": "Este tile puede usar estos filtros"
+        },
+        "tabCounts": {
+            "thisFilter": "este filtro",
+            "tooltip_one": "{{applied}} de {{count}} tile de esta pestaña está filtrado por {{subject}}",
+            "tooltip_other": "{{applied}} de {{count}} tiles de esta pestaña están filtrados por {{subject}}",
+            "badge": "{{applied}} de {{total}}"
+        },
+        "tile": {
+            "thisTile": "este tile",
+            "fieldNotAvailable": "El campo seleccionado '{{fieldId}}' no está disponible en este tile",
+            "noUsableField": "Este tile no tiene ningún campo que este filtro pueda usar",
+            "groups": {
+                "starter": "Campos de este tile",
+                "own": "En este filtro",
+                "other": "Otros campos de este tile"
+            },
+            "lockedWhileEditing": "Los tiles están bloqueados mientras se edita un filtro",
+            "filtered": "Filtrado",
+            "notFiltered": "Sin filtrar",
+            "filterThisTile": "Filtrar este tile",
+            "filteredByMissing": "Filtrado por un campo que este tile ya no tiene",
+            "filteredBy": "Filtrado por",
+            "selectColumn": "Selecciona una columna",
+            "stopFiltering": "Dejar de filtrar este tile",
+            "noColumnsMatch": "Ninguna columna coincide",
+            "noFieldsMatch": "Ningún campo coincide",
+            "newFilterOn": "Nuevo filtro en {{title}}",
+            "filterOn": "{{label}} en {{title}}"
+        },
+        "followUp": {
+            "filter": "Filtrar también los otros {{count}}",
+            "filter_tab": "Filtrar también los otros {{count}} de esta pestaña",
+            "clear": "Quitar también de los otros {{count}}",
+            "clear_tab": "Quitar también de los otros {{count}} de esta pestaña",
+            "filterName": "Filtrar también los otros {{count}}, por {{label}}",
+            "filterName_tab": "Filtrar también los otros {{count}} de esta pestaña, por {{label}}",
+            "clearName": "Quitar también de los otros {{count}}, {{label}}",
+            "clearName_tab": "Quitar también de los otros {{count}} de esta pestaña, {{label}}"
+        },
+        "viewer": {
+            "lock": "Bloquear",
+            "locked": "Bloqueado",
+            "locked_everyTab": "Bloqueado en todas las pestañas",
+            "lockedOnSome": "Bloqueado en {{count}} de {{total}} pestañas",
+            "notLocked": "Sin bloquear: los lectores pueden cambiarlo",
+            "notLocked_everyTab": "Sin bloquear: los lectores pueden cambiarlo en todas las pestañas",
+            "lockEveryTab": "Bloquear en todas las pestañas",
+            "lockDescription": "Los lectores ven el valor pero no pueden cambiarlo.",
+            "lockPerTab": "Bloquear por pestaña",
+            "setPerTab": "Definir por pestaña",
+            "lockedHint": "Un filtro bloqueado sigue filtrando los tiles. Se ignoran los valores de la URL o de un embed.",
+            "required": "Obligatorio",
+            "requiredOr": "Obligatorio, o {{labels}}",
+            "orSeparator": " o ",
+            "notRequired": "No obligatorio",
+            "requiredDescription": "Los lectores deben definir este filtro para cargar el dashboard.",
+            "notRequiredDescription": "Los lectores tendrían que definir este filtro antes de que se carguen los tiles.",
+            "editRule": "Editar regla",
+            "orOneOfThese": "O uno de estos en su lugar"
+        },
+        "sqlColumn": "Columna SQL"
+    },
+    "lock": {
+        "lockFilter": "Bloquear filtro",
+        "lockFilter_tab": "Bloquear filtro en esta pestaña",
+        "unlockFilter": "Desbloquear filtro",
+        "unlockFilter_tab": "Desbloquear filtro en esta pestaña",
+        "readOnlyLocked": "Bloqueado por el editor del dashboard: cambia al modo edición para modificarlo"
+    },
+    "addFilter": {
+        "hiddenFromViewers": "Oculto para los lectores. Haz clic para mostrar.",
+        "visibleToViewers": "Visible para los lectores. Haz clic para ocultar.",
+        "toggleVisibility": "Alternar la visibilidad del filtro para los lectores",
+        "resetAll": "Restablecer todos los filtros"
+    },
+    "bar": {
+        "parameters": {
+            "title": "Parámetros",
+            "description": "Ajusta entradas predefinidas que cambian cómo se calculan las cifras del dashboard."
+        },
+        "filters": {
+            "title": "Filtros",
+            "description": "Refina tu dashboard eligiendo qué datos ver."
+        },
+        "dateZoom": {
+            "title": "Zoom de fecha",
+            "description": "Cambia rápidamente la granularidad de fecha de los gráficos.",
+            "hiddenFromViewers": "El zoom de fecha está oculto para los lectores. Haz clic para mostrar.",
+            "hideFromViewers": "Ocultar el zoom de fecha a los lectores",
+            "toggleVisibility": "Alternar la visibilidad del zoom de fecha para los lectores"
+        },
+        "hideFilters": "Ocultar filtros",
+        "hide": "Ocultar"
+    },
+    "invalidFilter": {
+        "unknownFieldId": "Se intentó referenciar un campo con id desconocido:"
+    },
+    "config": {
+        "labelFor": "Etiqueta para {{label}}",
+        "preventMultiple": "Impedir seleccionar varios valores",
+        "allowMultiple": "Permitir seleccionar varios valores",
+        "singleValue": "Un solo valor",
+        "multipleValues": "Varios valores",
+        "temporaryValuesRemoved": "Los valores temporales de los filtros obligatorios se eliminarán al guardar el dashboard",
+        "toggleOnDefault": "Actívalo para definir un valor predeterminado del filtro",
+        "toggleOffDefault": "Desactívalo para dejar vacío el valor del filtro y que los usuarios lo rellenen en modo vista",
+        "provideDefault": "Proporcionar valor predeterminado"
+    },
+    "tileConfig": {
+        "noTilesInTab": "No hay tiles en esta pestaña",
+        "noExactMatchInTab": "Ningún tile de esta pestaña tiene una coincidencia exacta de campo",
+        "uncheckTab": "Desmarca para desactivar el filtro en la pestaña '{{tabName}}'",
+        "checkTab": "Marca para activar el filtro en la pestaña '{{tabName}}'",
+        "selectedOfTotal": "({{selected}} de {{total}} seleccionados)",
+        "selectAll": "Seleccionar todo",
+        "selectAllWithCount_one": "Seleccionar todo ({{count}} tile seleccionado)",
+        "selectAllWithCount_other": "Seleccionar todo ({{count}} tiles seleccionados)"
+    },
+    "requirements": {
+        "ineligible": {
+            "alreadyInRule": "Ya forma parte de una regla de filtros",
+            "hasDefault": "Tiene un valor predeterminado, así que la regla siempre se cumpliría"
+        },
+        "and": "Y",
+        "or": "O",
+        "addFilterToRule": "Añadir filtro a la regla",
+        "changeOperatorFor": "Cambiar operador de {{label}}",
+        "addAFilter": "+ Añadir un filtro",
+        "addAlternative": "Añadir un filtro alternativo",
+        "sharesRule": "Comparte una regla. Los lectores pueden cumplirla definiendo este o una alternativa:",
+        "editRuleArrow": "Editar regla →",
+        "removeMember": "Quitar {{label}}",
+        "mustSetOneOf": "Los lectores deben definir al menos uno de:",
+        "mustSet": "Los lectores deben definir:",
+        "orAnotherFilter": "+ u otro filtro",
+        "addFilter": "+ Añadir filtro",
+        "deleteRule": "Eliminar regla",
+        "filterRules": "Reglas de filtros",
+        "wontLoadUntilMet": "El dashboard no se cargará hasta que se cumplan todas las reglas.",
+        "emptyDescription": "Exige a los lectores definir filtros antes de que se cargue el dashboard, ya sea individualmente o al menos uno de un conjunto.",
+        "addAnotherRule": "Añadir otra regla",
+        "addRule": "Añadir regla",
+        "noteLabel": "Nota para los lectores",
+        "notePlaceholder": "Explica por qué estos filtros son obligatorios, p. ej. elige tu región para que este dashboard vaya rápido",
+        "tilesLockedHint": "Los tiles siguen bloqueados hasta que se cumplan todas las reglas.",
+        "removeRuleModal": {
+            "title": "¿Eliminar regla de filtros?",
+            "confirm": "Eliminar regla",
+            "description": "Este es el único filtro de esta regla. Al quitarlo se elimina la regla, así que los lectores ya no tendrán que definir un filtro antes de que se cargue este dashboard."
+        },
+        "guided": {
+            "atLeastOneOf": "Al menos uno de",
+            "progress": "{{satisfied}} de {{total}} definidos",
+            "loading": "Cargando tu dashboard",
+            "remaining": "Faltan {{count}}",
+            "ariaLabel": "Define filtros para cargar este dashboard"
+        }
+    }
+}

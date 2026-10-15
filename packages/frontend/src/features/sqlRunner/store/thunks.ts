@@ -16,6 +16,7 @@ import {
 } from '../../../components/DataViz/store/selectors';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import { reportSharedSignInQueryFailure } from '../../../hooks/useReconnectSharedSignIn';
+import i18n from '../../../i18n/i18n';
 import {
     cancelAsyncQuery,
     executeSqlQuery,
@@ -54,7 +55,9 @@ export const runSqlQuery = createAsyncThunk<
             return rejectWithValue({
                 statusCode: 400,
                 name: 'ParameterError',
-                message: 'The project is still loading. Run the query again.',
+                message: i18n.t('errors.projectStillLoading', {
+                    ns: 'sqlRunner',
+                }),
                 data: {},
             });
         }
@@ -66,7 +69,9 @@ export const runSqlQuery = createAsyncThunk<
             return rejectWithValue({
                 statusCode: 400,
                 name: 'ParameterError',
-                message: 'Choose a connection before you run this query.',
+                message: i18n.t('errors.chooseConnectionToRun', {
+                    ns: 'sqlRunner',
+                }),
                 data: {},
             });
         }
@@ -101,7 +106,9 @@ export const runSqlQuery = createAsyncThunk<
                 statusCode: 500,
                 name: 'QueryError',
                 message:
-                    error instanceof Error ? error.message : 'Unknown error',
+                    error instanceof Error
+                        ? error.message
+                        : i18n.t('content.unknownError', { ns: 'sqlRunner' }),
                 data: {},
             });
         }

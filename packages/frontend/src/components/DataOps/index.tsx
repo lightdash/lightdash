@@ -1,6 +1,7 @@
 import { ProjectType } from '@lightdash/common';
 import { Button, Flex, Text, Title, Select } from '@mantine/core';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useProject } from '../../hooks/useProject';
 import { useProjects } from '../../hooks/useProjects';
 import { groupComboboxItems } from '../common/Select/utils';
@@ -8,6 +9,7 @@ import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import { useUpdateMutation } from './hooks/useUpstreamProject';
 
 export const DataOps: FC<{ projectUuid: string }> = ({ projectUuid }) => {
+    const { t } = useTranslation('app');
     const { data: projects } = useProjects();
     const { data: currentProject } = useProject(projectUuid);
     const { mutateAsync: updateMutation } = useUpdateMutation(projectUuid);
@@ -16,18 +18,13 @@ export const DataOps: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     );
     return (
         <>
-            <Text c="dimmed">
-                Perform data operations between on this project
-            </Text>
+            <Text c="dimmed">{t('dataOps.description')}</Text>
 
             <SettingsGridCard>
                 <div>
-                    <Title order={5}>Promote content</Title>
+                    <Title order={5}>{t('dataOps.promoteTitle')}</Title>
                     <Text c="dimmed" fz="xs">
-                        Developers and admins on this organization can copy
-                        content from this project into the selected upstream
-                        project, overriding its defaults or creating new content
-                        if it is new.
+                        {t('dataOps.promoteDescription')}
                     </Text>
                 </div>
                 <div>
@@ -47,22 +44,24 @@ export const DataOps: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                 .map((project) => ({
                                     label:
                                         project.projectUuid === projectUuid
-                                            ? `${project.name} (Current)`
+                                            ? t('dataOps.currentProject', {
+                                                  name: project.name,
+                                              })
                                             : project.name,
                                     value: project.projectUuid,
                                     disabled:
                                         project.projectUuid === projectUuid,
                                     group:
                                         project.type === ProjectType.PREVIEW
-                                            ? 'Preview projects'
-                                            : 'Production projects',
+                                            ? t('dataOps.previewProjects')
+                                            : t('dataOps.productionProjects'),
                                 })) || [],
                         )}
-                        label="Upstream project"
+                        label={t('dataOps.upstreamProject')}
                         onChange={(value) => {
                             setSelectedProject(value || null);
                         }}
-                        placeholder="Select project"
+                        placeholder={t('dataOps.selectProject')}
                     />
                     <Flex justify="flex-end" gap="sm" mt="sm">
                         <Button
@@ -78,7 +77,7 @@ export const DataOps: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                 });
                             }}
                         >
-                            Update
+                            {t('actions.update', { ns: 'common' })}
                         </Button>
                     </Flex>
                 </div>

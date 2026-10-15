@@ -16,6 +16,7 @@ import {
 import { useForm } from '@mantine/form';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { z } from 'zod';
 import PasswordTextInput from '../PasswordTextInput';
@@ -34,6 +35,7 @@ const validationSchema = z.object({
 });
 
 const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
+    const { t } = useTranslation('auth');
     const form = useForm<CreateUserArgs>({
         initialValues: {
             firstName: '',
@@ -49,32 +51,32 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
             <Stack gap="md">
                 <Flex direction={{ base: 'column', sm: 'row' }} gap="xs">
                     <TextInput
-                        label="First name"
+                        label={t('createUser.firstName')}
                         name="firstName"
                         autoComplete="given-name"
                         flex={1}
-                        placeholder="Your first name"
+                        placeholder={t('createUser.firstNamePlaceholder')}
                         disabled={isLoading}
                         required
                         {...form.getInputProps('firstName')}
                     />
                     <TextInput
-                        label="Last name"
+                        label={t('createUser.lastName')}
                         name="lastName"
                         autoComplete="family-name"
                         flex={1}
-                        placeholder="Your last name"
+                        placeholder={t('createUser.lastNamePlaceholder')}
                         disabled={isLoading}
                         required
                         {...form.getInputProps('lastName')}
                     />
                 </Flex>
                 <TextInput
-                    label="Email address"
+                    label={t('login.emailAddress')}
                     name="email"
                     type="email"
                     autoComplete="email"
-                    placeholder="Your email address"
+                    placeholder={t('login.emailPlaceholderLegacy')}
                     required
                     {...form.getInputProps('email')}
                     disabled={isLoading || !!readOnlyEmail}
@@ -84,10 +86,10 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                     passwordValue={form.values.password as string}
                 >
                     <PasswordInput
-                        label="Password"
+                        label={t('login.password')}
                         name="password"
                         autoComplete="new-password"
-                        placeholder="Your password"
+                        placeholder={t('login.passwordPlaceholder')}
                         required
                         {...form.getInputProps('password')}
                         data-cy="password-input"
@@ -100,13 +102,23 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                     disabled={isLoading}
                     data-cy="signup-button"
                 >
-                    Sign up
+                    {t('login.signUp')}
                 </Button>
                 <Text mx="auto" c="ldGray.7" ta="center" fz="sm" fw={500}>
-                    Already Registered?{' '}
-                    <Anchor component={Link} to="/login" fz="sm" fw={500}>
-                        Sign in
-                    </Anchor>
+                    <Trans
+                        t={t}
+                        i18nKey="createUser.alreadyRegistered"
+                        components={{
+                            link: (
+                                <Anchor
+                                    component={Link}
+                                    to="/login"
+                                    fz="sm"
+                                    fw={500}
+                                />
+                            ),
+                        }}
+                    />
                 </Text>
             </Stack>
         </form>

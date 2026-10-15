@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import { Button, Skeleton, Stack } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useColorPalettes,
     useSetActiveColorPalette,
@@ -25,6 +26,7 @@ const AppearanceColorSettings: FC<{
     isCreatePaletteModalOpen: boolean;
     onCloseCreatePaletteModal: () => void;
 }> = ({ canManage, isCreatePaletteModalOpen, onCloseCreatePaletteModal }) => {
+    const { t } = useTranslation('userSettings');
     const { data: organization } = useOrganization();
     const { data: health, isLoading: isHealthLoading } = useHealth();
     const { data: palettes = [], isLoading: isPalettesLoading } =
@@ -64,7 +66,9 @@ const AppearanceColorSettings: FC<{
                                         name:
                                             health.appearance
                                                 .overrideColorPaletteName ??
-                                            'Custom override',
+                                            t(
+                                                'appearanceSettingsPanel.customOverrideName',
+                                            ),
                                         colors: health.appearance
                                             .overrideColorPalette,
                                         darkColors: null,
@@ -106,6 +110,7 @@ const AppearanceColorSettings: FC<{
 };
 
 const AppearanceSettingsPanel: FC = () => {
+    const { t } = useTranslation('userSettings');
     const { user } = useApp();
     const { data: health } = useHealth();
     const [isCreatePaletteModalOpen, setIsCreatePaletteModalOpen] =
@@ -126,8 +131,8 @@ const AppearanceSettingsPanel: FC = () => {
 
     return (
         <SettingsPage
-            title="Appearance"
-            description="Customize organization branding and the color palettes used in charts and visualizations."
+            title={t('appearanceSettingsPanel.title')}
+            description={t('appearanceSettingsPanel.description')}
             actions={
                 <SettingsPageActions>
                     <SettingsPageDocumentationLink href="https://docs.lightdash.com/guides/customizing-the-appearance-of-your-project" />
@@ -139,7 +144,7 @@ const AppearanceSettingsPanel: FC = () => {
                             variant="default"
                             disabled={hasColorPaletteOverride}
                         >
-                            Add palette
+                            {t('appearanceSettingsPanel.addPalette')}
                         </Button>
                     ) : null}
                 </SettingsPageActions>

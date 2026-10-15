@@ -32,6 +32,7 @@ import {
     type FC,
     type SetStateAction,
 } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import tableStyles from '../../../hooks/styles/tableStyles.module.css';
 import {
     useAccessToken,
@@ -51,6 +52,7 @@ const TokenItem: FC<{
     setTokenToCopy: Dispatch<SetStateAction<PersonalAccessToken | undefined>>;
     setTokenToRotate: Dispatch<SetStateAction<PersonalAccessToken | undefined>>;
 }> = ({ token, setTokenToDelete, setTokenToCopy, setTokenToRotate }) => {
+    const { t } = useTranslation('userSettings');
     const { description, expiresAt, rotatedAt, lastUsedAt } = token;
 
     return (
@@ -72,7 +74,7 @@ const TokenItem: FC<{
                                 <span>{formatDate(expiresAt)}</span>
                             </Tooltip>
                         ) : (
-                            'No expiration date'
+                            t('accessTokensPanel.tokensTable.noExpirationDate')
                         )}
                     </span>
 
@@ -80,9 +82,12 @@ const TokenItem: FC<{
                         <Tooltip
                             position="top"
                             maw={350}
-                            label={`Last rotated at ${formatTimestamp(
-                                rotatedAt,
-                            )}`}
+                            label={t(
+                                'accessTokensPanel.tokensTable.lastRotatedAt',
+                                {
+                                    date: formatTimestamp(rotatedAt),
+                                },
+                            )}
                         >
                             <MantineIcon
                                 icon={IconInfoCircle}
@@ -116,14 +121,18 @@ const TokenItem: FC<{
                             leftSection={<MantineIcon icon={IconCopy} />}
                             onClick={() => setTokenToCopy(token)}
                         >
-                            Copy token UUID
+                            {t(
+                                'accessTokensPanel.tokensTable.menu.copyTokenUuid',
+                            )}
                         </Menu.Item>
                         {token.expiresAt && (
                             <Menu.Item
                                 leftSection={<MantineIcon icon={IconRefresh} />}
                                 onClick={() => setTokenToRotate(token)}
                             >
-                                Rotate token
+                                {t(
+                                    'accessTokensPanel.tokensTable.menu.rotateToken',
+                                )}
                             </Menu.Item>
                         )}
                         <Menu.Item
@@ -131,7 +140,7 @@ const TokenItem: FC<{
                             color="red"
                             onClick={() => setTokenToDelete(token)}
                         >
-                            Delete
+                            {t('actions.delete', { ns: 'common' })}
                         </Menu.Item>
                     </Menu.Dropdown>
                 </Menu>
@@ -151,6 +160,7 @@ const RotateTokenForm: FC<{
     token: PersonalAccessToken | undefined;
     onStateChange: (state: RotateFormState) => void;
 }> = ({ token, onStateChange }) => {
+    const { t } = useTranslation('userSettings');
     const {
         mutate: rotateToken,
         isLoading,
@@ -194,12 +204,17 @@ const RotateTokenForm: FC<{
     if (isSuccess && rotatedTokenData) {
         return (
             <Stack gap="md">
-                <Callout variant="success" title="Token rotated successfully!">
-                    Your old token is now invalid.
+                <Callout
+                    variant="success"
+                    title={t(
+                        'accessTokensPanel.tokensTable.rotate.successTitle',
+                    )}
+                >
+                    {t('accessTokensPanel.tokensTable.rotate.oldTokenInvalid')}
                 </Callout>
 
                 <TextInput
-                    label="New Token"
+                    label={t('accessTokensPanel.tokensTable.rotate.newToken')}
                     readOnly
                     className="sentry-block ph-no-capture"
                     value={rotatedTokenData.token}
@@ -213,10 +228,13 @@ const RotateTokenForm: FC<{
 
                 <Callout
                     variant="info"
-                    title="Make sure to copy your new token now"
+                    title={t(
+                        'accessTokensPanel.tokensTable.rotate.copyNowTitle',
+                    )}
                 >
-                    You won't be able to see it again! Your old token is now
-                    invalid.
+                    {t(
+                        'accessTokensPanel.tokensTable.rotate.copyNowDescription',
+                    )}
                 </Callout>
             </Stack>
         );
@@ -227,14 +245,22 @@ const RotateTokenForm: FC<{
             <Stack gap="md">
                 <Callout
                     variant="info"
-                    title={`Rotating token for "${token?.description}"`}
+                    title={t(
+                        'accessTokensPanel.tokensTable.rotate.rotatingTitle',
+                        {
+                            description: token?.description,
+                        },
+                    )}
                 >
-                    This will generate a new token and invalidate the current
-                    one. You must specify a new expiration date.
+                    {t(
+                        'accessTokensPanel.tokensTable.rotate.rotatingDescription',
+                    )}
                 </Callout>
 
                 <Select
-                    label="New Expiration"
+                    label={t(
+                        'accessTokensPanel.tokensTable.rotate.newExpiration',
+                    )}
                     data={expireOptions}
                     required
                     disabled={isLoading}
@@ -246,6 +272,7 @@ const RotateTokenForm: FC<{
 };
 
 export const TokensTable = () => {
+    const { t } = useTranslation('userSettings');
     const { data } = useAccessToken();
 
     const [tokenToDelete, setTokenToDelete] = useState<
@@ -283,9 +310,21 @@ export const TokensTable = () => {
                 >
                     <Table.Thead>
                         <Table.Tr>
-                            <Table.Th>Description</Table.Th>
-                            <Table.Th>Expiration date</Table.Th>
-                            <Table.Th>Last used at</Table.Th>
+                            <Table.Th>
+                                {t(
+                                    'accessTokensPanel.tokensTable.columns.description',
+                                )}
+                            </Table.Th>
+                            <Table.Th>
+                                {t(
+                                    'accessTokensPanel.tokensTable.columns.expirationDate',
+                                )}
+                            </Table.Th>
+                            <Table.Th>
+                                {t(
+                                    'accessTokensPanel.tokensTable.columns.lastUsedAt',
+                                )}
+                            </Table.Th>
                             <Table.Th></Table.Th>
                         </Table.Tr>
                     </Table.Thead>
@@ -306,9 +345,11 @@ export const TokensTable = () => {
             <MantineModal
                 opened={!!tokenToDelete}
                 onClose={() => !isDeleting && setTokenToDelete(undefined)}
-                title="Delete token"
+                title={t('accessTokensPanel.tokensTable.deleteModal.title')}
                 variant="delete"
-                resourceType="token"
+                resourceType={t(
+                    'accessTokensPanel.tokensTable.deleteModal.resourceType',
+                )}
                 resourceLabel={tokenToDelete?.description}
                 cancelDisabled={isDeleting}
                 onConfirm={() => mutate(tokenToDelete?.uuid ?? '')}
@@ -318,11 +359,16 @@ export const TokensTable = () => {
             <MantineModal
                 opened={!!tokenToCopy}
                 onClose={() => setTokenToCopy(undefined)}
-                title={`Token UUID ${
+                title={
                     tokenToCopy?.description
-                        ? `for "${tokenToCopy.description}"`
-                        : ''
-                }`}
+                        ? t(
+                              'accessTokensPanel.tokensTable.copyModal.titleWithDescription',
+                              {
+                                  description: tokenToCopy.description,
+                              },
+                          )
+                        : t('accessTokensPanel.tokensTable.copyModal.title')
+                }
                 icon={IconInfoCircle}
                 size="md"
                 cancelLabel={false}
@@ -331,23 +377,35 @@ export const TokensTable = () => {
                         variant="default"
                         onClick={() => setTokenToCopy(undefined)}
                     >
-                        Done
+                        {t('accessTokensPanel.tokensTable.done')}
                     </Button>
                 }
             >
                 <Stack gap="lg">
-                    <Callout variant="info" title="What is a token UUID?">
+                    <Callout
+                        variant="info"
+                        title={t(
+                            'accessTokensPanel.tokensTable.copyModal.whatIsUuidTitle',
+                        )}
+                    >
                         <Text size="sm">
-                            The UUID is a unique identifier for your token, used
-                            for token rotation via the CLI{' '}
-                            <DocumentationHelpButton
-                                href="https://docs.lightdash.com/references/personal_tokens#rotating-a-personal-access-token"
-                                tooltipProps={{
-                                    label: 'Learn about token rotation',
+                            <Trans
+                                t={t}
+                                i18nKey="accessTokensPanel.tokensTable.copyModal.whatIsUuidDescription"
+                                components={{
+                                    help: (
+                                        <DocumentationHelpButton
+                                            href="https://docs.lightdash.com/references/personal_tokens#rotating-a-personal-access-token"
+                                            tooltipProps={{
+                                                label: t(
+                                                    'accessTokensPanel.tokensTable.copyModal.learnAboutRotation',
+                                                ),
+                                            }}
+                                        />
+                                    ),
+                                    strong: <strong />,
                                 }}
                             />
-                            . This is <strong>not</strong> your Personal Access
-                            Token value.
                         </Text>
                     </Callout>
 
@@ -359,8 +417,12 @@ export const TokensTable = () => {
                         </Paper>
                         <CopyActionIcon
                             value={tokenToCopy?.uuid ?? ''}
-                            copyLabel="Copy UUID"
-                            copiedLabel="Copied!"
+                            copyLabel={t(
+                                'accessTokensPanel.tokensTable.copyModal.copyUuid',
+                            )}
+                            copiedLabel={t(
+                                'accessTokensPanel.tokensTable.copyModal.copied',
+                            )}
                             tooltipPosition="top"
                             size="sm"
                             variant="light"
@@ -372,21 +434,27 @@ export const TokensTable = () => {
             <MantineModal
                 opened={!!tokenToRotate}
                 onClose={handleCloseRotateModal}
-                title="Rotate token"
+                title={t('accessTokensPanel.tokensTable.menu.rotateToken')}
                 icon={IconRefresh}
                 size="md"
-                cancelLabel={rotateFormState.isSuccess ? false : 'Cancel'}
+                cancelLabel={
+                    rotateFormState.isSuccess
+                        ? false
+                        : t('actions.cancel', { ns: 'common' })
+                }
                 cancelDisabled={rotateFormState.isLoading}
                 actions={
                     rotateFormState.isSuccess ? (
-                        <Button onClick={handleCloseRotateModal}>Done</Button>
+                        <Button onClick={handleCloseRotateModal}>
+                            {t('accessTokensPanel.tokensTable.done')}
+                        </Button>
                     ) : (
                         <Button
                             type="submit"
                             form={ROTATE_TOKEN_FORM_ID}
                             loading={rotateFormState.isLoading}
                         >
-                            Rotate Token
+                            {t('accessTokensPanel.tokensTable.rotate.submit')}
                         </Button>
                     )
                 }

@@ -1,0 +1,120 @@
+{
+    "deleteModal": {
+        "assignedTitle": "Custom role is assigned",
+        "title": "Delete custom role",
+        "resourceType": "role",
+        "inUse": "This role is currently in use. Unassign it from the items below before you can delete it.",
+        "kinds": {
+            "serviceAccount": "Service account",
+            "orgMember": "Org member",
+            "projectMember": "Project member",
+            "projectGroup": "Project group"
+        },
+        "cannotUndo": "This action cannot be undone. Users and groups will no longer be able to use this role."
+    },
+    "levels": {
+        "organization": "Organization",
+        "project": "Project"
+    },
+    "table": {
+        "actionsFor": "Actions for {{name}}",
+        "name": "Name",
+        "description": "Description",
+        "type": "Type",
+        "created": "Created"
+    },
+    "addRole": {
+        "button": "Add role",
+        "create": "Create new role",
+        "duplicate": "Duplicate existing role"
+    },
+    "validation": {
+        "nameRequired": "Role name is required",
+        "nameTooShort": "Role name must be at least 3 characters",
+        "nameIsSystemRole": "Role name cannot match a system role",
+        "scopeRequired": "At least one scope is required"
+    },
+    "toasts": {
+        "updated": "Custom role updated successfully",
+        "updateFailed": "Failed to update custom role",
+        "created": "Custom role created successfully",
+        "createFailed": "Failed to create custom role",
+        "deleted": "Custom role deleted successfully",
+        "deleteFailed": "Failed to delete custom role"
+    },
+    "scopeGroups": {
+        "content": "Content Management",
+        "projectManagement": "Project Management",
+        "organizationManagement": "Organization Management",
+        "data": "Data Access",
+        "sharing": "Sharing & Export",
+        "ai": "AI Features",
+        "embed": "Embedding",
+        "spotlight": "Spotlight Features"
+    },
+    "builder": {
+        "levelLockedAfterCreation": "Role type can't be changed after creation.",
+        "roleType": "Role type",
+        "roleTypeDescription": "Choose where this role can be assigned. This can't be changed after the role is created.",
+        "levels": {
+            "project": {
+                "title": "Project role",
+                "description": "Assigned per project. A user or group can hold different project roles on different projects."
+            },
+            "organization": {
+                "title": "Organization role",
+                "description": "Grants access to organization-wide admin settings, applied across the whole org. Any project-scoped permissions you add here will apply to every project."
+            }
+        },
+        "preset": "Preset",
+        "presetDescription": "Start with a common role, then customize its name, description, and permissions.",
+        "startFromScratch": "Start from scratch",
+        "roleName": "Role name",
+        "roleNamePlaceholder": "e.g., Finance Analyst",
+        "descriptionPlaceholder": "Describe the purpose of this role",
+        "showDependencyStatus_one": "Show {{count}} permission with {{status}} dependency status",
+        "showDependencyStatus_other": "Show {{count}} permissions with {{status}} dependency status",
+        "dependencies": "dependencies",
+        "createRole": "Create role",
+        "saveChanges": "Save changes"
+    },
+    "scopeSelector": {
+        "agentPermissions": "Agent permissions",
+        "deselectAll": "Deselect all",
+        "selectAll": "Select all",
+        "dependencyCount_one": "{{selected}} / {{count}} dependency",
+        "dependencyCount_other": "{{selected}} / {{count}} dependencies",
+        "permissions": "Permissions",
+        "selectAtLeastOne": "Select at least one permission for this role",
+        "searchPlaceholder": "Search permissions by name or group...",
+        "selectedCount": "{{selected}} of {{total}} <bold>{{level}}</bold> permissions selected",
+        "levelAdjective": {
+            "project": "project",
+            "organization": "organization"
+        },
+        "orgOnlyHidden_one": "{{count}} organization-level permission is hidden here. It only takes effect on an organization-level role assigned at the organization level.",
+        "orgOnlyHidden_other": "{{count}} organization-level permissions are hidden here. They only take effect on an organization-level role assigned at the organization level.",
+        "clearAll": "Clear all",
+        "noResults": "No permissions found matching your search.",
+        "selectGroup": "Select a group to view its permissions"
+    },
+    "page": {
+        "title": "Custom roles",
+        "createTitle": "Create custom role",
+        "description": "Create reusable permission sets for users, groups, and service accounts.",
+        "noOrganizationRoles": "No organization roles yet.",
+        "noProjectRoles": "No project roles yet.",
+        "emptyTitle": "No custom roles",
+        "emptyDescription": "Create a role to define reusable organization or project permissions."
+    },
+    "duplicate": {
+        "systemRoles": "System roles",
+        "customRoles": "Custom roles",
+        "title": "Duplicate role",
+        "selectLabel": "Select role to duplicate",
+        "selectPlaceholder": "Choose a role",
+        "noRoles": "No roles found",
+        "copyOf": "Copy of: {{name}}",
+        "levelLockedHint": "Type matches the role being duplicated and cannot be changed."
+    }
+}

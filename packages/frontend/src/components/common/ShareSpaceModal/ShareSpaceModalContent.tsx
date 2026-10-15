@@ -27,7 +27,9 @@ import {
     IconSettings,
     IconUsers,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
@@ -56,23 +58,31 @@ import {
     UserAccessList,
 } from './ShareSpaceModalShared';
 import { getAccessColor } from './ShareSpaceModalUtils';
-import { UserAccessAction, UserAccessOptions } from './ShareSpaceSelect';
+import { getUserAccessOptions, UserAccessAction } from './ShareSpaceSelect';
 import { getInitials, getUserNameOrEmail } from './Utils';
 
 const MANAGE_PAGE_SIZE = 5;
 const AUDIT_PAGE_SIZE = 10;
 
-const getOriginLabel = (share: SpaceShare): string => {
-    if (share.inheritedFrom === 'parent_space') return 'Parent';
+const getOriginLabel = (share: SpaceShare, t: TFunction<'modals'>): string => {
+    if (share.inheritedFrom === 'parent_space') {
+        return t('shareSpace.origin.parent');
+    }
     if (share.hasDirectAccess) {
-        return share.inheritedFrom === 'space_group' ? 'Group' : 'Direct';
+        return share.inheritedFrom === 'space_group'
+            ? t('shareSpace.origin.group')
+            : t('shareSpace.origin.direct');
     }
-    if (share.inheritedFrom === 'space_group') return 'Group';
+    if (share.inheritedFrom === 'space_group') {
+        return t('shareSpace.origin.group');
+    }
     if (share.inheritedFrom === 'project' || share.inheritedFrom === 'group') {
-        return 'Project';
+        return t('shareSpace.origin.project');
     }
-    if (share.inheritedFrom === 'organization') return 'Organization';
-    return 'Direct';
+    if (share.inheritedFrom === 'organization') {
+        return t('shareSpace.origin.organization');
+    }
+    return t('shareSpace.origin.direct');
 };
 
 type UserAccessAuditListProps = {
@@ -90,6 +100,9 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
     totalPages,
     onPageChange,
 }) => {
+    const { t } = useTranslation('modals');
+    const userAccessOptions = useMemo(() => getUserAccessOptions(t), [t]);
+
     const handleNextPage = useCallback(() => {
         if (page < totalPages) onPageChange(page + 1);
     }, [page, totalPages, onPageChange]);
@@ -138,7 +151,7 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
                                 {isSessionUser ? (
                                     <Text fw={400} fz="sm" span c="dimmed">
                                         {' '}
-                                        (you)
+                                        {t('shareSpace.you')}
                                     </Text>
                                 ) : null}
                             </Text>
@@ -150,10 +163,13 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
                             color={getAccessColor(user.role)}
                             radius="xl"
                         >
-                            {getOriginLabel(user)} &middot;{' '}
-                            {UserAccessOptions.find(
-                                (o) => o.value === user.role,
-                            )?.title ?? user.role}
+                            {t('shareSpace.originRole', {
+                                origin: getOriginLabel(user, t),
+                                role:
+                                    userAccessOptions.find(
+                                        (o) => o.value === user.role,
+                                    )?.title ?? user.role,
+                            })}
                         </Badge>
                     </Group>
                 );
@@ -184,6 +200,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
     const projectUrlIdentifier =
         projectRoute?.projectUrlIdentifier ?? projectUuid;
     const shareSpaceModalSearchParam = useSearchParams('shareSpaceModal');
+    const { t } = useTranslation('modals');
     const { user: sessionUser } = useApp();
     const { showToastError } = useToaster();
 
@@ -300,12 +317,12 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
         if (space.projectMemberAccessRole) {
             groups.unshift({
                 groupUuid: PROJECT_MEMBERS_GROUP_UUID,
-                groupName: 'All project members',
+                groupName: t('shareSpace.allProjectMembers'),
                 spaceRole: space.projectMemberAccessRole,
             });
         }
         return groups;
-    }, [space.groupsAccess, space.projectMemberAccessRole]);
+    }, [space.groupsAccess, space.projectMemberAccessRole, t]);
 
     const handleAccessChange = useCallback(
         (action: UserAccessAction, sharedUser: SpaceShare) => {
@@ -319,8 +336,10 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                     action !== UserAccessAction.ADMIN
                 ) {
                     showToastError({
-                        title: 'Failed to update user access',
-                        subtitle: `An admin can not be a space ${action}`,
+                        title: t('shareSpace.modal.updateUserAccessFailed'),
+                        subtitle: t('shareSpace.modal.adminCannotHaveRole', {
+                            role: action,
+                        }),
                     });
                     return;
                 }
@@ -337,6 +356,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
             shareSpaceMutation,
             showToastError,
             resetAccessPages,
+            t,
         ],
     );
 
@@ -376,8 +396,10 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                     action !== UserAccessAction.ADMIN
                 ) {
                     showToastError({
-                        title: 'Failed to update group access',
-                        subtitle: `An admin can not be a space ${action}`,
+                        title: t('shareSpace.modal.updateGroupAccessFailed'),
+                        subtitle: t('shareSpace.modal.adminCannotHaveRole', {
+                            role: action,
+                        }),
                     });
                     return;
                 }
@@ -396,6 +418,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
             updateSpaceMutation,
             space.name,
             resetAccessPages,
+            t,
         ],
     );
 
@@ -416,7 +439,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                         onClick={() => setInternalIsOpen(true)}
                         variant="default"
                     >
-                        Share
+                        {t('shareSpace.modal.shareButton')}
                     </Button>
                 </Box>
             )}
@@ -424,23 +447,27 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
             <MantineModal
                 size="xl"
                 icon={IconFolderShare}
-                title={`Share "${space.name}" space`}
+                title={t('shareSpace.modal.title', { name: space.name })}
                 opened={isOpen}
                 onClose={handleClose}
                 cancelLabel={false}
                 actions={
                     <Box>
                         <Text c="ldGray.7" fz="xs">
-                            Learn more about space permissions in our{' '}
-                            <Anchor
-                                href="https://docs.lightdash.com/references/workspace/spaces#managing-access-to-a-space"
-                                target="_blank"
-                                rel="noreferrer"
-                                fz="xs"
-                            >
-                                docs
-                            </Anchor>
-                            .
+                            <Trans
+                                t={t}
+                                i18nKey="shareSpace.modal.learnMore"
+                                components={{
+                                    docsLink: (
+                                        <Anchor
+                                            href="https://docs.lightdash.com/references/workspace/spaces#managing-access-to-a-space"
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            fz="xs"
+                                        />
+                                    ),
+                                }}
+                            />
                         </Text>
                     </Box>
                 }
@@ -469,7 +496,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                 color="ldGray.7"
                             />
                             <Text size="sm" fw={600} c="ldGray.7">
-                                Access details
+                                {t('shareSpace.modal.accessDetails')}
                             </Text>
                         </Group>
                     </UnstyledButton>
@@ -489,7 +516,9 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                         />
                                     }
                                 >
-                                    Shared with ({manageCount})
+                                    {t('shareSpace.modal.sharedWithTab', {
+                                        count: manageCount,
+                                    })}
                                 </Tabs.Tab>
                                 <Tabs.Tab
                                     value="audit"
@@ -500,7 +529,9 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                         />
                                     }
                                 >
-                                    Who has access ({auditTotalResults})
+                                    {t('shareSpace.modal.whoHasAccessTab', {
+                                        count: auditTotalResults,
+                                    })}
                                 </Tabs.Tab>
                             </Tabs.List>
 
@@ -516,7 +547,9 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                         !isGroupsHintDismissed && (
                                             <Callout
                                                 variant="info"
-                                                title="Tip: Use groups for easier management"
+                                                title={t(
+                                                    'shareSpace.modal.groupsTipTitle',
+                                                )}
                                                 withCloseButton
                                                 onClose={() =>
                                                     setIsGroupsHintDismissed(
@@ -525,18 +558,19 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                                 }
                                             >
                                                 <Text fz="sm">
-                                                    This space is shared with
-                                                    several individual users.
-                                                    Consider using{' '}
-                                                    <Anchor
-                                                        href="/generalSettings/userManagement"
-                                                        target="_blank"
-                                                        fz="sm"
-                                                    >
-                                                        groups
-                                                    </Anchor>{' '}
-                                                    to manage access more
-                                                    efficiently.
+                                                    <Trans
+                                                        t={t}
+                                                        i18nKey="shareSpace.modal.groupsTipBody"
+                                                        components={{
+                                                            groupsLink: (
+                                                                <Anchor
+                                                                    href="/generalSettings/userManagement"
+                                                                    target="_blank"
+                                                                    fz="sm"
+                                                                />
+                                                            ),
+                                                        }}
+                                                    />
                                                 </Text>
                                             </Callout>
                                         )}
@@ -544,7 +578,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                     {effectiveGroupsAccess.length > 0 && (
                                         <Stack gap="xs">
                                             <Text fw={400} c="dimmed" fz="sm">
-                                                Groups
+                                                {t('shareSpace.modal.groups')}
                                             </Text>
                                             <GroupsAccessList
                                                 inheritParentPermissions={
@@ -574,7 +608,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                                         : undefined
                                                 }
                                             >
-                                                Users
+                                                {t('shareSpace.modal.users')}
                                             </Text>
                                             <UserAccessList
                                                 inheritParentPermissions={
@@ -608,8 +642,9 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                                 fz="sm"
                                                 ta="center"
                                             >
-                                                This space hasn't been shared
-                                                with any users or groups.
+                                                {t(
+                                                    'shareSpace.modal.emptyManage',
+                                                )}
                                             </Text>
                                         </Stack>
                                     )}
@@ -619,7 +654,9 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                             <Tabs.Panel value="audit" pt="md">
                                 <Stack gap="sm">
                                     <TextInput
-                                        placeholder="Search users..."
+                                        placeholder={t(
+                                            'shareSpace.modal.searchUsersPlaceholder',
+                                        )}
                                         leftSection={
                                             <MantineIcon
                                                 icon={IconSearch}
@@ -652,8 +689,12 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                             py="md"
                                         >
                                             {auditSearch
-                                                ? 'No users match your search.'
-                                                : "This space hasn't been shared with any users or groups, only admins can access it."}
+                                                ? t(
+                                                      'shareSpace.modal.noUsersMatch',
+                                                  )
+                                                : t(
+                                                      'shareSpace.modal.emptyAudit',
+                                                  )}
                                         </Text>
                                     )}
                                 </Stack>

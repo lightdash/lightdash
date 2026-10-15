@@ -21,6 +21,7 @@ import {
     type UseQueryResult,
 } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import useLocalStorageState from 'use-local-storage-state';
 import { lightdashApi } from '../../api';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
@@ -296,6 +297,7 @@ export const useValidationMutation = (
     onError: () => void,
 ) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastError, showToastApiError } =
         useToaster();
 
@@ -316,12 +318,14 @@ export const useValidationMutation = (
                     await queryClient.invalidateQueries({
                         queryKey: ['validationSummary'],
                     });
-                    showToastSuccess({ title: 'Validation completed' });
+                    showToastSuccess({
+                        title: t('useValidation.validationCompleted'),
+                    });
                 })
                 .catch((error: Error) => {
                     onError();
                     showToastError({
-                        title: 'Unable to update validation',
+                        title: t('useValidation.unableToUpdateValidation'),
                         subtitle: error.message,
                     });
                 });
@@ -329,7 +333,7 @@ export const useValidationMutation = (
         onError: ({ error }) => {
             onError();
             showToastApiError({
-                title: 'Failed to update validation',
+                title: t('useValidation.failedToUpdateValidation'),
                 apiError: error,
             });
         },
@@ -384,6 +388,7 @@ const deleteValidationByUuid = async (
 
 export const useDeleteValidation = (projectUuid: string) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<null, ApiError, string>(
         (validationUuid) => deleteValidationByUuid(projectUuid, validationUuid),
@@ -394,12 +399,12 @@ export const useDeleteValidation = (projectUuid: string) => {
                 await queryClient.invalidateQueries(['paginatedValidation']);
                 await queryClient.invalidateQueries(['validationSummary']);
                 showToastSuccess({
-                    title: 'Validation dismissed',
+                    title: t('useValidation.validationDismissed'),
                 });
             },
             onError: async ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to dismiss validation',
+                    title: t('useValidation.failedToDismissValidation'),
                     apiError: error,
                 });
             },
@@ -408,6 +413,7 @@ export const useDeleteValidation = (projectUuid: string) => {
 };
 
 export const useValidationWithResults = (projectUuid: string) => {
+    const { t } = useTranslation('app');
     const { showToastError, showToastApiError } = useToaster();
     const [isPolling, setIsPolling] = useState(false);
 
@@ -435,7 +441,7 @@ export const useValidationWithResults = (projectUuid: string) => {
                 })
                 .catch((error: Error) => {
                     showToastError({
-                        title: 'Unable to get validation',
+                        title: t('useValidation.unableToGetValidation'),
                         subtitle: error.message,
                     });
                 })
@@ -445,7 +451,7 @@ export const useValidationWithResults = (projectUuid: string) => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to get validation',
+                title: t('useValidation.failedToGetValidation'),
                 apiError: error,
             });
             setIsPolling(false);

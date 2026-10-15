@@ -1,7 +1,6 @@
 import {
     assertUnreachable,
     DashboardFilterValidationErrorType,
-    friendlyName,
     isChartValidationError,
     isDataAppValidationError,
     isDashboardValidationError,
@@ -11,6 +10,8 @@ import {
 } from '@lightdash/common';
 import { Mark, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
+import { getErrorTypeLabel } from '../utils/errorTypeLabel';
 import classes from './ErrorMessage.module.css';
 
 const CustomMark: FC<React.PropsWithChildren<{}>> = ({ children }) => (
@@ -22,6 +23,8 @@ const CustomMark: FC<React.PropsWithChildren<{}>> = ({ children }) => (
 const ErrorMessageByType: FC<{
     validationError: ValidationResponse;
 }> = ({ validationError }) => {
+    const { t } = useTranslation('projectSettings');
+    const mark = <CustomMark />;
     if (isChartValidationError(validationError)) {
         // Handle chart configuration errors (unused dimensions)
         if (
@@ -39,17 +42,27 @@ const ErrorMessageByType: FC<{
         if (validationError.errorType === ValidationErrorType.Model) {
             return (
                 <Text fz="xs">
-                    Model <CustomMark>{validationError.tableName}</CustomMark>{' '}
-                    {validationError.error.includes('failed to compile')
-                        ? 'failed to compile'
-                        : 'no longer exists'}
+                    <Trans
+                        t={t}
+                        i18nKey={
+                            validationError.error.includes('failed to compile')
+                                ? 'validator.errorMessage.modelFailedToCompile'
+                                : 'validator.errorMessage.modelNoLongerExists'
+                        }
+                        values={{ tableName: validationError.tableName }}
+                        components={{ mark }}
+                    />
                 </Text>
             );
         }
         return (
             <Text fz="xs">
-                <CustomMark>{validationError.fieldName}</CustomMark> no longer
-                exists
+                <Trans
+                    t={t}
+                    i18nKey="validator.errorMessage.fieldNoLongerExists"
+                    values={{ fieldName: validationError.fieldName }}
+                    components={{ mark }}
+                />
             </Text>
         );
     }
@@ -61,33 +74,55 @@ const ErrorMessageByType: FC<{
                 case DashboardFilterValidationErrorType.TableNotUsedByAnyChart:
                     return (
                         <Text fz="xs">
-                            <CustomMark>{validationError.fieldName}</CustomMark>{' '}
-                            references table{' '}
-                            <CustomMark>{validationError.tableName}</CustomMark>{' '}
-                            which is not used by any chart on this dashboard
+                            <Trans
+                                t={t}
+                                i18nKey="validator.errorMessage.tableNotUsedByAnyChart"
+                                values={{
+                                    fieldName: validationError.fieldName,
+                                    tableName: validationError.tableName,
+                                }}
+                                components={{ mark }}
+                            />
                         </Text>
                     );
                 case DashboardFilterValidationErrorType.FieldDoesNotExist:
                     return (
                         <Text fz="xs">
-                            <CustomMark>{validationError.fieldName}</CustomMark>{' '}
-                            no longer exists
+                            <Trans
+                                t={t}
+                                i18nKey="validator.errorMessage.fieldNoLongerExists"
+                                values={{
+                                    fieldName: validationError.fieldName,
+                                }}
+                                components={{ mark }}
+                            />
                         </Text>
                     );
                 case DashboardFilterValidationErrorType.TableDoesNotExist:
                     return (
                         <Text fz="xs">
-                            Table{' '}
-                            <CustomMark>{validationError.tableName}</CustomMark>{' '}
-                            no longer exists
+                            <Trans
+                                t={t}
+                                i18nKey="validator.errorMessage.tableNoLongerExists"
+                                values={{
+                                    tableName: validationError.tableName,
+                                }}
+                                components={{ mark }}
+                            />
                         </Text>
                     );
                 case DashboardFilterValidationErrorType.FieldTableMismatch:
                     return (
                         <Text fz="xs">
-                            <CustomMark>{validationError.fieldName}</CustomMark>{' '}
-                            does not match table{' '}
-                            <CustomMark>{validationError.tableName}</CustomMark>
+                            <Trans
+                                t={t}
+                                i18nKey="validator.errorMessage.fieldTableMismatch"
+                                values={{
+                                    fieldName: validationError.fieldName,
+                                    tableName: validationError.tableName,
+                                }}
+                                components={{ mark }}
+                            />
                         </Text>
                     );
                 default:
@@ -102,8 +137,12 @@ const ErrorMessageByType: FC<{
         if (validationError.chartName) {
             return (
                 <Text fz="xs">
-                    <CustomMark>{validationError.chartName}</CustomMark> is
-                    broken
+                    <Trans
+                        t={t}
+                        i18nKey="validator.errorMessage.chartBroken"
+                        values={{ chartName: validationError.chartName }}
+                        components={{ mark }}
+                    />
                 </Text>
             );
         }
@@ -126,6 +165,7 @@ const ErrorMessageByType: FC<{
 export const ErrorMessage: FC<{ validationError: ValidationResponse }> = ({
     validationError,
 }) => {
+    const { t } = useTranslation('projectSettings');
     const isWarning =
         isChartValidationError(validationError) &&
         validationError.errorType === ValidationErrorType.ChartConfiguration;
@@ -133,10 +173,16 @@ export const ErrorMessage: FC<{ validationError: ValidationResponse }> = ({
     return (
         <Stack gap={4}>
             <Text fw={600} c={isWarning ? 'orange.6' : 'red.6'} fz="xs">
-                {validationError.errorType
-                    ? friendlyName(validationError.errorType)
-                    : ''}{' '}
-                {isWarning ? 'warning' : 'error'}
+                {t(
+                    isWarning
+                        ? 'validator.errorMessage.typeWarning'
+                        : 'validator.errorMessage.typeError',
+                    {
+                        errorType: validationError.errorType
+                            ? getErrorTypeLabel(validationError.errorType, t)
+                            : '',
+                    },
+                )}
             </Text>
             <ErrorMessageByType validationError={validationError} />
         </Stack>

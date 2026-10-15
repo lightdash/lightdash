@@ -25,6 +25,7 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { calculateSeriesLikeIdentifier } from '../../../../hooks/useChartColorConfig/utils';
 import MantineIcon from '../../../common/MantineIcon';
@@ -64,6 +65,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
     dragHandleProps,
     isDragDisabled,
 }) => {
+    const { t } = useTranslation('vizConfig');
     const { visualizationConfig, colorPalette, getSeriesColor } =
         useVisualizationContext();
     const { hovered, ref } = useHover();
@@ -92,7 +94,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                             dragHandleProps={dragHandleProps}
                             hovered={hovered}
                             disabled={isDragDisabled}
-                            disabledTooltip="Series order is automatically determined by the sort applied to the grouped dimension"
+                            disabledTooltip={t('series.orderDeterminedBySort')}
                         />
                     )}
                     {isGrouped && (
@@ -194,16 +196,20 @@ const SingleSeriesConfiguration: FC<Props> = ({
 
                         <Select
                             allowDeselect={false}
-                            label={!isGrouped && 'Axis'}
+                            label={!isGrouped && t('series.axis')}
                             value={String(series.yAxisIndex)}
                             data={[
                                 {
                                     value: '0',
-                                    label: layout?.flipAxes ? 'Bottom' : 'Left',
+                                    label: layout?.flipAxes
+                                        ? t('series.position.bottom')
+                                        : t('series.position.left'),
                                 },
                                 {
                                     value: '1',
-                                    label: layout?.flipAxes ? 'Top' : 'Right',
+                                    label: layout?.flipAxes
+                                        ? t('series.position.top')
+                                        : t('series.position.right'),
                                 },
                             ]}
                             onChange={(value) => {
@@ -215,15 +221,33 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         />
                         <Select
                             allowDeselect={false}
-                            label={!isGrouped && 'Value labels'}
+                            label={!isGrouped && t('series.valueLabels')}
                             value={series.label?.position || 'hidden'}
                             data={[
-                                { value: 'hidden', label: 'Hidden' },
-                                { value: 'top', label: 'Top' },
-                                { value: 'bottom', label: 'Bottom' },
-                                { value: 'left', label: 'Left' },
-                                { value: 'right', label: 'Right' },
-                                { value: 'inside', label: 'Inside' },
+                                {
+                                    value: 'hidden',
+                                    label: t('series.position.hidden'),
+                                },
+                                {
+                                    value: 'top',
+                                    label: t('series.position.top'),
+                                },
+                                {
+                                    value: 'bottom',
+                                    label: t('series.position.bottom'),
+                                },
+                                {
+                                    value: 'left',
+                                    label: t('series.position.left'),
+                                },
+                                {
+                                    value: 'right',
+                                    label: t('series.position.right'),
+                                },
+                                {
+                                    value: 'inside',
+                                    label: t('series.position.inside'),
+                                },
                             ]}
                             rightSection={
                                 series.label?.show ? (
@@ -244,7 +268,9 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                                         series.label
                                                             ?.showValue ?? true
                                                     }
-                                                    label="Show value"
+                                                    label={t(
+                                                        'series.showValue',
+                                                    )}
                                                     onChange={() => {
                                                         updateSingleSeries({
                                                             ...series,
@@ -265,7 +291,9 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                                         series.label
                                                             ?.showLabel ?? false
                                                     }
-                                                    label="Show label"
+                                                    label={t(
+                                                        'series.showLabel',
+                                                    )}
                                                     onChange={() => {
                                                         updateSingleSeries({
                                                             ...series,
@@ -286,7 +314,9 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                                             ?.showSeriesName ??
                                                         false
                                                     }
-                                                    label="Show metric name"
+                                                    label={t(
+                                                        'series.showMetricName',
+                                                    )}
                                                     onChange={() => {
                                                         updateSingleSeries({
                                                             ...series,
@@ -346,7 +376,9 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                     defaultColor={automaticLabelColor}
                                     swatches={colorPalette}
                                     withAlpha
-                                    ariaLabel="Select value label color"
+                                    ariaLabel={t(
+                                        'series.selectValueLabelColor',
+                                    )}
                                     onColorChange={(color) => {
                                         updateSingleSeries({
                                             ...series,
@@ -369,7 +401,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                               }
                                             : undefined
                                     }
-                                    resetLabel="Use automatic color"
+                                    resetLabel={t('series.useAutomaticColor')}
                                 />
                             </Box>
                         )}
@@ -380,7 +412,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                             <Checkbox
                                 size="xs"
                                 checked={Boolean(series.showSymbol)}
-                                label="Show symbol"
+                                label={t('series.showSymbol')}
                                 onChange={() => {
                                     updateSingleSeries({
                                         ...series,
@@ -391,7 +423,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                             <Checkbox
                                 size="xs"
                                 checked={series.smooth}
-                                label="Smooth"
+                                label={t('series.smooth')}
                                 onChange={() => {
                                     updateSingleSeries({
                                         ...series,

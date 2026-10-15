@@ -1,0 +1,390 @@
+{
+    "mantineModal": {
+        "deleteNamedDescription": "¿Seguro que quieres eliminar {{resourceType}} \"{{resourceLabel}}\"?",
+        "deleteDescription": "¿Seguro que quieres eliminar este elemento ({{resourceType}})?",
+        "unsavedChanges": {
+            "title": "Cambios sin guardar",
+            "description": "Tienes cambios sin guardar. ¿Seguro que quieres cerrar?",
+            "keepEditing": "Seguir editando",
+            "discard": "Descartar cambios"
+        }
+    },
+    "spaceAction": {
+        "nameLabel": "Introduce un nombre fácil de recordar para tu espacio",
+        "namePlaceholder": "p. ej. KPIs",
+        "inheritsAccessFrom": "Este espacio tendrá el mismo acceso que \"{{parentName}}\". Puedes cambiarlo más adelante.",
+        "inheritsAccessFromParent": "Este espacio tendrá el mismo acceso que el espacio principal. Puedes cambiarlo más adelante.",
+        "projectFallback": "proyecto",
+        "paletteOverrideActive": "Hay una paleta de colores forzada en la configuración de tu instancia. La selección a nivel de espacio está desactivada mientras esté activa.",
+        "colorPalette": "Paleta de colores",
+        "nameRequired": "El nombre es obligatorio",
+        "errorSaving": "Error al guardar"
+    },
+    "deleteSpace": {
+        "confirm": "¿Seguro que quieres eliminar el espacio <name>“{{name}}”</name>?",
+        "confirmNameLabel": "Escribe el nombre del espacio para confirmar",
+        "confirmNamePlaceholder": "Nombre del espacio",
+        "impactSoft": "Esto también eliminará el contenido de este espacio:",
+        "impactPermanent": "Esto eliminará permanentemente el contenido de este espacio:",
+        "counts": {
+            "spaces_one": "{{count}} espacio",
+            "spaces_other": "{{count}} espacios",
+            "charts_one": "{{count}} gráfico",
+            "charts_other": "{{count}} gráficos",
+            "dashboards_one": "{{count}} panel",
+            "dashboards_other": "{{count}} paneles",
+            "dataApps_one": "{{count}} app de datos",
+            "dataApps_other": "{{count}} apps de datos",
+            "documents_one": "{{count}} documento",
+            "documents_other": "{{count}} documentos"
+        },
+        "softDeleteRetention_one": "Este espacio y su contenido se moverán a Eliminados recientemente y se eliminarán permanentemente después de {{count}} día.",
+        "softDeleteRetention_other": "Este espacio y su contenido se moverán a Eliminados recientemente y se eliminarán permanentemente después de {{count}} días."
+    },
+    "transferItems": {
+        "title": {
+            "chart": "Mover gráfico",
+            "dashboard": "Mover panel",
+            "space": "Mover espacio",
+            "dataApp": "Mover app de datos",
+            "document": "Mover documento",
+            "items": "Mover elementos"
+        },
+        "createSpaceAndMove": "Crear espacio y mover",
+        "selectSpaceSingle": "Selecciona un espacio al que mover <name>\"{{name}}\"</name>:",
+        "selectSpaceMany_one": "Selecciona un espacio al que mover {{count}} elemento:",
+        "selectSpaceMany_other": "Selecciona un espacio al que mover {{count}} elementos:",
+        "moveSingleTo": "Mover <name>\"{{name}}\"</name> a <space>\"{{space}}\"</space>",
+        "moveManyTo_one": "Mover {{count}} elemento a <space>\"{{space}}\"</space>",
+        "moveManyTo_other": "Mover {{count}} elementos a <space>\"{{space}}\"</space>"
+    },
+    "cannotBeUndone": "Este cambio no se puede deshacer.",
+    "resourceTypes": {
+        "chart": "el gráfico",
+        "dashboard": "el panel",
+        "document": "el documento",
+        "app": "la app"
+    },
+    "documentDelete": {
+        "title": "Eliminar documento",
+        "softDeleteDescription": "Este documento se moverá a Eliminados recientemente, donde podrá restaurarse o eliminarse permanentemente.",
+        "permanentDescription": "Este documento y todas sus versiones se eliminarán permanentemente."
+    },
+    "appDelete": {
+        "title": "Eliminar app",
+        "softDeleteDescription_one": "Esta app se moverá a Eliminados recientemente y se eliminará permanentemente después de {{count}} día.",
+        "softDeleteDescription_other": "Esta app se moverá a Eliminados recientemente y se eliminará permanentemente después de {{count}} días.",
+        "permanentDescription": "Esta app y todas sus versiones se eliminarán permanentemente, incluidos los artefactos compilados en el almacenamiento."
+    },
+    "chartDelete": {
+        "title": "Eliminar gráfico",
+        "softDeleteDescription_one": "Este gráfico se moverá a Eliminados recientemente y se eliminará permanentemente después de {{count}} día.",
+        "softDeleteDescription_other": "Este gráfico se moverá a Eliminados recientemente y se eliminará permanentemente después de {{count}} días.",
+        "dashboardWarningSoft_one": "El mosaico de este gráfico se quitará de {{count}} panel. El gráfico puede restaurarse desde Eliminados recientemente.",
+        "dashboardWarningSoft_other": "El mosaico de este gráfico se quitará de {{count}} paneles. El gráfico puede restaurarse desde Eliminados recientemente.",
+        "dashboardWarningPermanent_one": "Esta acción quitará permanentemente un mosaico de gráfico de {{count}} panel:",
+        "dashboardWarningPermanent_other": "Esta acción quitará permanentemente un mosaico de gráfico de {{count}} paneles:"
+    },
+    "dashboardDelete": {
+        "title": "Eliminar panel",
+        "softDeleteDescription_one": "Este panel se moverá a Eliminados recientemente y se eliminará permanentemente después de {{count}} día.",
+        "softDeleteDescription_other": "Este panel se moverá a Eliminados recientemente y se eliminará permanentemente después de {{count}} días.",
+        "chartsWarningSoft": "Los siguientes gráficos creados dentro de este panel también se eliminarán. Pueden restaurarse desde Eliminados recientemente.",
+        "chartsWarningPermanent": "Esta acción también eliminará permanentemente los siguientes gráficos creados desde este panel:"
+    },
+    "moveChartFromDashboard": {
+        "title": "Mover \"{{name}}\"",
+        "move": "Mover",
+        "description": "¿Seguro que quieres mover el gráfico \"{{name}}\" al espacio \"{{spaceName}}\"?",
+        "warning": "Este gráfico se creó dentro del panel; moverlo al espacio hará que aparezca en las listas de gráficos de toda la aplicación."
+    },
+    "deleteChartTile": {
+        "title": "Eliminar gráfico",
+        "warning": "Este gráfico se creó dentro del panel, por lo que quitar el mosaico también eliminará el gráfico de forma permanente."
+    },
+    "descriptionPlaceholder": "Unas palabras para dar contexto a tu equipo",
+    "chartForm": {
+        "nameLabel": "Nombre del gráfico",
+        "namePlaceholder": "p. ej. ¿Cuántos usuarios activos semanales tenemos?",
+        "descriptionLabel": "Descripción del gráfico"
+    },
+    "dashboardForm": {
+        "nameLabel": "Introduce un nombre fácil de recordar para tu panel",
+        "namePlaceholder": "p. ej. Paneles de KPI",
+        "descriptionLabel": "Descripción"
+    },
+    "duplicate": {
+        "copyOf": "Copia de {{name}}",
+        "createDuplicate": "Crear duplicado"
+    },
+    "chartUpdate": {
+        "title": "Actualizar gráfico"
+    },
+    "chartDuplicate": {
+        "title": "Duplicar gráfico"
+    },
+    "dashboardDuplicate": {
+        "title": "Duplicar panel"
+    },
+    "appUpdate": {
+        "title": "Actualizar {{resourceLabel}}",
+        "defaultResourceLabel": "app de datos",
+        "nameLabel": "Nombre",
+        "namePlaceholder": "p. ej. Análisis de ventas",
+        "descriptionLabel": "Descripción",
+        "nameRequired": "El nombre es obligatorio"
+    },
+    "dashboardUpdate": {
+        "title": "Actualizar panel",
+        "nameLabel": "Nombre",
+        "ownerLabel": "Propietario",
+        "ownerPlaceholder": "Asigna un propietario...",
+        "paletteOverrideActive": "Hay una paleta de colores forzada en la configuración de tu instancia. La selección a nivel de panel está desactivada mientras esté activa.",
+        "colorPalette": "Paleta de colores"
+    },
+    "newSpace": "Nuevo espacio",
+    "dashboardCreate": {
+        "title": "Crear panel",
+        "nameLabel": "Ponle nombre a tu panel",
+        "namePlaceholder": "p. ej. Panel de KPI",
+        "descriptionLabel": "Descripción del panel"
+    },
+    "changeChartExplore": {
+        "title": "Cambiar explore",
+        "submit": "Cambiar explore",
+        "unsavedChangesWarning": "Tienes cambios sin guardar en este gráfico. Se descartarán al cambiar el explore.",
+        "description": "Cambia el explore que usa este gráfico. Todas las referencias a campos se reasignarán al nuevo explore.",
+        "currentExplore": "Explore actual: <name>{{exploreName}}</name>",
+        "newExploreLabel": "Nuevo explore",
+        "newExplorePlaceholder": "Selecciona un explore",
+        "sameExploreError": "Selecciona un explore diferente",
+        "fixAllLabel": "Actualizar también todos los demás gráficos que usan este explore",
+        "toast": {
+            "changed": "Explore cambiado a \"{{exploreName}}\"",
+            "updatingOthers": "Actualizando otros gráficos que usan \"{{exploreName}}\"...",
+            "updatedOthers_one": "Se actualizó {{count}} gráfico más",
+            "updatedOthers_other": "Se actualizaron {{count}} gráficos más",
+            "updateOthersFailed": "No se pudieron actualizar los demás gráficos",
+            "changeFailed": "No se pudo cambiar el explore"
+        }
+    },
+    "dashboardExport": {
+        "title": "Exportar panel",
+        "exportPdf": "Exportar PDF",
+        "exportCsv": "Exportar CSV",
+        "exportXlsx": "Exportar XLSX",
+        "exportDashboard": "Exportar panel",
+        "formatLabel": "Formato de exportación",
+        "formatImage": "Imagen",
+        "dataExportWorkbook": "Los gráficos de las pestañas seleccionadas se exportarán como tablas en un único libro.",
+        "dataExportZip": "Los gráficos de las pestañas seleccionadas se exportarán como tablas en un archivo ZIP.",
+        "dateZoomTitle": "El zoom de fecha está activado",
+        "dateZoomDescription": "Tu exportación incluirá datos para la granularidad de zoom de fecha seleccionada.",
+        "tabsLabel": "Pestañas",
+        "tabsTooltip": "Si está desmarcado, elige pestañas concretas para incluir en la exportación.",
+        "includeAllTabs": "Incluir todas las pestañas",
+        "selectTabsPlaceholder": "Selecciona las pestañas que incluir en la exportación",
+        "noTilesInTabs": "No hay mosaicos en las pestañas seleccionadas"
+    },
+    "validation": {
+        "dashboardNameRequired": "El nombre del panel es obligatorio",
+        "spaceNameRequired": "El nombre del espacio es obligatorio",
+        "nameRequired": "El nombre es obligatorio"
+    },
+    "chartCreate": {
+        "title": {
+            "saveAs": "Guardar como nuevo gráfico",
+            "saveToDashboard": "Guardar gráfico en \"{{dashboardName}}\"",
+            "save": "Guardar gráfico"
+        }
+    },
+    "saveToDashboardForm": {
+        "otherSpaceGroup": "Otros",
+        "selectSpace": "Selecciona un espacio",
+        "createNewSpace": "Crear nuevo espacio",
+        "newSpaceNameLabel": "Ponle nombre a tu nuevo espacio",
+        "saveToExistingSpace": "Guardar en un espacio existente",
+        "saveToExistingDashboard": "Guardar en un panel existente",
+        "dashboardLabel": "Panel",
+        "noDashboardsFound": "No se encontraron paneles",
+        "createNewDashboard": "Crear nuevo panel"
+    },
+    "saveToDashboard": {
+        "addedToast": "¡Listo! {{chartName}} se añadió a {{dashboardName}}",
+        "savingTo": "Guardando en el panel \"{{dashboardName}}\"",
+        "exclusiveDescription": "Este gráfico se guardará exclusivamente en el panel \"{{dashboardName}}\", manteniendo tu espacio ordenado."
+    },
+    "saveToSpaceOrDashboard": {
+        "failedToLoadDashboard": "No se pudo cargar el panel. {{message}}",
+        "newDashboardRequirements": "Se requieren un nombre y un espacio para crear un nuevo panel.",
+        "dashboardNotFound": "Panel no encontrado o no se pudo cargar. Intenta seleccionar otro panel.",
+        "saveTo": "Guardar en",
+        "destination": {
+            "space": "Espacio",
+            "originatingDashboard": "Panel \"{{dashboardName}}\"",
+            "differentDashboard": "Otro panel",
+            "dashboard": "Panel"
+        },
+        "unusedDimensions": {
+            "title": "Advertencia de configuración del gráfico",
+            "description": "Este gráfico tiene dimensiones en la consulta que no se usan en la configuración del gráfico (eje x, eje y o agrupar por). Esto puede producir resultados incorrectos."
+        }
+    },
+    "shareSpace": {
+        "accessOptions": {
+            "canView": "Puede ver",
+            "canViewDescription": "Ver el contenido del espacio.",
+            "canEdit": "Puede editar",
+            "canEditDescription": "Editar el contenido del espacio.",
+            "fullAccess": "Acceso completo",
+            "fullAccessDescription": "Gestionar el acceso y el contenido del espacio.",
+            "noAccess": "Sin acceso",
+            "noAccessDescription": "Quitar el acceso del usuario",
+            "resetAccess": "Restablecer acceso",
+            "resetUserAccessDescription": "Restablecer el acceso del usuario",
+            "removeAccess": "Quitar acceso",
+            "resetGroupAccessDescription": "Restablecer el acceso del grupo",
+            "removeGroupAccessDescription": "Quitar el acceso del grupo"
+        },
+        "inheritance": {
+            "inheritedTitle": "Acceso heredado",
+            "restrictedTitle": "Acceso restringido",
+            "rootInheritedDescription": "Todos los miembros de este proyecto pueden acceder a este espacio",
+            "rootRestrictedDescription": "Solo los usuarios y grupos invitados pueden acceder a este espacio",
+            "nestedInheritedDescription": "Los usuarios con acceso al espacio padre también tienen acceso aquí",
+            "nestedInheritedSelectDescription": "El acceso de los espacios padre se suma al acceso propio de este espacio",
+            "nestedRestrictedDescription": "Solo los usuarios y grupos invitados, así como los administradores, pueden acceder a este espacio",
+            "nestedRestrictedSelectDescription": "Este espacio ignora los permisos del espacio padre y usa solo su propia lista de acceso",
+            "inheritsFromParent": "Hereda el acceso de \"{{name}}\"",
+            "inheritsFromProject": "Hereda el acceso del proyecto"
+        },
+        "restrictConfirm": {
+            "title": "¿Restringir el acceso?",
+            "confirm": "Restringir acceso",
+            "body": "Los usuarios con acceso directo lo conservarán. Los miembros del proyecto perderán el acceso a menos que se les invite específicamente.",
+            "lockoutWarning": "No tienes acceso directo a este espacio. Una vez restringido, no podrás volver a cambiar esta configuración."
+        },
+        "origin": {
+            "parent": "Padre",
+            "group": "Grupo",
+            "direct": "Directo",
+            "project": "Proyecto",
+            "organization": "Organización"
+        },
+        "originRole": "{{origin}} · {{role}}",
+        "serviceAccount": "Cuenta de servicio",
+        "you": "(tú)",
+        "needsPromotion": "El usuario debe ser promovido a visualizador interactivo para tener este acceso al espacio",
+        "allProjectMembers": "Todos los miembros del proyecto",
+        "modal": {
+            "shareButton": "Compartir",
+            "title": "Compartir el espacio \"{{name}}\"",
+            "learnMore": "Más información sobre los permisos de espacios en nuestra <docsLink>documentación</docsLink>.",
+            "accessDetails": "Detalles de acceso",
+            "sharedWithTab": "Compartido con ({{count}})",
+            "whoHasAccessTab": "Quién tiene acceso ({{count}})",
+            "groupsTipTitle": "Consejo: usa grupos para una gestión más sencilla",
+            "groupsTipBody": "Este espacio está compartido con varios usuarios individuales. Considera usar <groupsLink>grupos</groupsLink> para gestionar el acceso de forma más eficiente.",
+            "groups": "Grupos",
+            "users": "Usuarios",
+            "emptyManage": "Este espacio no se ha compartido con ningún usuario ni grupo.",
+            "searchUsersPlaceholder": "Buscar usuarios...",
+            "noUsersMatch": "Ningún usuario coincide con tu búsqueda.",
+            "emptyAudit": "Este espacio no se ha compartido con ningún usuario ni grupo; solo los administradores pueden acceder.",
+            "updateUserAccessFailed": "No se pudo actualizar el acceso del usuario",
+            "updateGroupAccessFailed": "No se pudo actualizar el acceso del grupo",
+            "adminCannotHaveRole": "Un administrador no puede tener el rol de espacio {{role}}"
+        },
+        "addUser": {
+            "placeholder": "Selecciona grupos o usuarios con quienes compartir este espacio",
+            "nothingFound": "No se encontraron usuarios",
+            "groupsHeader": "Grupos",
+            "usersHeader": "Usuarios",
+            "serviceAccountsHeader": "Cuentas de servicio",
+            "share": "Compartir",
+            "serviceAccountsLoadError": "No se pudieron cargar las cuentas de servicio"
+        }
+    },
+    "dashboard": {
+        "refresh": {
+            "every": "Cada {{interval}}",
+            "lastRefreshedAt": "Última actualización: {{time}}",
+            "never": "Nunca",
+            "refreshDashboard": "Actualizar panel",
+            "refresh": "Actualizar",
+            "autoRefreshOptions": "Opciones de actualización automática",
+            "autoRefreshWhileViewing": "Actualizar automáticamente mientras se visualiza",
+            "off": "Desactivado",
+            "minutesShort": "{{count}} min",
+            "hoursShort": "{{count}} h",
+            "willRefreshEvery": "Tu panel se actualizará cada {{interval}}"
+        },
+        "preAggRefresh": {
+            "title": "Reconstruir preagregaciones",
+            "confirm": "Reconstruir",
+            "body_one": "Se reconstruirá {{count}} preagregación usada por este panel:",
+            "body_other": "Se reconstruirán {{count}} preagregaciones usadas por este panel:"
+        },
+        "preAggAudit": {
+            "title": "Auditoría de preagregaciones",
+            "withoutPreAggregates": "{{count}} sin preagregaciones",
+            "hits": "{{count}} aciertos",
+            "misses": "{{count}} fallos",
+            "otherTab": "Otros",
+            "noResultsYet": "Aún no hay resultados: visita esta pestaña para cargar los elementos.",
+            "reasonWithField": "{{reason}}: <field>{{field}}</field>",
+            "reasonWithFieldText": "{{reason}}: {{field}}"
+        },
+        "header": {
+            "unpublishedChangesTooltip": "Solo tú puedes ver estos cambios. Un revisor puede escribirlos de vuelta en el repositorio desde Revisión de contenido.",
+            "unpublishedChanges": "Cambios sin publicar",
+            "draftsAwaitingReviewTooltip": "Otras personas tienen cambios sin publicar en este panel. Revísalos y escríbelos de vuelta en el repositorio.",
+            "draftsToReview_one": "{{count}} borrador por revisar",
+            "draftsToReview_other": "{{count}} borradores por revisar",
+            "dashboardInformation": "Información del panel",
+            "verifiedBy": "Verificado por {{firstName}} {{lastName}}",
+            "verified": "Verificado",
+            "dataFrom": "Datos de {{time}}",
+            "detailsTitle": "Detalles del panel",
+            "speedUpTitle": "Acelera este panel",
+            "performanceWarning": "Con {{count}} gráficos, los tiempos de carga pueden ser más lentos según el equipo del usuario.",
+            "splitIntoTabs": "Recomendamos dividirlo en varias pestañas, con un máximo de {{limit}} gráficos por pestaña, para que tu equipo tenga una experiencia ágil.",
+            "splitIntoDashboards": "Recomendamos dividirlo en varios paneles para que tu equipo tenga una experiencia ágil.",
+            "noChangesToSave": "No hay cambios que guardar",
+            "saveChanges": "Guardar cambios",
+            "editDashboard": "Editar panel",
+            "cachedDataFrom": "El panel usa datos en caché de {{time}}",
+            "exitFullscreenMode": "Salir del modo de pantalla completa",
+            "enterFullscreenMode": "Entrar en modo de pantalla completa",
+            "exitFullscreen": "Salir de pantalla completa",
+            "enterFullscreen": "Pantalla completa",
+            "comments": "Comentarios",
+            "dashboardComments": "Comentarios del panel",
+            "dashboardActions": "Acciones del panel",
+            "more": "Más",
+            "details": "Detalles",
+            "autoRefresh": "Actualización automática",
+            "removeFromFavorites": "Quitar de favoritos",
+            "addToFavorites": "Añadir a favoritos",
+            "rebuildPreAggregates": "Reconstruir preagregaciones",
+            "editDetails": "Editar detalles",
+            "duplicate": "Duplicar",
+            "moveDashboard": "Mover panel",
+            "requestReview": "Solicitar revisión",
+            "share": "Compartir",
+            "unpinFromHomepage": "Desfijar de la página de inicio",
+            "pinToHomepage": "Fijar en la página de inicio",
+            "scheduledDeliveries": "Envíos programados",
+            "upstreamProjectRequired": "Primero debes habilitar un proyecto upstream en configuración > Data ops",
+            "promoteDashboard": "Promover panel",
+            "versionHistory": "Historial de versiones",
+            "removeVerification": "Quitar verificación",
+            "verifyDashboard": "Verificar panel",
+            "exportDashboard": "Exportar panel",
+            "contentAsCode": "Contenido como código",
+            "viewAsCode": "Ver como código",
+            "changeUrlSlug": "Cambiar slug de URL",
+            "createNewSpace": "Crear nuevo espacio"
+        }
+    }
+}

@@ -2,6 +2,7 @@ import { type DataAppVizField } from '@lightdash/common';
 import { Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../common/MantineIcon';
 import styles from './DataAppVizFieldGuidance.module.css';
 
@@ -27,6 +28,7 @@ const DataAppVizFieldGuidance: FC<Props> = ({ field, id }) => {
 export const DataAppVizFieldHelp: FC<{ field: DataAppVizField }> = ({
     field,
 }) => {
+    const { t } = useTranslation('vizConfig');
     const description = getDataAppVizFieldDescription(field);
     if (!description) return null;
     return (
@@ -43,7 +45,7 @@ export const DataAppVizFieldHelp: FC<{ field: DataAppVizField }> = ({
                 tabIndex={0}
                 role="img"
                 aria-hidden={false}
-                aria-label={`About ${field.label}`}
+                aria-label={t('dataAppViz.aboutField', { label: field.label })}
                 className="mantine-focus-auto"
             />
         </Tooltip>

@@ -3,6 +3,7 @@ import {
     SLASH_COMMAND_ITEMS,
     type SlashCommandItem,
 } from '../../../ee/features/homepageBuilder/blocks/markdownEditor/slashCommandItems';
+import i18n from '../../../i18n/i18n';
 
 export const createDocumentSlashCommandItems = ({
     onInsertChart,
@@ -16,8 +17,10 @@ export const createDocumentSlashCommandItems = ({
     ...SLASH_COMMAND_ITEMS,
     {
         id: 'table',
-        label: 'Table',
-        description: 'Rows and columns',
+        label: i18n.t('slashCommands.table.label', { ns: 'documents' }),
+        description: i18n.t('slashCommands.table.description', {
+            ns: 'documents',
+        }),
         icon: IconTable,
         run: (editor, range) =>
             editor
@@ -31,8 +34,12 @@ export const createDocumentSlashCommandItems = ({
         ? [
               {
                   id: 'chart',
-                  label: 'Chart',
-                  description: 'Query the semantic layer',
+                  label: i18n.t('slashCommands.chart.label', {
+                      ns: 'documents',
+                  }),
+                  description: i18n.t('slashCommands.chart.description', {
+                      ns: 'documents',
+                  }),
                   icon: IconChartBar,
                   run: (editor, range) => {
                       editor.chain().focus().deleteRange(range).run();
@@ -45,8 +52,12 @@ export const createDocumentSlashCommandItems = ({
         ? [
               {
                   id: 'saved-chart',
-                  label: 'Saved chart',
-                  description: 'Link or copy a chart saved in a Space',
+                  label: i18n.t('slashCommands.savedChart.label', {
+                      ns: 'documents',
+                  }),
+                  description: i18n.t('slashCommands.savedChart.description', {
+                      ns: 'documents',
+                  }),
                   icon: IconLink,
                   run: (editor, range) => {
                       editor.chain().focus().deleteRange(range).run();

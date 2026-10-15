@@ -20,6 +20,7 @@ import {
     IconLink,
 } from '@tabler/icons-react';
 import { useEffect, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -48,12 +49,15 @@ const SchemaPreviewStep: FC<SchemaPreviewStepProps> = ({
     onBack,
     onCommitted,
 }) => {
+    const { t } = useTranslation('sync');
     const commitMutation = useCommitCsvUpload(projectUuid);
     const form = useForm({
         initialValues: { tableName: '' },
         validate: {
             tableName: (value) =>
-                value.trim().length === 0 ? 'Give the table a name' : null,
+                value.trim().length === 0
+                    ? t('externalSources.rename.nameRequired')
+                    : null,
         },
     });
     const columns = Object.values(stage.inferredColumns);
@@ -75,12 +79,12 @@ const SchemaPreviewStep: FC<SchemaPreviewStepProps> = ({
         <form id="external-source-csv-schema-form" onSubmit={handleSubmit}>
             <Stack gap="md">
                 <TextInput
-                    label="Table name"
+                    label={t('externalSources.add.tableNameLabel')}
                     placeholder="quarterly_targets"
                     description={
                         slug
-                            ? `Will appear as ${slug}`
-                            : 'How this table will appear in the sidebar'
+                            ? t('externalSources.add.willAppearAs', { slug })
+                            : t('externalSources.add.tableNameDescription')
                     }
                     data-autofocus
                     {...form.getInputProps('tableName')}
@@ -93,7 +97,9 @@ const SchemaPreviewStep: FC<SchemaPreviewStepProps> = ({
                 />
                 <Stack gap="xs">
                     <Text fz="sm" fw={500}>
-                        Columns · {columns.length}
+                        {t('externalSources.preview.columnsTab', {
+                            count: columns.length,
+                        })}
                     </Text>
                     <Table verticalSpacing={6} horizontalSpacing="sm">
                         <Table.Tbody>
@@ -114,8 +120,7 @@ const SchemaPreviewStep: FC<SchemaPreviewStepProps> = ({
                         </Table.Tbody>
                     </Table>
                     <Text fz="xs" c="dimmed">
-                        Row count, plus sum and average metrics for numeric
-                        columns, are added automatically.
+                        {t('externalSources.add.autoMetricsHint')}
                     </Text>
                 </Stack>
                 <Group justify="space-between">
@@ -125,14 +130,14 @@ const SchemaPreviewStep: FC<SchemaPreviewStepProps> = ({
                         onClick={onBack}
                         disabled={commitMutation.isLoading}
                     >
-                        Back
+                        {t('actions.back', { ns: 'common' })}
                     </Button>
                     <Button
                         type="submit"
                         form="external-source-csv-schema-form"
                         loading={commitMutation.isLoading}
                     >
-                        Create table
+                        {t('externalSources.add.createTable')}
                     </Button>
                 </Group>
             </Stack>
@@ -151,6 +156,7 @@ const SheetsStep: FC<SheetsStepProps> = ({
     onBack,
     onCreated,
 }) => {
+    const { t } = useTranslation('sync');
     const createMutation = useCreateSheetsSource(projectUuid);
     const googleLogin = useGoogleLoginPopup('gdrive');
     const form = useForm({
@@ -159,9 +165,11 @@ const SheetsStep: FC<SheetsStepProps> = ({
             url: (value) =>
                 parseGoogleSheetsSpreadsheetId(value)
                     ? null
-                    : 'Paste the sheet URL from your browser',
+                    : t('externalSources.add.sheetUrlInvalid'),
             tableName: (value) =>
-                value.trim().length === 0 ? 'Give the table a name' : null,
+                value.trim().length === 0
+                    ? t('externalSources.rename.nameRequired')
+                    : null,
         },
     });
     const slug = snakeCaseName(form.values.tableName || '');
@@ -183,26 +191,26 @@ const SheetsStep: FC<SheetsStepProps> = ({
         <form id="external-source-sheets-form" onSubmit={handleSubmit}>
             <Stack gap="md">
                 <TextInput
-                    label="Google Sheets URL"
+                    label={t('externalSources.add.sheetUrlLabel')}
                     placeholder="https://docs.google.com/spreadsheets/d/…"
                     leftSection={<MantineIcon icon={IconLink} size="sm" />}
                     data-autofocus
                     {...form.getInputProps('url')}
                 />
                 <TextInput
-                    label="Table name"
+                    label={t('externalSources.add.tableNameLabel')}
                     placeholder="quarterly_targets"
                     description={
                         slug
-                            ? `Will appear as ${slug}`
-                            : 'How this table will appear in the sidebar'
+                            ? t('externalSources.add.willAppearAs', { slug })
+                            : t('externalSources.add.tableNameDescription')
                     }
                     {...form.getInputProps('tableName')}
                 />
                 {errorMessage && (
                     <Callout
                         variant="danger"
-                        title="Couldn't connect the sheet"
+                        title={t('externalSources.add.sheetConnectFailed')}
                     >
                         <Stack gap="xs" align="flex-start">
                             <Text fz="sm">{errorMessage}</Text>
@@ -214,16 +222,14 @@ const SheetsStep: FC<SheetsStepProps> = ({
                                     loading={googleLogin.isLoading}
                                     onClick={() => googleLogin.mutate()}
                                 >
-                                    Connect Google account
+                                    {t('externalSources.add.connectGoogle')}
                                 </Button>
                             )}
                         </Stack>
                     </Callout>
                 )}
                 <Text fz="xs" c="dimmed">
-                    Copies your Google authorization to this project source, so
-                    refreshes keep working if your user leaves. Reconnect from
-                    the source menu to transfer ownership.
+                    {t('externalSources.add.sheetAuthHint')}
                 </Text>
                 <Group justify="space-between">
                     <Button
@@ -232,14 +238,14 @@ const SheetsStep: FC<SheetsStepProps> = ({
                         onClick={onBack}
                         disabled={createMutation.isLoading}
                     >
-                        Back
+                        {t('actions.back', { ns: 'common' })}
                     </Button>
                     <Button
                         type="submit"
                         form="external-source-sheets-form"
                         loading={createMutation.isLoading}
                     >
-                        Connect sheet
+                        {t('externalSources.add.connectSheet')}
                     </Button>
                 </Group>
             </Stack>
@@ -260,6 +266,7 @@ const PreparingStep: FC<PreparingStepProps> = ({
     onReady,
     onRetry,
 }) => {
+    const { t } = useTranslation('sync');
     const { data: source } = useExternalSource(projectUuid, sourceUuid, {
         poll: true,
     });
@@ -278,13 +285,16 @@ const PreparingStep: FC<PreparingStepProps> = ({
     if (source?.status === ExternalSourceStatus.ERROR) {
         return (
             <Stack gap="md">
-                <Callout variant="danger" title="We couldn't import this file">
+                <Callout
+                    variant="danger"
+                    title={t('externalSources.importFailedTitle')}
+                >
                     {source.errorMessage ??
-                        'Something went wrong while preparing the table.'}
+                        t('externalSources.add.preparingError')}
                 </Callout>
                 <Group justify="flex-end">
                     <Button variant="default" onClick={onRetry}>
-                        Try another file
+                        {t('externalSources.tryAnotherFile')}
                     </Button>
                 </Group>
             </Stack>
@@ -295,10 +305,10 @@ const PreparingStep: FC<PreparingStepProps> = ({
         <Stack gap="xs" align="center" py="lg">
             <Loader size="sm" />
             <Text fz="sm" fw={500}>
-                Preparing your table…
+                {t('externalSources.add.preparing')}
             </Text>
             <Text fz="xs" c="dimmed">
-                You'll land in the new table as soon as it's ready.
+                {t('externalSources.add.preparingHint')}
             </Text>
         </Stack>
     );
@@ -318,6 +328,7 @@ export const AddDataModal: FC<AddDataModalProps> = ({
     onClose,
     onCreated,
 }) => {
+    const { t } = useTranslation('sync');
     const navigate = useNavigate();
     const { showToastSuccess } = useToaster();
     const uploadMutation = useUploadCsv(projectUuid);
@@ -339,7 +350,11 @@ export const AddDataModal: FC<AddDataModalProps> = ({
         <MantineModal
             opened={opened}
             onClose={handleClose}
-            title={isSheetsMode ? 'Connect a Google Sheet' : 'Upload a CSV'}
+            title={
+                isSheetsMode
+                    ? t('externalSources.add.sheetsTitle')
+                    : t('externalSources.add.csvTitle')
+            }
             icon={isSheetsMode ? IconBrandGoogleDrive : IconFileSpreadsheet}
             size="lg"
         >
@@ -362,7 +377,7 @@ export const AddDataModal: FC<AddDataModalProps> = ({
                                 }
                                 onClick={() => setMode('sheets')}
                             >
-                                Connect a Google Sheet instead
+                                {t('externalSources.add.switchToSheets')}
                             </Button>
                         </Group>
                     </>
@@ -396,9 +411,10 @@ export const AddDataModal: FC<AddDataModalProps> = ({
                         onReady={(exploreName) => {
                             void invalidateTables(projectUuid);
                             showToastSuccess({
-                                title: 'Table created',
-                                subtitle:
-                                    'Pick fields to build your first chart.',
+                                title: t('externalSources.toasts.created'),
+                                subtitle: t(
+                                    'externalSources.toasts.createdSubtitle',
+                                ),
                             });
                             handleClose();
                             if (onCreated) {

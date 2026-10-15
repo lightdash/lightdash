@@ -13,6 +13,7 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { IconCheck, IconX } from '@tabler/icons-react';
 import React, { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../common/MantineIcon';
 
 const PasswordRequirement = ({
@@ -47,11 +48,17 @@ type Props = {
 
 const passwordSchema = getPasswordSchema();
 const checks = PASSWORD_REQUIREMENT_MESSAGES;
+const requirementKeys: Record<(typeof checks)[number], string> = {
+    [checks[0]]: 'passwordInput.minLength',
+    [checks[1]]: 'passwordInput.letter',
+    [checks[2]]: 'passwordInput.numberOrSymbol',
+};
 
 const PasswordTextInput: FC<React.PropsWithChildren<Props>> = ({
     passwordValue,
     children,
 }) => {
+    const { t } = useTranslation('auth');
     const isCompact = useMatches({ base: true, sm: false });
     const [isPopoverOpen, { open: openPopover, close: closePopover }] =
         useDisclosure();
@@ -80,7 +87,7 @@ const PasswordTextInput: FC<React.PropsWithChildren<Props>> = ({
                 <PasswordRequirement
                     key={check}
                     meets={!fails.includes(check)}
-                    label={check}
+                    label={t(requirementKeys[check])}
                 />
             ))}
         </Stack>

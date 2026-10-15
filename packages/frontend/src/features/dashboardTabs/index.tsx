@@ -26,6 +26,7 @@ import {
     type FC,
 } from 'react';
 import { type Layout } from 'react-grid-layout';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { DASHBOARD_HEADER_HEIGHT } from '../../components/common/Dashboard/dashboard.constants';
@@ -366,6 +367,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     );
     const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
     const getUiString = useUiStrings();
+    const { t } = useTranslation('dashboard');
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );
@@ -434,7 +436,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         const map = new Map<string, DashboardTile[]>();
         if (!dashboardTiles || !tabsEnabled) return map;
 
-        const tabUuids = new Set(dashboardTabs.map((t) => t.uuid));
+        const tabUuids = new Set(dashboardTabs.map((tb) => tb.uuid));
         const defaultTabUuid = defaultTab?.uuid;
 
         for (const tile of dashboardTiles) {
@@ -471,11 +473,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         if (!dashboardTiles) return undefined;
         if (isEditMode) return dashboardTiles;
         const hiddenTabUuids = new Set(
-            dashboardTabs.filter((t) => t.hidden).map((t) => t.uuid),
+            dashboardTabs.filter((tb) => tb.hidden).map((tb) => tb.uuid),
         );
         if (hiddenTabUuids.size === 0) return dashboardTiles;
         return dashboardTiles.filter(
-            (t) => !t.tabUuid || !hiddenTabUuids.has(t.tabUuid),
+            (tb) => !tb.tabUuid || !hiddenTabUuids.has(tb.tabUuid),
         );
     }, [dashboardTiles, dashboardTabs, isEditMode]);
 
@@ -723,8 +725,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         // Check tab limit
         if (currentTabsCount >= maxTabsPerDashboard) {
             showToastError({
-                title: 'Tab limit reached',
-                subtitle: `You've reached the maximum of ${maxTabsPerDashboard} tabs per dashboard. Consider creating a new dashboard.`,
+                title: t('tabs.limit.title'),
+                subtitle: t('tabs.limit.subtitle', {
+                    max: maxTabsPerDashboard,
+                }),
             });
             setAddingTab(false);
             return;
@@ -787,7 +791,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const handleDeleteTab = (tabUuid: string) => {
         setDashboardTabs((currentTabs) => {
             const newTabs: DashboardTab[] = currentTabs?.filter(
-                (t) => t.uuid !== tabUuid,
+                (tb) => tb.uuid !== tabUuid,
             );
             return newTabs;
         });
@@ -836,7 +840,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     };
 
     const handleDuplicateTab = (tabUuid: string) => {
-        const tab = dashboardTabs.find((t) => t.uuid === tabUuid);
+        const tab = dashboardTabs.find((tb) => tb.uuid === tabUuid);
         if (tab) {
             setTabToDuplicate(tab);
             setDuplicatingTab(true);
@@ -847,8 +851,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         // Check tab limit
         if (currentTabsCount >= maxTabsPerDashboard) {
             showToastError({
-                title: 'Tab limit reached',
-                subtitle: `You've reached the maximum of ${maxTabsPerDashboard} tabs per dashboard. Consider creating a new dashboard.`,
+                title: t('tabs.limit.title'),
+                subtitle: t('tabs.limit.subtitle', {
+                    max: maxTabsPerDashboard,
+                }),
             });
             setDuplicatingTab(false);
             setTabToDuplicate(null);
@@ -858,7 +864,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         if (tabToDuplicate) {
             const lastOrd =
                 dashboardTabs.length > 0
-                    ? Math.max(...dashboardTabs.map((t) => t.order ?? 0))
+                    ? Math.max(...dashboardTabs.map((tb) => tb.order ?? 0))
                     : -1;
             const newTab = {
                 name: name,
@@ -970,7 +976,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                 value={activeTab?.uuid}
                                 onChange={(e) => {
                                     const tab = sortedTabs?.find(
-                                        (t) => t.uuid === e,
+                                        (tb) => tb.uuid === e,
                                     );
                                     if (tab) {
                                         handleChangeTab(tab);
@@ -1037,8 +1043,15 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                         <Tooltip
                                                             label={
                                                                 !canAddTab
-                                                                    ? `Maximum ${maxTabsPerDashboard} tabs per dashboard. Consider creating a new dashboard.`
-                                                                    : 'Add a new tab'
+                                                                    ? t(
+                                                                          'tabs.limit.tooltip',
+                                                                          {
+                                                                              max: maxTabsPerDashboard,
+                                                                          },
+                                                                      )
+                                                                    : t(
+                                                                          'tabs.addNewTab',
+                                                                      )
                                                             }
                                                             disabled={canAddTab}
                                                         >
@@ -1064,7 +1077,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                                     )
                                                                 }
                                                             >
-                                                                New tab
+                                                                {t(
+                                                                    'tabs.newTab',
+                                                                )}
                                                             </Button>
                                                         </Tooltip>
                                                     )}

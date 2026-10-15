@@ -1,6 +1,7 @@
 import { CartesianSeriesType, type ItemsMap } from '@lightdash/common';
 import { Button, Checkbox, Group, Stack } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { NumberInput } from '../../../common/NumberInput';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
@@ -12,6 +13,7 @@ type Props = {
 };
 
 export const Axes: FC<Props> = ({ itemsMap }) => {
+    const { t } = useTranslation('vizConfig');
     const { visualizationConfig } = useVisualizationContext();
 
     if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
@@ -61,12 +63,16 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
 
             <Config>
                 <Config.Section>
-                    <Config.Heading>Show grid</Config.Heading>
+                    <Config.Heading>{t('axes.showGrid')}</Config.Heading>
 
                     <Stack gap="xs">
                         <Checkbox
                             size="xs"
-                            label={`${dirtyLayout?.flipAxes ? 'Y' : 'X'}-axis`}
+                            label={
+                                dirtyLayout?.flipAxes
+                                    ? t('axes.yAxis')
+                                    : t('axes.xAxis')
+                            }
                             checked={!!dirtyLayout?.showGridX}
                             onChange={() => {
                                 setShowGridX(!dirtyLayout?.showGridX);
@@ -75,7 +81,11 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
 
                         <Checkbox
                             size="xs"
-                            label={`${dirtyLayout?.flipAxes ? 'X' : 'Y'}-axis`}
+                            label={
+                                dirtyLayout?.flipAxes
+                                    ? t('axes.xAxis')
+                                    : t('axes.yAxis')
+                            }
                             checked={
                                 dirtyLayout?.showGridY !== undefined
                                     ? dirtyLayout?.showGridY
@@ -94,12 +104,16 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
             </Config>
             <Config>
                 <Config.Section>
-                    <Config.Heading>Show axis</Config.Heading>
+                    <Config.Heading>{t('axes.showAxis')}</Config.Heading>
 
                     <Stack gap="xs">
                         <Checkbox
                             size="xs"
-                            label={`${dirtyLayout?.flipAxes ? 'Y' : 'X'}-axis`}
+                            label={
+                                dirtyLayout?.flipAxes
+                                    ? t('axes.yAxis')
+                                    : t('axes.xAxis')
+                            }
                             checked={
                                 dirtyLayout?.flipAxes
                                     ? showLeftYAxis
@@ -118,8 +132,8 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                                 size="xs"
                                 label={
                                     dirtyLayout?.flipAxes
-                                        ? 'X-axis'
-                                        : 'Left Y-axis'
+                                        ? t('axes.xAxis')
+                                        : t('axes.leftYAxis')
                                 }
                                 checked={
                                     dirtyLayout?.flipAxes
@@ -138,7 +152,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                         {hasSecondaryYAxis && (
                             <Checkbox
                                 size="xs"
-                                label="Right Y-axis"
+                                label={t('axes.rightYAxis')}
                                 checked={showRightYAxis}
                                 onChange={() => {
                                     setShowRightYAxis(!showRightYAxis);
@@ -150,10 +164,10 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
             </Config>
             <Config>
                 <Config.Section>
-                    <Config.Heading>Show tick lines</Config.Heading>
+                    <Config.Heading>{t('axes.showTickLines')}</Config.Heading>
                     <Checkbox
                         size="xs"
-                        label="Show tick lines on axes"
+                        label={t('axes.showTickLinesOnAxes')}
                         checked={!!dirtyEchartsConfig?.showAxisTicks}
                         onChange={(e) => {
                             setShowAxisTicks(e.currentTarget.checked);
@@ -165,10 +179,12 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                 dirtyChartType === CartesianSeriesType.AREA) && (
                 <Config>
                     <Config.Section>
-                        <Config.Heading>Connect nulls</Config.Heading>
+                        <Config.Heading>
+                            {t('axes.connectNulls')}
+                        </Config.Heading>
                         <Checkbox
                             size="xs"
-                            label="Connect null values in line series"
+                            label={t('axes.connectNullsLabel')}
                             checked={
                                 dirtyLayout?.connectNulls !== undefined
                                     ? dirtyLayout.connectNulls
@@ -183,7 +199,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
             )}
             <Config>
                 <Config.Section>
-                    <Config.Heading>Tick label size (px)</Config.Heading>
+                    <Config.Heading>{t('axes.tickLabelSize')}</Config.Heading>
                     <Group gap="xs">
                         <NumberInput
                             size="xs"
@@ -205,7 +221,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                                 size="xs"
                                 onClick={() => setAxisLabelFontSize(undefined)}
                             >
-                                Reset
+                                {t('axes.reset')}
                             </Button>
                         )}
                     </Group>
@@ -213,7 +229,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
             </Config>
             <Config>
                 <Config.Section>
-                    <Config.Heading>Axis title size (px)</Config.Heading>
+                    <Config.Heading>{t('axes.axisTitleSize')}</Config.Heading>
                     <Group gap="xs">
                         <NumberInput
                             size="xs"
@@ -233,7 +249,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                                 size="xs"
                                 onClick={() => setAxisTitleFontSize(undefined)}
                             >
-                                Reset
+                                {t('axes.reset')}
                             </Button>
                         )}
                     </Group>

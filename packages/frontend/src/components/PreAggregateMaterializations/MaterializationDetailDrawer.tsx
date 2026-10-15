@@ -36,7 +36,9 @@ import {
     IconTableRow,
 } from '@tabler/icons-react';
 import cronstrue from 'cronstrue';
+import { type TFunction } from 'i18next';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LD_FIELD_COLORS } from '../../theme';
 import { formatDuration, formatFileSize } from '../../utils/formatters';
 import Callout from '../common/Callout';
@@ -45,12 +47,7 @@ import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
 import TruncatedText from '../common/TruncatedText';
 
-const TRIGGER_LABELS: Record<string, string> = {
-    compile: 'Project compile',
-    cron: 'Scheduled (cron)',
-    manual: 'Manual',
-    webhook: 'Webhook',
-};
+const KNOWN_TRIGGERS = ['compile', 'cron', 'manual', 'webhook'];
 
 const DetailLabel: FC<{ children: React.ReactNode }> = ({ children }) => (
     <Text fz="xs" c="ldGray.5" fw={600} tt="uppercase" lts={0.5}>
@@ -69,6 +66,7 @@ const DetailValue: FC<{ children: React.ReactNode; mono?: boolean }> = ({
 
 const formatFilterValue = (
     filter: PreAggregateMaterializationSummary['filters'][number],
+    t: TFunction,
 ) => {
     const { operator, values, settings } = filter;
 
@@ -80,19 +78,23 @@ const formatFilterValue = (
         case FilterOperator.NOT_IN_THE_CURRENT: {
             const bounds = getCurrentPeriodBounds(settings);
             const bound = bounds.excludeToday
-                ? ' to date, excluding today'
+                ? t('materializationDrawer.filterBound.toDateExcludingToday')
                 : bounds.toDate
-                  ? ' to date'
+                  ? t('materializationDrawer.filterBound.toDate')
                   : '';
-            return `${settings?.completed ? 'completed ' : ''}${
-                settings?.unitOfTime?.slice(0, -1) ?? 'day'
-            }${bound}`;
+            return `${
+                settings?.completed
+                    ? t('materializationDrawer.filterBound.completed')
+                    : ''
+            }${settings?.unitOfTime?.slice(0, -1) ?? 'day'}${bound}`;
         }
         case FilterOperator.IN_THE_PAST:
         case FilterOperator.NOT_IN_THE_PAST:
         case FilterOperator.IN_THE_NEXT:
             return `${values?.[0] ?? ''} ${
-                settings?.completed ? 'completed ' : ''
+                settings?.completed
+                    ? t('materializationDrawer.filterBound.completed')
+                    : ''
             }${settings?.unitOfTime ?? ''}`.trim();
         case FilterOperator.IN_BETWEEN:
         case FilterOperator.NOT_IN_BETWEEN:
@@ -105,13 +107,18 @@ const formatFilterValue = (
 const ColumnsSection: FC<{
     columns: [string, { type: string }][];
 }> = ({ columns }) => {
+    const { t } = useTranslation('app');
     const [opened, { toggle }] = useDisclosure(true);
 
     return (
         <Box>
             <UnstyledButton onClick={toggle} w="100%">
                 <Group gap="xs">
-                    <DetailLabel>Columns ({columns.length})</DetailLabel>
+                    <DetailLabel>
+                        {t('materializationDrawer.columnsCount', {
+                            count: columns.length,
+                        })}
+                    </DetailLabel>
                     <MantineIcon
                         icon={opened ? IconChevronDown : IconChevronRight}
                         size="sm"
@@ -151,19 +158,24 @@ const ColumnsSection: FC<{
 const MaterializationRoleSection: FC<{
     materializationRole: PreAggregateMaterializationRole;
 }> = ({ materializationRole }) => {
+    const { t } = useTranslation('app');
     const attributeEntries = Object.entries(materializationRole.attributes);
 
     return (
         <Box>
-            <DetailLabel>Materialization role</DetailLabel>
+            <DetailLabel>{t('materializationDrawer.role')}</DetailLabel>
             <Stack gap="sm" mt={4}>
                 <Box>
-                    <DetailLabel>Email</DetailLabel>
+                    <DetailLabel>
+                        {t('materializationDrawer.email')}
+                    </DetailLabel>
                     <DetailValue mono>{materializationRole.email}</DetailValue>
                 </Box>
 
                 <Box>
-                    <DetailLabel>Attributes</DetailLabel>
+                    <DetailLabel>
+                        {t('materializationDrawer.attributes')}
+                    </DetailLabel>
                     <Stack gap={6} mt={4}>
                         {attributeEntries.map(([attributeName, values]) => (
                             <Box
@@ -204,50 +216,53 @@ const MaterializationRoleSection: FC<{
 
 const FiltersSection: FC<{
     filters: PreAggregateMaterializationSummary['filters'];
-}> = ({ filters }) => (
-    <Box>
-        <DetailLabel>Filters</DetailLabel>
-        <Stack gap={6} mt={4}>
-            {filters.map((filter, index) => {
-                const value = formatFilterValue(filter);
+}> = ({ filters }) => {
+    const { t } = useTranslation('app');
+    return (
+        <Box>
+            <DetailLabel>{t('materializationDrawer.filters')}</DetailLabel>
+            <Stack gap={6} mt={4}>
+                {filters.map((filter, index) => {
+                    const value = formatFilterValue(filter, t);
 
-                return (
-                    <Box
-                        key={filter.id}
-                        px="xs"
-                        py={6}
-                        style={{
-                            borderRadius: 'var(--mantine-radius-sm)',
-                        }}
-                    >
-                        <Group gap={6} wrap="wrap" align="center">
-                            <Badge size="xs" ff="monospace">
-                                {filter.target.fieldRef}
-                            </Badge>
-                            <Text fz="xs" c="dimmed" fw={500}>
-                                {filterOperatorLabel[filter.operator]}
-                            </Text>
-                            {value && (
-                                <Badge
-                                    variant="outline"
-                                    size="xs"
-                                    ff="monospace"
-                                >
-                                    {value}
+                    return (
+                        <Box
+                            key={filter.id}
+                            px="xs"
+                            py={6}
+                            style={{
+                                borderRadius: 'var(--mantine-radius-sm)',
+                            }}
+                        >
+                            <Group gap={6} wrap="wrap" align="center">
+                                <Badge size="xs" ff="monospace">
+                                    {filter.target.fieldRef}
                                 </Badge>
+                                <Text fz="xs" c="dimmed" fw={500}>
+                                    {filterOperatorLabel[filter.operator]}
+                                </Text>
+                                {value && (
+                                    <Badge
+                                        variant="outline"
+                                        size="xs"
+                                        ff="monospace"
+                                    >
+                                        {value}
+                                    </Badge>
+                                )}
+                            </Group>
+                            {index < filters.length - 1 && (
+                                <Text fz="xs" c="ldGray.5" fw={600} mt={4}>
+                                    {t('materializationDrawer.and')}
+                                </Text>
                             )}
-                        </Group>
-                        {index < filters.length - 1 && (
-                            <Text fz="xs" c="ldGray.5" fw={600} mt={4}>
-                                AND
-                            </Text>
-                        )}
-                    </Box>
-                );
-            })}
-        </Stack>
-    </Box>
-);
+                        </Box>
+                    );
+                })}
+            </Stack>
+        </Box>
+    );
+};
 
 type Props = {
     summary: PreAggregateMaterializationSummary | null;
@@ -264,6 +279,7 @@ const MaterializationDetailDrawer: FC<Props> = ({
     onRefresh,
     isRefreshing,
 }) => {
+    const { t } = useTranslation('app');
     if (!summary) return null;
 
     const { materialization } = summary;
@@ -298,7 +314,7 @@ const MaterializationDetailDrawer: FC<Props> = ({
                             {summary.preAggregateName}
                         </TruncatedText>
                         <Text fz="xs" c="dimmed">
-                            Pre-aggregate details
+                            {t('materializationDrawer.subtitle')}
                         </Text>
                     </Stack>
                 </Group>
@@ -306,23 +322,35 @@ const MaterializationDetailDrawer: FC<Props> = ({
         >
             <Stack gap="lg">
                 {summary.externalTable && (
-                    <Callout variant="info" title="Customer managed">
+                    <Callout
+                        variant="info"
+                        title={t(
+                            'preAggregateMaterializations.customerManaged',
+                        )}
+                    >
                         <Text fz="xs">
-                            Lightdash serves matching queries from this
-                            warehouse table, but does not build or refresh it.
+                            {t(
+                                'materializationDrawer.customerManagedDescription',
+                            )}
                         </Text>
                     </Callout>
                 )}
 
                 {summary.externalTable && (
                     <Box>
-                        <DetailLabel>External table</DetailLabel>
+                        <DetailLabel>
+                            {t('materializationDrawer.externalTable')}
+                        </DetailLabel>
                         <DetailValue mono>{summary.externalTable}</DetailValue>
                     </Box>
                 )}
 
                 <Box>
-                    <DetailLabel>Source explore</DetailLabel>
+                    <DetailLabel>
+                        {t(
+                            'preAggregateMaterializations.columns.sourceExplore',
+                        )}
+                    </DetailLabel>
                     <DetailValue mono>{summary.sourceExploreName}</DetailValue>
                 </Box>
 
@@ -333,7 +361,9 @@ const MaterializationDetailDrawer: FC<Props> = ({
                 )}
 
                 <Box>
-                    <DetailLabel>Metrics</DetailLabel>
+                    <DetailLabel>
+                        {t('materializationDrawer.metrics')}
+                    </DetailLabel>
                     <Group gap="xs" mt={4}>
                         {summary.metrics.map((m) => (
                             <Badge
@@ -350,7 +380,9 @@ const MaterializationDetailDrawer: FC<Props> = ({
                 </Box>
 
                 <Box>
-                    <DetailLabel>Dimensions</DetailLabel>
+                    <DetailLabel>
+                        {t('materializationDrawer.dimensions')}
+                    </DetailLabel>
                     <Group gap="xs" mt={4}>
                         {summary.dimensions.map((d) => (
                             <Badge
@@ -373,14 +405,18 @@ const MaterializationDetailDrawer: FC<Props> = ({
                 {summary.timeDimension && (
                     <Group gap="xl">
                         <Box>
-                            <DetailLabel>Time dimension</DetailLabel>
+                            <DetailLabel>
+                                {t('materializationDrawer.timeDimension')}
+                            </DetailLabel>
                             <DetailValue mono>
                                 {summary.timeDimension}
                             </DetailValue>
                         </Box>
                         {summary.granularity && (
                             <Box>
-                                <DetailLabel>Granularity</DetailLabel>
+                                <DetailLabel>
+                                    {t('materializationDrawer.granularity')}
+                                </DetailLabel>
                                 <DetailValue mono>
                                     {summary.granularity}
                                 </DetailValue>
@@ -391,7 +427,11 @@ const MaterializationDetailDrawer: FC<Props> = ({
 
                 {!summary.externalTable && summary.refreshCron && (
                     <Box>
-                        <DetailLabel>Refresh schedule</DetailLabel>
+                        <DetailLabel>
+                            {t(
+                                'preAggregateMaterializations.columns.refreshSchedule',
+                            )}
+                        </DetailLabel>
                         <DetailValue mono>
                             {summary.refreshCron}{' '}
                             <Text fz="xs" c="ldGray.5">
@@ -407,7 +447,9 @@ const MaterializationDetailDrawer: FC<Props> = ({
 
                 {summary.definitionError && (
                     <Box>
-                        <DetailLabel>Definition error</DetailLabel>
+                        <DetailLabel>
+                            {t('preAggregateMaterializations.definitionError')}
+                        </DetailLabel>
                         <Text fz="sm" c="red">
                             {summary.definitionError}
                         </Text>
@@ -416,7 +458,9 @@ const MaterializationDetailDrawer: FC<Props> = ({
 
                 {summary.warnings.length > 0 && (
                     <Box>
-                        <DetailLabel>Warnings</DetailLabel>
+                        <DetailLabel>
+                            {t('materializationDrawer.warnings')}
+                        </DetailLabel>
                         <Callout variant="warning" p="xs" hideIcon>
                             <List
                                 styles={{
@@ -470,10 +514,16 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                         fill={undefined}
                                     />
                                     <Text fw={600} fz="sm">
-                                        Last materialization
+                                        {t(
+                                            'materializationDrawer.lastMaterialization',
+                                        )}
                                     </Text>
                                 </Group>
-                                <Tooltip label="Rebuild this pre-aggregate">
+                                <Tooltip
+                                    label={t(
+                                        'preAggregateMaterializations.rebuildOne',
+                                    )}
+                                >
                                     <ActionIcon
                                         size="sm"
                                         loading={isRefreshing}
@@ -495,10 +545,15 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                         color="dimmed"
                                     />
                                     <Text size="sm" c="dimmed">
-                                        Trigger:{' '}
-                                        {TRIGGER_LABELS[
-                                            materialization.trigger
-                                        ] ?? materialization.trigger}
+                                        {t('materializationDrawer.trigger', {
+                                            trigger: KNOWN_TRIGGERS.includes(
+                                                materialization.trigger,
+                                            )
+                                                ? t(
+                                                      `materializationDrawer.triggers.${materialization.trigger}`,
+                                                  )
+                                                : materialization.trigger,
+                                        })}
                                     </Text>
                                 </Group>
 
@@ -509,10 +564,14 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                             color="dimmed"
                                         />
                                         <Text size="sm" c="dimmed">
-                                            Materialized at:{' '}
-                                            {new Date(
-                                                materialization.materializedAt,
-                                            ).toLocaleString()}
+                                            {t(
+                                                'materializationDrawer.materializedAt',
+                                                {
+                                                    date: new Date(
+                                                        materialization.materializedAt,
+                                                    ).toLocaleString(),
+                                                },
+                                            )}
                                         </Text>
                                     </Group>
                                 )}
@@ -524,8 +583,9 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                             color="dimmed"
                                         />
                                         <Text size="sm" c="dimmed">
-                                            Rows:{' '}
-                                            {materialization.rowCount.toLocaleString()}
+                                            {t('materializationDrawer.rows', {
+                                                rows: materialization.rowCount.toLocaleString(),
+                                            })}
                                         </Text>
                                     </Group>
                                 )}
@@ -537,9 +597,13 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                             color="dimmed"
                                         />
                                         <Text size="sm" c="dimmed">
-                                            File size:{' '}
-                                            {formatFileSize(
-                                                materialization.totalBytes,
+                                            {t(
+                                                'materializationDrawer.fileSize',
+                                                {
+                                                    size: formatFileSize(
+                                                        materialization.totalBytes,
+                                                    ),
+                                                },
                                             )}
                                         </Text>
                                     </Group>
@@ -552,9 +616,13 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                             color="dimmed"
                                         />
                                         <Text size="sm" c="dimmed">
-                                            Build time:{' '}
-                                            {formatDuration(
-                                                materialization.durationMs,
+                                            {t(
+                                                'materializationDrawer.buildTime',
+                                                {
+                                                    duration: formatDuration(
+                                                        materialization.durationMs,
+                                                    ),
+                                                },
                                             )}
                                         </Text>
                                     </Group>
@@ -562,7 +630,9 @@ const MaterializationDetailDrawer: FC<Props> = ({
 
                                 {materialization.errorMessage && (
                                     <Box>
-                                        <DetailLabel>Error</DetailLabel>
+                                        <DetailLabel>
+                                            {t('materializationDrawer.error')}
+                                        </DetailLabel>
                                         <Text fz="sm" c="red">
                                             {materialization.errorMessage}
                                         </Text>

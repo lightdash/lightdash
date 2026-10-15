@@ -6,6 +6,7 @@ import {
     type LightdashUser,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 
@@ -48,6 +49,7 @@ export const useActivateInviteLinkMutation = (
     inviteCode: string | undefined,
     redirectUrl: string,
 ) => {
+    const { t } = useTranslation('app');
     const { showToastApiError } = useToaster();
     return useMutation<LightdashUser, ApiError>(
         () => activateInviteLinkQuery(inviteCode!),
@@ -58,7 +60,7 @@ export const useActivateInviteLinkMutation = (
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to accept invite',
+                    title: t('useInviteLink.failedToAcceptInvite'),
                     apiError: error,
                 });
             },
@@ -70,6 +72,7 @@ export const useCreateInviteLinkMutation = ({
     showSuccessToast = true,
 }: { showSuccessToast?: boolean } = {}) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<
         InviteLink,
@@ -79,7 +82,7 @@ export const useCreateInviteLinkMutation = ({
         mutationKey: ['invite_link'],
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to create invite link',
+                title: t('useInviteLink.failedToCreateInviteLink'),
                 apiError: error,
             });
         },
@@ -88,7 +91,7 @@ export const useCreateInviteLinkMutation = ({
             await queryClient.refetchQueries(['organization_users']);
             if (showSuccessToast) {
                 showToastSuccess({
-                    title: 'Created new invite link',
+                    title: t('useInviteLink.createdNewInviteLink'),
                 });
             }
         },

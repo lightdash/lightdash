@@ -1,11 +1,13 @@
 import { getItemId } from '@lightdash/common';
 import { memo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FieldSelect from '../../common/FieldSelect';
 import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 
 export const GaugeFieldsConfig: FC = memo(() => {
+    const { t } = useTranslation('vizConfig');
     const { visualizationConfig } = useVisualizationContext();
 
     if (!isGaugeVisualizationConfig(visualizationConfig)) {
@@ -26,10 +28,10 @@ export const GaugeFieldsConfig: FC = memo(() => {
     return (
         <Config>
             <Config.Section>
-                <Config.Heading>Field</Config.Heading>
+                <Config.Heading>{t('gauge.fields.field')}</Config.Heading>
                 <FieldSelect
-                    label="Selected field"
-                    description="Select a metric to display on the gauge"
+                    label={t('gauge.fields.selectedField')}
+                    description={t('gauge.fields.selectedFieldDescription')}
                     item={selectedField}
                     items={Object.values(numericMetrics ?? {})}
                     onChange={(newValue) => {

@@ -3,6 +3,7 @@ import { TextInput, Box, Group, ActionIcon, Tooltip } from '@mantine/core';
 import { useDebouncedState } from '@mantine/hooks';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../common/MantineIcon';
 import { isMapVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -60,6 +61,7 @@ type MapFieldConfigurationProps = {
 };
 
 const MapFieldConfiguration: FC<MapFieldConfigurationProps> = ({ fieldId }) => {
+    const { t } = useTranslation('vizConfig');
     const { visualizationConfig, itemsMap } = useVisualizationContext();
     const [isTooltipVisible, setTooltipVisible] = useState(false);
 
@@ -92,7 +94,11 @@ const MapFieldConfiguration: FC<MapFieldConfigurationProps> = ({ fieldId }) => {
             <Tooltip
                 position="top"
                 opened={isTooltipVisible}
-                label={isVisible ? 'Hide in tooltip' : 'Show in tooltip'}
+                label={
+                    isVisible
+                        ? t('map.field.hideInTooltip')
+                        : t('map.field.showInTooltip')
+                }
             >
                 <Box
                     onMouseEnter={() => setTooltipVisible(true)}

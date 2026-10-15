@@ -4,6 +4,7 @@ import {
     QuerySourceType,
     type SourceQuery,
 } from '@lightdash/common';
+import i18n from '../../../../../../i18n/i18n';
 
 export type PipelineNode = {
     nodeId: string;
@@ -31,13 +32,19 @@ export type PipelineLayer = {
 export const nodeTypeLabelOf = (query: SourceQuery): string | null => {
     switch (query.sourceType) {
         case QuerySourceType.SEMANTIC_LAYER:
-            return 'Semantic layer';
+            return i18n.t('pipeline.nodeType.semanticLayer', {
+                ns: 'aiCopilotChat',
+            });
         case QuerySourceType.SQL:
-            return 'Warehouse SQL';
+            return i18n.t('pipeline.nodeType.warehouseSql', {
+                ns: 'aiCopilotChat',
+            });
         case QuerySourceType.EXTERNAL:
-            return 'External data';
+            return i18n.t('pipeline.nodeType.externalData', {
+                ns: 'aiCopilotChat',
+            });
         case QuerySourceType.PYTHON:
-            return 'Python';
+            return i18n.t('pipeline.nodeType.python', { ns: 'aiCopilotChat' });
         case QuerySourceType.DUCKDB:
             return null;
         default:

@@ -33,6 +33,7 @@ import {
     IconUser,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
 import {
@@ -67,13 +68,13 @@ import {
     threadReviewStatusColors,
 } from './threadReviewContext';
 
-const CREATED_FROM_LABELS: Record<AiThreadCreatedFrom, string> = {
-    slack: 'Slack',
-    web_app: 'Web',
-    api: 'API',
-    evals: 'Evals',
-    scheduler: 'Scheduler',
-    data_app: 'Data app',
+const CREATED_FROM_LABEL_KEYS: Record<AiThreadCreatedFrom, string> = {
+    slack: 'threadsTable.createdFrom.slack',
+    web_app: 'threadsTable.createdFrom.webApp',
+    api: 'threadsTable.createdFrom.api',
+    evals: 'threadsTable.createdFrom.evals',
+    scheduler: 'threadsTable.createdFrom.scheduler',
+    data_app: 'threadsTable.createdFrom.dataApp',
 };
 
 type AiAgentAdminThreadsTableProps = {
@@ -89,6 +90,7 @@ const AiAgentAdminThreadsTable = ({
     selectedThread,
     onThreadDeleted,
 }: AiAgentAdminThreadsTableProps) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const theme = useMantineTheme();
     const navigate = useNavigate();
     const slack = useGetSlack();
@@ -244,7 +246,7 @@ const AiAgentAdminThreadsTable = ({
     const columns: ContentTableColumnDef<AiAgentAdminThreadSummary>[] = [
         {
             accessorKey: 'title',
-            header: 'Thread',
+            header: t('threadsTable.columns.thread'),
             enableSorting: false,
             enableEditing: false,
             size: 300,
@@ -259,12 +261,12 @@ const AiAgentAdminThreadsTable = ({
                 const thread = row.original;
                 return (
                     <Tooltip
-                        label={thread.title || 'Untitled Thread'}
+                        label={thread.title || t('threadsTable.untitled')}
                         disabled={!isTruncated.isTruncated}
                         maw={300}
                     >
                         <Text fw={500} fz="sm" truncate ref={isTruncated.ref}>
-                            {thread.title || 'Untitled Thread'}
+                            {thread.title || t('threadsTable.untitled')}
                         </Text>
                     </Tooltip>
                 );
@@ -272,7 +274,7 @@ const AiAgentAdminThreadsTable = ({
         },
         {
             accessorKey: 'agent.name',
-            header: 'Agent',
+            header: t('threadsTable.columns.agent'),
             enableSorting: false,
             enableEditing: false,
             size: 170,
@@ -294,7 +296,7 @@ const AiAgentAdminThreadsTable = ({
         },
         {
             accessorKey: 'project.name',
-            header: 'Project',
+            header: t('threadsTable.columns.project'),
             enableSorting: false,
             enableEditing: false,
             Header: ({ column }) => (
@@ -315,7 +317,7 @@ const AiAgentAdminThreadsTable = ({
         },
         {
             accessorKey: 'user.name',
-            header: 'User',
+            header: t('threadsTable.columns.user'),
             enableSorting: false,
             enableEditing: false,
             Header: ({ column }) => (
@@ -337,7 +339,7 @@ const AiAgentAdminThreadsTable = ({
         },
         {
             accessorKey: 'createdFrom',
-            header: 'Source',
+            header: t('threadsTable.columns.source'),
             enableSorting: false,
             enableEditing: false,
             size: 120,
@@ -350,7 +352,7 @@ const AiAgentAdminThreadsTable = ({
             Cell: ({ row }) => {
                 const thread = row.original;
                 const isSlack = thread.createdFrom === 'slack';
-                const label = CREATED_FROM_LABELS[thread.createdFrom];
+                const label = t(CREATED_FROM_LABEL_KEYS[thread.createdFrom]);
 
                 const slackUrl =
                     thread.slackChannelId &&
@@ -402,7 +404,7 @@ const AiAgentAdminThreadsTable = ({
         },
         {
             accessorKey: 'promptCount',
-            header: 'Prompts',
+            header: t('threadsTable.columns.prompts'),
             enableSorting: false,
             enableEditing: false,
             size: 125,
@@ -419,7 +421,7 @@ const AiAgentAdminThreadsTable = ({
         },
         {
             accessorKey: 'feedbackSummary',
-            header: 'Feedback',
+            header: t('threadsTable.columns.feedback'),
             enableSorting: false,
             enableEditing: false,
             size: 140,
@@ -483,7 +485,7 @@ const AiAgentAdminThreadsTable = ({
         },
         {
             accessorKey: 'reviewWarnings',
-            header: 'Warnings',
+            header: t('threadsTable.columns.warnings'),
             enableSorting: false,
             enableEditing: false,
             size: 240,
@@ -505,7 +507,7 @@ const AiAgentAdminThreadsTable = ({
                 ) {
                     return (
                         <Text fz="xs" c="ldGray.5" fw={500}>
-                            Clean
+                            {t('threadsTable.clean')}
                         </Text>
                     );
                 }
@@ -520,10 +522,9 @@ const AiAgentAdminThreadsTable = ({
                     <Stack gap={4} miw={0}>
                         <Group gap={6} wrap="nowrap">
                             <Badge color="violet">
-                                {summary.findingCount}{' '}
-                                {summary.findingCount === 1
-                                    ? 'finding'
-                                    : 'findings'}
+                                {t('threadsTable.findings', {
+                                    count: summary.findingCount,
+                                })}
                             </Badge>
                             <Badge
                                 color={
@@ -533,10 +534,11 @@ const AiAgentAdminThreadsTable = ({
                                 }
                             >
                                 {activeCount > 0
-                                    ? `${activeCount} active`
-                                    : latestReviewItem.status.replaceAll(
-                                          '_',
-                                          ' ',
+                                    ? t('threadsTable.activeCount', {
+                                          count: activeCount,
+                                      })
+                                    : t(
+                                          `threadsTable.reviewStatus.${latestReviewItem.status}`,
                                       )}
                             </Badge>
                         </Group>
@@ -564,7 +566,7 @@ const AiAgentAdminThreadsTable = ({
         },
         {
             accessorKey: 'createdAt',
-            header: 'Created',
+            header: t('threadsTable.columns.created'),
             enableSorting: true,
             enableEditing: false,
             Header: ({ column }) => (
@@ -751,19 +753,24 @@ const AiAgentAdminThreadsTable = ({
             >
                 {isFetching ? (
                     <Text c="ldGray.8" fz="xs">
-                        Loading more...
+                        {t('threadsTable.loadingMore')}
                     </Text>
                 ) : (
                     <Group gap="two">
                         <Text fz="xs" c="ldGray.8">
                             {hasNextPage
-                                ? 'Scroll for more results'
-                                : 'All results loaded'}
+                                ? t('threadsTable.scrollForMore')
+                                : t('threadsTable.allLoaded')}
                         </Text>
                         <Text fz="xs" fw={400} c="dimmed">
                             {hasNextPage
-                                ? `(${flatData.length} of ${totalResults} loaded)`
-                                : `(${flatData.length})`}
+                                ? t('threadsTable.loadedOf', {
+                                      loaded: flatData.length,
+                                      total: totalResults,
+                                  })
+                                : t('threadsTable.loadedCount', {
+                                      count: flatData.length,
+                                  })}
                         </Text>
                     </Group>
                 )}
@@ -793,9 +800,12 @@ const AiAgentAdminThreadsTable = ({
             return (
                 <Group gap={0} wrap="nowrap">
                     {isThreadDumpEnabled && (
-                        <Tooltip label="Download debug dump" openDelay={300}>
+                        <Tooltip
+                            label={t('threadsTable.downloadDump')}
+                            openDelay={300}
+                        >
                             <ActionIcon
-                                aria-label="Download debug dump"
+                                aria-label={t('threadsTable.downloadDump')}
                                 loading={
                                     isDownloadingThreadDump &&
                                     downloadingThreadUuid === thread.uuid
@@ -809,9 +819,12 @@ const AiAgentAdminThreadsTable = ({
                             </ActionIcon>
                         </Tooltip>
                     )}
-                    <Tooltip label="Delete thread" openDelay={300}>
+                    <Tooltip
+                        label={t('threadsTable.deleteThread')}
+                        openDelay={300}
+                    >
                         <ActionIcon
-                            aria-label="Delete thread"
+                            aria-label={t('threadsTable.deleteThread')}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 setPendingDeleteThreadUuid(thread.uuid);
@@ -832,10 +845,10 @@ const AiAgentAdminThreadsTable = ({
                 opened={pendingDumpThreadUuid !== null}
                 onClose={() => setPendingDumpThreadUuid(null)}
                 role="alertdialog"
-                title="Download thread debug dump"
+                title={t('threadsTable.dumpModal.title')}
                 icon={IconFileDownload}
                 size="lg"
-                confirmLabel="Download"
+                confirmLabel={t('threadsTable.dumpModal.confirm')}
                 onConfirm={() => {
                     if (pendingDumpThreadUuid) {
                         downloadThreadDump(pendingDumpThreadUuid);
@@ -845,24 +858,19 @@ const AiAgentAdminThreadsTable = ({
                 }}
             >
                 <Stack gap="xs">
-                    <Text fz="sm">
-                        The dump includes prompts, agent responses and agent
-                        configuration. Query results and sensitive tool outputs
-                        are redacted, but responses may still quote data.
-                    </Text>
+                    <Text fz="sm">{t('threadsTable.dumpModal.body')}</Text>
                     <Text fz="sm" fw={500}>
-                        Before sharing: review the file and confirm you are
-                        comfortable with its contents.
+                        {t('threadsTable.dumpModal.warning')}
                     </Text>
                 </Stack>
             </MantineModal>
             <MantineModal
                 opened={pendingDeleteThreadUuid !== null}
                 onClose={() => setPendingDeleteThreadUuid(null)}
-                title="Delete thread"
+                title={t('threadsTable.deleteModal.title')}
                 variant="delete"
                 resourceType="thread"
-                description="The whole conversation and everything derived from it will be permanently deleted. This action cannot be undone."
+                description={t('threadsTable.deleteModal.description')}
                 onConfirm={handleDeleteThread}
                 confirmLoading={isDeletingThread}
             />

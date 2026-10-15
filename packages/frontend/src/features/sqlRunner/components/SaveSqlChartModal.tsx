@@ -9,6 +9,7 @@ import { useForm } from '@mantine/form';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal, {
@@ -21,6 +22,7 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useModalSteps } from '../../../hooks/useModalSteps';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
+import i18n from '../../../i18n/i18n';
 import useApp from '../../../providers/App/useApp';
 import { DEFAULT_SQL_LIMIT } from '../constants';
 import { useCreateSqlChartMutation } from '../hooks/useSavedSqlCharts';
@@ -39,7 +41,9 @@ enum ModalStep {
 
 const saveChartFormSchema = z
     .object({
-        name: z.string().min(1, 'Name is required'),
+        name: z.string().min(1, {
+            error: () => i18n.t('saveModal.nameRequired', { ns: 'sqlRunner' }),
+        }),
         description: z.string().nullable(),
     })
     .merge(saveToSpaceSchema);
@@ -96,6 +100,7 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
     redirectOnSuccess,
     onSaved,
 }) => {
+    const { t } = useTranslation('sqlRunner');
     const { user } = useApp();
     const { showToastError } = useToaster();
 
@@ -180,7 +185,7 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
 
         if (!connectionRequest.ready) {
             showToastError({
-                title: 'Choose a connection before you save this chart',
+                title: t('saveModal.chooseConnection'),
             });
             return;
         }
@@ -215,6 +220,7 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
         onClose,
         connectionRequest,
         showToastError,
+        t,
     ]);
 
     const handleNextStep = () => {
@@ -262,7 +268,7 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
                     data-tour-anchor="sql-chart-save-next"
                     data-tour-hint="Click Next"
                 >
-                    Next
+                    {t('actions.next', { ns: 'common' })}
                 </Button>
             );
         }
@@ -270,7 +276,7 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
         return (
             <>
                 <Button onClick={handleBack} variant="outline">
-                    Back
+                    {t('actions.back', { ns: 'common' })}
                 </Button>
                 <Button
                     type="submit"
@@ -279,7 +285,7 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
                     disabled={!isFormReadyToSave}
                     loading={isLoading}
                 >
-                    Save
+                    {t('actions.save', { ns: 'common' })}
                 </Button>
             </>
         );
@@ -294,7 +300,7 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
                     leftSection={<MantineIcon icon={IconPlus} />}
                     onClick={openCreateSpaceForm}
                 >
-                    New Space
+                    {t('saveModal.newSpace')}
                 </Button>
             );
         }
@@ -305,7 +311,7 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Save Chart"
+            title={t('saveModal.title')}
             icon={IconChartBar}
             leftActions={renderLeftActions()}
             actions={renderActions()}
@@ -318,8 +324,10 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
                     {modalSteps.currentStep === ModalStep.InitialInfo && (
                         <Stack gap="xs">
                             <TextInput
-                                label="Chart name"
-                                placeholder="eg. How many weekly active users do we have?"
+                                label={t('saveModal.chartName')}
+                                placeholder={t(
+                                    'saveModal.chartNamePlaceholder',
+                                )}
                                 required
                                 autoFocus
                                 data-autofocus
@@ -331,7 +339,7 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
                                 {...form.getInputProps('name')}
                             />
                             <Textarea
-                                label="Description"
+                                label={t('saveModal.description')}
                                 {...form.getInputProps('description')}
                                 value={form.values.description ?? ''}
                             />

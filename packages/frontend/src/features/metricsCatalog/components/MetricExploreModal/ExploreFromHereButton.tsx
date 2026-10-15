@@ -2,6 +2,7 @@ import { type CreateSavedChartVersion } from '@lightdash/common';
 import { Button, Tooltip } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useEmbed from '../../../../ee/providers/Embed/useEmbed';
 import { useContentAuthoringEnabled } from '../../../../hooks/useContentAuthoringEnabled';
@@ -19,6 +20,7 @@ export const ExploreFromHereButton: FC<Props> = ({
     unsavedChartVersion,
     canExplore,
 }) => {
+    const { t } = useTranslation('metricsCatalog');
     const authoringEnabled = useContentAuthoringEnabled();
     const { embedToken, onExplore } = useEmbed();
     const openInExploreUrl = useMemo(() => {
@@ -57,7 +59,7 @@ export const ExploreFromHereButton: FC<Props> = ({
 
     return (
         <Tooltip
-            label="Continue exploring this metric further"
+            label={t('exploreFromHere.tooltip')}
             position="bottom"
             disabled={!isEnabled}
         >
@@ -70,7 +72,7 @@ export const ExploreFromHereButton: FC<Props> = ({
                 loading={isCreatingShareUrl}
                 onClick={handleExploreFromHere}
             >
-                Explore from here
+                {t('exploreFromHere.label')}
             </Button>
         </Tooltip>
     );

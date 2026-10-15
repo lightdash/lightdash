@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { memo, useEffect, type FC, type JSX } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import ScreenshotProgressIndicator from '../components/common/ScreenshotProgressIndicator';
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
@@ -23,6 +24,7 @@ const MinimalSqlChartContent = memo(
         projectUuid: string;
         savedSqlUuid: string;
     }) => {
+        const { t } = useTranslation('pages');
         const {
             chartQuery: {
                 data: chartData,
@@ -61,7 +63,7 @@ const MinimalSqlChartContent = memo(
                 const errorMessage =
                     chartError?.error?.message ??
                     chartResultsError?.error?.message ??
-                    'Error loading SQL chart';
+                    t('minimalSqlChart.loadError');
                 return (
                     <>
                         <span>{errorMessage}</span>

@@ -8,6 +8,7 @@ import {
     PasswordInput,
 } from '@mantine/core';
 import { useEffect, type FC, type ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
 import { CopyActionIcon } from '../../common/CopyActionIcon';
 import { NumberInput } from '../../common/NumberInput';
@@ -26,12 +27,13 @@ export const RedshiftSchemaInput: FC<{
     disabled: boolean;
     description?: ReactNode;
 }> = ({ disabled, description }) => {
+    const { t } = useTranslation('projectConnection');
     const form = useFormContext();
     return (
         <TextInput
             name="warehouse.schema"
-            label="Schema"
-            description={description ?? 'This is the schema name.'}
+            label={t('warehouseFields.schema')}
+            description={description ?? t('warehouseFields.schemaDescription')}
             required
             {...form.getInputProps('warehouse.schema')}
             disabled={disabled}
@@ -43,14 +45,15 @@ const RedshiftAwsSsoFields: FC<{
     disabled: boolean;
     required?: boolean;
 }> = ({ disabled, required = false }) => {
+    const { t } = useTranslation('projectConnection');
     const form = useFormContext();
 
     return (
         <>
             <TextInput
                 name="warehouse.awsSsoStartUrl"
-                label="AWS access portal URL"
-                description="The IAM Identity Center access portal URL users will open to sign in."
+                label={t('warehouseFields.awsAccessPortalUrl')}
+                description={t('warehouseFields.awsAccessPortalUrlDescription')}
                 placeholder="https://your-start-url.awsapps.com/start"
                 required={required}
                 {...form.getInputProps('warehouse.awsSsoStartUrl')}
@@ -58,8 +61,10 @@ const RedshiftAwsSsoFields: FC<{
             />
             <TextInput
                 name="warehouse.awsSsoRegion"
-                label="IAM Identity Center region"
-                description="The AWS region where IAM Identity Center is configured."
+                label={t('warehouseFields.identityCenterRegion')}
+                description={t(
+                    'warehouseFields.identityCenterRegionDescription',
+                )}
                 placeholder="us-east-1"
                 required={required}
                 {...form.getInputProps('warehouse.awsSsoRegion')}
@@ -67,8 +72,8 @@ const RedshiftAwsSsoFields: FC<{
             />
             <TextInput
                 name="warehouse.awsSsoAccountId"
-                label="AWS account ID"
-                description="The AWS account users should access through IAM Identity Center."
+                label={t('warehouseFields.awsAccountId')}
+                description={t('warehouseFields.awsAccountIdDescription')}
                 placeholder="123456789012"
                 required={required}
                 {...form.getInputProps('warehouse.awsSsoAccountId')}
@@ -76,8 +81,8 @@ const RedshiftAwsSsoFields: FC<{
             />
             <TextInput
                 name="warehouse.awsSsoRoleName"
-                label="AWS role name"
-                description="The IAM Identity Center role or permission-set role assigned to users."
+                label={t('warehouseFields.awsRoleName')}
+                description={t('warehouseFields.awsRoleNameDescription')}
                 placeholder="AWSReservedSSO_Redshift"
                 required={required}
                 {...form.getInputProps('warehouse.awsSsoRoleName')}
@@ -91,14 +96,15 @@ const RedshiftIamFields: FC<{
     disabled: boolean;
     isServerless: boolean;
 }> = ({ disabled, isServerless }) => {
+    const { t } = useTranslation('projectConnection');
     const form = useFormContext();
 
     return (
         <>
             <TextInput
                 name="warehouse.region"
-                label="AWS region"
-                description="The AWS region where your Redshift cluster or serverless workgroup is located."
+                label={t('warehouseFields.awsRegion')}
+                description={t('warehouseFields.redshiftRegionDescription')}
                 required
                 placeholder="us-east-1"
                 {...form.getInputProps('warehouse.region')}
@@ -106,8 +112,8 @@ const RedshiftIamFields: FC<{
             />
             <BooleanSwitch
                 name="warehouse.isServerless"
-                label="Redshift Serverless"
-                description="Enable if connecting to a Redshift Serverless workgroup rather than a provisioned cluster."
+                label={t('warehouseFields.redshiftServerless')}
+                description={t('warehouseFields.redshiftServerlessDescription')}
                 {...form.getInputProps('warehouse.isServerless', {
                     type: 'checkbox',
                 })}
@@ -116,8 +122,8 @@ const RedshiftIamFields: FC<{
             {isServerless ? (
                 <TextInput
                     name="warehouse.workgroupName"
-                    label="Workgroup name"
-                    description="The name of your Redshift Serverless workgroup."
+                    label={t('warehouseFields.workgroupName')}
+                    description={t('warehouseFields.workgroupNameDescription')}
                     required
                     {...form.getInputProps('warehouse.workgroupName')}
                     disabled={disabled}
@@ -125,8 +131,10 @@ const RedshiftIamFields: FC<{
             ) : (
                 <TextInput
                     name="warehouse.clusterIdentifier"
-                    label="Cluster identifier"
-                    description="The identifier of your provisioned Redshift cluster."
+                    label={t('warehouseFields.clusterIdentifier')}
+                    description={t(
+                        'warehouseFields.clusterIdentifierDescription',
+                    )}
                     required
                     {...form.getInputProps('warehouse.clusterIdentifier')}
                     disabled={disabled}
@@ -134,24 +142,28 @@ const RedshiftIamFields: FC<{
             )}
             <TextInput
                 name="warehouse.user"
-                label="Database user"
-                description="The Redshift database user to request temporary credentials for."
+                label={t('warehouseFields.databaseUser')}
+                description={t('warehouseFields.databaseUserDescription')}
                 required={!isServerless}
                 {...form.getInputProps('warehouse.user')}
                 disabled={disabled}
             />
             <TextInput
                 name="warehouse.assumeRoleArn"
-                label="Assume role ARN"
-                description="An IAM role Lightdash assumes to mint Redshift credentials for queries. Not yet supported for dbt compilation. Leave blank to use the host's IAM role (self-hosted), or provide AWS access keys under Advanced."
+                label={t('warehouseFields.assumeRoleArn')}
+                description={t(
+                    'warehouseFields.redshiftAssumeRoleArnDescription',
+                )}
                 placeholder="arn:aws:iam::123456789012:role/my-redshift-role"
                 {...form.getInputProps('warehouse.assumeRoleArn')}
                 disabled={disabled}
             />
             <TextInput
                 name="warehouse.assumeRoleExternalId"
-                label="Assume role external ID"
-                description="External ID required by the assume-role trust policy, if configured."
+                label={t('warehouseFields.assumeRoleExternalId')}
+                description={t(
+                    'warehouseFields.assumeRoleExternalIdRequiredDescription',
+                )}
                 {...form.getInputProps('warehouse.assumeRoleExternalId')}
                 disabled={disabled}
             />
@@ -164,14 +176,15 @@ const RedshiftIamAdvancedFields: FC<{
     isServerless: boolean;
     requireSecrets: boolean;
 }> = ({ disabled, isServerless, requireSecrets }) => {
+    const { t } = useTranslation('projectConnection');
     const form = useFormContext();
 
     return (
         <>
             <TextInput
                 name="warehouse.accessKeyId"
-                label="AWS access key ID"
-                description="Advanced: static IAM user access key, only if you are not using an assume-role ARN or the host's IAM role. Long-lived secret — prefer assume-role where possible."
+                label={t('warehouseFields.awsAccessKeyId')}
+                description={t('warehouseFields.staticAccessKeyDescription')}
                 placeholder={
                     disabled || !requireSecrets ? '**************' : undefined
                 }
@@ -180,8 +193,8 @@ const RedshiftIamAdvancedFields: FC<{
             />
             <PasswordInput
                 name="warehouse.secretAccessKey"
-                label="AWS secret access key"
-                description="Secret access key paired with the access key ID above."
+                label={t('warehouseFields.awsSecretAccessKey')}
+                description={t('warehouseFields.secretAccessKeyDescription')}
                 placeholder={
                     disabled || !requireSecrets ? '**************' : undefined
                 }
@@ -191,8 +204,8 @@ const RedshiftIamAdvancedFields: FC<{
             {!isServerless && (
                 <BooleanSwitch
                     name="warehouse.autoCreate"
-                    label="Auto-create database user"
-                    description="Create the database user automatically if it does not already exist (GetClusterCredentials AutoCreate)."
+                    label={t('warehouseFields.autoCreateUser')}
+                    description={t('warehouseFields.autoCreateUserDescription')}
                     {...form.getInputProps('warehouse.autoCreate', {
                         type: 'checkbox',
                     })}
@@ -206,6 +219,7 @@ const RedshiftIamAdvancedFields: FC<{
 const RedshiftForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
+    const { t } = useTranslation('projectConnection');
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
     const form = useFormContext();
@@ -274,8 +288,8 @@ const RedshiftForm: FC<{
             <Stack mt="xs">
                 <TextInput
                     name="warehouse.host"
-                    label="Host"
-                    description="This is the host where the database is running."
+                    label={t('warehouseFields.host')}
+                    description={t('warehouseFields.hostDescription')}
                     required
                     {...form.getInputProps('warehouse.host')}
                     disabled={disabled}
@@ -283,20 +297,22 @@ const RedshiftForm: FC<{
                 />
                 <Select
                     name="warehouse.authenticationType"
-                    label="Authentication type"
-                    description="Choose whether to authenticate with a database username and password, AWS IAM (temporary credentials), or AWS IAM Identity Center (browser sign-in)."
+                    label={t('warehouseFields.authenticationType')}
+                    description={t(
+                        'warehouseFields.redshiftAuthenticationDescription',
+                    )}
                     data={[
                         {
                             value: RedshiftAuthenticationType.PASSWORD,
-                            label: 'Username & password',
+                            label: t('warehouseFields.usernamePassword'),
                         },
                         {
                             value: RedshiftAuthenticationType.IAM,
-                            label: 'AWS IAM',
+                            label: t('warehouseFields.awsIam'),
                         },
                         {
                             value: RedshiftAuthenticationType.IAM_BROWSER,
-                            label: 'AWS IAM Identity Center',
+                            label: t('warehouseFields.awsIamIdentityCenter'),
                         },
                     ]}
                     defaultValue={defaultAuthenticationType}
@@ -308,8 +324,8 @@ const RedshiftForm: FC<{
                     <>
                         <TextInput
                             name="warehouse.user"
-                            label="User"
-                            description="This is the database user name."
+                            label={t('warehouseFields.user')}
+                            description={t('warehouseFields.userDescription')}
                             required={requireSecrets}
                             {...form.getInputProps('warehouse.user')}
                             placeholder={
@@ -321,8 +337,10 @@ const RedshiftForm: FC<{
                         />
                         <PasswordInput
                             name="warehouse.password"
-                            label="Password"
-                            description="This is the database user password."
+                            label={t('warehouseFields.password')}
+                            description={t(
+                                'warehouseFields.passwordDescription',
+                            )}
                             required={requireSecrets}
                             placeholder={
                                 disabled || !requireSecrets
@@ -344,8 +362,10 @@ const RedshiftForm: FC<{
                     <>
                         <TextInput
                             name="warehouse.region"
-                            label="AWS region"
-                            description="The AWS region where your Redshift cluster or serverless workgroup is located."
+                            label={t('warehouseFields.awsRegion')}
+                            description={t(
+                                'warehouseFields.redshiftRegionDescription',
+                            )}
                             required
                             placeholder="us-east-1"
                             {...form.getInputProps('warehouse.region')}
@@ -356,8 +376,8 @@ const RedshiftForm: FC<{
                 )}
                 <TextInput
                     name="warehouse.dbname"
-                    label="DB name"
-                    description="This is the database name."
+                    label={t('warehouseFields.dbName')}
+                    description={t('warehouseFields.databaseNameDescription')}
                     required
                     {...form.getInputProps('warehouse.dbname')}
                     disabled={disabled}
@@ -366,7 +386,7 @@ const RedshiftForm: FC<{
                     <Stack mt="xs">
                         <BooleanSwitch
                             name="warehouse.requireUserCredentials"
-                            label="Require users to provide their own credentials"
+                            label={t('warehouseFields.requireUserCredentials')}
                             {...form.getInputProps(
                                 'warehouse.requireUserCredentials',
                                 {
@@ -391,8 +411,8 @@ const RedshiftForm: FC<{
                             name="warehouse.port"
                             defaultValue={RedshiftDefaultValues.port}
                             {...form.getInputProps('warehouse.port')}
-                            label="Port"
-                            description="This is the port where the database is running."
+                            label={t('warehouseFields.port')}
+                            description={t('warehouseFields.portDescription')}
                             required
                             disabled={disabled}
                         />
@@ -401,22 +421,23 @@ const RedshiftForm: FC<{
                             name="warehouse.keepalivesIdle"
                             {...form.getInputProps('warehouse.keepalivesIdle')}
                             defaultValue={RedshiftDefaultValues.keepalivesIdle}
-                            label="Keep alive idle (seconds)"
+                            label={t('warehouseFields.keepAliveIdle')}
                             description={
                                 <p>
-                                    This specifies the amount of seconds with no
-                                    network activity after which the operating
-                                    system should send a TCP keepalive message
-                                    to the client. You can see more details in{' '}
-                                    <Anchor
-                                        inherit
-                                        target="_blank"
-                                        href="https://postgresqlco.nf/doc/en/param/tcp_keepalives_idle/"
-                                        rel="noreferrer"
-                                    >
-                                        postgresqlco documentation
-                                    </Anchor>
-                                    .
+                                    <Trans
+                                        t={t}
+                                        i18nKey="warehouseFields.keepAliveIdleDescription"
+                                        components={{
+                                            docsLink: (
+                                                <Anchor
+                                                    inherit
+                                                    target="_blank"
+                                                    href="https://postgresqlco.nf/doc/en/param/tcp_keepalives_idle/"
+                                                    rel="noreferrer"
+                                                />
+                                            ),
+                                        }}
+                                    />
                                 </p>
                             }
                             required
@@ -428,21 +449,23 @@ const RedshiftForm: FC<{
                             name="warehouse.sslmode"
                             {...form.getInputProps('warehouse.sslmode')}
                             defaultValue={RedshiftDefaultValues.sslmode}
-                            label="SSL mode"
+                            label={t('warehouseFields.sslMode')}
                             description={
                                 <p>
-                                    This controls how dbt connects to Redshift
-                                    databases using SSL. You can see more
-                                    details in{' '}
-                                    <Anchor
-                                        inherit
-                                        target="_blank"
-                                        href="https://docs.getdbt.com/docs/core/connect-data-platform/redshift-setup#sslmode-change"
-                                        rel="noreferrer"
-                                    >
-                                        dbt documentation
-                                    </Anchor>
-                                    .
+                                    <Trans
+                                        t={t}
+                                        i18nKey="warehouseFields.redshiftSslModeDescription"
+                                        components={{
+                                            docsLink: (
+                                                <Anchor
+                                                    inherit
+                                                    target="_blank"
+                                                    href="https://docs.getdbt.com/docs/core/connect-data-platform/redshift-setup#sslmode-change"
+                                                    rel="noreferrer"
+                                                />
+                                            ),
+                                        }}
+                                    />
                                 </p>
                             }
                             data={[
@@ -459,13 +482,15 @@ const RedshiftForm: FC<{
 
                         <BooleanSwitch
                             name="warehouse.ra3Node"
-                            label="Use RA3 node"
-                            description="Allow dbt to use cross-database-resources."
+                            label={t('warehouseFields.useRa3Node')}
+                            description={t(
+                                'warehouseFields.ra3NodeDescription',
+                            )}
                             {...form.getInputProps('warehouse.ra3Node', {
                                 type: 'checkbox',
                             })}
-                            onLabel="Yes"
-                            offLabel="No"
+                            onLabel={t('state.yes', { ns: 'common' })}
+                            offLabel={t('state.no', { ns: 'common' })}
                         />
 
                         <DataTimezoneField disabled={disabled} />
@@ -475,11 +500,12 @@ const RedshiftForm: FC<{
                             name="warehouse.timeoutSeconds"
                             {...form.getInputProps('warehouse.timeoutSeconds')}
                             defaultValue={RedshiftDefaultValues.timeoutSeconds}
-                            label="Timeout in seconds"
+                            label={t('warehouseFields.timeoutSeconds')}
                             description={
                                 <p>
-                                    If a query takes longer than this timeout to
-                                    complete, then the query will be cancelled.
+                                    {t(
+                                        'warehouseFields.queryTimeoutDescription',
+                                    )}
                                 </p>
                             }
                             required
@@ -488,13 +514,15 @@ const RedshiftForm: FC<{
 
                         <BooleanSwitch
                             name="warehouse.useSshTunnel"
-                            label="Use SSH tunnel"
-                            description="Use SSH tunnel to connect to the database."
+                            label={t('warehouseFields.useSshTunnel')}
+                            description={t(
+                                'warehouseFields.useSshTunnelDescription',
+                            )}
                             {...form.getInputProps('warehouse.useSshTunnel', {
                                 type: 'checkbox',
                             })}
-                            onLabel="Yes"
-                            offLabel="No"
+                            onLabel={t('state.yes', { ns: 'common' })}
+                            offLabel={t('state.no', { ns: 'common' })}
                             defaultChecked={RedshiftDefaultValues.useSshTunnel}
                         />
 
@@ -505,7 +533,7 @@ const RedshiftForm: FC<{
                             <Stack mb="xs">
                                 <TextInput
                                     name="warehouse.sshTunnelHost"
-                                    label="SSH Remote Host"
+                                    label={t('warehouseFields.sshRemoteHost')}
                                     disabled={disabled}
                                     {...form.getInputProps(
                                         'warehouse.sshTunnelHost',
@@ -520,13 +548,13 @@ const RedshiftForm: FC<{
                                     {...form.getInputProps(
                                         'warehouse.sshTunnelPort',
                                     )}
-                                    label="SSH Remote Port"
+                                    label={t('warehouseFields.sshRemotePort')}
                                     disabled={disabled}
                                 />
 
                                 <TextInput
                                     name="warehouse.sshTunnelUser"
-                                    label="SSH Username"
+                                    label={t('warehouseFields.sshUsername')}
                                     disabled={disabled}
                                     {...form.getInputProps(
                                         'warehouse.sshTunnelUser',
@@ -539,9 +567,13 @@ const RedshiftForm: FC<{
                                         'warehouse.sshTunnelPublicKey',
                                     )}
                                     value={sshTunnelPublicKey ?? ''}
-                                    label="Generated SSH Public Key"
-                                    description="Generate a key and add it to your SSH host before saving."
-                                    placeholder="No key generated yet"
+                                    label={t('warehouseFields.sshPublicKey')}
+                                    description={t(
+                                        'warehouseFields.sshPublicKeyDescription',
+                                    )}
+                                    placeholder={t(
+                                        'warehouseFields.noKeyGenerated',
+                                    )}
                                     readOnly={true}
                                     disabled={disabled}
                                     rightSectionPointerEvents="all"
@@ -550,7 +582,9 @@ const RedshiftForm: FC<{
                                             <CopyActionIcon
                                                 value={sshTunnelPublicKey}
                                                 tooltipPosition="right"
-                                                aria-label="Copy SSH tunnel public key"
+                                                aria-label={t(
+                                                    'warehouseFields.copySshPublicKey',
+                                                )}
                                                 onMouseDown={(event) =>
                                                     event.preventDefault()
                                                 }
@@ -564,8 +598,10 @@ const RedshiftForm: FC<{
                                     disabled={disabled || isLoading}
                                 >
                                     {sshTunnelPublicKey
-                                        ? 'Regenerate key'
-                                        : 'Generate public key'}
+                                        ? t('warehouseFields.regenerateKey')
+                                        : t(
+                                              'warehouseFields.generatePublicKey',
+                                          )}
                                 </Button>
                             </Stack>
                         </FormSection>
@@ -573,7 +609,7 @@ const RedshiftForm: FC<{
                 </FormSection>
 
                 <FormCollapseButton isSectionOpen={isOpen} onClick={toggleOpen}>
-                    Advanced configuration options
+                    {t('dbtSettings.advancedOptions')}
                 </FormCollapseButton>
             </Stack>
         </>

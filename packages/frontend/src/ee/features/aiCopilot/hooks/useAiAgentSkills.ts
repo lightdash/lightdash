@@ -14,6 +14,7 @@ import type {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import i18n from '../../../../i18n/i18n';
 
 /** The organization catalogue and skill details. */
 const SKILL_LIBRARY_KEY = 'aiAgentSkillLibrary';
@@ -116,7 +117,9 @@ export const useSetAgentSkills = (projectUuid: string, agentUuid: string) => {
         },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Failed to update agent skills',
+                title: i18n.t('toasts.skills.updateAgentSkillsFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             }),
     });
@@ -158,11 +161,16 @@ export const useCreateAiAgentSkill = () => {
         mutationFn: createSkill,
         onSuccess: async (skill) => {
             await invalidate();
-            showToastSuccess({ title: `Skill /${skill.name} created` });
+            showToastSuccess({
+                title: i18n.t('toasts.skills.created', {
+                    ns: 'aiAgent',
+                    name: skill.name,
+                }),
+            });
         },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Failed to create skill',
+                title: i18n.t('toasts.skills.createFailed', { ns: 'aiAgent' }),
                 apiError: error,
             }),
     });
@@ -180,12 +188,16 @@ export const useUpdateAiAgentSkill = () => {
         onSuccess: async (skill) => {
             await invalidate();
             showToastSuccess({
-                title: `Skill /${skill.name} saved as version ${skill.currentVersion.versionNumber}`,
+                title: i18n.t('toasts.skills.savedVersion', {
+                    ns: 'aiAgent',
+                    name: skill.name,
+                    version: skill.currentVersion.versionNumber,
+                }),
             });
         },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Failed to save skill',
+                title: i18n.t('toasts.skills.saveFailed', { ns: 'aiAgent' }),
                 apiError: error,
             }),
     });

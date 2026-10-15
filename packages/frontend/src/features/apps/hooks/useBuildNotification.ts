@@ -4,6 +4,7 @@ import {
     type ApiAppVersionSummary,
 } from '@lightdash/common';
 import { useCallback, useEffect, useRef } from 'react';
+import i18n from '../../../i18n/i18n';
 
 export type BuildOutcomeKind = 'ready' | 'failed' | 'cancelled';
 export type BuildOutcome = { kind: BuildOutcomeKind; version: number };
@@ -28,19 +29,31 @@ export const getBuildNotificationContent = (
     appName: string,
     { kind, version }: BuildOutcome,
 ): BuildNotificationContent | null => {
-    const title = appName || 'App';
+    const title = appName || i18n.t('toasts.defaultResource', { ns: 'apps' });
     switch (kind) {
         case 'cancelled':
             return null;
         case 'ready':
             return {
-                title: `${title} - version ready!`,
-                body: `Version ${version} has finished building.`,
+                title: i18n.t('notification.ready.title', {
+                    ns: 'apps',
+                    app: title,
+                }),
+                body: i18n.t('notification.ready.body', {
+                    ns: 'apps',
+                    version,
+                }),
             };
         case 'failed':
             return {
-                title: `${title} - build failed`,
-                body: `Version ${version} failed to build.`,
+                title: i18n.t('notification.failed.title', {
+                    ns: 'apps',
+                    app: title,
+                }),
+                body: i18n.t('notification.failed.body', {
+                    ns: 'apps',
+                    version,
+                }),
             };
         default:
             return assertUnreachable(kind, 'Unknown build outcome kind');

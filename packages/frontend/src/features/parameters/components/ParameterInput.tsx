@@ -28,6 +28,7 @@ import React, {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { formatDisplayValue } from '../../../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
@@ -72,6 +73,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
     disabled,
     isError,
 }) => {
+    const { t } = useTranslation('explorer');
     // A value outside the parameter's fixed options is treated as unset
     const value = useMemo(
         () =>
@@ -164,13 +166,13 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                 : [resolvedDefault]
             : undefined;
         return defaultValues
-            ? `${
-                  parameter.multiple
+            ? t('parameters.input.defaultValue', {
+                  value: parameter.multiple
                       ? defaultValues.join(', ')
-                      : defaultValues[0]
-              } (default)`
-            : 'Choose value...';
-    }, [parameter]);
+                      : defaultValues[0],
+              })
+            : t('parameters.input.chooseValue');
+    }, [parameter, t]);
 
     const currentStringValues = useMemo((): string[] => {
         if (parameter.type !== 'string' || value == null) return [];
@@ -314,7 +316,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             fetchedResults.length > 0
                 ? [
                       {
-                          group: 'Dimension values',
+                          group: t('parameters.input.dimensionValues'),
                           items: [...fetchedResults] // Create a copy to avoid mutating Redux state
                               .sort((a, b) => {
                                   const aLabel = fetchedLabelMap.get(a) ?? a;
@@ -346,7 +348,9 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             .filter((value) => value !== '' && !existingValues.has(value))
             .map((value) => ({
                 value,
-                label: `${formatDisplayValue(value)} (default)`,
+                label: t('parameters.input.defaultValue', {
+                    value: formatDisplayValue(value),
+                }),
             }));
 
         const specialItems = [];
@@ -366,7 +370,9 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         ) {
             specialItems.push({
                 value: '__create__',
-                label: `Add "${search.trim()}"`,
+                label: t('parameters.input.addCustomValue', {
+                    value: search.trim(),
+                }),
             });
         }
 
@@ -391,16 +397,19 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         optionsData,
         parameter,
         search,
+        t,
     ]);
 
     const renderOption = useCallback(
         ({ option }: { option: { value: string; label: string } }) => {
             if (option.value === '__refresh__' && shouldFetch && refreshedAt) {
-                const refreshLabel = `${
-                    searchedMaxResults
-                        ? `Showing first ${MAX_AUTOCOMPLETE_RESULTS} results. `
-                        : ''
-                }Options loaded at ${refreshedAt.toLocaleTimeString()} - ↻ Click to refresh`;
+                const loadedAt = refreshedAt.toLocaleTimeString();
+                const refreshLabel = searchedMaxResults
+                    ? t('parameters.input.refreshWithLimit', {
+                          count: MAX_AUTOCOMPLETE_RESULTS,
+                          loadedAt,
+                      })
+                    : t('parameters.input.refresh', { loadedAt });
 
                 return (
                     <Box fz="xs" className={styles.refreshItem}>
@@ -412,8 +421,6 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                 option.value === '__create__' &&
                 parameter.allow_custom_values
             ) {
-                // Extract the query from the label (e.g., 'Add "query"' -> 'query')
-                const query = option.label.match(/^Add "(.+)"$/)?.[1] || '';
                 return (
                     <Box className={styles.createItem} miw={0} w="100%">
                         <Group gap="xxs" c="blue" fz="inherit" wrap="nowrap">
@@ -424,7 +431,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                                 className={styles.createIcon}
                             />
                             <Text truncate size="inherit" title={option.label}>
-                                Add "{query}"
+                                {option.label}
                             </Text>
                         </Group>
                     </Box>
@@ -441,6 +448,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             refreshedAt,
             searchedMaxResults,
             parameter.allow_custom_values,
+            t,
         ],
     );
 

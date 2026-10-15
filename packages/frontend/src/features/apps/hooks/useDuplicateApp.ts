@@ -1,5 +1,6 @@
 import { type ApiDuplicateAppResponse, type ApiError } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { captureChartTypeError } from '../../chartTypes/utils/captureChartTypeError';
@@ -21,6 +22,7 @@ const duplicateApp = ({ projectUuid, appUuid, name }: DuplicateAppParams) =>
 
 export const useDuplicateApp = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('apps');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<DuplicateAppResult, ApiError, DuplicateAppParams>({
         mutationFn: duplicateApp,
@@ -28,7 +30,7 @@ export const useDuplicateApp = () => {
             void queryClient.invalidateQueries({ queryKey: ['myApps'] });
             void queryClient.invalidateQueries({ queryKey: ['content'] });
             void queryClient.invalidateQueries({ queryKey: ['data-app-vizs'] });
-            showToastSuccess({ title: 'Data app duplicated' });
+            showToastSuccess({ title: t('toasts.duplicated') });
         },
         onError: (apiError, variables) => {
             captureChartTypeError('dataAppFork', apiError, {
@@ -36,7 +38,7 @@ export const useDuplicateApp = () => {
                 appUuid: variables.appUuid,
             });
             showToastApiError({
-                title: 'Failed to duplicate app',
+                title: t('toasts.duplicateFailed'),
                 apiError: apiError.error,
             });
         },

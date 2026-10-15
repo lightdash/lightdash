@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { Loader, Stack, Text } from '@mantine/core';
 import { IconPlugConnected } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { useOrganizationAgentIdentitySettings } from '../../../features/aiAccess/api';
 import { useProjects } from '../../../hooks/useProjects';
 import { useUserWarehouseCredentials } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
@@ -14,14 +15,15 @@ import { AiServiceAccountConnectionCard } from './AiServiceAccountConnectionCard
 import { SnowflakeAgentConnectionCard } from './SnowflakeAgentConnectionCard';
 import { getAgentConnectionVisibility } from './visibility';
 
-const description =
-    'See who your agents run as on each warehouse. Some warehouses need you to sign in once.';
-
 export const WarehouseAgentSignInsPanel = ({
     standalone = false,
 }: {
     standalone?: boolean;
 }) => {
+    const { t } = useTranslation('userSettings');
+    const description = t(
+        'myAgentConnectionsPanel.warehouseAgentSignInsPanel.description',
+    );
     const settings = useOrganizationAgentIdentitySettings();
     const projects = useProjects();
     const credentials = useUserWarehouseCredentials();
@@ -42,7 +44,11 @@ export const WarehouseAgentSignInsPanel = ({
     const content = (
         <>
             {isError ? (
-                <InlineErrorState message="Could not load your agent identity." />
+                <InlineErrorState
+                    message={t(
+                        'myAgentConnectionsPanel.warehouseAgentSignInsPanel.loadError',
+                    )}
+                />
             ) : isLoading ? (
                 <Loader size="sm" />
             ) : (
@@ -65,8 +71,12 @@ export const WarehouseAgentSignInsPanel = ({
                         serviceAccountWarehouses.length === 0 && (
                             <SettingsEmptyState
                                 icon={IconPlugConnected}
-                                title="Your agents run as you"
-                                description="Agents use your own warehouse access. There's nothing to set up."
+                                title={t(
+                                    'myAgentConnectionsPanel.warehouseAgentSignInsPanel.emptyState.title',
+                                )}
+                                description={t(
+                                    'myAgentConnectionsPanel.warehouseAgentSignInsPanel.emptyState.description',
+                                )}
                             />
                         )}
                 </>
@@ -74,7 +84,10 @@ export const WarehouseAgentSignInsPanel = ({
         </>
     );
     return standalone ? (
-        <SettingsPage title="My agent identity" description={description}>
+        <SettingsPage
+            title={t('myAgentConnectionsPanel.page.title')}
+            description={description}
+        >
             {content}
         </SettingsPage>
     ) : (

@@ -6,6 +6,7 @@ import {
 import { Group, SegmentedControl, Text } from '@mantine/core';
 import { IconTag } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FilterFacet, {
     type FilterFacetOption,
 } from '../../../../components/common/FilterFacet';
@@ -22,21 +23,13 @@ type CategoriesFilterProps = {
     setCategoryFilterMode: (mode: CatalogCategoryFilterMode) => void;
 };
 
-const UNCATEGORIZED_OPTION: FilterFacetOption = {
-    value: UNCATEGORIZED_TAG_UUID,
-    label: (
-        <Text fz="xs" fw={500}>
-            Uncategorized
-        </Text>
-    ),
-};
-
 const CategoriesFilter: FC<CategoriesFilterProps> = ({
     selectedCategories,
     setSelectedCategories,
     categoryFilterMode,
     setCategoryFilterMode,
 }) => {
+    const { t } = useTranslation('metricsCatalog');
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -57,10 +50,18 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                 label: <CatalogCategory category={category} />,
                 searchLabel: category.name,
             }));
+        const uncategorizedOption: FilterFacetOption = {
+            value: UNCATEGORIZED_TAG_UUID,
+            label: (
+                <Text fz="xs" fw={500}>
+                    {t('filters.categories.uncategorized')}
+                </Text>
+            ),
+        };
         return search
             ? categoryOptions
-            : [...categoryOptions, UNCATEGORIZED_OPTION];
-    }, [categories, searchValue]);
+            : [...categoryOptions, uncategorizedOption];
+    }, [categories, searchValue, t]);
 
     const showFilterMode =
         selectedCategories.length > 1 &&
@@ -68,7 +69,7 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
 
     return (
         <FilterFacet
-            label="Categories"
+            label={t('filters.categories.label')}
             icon={IconTag}
             // Walkthrough for view:Tags: narrowing the catalog to one
             // category is what tags are for. See scripts/scope-tours.
@@ -92,24 +93,24 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
             options={options}
             selected={selectedCategories}
             onChange={setSelectedCategories}
-            tooltipLabel="Filter metrics by category"
+            tooltipLabel={t('filters.categories.tooltip')}
             loading={isLoading}
             clearable
             emptyLabel={
                 searchValue
-                    ? 'No categories match your search.'
-                    : 'No categories added yet. Click on the category cells to assign categories to your metrics.'
+                    ? t('filters.categories.noMatch')
+                    : t('filters.categories.empty')
             }
             searchValue={searchValue}
             onSearchChange={
                 (categories?.length ?? 0) > 5 ? setSearchValue : undefined
             }
-            searchPlaceholder="Search categories..."
+            searchPlaceholder={t('filters.categories.searchPlaceholder')}
             headerSection={
                 showFilterMode ? (
                     <Group justify="space-between" wrap="nowrap">
                         <Text fz="xs" c="dimmed">
-                            Match
+                            {t('filters.categories.match')}
                         </Text>
                         <SegmentedControl
                             size="xs"
@@ -121,11 +122,11 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                             }
                             data={[
                                 {
-                                    label: 'Any',
+                                    label: t('filters.categories.any'),
                                     value: CatalogCategoryFilterMode.OR,
                                 },
                                 {
-                                    label: 'All',
+                                    label: t('filters.categories.all'),
                                     value: CatalogCategoryFilterMode.AND,
                                 },
                             ]}

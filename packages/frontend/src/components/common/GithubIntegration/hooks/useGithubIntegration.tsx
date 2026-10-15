@@ -7,6 +7,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import i18n from '../../../../i18n/i18n';
 
 const getGithubConfig = async () =>
     lightdashApi<GitIntegrationConfiguration>({
@@ -27,7 +28,9 @@ export const useGithubConfig = () => {
             if (error.statusCode === 404 || error.statusCode === 401) return; // Ignore missing installation errors or unauthorized in demo
 
             showToastApiError({
-                title: 'Failed to get GitHub integration',
+                title: i18n.t('githubIntegration.fetchFailed', {
+                    ns: 'commonUi',
+                }),
                 apiError: error,
             });
         },
@@ -52,7 +55,9 @@ export const useGitHubRepositories = () => {
             if (error.statusCode === 404 || error.statusCode === 401) return; // Ignore missing installation errors or unauthorized in demo
 
             showToastApiError({
-                title: 'Failed to get GitHub integration',
+                title: i18n.t('githubIntegration.fetchFailed', {
+                    ns: 'commonUi',
+                }),
                 apiError: error,
             });
         },
@@ -93,14 +98,20 @@ export const useUnlinkGithubUserMutation = () => {
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['github_user_credential']);
                 showToastSuccess({
-                    title: 'GitHub account unlinked',
-                    subtitle:
-                        'Write-backs will be authored by the Lightdash bot again.',
+                    title: i18n.t('githubIntegration.accountUnlinked', {
+                        ns: 'commonUi',
+                    }),
+                    subtitle: i18n.t(
+                        'githubIntegration.accountUnlinkedSubtitle',
+                        { ns: 'commonUi' },
+                    ),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to unlink GitHub account',
+                    title: i18n.t('githubIntegration.unlinkFailed', {
+                        ns: 'commonUi',
+                    }),
                     apiError: error,
                 });
             },
@@ -125,14 +136,19 @@ export const useDeleteGithubInstallationMutation = () => {
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['github_branches']);
                 showToastSuccess({
-                    title: 'GitHub integration deleted',
-                    subtitle:
-                        'You have successfully deleted your GitHub integration.',
+                    title: i18n.t('githubIntegration.deleted', {
+                        ns: 'commonUi',
+                    }),
+                    subtitle: i18n.t('githubIntegration.deletedSubtitle', {
+                        ns: 'commonUi',
+                    }),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to delete GitHub integration',
+                    title: i18n.t('githubIntegration.deleteFailed', {
+                        ns: 'commonUi',
+                    }),
                     apiError: error,
                 });
             },

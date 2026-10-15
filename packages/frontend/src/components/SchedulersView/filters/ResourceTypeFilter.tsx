@@ -1,5 +1,6 @@
 import { Box, SegmentedControl, Text, Tooltip } from '@mantine/core';
 import { IconChartBar, IconLayoutDashboard } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { type useSchedulerFilters } from '../../../features/scheduler/hooks/useSchedulerFilters';
 import MantineIcon from '../../common/MantineIcon';
 import classes from './ResourceTypeFilter.module.css';
@@ -13,6 +14,7 @@ export const ResourceTypeFilter = ({
     selectedResourceType,
     setSelectedResourceType,
 }: ResourceTypeFilterProps) => {
+    const { t } = useTranslation('scheduler');
     const iconProps = {
         style: { display: 'block' },
         size: 18,
@@ -23,10 +25,10 @@ export const ResourceTypeFilter = ({
         {
             value: 'all',
             label: (
-                <Tooltip label="Show all schedulers">
+                <Tooltip label={t('filters.resourceType.showAll')}>
                     <Box>
                         <Text fz="xs" fw={500}>
-                            All
+                            {t('filters.resourceType.all')}
                         </Text>
                     </Box>
                 </Tooltip>
@@ -35,7 +37,7 @@ export const ResourceTypeFilter = ({
         {
             value: 'chart',
             label: (
-                <Tooltip label="Show only chart schedulers" maw={200}>
+                <Tooltip label={t('filters.resourceType.showCharts')} maw={200}>
                     <Box>
                         <MantineIcon icon={IconChartBar} {...iconProps} />
                     </Box>
@@ -45,7 +47,10 @@ export const ResourceTypeFilter = ({
         {
             value: 'dashboard',
             label: (
-                <Tooltip label="Show only dashboard schedulers" maw={200}>
+                <Tooltip
+                    label={t('filters.resourceType.showDashboards')}
+                    maw={200}
+                >
                     <Box>
                         <MantineIcon
                             icon={IconLayoutDashboard}

@@ -1,6 +1,7 @@
 import { Stack, Text, Title } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useApp from '../../providers/App/useApp';
@@ -9,6 +10,7 @@ import PageSpinner from '../PageSpinner';
 import ProjectTablesConfiguration from '../ProjectTablesConfiguration/ProjectTablesConfiguration';
 
 const CreateProjectSettings: FC = () => {
+    const { t } = useTranslation('settings');
     const projectUuid = useProjectUuid();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
@@ -28,14 +30,10 @@ const CreateProjectSettings: FC = () => {
             <Stack pt={60}>
                 <Stack gap="xxs">
                     <Title order={3} fw={500}>
-                        Your project has connected successfully! 🎉{' '}
+                        {t('createProject.title')}
                     </Title>
 
-                    <Text c="dimmed">
-                        Before you start exploring your data, pick the dbt
-                        models you want to appear as tables in Lightdash. You
-                        can always adjust this in your project settings later.
-                    </Text>
+                    <Text c="dimmed">{t('createProject.description')}</Text>
                 </Stack>
 
                 {!!projectUuid && (

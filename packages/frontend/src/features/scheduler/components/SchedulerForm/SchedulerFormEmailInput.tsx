@@ -2,6 +2,7 @@ import { validateEmail } from '@lightdash/common';
 import { Anchor, Box, Group, HoverCard, TagsInput, Text } from '@mantine/core';
 import { IconMail } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useHealth from '../../../../hooks/health/useHealth';
 
@@ -17,6 +18,7 @@ export const SchedulerFormEmailInput: FC<Props> = ({
     onChange,
     hideIcon,
 }) => {
+    const { t } = useTranslation('scheduler');
     const health = useHealth();
     const isDisabled = !health.data?.hasEmailClient;
     const [validationError, setValidationError] = useState<string>();
@@ -36,7 +38,7 @@ export const SchedulerFormEmailInput: FC<Props> = ({
                         <TagsInput
                             clearable
                             error={validationError || null}
-                            placeholder="Enter email addresses"
+                            placeholder={t('emailInput.placeholder')}
                             disabled={isDisabled}
                             value={value}
                             allowDuplicates={false}
@@ -51,7 +53,9 @@ export const SchedulerFormEmailInput: FC<Props> = ({
                                 );
                                 if (invalid) {
                                     setValidationError(
-                                        `'${invalid}' doesn't appear to be an email address`,
+                                        t('emailInput.invalidEmail', {
+                                            email: invalid,
+                                        }),
                                     );
                                     onChange(val.filter(validateEmail));
                                     return;
@@ -64,20 +68,23 @@ export const SchedulerFormEmailInput: FC<Props> = ({
                 </HoverCard.Target>
                 <HoverCard.Dropdown>
                     <Text fz="xs" fw={500}>
-                        No Email integration found.
+                        {t('emailInput.noIntegration')}
                     </Text>
                     <Text fz="xs">
-                        To create an email scheduled delivery, you need to add
-                        <Anchor
-                            fz="xs"
-                            fw={500}
-                            target="_blank"
-                            href="https://docs.lightdash.com/self-host/customize-deployment/configure-smtp-for-lightdash-email-notifications"
-                        >
-                            {' '}
-                            SMTP environment variables{' '}
-                        </Anchor>
-                        to your Lightdash instance
+                        <Trans
+                            t={t}
+                            i18nKey="emailInput.setupSmtp"
+                            components={{
+                                anchor: (
+                                    <Anchor
+                                        fz="xs"
+                                        fw={500}
+                                        target="_blank"
+                                        href="https://docs.lightdash.com/self-host/customize-deployment/configure-smtp-for-lightdash-email-notifications"
+                                    />
+                                ),
+                            }}
+                        />
                     </Text>
                 </HoverCard.Dropdown>
             </HoverCard>

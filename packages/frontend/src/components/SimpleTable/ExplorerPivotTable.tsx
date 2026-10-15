@@ -1,6 +1,7 @@
 import { FieldType, type SortField } from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { useCallback, useMemo, type ComponentProps, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     explorerActions,
     selectDimensions,
@@ -45,6 +46,7 @@ const ExplorerPivotTable: FC<ExplorerPivotTableProps> = ({
     enableContextMenu = true,
     ...rest
 }) => {
+    const { t } = useTranslation('visualization');
     const dispatch = useExplorerDispatch();
     const sorts = useExplorerSelector(selectSorts);
     const isEditMode = useExplorerSelector(selectIsEditMode);
@@ -173,7 +175,11 @@ const ExplorerPivotTable: FC<ExplorerPivotTableProps> = ({
             const target = targetFromMenuTarget(menuTarget);
             const item = getField?.(target.fieldId);
             if (!item) {
-                return <Menu.Label>Sort target is not in the chart</Menu.Label>;
+                return (
+                    <Menu.Label>
+                        {t('contextMenu.sortTargetMissing')}
+                    </Menu.Label>
+                );
             }
             const existing = sorts.find((s) => matchesIdentity(s, target));
             const selectedDirection = existing
@@ -209,7 +215,7 @@ const ExplorerPivotTable: FC<ExplorerPivotTableProps> = ({
                                     );
                                 }}
                             >
-                                Hide column
+                                {t('contextMenu.hideColumn')}
                             </Menu.Item>
                         </>
                     )}
@@ -224,6 +230,7 @@ const ExplorerPivotTable: FC<ExplorerPivotTableProps> = ({
             removeSort,
             sorts,
             targetFromMenuTarget,
+            t,
         ],
     );
 

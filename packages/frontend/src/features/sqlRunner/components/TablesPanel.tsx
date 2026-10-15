@@ -1,6 +1,7 @@
 import { Box, LoadingOverlay, Text } from '@mantine/core';
 import { useTimeout } from '@mantine/hooks';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import ResizableSplitter from '../../../components/common/ResizableSplitter';
 import { useAppSelector } from '../store/hooks';
 import handleStyles from './ResizeHandle.module.css';
@@ -19,6 +20,7 @@ export const TablesPanel: React.FC<TablesPanelProps> = ({
     error,
     onRefresh,
 }) => {
+    const { t } = useTranslation('sqlRunner');
     const initialPanelSizes = [50, 50];
     const activeTable = useAppSelector((state) => state.sqlRunner.activeTable);
 
@@ -51,7 +53,7 @@ export const TablesPanel: React.FC<TablesPanelProps> = ({
             )}
 
             {isLoading && showLoadingMessage && (
-                <Text ta="center">Hang on, still loading...</Text>
+                <Text ta="center">{t('tablesPanel.stillLoading')}</Text>
             )}
 
             {!isLoading && !error && (

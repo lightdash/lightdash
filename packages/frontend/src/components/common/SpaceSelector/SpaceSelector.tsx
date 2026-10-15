@@ -7,6 +7,7 @@ import {
 import { Paper, Stack, TextInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useDeferredValue, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import useApp from '../../../providers/App/useApp';
 import AdminContentViewFilter from '../ResourceView/AdminContentViewFilter';
 import Tree from '../Tree/Tree';
@@ -42,6 +43,7 @@ const SpaceSelector = ({
     isRootSelectionEnabled,
     itemType,
 }: React.PropsWithChildren<SpaceSelectorProps>) => {
+    const { t } = useTranslation('commonUi');
     const { user } = useApp();
 
     const userCanManageProject = user.data?.ability?.can(
@@ -134,7 +136,7 @@ const SpaceSelector = ({
             <TextInput
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search spaces"
+                placeholder={t('spaceSelector.searchPlaceholder')}
             />
 
             <Paper w="100%" h={400} className={styles.treeContainer}>
@@ -147,7 +149,7 @@ const SpaceSelector = ({
                     data={fuzzyFilteredSpaces ?? filteredSpaces}
                     value={selectedSpaceUuid}
                     onChange={onSelectSpace}
-                    topLevelLabel="Spaces"
+                    topLevelLabel={t('spaceSelector.topLevelLabel')}
                     isExpanded={fuzzyFilteredSpaces !== undefined}
                     type="single"
                 />

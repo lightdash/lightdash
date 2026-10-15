@@ -2,6 +2,7 @@ import { type ApiError, type GitRepo } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import i18n from '../../../../i18n/i18n';
 
 const getGitlabRepositories = async (): Promise<GitRepo[]> =>
     lightdashApi<GitRepo[]>({
@@ -22,7 +23,9 @@ export const useGitlabRepositories = (options?: { enabled?: boolean }) => {
             if (error.statusCode === 404 || error.statusCode === 401) return; // Ignore missing installation errors or unauthorized in demo
 
             showToastApiError({
-                title: 'Failed to get GitLab repositories',
+                title: i18n.t('gitlabIntegration.fetchReposFailed', {
+                    ns: 'commonUi',
+                }),
                 apiError: error,
             });
         },
@@ -46,12 +49,14 @@ export const useDeleteGitlabInstallationMutation = () => {
             await queryClient.invalidateQueries(['gitlab_installation']);
             await queryClient.invalidateQueries(['gitlab_repositories']);
             showToastSuccess({
-                title: 'Success! GitLab integration was deleted.',
+                title: i18n.t('gitlabIntegration.deleted', { ns: 'commonUi' }),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to delete GitLab integration',
+                title: i18n.t('gitlabIntegration.deleteFailed', {
+                    ns: 'commonUi',
+                }),
                 apiError: error,
             });
         },

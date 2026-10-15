@@ -21,6 +21,7 @@ import {
 } from '@mantine/core';
 import { IconPlus, IconTrash, IconUsersGroup } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     ContentTable,
     useContentTable,
@@ -74,13 +75,17 @@ const GroupAccessActionCell: FC<GroupAccessActionCellProps> = ({
     isLoading,
     onDelete,
 }) => {
+    const { t } = useTranslation('roles');
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
     if (!canManageProjectAccess) return null;
 
     return (
         <>
-            <Tooltip position="top" label="Remove group access">
+            <Tooltip
+                position="top"
+                label={t('projectGroupAccess.removeGroupAccess')}
+            >
                 <ActionIcon
                     disabled={!canManageProjectAccess || isLoading}
                     variant="outline"
@@ -115,6 +120,7 @@ interface ProjectGroupAccessProps {
 const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
     projectUuid,
 }) => {
+    const { t } = useTranslation('roles');
     const theme = useMantineTheme();
     const { user } = useApp();
     const ability = useAbilityContext();
@@ -190,14 +196,20 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
         }[] = [];
 
         if (systemRoles.length > 0) {
-            roleGroups.push({ group: 'System role', items: systemRoles });
+            roleGroups.push({
+                group: t('projectGroupAccess.systemRoleGroup'),
+                items: systemRoles,
+            });
         }
         if (customRoles.length > 0) {
-            roleGroups.push({ group: 'Custom role', items: customRoles });
+            roleGroups.push({
+                group: t('projectGroupAccess.customRoleGroup'),
+                items: customRoles,
+            });
         }
 
         return roleGroups;
-    }, [organizationRoles]);
+    }, [organizationRoles, t]);
 
     // Flatten roles for lookup
     const allRoles = useMemo(
@@ -233,7 +245,9 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
             groupId: formData.groupUuid,
             roleId: formData.role,
         });
-        showToastSuccess({ title: 'Group access added' });
+        showToastSuccess({
+            title: t('projectGroupAccess.groupAccessAdded'),
+        });
         setIsAddingGroupAccess(false);
     };
 
@@ -307,7 +321,7 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
         const cols: ContentTableColumnDef<EnrichedGroupRow>[] = [
             {
                 accessorKey: 'groupUuid',
-                header: 'Group Name',
+                header: t('projectGroupAccess.columns.groupName'),
                 enableSorting: false,
                 size: 300,
                 Header: ({ column }) => (
@@ -324,8 +338,9 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
                                 {r.group.name}
                             </Text>
                             <Badge>
-                                {r.group.members.length} member
-                                {r.group.members.length !== 1 ? 's' : ''}
+                                {t('projectGroupAccess.memberCount', {
+                                    count: r.group.members.length,
+                                })}
                             </Badge>
                         </Stack>
                     );
@@ -333,7 +348,7 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
             },
             {
                 accessorKey: 'role',
-                header: 'Group Role',
+                header: t('projectGroupAccess.columns.groupRole'),
                 enableSorting: false,
                 size: 300,
                 Cell: ({ row }) => {
@@ -416,6 +431,7 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
         projectUuid,
         groupsWithExtraRoles,
         replaceRoleSetMutation,
+        t,
     ]);
 
     const table = useContentTable({
@@ -482,7 +498,7 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
                         leftSection={<MantineIcon icon={IconPlus} />}
                         onClick={() => setIsAddingGroupAccess(true)}
                     >
-                        Add group access
+                        {t('projectGroupAccess.addGroupAccess')}
                     </Button>
                 )}
             </Group>
@@ -495,10 +511,8 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
             <Box p="4xl">
                 <SuboptimalState
                     icon={IconUsersGroup}
-                    title="No group found with access to this project"
-                    description={
-                        'Click "Add group access" to add a group to this project'
-                    }
+                    title={t('projectGroupAccess.empty.title')}
+                    description={t('projectGroupAccess.empty.description')}
                 />
             </Box>
         ),

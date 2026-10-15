@@ -1,6 +1,7 @@
 import { friendlyName } from '@lightdash/common';
 import { useMantineTheme } from '@mantine/core';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import EChartsReact from '../../../components/EChartsReactWrapper';
 import { useAppSelector } from '../store';
 import { selectResultsSteps } from '../store/selectors';
@@ -27,6 +28,7 @@ const BREAKDOWN_COLORS = [
 ];
 
 export const FunnelBarChart: FC = () => {
+    const { t } = useTranslation('metricsCatalog');
     const theme = useMantineTheme();
     const steps = useAppSelector(selectResultsSteps);
 
@@ -238,7 +240,7 @@ export const FunnelBarChart: FC = () => {
             },
             series: [
                 {
-                    name: 'Conversion',
+                    name: t('funnelBuilder.chart.conversion'),
                     type: 'bar' as const,
                     stack: 'funnel',
                     data: mainData,
@@ -255,7 +257,7 @@ export const FunnelBarChart: FC = () => {
                     barWidth: '60%',
                 },
                 {
-                    name: 'Drop-off',
+                    name: t('funnelBuilder.chart.dropOff'),
                     type: 'bar' as const,
                     stack: 'funnel',
                     data: dropOffData,
@@ -265,7 +267,7 @@ export const FunnelBarChart: FC = () => {
             ],
             grid: { left: 60, right: 20, top: 20, bottom: 60 },
         };
-    }, [steps, theme, hasBreakdown]);
+    }, [steps, theme, hasBreakdown, t]);
 
     if (!steps.length) return null;
 

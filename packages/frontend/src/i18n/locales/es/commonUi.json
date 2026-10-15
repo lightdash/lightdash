@@ -1,0 +1,289 @@
+{
+    "scrollToTop": {
+        "label": "Volver arriba"
+    },
+    "loadingChart": {
+        "title": "Cargando gráfico"
+    },
+    "viewsCountPopover": {
+        "uniqueViewers": "Espectadores únicos",
+        "firstViewed": "Primera visualización",
+        "anonymousViews_one": "Incluye {{formattedCount}} visualización anónima no asociada a un usuario",
+        "anonymousViews_other": "Incluye {{formattedCount}} visualizaciones anónimas no asociadas a un usuario"
+    },
+    "shareLinkButton": {
+        "copyLink": "Copiar enlace",
+        "linkCopied": "¡Enlace copiado!"
+    },
+    "betaBadge": {
+        "label": "Beta",
+        "tooltip": "Esta función está actualmente en beta. Podría causar resultados inesperados y está sujeta a cambios."
+    },
+    "confirmDeleteButton": {
+        "clickAgain": "Haz clic de nuevo para eliminar"
+    },
+    "favoriteActionIcon": {
+        "add": "Añadir a favoritos",
+        "remove": "Quitar de favoritos",
+        "addNamed": "Añadir {{name}} a favoritos",
+        "removeNamed": "Quitar {{name}} de favoritos"
+    },
+    "aiMarkdown": {
+        "renderFailed": "No se pudo mostrar este mensaje."
+    },
+    "tree": {
+        "expandItem": "Expandir {{label}}",
+        "collapseItem": "Contraer {{label}}",
+        "noSpaceAccess": "No tienes acceso a este espacio"
+    },
+    "filterFacet": {
+        "noOptions": "Sin opciones",
+        "searchPlaceholder": "Buscar…",
+        "selectAll": "Seleccionar todo",
+        "deselectAll": "Deseleccionar todo",
+        "clear": "Limpiar",
+        "clearFilter": "Limpiar filtro {{label}}"
+    },
+    "spaceSelector": {
+        "searchPlaceholder": "Buscar espacios",
+        "topLevelLabel": "Espacios",
+        "backToSelection": "Volver a la selección de espacios",
+        "nameLabel": "Nombre",
+        "namePlaceholder": "Nombre del espacio",
+        "nestedSpaceDescription": "Nuevo espacio en \"{{parentSpaceName}}\". Este espacio tendrá el mismo acceso. Puedes cambiarlo más tarde."
+    },
+    "thirdPartySignIn": {
+        "logoAlt": "Logotipo de {{providerName}}",
+        "signUpWith": "Registrarse con {{providerName}}",
+        "signInWith": "Iniciar sesión con {{providerName}}",
+        "continueWith": "Continuar con {{providerName}}",
+        "add": "Añadir +",
+        "lastUsed": "Último usado"
+    },
+    "guidedTour": {
+        "useIt": "Usar",
+        "check": "Comprobar",
+        "stepOf": "Paso {{current}} de {{total}}",
+        "failed": "Eso no funcionó. Revisa el resultado y vuelve a intentarlo",
+        "stillWaiting": "Seguimos esperando a que la página muestre el siguiente control. Puedes omitirlo si no aparece.",
+        "skip": "Omitir",
+        "typeHereOrUseBlock": "Escribe aquí o usa:",
+        "typeHereOrUse": "Escribe aquí o usa <suggestion>{{suggestion}}</suggestion>",
+        "typeToContinue": "Escribe en el campo resaltado para continuar",
+        "clickToContinue": "Haz clic en el control resaltado para continuar",
+        "tryAgain": "Intentar de nuevo",
+        "gotIt": "Entendido"
+    },
+    "modelSelector": {
+        "fastModeTooltip": "Jev elige la forma más rápida de responder, así las preguntas sencillas se responden antes",
+        "selectModel": "Seleccionar modelo",
+        "enableFastMode": "Activar modo rápido",
+        "disableFastMode": "Desactivar modo rápido",
+        "fast": "Rápido",
+        "fastDescription": "La vía más rápida para preguntas sencillas",
+        "reasoning": "Razonamiento",
+        "reasoningDefault": "Predeterminado",
+        "reasoningHigh": "Alto"
+    },
+    "chartDownload": {
+        "downloadFailed": "No se pudo descargar la imagen del gráfico",
+        "copyFailed": "No se pudo copiar la imagen del gráfico",
+        "options": "Opciones",
+        "opaque": "Opaco",
+        "transparent": "Transparente",
+        "copyToClipboard": "Copiar al portapapeles"
+    },
+    "multiSelectCombobox": {
+        "removeItem": "Quitar {{label}}",
+        "addItem": "Añadir \"{{value}}\""
+    },
+    "overflowTabsList": {
+        "scrollLeft": "Desplazar pestañas a la izquierda",
+        "scrollRight": "Desplazar pestañas a la derecha"
+    },
+    "resizableSplitter": {
+        "resizePanels": "Redimensionar paneles"
+    },
+    "authLayout": {
+        "headline": "Analítica a la velocidad del código.",
+        "subcopy": "La única plataforma de BI de código abierto y nativa de IA que permite a la IA crear, refactorizar y publicar analítica en minutos.",
+        "trustedBy": "Equipos de datos que confían en nosotros"
+    },
+    "contentTable": {
+        "selectAllRows": "Seleccionar todas las filas",
+        "selectRow": "Seleccionar fila",
+        "searchPlaceholder": "Buscar...",
+        "clearSearch": "Limpiar búsqueda",
+        "rowCount_one": "{{count}} fila",
+        "rowCount_other": "{{count}} filas",
+        "defaultEntityName": "registros",
+        "emptySearch": "No hay {{entityName}} que coincidan con \"{{search}}\"",
+        "emptyFiltered": "Ningún elemento de {{entityName}} coincide con los filtros actuales",
+        "empty": "Aún no hay {{entityName}}",
+        "tryDifferentSearch": "Prueba con otro término de búsqueda.",
+        "clearAllFilters": "Limpiar todos los filtros",
+        "loadingRows": "Cargando filas de la tabla",
+        "loadFailed": "No se pudieron cargar las filas"
+    },
+    "tagsInput": {
+        "clearAll": "Limpiar todo"
+    },
+    "updatedInfo": {
+        "lastEdited": "Última edición",
+        "lastEditedAt": "Última edición <bold>{{timeAgo}}</bold>",
+        "lastEditedBy": "Última edición por <bold>{{userName}}</bold>",
+        "lastEditedAtBy": "Última edición <bold>{{timeAgo}}</bold> por <bold>{{userName}}</bold>"
+    },
+    "resourceInfo": {
+        "owner": "Propietario",
+        "lastModified": "Última modificación",
+        "views": "Vistas",
+        "space": "Espacio",
+        "slug": "Slug",
+        "viewsSince_one": "{{count}} vista desde {{date}}",
+        "viewsSince_other": "{{count}} vistas desde {{date}}",
+        "versionWithStatus": "Versión {{number}} ({{status}})",
+        "versionStatus": {
+            "error": "error",
+            "ready": "lista",
+            "building": "compilando"
+        },
+        "copySlug": "Copiar slug",
+        "copiedSlug": "Slug copiado",
+        "contentDetails": "Detalles del contenido",
+        "usedInDashboards_one": "Usado en {{count}} dashboard",
+        "usedInDashboards_other": "Usado en {{count}} dashboards",
+        "usedInDashboardsList_one": "Usado en {{count}} dashboard:",
+        "usedInDashboardsList_other": "Usado en {{count}} dashboards:"
+    },
+    "resourceIcon": {
+        "verifiedBy": "Verificado por {{firstName}} {{lastName}} el {{date}}"
+    },
+    "contentSlugRenameModal": {
+        "title": "Cambiar slug de la URL",
+        "submit": "Cambiar slug",
+        "chartDescription": "Cambia la última parte de la URL de este gráfico. Los enlaces existentes seguirán funcionando.",
+        "dashboardDescription": "Cambia la última parte de la URL de este dashboard. Los enlaces existentes seguirán funcionando.",
+        "newSlugLabel": "Nuevo slug",
+        "newSlugDescription": "Letras minúsculas, números y guiones",
+        "urlPreview": "Vista previa de la URL",
+        "chartSlugChanged": "Slug de la URL del gráfico cambiado",
+        "dashboardSlugChanged": "Slug de la URL del dashboard cambiado",
+        "validation": {
+            "required": "Introduce un slug",
+            "maxLength": "Los slugs deben tener 255 caracteres o menos",
+            "format": "Usa solo letras minúsculas, números y guiones",
+            "different": "Introduce un slug diferente"
+        }
+    },
+    "fieldSelect": {
+        "addToQueryGroup": "Añadir a la consulta",
+        "suggestedGroup": "Sugeridos",
+        "tableCalculationsGroup": "Cálculos de tabla",
+        "searchPlaceholder": "Buscar campo..."
+    },
+    "userSelect": {
+        "searchPlaceholder": "Buscar un usuario...",
+        "noGoogleUsers": "No se encontraron usuarios con una conexión de Google activa",
+        "noUsers": "No se encontraron usuarios"
+    },
+    "promptComposer": {
+        "resizeComposer": "Redimensionar el editor"
+    },
+    "projectLayout": {
+        "loadingPage": "Cargando página",
+        "editingUnavailableTitle": "La edición no está disponible en teléfonos",
+        "editingUnavailableDescription": "Abre Lightdash en un ordenador o tableta para crear o editar gráficos y dashboards.",
+        "backToHome": "Volver al inicio"
+    },
+    "snowflakeOAuth": {
+        "connected": "Estás conectado a Snowflake,",
+        "reauthenticate": "Haz clic aquí para volver a autenticarte.",
+        "signIn": "Iniciar sesión con Snowflake"
+    },
+    "githubIntegration": {
+        "fetchFailed": "No se pudo obtener la integración de GitHub",
+        "accountUnlinked": "Cuenta de GitHub desvinculada",
+        "accountUnlinkedSubtitle": "Los cambios volverán a ser realizados por el bot de Lightdash.",
+        "unlinkFailed": "No se pudo desvincular la cuenta de GitHub",
+        "deleted": "Integración de GitHub eliminada",
+        "deletedSubtitle": "Has eliminado correctamente tu integración de GitHub.",
+        "deleteFailed": "No se pudo eliminar la integración de GitHub"
+    },
+    "gitlabIntegration": {
+        "fetchReposFailed": "No se pudieron obtener los repositorios de GitLab",
+        "deleted": "¡Listo! Se eliminó la integración de GitLab.",
+        "deleteFailed": "No se pudo eliminar la integración de GitLab"
+    },
+    "linearIntegration": {
+        "fetchInstallationFailed": "No se pudo obtener la instalación de Linear",
+        "fetchTeamsFailed": "No se pudieron obtener los equipos de Linear",
+        "fetchProjectsFailed": "No se pudieron obtener los proyectos de Linear",
+        "deleted": "¡Listo! Se eliminó la integración de Linear.",
+        "deleteFailed": "No se pudo eliminar la integración de Linear"
+    },
+    "jiraIntegration": {
+        "fetchInstallationFailed": "No se pudo obtener la instalación de Jira",
+        "connectFailed": "No se pudo conectar Jira",
+        "fetchSitesFailed": "No se pudieron obtener los sitios de Jira",
+        "siteSelected": "Sitio de Jira seleccionado",
+        "selectSiteFailed": "No se pudo seleccionar el sitio de Jira",
+        "fetchProjectsFailed": "No se pudieron obtener los proyectos de Jira",
+        "fetchIssueTypesFailed": "No se pudieron obtener los tipos de incidencia de Jira",
+        "deleted": "¡Listo! Se eliminó la integración de Jira.",
+        "deleteFailed": "No se pudo eliminar la integración de Jira"
+    },
+    "slackChannelSelect": {
+        "placeholder": "Selecciona un canal",
+        "refresh": "Actualizar canales de Slack",
+        "uncachedChannel": "No pudimos encontrar este canal y es posible que la integración no esté instalada correctamente. Usa el ID del canal en su lugar.",
+        "channelNotFound": "Canal no encontrado",
+        "channelNotFoundSubtitle": "No se encontró ningún canal con el ID \"{{channelId}}\". Si es un canal privado, asegúrate de añadir primero la app de Slack.",
+        "loadingChannels": "Cargando canales...",
+        "noChannels": "No se encontraron canales. ¿Quieres probar con el ID del canal?",
+        "lookUpChannelId": "Buscar ID de canal: {{search}}",
+        "privateChannelHelp": "Para añadir un canal privado, primero añade la integración de Lightdash a ese canal y usa el ID del canal.",
+        "learnMore": "Más información"
+    },
+    "shareShortLinkButton": {
+        "linkCopied": "Enlace copiado",
+        "copyShareLink": "Copiar enlace para compartir",
+        "share": "Compartir"
+    },
+    "palettePicker": {
+        "lightMode": "Modo claro",
+        "darkMode": "Modo oscuro",
+        "inheritFrom": "Heredar de {{parentLabel}}"
+    },
+    "suggestionList": {
+        "noResults": "No se encontraron resultados",
+        "noFields": "No se encontraron campos",
+        "navigate": "navegar",
+        "select": "seleccionar",
+        "close": "cerrar",
+        "groups": {
+            "dimensions": "Dimensiones",
+            "metrics": "Métricas",
+            "tableCalculations": "Cálculos de tabla"
+        }
+    },
+    "chartTimezoneSelect": {
+        "defaultGroup": "Predeterminado",
+        "specificGroup": "Zona horaria específica",
+        "projectTimezone": "Zona horaria del proyecto",
+        "userTimezone": "Zona horaria del usuario",
+        "localZone": "{{zone}} - Local",
+        "userTimezoneTooltip": "Cada espectador ve los datos en su propia zona horaria. Si no ha configurado una, se usa la zona horaria del proyecto."
+    },
+    "errorState": {
+        "unexpectedError": "Error inesperado",
+        "contactSupport": "Ponte en contacto con soporte",
+        "contactSupportWithInfo": "Ponte en contacto con soporte con la siguiente información:",
+        "errorId": "ID de error: {{id}}",
+        "traceId": "ID de traza: {{id}}",
+        "exploreSplit": "El explore se dividió",
+        "needAccess": "Necesitas acceso",
+        "authorizationError": "Error de autorización",
+        "notFound": "No encontrado"
+    }
+}

@@ -30,6 +30,7 @@ import {
 } from '@tabler/icons-react';
 import { useVirtualizer, type Virtualizer } from '@tanstack/react-virtual';
 import dayjs from 'dayjs';
+import { type TFunction } from 'i18next';
 import {
     memo,
     useCallback,
@@ -39,6 +40,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CopyActionIcon } from '../../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../../hooks/useIsTruncated';
@@ -115,6 +117,7 @@ const TableItem: FC<{
         tableType,
         onSelect,
     }) => {
+        const { t } = useTranslation('common');
         const { ref: hoverRef, hovered } = useHover();
         const typeDisplay = getTableTypeDisplay(tableType);
         const { ref: truncatedRef, isTruncated } =
@@ -171,7 +174,7 @@ const TableItem: FC<{
                 >
                     <CopyActionIcon
                         value={quotedTable}
-                        copiedLabel="Copied to clipboard"
+                        copiedLabel={t('feedback.copiedToClipboard')}
                         tooltipPosition="right"
                         size="xs"
                         bg="body"
@@ -284,29 +287,34 @@ const RecentItem: FC<{
     );
 });
 
-const LoadingItem: FC<{ depth: number }> = ({ depth }) => (
-    <Group
-        gap="xs"
-        wrap="nowrap"
-        className={styles.messageRow}
-        style={depthStyle(depth)}
-    >
-        <Loader size="xs" />
-        <Text fz="xs" c="dimmed">
-            Loading tables...
-        </Text>
-    </Group>
-);
+const LoadingItem: FC<{ depth: number }> = ({ depth }) => {
+    const { t } = useTranslation('sqlRunner');
+    return (
+        <Group
+            gap="xs"
+            wrap="nowrap"
+            className={styles.messageRow}
+            style={depthStyle(depth)}
+        >
+            <Loader size="xs" />
+            <Text fz="xs" c="dimmed">
+                {t('tree.loadingTables')}
+            </Text>
+        </Group>
+    );
+};
 
-const CANNOT_BROWSE_MESSAGE = 'You cannot browse this connection';
 const isMissingCredentialError = (error: string | undefined) =>
     /warehouse credentials/i.test(error ?? '');
 const missingCredentialMessage = (
+    t: TFunction,
     connectionName: string | undefined,
     error: string | undefined,
 ) =>
     error && isMissingCredentialError(error)
-        ? `${connectionName ?? 'This connection'} needs your warehouse credentials. Add or select them in the credentials switcher in the navigation bar.`
+        ? connectionName
+            ? t('tree.namedConnectionNeedsCredentials', { connectionName })
+            : t('tree.connectionNeedsCredentials')
         : error;
 
 const ErrorItem: FC<{
@@ -314,47 +322,57 @@ const ErrorItem: FC<{
     message: string;
     forbidden?: boolean;
     onRetry: () => void;
-}> = ({ depth, message, forbidden = false, onRetry }) => (
-    <Group
-        gap="xs"
-        wrap="nowrap"
-        className={styles.messageRow}
-        style={depthStyle(depth)}
-    >
-        <MantineIcon
-            icon={forbidden ? IconLock : IconAlertTriangle}
-            size="sm"
-            color={forbidden ? 'gray' : 'red'}
-        />
-        {forbidden ? (
-            <Text fz="xs" c="dimmed" truncate>
-                {CANNOT_BROWSE_MESSAGE}
-            </Text>
-        ) : (
-            <>
-                <Tooltip label={message} maw={300} multiline>
-                    <Text fz="xs" c="dimmed" truncate>
-                        Could not load tables
-                    </Text>
-                </Tooltip>
-                <Button variant="subtle" size="compact-xs" onClick={onRetry}>
-                    Retry
-                </Button>
-            </>
-        )}
-    </Group>
-);
+}> = ({ depth, message, forbidden = false, onRetry }) => {
+    const { t } = useTranslation('sqlRunner');
+    return (
+        <Group
+            gap="xs"
+            wrap="nowrap"
+            className={styles.messageRow}
+            style={depthStyle(depth)}
+        >
+            <MantineIcon
+                icon={forbidden ? IconLock : IconAlertTriangle}
+                size="sm"
+                color={forbidden ? 'gray' : 'red'}
+            />
+            {forbidden ? (
+                <Text fz="xs" c="dimmed" truncate>
+                    {t('tree.cannotBrowse')}
+                </Text>
+            ) : (
+                <>
+                    <Tooltip label={message} maw={300} multiline>
+                        <Text fz="xs" c="dimmed" truncate>
+                            {t('tree.couldNotLoadTables')}
+                        </Text>
+                    </Tooltip>
+                    <Button
+                        variant="subtle"
+                        size="compact-xs"
+                        onClick={onRetry}
+                    >
+                        {t('actions.retry', { ns: 'common' })}
+                    </Button>
+                </>
+            )}
+        </Group>
+    );
+};
 
 const TruncationItem: FC<{ depth: number; limit: number }> = ({
     depth,
     limit,
-}) => (
-    <Box className={styles.messageRow} style={depthStyle(depth)}>
-        <Text fz="xs" c="dimmed">
-            {`Showing the first ${limit} databases. Name others in the connection settings.`}
-        </Text>
-    </Box>
-);
+}) => {
+    const { t } = useTranslation('sqlRunner');
+    return (
+        <Box className={styles.messageRow} style={depthStyle(depth)}>
+            <Text fz="xs" c="dimmed">
+                {t('tree.databasesTruncated', { limit })}
+            </Text>
+        </Box>
+    );
+};
 
 type RowExpansion = {
     key: string;
@@ -392,6 +410,7 @@ const VirtualRow: FC<{
     onRetry,
     onSelect,
 }) => {
+    const { t } = useTranslation('sqlRunner');
     switch (row.type) {
         case 'section':
             return <SectionItem label={row.label} />;
@@ -415,7 +434,7 @@ const VirtualRow: FC<{
                     count={showCounts ? row.childCount : null}
                     search={search}
                     strong
-                    badge={row.isActive ? 'Active' : undefined}
+                    badge={row.isActive ? t('tree.active') : undefined}
                     onToggle={onToggle}
                 />
             );
@@ -587,11 +606,12 @@ const TablesStatus: FC<{
     isForbidden,
     isEmpty,
 }) => {
+    const { t } = useTranslation('sqlRunner');
     if (needsConnectionChoice) {
         return (
             <Center p="sm">
                 <Text c="dimmed" fz="sm" ta="center">
-                    Choose a connection to browse its tables
+                    {t('tree.chooseConnection')}
                 </Text>
             </Center>
         );
@@ -607,7 +627,7 @@ const TablesStatus: FC<{
         return (
             <Center p="sm">
                 <Text c="dimmed" fz="sm" ta="center">
-                    {CANNOT_BROWSE_MESSAGE}
+                    {t('tree.cannotBrowse')}
                 </Text>
             </Center>
         );
@@ -625,7 +645,7 @@ const TablesStatus: FC<{
         return (
             <Center p="sm">
                 <Text c="dimmed" fz="sm">
-                    No results found
+                    {t('tables.noResults')}
                 </Text>
             </Center>
         );
@@ -637,6 +657,7 @@ export const MultiConnectionTables: FC<{
     onRefresh: () => void;
     isRefreshDisabled: boolean;
 }> = ({ onRefresh, isRefreshDisabled }) => {
+    const { t } = useTranslation('sqlRunner');
     const [search, setSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(search, 500);
     const effectiveSearch =
@@ -826,8 +847,8 @@ export const MultiConnectionTables: FC<{
                 recentTables,
                 getUnitState,
                 allLabel: hasSeveralConnections
-                    ? 'All connections'
-                    : 'All schemas',
+                    ? t('tree.allConnections')
+                    : t('tables.allSchemas'),
             }),
             ...treeRows,
         ];
@@ -840,6 +861,7 @@ export const MultiConnectionTables: FC<{
         activeConnectionUuid,
         recentTables,
         hasSeveralConnections,
+        t,
     ]);
 
     const viewportRef = useRef<HTMLDivElement>(null);
@@ -893,6 +915,7 @@ export const MultiConnectionTables: FC<{
                 }
                 isLoading={isLoading && isConnectionSettled}
                 errorMessage={missingCredentialMessage(
+                    t,
                     activeConnection?.name,
                     listingError?.error.message,
                 )}

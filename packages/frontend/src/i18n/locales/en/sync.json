@@ -1,0 +1,224 @@
+{
+    "modal": {
+        "title": "Sync with Google Sheets",
+        "loadingSync": "Loading sync",
+        "deleteConfirm": "Are you sure you want to delete \"{{name}}\"?"
+    },
+    "view": {
+        "toggleOffTooltip": "Toggle off to temporarily pause the sync",
+        "pausedTooltip": "Sync paused. Toggle on to resume",
+        "pauseDescription": "This will pause the sync. It will not run until it is enabled again.",
+        "syncNow": "Sync now",
+        "emptyTitle_chart": "This chart has no Syncs set up yet",
+        "emptyTitle_app": "This app has no Syncs set up yet",
+        "emptyDescription_chart": "Get started by clicking 'Create new Sync' to seamlessly integrate your chart data with Google Sheets",
+        "emptyDescription_app": "Get started by clicking 'Create new Sync' to seamlessly integrate your app data with Google Sheets"
+    },
+    "form": {
+        "nameLabel": "Name the Sync",
+        "nameRequired": "Name is required",
+        "cronFieldName": "Cron expression",
+        "frequencyLabel": "Set the frequency",
+        "timezoneDefault": "Project Default",
+        "timezoneDefaultWithOffset": "Project Default (UTC {{offset}})",
+        "showFiltersLabel": "Show filters applied",
+        "showFiltersDescription": "Add a fixed three-row filter summary above the synced data",
+        "appTabsHint": "Each query in the app is written to its own tab, named after the query.",
+        "saveInNewTab": "Save in a new tab",
+        "saveInNewTabTooltip": "Type a tab name to save the sync in, instead of overriding the first existing tab in the Google sheet. This will create a new tab if it doesn't exist. We will still create a tab called metadata with the Sync information.",
+        "tabNameLabel": "Tab name",
+        "tabNameRequired": "Tab name is required",
+        "tabNameReserved": "Tab name cannot be \"metadata\"",
+        "saveChanges": "Save changes"
+    },
+    "googleSheet": {
+        "open": "Open in Google Sheets",
+        "selectTooltip": "Please ensure you have a Google Sheet already created in your Drive to set as the destination for your results",
+        "select": "Select Google Sheet"
+    },
+    "googleSheetsInfo": {
+        "policyName": "Google API Services User Data Policy",
+        "statement": "Lightdash's use and transfer of information received from Google APIs adhere to <policyLink>Google API Services User Data Policy</policyLink>, including the Limited Use requirements."
+    },
+    "toasts": {
+        "scheduledDeliveryCreated": "Success! Scheduled delivery was created.",
+        "scheduledDeliveryCreateFailed": "Failed to create scheduled delivery"
+    },
+    "externalSources": {
+        "sourceType": {
+            "csv": "CSV file",
+            "googleSheets": "Google Sheet"
+        },
+        "joinWithWarehouse": "Join with your warehouse data",
+        "importFailedTitle": "We couldn't import this file",
+        "tryAnotherFile": "Try another file",
+        "delete": {
+            "title": "Delete {{table}}",
+            "description": "This permanently removes the table and its uploaded data. Charts built on it will stop working."
+        },
+        "rename": {
+            "title": "Rename table",
+            "nameLabel": "Name",
+            "nameRequired": "Give the table a name",
+            "hint": "Renaming changes how the table appears; existing charts keep working.",
+            "submit": "Rename"
+        },
+        "replace": {
+            "title": "Replace file",
+            "reimported": "{{table}} re-imported",
+            "warningTitle": "Replacing re-imports the table",
+            "warningDescription": "Charts built on columns the new file drops will stop working.",
+            "genericError": "Something went wrong while re-importing the table.",
+            "reimporting": "Re-importing {{table}}…"
+        },
+        "dropzone": {
+            "unsupportedTitle": "Unsupported file: {{file}}",
+            "unsupportedSubtitle": "Upload a .csv or .tsv file.",
+            "tooLargeTitle": "{{file}} is too large",
+            "tooLargeSubtitle": "Files must be under {{size}}.",
+            "emptyTitle": "{{file}} is empty",
+            "emptySubtitle": "Upload a file with at least a header row.",
+            "uploading": "Uploading and analyzing…",
+            "prompt": "Drop a CSV here or click to browse",
+            "hint": ".csv or .tsv, up to {{size}}",
+            "ariaLabel": "Upload a CSV file"
+        },
+        "preview": {
+            "loadFailed": "Couldn't load the preview",
+            "dataTab": "Data preview",
+            "columnsTab": "Columns · {{count}}",
+            "firstRows_one": "First {{count}} row",
+            "firstRows_other": "First {{count}} rows",
+            "readOnly": "Read only",
+            "column": "Column",
+            "type": "Type"
+        },
+        "status": {
+            "ready": "Ready",
+            "syncing": "Syncing",
+            "error": "Error"
+        },
+        "panel": {
+            "addSource": "Add source",
+            "emptyTitle": "No external sources yet",
+            "emptyDescription": "Upload a CSV to query it alongside your warehouse.",
+            "columns": {
+                "source": "Source",
+                "type": "Type",
+                "rows": "Rows",
+                "lastRefreshed": "Last refreshed",
+                "status": "Status"
+            },
+            "actionsFor": "Actions for {{label}}",
+            "openInExplorer": "Open in Explorer",
+            "viewDetails": "View details",
+            "refresh": "Refresh",
+            "reconnect": "Reconnect",
+            "rename": "Rename"
+        },
+        "menu": {
+            "ariaLabel": "External source actions",
+            "mergeAnotherQuery": "Merge another query",
+            "replaceFile": "Replace file",
+            "refreshFromSheets": "Refresh from Google Sheets",
+            "reconnectGoogle": "Reconnect Google account",
+            "renameTable": "Rename table",
+            "viewDetails": "View source details"
+        },
+        "add": {
+            "csvTitle": "Upload a CSV",
+            "sheetsTitle": "Connect a Google Sheet",
+            "switchToSheets": "Connect a Google Sheet instead",
+            "tableNameLabel": "Table name",
+            "willAppearAs": "Will appear as {{slug}}",
+            "tableNameDescription": "How this table will appear in the sidebar",
+            "autoMetricsHint": "Row count, plus sum and average metrics for numeric columns, are added automatically.",
+            "createTable": "Create table",
+            "sheetUrlLabel": "Google Sheets URL",
+            "sheetUrlInvalid": "Paste the sheet URL from your browser",
+            "sheetConnectFailed": "Couldn't connect the sheet",
+            "connectGoogle": "Connect Google account",
+            "sheetAuthHint": "Copies your Google authorization to this project source, so refreshes keep working if your user leaves. Reconnect from the source menu to transfer ownership.",
+            "connectSheet": "Connect sheet",
+            "preparingError": "Something went wrong while preparing the table.",
+            "preparing": "Preparing your table…",
+            "preparingHint": "You'll land in the new table as soon as it's ready."
+        },
+        "toasts": {
+            "uploadFailed": "Could not upload the file",
+            "refreshing": "Refreshing from Google Sheets",
+            "refreshingSubtitle": "The table updates when the ingest finishes.",
+            "refreshFailed": "Could not refresh the source",
+            "reconnected": "Google Sheet reconnected",
+            "reconnectedSubtitle": "The project now owns this connection.",
+            "reconnectFailed": "Could not reconnect the source",
+            "renamed": "Table renamed",
+            "renameFailed": "Could not rename the table",
+            "replaceFailed": "Could not replace the file",
+            "deleted": "External source deleted",
+            "deleteFailed": "Could not delete the external source",
+            "created": "Table created",
+            "createdSubtitle": "Pick fields to build your first chart."
+        }
+    },
+    "externalConnections": {
+        "builderLinking": {
+            "label": "Who can link this connection?",
+            "adminsOnly": "Admins only",
+            "builders": "Data app and chart type builders"
+        },
+        "testResult": {
+            "truncated": "truncated"
+        },
+        "customHeaders": {
+            "description": "Sent with every request — e.g. anthropic-version or X-GitHub-Api-Version. Never put secrets here; use the connection's authentication instead.",
+            "nameAriaLabel": "Header name",
+            "valueAriaLabel": "Header value",
+            "remove": "Remove header",
+            "add": "Add header",
+            "errors": {
+                "invalidName": "\"{{name}}\" is not a valid header name",
+                "reserved": "Header \"{{name}}\" is reserved by the proxy or used for credentials",
+                "missingValue": "Header \"{{name}}\" needs a value",
+                "valueTooLong": "The value of \"{{name}}\" is too long (max {{max}} characters)",
+                "unsupportedCharacters": "The value of \"{{name}}\" contains unsupported characters",
+                "duplicate": "Duplicate header \"{{name}}\"",
+                "tooMany": "At most {{max}} custom headers are allowed"
+            }
+        },
+        "forwardIdentity": {
+            "label": "Forward viewer identity",
+            "description": "Share the viewer's email and Lightdash user ID, when available, together with the app, organization, and project IDs. Enable only for a service you trust with this information."
+        },
+        "pathRules": {
+            "allowAll": "Allow all paths",
+            "restrict": "Restrict to specific paths",
+            "hint": "Apps may only call paths that start with one of these prefixes.",
+            "add": "Add path prefix"
+        },
+        "validation": {
+            "tokenUrlInvalid": "Enter a valid token URL",
+            "tokenUrlHttps": "Token URL must start with https://",
+            "tokenUrlCredentials": "Token URL must not contain credentials or a fragment"
+        },
+        "toasts": {
+            "sampleDeleted": "Sample deleted",
+            "sampleDeleteFailed": "Failed to delete sample",
+            "created": "Connection created",
+            "createFailed": "Failed to create connection",
+            "deleted": "Connection deleted",
+            "deleteFailed": "Failed to delete connection",
+            "sampleSaved": "Sample saved",
+            "sampleSaveFailed": "Failed to save sample",
+            "testFailed": "Test request failed",
+            "updated": "Connection updated",
+            "updateFailed": "Failed to update connection",
+            "linked": "Linked {{connection}}",
+            "linkedSubtitle": "{{app}} can use this connection immediately. No new version was created.",
+            "linkFailed": "Failed to link connection",
+            "unlinked": "Unlinked {{name}}",
+            "unlinkedSubtitle": "The generated code still calls it until you ask for a change.",
+            "unlinkFailed": "Failed to unlink connection"
+        }
+    }
+}

@@ -13,6 +13,7 @@ import {
     Text,
 } from '@mantine/core';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { draftFieldLabel } from '../utils/draftFieldLabel';
 import classes from './DraftStalePanel.module.css';
 
@@ -35,6 +36,7 @@ const DraftStaleAlert: FC<DraftStaleAlertProps> = ({
     isUpdating,
     onUpdate,
 }) => {
+    const { t } = useTranslation('contentAsCode');
     const [reviewing, setReviewing] = useState(false);
     const [resolutions, setResolutions] = useState<
         Record<string, ContentDraftFieldResolution>
@@ -54,20 +56,21 @@ const DraftStaleAlert: FC<DraftStaleAlertProps> = ({
                         <Group gap={8} wrap="nowrap">
                             <span className={classes.dot} />
                             <Text size="sm" fw={600}>
-                                This {contentLabel} changed in the repo since
-                                your draft
+                                {t('staleAlert.title', {
+                                    context: contentLabel,
+                                })}
                             </Text>
                         </Group>
                         <Text size="sm" c="dimmed">
                             {hasConflicts
-                                ? `You both changed ${conflicts
-                                      .map((field) =>
-                                          draftFieldLabel(field).toLowerCase(),
-                                      )
-                                      .join(
-                                          ', ',
-                                      )}. Pick which version to keep; everything else carries over.`
-                                : 'Your edits do not overlap with it, so they carry over as they are.'}
+                                ? t('staleAlert.conflicts', {
+                                      fields: conflicts
+                                          .map((field) =>
+                                              draftFieldLabel(field, true),
+                                          )
+                                          .join(', '),
+                                  })
+                                : t('staleAlert.noConflicts')}
                         </Text>
                     </Stack>
                     {!reviewing ? (
@@ -79,8 +82,8 @@ const DraftStaleAlert: FC<DraftStaleAlertProps> = ({
                             }
                         >
                             {hasConflicts
-                                ? 'Review changes'
-                                : 'Update to latest'}
+                                ? t('staleAlert.reviewChanges')
+                                : t('staleAlert.updateToLatest')}
                         </Button>
                     ) : null}
                 </Group>
@@ -94,10 +97,18 @@ const DraftStaleAlert: FC<DraftStaleAlertProps> = ({
                         >
                             <Table.Thead>
                                 <Table.Tr>
-                                    <Table.Th w={130}>Field</Table.Th>
-                                    <Table.Th>In the repo</Table.Th>
-                                    <Table.Th>In your draft</Table.Th>
-                                    <Table.Th w={190}>Keep</Table.Th>
+                                    <Table.Th w={130}>
+                                        {t('staleAlert.columns.field')}
+                                    </Table.Th>
+                                    <Table.Th>
+                                        {t('staleAlert.columns.inRepo')}
+                                    </Table.Th>
+                                    <Table.Th>
+                                        {t('staleAlert.columns.inDraft')}
+                                    </Table.Th>
+                                    <Table.Th w={190}>
+                                        {t('staleAlert.columns.keep')}
+                                    </Table.Th>
                                 </Table.Tr>
                             </Table.Thead>
                             <Table.Tbody>
@@ -128,7 +139,10 @@ const DraftStaleAlert: FC<DraftStaleAlertProps> = ({
                                                             : 'dimmed'
                                                     }
                                                 >
-                                                    {change.mine ?? 'unchanged'}
+                                                    {change.mine ??
+                                                        t(
+                                                            'staleAlert.unchanged',
+                                                        )}
                                                 </Text>
                                             </Table.Td>
                                             <Table.Td>
@@ -154,19 +168,24 @@ const DraftStaleAlert: FC<DraftStaleAlertProps> = ({
                                                         }
                                                         data={[
                                                             {
-                                                                label: 'Mine',
+                                                                label: t(
+                                                                    'staleAlert.mine',
+                                                                ),
                                                                 value: 'mine',
                                                             },
                                                             {
-                                                                label: 'Repo',
+                                                                label: t(
+                                                                    'staleAlert.repo',
+                                                                ),
                                                                 value: 'latest',
                                                             },
                                                         ]}
                                                     />
                                                 ) : (
                                                     <Text size="xs" c="dimmed">
-                                                        Repo version,
-                                                        automatically
+                                                        {t(
+                                                            'staleAlert.repoAutomatically',
+                                                        )}
                                                     </Text>
                                                 )}
                                             </Table.Td>
@@ -182,7 +201,7 @@ const DraftStaleAlert: FC<DraftStaleAlertProps> = ({
                                 color="gray"
                                 onClick={() => setReviewing(false)}
                             >
-                                Not now
+                                {t('staleAlert.notNow')}
                             </Button>
                             <Button
                                 size="xs"
@@ -190,7 +209,7 @@ const DraftStaleAlert: FC<DraftStaleAlertProps> = ({
                                 disabled={undecided || details === undefined}
                                 onClick={() => onUpdate(resolutions)}
                             >
-                                Update draft
+                                {t('staleAlert.updateDraft')}
                             </Button>
                         </Group>
                     </Stack>

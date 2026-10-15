@@ -23,7 +23,9 @@ import {
     IconFileText,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import {
     useUnverifyChartMutation,
@@ -51,30 +53,31 @@ type Props = {
 const getItemPresentation = (
     projectUuid: string,
     item: VerifiedContentListItem,
+    t: TFunction,
 ) => {
     switch (item.contentType) {
         case ContentType.CHART:
             return {
                 href: `/projects/${projectUuid}/saved/${item.slug}`,
-                typeLabel: 'Chart',
+                typeLabel: t('verifiedContent.types.chart'),
                 typeIcon: getChartIcon(item.chartKind),
             };
         case ContentType.DASHBOARD:
             return {
                 href: `/projects/${projectUuid}/dashboards/${item.slug}`,
-                typeLabel: 'Dashboard',
+                typeLabel: t('verifiedContent.types.dashboard'),
                 typeIcon: IconLayoutDashboard,
             };
         case ContentType.DATA_APP:
             return {
                 href: `/projects/${projectUuid}/apps/${item.contentUuid}/view`,
-                typeLabel: 'Data app',
+                typeLabel: t('verifiedContent.types.dataApp'),
                 typeIcon: IconAppWindow,
             };
         case ContentType.DOCUMENT:
             return {
                 href: getDocumentUrl(projectUuid, item.contentUuid, item.slug),
-                typeLabel: 'Document',
+                typeLabel: t('verifiedContent.types.document'),
                 typeIcon: IconFileText,
             };
         default:
@@ -83,6 +86,7 @@ const getItemPresentation = (
 };
 
 const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
+    const { t } = useTranslation('home');
     const theme = useMantineTheme();
     const { data: verifiedContent, isLoading } =
         useVerifiedContentList(projectUuid);
@@ -150,7 +154,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
         () => [
             {
                 accessorKey: 'name',
-                header: 'Name',
+                header: t('verifiedContent.columns.name'),
                 enableSorting: false,
                 size: 320,
                 minSize: 160,
@@ -159,6 +163,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                     const { href, typeLabel, typeIcon } = getItemPresentation(
                         projectUuid,
                         item,
+                        t,
                     );
 
                     return (
@@ -194,7 +199,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
             },
             {
                 accessorKey: 'spaceName',
-                header: 'Space',
+                header: t('verifiedContent.columns.space'),
                 enableSorting: false,
                 size: 140,
                 minSize: 80,
@@ -206,7 +211,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
             },
             {
                 accessorKey: 'verifiedBy',
-                header: 'Verified By',
+                header: t('verifiedContent.columns.verifiedBy'),
                 enableSorting: false,
                 size: 140,
                 minSize: 80,
@@ -221,7 +226,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
             },
             {
                 accessorKey: 'verifiedAt',
-                header: 'Verified At',
+                header: t('verifiedContent.columns.verifiedAt'),
                 enableSorting: false,
                 size: 110,
                 minSize: 90,
@@ -244,7 +249,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                     <Menu position="bottom-end">
                         <Menu.Target>
                             <ActionIcon
-                                aria-label="Open actions"
+                                aria-label={t('verifiedContent.openActions')}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                 }}
@@ -260,14 +265,14 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                                     handleUnverify(row.original);
                                 }}
                             >
-                                Remove verification
+                                {t('verifiedContent.removeVerification')}
                             </Menu.Item>
                         </Menu.Dropdown>
                     </Menu>
                 ),
             },
         ],
-        [handleUnverify, projectUuid],
+        [handleUnverify, projectUuid, t],
     );
 
     const table = useContentTable({
@@ -332,8 +337,8 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
         return (
             <SettingsEmptyState
                 icon={IconCircleX}
-                title="No verified content"
-                description="Charts, dashboards, data apps, and Documents that are verified will appear here."
+                title={t('verifiedContent.emptyTitle')}
+                description={t('verifiedContent.emptyDescription')}
             />
         );
     }
@@ -346,11 +351,11 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                 opened={unverifyModalOpened}
                 onClose={closeUnverifyModal}
                 role="alertdialog"
-                title="Remove verification?"
-                description="This will remove the verified badge from this content. You can verify it again later."
+                title={t('verifiedContent.removeTitle')}
+                description={t('verifiedContent.removeDescription')}
                 actions={
                     <Button color="red" onClick={handleConfirmUnverify}>
-                        Remove
+                        {t('actions.remove', { ns: 'common' })}
                     </Button>
                 }
             />

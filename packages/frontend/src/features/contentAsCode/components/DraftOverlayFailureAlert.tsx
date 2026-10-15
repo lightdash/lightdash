@@ -1,6 +1,7 @@
 import { Alert, Text } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 
 type DraftOverlayFailureAlertProps = {
@@ -11,21 +12,22 @@ type DraftOverlayFailureAlertProps = {
 const DraftOverlayFailureAlert: FC<DraftOverlayFailureAlertProps> = ({
     error,
     contentType = 'dashboard',
-}) => (
-    <Alert
-        color="orange"
-        icon={<MantineIcon icon={IconAlertTriangle} />}
-        title="Your unpublished draft couldn't be displayed"
-        mx="md"
-        mt="md"
-        data-draft-error={error.code}
-    >
-        <Text size="sm">
-            You're viewing the published {contentType}. Your draft is still
-            saved for review. Ask a Content as Code admin to review or dismiss
-            it.
-        </Text>
-    </Alert>
-);
+}) => {
+    const { t } = useTranslation('contentAsCode');
+    return (
+        <Alert
+            color="orange"
+            icon={<MantineIcon icon={IconAlertTriangle} />}
+            title={t('overlayFailure.title')}
+            mx="md"
+            mt="md"
+            data-draft-error={error.code}
+        >
+            <Text size="sm">
+                {t('overlayFailure.description', { context: contentType })}
+            </Text>
+        </Alert>
+    );
+};
 
 export default DraftOverlayFailureAlert;

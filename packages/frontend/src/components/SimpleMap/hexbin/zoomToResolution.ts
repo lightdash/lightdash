@@ -33,21 +33,29 @@ export const zoomToResolution = (zoom: number): number => {
 
 /** Friendly preset sizes for the "Fixed" sizing mode. Values are H3 resolutions. */
 export type HexbinSizePreset = {
-    label: string;
+    key:
+        | 'block'
+        | 'neighborhood'
+        | 'district'
+        | 'city'
+        | 'metro'
+        | 'region'
+        | 'country'
+        | 'continent';
     resolution: number;
 };
 
 // Ordered smallest → largest so the slider reads left-to-right naturally
 // (left = small/fine bins, right = large/coarse bins).
 export const HEXBIN_SIZE_PRESETS: readonly HexbinSizePreset[] = [
-    { label: 'Block', resolution: 9 },
-    { label: 'Neighborhood', resolution: 7 },
-    { label: 'District', resolution: 6 },
-    { label: 'City', resolution: 5 },
-    { label: 'Metro', resolution: 4 },
-    { label: 'Region', resolution: 3 },
-    { label: 'Country', resolution: 2 },
-    { label: 'Continent', resolution: 1 },
+    { key: 'block', resolution: 9 },
+    { key: 'neighborhood', resolution: 7 },
+    { key: 'district', resolution: 6 },
+    { key: 'city', resolution: 5 },
+    { key: 'metro', resolution: 4 },
+    { key: 'region', resolution: 3 },
+    { key: 'country', resolution: 2 },
+    { key: 'continent', resolution: 1 },
 ];
 
 export const DEFAULT_FIXED_RESOLUTION = 4;

@@ -3,6 +3,7 @@ import { ProjectType } from '@lightdash/common';
 import { Alert, Stack, Text, SimpleGrid } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -25,6 +26,7 @@ const SelectWarehouse: FC<SelectWarehouseProps> = ({
     isCreatingFirstProject,
     onSelect,
 }) => {
+    const { t } = useTranslation('projectConnection');
     const { user } = useApp();
     const { data: organization } = useOrganization();
     const { track } = useTracking();
@@ -58,14 +60,13 @@ const SelectWarehouse: FC<SelectWarehouseProps> = ({
                             color="yellow"
                             ta="left"
                         >
-                            You don't have permission to create new projects.
-                            Contact your Lightdash administrator to request
-                            project creation access or to have a project
-                            assigned to you.
+                            {t('connectFlow.selectWarehouse.noPermission')}
                         </Alert>
                     )}
 
-                    <Text c="dimmed">Select your warehouse:</Text>
+                    <Text c="dimmed">
+                        {t('connectFlow.selectWarehouse.prompt')}
+                    </Text>
 
                     <SimpleGrid cols={2} spacing="sm">
                         {WarehouseTypeLabels.map((item) => (

@@ -29,6 +29,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { OrganizationRoleSetCell } from '../../../features/roleSets/components/OrganizationRoleSetCell';
 import {
     useMultipleRolesEnabled,
@@ -62,6 +63,7 @@ type PendingRoleChange =
     | { userId: string; roleSet: OrganizationRoleSet };
 
 const UsersTable: FC = () => {
+    const { t } = useTranslation('userSettings');
     const theme = useMantineTheme();
     const isCompact = useMediaQuery(
         `(width < ${theme.breakpoints.sm})`,
@@ -218,11 +220,17 @@ const UsersTable: FC = () => {
 
         return customRoles.length > 0
             ? [
-                  { group: 'System roles', items: systemRoles },
-                  { group: 'Custom roles', items: customRoles },
+                  {
+                      group: t('usersAndGroupsPanel.usersTable.systemRoles'),
+                      items: systemRoles,
+                  },
+                  {
+                      group: t('usersAndGroupsPanel.usersTable.customRoles'),
+                      items: customRoles,
+                  },
               ]
             : systemRoles;
-    }, [organizationRolesQuery.data]);
+    }, [organizationRolesQuery.data, t]);
 
     const canManageUsers =
         activeUser.data?.ability?.can('manage', 'OrganizationMemberProfile') ??
@@ -241,7 +249,7 @@ const UsersTable: FC = () => {
         >[] = [
             {
                 accessorKey: 'email',
-                header: 'User',
+                header: t('usersAndGroupsPanel.usersTable.columns.user'),
                 enableSorting: false,
                 size: isCompact ? 180 : 300,
                 Header: ({ column }) => (
@@ -266,7 +274,11 @@ const UsersTable: FC = () => {
                                             ? `${user.firstName} ${user.lastName}`
                                             : user.email}
                                     </Text>
-                                    <Badge color="red">Inactive</Badge>
+                                    <Badge color="red">
+                                        {t(
+                                            'usersAndGroupsPanel.usersTable.inactive',
+                                        )}
+                                    </Badge>
                                 </Stack>
                             ) : user.isPending ? (
                                 <Stack gap="xxs" align="flex-start">
@@ -278,8 +290,12 @@ const UsersTable: FC = () => {
                                     <Group gap="xs">
                                         <Badge color="orange">
                                             {!user.isInviteExpired
-                                                ? 'Pending'
-                                                : 'Link expired'}
+                                                ? t(
+                                                      'usersAndGroupsPanel.usersTable.pending',
+                                                  )
+                                                : t(
+                                                      'usersAndGroupsPanel.usersTable.linkExpired',
+                                                  )}
                                         </Badge>
                                     </Group>
                                 </Stack>
@@ -311,7 +327,7 @@ const UsersTable: FC = () => {
         if (canManageUsers) {
             cols.push({
                 accessorKey: 'role',
-                header: 'Role',
+                header: t('usersAndGroupsPanel.usersTable.columns.role'),
                 enableSorting: false,
                 size: isCompact ? 130 : 200,
                 Cell: ({ row }) => {
@@ -351,7 +367,7 @@ const UsersTable: FC = () => {
             if (isGroupManagementEnabled && !isCompact) {
                 cols.push({
                     accessorKey: 'groups',
-                    header: 'Groups',
+                    header: t('usersAndGroupsPanel.usersTable.columns.groups'),
                     enableSorting: false,
                     size: 120,
                     Cell: ({ row }) => {
@@ -362,7 +378,10 @@ const UsersTable: FC = () => {
                         ) {
                             return (
                                 <Text fz="sm" c="dimmed">
-                                    0 groups
+                                    {t(
+                                        'usersAndGroupsPanel.usersTable.groupCount',
+                                        { count: 0 },
+                                    )}
                                 </Text>
                             );
                         }
@@ -371,14 +390,19 @@ const UsersTable: FC = () => {
                             <HoverCard disabled={user.groups.length < 1}>
                                 <HoverCard.Target>
                                     <Text fz="sm" c="dimmed">
-                                        {`${user.groups.length} group${
-                                            user.groups.length !== 1 ? 's' : ''
-                                        }`}
+                                        {t(
+                                            'usersAndGroupsPanel.usersTable.groupCount',
+                                            {
+                                                count: user.groups.length,
+                                            },
+                                        )}
                                     </Text>
                                 </HoverCard.Target>
                                 <HoverCard.Dropdown p="sm">
                                     <Text fz="xs" fw={600} c="dimmed">
-                                        User groups:
+                                        {t(
+                                            'usersAndGroupsPanel.usersTable.userGroups',
+                                        )}
                                     </Text>
                                     <List size="xs" ml="xs" mt="xs" fz="xs">
                                         {user.groups.map((group) => (
@@ -448,6 +472,7 @@ const UsersTable: FC = () => {
         canInvite,
         handleInviteSent,
         isCompact,
+        t,
     ]);
 
     const table = useContentTable({
@@ -522,18 +547,26 @@ const UsersTable: FC = () => {
             >
                 {isFetching ? (
                     <Text c="ldGray.8" fz="xs">
-                        Loading more...
+                        {t('usersAndGroupsPanel.usersTable.loadingMore')}
                     </Text>
                 ) : (
                     <Group gap="two">
                         <Text fz="xs" c="ldGray.8">
                             {hasNextPage
-                                ? 'Scroll for more users'
-                                : 'All users loaded'}
+                                ? t(
+                                      'usersAndGroupsPanel.usersTable.scrollForMore',
+                                  )
+                                : t('usersAndGroupsPanel.usersTable.allLoaded')}
                         </Text>
                         <Text fz="xs" fw={400} c="dimmed">
                             {hasNextPage
-                                ? `(${totalFetched} of ${totalDBRowCount} loaded)`
+                                ? t(
+                                      'usersAndGroupsPanel.usersTable.loadedCount',
+                                      {
+                                          fetched: totalFetched,
+                                          total: totalDBRowCount,
+                                      },
+                                  )
                                 : `(${totalFetched})`}
                         </Text>
                     </Group>

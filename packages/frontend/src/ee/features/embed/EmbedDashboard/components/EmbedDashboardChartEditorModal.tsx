@@ -1,6 +1,7 @@
 import { type SavedChart } from '@lightdash/common';
 import { IconChartBar } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { useContentAuthoringEnabled } from '../../../../../hooks/useContentAuthoringEnabled';
 import EmbedProviderContext from '../../../../providers/Embed/context';
@@ -29,6 +30,7 @@ const EmbedDashboardChartEditorModal: FC<Props> = ({
     onChartSaved,
     editChart,
 }) => {
+    const { t } = useTranslation('embed');
     const authoringEnabled = useContentAuthoringEnabled();
     const embedContext = useEmbed();
     const [pickedExploreId, setPickedExploreId] = useState<string>();
@@ -67,7 +69,7 @@ const EmbedDashboardChartEditorModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={handleClose}
-            title={editChart ? 'Edit chart' : 'New chart'}
+            title={editChart ? t('chartEditor.edit') : t('chartEditor.new')}
             icon={IconChartBar}
             fullScreen
             cancelLabel={false}

@@ -9,6 +9,7 @@ import {
     type ComboboxProps,
 } from '@mantine/core';
 import { IconCheck, IconChevronDown } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import Logo from '../../../../../svgs/logo-icon-round.svg?react';
@@ -33,6 +34,7 @@ export const CompactAgentSelector = ({
     showAutoOption = false,
     ...props
 }: Props) => {
+    const { t } = useTranslation('aiAgent');
     const combobox = useCombobox({
         onDropdownClose: () => combobox.resetSelectedOption(),
     });
@@ -40,7 +42,7 @@ export const CompactAgentSelector = ({
     const isAuto = selectedAgent === 'auto';
     const hasOneOption = agentOptions.length + (showAutoOption ? 1 : 0) === 1;
     const hasAgents = agentOptions.length > 0;
-    const tooltipLabel = isAuto ? 'Auto' : selectedAgent?.name;
+    const tooltipLabel = isAuto ? t('agentSelector.auto') : selectedAgent?.name;
 
     return (
         <Combobox
@@ -108,7 +110,7 @@ export const CompactAgentSelector = ({
                                 </Text>
                             </Avatar>
                             <Text size="xs" truncate="end" flex={1}>
-                                Auto
+                                {t('agentSelector.auto')}
                             </Text>
                             {isAuto && (
                                 <MantineIcon

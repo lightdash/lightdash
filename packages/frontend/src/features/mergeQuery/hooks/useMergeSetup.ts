@@ -17,6 +17,7 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useExplore } from '../../../hooks/useExplore';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
@@ -50,6 +51,7 @@ import { useMergeSourceNames } from './useMergeSourceNames';
  * it".
  */
 export const useMergeSetup = () => {
+    const { t } = useTranslation('mergeQuery');
     const { data: mergeFlag } = useServerFeatureFlag(FeatureFlags.MergeQueries);
     const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
@@ -513,7 +515,7 @@ export const useMergeSetup = () => {
         effectiveParts[0]?.fieldIdBySourceId[PRIMARY_SOURCE_ID];
     const joinFieldLabel = primaryJoinField
         ? labelFor(primaryJoinField)
-        : 'the join key';
+        : t('labels.theJoinKey');
 
     const unaccountedTotal =
         unaccountedPrimary.length + unaccountedAdditional.length;
@@ -642,24 +644,26 @@ export const useMergeSetup = () => {
     // unreadable: a grain warning means nothing until there is a merge to
     // warn about.
     const setupStep = !additionalSource.exploreName
-        ? 'Choose data to combine'
+        ? t('labels.chooseDataToCombine')
         : additionalSource.metrics.length === 0
-          ? `Add at least one metric from ${additionalExploreLabel ?? 'the second table'}`
+          ? t('setup.addMetricFrom', {
+                label: additionalExploreLabel ?? t('labels.theSecondTable'),
+            })
           : !effectiveParts.every(
                   (part) =>
                       part.fieldIdBySourceId[PRIMARY_SOURCE_ID] &&
                       part.fieldIdBySourceId[additionalSourceId],
               )
-            ? 'Pick a field from each query to join on'
+            ? t('setup.pickJoinFields')
             : null;
     const isIncomplete = setupStep !== null;
 
     const blockingReason =
         setupStep ??
         (joinKeyErrors.length > 0
-            ? 'These queries cannot be joined on that field'
+            ? t('setup.cannotJoin')
             : fanOut.length > 0
-              ? 'A field is only in one of the queries'
+              ? t('setup.fieldInOneQuery')
               : null);
 
     const canRun =

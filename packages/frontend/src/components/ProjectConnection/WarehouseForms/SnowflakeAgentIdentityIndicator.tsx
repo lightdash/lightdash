@@ -1,6 +1,7 @@
 import { AGENT_IDENTITY_SETTINGS_PATH, FeatureFlags } from '@lightdash/common';
 import { Anchor, Group, Stack, Text } from '@mantine/core';
 import { IconShieldLock } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useMyAiAccess } from '../../../features/aiAccess/api';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -13,6 +14,7 @@ const SnowflakeAgentIdentityIndicator = ({
     projectUuid: string;
     connection: string | null;
 }) => {
+    const { t } = useTranslation('projectConnection');
     const { data: flag } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
     const { data: access } = useMyAiAccess(projectUuid, connection);
     if (!flag?.enabled || !access?.requirementSource) return null;
@@ -21,16 +23,14 @@ const SnowflakeAgentIdentityIndicator = ({
             <MantineIcon icon={IconShieldLock} color="dimmed" />
             <Stack gap="xs">
                 <Text size="sm" c="dimmed">
-                    Your organisation requires agent identity. Agents on this
-                    connection run only for people who have connected their
-                    agent.
+                    {t('snowflakeAgentIdentity.description')}
                 </Text>
                 <Anchor
                     component={Link}
                     to={AGENT_IDENTITY_SETTINGS_PATH}
                     size="sm"
                 >
-                    Organisation settings
+                    {t('snowflakeAgentIdentity.settingsLink')}
                 </Anchor>
             </Stack>
         </Group>

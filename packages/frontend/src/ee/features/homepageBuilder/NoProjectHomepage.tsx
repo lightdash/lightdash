@@ -2,6 +2,7 @@ import { FeatureFlags } from '@lightdash/common';
 import { Box, Button, Stack, Text } from '@mantine/core';
 import { IconDatabase } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, Navigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import PageSpinner from '../../../components/PageSpinner';
@@ -19,6 +20,7 @@ import HomepageStars from './HomepageStars';
 import { useHomepageBuilderFlag } from './hooks/useProjectHomepage';
 
 const NoProjectHomepage: FC = () => {
+    const { t } = useTranslation('homepageBuilder');
     const { data: organization, isInitialLoading } = useOrganization();
     const orgSetupPageFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
     const homepageBuilderFlag = useHomepageBuilderFlag();
@@ -65,7 +67,7 @@ const NoProjectHomepage: FC = () => {
                 <Box className={`${layout.hero} ${layout.heroStageContent}`}>
                     <Stack gap={16} align="center" w="100%">
                         <Text component="h1" className={layout.heroGreeting}>
-                            Let's get started
+                            {t('noProject.title')}
                         </Text>
                         {!isReady ? (
                             // Held at the composer's footprint: it is the
@@ -87,8 +89,7 @@ const NoProjectHomepage: FC = () => {
                         ) : (
                             <Stack gap={14} align="center">
                                 <Text c="dimmed" fz={15} ta="center" maw={420}>
-                                    Connect your data warehouse to start
-                                    exploring and building dashboards.
+                                    {t('noProject.connectDescription')}
                                 </Text>
                                 {/* The checklist below already leads with this
                                     step whenever it renders */}
@@ -101,7 +102,7 @@ const NoProjectHomepage: FC = () => {
                                             <MantineIcon icon={IconDatabase} />
                                         }
                                     >
-                                        Connect a data warehouse
+                                        {t('noProject.connectWarehouse')}
                                     </Button>
                                 )}
                             </Stack>

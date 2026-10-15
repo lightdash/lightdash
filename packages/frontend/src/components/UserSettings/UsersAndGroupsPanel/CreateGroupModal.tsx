@@ -7,6 +7,7 @@ import { Button, Loader, MultiSelect, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconUsersGroup } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useGroupCreateMutation,
     useGroupUpdateMutation,
@@ -28,6 +29,7 @@ const CreateGroupModal: FC<CreateGroupModalProps> = ({
     isEditing,
     groupToEdit,
 }) => {
+    const { t } = useTranslation('userSettings');
     const form = useForm<CreateGroup>({
         initialValues: {
             name: groupToEdit?.name ?? '',
@@ -35,7 +37,9 @@ const CreateGroupModal: FC<CreateGroupModalProps> = ({
         },
         validate: {
             name: (value: string) =>
-                value.trim().length ? null : 'Group name is required',
+                value.trim().length
+                    ? null
+                    : t('usersAndGroupsPanel.createGroupModal.nameRequired'),
         },
     });
 
@@ -86,7 +90,13 @@ const CreateGroupModal: FC<CreateGroupModalProps> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title={isEditing ? `Editing ${groupToEdit?.name}` : 'Create group'}
+            title={
+                isEditing
+                    ? t('usersAndGroupsPanel.createGroupModal.editingTitle', {
+                          name: groupToEdit?.name,
+                      })
+                    : t('usersAndGroupsPanel.createGroupModal.createGroup')
+            }
             icon={IconUsersGroup}
             size="lg"
             actions={
@@ -95,7 +105,9 @@ const CreateGroupModal: FC<CreateGroupModalProps> = ({
                     type="submit"
                     form="create_edit_group"
                 >
-                    {isEditing ? 'Save' : 'Create group'}
+                    {isEditing
+                        ? t('actions.save', { ns: 'common' })
+                        : t('usersAndGroupsPanel.createGroupModal.createGroup')}
                 </Button>
             }
         >
@@ -113,8 +125,12 @@ const CreateGroupModal: FC<CreateGroupModalProps> = ({
             >
                 <Stack>
                     <TextInput
-                        label="Group name"
-                        placeholder="Name of the new group"
+                        label={t(
+                            'usersAndGroupsPanel.createGroupModal.nameLabel',
+                        )}
+                        placeholder={t(
+                            'usersAndGroupsPanel.createGroupModal.namePlaceholder',
+                        )}
                         required
                         w="100%"
                         disabled={isLoading}
@@ -126,9 +142,15 @@ const CreateGroupModal: FC<CreateGroupModalProps> = ({
                             position: 'bottom',
                         }}
                         searchable
-                        label="Group members"
-                        placeholder="Add users to this group"
-                        nothingFoundMessage="No users found"
+                        label={t(
+                            'usersAndGroupsPanel.createGroupModal.membersLabel',
+                        )}
+                        placeholder={t(
+                            'usersAndGroupsPanel.createGroupModal.membersPlaceholder',
+                        )}
+                        nothingFoundMessage={t(
+                            'usersAndGroupsPanel.createGroupModal.noUsersFound',
+                        )}
                         rightSection={isLoadingUsers && <Loader size="sm" />}
                         data={users}
                         value={

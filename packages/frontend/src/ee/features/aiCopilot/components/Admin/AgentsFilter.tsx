@@ -1,6 +1,7 @@
 import { Group, Text } from '@mantine/core';
 import { IconRobotFace } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import FilterFacet, {
     type FilterFacetGroup,
@@ -23,6 +24,7 @@ const AgentsFilter: FC<AgentsFilterProps> = ({
     selectedProjectUuids,
     hidePreviewProjects = false,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const [searchValue, setSearchValue] = useState('');
     const organizationAiAgents = useAiAgentAdminAgents();
     const { data: projects } = useProjects();
@@ -96,27 +98,27 @@ const AgentsFilter: FC<AgentsFilterProps> = ({
 
     return (
         <FilterFacet
-            label="Agent"
+            label={t('filters.agents.label')}
             icon={IconRobotFace}
             groups={groups}
             selected={effectiveSelectedAgentUuids}
             onChange={setSelectedAgentUuids}
             tooltipLabel={
                 hasSelectedProjects
-                    ? 'Filter threads by AI agent (filtered by selected projects)'
-                    : 'Filter threads by AI agent'
+                    ? t('filters.agents.tooltipFiltered')
+                    : t('filters.agents.tooltip')
             }
             emptyLabel={
                 searchValue
-                    ? 'No agents match your search.'
-                    : 'No agents available.'
+                    ? t('filters.agents.noMatch')
+                    : t('filters.agents.empty')
             }
             searchValue={searchValue}
             onSearchChange={setSearchValue}
-            searchPlaceholder="Search agents..."
+            searchPlaceholder={t('filters.agents.searchPlaceholder')}
             helperText={
                 hasSelectedProjects
-                    ? 'Showing agents from selected projects only'
+                    ? t('filters.agents.fromSelectedProjects')
                     : undefined
             }
             loading={organizationAiAgents.isLoading}

@@ -18,6 +18,7 @@ import {
 import { useForm } from '@mantine/form';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
 import { z } from 'zod';
 import { useExplores } from '../../hooks/useExplores';
@@ -46,6 +47,7 @@ type Props = {
 };
 
 const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
+    const { t } = useTranslation('projectSettings');
     const { track } = useTracking();
     const { user } = useApp();
     const ability = useAbilityContext();
@@ -192,9 +194,14 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
         <form name="project_table_configuration" onSubmit={handleSubmit}>
             <SettingsGridCard>
                 <div>
-                    <Title order={5}>Table selection</Title>
+                    <Title order={5}>{t('tablesConfiguration.title')}</Title>
                     <Text size="sm" c="dimmed" my={'xs'}>
-                        You have selected <b>{modelsIncluded.length}</b> models{' '}
+                        <Trans
+                            t={t}
+                            i18nKey="tablesConfiguration.selectedModels"
+                            count={modelsIncluded.length}
+                            components={{ b: <b /> }}
+                        />{' '}
                         {modelsIncluded.length > 0 && (
                             <Anchor
                                 type="button"
@@ -202,7 +209,9 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                 component="button"
                                 onClick={toggleList}
                             >
-                                ({isListOpen ? 'hide' : 'show'} list)
+                                {isListOpen
+                                    ? t('tablesConfiguration.hideList')
+                                    : t('tablesConfiguration.showList')}
                             </Anchor>
                         )}
                     </Text>
@@ -226,15 +235,17 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                 <div>
                     <Radio.Group
                         name="type"
-                        label="Table selection"
+                        label={t('tablesConfiguration.title')}
                         withAsterisk
                         {...form.getInputProps('type')}
                     >
                         <Stack mt={'md'} gap={'md'}>
                             <Radio
                                 value={TableSelectionType.ALL}
-                                label="Show entire project"
-                                description="Show all of the models in your dbt project in Lightdash."
+                                label={t('tablesConfiguration.all.label')}
+                                description={t(
+                                    'tablesConfiguration.all.description',
+                                )}
                                 disabled={disabled}
                             />
 
@@ -243,11 +254,15 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                     value={TableSelectionType.WITH_TAGS}
                                     label={
                                         <>
-                                            Show models with any of these tags{' '}
+                                            {t(
+                                                'tablesConfiguration.withTags.label',
+                                            )}{' '}
                                             <DocumentationHelpButton href="https://docs.getdbt.com/reference/resource-configs/tags#examples" />
                                         </>
                                     }
-                                    description="Write a list of tags you want to include, separated by commas. Virtual views are included by default."
+                                    description={t(
+                                        'tablesConfiguration.withTags.description',
+                                    )}
                                     disabled={disabled}
                                 />
 
@@ -258,14 +273,18 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                         size={'xs'}
                                         mt={'xs'}
                                         name="tags"
-                                        label="Tags"
+                                        label={t(
+                                            'tablesConfiguration.withTags.tags',
+                                        )}
                                         required
                                         data={availableTags}
                                         disabled={
                                             disabled ||
                                             availableTags.length === 0
                                         }
-                                        placeholder="e.g lightdash, prod"
+                                        placeholder={t(
+                                            'tablesConfiguration.withTags.placeholder',
+                                        )}
                                         searchable
                                         maxDropdownHeight={220}
                                         hidePickedOptions
@@ -290,8 +309,12 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                         }
                                         nothingFoundMessage={
                                             isLoadingTablesConfig
-                                                ? 'Loading...'
-                                                : 'No results found'
+                                                ? t(
+                                                      'tablesConfiguration.loading',
+                                                  )
+                                                : t(
+                                                      'tablesConfiguration.noResults',
+                                                  )
                                         }
                                         rightSection={
                                             isLoadingTablesConfig ? (
@@ -307,7 +330,9 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                         {...form.getInputProps('tags')}
                                         error={
                                             availableTags.length === 0
-                                                ? 'Your dbt project has no tags available'
+                                                ? t(
+                                                      'tablesConfiguration.withTags.noTags',
+                                                  )
                                                 : undefined
                                         }
                                     />
@@ -316,8 +341,12 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                             <Box>
                                 <Radio
                                     value={TableSelectionType.WITH_NAMES}
-                                    label="Show models in this list"
-                                    description="Write a list of models you want to include, separated by commas. Virtual views are included by default."
+                                    label={t(
+                                        'tablesConfiguration.withNames.label',
+                                    )}
+                                    description={t(
+                                        'tablesConfiguration.withNames.description',
+                                    )}
                                     disabled={disabled}
                                 />
 
@@ -328,13 +357,17 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                         size={'xs'}
                                         mt={'xs'}
                                         name="names"
-                                        label="Names"
+                                        label={t(
+                                            'tablesConfiguration.withNames.names',
+                                        )}
                                         required
                                         data={(explores || []).map(
                                             ({ name }) => name,
                                         )}
                                         disabled={disabled}
-                                        placeholder="e.g users, orders"
+                                        placeholder={t(
+                                            'tablesConfiguration.withNames.placeholder',
+                                        )}
                                         searchable
                                         maxDropdownHeight={220}
                                         hidePickedOptions
@@ -359,8 +392,12 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                         }
                                         nothingFoundMessage={
                                             isLoadingTablesConfig
-                                                ? 'Loading...'
-                                                : 'No results found'
+                                                ? t(
+                                                      'tablesConfiguration.loading',
+                                                  )
+                                                : t(
+                                                      'tablesConfiguration.noResults',
+                                                  )
                                         }
                                         rightSection={
                                             isLoadingTablesConfig ? (
@@ -387,7 +424,7 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                     variant="outline"
                                     onClick={() => form.reset()}
                                 >
-                                    Cancel
+                                    {t('actions.cancel', { ns: 'common' })}
                                 </Button>
                             )}
 
@@ -396,7 +433,7 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                 loading={isSaving}
                                 disabled={disabled}
                             >
-                                Save changes
+                                {t('tablesConfiguration.saveChanges')}
                             </Button>
                         </Flex>
                     )}

@@ -22,6 +22,7 @@ import {
     IconUser,
 } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useExternalConnectionLinkedApps } from '../../../features/externalConnections/hooks/useExternalConnectionLinkedApps';
 import { useUnlinkAppExternalConnection } from '../../../features/externalConnections/hooks/useUnlinkAppExternalConnection';
@@ -42,6 +43,7 @@ const UsageRow: FC<{
     item: ExternalConnectionLinkedApp;
     onUnlink: (item: ExternalConnectionLinkedApp) => void;
 }> = ({ projectUuid, item, onUnlink }) => {
+    const { t } = useTranslation('settings');
     const isDataApp = item.kind === 'data_app';
     const path = isDataApp
         ? `/projects/${projectUuid}/apps/${item.appUuid}`
@@ -75,7 +77,8 @@ const UsageRow: FC<{
                                 color="dimmed"
                             />
                             <Text fz="xs" c="dimmed">
-                                {item.spaceName ?? 'Personal app'}
+                                {item.spaceName ??
+                                    t('dataAppConnections.usage.personalApp')}
                             </Text>
                         </Group>
                     )}
@@ -87,9 +90,11 @@ const UsageRow: FC<{
                 size="compact-sm"
                 leftSection={<MantineIcon icon={IconUnlink} size={14} />}
                 onClick={() => onUnlink(item)}
-                aria-label={`Unlink ${displayName}`}
+                aria-label={t('dataAppConnections.usage.unlinkAria', {
+                    name: displayName,
+                })}
             >
-                Unlink
+                {t('dataAppConnections.usage.unlink')}
             </Button>
         </Box>
     );
@@ -120,6 +125,7 @@ export const ConnectionUsageModal: FC<Props> = ({
     projectUuid,
     connection,
 }) => {
+    const { t } = useTranslation('settings');
     const [pendingUnlink, setPendingUnlink] =
         useState<ExternalConnectionLinkedApp>();
     const { data, isLoading, isError, refetch } =
@@ -150,8 +156,12 @@ export const ConnectionUsageModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title={`Linked to “${connection.name}”`}
-            subtitle={`Linked resources can send data to ${connection.origin}`}
+            title={t('dataAppConnections.usage.title', {
+                name: connection.name,
+            })}
+            subtitle={t('dataAppConnections.usage.subtitle', {
+                origin: connection.origin,
+            })}
             icon={IconLink}
             cancelLabel={false}
             size="lg"
@@ -165,14 +175,14 @@ export const ConnectionUsageModal: FC<Props> = ({
             ) : isError ? (
                 <Stack align="center" gap="sm" py="xl">
                     <Text fz="sm" c="red">
-                        Could not load the apps using this connection.
+                        {t('dataAppConnections.usage.loadError')}
                     </Text>
                     <Button
                         size="xs"
                         variant="default"
                         onClick={() => void refetch()}
                     >
-                        Try again
+                        {t('dataAppConnections.usage.tryAgain')}
                     </Button>
                 </Stack>
             ) : (
@@ -186,10 +196,14 @@ export const ConnectionUsageModal: FC<Props> = ({
                 >
                     <Tabs.List grow>
                         <Tabs.Tab value="dataApps">
-                            Data apps ({dataApps.length})
+                            {t('dataAppConnections.usage.dataAppsTab', {
+                                count: dataApps.length,
+                            })}
                         </Tabs.Tab>
                         <Tabs.Tab value="chartTypes">
-                            Chart types ({chartTypes.length})
+                            {t('dataAppConnections.usage.chartTypesTab', {
+                                count: chartTypes.length,
+                            })}
                         </Tabs.Tab>
                     </Tabs.List>
 
@@ -231,13 +245,19 @@ export const ConnectionUsageModal: FC<Props> = ({
             <MantineModal
                 opened={pendingUnlink !== undefined}
                 onClose={() => setPendingUnlink(undefined)}
-                title={`Unlink ${connection.name}?`}
+                title={t('dataAppConnections.usage.unlinkConfirm.title', {
+                    name: connection.name,
+                })}
                 variant="delete"
                 icon={IconUnlink}
                 size="md"
-                description="Unlinking removes access to this connection."
-                confirmLabel="Unlink connection"
-                cancelLabel="Keep connection"
+                description={t(
+                    'dataAppConnections.usage.unlinkConfirm.description',
+                )}
+                confirmLabel={t(
+                    'dataAppConnections.usage.unlinkConfirm.confirm',
+                )}
+                cancelLabel={t('dataAppConnections.usage.unlinkConfirm.cancel')}
                 confirmLoading={isUnlinking}
                 cancelDisabled={isUnlinking}
                 onConfirm={handleConfirmUnlink}

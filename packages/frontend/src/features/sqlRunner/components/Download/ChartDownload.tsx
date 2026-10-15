@@ -1,8 +1,4 @@
-import {
-    capitalize,
-    DownloadFileType,
-    type VizTableConfig,
-} from '@lightdash/common';
+import { DownloadFileType, type VizTableConfig } from '@lightdash/common';
 import {
     Center,
     Stack,
@@ -14,6 +10,7 @@ import {
 } from '@mantine/core';
 import { IconDownload, IconPhoto, IconTableExport } from '@tabler/icons-react';
 import { memo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import ChartDownloadOptions from '../../../../components/common/ChartDownload/ChartDownloadOptions';
 import { DownloadType } from '../../../../components/common/ChartDownload/chartDownloadUtils';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -30,15 +27,19 @@ type Props = ExportResultsProps & {
 
 export const ChartDownload: React.FC<Props> = memo(
     ({ disabled, vizTableConfig, echartsInstance, ...rest }) => {
+        const { t } = useTranslation('sqlRunner');
         const [downloadFormat, setDownloadFormat] = useState<
             DownloadFileType.CSV | DownloadFileType.IMAGE
         >(DownloadFileType.CSV);
         return (
             <Popover>
                 <Popover.Target>
-                    <Tooltip label="Download chart" position="bottom">
+                    <Tooltip
+                        label={t('download.downloadChart')}
+                        position="bottom"
+                    >
                         <ActionIcon
-                            aria-label="Download chart"
+                            aria-label={t('download.downloadChart')}
                             disabled={disabled}
                         >
                             <MantineIcon icon={IconDownload} />
@@ -48,7 +49,7 @@ export const ChartDownload: React.FC<Props> = memo(
                 <Popover.Dropdown miw={250}>
                     <Stack gap="xs">
                         <Stack gap="xs">
-                            <Text fw={500}>Download as</Text>
+                            <Text fw={500}>{t('download.downloadAs')}</Text>
                             <SegmentedControl
                                 size="xs"
                                 value={downloadFormat}
@@ -67,7 +68,9 @@ export const ChartDownload: React.FC<Props> = memo(
                                                 <MantineIcon
                                                     icon={IconTableExport}
                                                 />
-                                                <Text ml={'xs'}>Results</Text>
+                                                <Text ml={'xs'}>
+                                                    {t('download.results')}
+                                                </Text>
                                             </Center>
                                         ),
                                     },
@@ -77,9 +80,7 @@ export const ChartDownload: React.FC<Props> = memo(
                                             <Center>
                                                 <MantineIcon icon={IconPhoto} />
                                                 <Text ml={'xs'}>
-                                                    {capitalize(
-                                                        DownloadFileType.IMAGE,
-                                                    )}
+                                                    {t('download.image')}
                                                 </Text>
                                             </Center>
                                         ),

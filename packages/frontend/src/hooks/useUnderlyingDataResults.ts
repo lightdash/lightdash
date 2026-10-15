@@ -16,6 +16,7 @@ import {
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
+import i18n from '../i18n/i18n';
 import { convertDateFilters } from '../utils/dateFilter';
 import { useProjectUuid } from './useProjectUuid';
 import { getAsyncQueryError } from './useQueryResults';
@@ -90,7 +91,9 @@ export const getUnderlyingDataResults = async (
                     error: {
                         name: 'Error',
                         statusCode: 500,
-                        message: 'Query cancelled',
+                        message: i18n.t('useQueryResults.queryCancelled', {
+                            ns: 'app',
+                        }),
                         data: {},
                     },
                 };

@@ -9,6 +9,7 @@ import { Button, Stack } from '@mantine/core';
 import { IconArrowLeft, IconFileTypeCsv } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { memo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ExportToGoogleSheet } from '../../features/export';
 import useHealth from '../../hooks/health/useHealth';
 import MantineIcon from '../common/MantineIcon';
@@ -34,6 +35,7 @@ const ExportSelector: FC<
         conditionalFormattings,
         showColumnTotals,
     }) => {
+        const { t } = useTranslation('export');
         const health = useHealth();
         const hasGoogleDrive =
             health.data?.auth.google.oauth2ClientId !== undefined &&
@@ -59,7 +61,7 @@ const ExportSelector: FC<
                         variant="subtle"
                         onClick={() => setExportType(undefined)}
                     >
-                        Back
+                        {t('actions.back', { ns: 'common' })}
                     </Button>
                     <ExportResults
                         totalResults={totalResults}
@@ -91,7 +93,7 @@ const ExportSelector: FC<
                         data-tour-anchor="export-choose-download"
                         data-tour-hint="Click Download data"
                     >
-                        Download data
+                        {t('exportSelector.downloadData')}
                     </Button>
                     <ExportToGoogleSheet getGsheetLink={getGsheetLink} />
                 </Stack>

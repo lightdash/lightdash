@@ -27,6 +27,7 @@ import {
     IconUsersPlus,
 } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -52,6 +53,7 @@ const UserAttributeModal: FC<{
     allUserAttributes: UserAttribute[];
     onClose: () => void;
 }> = ({ opened, userAttribute, allUserAttributes, onClose }) => {
+    const { t } = useTranslation('userSettings');
     const userGroupsFeatureFlagQuery = useServerFeatureFlag(
         FeatureFlags.UserGroupsEnabled,
     );
@@ -67,7 +69,9 @@ const UserAttributeModal: FC<{
         validate: {
             name: (value: string) => {
                 if (!/^[a-z_][a-z0-9_]*$/.test(value)) {
-                    return `Invalid attribute name. Attribute name must contain only lowercase characters, '_' or numbers and it can't start with a number`;
+                    return t(
+                        'userAttributesPanel.userAttributeModal.validation.invalidName',
+                    );
                 }
                 if (
                     allUserAttributes.some(
@@ -76,7 +80,9 @@ const UserAttributeModal: FC<{
                             attr.uuid !== userAttribute?.uuid,
                     )
                 ) {
-                    return `Attribute with the same name already exists`;
+                    return t(
+                        'userAttributesPanel.userAttributeModal.validation.duplicateName',
+                    );
                 }
                 return null;
             },
@@ -93,10 +99,14 @@ const UserAttributeModal: FC<{
                         false,
                     )
                 ) {
-                    return `Duplicated users`;
+                    return t(
+                        'userAttributesPanel.userAttributeModal.validation.duplicatedUsers',
+                    );
                 }
                 if (value.some((user) => (user.values?.length ?? 0) === 0)) {
-                    return `Each user must have at least one value`;
+                    return t(
+                        'userAttributesPanel.userAttributeModal.validation.userValueRequired',
+                    );
                 }
                 return null;
             },
@@ -113,10 +123,14 @@ const UserAttributeModal: FC<{
                         false,
                     )
                 ) {
-                    return `Duplicated groups`;
+                    return t(
+                        'userAttributesPanel.userAttributeModal.validation.duplicatedGroups',
+                    );
                 }
                 if (value.some((group) => (group.values?.length ?? 0) === 0)) {
-                    return `Each group must have at least one value`;
+                    return t(
+                        'userAttributesPanel.userAttributeModal.validation.groupValueRequired',
+                    );
                 }
                 return null;
             },
@@ -166,12 +180,18 @@ const UserAttributeModal: FC<{
         <MantineModal
             opened={opened}
             onClose={handleClose}
-            title={`${userAttribute ? 'Update' : 'Add'} user attribute`}
+            title={
+                userAttribute
+                    ? t('userAttributesPanel.userAttributeModal.updateTitle')
+                    : t('userAttributesPanel.userAttributeModal.addTitle')
+            }
             icon={IconPlus}
             size="lg"
             actions={
                 <Button type="submit" form="add_user_attribute">
-                    {userAttribute ? 'Update' : 'Add'}
+                    {userAttribute
+                        ? t('actions.update', { ns: 'common' })
+                        : t('actions.add', { ns: 'common' })}
                 </Button>
             }
         >
@@ -185,8 +205,12 @@ const UserAttributeModal: FC<{
                 <Stack gap="xs">
                     <TextInput
                         name="name"
-                        label="Attribute name"
-                        placeholder="E.g. user_country"
+                        label={t(
+                            'userAttributesPanel.userAttributeModal.nameLabel',
+                        )}
+                        placeholder={t(
+                            'userAttributesPanel.userAttributeModal.namePlaceholder',
+                        )}
                         required
                         {...form.getInputProps('name')}
                     />
@@ -196,18 +220,28 @@ const UserAttributeModal: FC<{
 
                     <Textarea
                         name="description"
-                        label="Description"
-                        placeholder="E.g. The country where the user is querying data from."
+                        label={t(
+                            'userAttributesPanel.userAttributeModal.descriptionLabel',
+                        )}
+                        placeholder={t(
+                            'userAttributesPanel.userAttributeModal.descriptionPlaceholder',
+                        )}
                         {...form.getInputProps('description')}
                     />
                     <Stack gap="xxs">
                         <Group gap="xs">
-                            <Text fw={500}>Default value</Text>
+                            <Text fw={500}>
+                                {t(
+                                    'userAttributesPanel.userAttributeModal.defaultValue',
+                                )}
+                            </Text>
 
                             <Tooltip
                                 position="right"
                                 maw={200}
-                                label="This will be the default value for the attribute if no other value is assigned to the user or group."
+                                label={t(
+                                    'userAttributesPanel.userAttributeModal.defaultValueTooltip',
+                                )}
                             >
                                 <MantineIcon
                                     color="gray.6"
@@ -235,7 +269,9 @@ const UserAttributeModal: FC<{
                                     size="xs"
                                     flex={1}
                                     name={`attributeDefaults`}
-                                    placeholder="E.g. US (press Enter to add)"
+                                    placeholder={t(
+                                        'userAttributesPanel.userAttributeModal.valuesPlaceholder',
+                                    )}
                                     {...form.getInputProps('attributeDefaults')}
                                     value={form.values.attributeDefaults ?? []}
                                 />
@@ -244,7 +280,11 @@ const UserAttributeModal: FC<{
                     </Stack>
                     <Stack>
                         <Stack gap="xs">
-                            <Text fw={500}>Assign to users</Text>
+                            <Text fw={500}>
+                                {t(
+                                    'userAttributesPanel.userAttributeModal.assignToUsers',
+                                )}
+                            </Text>
                             {!form.isValid('users') && (
                                 <Text c="red" size="xs">
                                     {form.errors.users}
@@ -259,11 +299,15 @@ const UserAttributeModal: FC<{
                                             flex={1}
                                             label={
                                                 index === 0
-                                                    ? 'User email'
+                                                    ? t(
+                                                          'userAttributesPanel.userAttributeModal.userEmail',
+                                                      )
                                                     : undefined
                                             }
                                             name={`users.${index}.userUuid`}
-                                            placeholder="E.g. test@lightdash.com"
+                                            placeholder={t(
+                                                'userAttributesPanel.userAttributeModal.userEmailPlaceholder',
+                                            )}
                                             required
                                             searchable
                                             {...form.getInputProps(
@@ -282,11 +326,15 @@ const UserAttributeModal: FC<{
                                             flex={1}
                                             label={
                                                 index === 0
-                                                    ? 'Values'
+                                                    ? t(
+                                                          'userAttributesPanel.userAttributeModal.values',
+                                                      )
                                                     : undefined
                                             }
                                             name={`users.${index}.values`}
-                                            placeholder="E.g. US (press Enter to add)"
+                                            placeholder={t(
+                                                'userAttributesPanel.userAttributeModal.valuesPlaceholder',
+                                            )}
                                             {...form.getInputProps(
                                                 `users.${index}.values`,
                                             )}
@@ -324,13 +372,19 @@ const UserAttributeModal: FC<{
                                     ]);
                                 }}
                             >
-                                Add user
+                                {t(
+                                    'userAttributesPanel.userAttributeModal.addUser',
+                                )}
                             </Button>
                         </Stack>
 
                         {isGroupManagementEnabled && (
                             <Stack gap="xs">
-                                <Text fw={500}>Assign to groups</Text>
+                                <Text fw={500}>
+                                    {t(
+                                        'userAttributesPanel.userAttributeModal.assignToGroups',
+                                    )}
+                                </Text>
                                 {!form.isValid('groups') && (
                                     <Text c="red" size="xs">
                                         {form.errors.groups}
@@ -344,11 +398,15 @@ const UserAttributeModal: FC<{
                                                 flex={1}
                                                 label={
                                                     index === 0
-                                                        ? 'Group name'
+                                                        ? t(
+                                                              'userAttributesPanel.userAttributeModal.groupName',
+                                                          )
                                                         : undefined
                                                 }
                                                 name={`groups.${index}.groupUuid`}
-                                                placeholder="E.g. Marketing, Product"
+                                                placeholder={t(
+                                                    'userAttributesPanel.userAttributeModal.groupNamePlaceholder',
+                                                )}
                                                 required
                                                 searchable
                                                 {...form.getInputProps(
@@ -369,11 +427,15 @@ const UserAttributeModal: FC<{
                                                 flex={1}
                                                 label={
                                                     index === 0
-                                                        ? 'Values'
+                                                        ? t(
+                                                              'userAttributesPanel.userAttributeModal.values',
+                                                          )
                                                         : undefined
                                                 }
                                                 name={`groups.${index}.values`}
-                                                placeholder="E.g. US (press Enter to add)"
+                                                placeholder={t(
+                                                    'userAttributesPanel.userAttributeModal.valuesPlaceholder',
+                                                )}
                                                 {...form.getInputProps(
                                                     `groups.${index}.values`,
                                                 )}
@@ -414,7 +476,9 @@ const UserAttributeModal: FC<{
                                         });
                                     }}
                                 >
-                                    Add group
+                                    {t(
+                                        'userAttributesPanel.userAttributeModal.addGroup',
+                                    )}
                                 </Button>
                             </Stack>
                         )}

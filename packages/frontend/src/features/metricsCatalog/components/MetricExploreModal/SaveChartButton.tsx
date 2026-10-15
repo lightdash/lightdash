@@ -2,6 +2,7 @@ import { type CreateSavedChartVersion, type Explore } from '@lightdash/common';
 import { Button, Tooltip } from '@mantine/core';
 import { IconDeviceFloppy } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import ChartCreateModal from '../../../../components/common/modal/ChartCreateModal';
 import {
@@ -27,6 +28,7 @@ export const SaveChartButton: FC<Props> = ({
     hasData,
     canSave,
 }) => {
+    const { t } = useTranslation('metricsCatalog');
     const authoringEnabled = useContentAuthoringEnabled();
     const isAmbientAiEnabled = useAmbientAiEnabled(projectUuid);
     const { embedToken, writeActions } = useEmbed();
@@ -69,7 +71,7 @@ export const SaveChartButton: FC<Props> = ({
     return (
         <>
             <Tooltip
-                label="Save this chart to a space or dashboard"
+                label={t('saveChart.tooltip')}
                 position="bottom"
                 disabled={!canSaveChart}
             >
@@ -87,7 +89,7 @@ export const SaveChartButton: FC<Props> = ({
                         triggerMetadataGeneration();
                     }}
                 >
-                    Save chart
+                    {t('saveChart.label')}
                 </Button>
             </Tooltip>
 

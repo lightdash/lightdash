@@ -9,6 +9,7 @@ import {
 } from '@mantine/core';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
     makePathPrefix,
@@ -38,87 +39,96 @@ export const PathRulesField: FC<Props> = ({
     onPrefixesChange,
     error,
     disabled,
-}) => (
-    <Stack gap={4}>
-        <Text fz="sm" fw={500}>
-            {label}
-        </Text>
-        <SegmentedControl
-            fullWidth
-            disabled={disabled}
-            data={[
-                { value: 'all', label: 'Allow all paths' },
-                { value: 'restricted', label: 'Restrict to specific paths' },
-            ]}
-            value={mode}
-            onChange={(value) => {
-                const next = value as PathMode;
-                onModeChange(next);
-                // Surface an empty row immediately so the user has somewhere to type.
-                if (next === 'restricted' && prefixes.length === 0) {
-                    onPrefixesChange([makePathPrefix()]);
-                }
-            }}
-        />
-        {mode === 'restricted' && (
-            <Stack gap="xs" mt="xs">
-                <Text c="dimmed" fz="xs">
-                    Apps may only call paths that start with one of these
-                    prefixes.
-                </Text>
-                {prefixes.map((prefix) => (
-                    <Group key={prefix.uuid} gap="xs" wrap="nowrap">
-                        <TextInput
-                            w="100%"
-                            placeholder="/v1/"
-                            disabled={disabled}
-                            value={prefix.value}
-                            onChange={(e) =>
-                                onPrefixesChange(
-                                    prefixes.map((p) =>
-                                        p.uuid === prefix.uuid
-                                            ? {
-                                                  ...p,
-                                                  value: e.currentTarget.value,
-                                              }
-                                            : p,
-                                    ),
-                                )
-                            }
-                        />
-                        <ActionIcon
-                            color="red"
-                            disabled={disabled}
-                            onClick={() =>
-                                onPrefixesChange(
-                                    prefixes.filter(
-                                        (p) => p.uuid !== prefix.uuid,
-                                    ),
-                                )
-                            }
-                        >
-                            <MantineIcon icon={IconTrash} />
-                        </ActionIcon>
-                    </Group>
-                ))}
-                {error && (
-                    <Text c="red" fz="xs">
-                        {error}
-                    </Text>
-                )}
-                <Button
-                    variant="subtle"
-                    size="compact-sm"
-                    leftSection={<MantineIcon icon={IconPlus} />}
-                    className={classes.addRuleButton}
-                    disabled={disabled}
-                    onClick={() =>
-                        onPrefixesChange([...prefixes, makePathPrefix()])
+}) => {
+    const { t } = useTranslation('sync');
+    return (
+        <Stack gap={4}>
+            <Text fz="sm" fw={500}>
+                {label}
+            </Text>
+            <SegmentedControl
+                fullWidth
+                disabled={disabled}
+                data={[
+                    {
+                        value: 'all',
+                        label: t('externalConnections.pathRules.allowAll'),
+                    },
+                    {
+                        value: 'restricted',
+                        label: t('externalConnections.pathRules.restrict'),
+                    },
+                ]}
+                value={mode}
+                onChange={(value) => {
+                    const next = value as PathMode;
+                    onModeChange(next);
+                    // Surface an empty row immediately so the user has somewhere to type.
+                    if (next === 'restricted' && prefixes.length === 0) {
+                        onPrefixesChange([makePathPrefix()]);
                     }
-                >
-                    Add path prefix
-                </Button>
-            </Stack>
-        )}
-    </Stack>
-);
+                }}
+            />
+            {mode === 'restricted' && (
+                <Stack gap="xs" mt="xs">
+                    <Text c="dimmed" fz="xs">
+                        {t('externalConnections.pathRules.hint')}
+                    </Text>
+                    {prefixes.map((prefix) => (
+                        <Group key={prefix.uuid} gap="xs" wrap="nowrap">
+                            <TextInput
+                                w="100%"
+                                placeholder="/v1/"
+                                disabled={disabled}
+                                value={prefix.value}
+                                onChange={(e) =>
+                                    onPrefixesChange(
+                                        prefixes.map((p) =>
+                                            p.uuid === prefix.uuid
+                                                ? {
+                                                      ...p,
+                                                      value: e.currentTarget
+                                                          .value,
+                                                  }
+                                                : p,
+                                        ),
+                                    )
+                                }
+                            />
+                            <ActionIcon
+                                color="red"
+                                disabled={disabled}
+                                onClick={() =>
+                                    onPrefixesChange(
+                                        prefixes.filter(
+                                            (p) => p.uuid !== prefix.uuid,
+                                        ),
+                                    )
+                                }
+                            >
+                                <MantineIcon icon={IconTrash} />
+                            </ActionIcon>
+                        </Group>
+                    ))}
+                    {error && (
+                        <Text c="red" fz="xs">
+                            {error}
+                        </Text>
+                    )}
+                    <Button
+                        variant="subtle"
+                        size="compact-sm"
+                        leftSection={<MantineIcon icon={IconPlus} />}
+                        className={classes.addRuleButton}
+                        disabled={disabled}
+                        onClick={() =>
+                            onPrefixesChange([...prefixes, makePathPrefix()])
+                        }
+                    >
+                        {t('externalConnections.pathRules.add')}
+                    </Button>
+                </Stack>
+            )}
+        </Stack>
+    );
+};

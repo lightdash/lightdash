@@ -1,0 +1,263 @@
+{
+    "actions": {
+        "copyLink": "Copiar enlace del documento",
+        "menu": "Acciones del documento",
+        "share": "Compartir",
+        "unpinFromHomepage": "Desanclar de la página de inicio",
+        "pinToHomepage": "Anclar a la página de inicio",
+        "changeOwner": "Cambiar propietario",
+        "assignOwner": "Asignar propietario",
+        "duplicate": "Duplicar",
+        "removeVerification": "Quitar verificación",
+        "verify": "Verificar",
+        "requestReview": "Solicitar revisión",
+        "promoteRequiresUpstream": "Primero debes habilitar un proyecto upstream en configuración > Data ops",
+        "promote": "Promocionar documento",
+        "versionHistory": "Historial de versiones",
+        "viewAsCode": "Ver como código",
+        "exportPdf": "Exportar PDF"
+    },
+    "editor": {
+        "nameLabel": "Nombre del documento",
+        "namePlaceholder": "Documento sin título",
+        "controls": "Controles de edición",
+        "cancelEditing": "Cancelar edición",
+        "addChart": "Añadir gráfico",
+        "addSavedChart": "Añadir gráfico guardado",
+        "save": "Guardar documento",
+        "actionsUnavailable": "Las acciones del documento no están disponibles durante la edición",
+        "editingBadge": "Editando",
+        "newerVersionSaved": "Se guardó una versión más reciente de este documento mientras editabas. El guardado fallará, así que copia el texto que quieras conservar, luego cancela y vuelve a abrir el editor para cargar la última versión.",
+        "conflict": "Este documento cambió mientras editabas. Tus cambios no se han guardado. Copia el texto que quieras conservar, luego cancela y vuelve a abrir el editor para cargar la última versión.",
+        "loadingChartEditor": "Cargando editor de gráficos",
+        "loadingSavedCharts": "Cargando gráficos guardados",
+        "discard": {
+            "title": "¿Descartar los cambios sin guardar?",
+            "keepEditing": "Seguir editando",
+            "confirm": "Descartar cambios",
+            "body": "Tus cambios en este documento no se han guardado."
+        },
+        "bodyAriaLabel": "Cuerpo del documento",
+        "bodyPlaceholder": "Escribe algo o teclea '/' para ver bloques…",
+        "openMention": "Abrir {{name}}",
+        "dragToMove": "Arrastra para mover"
+    },
+    "chartEditor": {
+        "editTitle": "Editar gráfico",
+        "addTitle": "Añadir gráfico",
+        "apply": "Aplicar al documento",
+        "nameLabel": "Nombre del gráfico",
+        "descriptionLabel": "Descripción",
+        "changeTable": {
+            "title": "¿Cambiar la tabla del gráfico?",
+            "description": "Cambiar de tabla borra la consulta y la configuración actuales del gráfico. Se conservarán el nombre y la descripción del gráfico.",
+            "keepEditing": "Seguir editando",
+            "confirm": "Cambiar tabla"
+        }
+    },
+    "savedChartPicker": {
+        "copyFailed": "No se pudo cargar este gráfico. Prueba a enlazarlo.",
+        "title": "Añadir un gráfico guardado",
+        "copyChart": "Copiar gráfico",
+        "linkChart": "Enlazar gráfico",
+        "chartLabel": "Gráfico",
+        "searchPlaceholder": "Buscar gráficos guardados",
+        "searching": "Buscando…",
+        "noneFound": "No se encontraron gráficos guardados",
+        "sqlChartInSpace": "Gráfico SQL en {{space}}",
+        "chartInSpace": "Gráfico en {{space}}",
+        "link": "Enlazar",
+        "copy": "Copiar",
+        "linkHelp": "Muestra el gráfico guardado tal como está ahora y se actualiza cuando cambia. Los lectores necesitan acceso al gráfico.",
+        "copyHelp": "Añade una copia que puedes editar en este documento. Los cambios en el gráfico guardado no se mostrarán aquí."
+    },
+    "form": {
+        "nameRequired": "Introduce un nombre para el documento",
+        "nameLabel": "Nombre del documento",
+        "descriptionLabel": "Descripción",
+        "loadingSpaces": "Cargando espacios"
+    },
+    "create": {
+        "title": "Crear documento",
+        "namePlaceholder": "p. ej. Revisión semanal de ingresos",
+        "descriptionPlaceholder": "Unas palabras para dar contexto a tu equipo",
+        "noWritableSpaces": "No tienes permiso para crear documentos en ningún espacio de este proyecto.",
+        "spaceLegend": "Espacio"
+    },
+    "duplicate": {
+        "defaultName": "Copia de {{name}}",
+        "title": "Duplicar documento",
+        "submit": "Crear duplicado",
+        "destinationSpace": "Espacio de destino"
+    },
+    "versionComparison": {
+        "parts": {
+            "title": "Título",
+            "description": "Descripción",
+            "explore": "Explore",
+            "chartType": "Tipo de gráfico",
+            "dimensions": "Dimensiones",
+            "metrics": "Métricas",
+            "filters": "Filtros",
+            "sorts": "Ordenaciones",
+            "rowLimit": "Límite de filas",
+            "tableCalculations": "Cálculos de tabla",
+            "customFields": "Campos personalizados",
+            "visualization": "Visualización",
+            "tableSettings": "Configuración de tabla",
+            "parameters": "Parámetros",
+            "merge": "Combinación",
+            "querySettings": "Configuración de consulta",
+            "sql": "SQL",
+            "connection": "Conexión",
+            "querySource": "Origen de la consulta",
+            "chartDefinition": "Definición del gráfico"
+        },
+        "unsupportedChartName": "Gráfico de una versión más reciente",
+        "noTextChanges": "Sin cambios de texto.",
+        "textChanges": "Cambios de texto",
+        "unchangedLines_one": "{{count}} línea sin cambios",
+        "unchangedLines_other": "{{count}} líneas sin cambios",
+        "line": {
+            "added": "añadida: {{text}}",
+            "removed": "eliminada: {{text}}",
+            "unchanged": "sin cambios: {{text}}"
+        },
+        "status": {
+            "added": "Añadido",
+            "removed": "Eliminado",
+            "changed": "Modificado",
+            "moved": "Movido"
+        },
+        "changedParts": "Modificado: {{parts}}",
+        "movedPosition": "Movido de la posición {{from}} a la {{to}}",
+        "noCharts": "Sin gráficos.",
+        "noChartChanges": "Sin cambios en los gráficos.",
+        "chartAriaLabel": "{{status}}: {{name}}",
+        "unchangedCharts_one": "{{count}} gráfico sin cambios",
+        "unchangedCharts_other": "{{count}} gráficos sin cambios",
+        "sameContent": "Estas versiones tienen el mismo contenido.",
+        "text": "Texto",
+        "charts": "Gráficos"
+    },
+    "linkedChart": {
+        "badgeTooltip": "Muestra el gráfico guardado en vivo",
+        "badge": "Enlazado",
+        "open": "Abrir gráfico",
+        "openAriaLabel": "Abrir gráfico enlazado",
+        "defaultTitle": "Gráfico enlazado",
+        "loading": "Cargando gráfico enlazado",
+        "noAccess": "No tienes acceso a este gráfico.",
+        "unavailable": "Este gráfico ya no está disponible."
+    },
+    "versionList": {
+        "loading": "Cargando versiones",
+        "loadFailed": "No se pudo cargar el historial de versiones.",
+        "ariaLabel": "Versiones del documento",
+        "title": "Historial de versiones",
+        "versionAriaLabel": "Versión {{number}}, guardada {{timestamp}} por {{author}}",
+        "current": "Actual",
+        "loadOlder": "Cargar versiones anteriores"
+    },
+    "byline": {
+        "unknownUser": "Usuario desconocido",
+        "personalTooltip": "Solo su creador y los administradores pueden ver este documento hasta que se guarde en un espacio",
+        "personal": "Personal",
+        "createdBy": "Creado por",
+        "ownedBy": "Propiedad de {{name}}"
+    },
+    "chart": {
+        "resourceLimit": "Este gráfico supera el límite de consultas del almacén de datos.",
+        "loadFailed": "No se pudieron cargar los datos en vivo de este gráfico.",
+        "loading": "Cargando datos en vivo del gráfico",
+        "draftNoExploreAccess": "Necesitas acceso a Explore para previsualizar este gráfico sin guardar.",
+        "draftExploreLoadFailed": "No se pudo cargar el explore de este gráfico.",
+        "exploreFromHere": "Explorar desde aquí",
+        "openInSqlRunner": "Abrir en SQL Runner"
+    },
+    "owner": {
+        "title": "Propietario del documento",
+        "description": "El propietario es responsable de este documento. Asignar un propietario no cambia quién puede verlo o editarlo.",
+        "label": "Propietario",
+        "placeholder": "Asignar un propietario..."
+    },
+    "saveToSpace": {
+        "title": "Guardar en un espacio",
+        "description": "Todas las personas con acceso al espacio podrán ver este documento.",
+        "createSpaceConfirm": "Crear espacio y guardar",
+        "button": "Guardar en espacio"
+    },
+    "asCode": {
+        "resourceLabel": "documento"
+    },
+    "linkingChartCallout": {
+        "softDelete_one": "Este gráfico está enlazado desde {{count}} documento. Se mostrará como no disponible hasta que se restaure:",
+        "softDelete_other": "Este gráfico está enlazado desde {{count}} documentos. Se mostrará como no disponible hasta que se restaure:",
+        "hardDelete_one": "Este gráfico está enlazado desde {{count}} documento. Se mostrará como no disponible:",
+        "hardDelete_other": "Este gráfico está enlazado desde {{count}} documentos. Se mostrará como no disponible:"
+    },
+    "renderer": {
+        "empty": "Este documento está vacío."
+    },
+    "report": {
+        "contents": "Contenido",
+        "summary": "Resumen",
+        "contentsAriaLabel": "Contenido del informe"
+    },
+    "slashCommands": {
+        "table": {
+            "label": "Tabla",
+            "description": "Filas y columnas"
+        },
+        "chart": {
+            "label": "Gráfico",
+            "description": "Consulta la capa semántica"
+        },
+        "savedChart": {
+            "label": "Gráfico guardado",
+            "description": "Enlaza o copia un gráfico guardado en un espacio"
+        }
+    },
+    "unsupported": {
+        "chart": {
+            "drag": "Arrastrar gráfico",
+            "remove": "Eliminar gráfico",
+            "ariaLabel": "Gráfico no compatible",
+            "message": "Este gráfico se añadió en una versión más reciente y no se puede mostrar aquí."
+        },
+        "block": {
+            "drag": "Arrastrar bloque",
+            "remove": "Eliminar bloque",
+            "ariaLabel": "Bloque no compatible",
+            "message": "Este bloque se añadió en una versión más reciente y no se puede mostrar aquí."
+        }
+    },
+    "savedChartNode": {
+        "titleLabel": "Título en este documento",
+        "editTitle": "Editar el título en este documento",
+        "titlePlaceholder": "El título propio del gráfico",
+        "useChartTitle": "Usar el título del gráfico",
+        "apply": "Aplicar",
+        "drag": "Arrastrar gráfico enlazado",
+        "remove": "Eliminar gráfico enlazado"
+    },
+    "chartNode": {
+        "dragHint": "Arrastra o pulsa ↑ ↓ para mover",
+        "drag": "Arrastrar gráfico {{name}}",
+        "edit": "Editar gráfico",
+        "readOnly": "Este tipo de gráfico es de solo lectura",
+        "editNamed": "Editar gráfico {{name}}",
+        "remove": "Eliminar gráfico",
+        "removeNamed": "Eliminar gráfico {{name}}"
+    },
+    "exportPdf": {
+        "inProgress": "Se está exportando {{name}}. Puede tardar unos segundos.",
+        "missingUrl": "Falta la URL del archivo de {{name}}",
+        "somethingWentWrong": "Algo salió mal",
+        "partialFailure_one": "{{name}} se exportó con {{count}} gráfico con errores.",
+        "partialFailure_other": "{{name}} se exportó con {{count}} gráficos con errores.",
+        "partialFailureSubtitle": "Los gráficos que no se pudieron cargar muestran un error en el PDF.",
+        "success": "¡Listo! Se exportó {{name}}.",
+        "failed": "No se pudo exportar {{name}}"
+    }
+}

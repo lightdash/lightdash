@@ -1,6 +1,7 @@
 import type { ToolRunContentQueryArgs } from '@lightdash/common';
 import { rem, Text } from '@mantine/core';
 import type { FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ToolCallChip } from '../ToolCallChip';
 
 type RunContentQueryToolCallDescriptionProps = {
@@ -10,10 +11,11 @@ type RunContentQueryToolCallDescriptionProps = {
 export const RunContentQueryToolCallDescription: FC<
     RunContentQueryToolCallDescriptionProps
 > = ({ source }) => {
+    const { t } = useTranslation('aiCopilotChat');
     if (source.type === 'metricQuery') {
         return (
             <Text c="dimmed" size="xs">
-                Ran metric query on{' '}
+                {t('toolDescriptions.runContent.metricQueryOn')}{' '}
                 <ToolCallChip mx={rem(2)}>{source.tableName}</ToolCallChip>
             </Text>
         );
@@ -22,13 +24,15 @@ export const RunContentQueryToolCallDescription: FC<
     if (source.type === 'dashboardChart') {
         return (
             <Text c="dimmed" size="xs">
-                Ran dashboard chart{' '}
+                {t('toolDescriptions.runContent.dashboardChart')}{' '}
                 <ToolCallChip mx={rem(2)}>{source.chartSlug}</ToolCallChip>
-                from{' '}
+                {t('toolDescriptions.from')}{' '}
                 <ToolCallChip mx={rem(2)}>{source.dashboardSlug}</ToolCallChip>
                 {source.limit ? (
                     <ToolCallChip mx={rem(2)}>
-                        limit {source.limit}
+                        {t('toolDescriptions.runContent.limit', {
+                            limit: source.limit,
+                        })}
                     </ToolCallChip>
                 ) : null}
             </Text>
@@ -37,10 +41,14 @@ export const RunContentQueryToolCallDescription: FC<
 
     return (
         <Text c="dimmed" size="xs">
-            Ran saved chart{' '}
+            {t('toolDescriptions.runContent.savedChart')}{' '}
             <ToolCallChip mx={rem(2)}>{source.chartSlug}</ToolCallChip>
             {source.limit ? (
-                <ToolCallChip mx={rem(2)}>limit {source.limit}</ToolCallChip>
+                <ToolCallChip mx={rem(2)}>
+                    {t('toolDescriptions.runContent.limit', {
+                        limit: source.limit,
+                    })}
+                </ToolCallChip>
             ) : null}
         </Text>
     );

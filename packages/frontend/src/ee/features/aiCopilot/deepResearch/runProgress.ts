@@ -5,7 +5,9 @@ import {
     type AiDeepResearchEvent,
     type AiDeepResearchPhase,
     type AiDeepResearchRun,
+    type AiDeepResearchRunStatus,
 } from '@lightdash/common';
+import i18n from '../../../../i18n/i18n';
 import {
     type DeepResearchRunRegistration,
     type DeepResearchRunStatus,
@@ -15,32 +17,51 @@ import {
 const getActivityLabel = (activity: AiDeepResearchActivity | null): string => {
     switch (activity) {
         case 'lightdash_metadata':
-            return 'Reviewed project data and metric definitions';
+            return i18n.t('runProgress.activity.lightdashMetadata', {
+                ns: 'aiAgent',
+            });
         case 'warehouse_query':
-            return 'Executed a warehouse query';
+            return i18n.t('runProgress.activity.warehouseQuery', {
+                ns: 'aiAgent',
+            });
         case 'web_search':
-            return 'Searched public evidence sources';
+            return i18n.t('runProgress.activity.webSearch', { ns: 'aiAgent' });
         case 'web_fetch':
-            return 'Reviewed a source document';
+            return i18n.t('runProgress.activity.webFetch', { ns: 'aiAgent' });
         case 'reporting':
-            return 'Prepared the evidence-backed report';
+            return i18n.t('runProgress.activity.reporting', { ns: 'aiAgent' });
         case null:
-            return 'Updated the investigation';
+            return i18n.t('runProgress.activity.updated', { ns: 'aiAgent' });
         default:
             return assertUnreachable(activity, 'Unknown research activity');
     }
 };
 
+const STATUS_CHANGED_KEYS: Record<AiDeepResearchRunStatus, string> = {
+    queued: 'runProgress.statusChanged.queued',
+    running: 'runProgress.statusChanged.running',
+    completed: 'runProgress.statusChanged.completed',
+    partially_completed: 'runProgress.statusChanged.partiallyCompleted',
+    failed: 'runProgress.statusChanged.failed',
+    cancelled: 'runProgress.statusChanged.cancelled',
+};
+
 const getEventLabel = (event: AiDeepResearchEvent): string => {
     switch (event.eventType) {
         case 'status_changed':
-            return `Research ${event.payload.status.replaceAll('_', ' ')}`;
+            return i18n.t(STATUS_CHANGED_KEYS[event.payload.status], {
+                ns: 'aiAgent',
+            });
         case 'cancellation_requested':
-            return 'Cancellation requested';
+            return i18n.t('runProgress.event.cancellationRequested', {
+                ns: 'aiAgent',
+            });
         case 'progress':
             return getActivityLabel(event.payload.progress.activity);
         case 'report_adjusted':
-            return 'Report adjusted to preserve valid evidence';
+            return i18n.t('runProgress.event.reportAdjusted', {
+                ns: 'aiAgent',
+            });
         default:
             return assertUnreachable(event, 'Unknown research event');
     }
@@ -52,17 +73,25 @@ const getPhaseLabel = (
 ): string | null => {
     switch (phase) {
         case 'planning':
-            return 'Planning the investigation';
+            return i18n.t('runProgress.phase.planning', { ns: 'aiAgent' });
         case 'investigating':
             return activity === 'warehouse_query'
-                ? 'Testing explanations'
-                : 'Gathering context';
+                ? i18n.t('runProgress.phase.testingExplanations', {
+                      ns: 'aiAgent',
+                  })
+                : i18n.t('runProgress.phase.gatheringContext', {
+                      ns: 'aiAgent',
+                  });
         case 'validating':
             return activity === 'web_fetch'
-                ? 'Reviewing evidence'
-                : 'Validating findings';
+                ? i18n.t('runProgress.phase.reviewingEvidence', {
+                      ns: 'aiAgent',
+                  })
+                : i18n.t('runProgress.phase.validatingFindings', {
+                      ns: 'aiAgent',
+                  });
         case 'synthesizing':
-            return 'Writing the report';
+            return i18n.t('runProgress.phase.writingReport', { ns: 'aiAgent' });
         case null:
             return null;
         default:

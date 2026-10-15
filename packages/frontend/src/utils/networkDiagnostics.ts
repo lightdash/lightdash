@@ -1,4 +1,5 @@
 import { assertUnreachable, getErrorMessage } from '@lightdash/common';
+import i18n from '../i18n/i18n';
 
 // A response arrived but its body is not the Lightdash API JSON envelope, e.g.
 // a proxy block page, a gateway error page, or a load balancer timeout.
@@ -151,15 +152,18 @@ export const GENERIC_NETWORK_FAILURE_MESSAGE =
 export const networkFailureMessage = (d: NetworkDiagnostics): string => {
     switch (d.kind) {
         case 'offline':
-            return 'You appear to be offline. Check your internet connection and try again.';
+            return i18n.t('networkDiagnostics.offline', { ns: 'app' });
         case 'blocked':
-            return 'The server is reachable, but this request was blocked before it arrived. A corporate proxy, VPN or security software on your network most likely intercepted it. Try again from another network, or copy the diagnostics for your IT team.';
+            return i18n.t('networkDiagnostics.blocked', { ns: 'app' });
         case 'unreachable':
-            return 'The server cannot be reached from your network right now. Check your connection or VPN and try again.';
+            return i18n.t('networkDiagnostics.unreachable', { ns: 'app' });
         case 'intercepted':
-            return `Something between you and the server answered this request with HTTP ${d.responseStatus} instead of the server. A proxy, firewall or load balancer intercepted it. Try again in a few moments, or copy the diagnostics for your IT team.`;
+            return i18n.t('networkDiagnostics.intercepted', {
+                ns: 'app',
+                status: d.responseStatus,
+            });
         case 'cancelled':
-            return 'The request was cancelled before the server responded.';
+            return i18n.t('networkDiagnostics.cancelled', { ns: 'app' });
         default:
             return assertUnreachable(d.kind, 'Unknown transport failure');
     }

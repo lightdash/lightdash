@@ -1,11 +1,13 @@
 import { Group, Stack, Switch, Text } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useOrganizationSettings,
     useUpdateOrganizationSettings,
 } from '../../../hooks/organization/useOrganizationSettings';
 
 const SupportImpersonationPanel: FC = () => {
+    const { t } = useTranslation('userSettings');
     const { data, isLoading } = useOrganizationSettings();
     const update = useUpdateOrganizationSettings();
 
@@ -21,14 +23,10 @@ const SupportImpersonationPanel: FC = () => {
         <Group justify="space-between" wrap="nowrap">
             <Stack gap="xxs">
                 <Text fw={500} fz="sm">
-                    Allow Lightdash support to impersonate users
+                    {t('supportImpersonationPanel.title')}
                 </Text>
                 <Text fz="xs" c="dimmed">
-                    When enabled, the Lightdash support team can impersonate
-                    users in your organization while helping with a support
-                    request, so they can reproduce issues from your perspective
-                    without asking for permission each time. You can turn this
-                    off at any time.
+                    {t('supportImpersonationPanel.description')}
                 </Text>
             </Stack>
             <Switch

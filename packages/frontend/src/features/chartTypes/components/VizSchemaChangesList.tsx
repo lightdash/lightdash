@@ -17,16 +17,18 @@ import {
     IconPalette,
     IconPlus,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import classes from './VizSchemaChangesList.module.css';
 
 type ChangeKind = 'added' | 'updated' | 'removed';
 
-const CHANGE_LABEL: Record<ChangeKind, string> = {
-    added: 'Added',
-    updated: 'Updated',
-    removed: 'Removed',
+const CHANGE_LABEL_KEY: Record<ChangeKind, string> = {
+    added: 'schemaChanges.added',
+    updated: 'schemaChanges.updated',
+    removed: 'schemaChanges.removed',
 };
 
 const CHANGE_ICON: Record<ChangeKind, typeof IconPlus> = {
@@ -51,45 +53,69 @@ type ChangeRow = {
     detail: string | null;
 };
 
-const describeField = (field: DataAppVizField) =>
-    `${field.multiple ? 'multiple ' : ''}${field.type} field${field.required ? ', required' : ''}`;
+const describeField = (t: TFunction, field: DataAppVizField) => {
+    const description = field.multiple
+        ? t('schemaChanges.multipleField', { type: field.type })
+        : t('schemaChanges.field', { type: field.type });
+    return field.required
+        ? t('schemaChanges.withRequired', { description })
+        : description;
+};
 
-const describeFieldChange = ({ before, after }: DataAppVizFieldChange) => {
+const describeFieldChange = (
+    t: TFunction,
+    { before, after }: DataAppVizFieldChange,
+) => {
     const parts: string[] = [];
     if (before.type !== after.type)
         parts.push(`${before.type} → ${after.type}`);
     if (before.required !== after.required)
-        parts.push(after.required ? 'now required' : 'now optional');
+        parts.push(
+            after.required
+                ? t('schemaChanges.nowRequired')
+                : t('schemaChanges.nowOptional'),
+        );
     if ((before.multiple === true) !== (after.multiple === true))
         parts.push(
             after.multiple
-                ? 'now accepts multiple fields'
-                : 'now accepts one field',
+                ? t('schemaChanges.nowMultiple')
+                : t('schemaChanges.nowSingle'),
         );
     if (before.label !== after.label)
-        parts.push(`renamed from "${before.label}"`);
+        parts.push(t('schemaChanges.renamedFrom', { label: before.label }));
     return parts.join(', ');
 };
 
-const formatDefault = (value: DataAppVizConfigOption['default']) =>
+const formatDefault = (
+    t: TFunction,
+    value: DataAppVizConfigOption['default'],
+) =>
     typeof value === 'object'
-        ? `${value.colors.join(', ')} (${value.min} to ${value.max})`
+        ? t('schemaChanges.gradientDefault', {
+              colors: value.colors.join(', '),
+              min: value.min,
+              max: value.max,
+          })
         : typeof value === 'string'
           ? JSON.stringify(value)
           : String(value);
 
 const describeDefaultChange = (
+    t: TFunction,
     before: DataAppVizConfigOption['default'],
     after: DataAppVizConfigOption['default'],
 ) =>
     before === '' || after === ''
-        ? 'default changed'
-        : `default ${formatDefault(before)} → ${formatDefault(after)}`;
+        ? t('schemaChanges.defaultChanged')
+        : t('schemaChanges.defaultFromTo', {
+              before: formatDefault(t, before),
+              after: formatDefault(t, after),
+          });
 
-const describeOptionChange = ({
-    before,
-    after,
-}: DataAppVizConfigOptionChange) => {
+const describeOptionChange = (
+    t: TFunction,
+    { before, after }: DataAppVizConfigOptionChange,
+) => {
     const parts: string[] = [];
     if (before.type !== after.type)
         parts.push(`${before.type} → ${after.type}`);
@@ -102,29 +128,37 @@ const describeOptionChange = ({
                 (color, index) => color === after.default.colors[index],
             );
         if (!sameDefault)
-            parts.push(describeDefaultChange(before.default, after.default));
+            parts.push(describeDefaultChange(t, before.default, after.default));
         if ((before.showBounds ?? true) !== (after.showBounds ?? true)) {
             parts.push(
-                after.showBounds === false ? 'bounds hidden' : 'bounds shown',
+                after.showBounds === false
+                    ? t('schemaChanges.boundsHidden')
+                    : t('schemaChanges.boundsShown'),
             );
         }
     } else if (before.default !== after.default) {
-        parts.push(describeDefaultChange(before.default, after.default));
+        parts.push(describeDefaultChange(t, before.default, after.default));
     }
     if (before.type === 'select' && after.type === 'select') {
         const beforeValues = before.choices.map((c) => c.value);
         const afterValues = after.choices.map((c) => c.value);
         const gained = afterValues.filter((v) => !beforeValues.includes(v));
         const lost = beforeValues.filter((v) => !afterValues.includes(v));
-        if (gained.length > 0) parts.push(`adds ${gained.join(', ')}`);
-        if (lost.length > 0) parts.push(`drops ${lost.join(', ')}`);
+        if (gained.length > 0)
+            parts.push(
+                t('schemaChanges.addsChoices', { choices: gained.join(', ') }),
+            );
+        if (lost.length > 0)
+            parts.push(
+                t('schemaChanges.dropsChoices', { choices: lost.join(', ') }),
+            );
     }
     if (before.type === 'number' && after.type === 'number') {
         if (before.min !== after.min || before.max !== after.max)
-            parts.push('range changed');
+            parts.push(t('schemaChanges.rangeChanged'));
     }
     if (before.label !== after.label)
-        parts.push(`renamed from "${before.label}"`);
+        parts.push(t('schemaChanges.renamedFrom', { label: before.label }));
     return parts.join(', ');
 };
 
@@ -143,48 +177,51 @@ const hierarchyChangeKind = (
     }
 };
 
-const toRows = (changes: DataAppVizSchemaChanges): ChangeRow[] => [
+const toRows = (
+    t: TFunction,
+    changes: DataAppVizSchemaChanges,
+): ChangeRow[] => [
     ...changes.fields.added.map((f) => ({
         key: `f+${f.name}`,
         kind: 'added' as const,
         icon: IconColumns,
         label: f.label,
-        detail: describeField(f),
+        detail: describeField(t, f),
     })),
     ...changes.fields.changed.map((c) => ({
         key: `f~${c.after.name}`,
         kind: 'updated' as const,
         icon: IconColumns,
         label: c.after.label,
-        detail: describeFieldChange(c),
+        detail: describeFieldChange(t, c),
     })),
     ...changes.fields.removed.map((f) => ({
         key: `f-${f.name}`,
         kind: 'removed' as const,
         icon: IconColumns,
         label: f.label,
-        detail: describeField(f),
+        detail: describeField(t, f),
     })),
     ...changes.configOptions.added.map((o) => ({
         key: `o+${o.name}`,
         kind: 'added' as const,
         icon: IconAdjustmentsHorizontal,
         label: o.label,
-        detail: `${o.type} option`,
+        detail: t('schemaChanges.option', { type: o.type }),
     })),
     ...changes.configOptions.changed.map((c) => ({
         key: `o~${c.after.name}`,
         kind: 'updated' as const,
         icon: IconAdjustmentsHorizontal,
         label: c.after.label,
-        detail: describeOptionChange(c),
+        detail: describeOptionChange(t, c),
     })),
     ...changes.configOptions.removed.map((o) => ({
         key: `o-${o.name}`,
         kind: 'removed' as const,
         icon: IconAdjustmentsHorizontal,
         label: o.label,
-        detail: `${o.type} option`,
+        detail: t('schemaChanges.option', { type: o.type }),
     })),
     ...(changes.colorPalette === 'unchanged'
         ? []
@@ -193,7 +230,7 @@ const toRows = (changes: DataAppVizSchemaChanges): ChangeRow[] => [
                   key: 'palette',
                   kind: changes.colorPalette,
                   icon: IconPalette,
-                  label: 'Color palette',
+                  label: t('schemaChanges.colorPalette'),
                   detail: null,
               },
           ]),
@@ -204,9 +241,11 @@ const toRows = (changes: DataAppVizSchemaChanges): ChangeRow[] => [
                   key: 'hierarchy',
                   kind: hierarchyChangeKind(changes.hierarchy),
                   icon: IconHierarchy,
-                  label: 'Hierarchy',
+                  label: t('schemaChanges.hierarchy'),
                   detail:
-                      changes.hierarchy === 'changed' ? 'field changed' : null,
+                      changes.hierarchy === 'changed'
+                          ? t('schemaChanges.fieldChanged')
+                          : null,
               },
           ]),
 ];
@@ -222,7 +261,8 @@ type Props = {
  * grouped the way field reviews are.
  */
 const VizSchemaChangesList: FC<Props> = ({ changes, compact = false }) => {
-    const rows = toRows(changes);
+    const { t } = useTranslation('chartTypes');
+    const rows = toRows(t, changes);
     const groups = CHANGE_ORDER.map((kind) => ({
         kind,
         rows: rows.filter((row) => row.kind === kind),
@@ -240,7 +280,7 @@ const VizSchemaChangesList: FC<Props> = ({ changes, compact = false }) => {
                             color={CHANGE_COLOR[group.kind]}
                         />
                         <Text fz={fz} fw={600}>
-                            {CHANGE_LABEL[group.kind]}
+                            {t(CHANGE_LABEL_KEY[group.kind])}
                         </Text>
                     </Group>
                     {group.rows.map((row) => (

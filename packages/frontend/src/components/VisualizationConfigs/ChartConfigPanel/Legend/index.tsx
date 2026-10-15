@@ -20,6 +20,7 @@ import {
 } from '@mantine/core';
 import { useDebouncedCallback } from '@mantine/hooks';
 import { lazy, Suspense, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
 import useEmbed from '../../../../ee/providers/Embed/useEmbed';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
@@ -96,6 +97,7 @@ const PositionConfiguration: FC<MarginConfigurationProps> = ({
         );
     };
 
+    const { t } = useTranslation('vizConfig');
     const [isAutoPosition, toggleAuto] = useToggle(
         !hasPositionConfigChanged(legendConfig),
     );
@@ -113,7 +115,7 @@ const PositionConfiguration: FC<MarginConfigurationProps> = ({
                 <Switch
                     size="xs"
                     labelPosition="left"
-                    label={`Custom position`}
+                    label={t('legend.customPosition')}
                     checked={!isAutoPosition}
                     onChange={toggleAuto}
                     classNames={{
@@ -123,7 +125,7 @@ const PositionConfiguration: FC<MarginConfigurationProps> = ({
 
                 {!isAutoPosition && (
                     <UnitInputsGrid
-                        centerLabel="Position"
+                        centerLabel={t('legend.position')}
                         config={legendConfig}
                         onChange={(position, newValue) =>
                             handleChange(position, newValue)
@@ -141,6 +143,7 @@ type Props = {
 };
 
 export const Legend: FC<Props> = ({ items }) => {
+    const { t } = useTranslation('vizConfig');
     const projectUuid = useProjectUuid();
     // The SDK bundle ships no Monaco workers, so the HTML tooltip editor is not offered in embeds.
     const { embedToken } = useEmbed();
@@ -210,7 +213,7 @@ export const Legend: FC<Props> = ({ items }) => {
             <Config>
                 <Config.Section>
                     <Group gap="xs" align="center">
-                        <Config.Heading>Legend</Config.Heading>
+                        <Config.Heading>{t('legend.legend')}</Config.Heading>
                         <Switch
                             size="xs"
                             checked={legendConfig.show ?? showDefault}
@@ -223,7 +226,9 @@ export const Legend: FC<Props> = ({ items }) => {
                     <Collapse expanded={legendConfig.show ?? showDefault}>
                         <Stack gap="xs">
                             <Group gap="xs">
-                                <Config.Label>Placement</Config.Label>
+                                <Config.Label>
+                                    {t('legend.placement')}
+                                </Config.Label>
                                 <SegmentedControl
                                     size="xs"
                                     name="placement"
@@ -236,15 +241,15 @@ export const Legend: FC<Props> = ({ items }) => {
                                     }
                                     data={[
                                         {
-                                            label: 'Chart area',
+                                            label: t('legend.chartArea'),
                                             value: 'custom',
                                         },
                                         {
-                                            label: 'Outside right',
+                                            label: t('legend.outsideRight'),
                                             value: 'outsideRight',
                                         },
                                         {
-                                            label: 'Outside left',
+                                            label: t('legend.outsideLeft'),
                                             value: 'outsideLeft',
                                         },
                                     ]}
@@ -255,7 +260,7 @@ export const Legend: FC<Props> = ({ items }) => {
                                 <>
                                     <Group gap="xs">
                                         <Config.Label>
-                                            Scroll behavior
+                                            {t('legend.scrollBehavior')}
                                         </Config.Label>
                                         <SegmentedControl
                                             size="xs"
@@ -265,11 +270,11 @@ export const Legend: FC<Props> = ({ items }) => {
                                             }
                                             data={[
                                                 {
-                                                    label: 'Scroll',
+                                                    label: t('legend.scroll'),
                                                     value: 'scroll',
                                                 },
                                                 {
-                                                    label: 'Wrap',
+                                                    label: t('legend.wrap'),
                                                     value: 'plain',
                                                 },
                                             ]}
@@ -279,7 +284,9 @@ export const Legend: FC<Props> = ({ items }) => {
                                         />
                                     </Group>
                                     <Group gap="xs">
-                                        <Config.Label>Orientation</Config.Label>
+                                        <Config.Label>
+                                            {t('legend.orientation')}
+                                        </Config.Label>
                                         <SegmentedControl
                                             size="xs"
                                             name="orient"
@@ -292,11 +299,13 @@ export const Legend: FC<Props> = ({ items }) => {
                                             }
                                             data={[
                                                 {
-                                                    label: 'Horizontal',
+                                                    label: t(
+                                                        'legend.horizontal',
+                                                    ),
                                                     value: 'horizontal',
                                                 },
                                                 {
-                                                    label: 'Vertical',
+                                                    label: t('legend.vertical'),
                                                     value: 'vertical',
                                                 },
                                             ]}
@@ -312,7 +321,7 @@ export const Legend: FC<Props> = ({ items }) => {
                                 legendConfig.placement === 'outsideLeft') && (
                                 <Group gap="xs">
                                     <Config.Label>
-                                        Legend area width
+                                        {t('legend.legendAreaWidth')}
                                     </Config.Label>
                                     <LegendAreaWidthInput
                                         key={legendConfig.placement}
@@ -348,7 +357,7 @@ export const Legend: FC<Props> = ({ items }) => {
             )}
             <Config>
                 <Config.Section>
-                    <Config.Heading>Tooltips</Config.Heading>
+                    <Config.Heading>{t('legend.tooltips')}</Config.Heading>
                     <TooltipSortConfig />
                     {projectUuid && !embedToken && (
                         <Suspense fallback={<Loader size="sm" />}>

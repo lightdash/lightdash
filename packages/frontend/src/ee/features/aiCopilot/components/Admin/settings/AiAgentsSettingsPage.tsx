@@ -1,4 +1,5 @@
 import { IconRobotFace } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import LinkButton from '../../../../../../components/common/LinkButton';
 import { SettingsPage } from '../../../../../../components/common/Settings/SettingsPage';
 import { useActiveProjectUuid } from '../../../../../../hooks/useActiveProject';
@@ -7,13 +8,14 @@ import AiAgentAdminAgentsTable from '../AiAgentAdminAgentsTable';
 import { AiFeaturesDisabledAlert } from './AiFeaturesDisabledAlert';
 
 export const AiAgentsSettingsPage = () => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: settings } = useAiOrganizationSettings();
 
     return (
         <SettingsPage
-            title="Agents"
-            description="Manage the AI agents available across your organization."
+            title={t('settings.agents.title')}
+            description={t('settings.agents.description')}
             actions={
                 <LinkButton
                     href={`/projects/${activeProjectUuid}/ai-agents/new`}
@@ -22,7 +24,7 @@ export const AiAgentsSettingsPage = () => {
                     radius="md"
                     size="xs"
                 >
-                    New Agent
+                    {t('settings.agents.newAgent')}
                 </LinkButton>
             }
         >

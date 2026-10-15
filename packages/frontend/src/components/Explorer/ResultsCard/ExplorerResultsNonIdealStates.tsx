@@ -6,6 +6,7 @@ import {
 import { Anchor, Text } from '@mantine/core';
 import { IconTableOff } from '@tabler/icons-react';
 import { Fragment, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
 import { useProject } from '../../../hooks/useProject';
@@ -25,12 +26,24 @@ import { getQueryLoadingStateCopy } from './queryLoadingState';
 const ExploreDocumentationUrl =
     'https://docs.lightdash.com/get-started/exploring-data/using-explores/';
 
+const EXAMPLE_QUESTION_KEYS = [
+    'emptyStates.noColumns.examples.signupsPerDay',
+    'emptyStates.noColumns.examples.orderCountByLocation',
+    'emptyStates.noColumns.examples.followersEveryWeek',
+    'emptyStates.noColumns.examples.orderCountByStatus',
+] as const;
+
 export const EmptyStateNoColumns = () => {
+    const { t } = useTranslation('explorer');
+    const highlight = {
+        metric: <Text span c={LD_FIELD_COLORS.metric.color} />,
+        dimension: <Text span c={LD_FIELD_COLORS.dimension.color} />,
+    };
     return (
         <EmptyState
             title={
                 <>
-                    Pick a metric & select its dimensions{' '}
+                    {t('emptyStates.noColumns.title')}{' '}
                     <DocumentationHelpButton
                         href={ExploreDocumentationUrl}
                         pos="relative"
@@ -40,67 +53,19 @@ export const EmptyStateNoColumns = () => {
                 </>
             }
             description={
-                <>
-                    What's your data question? Select the{' '}
-                    <Text span c={LD_FIELD_COLORS.metric.color}>
-                        metric
-                    </Text>{' '}
-                    you want to calculate and the{' '}
-                    <Text span c={LD_FIELD_COLORS.dimension.color}>
-                        dimension(s)
-                    </Text>{' '}
-                    you want to split it by.
-                </>
+                <Trans
+                    t={t}
+                    i18nKey="emptyStates.noColumns.description"
+                    components={highlight}
+                />
             }
         >
             <Text className={classes.animatedTextRoot} c="dimmed">
-                <Text span>
-                    eg. How many{' '}
-                    <Text span c={LD_FIELD_COLORS.metric.color}>
-                        total signups
-                    </Text>{' '}
-                    per{' '}
-                    <Text span c={LD_FIELD_COLORS.dimension.color}>
-                        day
+                {EXAMPLE_QUESTION_KEYS.map((key) => (
+                    <Text span key={key}>
+                        <Trans t={t} i18nKey={key} components={highlight} />
                     </Text>
-                    ?
-                </Text>
-
-                <Text span>
-                    eg. What is the{' '}
-                    <Text span c={LD_FIELD_COLORS.metric.color}>
-                        total order count
-                    </Text>{' '}
-                    by{' '}
-                    <Text span c={LD_FIELD_COLORS.dimension.color}>
-                        location
-                    </Text>
-                    ?
-                </Text>
-
-                <Text span>
-                    eg. How many{' '}
-                    <Text span c={LD_FIELD_COLORS.metric.color}>
-                        new followers
-                    </Text>{' '}
-                    every{' '}
-                    <Text span c={LD_FIELD_COLORS.dimension.color}>
-                        week
-                    </Text>
-                    ?
-                </Text>
-
-                <Text span>
-                    eg. What is the{' '}
-                    <Text span c={LD_FIELD_COLORS.metric.color}>
-                        total order count
-                    </Text>{' '}
-                    split by{' '}
-                    <Text span c={LD_FIELD_COLORS.dimension.color}>
-                        status
-                    </Text>
-                    ?
-                </Text>
+                ))}
             </Text>
         </EmptyState>
     );
@@ -128,39 +93,46 @@ export const EmptyStateNoTableData: FC<{ description: React.ReactNode }> = ({
     </TrackSection>
 );
 
-export const NoTableSelected = () => (
-    <EmptyState
-        maw={520}
-        icon={<NoTableIcon />}
-        title="Select a table"
-        description={
-            <>
-                To run a query, first select the table that you would like to
-                explore.{' '}
-                <DocumentationHelpButton
-                    href={ExploreDocumentationUrl}
-                    pos="relative"
-                    top={2}
-                />
-            </>
-        }
-    />
-);
+export const NoTableSelected = () => {
+    const { t } = useTranslation('explorer');
+    return (
+        <EmptyState
+            maw={520}
+            icon={<NoTableIcon />}
+            title={t('emptyStates.noTableSelected.title')}
+            description={
+                <>
+                    {t('emptyStates.noTableSelected.description')}{' '}
+                    <DocumentationHelpButton
+                        href={ExploreDocumentationUrl}
+                        pos="relative"
+                        top={2}
+                    />
+                </>
+            }
+        />
+    );
+};
 
-export const EmptyStateExploreLoading = () => (
-    <EmptyStateLoader title="Loading tables..." />
-);
+export const EmptyStateExploreLoading = () => {
+    const { t } = useTranslation('explorer');
+    return <EmptyStateLoader title={t('emptyStates.loadingTables')} />;
+};
 
-export const ExploreIdleState = () => (
-    <EmptyState title="Run query to see your results" />
-);
+export const ExploreIdleState = () => {
+    const { t } = useTranslation('explorer');
+    return <EmptyState title={t('emptyStates.idle')} />;
+};
 
-export const ExploreEmptyQueryState = () => (
-    <EmptyState
-        title="Query returned no results"
-        description="This query ran successfully but returned no results"
-    />
-);
+export const ExploreEmptyQueryState = () => {
+    const { t } = useTranslation('explorer');
+    return (
+        <EmptyState
+            title={t('emptyStates.noResults.title')}
+            description={t('emptyStates.noResults.description')}
+        />
+    );
+};
 
 export const ExploreLoadingState = ({
     queryStatus,
@@ -179,6 +151,7 @@ export const ExploreLoadingState = ({
 };
 
 const PreviewSignInExpiredLink: FC = () => {
+    const { t } = useTranslation('explorer');
     const { data: project } = useProject(useProjectUuid());
     const upstreamProjectUuid = project?.upstreamProjectUuid;
     if (!upstreamProjectUuid) return null;
@@ -189,7 +162,7 @@ const PreviewSignInExpiredLink: FC = () => {
                 component={Link}
                 to={`/generalSettings/projectManagement/${upstreamProjectUuid}/settings`}
             >
-                Open the connection settings
+                {t('emptyStates.error.openConnectionSettings')}
             </Anchor>
         </Fragment>
     );
@@ -200,17 +173,18 @@ export const ExploreErrorState = ({
 }: {
     errorDetail?: ApiErrorDetail | null;
 }) => {
+    const { t } = useTranslation('explorer');
     const isEmbedded = useIsEmbedded();
 
     return (
         <EmptyState
             icon={<MantineIcon icon={IconTableOff} />}
-            title="Error loading results"
+            title={t('emptyStates.error.title')}
             description={
                 <Fragment>
                     <Text className={classes.errorMessage}>
                         {errorDetail?.message ||
-                            'There was an error loading the results'}
+                            t('emptyStates.error.fallbackMessage')}
                     </Text>
                     {errorDetail?.message &&
                         isPreviewWarehouseSignInExpiredMessage(
@@ -225,7 +199,7 @@ export const ExploreErrorState = ({
                                 target="_blank"
                                 rel="noreferrer"
                             >
-                                Learn how to resolve this in our documentation
+                                {t('emptyStates.error.learnHowToResolve')}
                             </Anchor>
                         </Fragment>
                     )}
@@ -239,24 +213,25 @@ export const MissingRequiredParameters = ({
     missingRequiredParameters,
 }: {
     missingRequiredParameters: string[];
-}) => (
-    <EmptyState
-        title="Missing required parameters"
-        description={
-            <>
-                This query requires additional parameters to run.{' '}
-                <Text>
-                    {`Please provide the following ${
-                        missingRequiredParameters.length === 1
-                            ? 'parameter:'
-                            : 'parameters:'
-                    }`}
-                </Text>
-                <br />
-                <Text span fw={500} size="sm">
-                    {missingRequiredParameters.join(', ')}
-                </Text>
-            </>
-        }
-    />
-);
+}) => {
+    const { t } = useTranslation('explorer');
+    return (
+        <EmptyState
+            title={t('emptyStates.missingParameters.title')}
+            description={
+                <>
+                    {t('emptyStates.missingParameters.description')}{' '}
+                    <Text>
+                        {t('emptyStates.missingParameters.provide', {
+                            count: missingRequiredParameters.length,
+                        })}
+                    </Text>
+                    <br />
+                    <Text span fw={500} size="sm">
+                        {missingRequiredParameters.join(', ')}
+                    </Text>
+                </>
+            }
+        />
+    );
+};

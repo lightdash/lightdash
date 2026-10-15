@@ -1,6 +1,7 @@
 import { Menu } from '@mantine/core';
 import { IconPhoto } from '@tabler/icons-react';
 import { type FC, type RefObject } from 'react';
+import { useTranslation } from 'react-i18next';
 import { DownloadType } from '../../../../../components/common/ChartDownload/chartDownloadUtils';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ExportImageModal from '../../../../../components/DashboardTiles/ExportImageModal';
@@ -15,11 +16,17 @@ type ModalProps = {
 
 export const AiChartImageExportMenuItem: FC<{ onClick: () => void }> = ({
     onClick,
-}) => (
-    <Menu.Item leftSection={<MantineIcon icon={IconPhoto} />} onClick={onClick}>
-        Export image
-    </Menu.Item>
-);
+}) => {
+    const { t } = useTranslation('aiCopilotChat');
+    return (
+        <Menu.Item
+            leftSection={<MantineIcon icon={IconPhoto} />}
+            onClick={onClick}
+        >
+            {t('chartOptions.exportImage')}
+        </Menu.Item>
+    );
+};
 
 export const AiChartImageExportModal: FC<ModalProps> = ({
     chartRef,

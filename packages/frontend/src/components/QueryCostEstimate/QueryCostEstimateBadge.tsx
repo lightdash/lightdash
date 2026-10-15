@@ -5,10 +5,8 @@ import {
 import { Badge, Loader, Tooltip } from '@mantine/core';
 import { IconDatabase } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../common/MantineIcon';
-
-const UNDERREPORT_NOTE =
-    'Dry runs can underreport tables with row-level security or external data.';
 
 type Props = {
     estimate: QueryCostEstimate | undefined;
@@ -16,6 +14,7 @@ type Props = {
 };
 
 export const QueryCostEstimateBadge: FC<Props> = ({ estimate, isFetching }) => {
+    const { t } = useTranslation('explorer');
     if (!estimate) {
         return isFetching ? <Loader size="xs" /> : null;
     }
@@ -34,16 +33,18 @@ export const QueryCostEstimateBadge: FC<Props> = ({ estimate, isFetching }) => {
                         leftSection={<MantineIcon icon={IconDatabase} />}
                         color="gray"
                     >
-                        Estimate unavailable
+                        {t('queryCostEstimate.unavailable')}
                     </Badge>
                 </Tooltip>
             );
         case 'estimated':
             return (
                 <Tooltip
-                    label={`Estimated ${formatEstimatedBytes(
-                        estimate.totalBytesProcessed,
-                    )} processed, from a free dry run. ${UNDERREPORT_NOTE}`}
+                    label={t('queryCostEstimate.estimatedTooltip', {
+                        bytes: formatEstimatedBytes(
+                            estimate.totalBytesProcessed,
+                        ),
+                    })}
                     multiline
                     maw={360}
                     withinPortal

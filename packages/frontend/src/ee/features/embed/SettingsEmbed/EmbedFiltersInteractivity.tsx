@@ -18,7 +18,9 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getConditionalRuleLabelFromItem } from '../../../../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { type FieldsWithSuggestions } from '../../../../components/Explorer/FiltersCard/useFieldsWithSuggestions';
@@ -36,14 +38,17 @@ type Props = {
     ) => void;
 };
 
-function getFilterInteractivityValueLabel(value: FilterInteractivityValues) {
+function getFilterInteractivityValueLabel(
+    value: FilterInteractivityValues,
+    t: TFunction,
+) {
     switch (value) {
         case FilterInteractivityValues.some:
-            return 'Some filters';
+            return t('filters.some');
         case FilterInteractivityValues.all:
-            return 'All filters';
+            return t('filters.all');
         case FilterInteractivityValues.none:
-            return 'No filters';
+            return t('filters.none');
         default:
             return assertUnreachable(
                 value,
@@ -57,6 +62,7 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
     interactivityOptions,
     onInteractivityOptionsChange,
 }) => {
+    const { t } = useTranslation('embed');
     const projectUuid = useProjectUuid();
     const { data: dashboard } = useDashboardQuery({
         uuidOrSlug: dashboardUuid,
@@ -160,7 +166,7 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
         <Stack gap="sm">
             <Group gap="xs">
                 <Text size="sm" fw={500}>
-                    Users can change:
+                    {t('filters.usersCanChange')}
                 </Text>
                 <SegmentedControl
                     value={interactivityOptions.enabled as string}
@@ -173,12 +179,14 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
                         {
                             label: getFilterInteractivityValueLabel(
                                 FilterInteractivityValues.none,
+                                t,
                             ),
                             value: FilterInteractivityValues.none,
                         },
                         {
                             label: getFilterInteractivityValueLabel(
                                 FilterInteractivityValues.some,
+                                t,
                             ),
                             value: FilterInteractivityValues.some,
                             disabled: dashboardFilters?.length === 0,
@@ -186,6 +194,7 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
                         {
                             label: getFilterInteractivityValueLabel(
                                 FilterInteractivityValues.all,
+                                t,
                             ),
                             value: FilterInteractivityValues.all,
                         },
@@ -203,9 +212,9 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
                 }
                 label={
                     <Group gap="xs">
-                        <Text inherit>Hide filters</Text>
+                        <Text inherit>{t('filters.hide')}</Text>
                         <Tooltip
-                            label="Hide filters from the embed UI while still applying them. Useful when building custom filter controls with the React SDK."
+                            label={t('filters.hideTooltip')}
                             maw="300px"
                             position="right"
                         >
@@ -229,9 +238,9 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
                 }
                 label={
                     <Group gap="xs">
-                        <Text inherit>Users can add their own filters</Text>
+                        <Text inherit>{t('filters.canAdd')}</Text>
                         <Tooltip
-                            label="Filters added by viewers are temporary and only last for the current session. This also requires the dashboard's 'Add filter' button to be visible to viewers."
+                            label={t('filters.canAddTooltip')}
                             maw="300px"
                             position="right"
                         >
@@ -283,7 +292,9 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
                                                         c="dimmed"
                                                         fz="xs"
                                                     >
-                                                        is any value
+                                                        {t(
+                                                            'filters.isAnyValue',
+                                                        )}
                                                     </Text>
                                                 ) : (
                                                     <>

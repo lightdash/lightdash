@@ -55,6 +55,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
 import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -74,6 +75,7 @@ import { useProject } from '../../../hooks/useProject';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useCannotAuthorCustomSqlTableCalculations } from '../../../hooks/user/useCannotAuthorCustomSqlTableCalculations';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import i18n from '../../../i18n/i18n';
 import { useAiAccessGate } from '../../aiAccess/useAiAccessGate';
 import { getUniqueTableCalculationName } from '../utils';
 import { FormatRow } from './FormatRow/FormatRow';
@@ -109,29 +111,11 @@ type TableCalculationFormInputs = {
     totalMode?: TableCalculationTotalMode;
 };
 
-const totalModeMeta: Record<
-    TableCalculationTotalMode,
-    { label: string; description: string }
-> = {
-    [TableCalculationTotalMode.FORMULA]: {
-        label: 'Apply calculation to the totals',
-        description:
-            'Runs the formula over the totals of the columns it references. Best for ratios and percentages.',
-    },
-    [TableCalculationTotalMode.SUM_OF_ROWS]: {
-        label: 'Sum of the row values',
-        description:
-            "Adds up the calculation's value from every row. Best for row-level transformations.",
-    },
-    [TableCalculationTotalMode.NONE]: {
-        label: 'No totals',
-        description: 'Shows no totals for this calculation.',
-    },
+const totalModeKeys: Record<TableCalculationTotalMode, string> = {
+    [TableCalculationTotalMode.FORMULA]: 'formula',
+    [TableCalculationTotalMode.SUM_OF_ROWS]: 'sumOfRows',
+    [TableCalculationTotalMode.NONE]: 'none',
 };
-
-const totalModeOptions = Object.entries(totalModeMeta).map(
-    ([value, { label }]) => ({ value, label }),
-);
 
 // renderOption replaces Mantine's whole option node, including the built-in
 // selection check — render it manually from `checked`.
@@ -142,13 +126,15 @@ const renderTotalModeOption = ({
     option: ComboboxItem;
     checked?: boolean;
 }) => {
-    const meta = totalModeMeta[option.value as TableCalculationTotalMode];
+    const key = totalModeKeys[option.value as TableCalculationTotalMode];
     return (
         <Group flex={1} justify="space-between" wrap="nowrap" gap="xs">
             <Stack gap={0}>
-                <Text size="sm">{meta.label}</Text>
+                <Text size="sm">{option.label}</Text>
                 <Text size="xs" c="dimmed">
-                    {meta.description}
+                    {i18n.t(`modal.totalModes.${key}.description`, {
+                        ns: 'tableCalculation',
+                    })}
                 </Text>
             </Stack>
             {checked && <MantineIcon icon={IconCheck} size="sm" />}
@@ -183,7 +169,16 @@ const TableCalculationModal: FC<Props> = ({
     onSave,
     onClose,
 }) => {
+    const { t } = useTranslation('tableCalculation');
     const [isExpanded, toggleExpanded] = useToggle(false);
+    const totalModeOptions = useMemo(
+        () =>
+            Object.entries(totalModeKeys).map(([value, key]) => ({
+                value,
+                label: t(`modal.totalModes.${key}.label`),
+            })),
+        [t],
+    );
 
     const projectUuid = useProjectUuid();
     const { data: project } = useProject(projectUuid);
@@ -208,24 +203,24 @@ const TableCalculationModal: FC<Props> = ({
         health?.isCustomRolesEnabled || customRolesFlag?.enabled;
     const requestContext = useMemo(() => {
         const tcLabel =
-            tableCalculation?.displayName || 'this SQL table calculation';
+            tableCalculation?.displayName ||
+            t('modal.accessRequest.thisCalculation');
         const chartUrl =
             typeof window !== 'undefined'
                 ? window.location.href.replace(/\/edit\/?$/, '')
                 : '';
         return { tcLabel, chartUrl };
-    }, [tableCalculation?.displayName]);
+    }, [tableCalculation?.displayName, t]);
     const accessRequestMessage = useMemo(
         () =>
             isCustomRolesEnabled
-                ? `Hi! Could you grant me 'Manage custom SQL table calculations' via a custom role? I need it to edit '${requestContext.tcLabel}' on this chart: ${requestContext.chartUrl}`
-                : `Hi! Could you grant me SQL access for table calculations? I need to edit '${requestContext.tcLabel}' on this chart: ${requestContext.chartUrl}`,
-        [requestContext, isCustomRolesEnabled],
+                ? t('modal.accessRequest.customRoleMessage', requestContext)
+                : t('modal.accessRequest.sqlAccessMessage', requestContext),
+        [requestContext, isCustomRolesEnabled, t],
     );
     const changeRequestMessage = useMemo(
-        () =>
-            `Hi! Could you update the SQL of '${requestContext.tcLabel}' on this chart? ${requestContext.chartUrl}`,
-        [requestContext],
+        () => t('modal.accessRequest.changeMessage', requestContext),
+        [requestContext, t],
     );
 
     const isNewCalculation = !tableCalculation;
@@ -308,7 +303,7 @@ const TableCalculationModal: FC<Props> = ({
 
     const validateName = useCallback(
         (label: string) => {
-            if (!label || !label.trim()) return 'Name is required';
+            if (!label || !label.trim()) return t('modal.nameRequired');
 
             if (tableCalculation && tableCalculation.displayName === label) {
                 return null;
@@ -317,11 +312,9 @@ const TableCalculationModal: FC<Props> = ({
             const normalizedLabel = label.toLowerCase().trim();
             const isInvalid = existingItemIds.has(normalizedLabel);
 
-            return isInvalid
-                ? 'Table calculation/Dimension with this label already exists'
-                : null;
+            return isInvalid ? t('modal.nameExists') : null;
         },
-        [tableCalculation, existingItemIds],
+        [tableCalculation, existingItemIds, t],
     );
 
     const template = useMemo(
@@ -553,7 +546,7 @@ const TableCalculationModal: FC<Props> = ({
             }
         } catch (e) {
             addToastError({
-                title: 'Error saving',
+                title: t('modal.errorSaving'),
                 subtitle: getErrorMessage(e),
                 key: 'table-calculation-modal',
             });
@@ -568,6 +561,7 @@ const TableCalculationModal: FC<Props> = ({
         formulaGeneratedByAi,
         onSave,
         addToastError,
+        t,
     ]);
 
     const getFormatInputProps = useCallback(
@@ -599,11 +593,11 @@ const TableCalculationModal: FC<Props> = ({
             const prev = form.values.type ?? TableCalculationType.NUMBER;
             // Switching to a different "format family" wipes format state —
             // a date format expression makes no sense for a number value, etc.
-            const familyOf = (t: TableCalculationType) =>
-                t === TableCalculationType.DATE ||
-                t === TableCalculationType.TIMESTAMP
+            const familyOf = (type: TableCalculationType) =>
+                type === TableCalculationType.DATE ||
+                type === TableCalculationType.TIMESTAMP
                     ? 'date'
-                    : t === TableCalculationType.NUMBER
+                    : type === TableCalculationType.NUMBER
                       ? 'numeric'
                       : 'plain';
             if (familyOf(prev) !== familyOf(next)) {
@@ -631,11 +625,14 @@ const TableCalculationModal: FC<Props> = ({
     const sqlReadOnly = cannotAuthorSqlTcs && editMode === EditMode.SQL;
     const canSwitchEditMode =
         isNewCalculation && isFormulaSupported && !cannotAuthorSqlTcs;
-    const editorLabel = editMode === EditMode.FORMULA ? 'Formula' : 'SQL';
+    const editorLabel =
+        editMode === EditMode.FORMULA
+            ? t('modal.editor.formula')
+            : t('modal.editor.sql');
     const switchEditModeLabel =
         editMode === EditMode.FORMULA
-            ? 'Use SQL instead'
-            : 'Use formula instead';
+            ? t('modal.editor.useSqlInstead')
+            : t('modal.editor.useFormulaInstead');
     const handleSwitchEditMode = useCallback(() => {
         setEditMode(
             editMode === EditMode.FORMULA ? EditMode.SQL : EditMode.FORMULA,
@@ -643,20 +640,24 @@ const TableCalculationModal: FC<Props> = ({
     }, [editMode]);
 
     const saveButtonLabel = tableCalculation
-        ? 'Save changes'
+        ? t('modal.saveChanges')
         : editMode === EditMode.FORMULA
-          ? 'Create formula'
-          : 'Create SQL calculation';
+          ? t('modal.createFormula')
+          : t('modal.createSqlCalculation');
 
     return (
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title={`${tableCalculation ? 'Edit' : 'Create'} Table Calculation`}
+            title={
+                tableCalculation ? t('modal.editTitle') : t('modal.createTitle')
+            }
             icon={IconCalculator}
             size={isExpanded ? 'auto' : 'xl'}
             headerActions={
-                <Tooltip label={isExpanded ? 'Collapse' : 'Expand'}>
+                <Tooltip
+                    label={isExpanded ? t('modal.collapse') : t('modal.expand')}
+                >
                     <ActionIcon onClick={toggleExpanded}>
                         <MantineIcon
                             icon={isExpanded ? IconMinimize : IconMaximize}
@@ -680,7 +681,7 @@ const TableCalculationModal: FC<Props> = ({
                     {saveButtonLabel}
                 </Button>
             }
-            cancelLabel="Cancel"
+            cancelLabel={t('actions.cancel', { ns: 'common' })}
             bodyScrollAreaMaxHeight={
                 isExpanded ? 'calc(95vh - 140px)' : 'calc(78vh - 140px)'
             }
@@ -751,7 +752,9 @@ const TableCalculationModal: FC<Props> = ({
                                                                 )
                                                             }
                                                         >
-                                                            Fix with AI
+                                                            {t(
+                                                                'modal.fixWithAi',
+                                                            )}
                                                         </Button>
                                                     </Group>
                                                 )}
@@ -781,7 +784,7 @@ const TableCalculationModal: FC<Props> = ({
                         )}
                         {showConvertToFormulaButton && (
                             <Tooltip
-                                label="Use AI to suggest a formula equivalent of your SQL. You can review and edit it before saving."
+                                label={t('modal.convertToFormula.tooltip')}
                                 w={260}
                                 disabled={showConversionPreview}
                             >
@@ -807,7 +810,7 @@ const TableCalculationModal: FC<Props> = ({
                                             : 'visible',
                                     }}
                                 >
-                                    Convert to formula
+                                    {t('modal.convertToFormula.button')}
                                 </Button>
                             </Tooltip>
                         )}
@@ -885,22 +888,22 @@ const TableCalculationModal: FC<Props> = ({
                                                         />
                                                     }
                                                 >
-                                                    View only
+                                                    {t(
+                                                        'modal.sqlReadOnly.viewOnly',
+                                                    )}
                                                 </Button>
                                             </Popover.Target>
                                             <Popover.Dropdown>
                                                 <Stack gap="xs">
                                                     <Text size="xs" fw={600}>
-                                                        You don't have
-                                                        permission to edit SQL
-                                                        here.
+                                                        {t(
+                                                            'modal.sqlReadOnly.noPermission',
+                                                        )}
                                                     </Text>
                                                     <Text size="xs" c="dimmed">
-                                                        Use formulas instead —
-                                                        no SQL required,
-                                                        validated as you type,
-                                                        and they work in any
-                                                        warehouse.
+                                                        {t(
+                                                            'modal.sqlReadOnly.useFormulas',
+                                                        )}
                                                     </Text>
                                                     {showConvertToFormulaButton && (
                                                         <Button
@@ -930,36 +933,39 @@ const TableCalculationModal: FC<Props> = ({
                                                             }
                                                             fullWidth
                                                         >
-                                                            Convert to formula
+                                                            {t(
+                                                                'modal.convertToFormula.button',
+                                                            )}
                                                         </Button>
                                                     )}
                                                     <Divider
                                                         my={2}
-                                                        label="or"
+                                                        label={t(
+                                                            'modal.sqlReadOnly.or',
+                                                        )}
                                                         labelPosition="center"
                                                     />
                                                     <Text size="xs" c="dimmed">
-                                                        Ask an admin or
-                                                        developer
                                                         {isCustomRolesEnabled ? (
-                                                            <>
-                                                                {' '}
-                                                                to grant{' '}
-                                                                <Text
-                                                                    component="span"
-                                                                    fw={600}
-                                                                    inherit
-                                                                >
-                                                                    Manage
-                                                                    custom SQL
-                                                                    table
-                                                                    calculations
-                                                                </Text>{' '}
-                                                                via a custom
-                                                                role.
-                                                            </>
+                                                            <Trans
+                                                                t={t}
+                                                                i18nKey="modal.sqlReadOnly.askAdminCustomRole"
+                                                                components={{
+                                                                    scope: (
+                                                                        <Text
+                                                                            component="span"
+                                                                            fw={
+                                                                                600
+                                                                            }
+                                                                            inherit
+                                                                        />
+                                                                    ),
+                                                                }}
+                                                            />
                                                         ) : (
-                                                            ' for SQL access.'
+                                                            t(
+                                                                'modal.sqlReadOnly.askAdminSqlAccess',
+                                                            )
                                                         )}
                                                     </Text>
                                                     <CopyButton
@@ -990,8 +996,12 @@ const TableCalculationModal: FC<Props> = ({
                                                                 onClick={copy}
                                                             >
                                                                 {copied
-                                                                    ? 'Copied!'
-                                                                    : 'Copy access request'}
+                                                                    ? t(
+                                                                          'modal.sqlReadOnly.copied',
+                                                                      )
+                                                                    : t(
+                                                                          'modal.sqlReadOnly.copyAccessRequest',
+                                                                      )}
                                                             </Button>
                                                         )}
                                                     </CopyButton>
@@ -1023,8 +1033,12 @@ const TableCalculationModal: FC<Props> = ({
                                                                 onClick={copy}
                                                             >
                                                                 {copied
-                                                                    ? 'Copied!'
-                                                                    : 'Copy SQL change request'}
+                                                                    ? t(
+                                                                          'modal.sqlReadOnly.copied',
+                                                                      )
+                                                                    : t(
+                                                                          'modal.sqlReadOnly.copyChangeRequest',
+                                                                      )}
                                                             </Button>
                                                         )}
                                                     </CopyButton>
@@ -1040,7 +1054,7 @@ const TableCalculationModal: FC<Props> = ({
                                         >
                                             <Loader size="sm" />
                                             <Text c="dimmed" size="sm">
-                                                Loading SQL editor...
+                                                {t('modal.loadingSqlEditor')}
                                             </Text>
                                         </Box>
                                     }
@@ -1086,7 +1100,7 @@ const TableCalculationModal: FC<Props> = ({
                 {selectedTableCalculationType ===
                     TableCalculationType.NUMBER && (
                     <Select
-                        label="Totals"
+                        label={t('modal.totals')}
                         data={totalModeOptions}
                         allowDeselect={false}
                         renderOption={renderTotalModeOption}
@@ -1106,9 +1120,9 @@ const TableCalculationModal: FC<Props> = ({
 
                 <TextInput
                     ref={nameInputRef}
-                    label="Name"
+                    label={t('modal.nameLabel')}
                     required
-                    placeholder="E.g. Cumulative order count"
+                    placeholder={t('modal.namePlaceholder')}
                     data-testid="table-calculation-name-input"
                     // Typed anchor for scope walkthroughs (data-tour-via)
                     data-tour-anchor="table-calc-name"

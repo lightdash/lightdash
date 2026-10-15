@@ -11,6 +11,7 @@ import {
 } from '@mantine/core';
 import { IconChevronRight, IconList, IconPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { EvalFormModal } from '../../features/aiCopilot/components/Evals/EvalFormModal';
@@ -25,6 +26,7 @@ type Props = {
 };
 
 export const EvalsSetup: FC<Props> = ({ projectUuid, agentUuid }) => {
+    const { t } = useTranslation('eeMisc');
     const [searchParams, setSearchParams] = useSearchParams();
 
     const { data: evaluations, isLoading } = useAiAgentEvaluations(
@@ -89,10 +91,9 @@ export const EvalsSetup: FC<Props> = ({ projectUuid, agentUuid }) => {
                 >
                     <MantineIcon icon={IconList} size="lg" color="dimmed" />
                     <Stack gap="xs" align="center">
-                        <Title order={5}>No evaluations found</Title>
+                        <Title order={5}>{t('agents.evals.emptyTitle')}</Title>
                         <Text size="sm" c="dimmed" ta="center" maw={400}>
-                            Create an evaluation to start testing your AI agent
-                            with predefined prompts and measure its performance.
+                            {t('agents.evals.emptyDescription')}
                         </Text>
                     </Stack>
                     <Button
@@ -101,7 +102,7 @@ export const EvalsSetup: FC<Props> = ({ projectUuid, agentUuid }) => {
                         onClick={handleCreateModalOpen}
                         mt="sm"
                     >
-                        Create Evaluation
+                        {t('agents.evals.create')}
                     </Button>
                 </Paper>
                 {evalCreationModal}

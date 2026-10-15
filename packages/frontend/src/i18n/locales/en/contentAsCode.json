@@ -1,0 +1,139 @@
+{
+    "resources": {
+        "chart": "chart",
+        "dashboard": "dashboard",
+        "scheduledDelivery": "scheduled delivery",
+        "virtualView": "virtual view"
+    },
+    "asCodeModal": {
+        "title": "View {{resource}} as code",
+        "download": "Download {{format}}",
+        "copy": "Copy {{format}}",
+        "copied": "Copied",
+        "generating": "Generating {{resource}} YAML",
+        "notFoundTitle": "Content not found",
+        "notFoundDescription": "Could not generate content as code for this {{resource}}.",
+        "formatAriaLabel": "Code format",
+        "compatible": "This {{format}} is compatible with Lightdash content as code.",
+        "unsavedChartWarning": "This YAML contains the last saved version. Save the chart to include your current changes.",
+        "unsavedDashboardWarning": "This YAML contains the last saved version. Save the dashboard to include your current changes."
+    },
+    "dismissedDraft": {
+        "title": "Your dismissed draft is still available",
+        "description": "Reopen it to continue editing and send it back for review.",
+        "reopen": "Reopen draft"
+    },
+    "overlayFailure": {
+        "title": "Your unpublished draft couldn't be displayed",
+        "description_chart": "You're viewing the published chart. Your draft is still saved for review. Ask a Content as Code admin to review or dismiss it.",
+        "description_dashboard": "You're viewing the published dashboard. Your draft is still saved for review. Ask a Content as Code admin to review or dismiss it."
+    },
+    "draftFields": {
+        "label": {
+            "name": "Name",
+            "description": "Description",
+            "tableName": "Table name",
+            "metricQuery": "Metric query",
+            "chartConfig": "Chart config",
+            "tableConfig": "Table config",
+            "pivotConfig": "Pivot config",
+            "parameters": "Parameters",
+            "merge": "Merge",
+            "spaceSlug": "Space",
+            "tiles": "Tiles",
+            "filters": "Filters",
+            "tabs": "Tabs",
+            "config": "Config"
+        },
+        "inline": {
+            "name": "name",
+            "description": "description",
+            "tableName": "table name",
+            "metricQuery": "metric query",
+            "chartConfig": "chart config",
+            "tableConfig": "table config",
+            "pivotConfig": "pivot config",
+            "parameters": "parameters",
+            "merge": "merge",
+            "spaceSlug": "space",
+            "tiles": "tiles",
+            "filters": "filters",
+            "tabs": "tabs",
+            "config": "config"
+        }
+    },
+    "staleAlert": {
+        "title_chart": "This chart changed in the repo since your draft",
+        "title_dashboard": "This dashboard changed in the repo since your draft",
+        "conflicts": "You both changed {{fields}}. Pick which version to keep; everything else carries over.",
+        "noConflicts": "Your edits do not overlap with it, so they carry over as they are.",
+        "reviewChanges": "Review changes",
+        "updateToLatest": "Update to latest",
+        "columns": {
+            "field": "Field",
+            "inRepo": "In the repo",
+            "inDraft": "In your draft",
+            "keep": "Keep"
+        },
+        "unchanged": "unchanged",
+        "mine": "Mine",
+        "repo": "Repo",
+        "repoAutomatically": "Repo version, automatically",
+        "notNow": "Not now",
+        "updateDraft": "Update draft"
+    },
+    "review": {
+        "timeAgo": {
+            "justNow": "just now",
+            "minutes": "{{count}}m ago",
+            "hours": "{{count}}h ago",
+            "days": "{{count}}d ago"
+        },
+        "writeback": {
+            "merged": "PR merged",
+            "closed": "PR closed",
+            "error": "Write-back failed",
+            "opened": "PR opened"
+        },
+        "unknownAuthor": "Unknown author",
+        "rowMetaWrittenBack": "{{status}} · {{author}} · {{when}}",
+        "rowMetaDismissed": "Dismissed · {{author}} · {{when}}",
+        "rowMeta": "{{author}} · {{when}}",
+        "behindRepoBadge": "Behind repo",
+        "selectDraft": "Select a draft to review",
+        "contentMissing_chart": "This draft's chart no longer exists.",
+        "contentMissing_dashboard": "This draft's dashboard no longer exists.",
+        "loadFailed": "This draft couldn't be loaded.",
+        "dismissDraft": "Dismiss draft",
+        "allClear": "All clear",
+        "emptyDescription": "When editors save unpublished changes to managed charts or dashboards, their drafts land here for you to review and write back to the repo.",
+        "awaitingReview": "Awaiting review",
+        "history": "History",
+        "draftBy": "Draft by {{author}} · updated {{when}}",
+        "unknown": "unknown",
+        "open_chart": "Open chart",
+        "open_dashboard": "Open dashboard",
+        "viewPullRequest": "View pull request",
+        "dismiss": "Dismiss",
+        "dismissConfirm": "Dismiss this draft? The author's changes stay unpublished and won't reach the repo.",
+        "staleTooltip": "The repo changed {{fields}} since this draft started. The author has to update it first.",
+        "writeBackTooltip_chart": "Opens this chart's pull request with the draft's content",
+        "writeBackTooltip_dashboard": "Opens this dashboard's pull request with the draft's content",
+        "writeBack": "Write back to repo",
+        "behindTitle": "Behind the repo",
+        "behindDescription": "The repo published past the version this draft started from. The author has to update it before it can be written back.",
+        "changeRepo": ": repo {{change}}",
+        "changeMine": "; this draft {{change}}"
+    },
+    "toasts": {
+        "writtenBack": "Draft written back to the repo",
+        "openPullRequest": "Open pull request",
+        "writeBackFailed": "Failed to write back draft",
+        "dismissed": "Draft dismissed",
+        "dismissFailed": "Failed to dismiss draft",
+        "updated": "Draft updated to the latest version",
+        "updateFailed": "Failed to update draft",
+        "reopened": "Draft reopened",
+        "reopenFailed": "Failed to reopen draft"
+    }
+}

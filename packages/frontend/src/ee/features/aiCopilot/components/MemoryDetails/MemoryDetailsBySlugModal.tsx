@@ -1,6 +1,7 @@
 import { Box, Loader, Text } from '@mantine/core';
 import { IconNotebook } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { useAiAgentMemory } from '../../hooks/useAiAgentMemory';
 import { MemoryDetailsModal } from './MemoryDetails';
@@ -25,6 +26,7 @@ export const MemoryDetailsBySlugModal: FC<MemoryDetailsBySlugModalProps> = ({
     selection,
     onClose,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const { projectUuid, agentUuid, slug, title } = selection;
     const memoryQuery = useAiAgentMemory({ projectUuid, agentUuid, slug });
 
@@ -50,7 +52,7 @@ export const MemoryDetailsBySlugModal: FC<MemoryDetailsBySlugModalProps> = ({
             <Box py="xl" ta="center">
                 {memoryQuery.isError ? (
                     <Text c="dimmed" fz="sm">
-                        Unable to load this memory.
+                        {t('memory.loadFailed')}
                     </Text>
                 ) : (
                     <Loader size="sm" color="gray" />

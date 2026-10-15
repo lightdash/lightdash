@@ -37,6 +37,7 @@ import {
 } from '@tabler/icons-react';
 import cronstrue from 'cronstrue';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { usePreAggregateMaterializations } from '../../hooks/usePreAggregateMaterializations';
 import {
     useRefreshAllPreAggregates,
@@ -84,15 +85,6 @@ type StatusType =
     | 'external'
     | 'never_materialized';
 
-const STATUS_LABELS: Record<StatusType, string> = {
-    active: 'Active',
-    in_progress: 'Building',
-    failed: 'Failed',
-    superseded: 'Superseded',
-    external: 'External',
-    never_materialized: 'Never materialized',
-};
-
 const ALL_STATUSES: StatusType[] = [
     'active',
     'in_progress',
@@ -113,12 +105,15 @@ const StatusFilter: FC<{
     selected: StatusType | null;
     onChange: (value: StatusType | null) => void;
 }> = ({ selected, onChange }) => {
+    const { t } = useTranslation('app');
     const hasSelection = selected !== null;
 
     return (
         <Popover width={250} position="bottom-start">
             <Popover.Target>
-                <Tooltip label="Filter by status">
+                <Tooltip
+                    label={t('preAggregateMaterializations.filterByStatus')}
+                >
                     <Button
                         h={32}
                         c="foreground"
@@ -143,14 +138,14 @@ const StatusFilter: FC<{
                             ) : null
                         }
                     >
-                        Status
+                        {t('preAggregateMaterializations.columns.status')}
                     </Button>
                 </Tooltip>
             </Popover.Target>
             <Popover.Dropdown p="sm">
                 <Stack gap={4}>
                     <Text fz="xs" c="dimmed" fw={600}>
-                        Filter by status:
+                        {t('preAggregateMaterializations.filterByStatusLabel')}
                     </Text>
                     <ScrollArea.Autosize mah={200} type="always" scrollbars="y">
                         <Radio.Group
@@ -164,7 +159,9 @@ const StatusFilter: FC<{
                                     <Radio
                                         key={status}
                                         value={status}
-                                        label={STATUS_LABELS[status]}
+                                        label={t(
+                                            `preAggregateMaterializations.status.${status}`,
+                                        )}
                                         size="xs"
                                     />
                                 ))}
@@ -178,6 +175,7 @@ const StatusFilter: FC<{
 };
 
 const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
+    const { t } = useTranslation('app');
     const { data: project, isLoading: isLoadingProject } =
         useProject(projectUuid);
     const requiresUserCredentials =
@@ -300,7 +298,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
         () => [
             {
                 accessorKey: 'preAggregateName',
-                header: 'Name',
+                header: t('preAggregateMaterializations.columns.name'),
                 enableSorting: false,
                 size: 180,
                 Header: ({ column }) => (
@@ -321,7 +319,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
             },
             {
                 accessorKey: 'sourceExploreName',
-                header: 'Source explore',
+                header: t('preAggregateMaterializations.columns.sourceExplore'),
                 enableSorting: false,
                 size: 160,
                 Header: ({ column }) => (
@@ -338,7 +336,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
             },
             {
                 id: 'status',
-                header: 'Status',
+                header: t('preAggregateMaterializations.columns.status'),
                 enableSorting: false,
                 size: 140,
                 Header: ({ column }) => (
@@ -350,7 +348,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
             },
             {
                 id: 'rowCount',
-                header: 'Row count',
+                header: t('preAggregateMaterializations.columns.rowCount'),
                 enableSorting: true,
                 size: 100,
                 accessorFn: (row) => row.materialization?.rowCount ?? null,
@@ -382,7 +380,9 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                             </Text>
                             {hasRowLimitWarning && (
                                 <Tooltip
-                                    label="Max rows applied"
+                                    label={t(
+                                        'preAggregateMaterializations.maxRowsApplied',
+                                    )}
                                     position="top"
                                 >
                                     <MantineIcon
@@ -406,7 +406,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
             },
             {
                 id: 'columns',
-                header: 'Columns',
+                header: t('preAggregateMaterializations.columns.columns'),
                 enableSorting: false,
                 size: 90,
                 Header: ({ column }) => (
@@ -427,7 +427,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
             },
             {
                 id: 'fileSize',
-                header: 'File size',
+                header: t('preAggregateMaterializations.columns.fileSize'),
                 enableSorting: true,
                 size: 100,
                 accessorFn: (row) => row.materialization?.totalBytes ?? null,
@@ -449,7 +449,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
             },
             {
                 id: 'buildTime',
-                header: 'Build time',
+                header: t('preAggregateMaterializations.columns.buildTime'),
                 enableSorting: true,
                 size: 100,
                 accessorFn: (row) => row.materialization?.durationMs ?? null,
@@ -473,7 +473,9 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
             },
             {
                 id: 'materializedAt',
-                header: 'Last materialized',
+                header: t(
+                    'preAggregateMaterializations.columns.lastMaterialized',
+                ),
                 enableSorting: true,
                 size: 140,
                 accessorFn: (row) =>
@@ -513,7 +515,9 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
             },
             {
                 accessorKey: 'refreshCron',
-                header: 'Refresh schedule',
+                header: t(
+                    'preAggregateMaterializations.columns.refreshSchedule',
+                ),
                 enableSorting: false,
                 size: 130,
                 Header: ({ column }) => (
@@ -526,9 +530,15 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     const { externalTable, refreshCron } = row.original;
                     if (externalTable) {
                         return (
-                            <Tooltip label="Refreshes are managed outside Lightdash">
+                            <Tooltip
+                                label={t(
+                                    'preAggregateMaterializations.customerManagedTooltip',
+                                )}
+                            >
                                 <Text size="xs" c="ldGray.7" fw={500}>
-                                    Customer managed
+                                    {t(
+                                        'preAggregateMaterializations.customerManaged',
+                                    )}
                                 </Text>
                             </Tooltip>
                         );
@@ -536,7 +546,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     if (!refreshCron) {
                         return (
                             <Text size="xs" c="dimmed">
-                                Manual
+                                {t('preAggregateMaterializations.manual')}
                             </Text>
                         );
                     }
@@ -571,7 +581,9 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                         refreshingDefinitionName ===
                             row.original.preAggregateName;
                     return (
-                        <Tooltip label="Rebuild this pre-aggregate">
+                        <Tooltip
+                            label={t('preAggregateMaterializations.rebuildOne')}
+                        >
                             <ActionIcon
                                 size="sm"
                                 loading={isThisRowRefreshing}
@@ -589,7 +601,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 },
             },
         ],
-        [isRefreshingOne, refreshingDefinitionName, refreshByName],
+        [isRefreshingOne, refreshingDefinitionName, refreshByName, t],
     );
 
     const table = useContentTable({
@@ -617,7 +629,9 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 <Group gap="xs" wrap="nowrap">
                     <MantineIcon icon={IconFilter} color="ldGray" />
                     <TextInput
-                        placeholder="Search by name..."
+                        placeholder={t(
+                            'preAggregateMaterializations.searchPlaceholder',
+                        )}
                         leftSection={
                             <MantineIcon icon={IconSearch} size="sm" />
                         }
@@ -631,7 +645,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                         onChange={setSelectedStatus}
                     />
                     {hasActiveFilters && (
-                        <Tooltip label="Reset filters">
+                        <Tooltip label={t('preAggregateAudit.resetFilters')}>
                             <ActionIcon size="sm" onClick={resetFilters}>
                                 <MantineIcon icon={IconFilterOff} />
                             </ActionIcon>
@@ -640,11 +654,18 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 </Group>
                 <Group gap="xs" wrap="nowrap">
                     <Text size="xs" c="dimmed">
-                        {summary.active} active, {summary.total} total
+                        {t('preAggregateMaterializations.summary', {
+                            active: summary.active,
+                            total: summary.total,
+                        })}
                         {summary.external > 0 &&
-                            `, ${summary.external} external`}
+                            t('preAggregateMaterializations.summaryExternal', {
+                                count: summary.external,
+                            })}
                         {summary.warningCount > 0 &&
-                            `, ${summary.warningCount} warning${summary.warningCount > 1 ? 's' : ''}`}
+                            t('preAggregateMaterializations.summaryWarnings', {
+                                count: summary.warningCount,
+                            })}
                     </Text>
                 </Group>
             </Group>
@@ -695,8 +716,8 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
             <LoadingOverlay visible={isLoadingProject} />
 
             <SettingsPage
-                title="Pre-aggregate materializations"
-                description="Overview of all pre-aggregate definitions and their current materialization status."
+                title={t('preAggregateMaterializations.title')}
+                description={t('preAggregateMaterializations.description')}
                 actions={
                     <SettingsPageActions>
                         <SettingsPageDocumentationLink href="https://docs.lightdash.com/references/pre-aggregates" />
@@ -712,7 +733,9 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                                 loading={isRefreshingAll || hasActiveJobs}
                                 onClick={handleRefreshAllClick}
                             >
-                                Rebuild managed
+                                {t(
+                                    'preAggregateMaterializations.rebuildManaged',
+                                )}
                             </Button>
                         )}
                     </SettingsPageActions>
@@ -721,18 +744,19 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 {requiresUserCredentials && (
                     <Callout variant="warning">
                         <Text fz="xs">
-                            Pre-aggregates aren't compatible with personal
-                            warehouse connections. Materialized results are
-                            shared across all viewers and may not match what
-                            each user would see querying the warehouse directly.{' '}
-                            <Anchor
-                                href="https://docs.lightdash.com/references/pre-aggregates/overview#personal-warehouse-connections"
-                                target="_blank"
-                                inherit
-                            >
-                                Learn more
-                            </Anchor>
-                            .
+                            <Trans
+                                t={t}
+                                i18nKey="preAggregateMaterializations.personalConnectionsWarning"
+                                components={{
+                                    link: (
+                                        <Anchor
+                                            href="https://docs.lightdash.com/references/pre-aggregates/overview#personal-warehouse-connections"
+                                            target="_blank"
+                                            inherit
+                                        />
+                                    ),
+                                }}
+                            />
                         </Text>
                     </Callout>
                 )}
@@ -740,8 +764,10 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 {!isLoading && materializations.length === 0 ? (
                     <SettingsEmptyState
                         icon={IconBolt}
-                        title="No pre-aggregates defined yet"
-                        description="Define pre-aggregates in your dbt YAML to serve queries from materialized results instead of hitting your warehouse."
+                        title={t('preAggregateMaterializations.emptyTitle')}
+                        description={t(
+                            'preAggregateMaterializations.emptyDescription',
+                        )}
                     />
                 ) : (
                     <ContentTable table={table} />
@@ -763,27 +789,34 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
             <MantineModal
                 opened={isRefreshModalOpen}
                 onClose={closeRefreshModal}
-                title="Rebuild managed pre-aggregates"
+                title={t('preAggregateMaterializations.rebuildModal.title')}
                 icon={IconRefreshDot}
                 size="lg"
                 onConfirm={handleRefreshAllConfirm}
-                confirmLabel="Rebuild managed"
+                confirmLabel={t('preAggregateMaterializations.rebuildManaged')}
                 confirmLoading={isRefreshingAll}
-                description={`This rebuilds ${managedMaterializations.length} Lightdash-managed pre-aggregate${managedMaterializations.length === 1 ? '' : 's'}. External definitions stay untouched.`}
+                description={t(
+                    'preAggregateMaterializations.rebuildModal.description',
+                    { count: managedMaterializations.length },
+                )}
             >
                 <Stack gap="sm">
                     <Text fz="xs" c="dimmed">
-                        Depending on the number of pre-aggregates and the size
-                        of your data, this may take several minutes and will use
-                        warehouse resources. You can track the progress in the
-                        table below.
+                        {t(
+                            'preAggregateMaterializations.rebuildModal.duration',
+                        )}
                     </Text>
                     {materializations.some((m) => m.warnings.length > 0) && (
-                        <Callout variant="warning" title="Large pre-aggregates">
+                        <Callout
+                            variant="warning"
+                            title={t(
+                                'preAggregateMaterializations.rebuildModal.largeTitle',
+                            )}
+                        >
                             <Text fz="xs">
-                                Some pre-aggregates exceed the recommended row
-                                count threshold. Refreshing will re-query these
-                                large datasets from your warehouse.
+                                {t(
+                                    'preAggregateMaterializations.rebuildModal.largeDescription',
+                                )}
                             </Text>
                         </Callout>
                     )}

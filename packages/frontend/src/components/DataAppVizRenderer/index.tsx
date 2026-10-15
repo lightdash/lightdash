@@ -14,6 +14,7 @@ import {
 } from '@lightdash/common';
 import { Anchor, Box, Stack, Text } from '@mantine/core';
 import { IconPuzzle } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import {
     useCallback,
     useEffect,
@@ -22,6 +23,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
@@ -137,13 +139,14 @@ const EMPTY_FIELD_MAPPING = {};
 
 const getTerminalRequestErrorMessage = (
     errors: Array<ApiError | null | undefined>,
+    t: TFunction,
 ): string | undefined => {
     if (errors.some((error) => error?.error.statusCode === 403)) {
-        return "You don't have access to this custom chart type.";
+        return t('dataAppViz.noAccess');
     }
 
     if (errors.some((error) => error?.error.statusCode === 404)) {
-        return 'The chart type this chart was based on has been removed.';
+        return t('dataAppViz.chartTypeRemoved');
     }
 
     return undefined;
@@ -153,6 +156,7 @@ const DataAppVizRenderer: FC<Props> = ({
     isInDashboard = false,
     onScreenshotReady,
 }) => {
+    const { t } = useTranslation('visualization');
     const projectUuid = useProjectUuid();
     const {
         visualizationConfig,
@@ -414,7 +418,7 @@ const DataAppVizRenderer: FC<Props> = ({
                 });
             } catch (err) {
                 showToastError({
-                    title: 'Could not drill into this data point',
+                    title: t('dataAppViz.drillFailed'),
                     subtitle: err instanceof Error ? err.message : undefined,
                 });
                 throw err; // bridge relays the message as the route's error response
@@ -429,6 +433,7 @@ const DataAppVizRenderer: FC<Props> = ({
         trackingContext,
         user,
         projectUuid,
+        t,
     ]);
 
     const underlyingDataEnabled =
@@ -451,7 +456,7 @@ const DataAppVizRenderer: FC<Props> = ({
                 );
             } catch (err) {
                 showToastError({
-                    title: 'Could not open underlying data',
+                    title: t('dataAppViz.underlyingDataFailed'),
                     subtitle: err instanceof Error ? err.message : undefined,
                 });
                 throw err;
@@ -463,6 +468,7 @@ const DataAppVizRenderer: FC<Props> = ({
             itemsMap,
             dateZoom,
             showToastError,
+            t,
         ],
     );
 
@@ -640,6 +646,7 @@ const DataAppVizRenderer: FC<Props> = ({
     ]);
     const terminalRequestErrorMessage = getTerminalRequestErrorMessage(
         terminalRequestErrors,
+        t,
     );
     const chartTypeRemoved = terminalRequestErrors.some(
         (error) => error?.error.statusCode === 404,
@@ -808,7 +815,7 @@ const DataAppVizRenderer: FC<Props> = ({
 
     if (!projectUuid || dataAppVizUuid === null) {
         return (
-            <DataAppVizPlaceholder message="Pick a custom chart type to render." />
+            <DataAppVizPlaceholder message={t('dataAppViz.pickChartType')} />
         );
     }
 
@@ -817,16 +824,18 @@ const DataAppVizRenderer: FC<Props> = ({
         // the recovery hint only shows in-app.
         const canRecover = chartTypeRemoved && !embedToken && !minimal;
         const recoveryAction = isEditMode
-            ? 'Open Configure and choose another chart type'
-            : 'Edit the chart to choose another chart type';
+            ? t('dataAppViz.recoveryEditMode')
+            : t('dataAppViz.recoveryViewMode');
         const recoveryHint = health.data?.softDelete.enabled
-            ? `${recoveryAction}, or restore the chart type from Recently deleted.`
-            : `${recoveryAction}.`;
+            ? t('dataAppViz.recoveryHintWithRestore', {
+                  action: recoveryAction,
+              })
+            : t('dataAppViz.recoveryHint', { action: recoveryAction });
         // Lands in edit mode with the config sidebar already open.
         const editLink =
             canRecover && !isEditMode && savedChartUuid
                 ? {
-                      label: 'Edit chart',
+                      label: t('dataAppViz.editChart'),
                       to: `/projects/${projectUuid}/saved/${savedChartUuid}/edit?openVizConfig=true`,
                   }
                 : undefined;
@@ -841,7 +850,7 @@ const DataAppVizRenderer: FC<Props> = ({
 
     if (!renderMetadata) {
         return renderMetadataError ? (
-            <DataAppVizPlaceholder message="Custom chart type could not be loaded." />
+            <DataAppVizPlaceholder message={t('dataAppViz.couldNotLoad')} />
         ) : (
             <DataAppVizLoading isInDashboard={isInDashboard} />
         );
@@ -849,7 +858,7 @@ const DataAppVizRenderer: FC<Props> = ({
 
     if (renderMetadata.state === 'building') {
         return (
-            <DataAppVizPlaceholder message="Custom chart type is still generating…" />
+            <DataAppVizPlaceholder message={t('dataAppViz.stillGenerating')} />
         );
     }
 
@@ -862,15 +871,17 @@ const DataAppVizRenderer: FC<Props> = ({
             <DataAppVizPlaceholder
                 message={
                     pinnedChartlessArtifact
-                        ? `Custom chart type version ${renderPinnedVersion} is unavailable.`
+                        ? t('dataAppViz.versionUnavailable', {
+                              version: renderPinnedVersion,
+                          })
                         : renderSavedChartUuid &&
                             config?.dataAppVizVersion !== undefined
-                          ? 'The saved custom chart type version is unavailable.'
-                          : 'Custom chart type preview is unavailable.'
+                          ? t('dataAppViz.savedVersionUnavailable')
+                          : t('dataAppViz.previewUnavailable')
                 }
                 hint={
                     pinnedChartlessArtifact
-                        ? 'Regenerate the chart to use a renderable version.'
+                        ? t('dataAppViz.regenerateHint')
                         : undefined
                 }
             />
@@ -879,13 +890,13 @@ const DataAppVizRenderer: FC<Props> = ({
 
     if (renderMetadata.state === 'failed') {
         return (
-            <DataAppVizPlaceholder message="Custom chart type failed to generate." />
+            <DataAppVizPlaceholder message={t('dataAppViz.failedToGenerate')} />
         );
     }
 
     if (!token || !previewUrl) {
         return previewTokenError ? (
-            <DataAppVizPlaceholder message="Custom chart type could not be loaded." />
+            <DataAppVizPlaceholder message={t('dataAppViz.couldNotLoad')} />
         ) : (
             <DataAppVizLoading isInDashboard={isInDashboard} />
         );

@@ -4,6 +4,7 @@ import {
     SchedulerFormat,
 } from '@lightdash/common';
 import { useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppSchedulerCreateMutation } from '../../../features/scheduler/hooks/useAppSchedulers';
 import { useChartSchedulerCreateMutation } from '../../../features/scheduler/hooks/useChartSchedulers';
 import { useScheduler } from '../../../features/scheduler/hooks/useScheduler';
@@ -20,6 +21,7 @@ import { useSyncModal } from '../providers/useSyncModal';
 import { type SyncResource } from '../types';
 
 export const useSyncModalForm = (resource: SyncResource) => {
+    const { t } = useTranslation('sync');
     const { action, setAction, currentSchedulerUuid } = useSyncModal();
 
     const isEditing = action === SyncModalAction.EDIT;
@@ -73,14 +75,15 @@ export const useSyncModalForm = (resource: SyncResource) => {
     const form = useSyncModalFormInstance({
         initialValues: DEFAULT_VALUES,
         validate: {
-            name: (value) => (value.length > 0 ? null : 'Name is required'),
-            cron: (value) => isInvalidCronExpression('Cron expression')(value),
+            name: (value) => (value.length > 0 ? null : t('form.nameRequired')),
+            cron: (value) =>
+                isInvalidCronExpression(t('form.cronFieldName'))(value),
             options: {
                 tabName: (value, values) => {
                     if (values.saveInNewTab) {
-                        if (!value) return 'Tab name is required';
+                        if (!value) return t('form.tabNameRequired');
                         if (value.toLowerCase() === 'metadata') {
-                            return 'Tab name cannot be "metadata"';
+                            return t('form.tabNameReserved');
                         }
                     }
                     return null;

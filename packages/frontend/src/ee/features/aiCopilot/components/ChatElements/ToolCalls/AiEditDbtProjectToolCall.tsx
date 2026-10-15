@@ -25,6 +25,7 @@ import {
 } from '@tabler/icons-react';
 import confetti from 'canvas-confetti';
 import { useEffect, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useClosePullRequest } from '../../../hooks/useClosePullRequest';
@@ -68,21 +69,24 @@ type Props = {
 // ts-unused-exports:disable-next-line
 export const InstallAppButton: FC<{
     action: (typeof INSTALL_ACTIONS)[keyof typeof INSTALL_ACTIONS];
-}> = ({ action }) => (
-    <Group gap={0}>
-        <Button
-            component="a"
-            href={action.installUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            variant="default"
-            size="compact-xs"
-            leftSection={<MantineIcon icon={action.icon} size={14} />}
-        >
-            {action.cta}
-        </Button>
-    </Group>
-);
+}> = ({ action }) => {
+    const { t } = useTranslation('aiCopilotChat');
+    return (
+        <Group gap={0}>
+            <Button
+                component="a"
+                href={action.installUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                variant="default"
+                size="compact-xs"
+                leftSection={<MantineIcon icon={action.icon} size={14} />}
+            >
+                {t(action.ctaKey)}
+            </Button>
+        </Group>
+    );
+};
 
 /**
  * The "View" half of the card's action group: a single dropdown that opens the
@@ -97,6 +101,7 @@ export const PullRequestViewMenu: FC<{
     previewUrl: string | null;
     commitSha: string | null;
 }> = ({ projectUuid, prUrl, previewUrl, commitSha }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const [diffOpened, setDiffOpened] = useState(false);
 
     return (
@@ -111,7 +116,7 @@ export const PullRequestViewMenu: FC<{
                             <MantineIcon icon={IconChevronDown} size={14} />
                         }
                     >
-                        View
+                        {t('pullRequest.view')}
                     </Button>
                 </Menu.Target>
                 <Menu.Dropdown>
@@ -125,7 +130,7 @@ export const PullRequestViewMenu: FC<{
                                 <MantineIcon icon={IconEye} size={14} />
                             }
                         >
-                            Preview
+                            {t('pullRequest.preview')}
                         </Menu.Item>
                     )}
                     <Menu.Item
@@ -137,7 +142,7 @@ export const PullRequestViewMenu: FC<{
                             <MantineIcon icon={IconGitPullRequest} size={14} />
                         }
                     >
-                        Pull request
+                        {t('pullRequest.pullRequest')}
                     </Menu.Item>
                     {!isBitbucketPullRequest(prUrl) && (
                         <Menu.Item
@@ -146,7 +151,7 @@ export const PullRequestViewMenu: FC<{
                             }
                             onClick={() => setDiffOpened(true)}
                         >
-                            Diff
+                            {t('pullRequest.diff')}
                         </Menu.Item>
                     )}
                 </Menu.Dropdown>
@@ -170,6 +175,7 @@ export const PullRequestActionButtons: FC<{
     onMerge: () => void;
     onClose: () => void;
 }> = ({ ciChecks, isMerging, isClosing, onMerge, onClose }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const [armed, setArmed] = useState<'merge' | 'close' | null>(null);
     const armTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const mergeButtonRef = useRef<HTMLButtonElement>(null);
@@ -221,7 +227,7 @@ export const PullRequestActionButtons: FC<{
                 className={styles.mergedStatus}
                 leftSection={<MantineIcon icon={IconGitMerge} size={14} />}
             >
-                Merged
+                {t('pullRequest.merged')}
             </Button>
         );
     }
@@ -238,7 +244,7 @@ export const PullRequestActionButtons: FC<{
                     <MantineIcon icon={IconGitPullRequestClosed} size={14} />
                 }
             >
-                Closed
+                {t('pullRequest.closed')}
             </Button>
         );
     }
@@ -287,7 +293,9 @@ export const PullRequestActionButtons: FC<{
                 }
                 onClick={handleCloseClick}
             >
-                {closeArmed ? 'Confirm' : 'Close PR'}
+                {closeArmed
+                    ? t('actions.confirm', { ns: 'common' })
+                    : t('pullRequest.closePr')}
             </Button>
             <Button
                 ref={mergeButtonRef}
@@ -304,7 +312,9 @@ export const PullRequestActionButtons: FC<{
                 }
                 onClick={handleMergeClick}
             >
-                {mergeArmed ? 'Confirm' : 'Merge PR'}
+                {mergeArmed
+                    ? t('actions.confirm', { ns: 'common' })
+                    : t('pullRequest.mergePr')}
             </Button>
         </Button.Group>
     );
@@ -324,6 +334,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     agentUuid,
     threadUuid,
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
     // Hooks must run before the early returns below; the query is disabled until
     // there's a PR URL, so the error/no-PR branches don't fetch anything.
     const prUrl = metadata.status === 'success' ? metadata.prUrl : null;
@@ -383,14 +394,22 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                 <Text size="xs" fw={500}>
                                     {metadata.errorCode ===
                                     'bitbucket_token_missing'
-                                        ? 'Configure Bitbucket API token'
-                                        : 'Source control not supported'}
+                                        ? t(
+                                              'pullRequest.configureBitbucketToken',
+                                          )
+                                        : t(
+                                              'pullRequest.sourceControlNotSupported',
+                                          )}
                                 </Text>
                                 <Text size="xs" c="dimmed">
                                     {metadata.errorCode ===
                                     'bitbucket_token_missing'
-                                        ? 'Update the API token in this project connection. It needs repository and pull request read/write permissions in Bitbucket Cloud.'
-                                        : 'AI writeback needs a GitHub, GitLab or Bitbucket Cloud dbt connection. Update the connection to open pull requests from chat.'}
+                                        ? t(
+                                              'pullRequest.configureBitbucketTokenDescription',
+                                          )
+                                        : t(
+                                              'pullRequest.sourceControlNotSupportedDescription',
+                                          )}
                                 </Text>
                             </Stack>
                             <Group gap={0}>
@@ -406,7 +425,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                         />
                                     }
                                 >
-                                    Edit project connection
+                                    {t('pullRequest.editProjectConnection')}
                                 </Button>
                             </Group>
                         </Stack>
@@ -429,16 +448,10 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                         <Stack gap="xs">
                             <Stack gap={2}>
                                 <Text size="xs" fw={500}>
-                                    No write access to this repository
+                                    {t('pullRequest.noWriteAccess')}
                                 </Text>
                                 <Text size="xs" c="dimmed">
-                                    The change was prepared, but no pull request
-                                    could be opened — this project's Git
-                                    connection doesn't have permission to create
-                                    a branch. An admin needs to reconnect via
-                                    the GitHub/GitLab App, or grant the personal
-                                    access token write access to contents and
-                                    pull requests, before retrying.
+                                    {t('pullRequest.noWriteAccessDescription')}
                                 </Text>
                             </Stack>
                             <Group gap={0}>
@@ -454,7 +467,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                         />
                                     }
                                 >
-                                    Edit project connection
+                                    {t('pullRequest.editProjectConnection')}
                                 </Button>
                             </Group>
                         </Stack>
@@ -481,13 +494,10 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                         </ThemeIcon>
                         <Stack gap={2}>
                             <Text size="xs" fw={500}>
-                                This thread's pull request is closed
+                                {t('pullRequest.threadPrClosed')}
                             </Text>
                             <Text size="xs" c="dimmed">
-                                Its pull request has already been merged or
-                                closed, so further changes can't be added here.
-                                Ask to open a new pull request for further
-                                changes.
+                                {t('pullRequest.threadPrClosedDescription')}
                             </Text>
                         </Stack>
                     </Group>
@@ -507,11 +517,10 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                     </ThemeIcon>
                     <Stack gap={2}>
                         <Text size="xs" fw={500}>
-                            The change couldn't be completed
+                            {t('pullRequest.changeFailed')}
                         </Text>
                         <Text size="xs" c="dimmed">
-                            No pull request was opened. Ask again, or rephrase
-                            the request, to retry.
+                            {t('pullRequest.changeFailedDescription')}
                         </Text>
                     </Stack>
                 </Group>
@@ -532,7 +541,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                         <MantineIcon icon={IconGitPullRequest} size={14} />
                     </ThemeIcon>
                     <Text size="xs" c="ldGray.7">
-                        Working on the change — this can take a few minutes.
+                        {t('pullRequest.workingOnChange')}
                     </Text>
                 </Group>
             </Paper>
@@ -558,8 +567,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                         <MantineIcon icon={IconGitPullRequest} size={14} />
                     </ThemeIcon>
                     <Text size="xs" c="ldGray.7">
-                        No file changes were needed — no pull request was
-                        opened.
+                        {t('pullRequest.noChangesNeeded')}
                     </Text>
                 </Group>
             </Paper>
@@ -576,7 +584,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     const additions = metadata.additions ?? null;
     const deletions = metadata.deletions ?? null;
     const hasDiffStat = additions !== null || deletions !== null;
-    const title = 'Edited semantic layer';
+    const title = t('pullRequest.editedSemanticLayer');
     const resolvedPrUrl = metadata.prUrl;
 
     return (

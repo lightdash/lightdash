@@ -1,4 +1,5 @@
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useVirtualViewAsCode } from '../hooks/useVirtualViewAsCode';
 import ContentAsCodeModal from './ContentAsCodeModal';
 
@@ -15,6 +16,7 @@ const VirtualViewAsCodeModal: FC<VirtualViewAsCodeModalProps> = ({
     projectUuid,
     virtualViewSlug,
 }) => {
+    const { t } = useTranslation('contentAsCode');
     const virtualViewAsCode = useVirtualViewAsCode({
         projectUuid,
         virtualViewSlug,
@@ -25,7 +27,7 @@ const VirtualViewAsCodeModal: FC<VirtualViewAsCodeModalProps> = ({
         <ContentAsCodeModal
             opened={opened}
             onClose={onClose}
-            resourceLabel="virtual view"
+            resourceLabel={t('resources.virtualView')}
             contentAsCode={virtualViewAsCode}
         />
     );

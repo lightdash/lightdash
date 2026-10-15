@@ -20,6 +20,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useNavigate,
     useOutletContext,
@@ -97,6 +98,7 @@ const battleProfileB: Record<BattleType, AiAgentBattleProfile | undefined> = {
 };
 
 const AiAgentNewThreadPage: FC = () => {
+    const { t } = useTranslation('eeMisc');
     const { agentUuid } = useParams();
     const projectUuid = useProjectUuid();
     const accessGate = useAiAccessGate(projectUuid);
@@ -506,7 +508,7 @@ const AiAgentNewThreadPage: FC = () => {
                     {previewItems.length > 0 && projectUuid && (
                         <Stack gap="xs">
                             <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-                                Pinned context
+                                {t('agents.pinnedContext')}
                             </Text>
                             <Group gap="xs" wrap="wrap">
                                 {previewItems.map((item) => (
@@ -554,8 +556,10 @@ const AiAgentNewThreadPage: FC = () => {
                             }
                             placeholder={
                                 isBattle
-                                    ? `Ask both models anything about your data...`
-                                    : `Ask ${agent.name} anything about your data...`
+                                    ? t('agents.askBothModels')
+                                    : t('agents.askAgentAnything', {
+                                          name: agent.name,
+                                      })
                             }
                             projectUuid={projectUuid}
                             agentUuid={agent.uuid}

@@ -6,6 +6,7 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import i18n from '../../../../i18n/i18n';
 
 type MergeArgs = {
     prUrl: string;
@@ -63,7 +64,9 @@ export const useMergePullRequest = (projectUuid: string) => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to merge pull request',
+                title: i18n.t('toasts.pullRequests.mergeFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },

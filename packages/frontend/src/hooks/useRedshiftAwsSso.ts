@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 
@@ -83,6 +84,7 @@ export function useRedshiftAwsSsoLoginPopup({
 }: {
     onLogin: (credentials: UserWarehouseCredentials) => Promise<void>;
 }) {
+    const { t } = useTranslation('app');
     const { showToastError } = useToaster();
     const queryClient = useQueryClient();
     const ssoMutation = useMutation<
@@ -100,11 +102,11 @@ export function useRedshiftAwsSsoLoginPopup({
         },
         onError: (error) => {
             showToastError({
-                title: 'AWS sign-in failed',
+                title: t('useRedshiftAwsSso.awsSignInFailed'),
                 subtitle:
                     error instanceof Error
                         ? error.message
-                        : error.error.message || 'Please try again',
+                        : error.error.message || t('common.pleaseTryAgain'),
             });
         },
     });

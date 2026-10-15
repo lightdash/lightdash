@@ -33,7 +33,9 @@ import {
     IconPlus,
     IconTrash,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useState, type FC, type ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useDbtSourceBindings } from '../../hooks/useDbtSourceBindings';
 import {
     useCreateProjectDbtSourceMutation,
@@ -66,7 +68,10 @@ import { ProjectFormProvider } from './ProjectFormProvider';
  * identity fields are then unavailable too — that case surfaces via the
  * warning icon instead, not this line).
  */
-const sourceIdentity = (source: ProjectDbtSourceSummary): string => {
+const sourceIdentity = (
+    t: TFunction,
+    source: ProjectDbtSourceSummary,
+): string => {
     const location = [
         source.warehouseLocation.database,
         source.warehouseLocation.schema,
@@ -85,7 +90,7 @@ const sourceIdentity = (source: ProjectDbtSourceSummary): string => {
             .filter(Boolean)
             .join(' · ');
     }
-    return source.type ?? 'no connection';
+    return source.type ?? t('dbtSourcesPanel.noConnection');
 };
 
 /** An empty string means inherit, which the API expresses as null. */
@@ -113,58 +118,70 @@ const DbtSourceRow: FC<{
     onEdit: (source: ProjectDbtSourceSummary) => void;
     onRemove?: (source: ProjectDbtSourceSummary) => void;
     connection?: ReactNode;
-}> = ({ source, onEdit, onRemove, connection }) => (
-    <div className={classes.row}>
-        <img className={classes.mark} src={DbtLogo} alt="" />
-        <div className={classes.info}>
-            <Group gap={6} wrap="nowrap">
-                <Text fw={600} size="sm" truncate>
-                    {source.name}
+}> = ({ source, onEdit, onRemove, connection }) => {
+    const { t } = useTranslation('projectConnection');
+    return (
+        <div className={classes.row}>
+            <img className={classes.mark} src={DbtLogo} alt="" />
+            <div className={classes.info}>
+                <Group gap={6} wrap="nowrap">
+                    <Text fw={600} size="sm" truncate>
+                        {source.name}
+                    </Text>
+                    {source.hasCredentialError && (
+                        <Tooltip
+                            w={260}
+                            label={t('dbtSourcesPanel.credentialErrorTooltip')}
+                        >
+                            <MantineIcon
+                                icon={IconAlertTriangle}
+                                color="red"
+                                aria-label={t(
+                                    'dbtSourcesPanel.credentialErrorAriaLabel',
+                                    {
+                                        name: source.name,
+                                    },
+                                )}
+                            />
+                        </Tooltip>
+                    )}
+                </Group>
+                <Text className={classes.meta} c="dimmed" truncate>
+                    {sourceIdentity(t, source)}
                 </Text>
-                {source.hasCredentialError && (
-                    <Tooltip
-                        w={260}
-                        label="Connection could not be loaded — remove and add it again"
+            </div>
+            {connection}
+            <Menu position="bottom-end">
+                <Menu.Target>
+                    <ActionIcon
+                        aria-label={t('connectionsPanel.actionsFor', {
+                            name: source.name,
+                        })}
                     >
-                        <MantineIcon
-                            icon={IconAlertTriangle}
-                            color="red"
-                            aria-label={`${source.name} connection could not be loaded`}
-                        />
-                    </Tooltip>
-                )}
-            </Group>
-            <Text className={classes.meta} c="dimmed" truncate>
-                {sourceIdentity(source)}
-            </Text>
-        </div>
-        {connection}
-        <Menu position="bottom-end">
-            <Menu.Target>
-                <ActionIcon aria-label={`Actions for ${source.name}`}>
-                    <MantineIcon icon={IconDots} />
-                </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown>
-                <Menu.Item
-                    leftSection={<MantineIcon icon={IconPencil} />}
-                    onClick={() => onEdit(source)}
-                >
-                    Edit
-                </Menu.Item>
-                {onRemove && (
+                        <MantineIcon icon={IconDots} />
+                    </ActionIcon>
+                </Menu.Target>
+                <Menu.Dropdown>
                     <Menu.Item
-                        color="red"
-                        leftSection={<MantineIcon icon={IconTrash} />}
-                        onClick={() => onRemove(source)}
+                        leftSection={<MantineIcon icon={IconPencil} />}
+                        onClick={() => onEdit(source)}
                     >
-                        Remove
+                        {t('actions.edit', { ns: 'common' })}
                     </Menu.Item>
-                )}
-            </Menu.Dropdown>
-        </Menu>
-    </div>
-);
+                    {onRemove && (
+                        <Menu.Item
+                            color="red"
+                            leftSection={<MantineIcon icon={IconTrash} />}
+                            onClick={() => onRemove(source)}
+                        >
+                            {t('actions.remove', { ns: 'common' })}
+                        </Menu.Item>
+                    )}
+                </Menu.Dropdown>
+            </Menu>
+        </div>
+    );
+};
 
 /**
  * The shared body for the add/edit modals: a name field plus the full dbt
@@ -174,30 +191,34 @@ const DbtSourceFields: FC<{
     form: Form;
     intro: string;
     projectUuid: string;
-}> = ({ form, intro, projectUuid }) => (
-    <FormProvider form={form}>
-        <ProjectFormProvider isDbtSource projectUuid={projectUuid}>
-            <Stack gap="md">
-                <Text size="sm" c="dimmed">
-                    {intro}
-                </Text>
-                <TextInput
-                    label="Name"
-                    placeholder="e.g. marketing_dbt"
-                    required
-                    {...form.getInputProps('name')}
-                />
-                <DbtSettingsForm disabled={false} />
-            </Stack>
-        </ProjectFormProvider>
-    </FormProvider>
-);
+}> = ({ form, intro, projectUuid }) => {
+    const { t } = useTranslation('projectConnection');
+    return (
+        <FormProvider form={form}>
+            <ProjectFormProvider isDbtSource projectUuid={projectUuid}>
+                <Stack gap="md">
+                    <Text size="sm" c="dimmed">
+                        {intro}
+                    </Text>
+                    <TextInput
+                        label={t('connectionFields.nameLabel')}
+                        placeholder={t('dbtSourcesPanel.namePlaceholder')}
+                        required
+                        {...form.getInputProps('name')}
+                    />
+                    <DbtSettingsForm disabled={false} />
+                </Stack>
+            </ProjectFormProvider>
+        </FormProvider>
+    );
+};
 
 const AddDbtSourceModal: FC<{
     projectUuid: string;
     opened: boolean;
     onClose: () => void;
 }> = ({ projectUuid, opened, onClose }) => {
+    const { t } = useTranslation('projectConnection');
     const form = useForm({
         initialValues: {
             name: '',
@@ -242,9 +263,9 @@ const AddDbtSourceModal: FC<{
         <MantineModal
             opened={opened}
             onClose={handleClose}
-            title="Add a dbt source"
+            title={t('dbtSourcesPanel.addTitle')}
             size="lg"
-            confirmLabel="Add source"
+            confirmLabel={t('dbtSourcesPanel.addSource')}
             onConfirm={handleSubmit}
             confirmLoading={createMutation.isLoading}
             cancelDisabled={createMutation.isLoading}
@@ -252,7 +273,7 @@ const AddDbtSourceModal: FC<{
             <DbtSourceFields
                 form={form}
                 projectUuid={projectUuid}
-                intro="Connect another git-backed dbt project. Its models are merged with the primary source on every deploy and preview, using the project's warehouse and dbt version."
+                intro={t('dbtSourcesPanel.addIntro')}
             />
         </MantineModal>
     );
@@ -264,6 +285,7 @@ const EditDbtSourceModalInner: FC<{
     connection: DbtProjectConfig | null;
     onClose: () => void;
 }> = ({ projectUuid, source, connection, onClose }) => {
+    const { t } = useTranslation('projectConnection');
     const updateMutation = useUpdateProjectDbtSourceMutation(projectUuid, {
         onSuccess: onClose,
     });
@@ -312,9 +334,9 @@ const EditDbtSourceModalInner: FC<{
         <MantineModal
             opened
             onClose={onClose}
-            title="Edit dbt source"
+            title={t('dbtSourcesPanel.editTitle')}
             size="lg"
-            confirmLabel="Save changes"
+            confirmLabel={t('connectionsPanel.saveChanges')}
             onConfirm={handleSubmit}
             confirmLoading={updateMutation.isLoading}
             cancelDisabled={updateMutation.isLoading}
@@ -322,7 +344,7 @@ const EditDbtSourceModalInner: FC<{
             <DbtSourceFields
                 form={form}
                 projectUuid={projectUuid}
-                intro="Update this source's connection. Leave the access token blank to keep the saved one."
+                intro={t('dbtSourcesPanel.editIntro')}
             />
         </MantineModal>
     );
@@ -333,6 +355,7 @@ const EditDbtSourceModal: FC<{
     source: ProjectDbtSourceSummary | null;
     onClose: () => void;
 }> = ({ projectUuid, source, onClose }) => {
+    const { t } = useTranslation('projectConnection');
     const { data, isInitialLoading } = useProjectDbtSource(
         projectUuid,
         source?.projectDbtSourceUuid,
@@ -347,7 +370,7 @@ const EditDbtSourceModal: FC<{
             <MantineModal
                 opened
                 onClose={onClose}
-                title="Edit dbt source"
+                title={t('dbtSourcesPanel.editTitle')}
                 size="lg"
                 cancelLabel={false}
             >
@@ -374,6 +397,7 @@ const RenamePrimaryDbtSourceModal: FC<{
     source: ProjectDbtSourceSummary | null;
     onClose: () => void;
 }> = ({ projectUuid, source, onClose }) => {
+    const { t } = useTranslation('projectConnection');
     const updateMutation = useUpdateProjectDbtSourceMutation(projectUuid, {
         onSuccess: onClose,
     });
@@ -399,22 +423,21 @@ const RenamePrimaryDbtSourceModal: FC<{
         <MantineModal
             opened
             onClose={onClose}
-            title="Rename dbt source"
-            confirmLabel="Save changes"
+            title={t('dbtSourcesPanel.renameTitle')}
+            confirmLabel={t('connectionsPanel.saveChanges')}
             onConfirm={handleSubmit}
             confirmLoading={updateMutation.isLoading}
             cancelDisabled={updateMutation.isLoading}
         >
             <Stack gap="md">
                 <TextInput
-                    label="Name"
+                    label={t('connectionFields.nameLabel')}
                     required
                     maxLength={64}
                     {...form.getInputProps('name')}
                 />
                 <Text size="sm" c="dimmed">
-                    Renaming this source changes qualified explore names on the
-                    next deploy.
+                    {t('dbtSourcesPanel.renameHint')}
                 </Text>
             </Stack>
         </MantineModal>
@@ -424,6 +447,7 @@ const RenamePrimaryDbtSourceModal: FC<{
 const DbtSourcesPanel: FC<{
     project: Pick<Project, 'projectUuid' | 'connectionRoute'>;
 }> = ({ project }) => {
+    const { t } = useTranslation('projectConnection');
     const { projectUuid } = project;
     const { data: flag } = useServerFeatureFlag(FeatureFlags.MultiDbtSources);
     const { data: bindings } = useDbtSourceBindings(
@@ -458,17 +482,20 @@ const DbtSourcesPanel: FC<{
     return (
         <Card shadow="xs" padding="lg" radius="md" className={classes.panel}>
             <Badge className={classes.beta} color="violet" size="sm">
-                Beta
+                {t('dbtSourcesPanel.beta')}
             </Badge>
             <Stack gap="md">
                 <Group gap={6}>
-                    <Title order={5}>dbt sources</Title>
+                    <Title order={5}>{t('dbtSourcesPanel.title')}</Title>
                     <Tooltip
                         w={300}
                         position="right"
-                        label="Merge models from other git-backed dbt projects. They're combined with this project's dbt connection on every deploy. If a model or metric name exists in more than one source, each one is renamed to <source>__<name>."
+                        label={t('dbtSourcesPanel.about')}
                     >
-                        <ActionIcon size="sm" aria-label="About dbt sources">
+                        <ActionIcon
+                            size="sm"
+                            aria-label={t('dbtSourcesPanel.aboutAriaLabel')}
+                        >
                             <MantineIcon icon={IconInfoCircle} />
                         </ActionIcon>
                     </Tooltip>
@@ -482,14 +509,14 @@ const DbtSourcesPanel: FC<{
 
                 {isError && (
                     <Text size="sm" c="red">
-                        Failed to load dbt sources.
+                        {t('dbtSourcesPanel.loadFailed')}
                     </Text>
                 )}
 
                 {!isInitialLoading && !isError && primarySource && (
                     <Stack gap={4}>
                         <Text size="sm" fw={600}>
-                            Source name
+                            {t('dbtSourcesPanel.sourceName')}
                         </Text>
                         <div className={classes.rows}>
                             <DbtSourceRow
@@ -508,7 +535,7 @@ const DbtSourcesPanel: FC<{
                 )}
 
                 <Text size="sm" fw={600}>
-                    Additional dbt sources
+                    {t('dbtSourcesPanel.additional')}
                 </Text>
 
                 {!isInitialLoading &&
@@ -536,8 +563,7 @@ const DbtSourcesPanel: FC<{
                         </div>
                     ) : (
                         <Text size="sm" c="dimmed">
-                            No additional sources yet. Add one to combine models
-                            from another dbt project.
+                            {t('dbtSourcesPanel.empty')}
                         </Text>
                     ))}
 
@@ -554,7 +580,7 @@ const DbtSourcesPanel: FC<{
                         leftSection={<MantineIcon icon={IconPlus} />}
                         onClick={() => setIsAddOpen(true)}
                     >
-                        Add source
+                        {t('dbtSourcesPanel.addSource')}
                     </Button>
                 </Group>
             </Stack>
@@ -583,9 +609,9 @@ const DbtSourcesPanel: FC<{
                 onClose={() =>
                     !deleteMutation.isLoading && setSourceToRemove(null)
                 }
-                title="Remove dbt source"
+                title={t('dbtSourcesPanel.removeTitle')}
                 variant="delete"
-                confirmLabel="Remove"
+                confirmLabel={t('actions.remove', { ns: 'common' })}
                 confirmLoading={deleteMutation.isLoading}
                 cancelDisabled={deleteMutation.isLoading}
                 onConfirm={() => {
@@ -596,11 +622,12 @@ const DbtSourcesPanel: FC<{
                 }}
             >
                 <Text>
-                    Remove{' '}
-                    <Text span fw={600}>
-                        {sourceToRemove?.name}
-                    </Text>
-                    ? Its models will drop from this project on the next deploy.
+                    <Trans
+                        t={t}
+                        i18nKey="dbtSourcesPanel.removeConfirm"
+                        values={{ name: sourceToRemove?.name }}
+                        components={{ name: <Text span fw={600} /> }}
+                    />
                 </Text>
             </MantineModal>
         </Card>

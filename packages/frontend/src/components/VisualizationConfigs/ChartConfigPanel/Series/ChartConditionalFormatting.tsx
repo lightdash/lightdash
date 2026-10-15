@@ -19,6 +19,7 @@ import {
     useRef,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { v4 as uuidv4 } from 'uuid';
 import FieldSelect from '../../../common/FieldSelect';
 import { filterOperatorLabel } from '../../../common/Filters/FilterInputs/constants';
@@ -66,6 +67,7 @@ const ChartConditionalFormattingItem: FC<ItemProps> = ({
     addNewItem,
     removeItem,
 }) => {
+    const { t } = useTranslation('vizConfig');
     const field = useMemo(
         () =>
             fields.find(
@@ -136,9 +138,11 @@ const ChartConditionalFormattingItem: FC<ItemProps> = ({
     );
 
     const description = useMemo(() => {
-        if (config.rules.length === 0) return 'No condition set';
+        if (config.rules.length === 0)
+            return t('chartConditionalFormatting.noConditionSet');
         const firstRule = config.rules[0];
-        if (isIncompleteRule(firstRule)) return 'No condition set';
+        if (isIncompleteRule(firstRule))
+            return t('chartConditionalFormatting.noConditionSet');
         const operator =
             filterOperatorLabel[firstRule.operator] ?? firstRule.operator;
         const values = isConditionalFormattingWithValues(firstRule)
@@ -146,17 +150,20 @@ const ChartConditionalFormattingItem: FC<ItemProps> = ({
             : '';
         const ruleStr = values ? `${operator} ${values}` : operator;
         const extraCount = config.rules.length - 1;
-        const extra =
-            extraCount > 0
-                ? ` +${extraCount} ${extraCount === 1 ? 'rule' : 'rules'}`
-                : '';
-        return `${ruleStr}${extra}`;
-    }, [config.rules]);
+        return extraCount > 0
+            ? t('chartConditionalFormatting.ruleSummaryWithExtra', {
+                  rule: ruleStr,
+                  count: extraCount,
+              })
+            : ruleStr;
+    }, [config.rules, t]);
 
     return (
         <Accordion.Item value={accordionValue}>
             <AccordionControl
-                label={`Rule ${index + 1}`}
+                label={t('chartConditionalFormatting.ruleNumber', {
+                    number: index + 1,
+                })}
                 description={description}
                 extraControlElements={
                     <ColorSelector
@@ -183,10 +190,16 @@ const ChartConditionalFormattingItem: FC<ItemProps> = ({
                             });
                         }}
                         hasGrouping
-                        label={<Config.Label>Select Field</Config.Label>}
+                        label={
+                            <Config.Label>
+                                {t('chartConditionalFormatting.selectField')}
+                            </Config.Label>
+                        }
                     />
                     <Group gap="xs">
-                        <Config.Label>Color</Config.Label>
+                        <Config.Label>
+                            {t('chartConditionalFormatting.color')}
+                        </Config.Label>
                         <ColorSelector
                             color={config.color}
                             swatches={colorPalette}
@@ -219,13 +232,21 @@ const ChartConditionalFormattingItem: FC<ItemProps> = ({
                             {ruleIndex !== config.rules.length - 1 && (
                                 <Divider
                                     mt="xs"
-                                    label={<Config.Label>AND</Config.Label>}
+                                    label={
+                                        <Config.Label>
+                                            {t(
+                                                'chartConditionalFormatting.and',
+                                            )}
+                                        </Config.Label>
+                                    }
                                     labelPosition="center"
                                 />
                             )}
                         </Fragment>
                     ))}
-                    <AddButton onClick={handleAddRule}>Add condition</AddButton>
+                    <AddButton onClick={handleAddRule}>
+                        {t('chartConditionalFormatting.addCondition')}
+                    </AddButton>
                 </Config.Section>
             </Accordion.Panel>
         </Accordion.Item>
@@ -250,6 +271,7 @@ export const ChartConditionalFormatting: FC<Props> = ({
     conditionalFormattings,
     onSetConditionalFormattings,
 }) => {
+    const { t } = useTranslation('vizConfig');
     const supportedConfigs = useMemo(
         () =>
             getSupportedChartConditionalFormattingConfigs(
@@ -363,7 +385,9 @@ export const ChartConditionalFormatting: FC<Props> = ({
     return (
         <Config.Section>
             <Config.Group>
-                <Config.Heading>Rules and Conditions</Config.Heading>
+                <Config.Heading>
+                    {t('chartConditionalFormatting.rulesAndConditions')}
+                </Config.Heading>
                 <AddButton onClick={handleAdd} />
             </Config.Group>
             <Accordion

@@ -1,6 +1,7 @@
 import { FeatureFlags } from '@lightdash/common';
 import { Anchor, Box, Stack } from '@mantine/core';
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import { validate as isUuid } from 'uuid';
 import { DocumentTitle } from '../components/common/DocumentTitle';
@@ -41,6 +42,7 @@ const getRedirectTarget = (
 };
 
 const AgentConnect = () => {
+    const { t } = useTranslation('pages');
     const [searchParams] = useSearchParams();
     const { data: health } = useHealth();
     const flag = useServerFeatureFlag(FeatureFlags.AgentIdentity);
@@ -64,21 +66,21 @@ const AgentConnect = () => {
     }, [enabled, hasValidProject, siteUrl, target, project, entryPoint]);
 
     const explanation = !hasValidProject
-        ? 'This agent sign-in link is missing a valid project.'
+        ? t('agentConnect.missingProject')
         : !flag.isInitialLoading && !enabled
-          ? 'Agent sign-in is not available for your account.'
+          ? t('agentConnect.notAvailable')
           : null;
 
     return (
         <>
-            <DocumentTitle title="Agent connection" />
+            <DocumentTitle title={t('agentConnected.documentTitle')} />
             <Stack>
                 <Box mx="auto" my="lg">
                     <LightdashLogo />
                 </Box>
                 {explanation ? (
                     <SuboptimalState
-                        title="Agent connection unavailable."
+                        title={t('agentConnect.unavailable')}
                         description={explanation}
                         action={
                             <Anchor
@@ -90,13 +92,16 @@ const AgentConnect = () => {
                                 }
                             >
                                 {enabled
-                                    ? 'My agent identity'
-                                    : 'My warehouse connections'}
+                                    ? t('agentConnect.myAgentIdentity')
+                                    : t('agentConnect.myWarehouseConnections')}
                             </Anchor>
                         }
                     />
                 ) : (
-                    <SuboptimalState title="Connecting your agent…" loading />
+                    <SuboptimalState
+                        title={t('agentConnect.connecting')}
+                        loading
+                    />
                 )}
             </Stack>
         </>

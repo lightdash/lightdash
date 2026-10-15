@@ -12,6 +12,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { memo, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../providers/Tracking/useTracking';
@@ -57,6 +58,7 @@ export const FilterPill: FC<Props> = memo(
         hasTabs,
         dashboardUuid,
     }) => {
+        const { t } = useTranslation('dashboardFilters');
         const { track } = useTracking();
         const open = useControlsSidebarSelector((c) => c.open);
         const removeFilterById = useControlsSidebarSelector(
@@ -197,11 +199,18 @@ export const FilterPill: FC<Props> = memo(
                                             </Tooltip>
                                         </Box>
                                     )}
-                                    <Tooltip fz="xs" label="Remove filter">
+                                    <Tooltip
+                                        fz="xs"
+                                        label={t(
+                                            'controls.editor.removeFilter',
+                                        )}
+                                    >
                                         <ActionIcon
                                             size="xs"
                                             radius="xl"
-                                            aria-label="Remove filter"
+                                            aria-label={t(
+                                                'controls.editor.removeFilter',
+                                            )}
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 removeFilterById(filter.id);

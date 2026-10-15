@@ -1,0 +1,543 @@
+{
+    "models": {
+        "opus": "Highest quality. Best for complex builds. Slowest.",
+        "sonnet": "Balanced quality and speed. Good fit for most work.",
+        "haiku": "Fastest. Best for quick iterations and simple tweaks.",
+        "sol": "Highest quality. Best for complex builds.",
+        "terra": "Balanced intelligence and cost. Good fit for most work.",
+        "luna": "Lowest cost. Best for simple iterations and high volume."
+    },
+    "resourcePicker": {
+        "screenshot": {
+            "tooltip": "Capture a screenshot of the preview and attach it",
+            "ariaLabel": "Capture screenshot"
+        },
+        "searchOrPaste": "Search or paste a link...",
+        "loadMore": "Load more",
+        "done": "Done",
+        "queries": {
+            "empty": "No charts found"
+        },
+        "attachedImageAlt": "Attached",
+        "sampleData": {
+            "tooltip": "Include sample data - runs this query and shares up to 10 rows with the app generator so it can see actual values (date ranges, labels, magnitudes). Off by default because rows can be sensitive.",
+            "include": "Include sample data",
+            "includedTooltip": "Sample data included — click to remove.",
+            "on": "Sample data: on",
+            "dashboardSuffix": "Applies to every chart in this dashboard."
+        },
+        "linkLive": {
+            "tooltip": "Link live — run this chart by reference so the app updates when the chart changes in Lightdash.",
+            "ariaLabel": "Link live",
+            "linkedTooltip": "Linked live — click to unlink (revert to a copied query).",
+            "on": "Linked: on"
+        },
+        "dashboard": {
+            "empty": "No dashboards found"
+        },
+        "connections": {
+            "noMatches": "No connections match your search",
+            "noneYet": "No external connections yet",
+            "noneAvailable": "No external connections available",
+            "search": "Search connections...",
+            "askAdmin": "Ask a project admin to enable a connection for builder linking.",
+            "new": "New connection",
+            "unlink": {
+                "title": "Unlink {{name}}?",
+                "titleFallback": "Unlink connection?",
+                "description": "Unlinking removes access to this connection. You may not be able to link it again without help from a project admin.",
+                "confirm": "Unlink connection",
+                "cancel": "Keep connection"
+            },
+            "attachedCount_one": "{{count}} external connection attached",
+            "attachedCount_other": "{{count}} external connections attached",
+            "attachedTooltip": "{{label}}: {{names}}"
+        },
+        "header": {
+            "queries": {
+                "title": "Add queries",
+                "subtitle": "Select queries to include in the app"
+            },
+            "connections": {
+                "title": "Add external connections",
+                "subtitle": "Let the app fetch from these external APIs"
+            },
+            "dashboard": {
+                "title": "Add a dashboard",
+                "subtitle": "All chart tiles will be included as references"
+            }
+        },
+        "attach": {
+            "tooltip": "Add charts, dashboards, connections or files",
+            "ariaLabel": "Attach resources",
+            "button": "Attach"
+        },
+        "menu": {
+            "queries": {
+                "title": "Queries",
+                "description": "Attach saved charts"
+            },
+            "dashboard": {
+                "title": "Dashboard",
+                "description": "Attach all tiles from a dashboard"
+            },
+            "files": {
+                "title": "Files",
+                "limit": "Attachment limit reached",
+                "description": "Upload images, PDFs, or text files"
+            },
+            "connections": {
+                "title": "External connections",
+                "description": "Let the app fetch from external APIs"
+            }
+        },
+        "backToMenu": "Back to attach menu"
+    },
+    "common": {
+        "unknownError": "Unknown error",
+        "removeNamed": "Remove {{name}}",
+        "somethingWentWrong": "Something went wrong"
+    },
+    "actionsMenu": {
+        "thumbnailRemoved": "Thumbnail removed",
+        "thumbnailRemoveFailed": "Failed to remove thumbnail",
+        "ariaLabel": "App actions",
+        "refresh": "Refresh",
+        "scheduleDelivery": "Schedule delivery",
+        "googleSheetsSync": "Google Sheets Sync",
+        "removeVerification": "Remove verification",
+        "verify": "Verify",
+        "new": "New",
+        "upgrade": "Upgrade app",
+        "rename": "Rename",
+        "autoAnalysis": {
+            "title": "Analyse on load",
+            "inheritOn": "Use organization default (on)",
+            "inheritOff": "Use organization default (off)",
+            "on": "On",
+            "off": "Off"
+        },
+        "captureThumbnail": "Capture thumbnail",
+        "removeThumbnail": "Remove thumbnail",
+        "duplicate": "Duplicate",
+        "moveToSpace": "Move to space",
+        "addToSpace": "Add to space",
+        "promote": "Promote",
+        "share": "Share"
+    },
+    "versionHistory": {
+        "buildDetails": "Build details",
+        "buildDetailsFor": "Build details for v{{version}}",
+        "contextCleared": "Agent context cleared",
+        "buildFailed": "Build failed, nothing was published",
+        "building": "Building…",
+        "restore": "Restore",
+        "previewing": "Previewing",
+        "preview": "Preview",
+        "upgradeSummary": "Upgrade summary",
+        "title": "Version history",
+        "backToChat": "Back to chat",
+        "collapse": "Collapse version history",
+        "empty": "No versions yet",
+        "loadEarlier": "Load earlier versions",
+        "viewVersion": "View v{{version}}",
+        "thumbnailAlt": "Thumbnail of v{{version}}"
+    },
+    "moveToSpace": {
+        "screenshotUnsupported": "This app version doesn't support screenshot capture — iterate on it once to update it",
+        "thumbnailNotCaptured": "Thumbnail not captured",
+        "tooltip": {
+            "needsBuild": "The app needs a finished build before a thumbnail can be captured.",
+            "replace": "Capture a fresh screenshot of the app and replace its current thumbnail as part of the move.",
+            "include": "Capture a screenshot of the app and save it as its thumbnail as part of the move."
+        },
+        "replaceThumbnail": "Replace app thumbnail",
+        "includeThumbnail": "Include app thumbnail"
+    },
+    "upgrade": {
+        "start": "Start upgrade",
+        "features": "Features",
+        "fixes": "Fixes",
+        "app": {
+            "title": "Upgrade app",
+            "followUpFixes": "When it is ready, chat will show the completed SDK upgrade.",
+            "followUpFeatures": "When it is ready, chat will show what is now active and which features you can ask the builder to add. Ask for features in chat; nothing that changes your app is added automatically.",
+            "newSince": "This creates a new version of the app using the latest SDK. New since this version was built:",
+            "stale": "This app uses an older SDK. Upgrading includes SDK fixes and compatibility updates.",
+            "current": "This app already includes the available SDK features and fixes. Upgrading again creates a new version from the current template.",
+            "legacy": "This app was built on an older SDK that cannot report its exact capabilities. Upgrading creates a new version from the latest template."
+        },
+        "chartType": {
+            "title": "Upgrade chart type",
+            "followUpFixes": "When it is ready, Version History will show the completed SDK upgrade.",
+            "followUpFeatures": "When it is ready, Version History will show what is now active and which features you can ask the builder to add. Ask for features in the prompt bar; nothing that changes your chart is added automatically.",
+            "newSince": "This creates a new version of the chart type using the latest SDK. New since this version was built:",
+            "stale": "This chart type uses an older SDK. Upgrading includes SDK fixes and compatibility updates.",
+            "current": "This chart type already includes the available SDK features and fixes. Upgrading again creates a new version from the current template.",
+            "legacy": "This chart type was built on an older SDK that cannot report its exact capabilities. Upgrading creates a new version from the latest template.",
+            "remainsAvailable": "The current chart remains available while the upgrade builds. Its fields, options and defaults stay unchanged."
+        }
+    },
+    "header": {
+        "continueBuilding": "Continue building",
+        "refreshTooltip": "Refresh to re-run queries",
+        "copyLink": "Copy link to the app",
+        "viewNetwork": "View network",
+        "info": "App information",
+        "verifiedBy": "Verified by {{name}}"
+    },
+    "info": {
+        "lastModified": "Last modified",
+        "views": "Views",
+        "space": "Space",
+        "personal": "Personal",
+        "slug": "Slug"
+    },
+    "favoritePersonal": {
+        "title": "Add data app to a space",
+        "mustBeInSpace": "Data apps must be in a space to be favorited.",
+        "question": "Would you like to move this data app to a space and favorite it?",
+        "confirm": "Move and favorite",
+        "createSpaceConfirm": "Create space, move and favorite"
+    },
+    "preview": {
+        "loading": "Loading preview...",
+        "loadFailed": "Failed to load preview: {{message}}",
+        "iframeTitle": "App preview"
+    },
+    "recent": {
+        "continueBuildingTitle": "Continue building: {{name}}",
+        "continueBuildingPrefix": "Continue building:",
+        "building": "· Building",
+        "buildingVersion": "· Building v{{version}}",
+        "buildFailed": "· Build failed"
+    },
+    "clearContext": {
+        "title": "Clear agent context",
+        "tooltip": "Start a fresh conversation with agent",
+        "modalTitle": "Clear agent context?",
+        "description": "The agent will forget the current conversation and start fresh from your latest ready version. Unfinished changes from a cancelled build are discarded.",
+        "confirm": "Clear context"
+    },
+    "elementPicker": {
+        "on": "Element picker on – click an element in the preview",
+        "off": "Pick an element in the preview to reference it",
+        "toggle": "Toggle element picker"
+    },
+    "sampleDataButton": {
+        "on": "Sample data included for the next build. Click to remove.",
+        "off": "Share up to 10 rows from the current results with the coding agent for the next build."
+    },
+    "promote": {
+        "title": "Promote data app",
+        "update": "This will add a new version to the existing app in <b>{{project}}</b>.",
+        "create": "This will create a new app in <b>{{project}}</b> from the latest version.",
+        "space": "Space: {{name}}",
+        "personal": "Personal app (no space)"
+    },
+    "restore": {
+        "title": "Restore version {{version}}?",
+        "confirm": "Restore version",
+        "description": "This will create a new version on top of the timeline that duplicates the contents of version {{version}}. Your next prompt will iterate from there.",
+        "failed": "Failed to restore version."
+    },
+    "olderVersion": {
+        "title": "You're viewing version {{version}}",
+        "description": "New prompts always continue from the latest build. Return to version {{latest}}, or restore this version as the new latest to keep iterating from here.",
+        "restore": "Restore this version",
+        "returnToLatest": "Return to latest (v{{latest}})"
+    },
+    "threadDivider": {
+        "cleared": "Context cleared, starting fresh from <code>v{{version}}</code>"
+    },
+    "builder": {
+        "showPanel": "Show build panel",
+        "hidePanel": "Hide build panel"
+    },
+    "historyDrawer": {
+        "ariaLabel": "Project history"
+    },
+    "narration": {
+        "activity": "Activity"
+    },
+    "clarification": {
+        "answerPlaceholder": "Your answer"
+    },
+    "elementRef": {
+        "source": "Source: {{loc}}"
+    },
+    "inspector": {
+        "queriesTab": "Queries ({{count}})",
+        "requestsTab": "Requests ({{count}})",
+        "clearRequests": "Clear external requests",
+        "clearQueries": "Clear queries",
+        "lineage": {
+            "notWired": "Inspect data isn't wired into this app yet — ask the agent to add it",
+            "unsupported": "Inspect data is not available in this app version — upgrade the app to enable it",
+            "on": "Inspect data: on",
+            "off": "Inspect data",
+            "toggle": "Toggle data lineage inspector"
+        },
+        "persistTooltip": "Preserve logs across iframe refreshes and new app versions",
+        "persist": "Persist",
+        "close": "Close inspector panel",
+        "interruptedByReload": "Interrupted by reload"
+    },
+    "queryInspector": {
+        "rows_one": "{{count}} row",
+        "rows_other": "{{count}} rows",
+        "openInExplore": "Open in Explore",
+        "saveToLightdash": "Save to Lightdash",
+        "explore": "Explore",
+        "dimensions": "Dimensions",
+        "metrics": "Metrics",
+        "tableCalculations": "Table Calculations",
+        "additionalMetrics": "Additional Metrics",
+        "error": "Error",
+        "limit": "Limit",
+        "queryUuid": "Query UUID",
+        "executionTime": "Warehouse execution time",
+        "rawJson": "Raw JSON",
+        "empty": "No queries yet"
+    },
+    "requestInspector": {
+        "truncatedBadge": "truncated",
+        "connection": "Connection",
+        "request": "Request",
+        "queryParams": "Query params",
+        "requestBody": "Request body",
+        "responseStatus": "Response status",
+        "contentType": "Content type",
+        "truncatedTitle": "Response truncated",
+        "truncatedBody": "The upstream response exceeded the connection's size cap and was truncated.",
+        "duration": "Duration",
+        "responseBody": "Response body",
+        "empty": "No external requests yet"
+    },
+    "saveQuery": {
+        "untitled": "Untitled query",
+        "nameLabel": "Chart name",
+        "namePlaceholder": "e.g. Weekly revenue",
+        "loadingSpaces": "Loading spaces…",
+        "selectSpace": "Select a space",
+        "noSpaces": "No spaces found"
+    },
+    "templates": {
+        "dashboard": {
+            "title": "Dashboard",
+            "description": "A grid of KPIs and charts for at-a-glance reporting."
+        },
+        "slideshow": {
+            "title": "Slide Show",
+            "description": "A guided narrative - one chart per slide, navigated linearly."
+        },
+        "pdf": {
+            "title": "PDF Report",
+            "description": "A print-friendly document with sections and supporting charts."
+        },
+        "custom": {
+            "title": "From scratch",
+            "description": "Start from scratch and describe whatever you want."
+        },
+        "dataAppViz": {
+            "title": "Data app visualization",
+            "description": "A reusable single-tile chart you can apply to any query like a chart type."
+        }
+    },
+    "viz": {
+        "exportPng": "Export PNG"
+    },
+    "chat": {
+        "previewVersion": "Preview this version",
+        "appReady": "Your app is ready!",
+        "versionReady": "Version {{version}} is ready!"
+    },
+    "generation": {
+        "failed": "Generation failed. Please try again."
+    },
+    "analysis": {
+        "unavailable": {
+            "notRolledOut": "AI analysis is not available for this organization yet.",
+            "copilotOff": "AI is not enabled for this organization.",
+            "orgSettingOff": "AI analysis in data apps is turned off for this organization."
+        },
+        "offChip": {
+            "tooltip": "This app renders AI analysis. {{reason}} Viewers will see nothing until it is on. {{action}}",
+            "clickToTurnOn": "Click to turn it on.",
+            "label": "AI analysis off"
+        },
+        "askAdmin": "Ask an organization admin to turn it on.",
+        "turnOnInSettings": "Turn it on in settings",
+        "severity": {
+            "high": "High",
+            "medium": "Medium",
+            "positive": "Positive",
+            "info": "Info"
+        },
+        "pickAgentToInvestigate": "Pick an agent to investigate",
+        "investigate": "Investigate",
+        "investigating": "Investigating…",
+        "partialAnswer": "The query budget ran out; this is a partial answer.",
+        "continueInAskAi": "Continue in Ask AI",
+        "title": "AI analysis",
+        "noAgent": "You don't have access to an AI agent in this project, so notable data points are listed but can't be investigated.",
+        "agentLabel": "Agent for investigations",
+        "agentPlaceholder": "Pick an agent",
+        "agentMissing": "The agent you picked is no longer available",
+        "analyse": "Analyse this view",
+        "reanalyse": "Re-analyse",
+        "basedOn": "Based on the queries this app ran for the current filters; hidden tabs may be included.",
+        "basedOnCount": "Based on the queries this app ran for the current filters ({{count}}); hidden tabs may be included.",
+        "waitingForQueries": "Waiting for queries to finish.",
+        "reading": "Reading the data on this page…",
+        "stale": {
+            "title": "The view changed",
+            "body": "This analysis covers an earlier set of queries. Re-analyse to refresh it."
+        },
+        "nothingNotable": "Nothing notable found in the current view.",
+        "limitations": "Limitations",
+        "footer": "AI-generated from the data on this page",
+        "dataAsOf": "Data as of {{date}}",
+        "generatedAt": "Generated {{date}}",
+        "expiredTwice": "The data behind this view expired. Refresh the app and analyse again.",
+        "investigationNoResult": "The investigation finished without a result",
+        "unexpectedType": "Unexpected analysis type"
+    },
+    "aiAnalysisSettings": {
+        "title": "AI analysis",
+        "description": "Let viewers analyse what a data app shows and investigate notable data points.",
+        "aiOff": {
+            "title": "AI is not enabled",
+            "body": "AI analysis needs Ask AI enabled for the organization. Turn it on under <link>Ask AI · General</link>."
+        },
+        "enable": {
+            "name": "AI analysis",
+            "description": "Lets viewers analyse the current view of any data app. Sends query results a viewer already has access to, to your configured AI provider."
+        },
+        "auto": {
+            "name": "Analyse automatically on load",
+            "description": "Default for apps: run the analysis when a viewer opens an app, without a click. Stored analyses of identical results are reused."
+        },
+        "continue": {
+            "name": "Continue investigations in Ask AI",
+            "description": "Lets viewers carry an investigation on as an Ask AI thread. The thread stays read-only. Off keeps viewers at the explanation."
+        },
+        "limits": {
+            "title": "Limits",
+            "description": "Caps on how much AI analysis your organization can run. On Lightdash's AI key the daily caps cannot exceed {{analyses}} analyses and {{investigations}} investigations; on your own key they apply as set.",
+            "required": "Enter a value of 1 or more",
+            "noCap": "No cap",
+            "fields": {
+                "dailyDetectCap": {
+                    "label": "Analyses per day",
+                    "description": "Model runs of the analysis across all apps and viewers in your organization per UTC day. Stored analyses of identical results are reused and do not count. Leave empty for no cap."
+                },
+                "dailyInvestigateCap": {
+                    "label": "Investigations per day",
+                    "description": "Agent investigations across all apps and viewers in your organization per UTC day. Leave empty for no cap."
+                },
+                "dailyPromptCap": {
+                    "label": "Prompts per day",
+                    "description": "Answers to in-app AI prompts across all apps and viewers in your organization per UTC day. Leave empty for no cap."
+                },
+                "investigateMaxSteps": {
+                    "label": "Maximum steps per investigation",
+                    "description": "Model steps the agent may take before it must answer."
+                },
+                "investigateMaxWarehouseQueries": {
+                    "label": "Maximum warehouse queries per investigation",
+                    "description": "Queries the agent may run; when reached it explains what it found so far and the result is marked partial."
+                }
+            }
+        }
+    },
+    "generalSettings": {
+        "title": "General",
+        "description": "Organization-wide behaviour of data apps.",
+        "tryAgain": "Try again",
+        "noBrowser": {
+            "title": "No headless browser is configured",
+            "body": "Thumbnails are captured in a headless browser, and this instance does not have one. Automatic capture is skipped until one is configured."
+        },
+        "thumbnails": {
+            "title": "Automatically capture thumbnails",
+            "description": "Each data app version gets a thumbnail when it becomes ready, rendered as the user who created it. Text is blurred so values are not readable. Turning this off keeps existing thumbnails, and thumbnails can still be captured by hand.",
+            "ariaLabel": "Automatically capture thumbnails for data app versions"
+        }
+    },
+    "toasts": {
+        "duplicated": "Data app duplicated",
+        "duplicateFailed": "Failed to duplicate app",
+        "promotedUpdate": "Data app updated in production",
+        "promoted": "Data app promoted to production",
+        "promoteFailed": "Failed to promote app",
+        "upgradeFailed": "Failed to upgrade app",
+        "clearContextFailed": "Failed to clear agent context",
+        "defaultResource": "App",
+        "updated": {
+            "name": "{{resource}} name updated successfully",
+            "description": "{{resource}} description updated successfully",
+            "metadata": "{{resource}} metadata updated successfully"
+        },
+        "updateFailed": "Failed to update {{resource}}",
+        "thumbnailUpdated": "Thumbnail updated",
+        "thumbnailCaptureFailed": "Failed to capture thumbnail",
+        "deleted": "Data app deleted",
+        "deleteFailed": "Failed to delete app",
+        "pinned": "Success! Data app was pinned to homepage",
+        "unpinned": "Success! Data app was unpinned from homepage",
+        "pinFailed": "Failed to pin data app"
+    },
+    "attachLink": {
+        "chartLink": {
+            "title": "That's a chart link",
+            "subtitle": "Attach it from the Queries menu instead."
+        },
+        "dashboardLink": {
+            "title": "That's a dashboard link",
+            "subtitle": "Attach it from the Dashboard menu instead."
+        },
+        "shortLink": {
+            "title": "Short links can't be attached yet",
+            "subtitle": "Open the chart or dashboard and paste the URL from your browser's address bar instead."
+        },
+        "exploration": {
+            "title": "That link points to an exploration",
+            "subtitle": "Only saved charts and dashboards can be attached. Save the chart first, then paste its link."
+        },
+        "otherProject": {
+            "chart": "That chart is in a different project",
+            "dashboard": "That dashboard is in a different project",
+            "subtitle": "Data apps can only use content from the project they are built in."
+        },
+        "chartFailed": "Couldn't attach that chart",
+        "dashboardFailed": "Couldn't attach that dashboard"
+    },
+    "upload": {
+        "failed": "Upload failed: {{status}}",
+        "tooLarge": {
+            "title": "File too large",
+            "subtitle": "{{name}} exceeds the 10MB limit."
+        },
+        "unsupported": {
+            "title": "Unsupported file type",
+            "subtitle": "{{name}}: attach images (PNG, JPEG, GIF, WEBP), PDFs, or text-based files (JSON, CSV, Markdown, TWB, code, …)."
+        },
+        "thumbnailFailed": "Thumbnail upload failed: {{status}}"
+    },
+    "notification": {
+        "ready": {
+            "title": "{{app}} - version ready!",
+            "body": "Version {{version}} has finished building."
+        },
+        "failed": {
+            "title": "{{app}} - build failed",
+            "body": "Version {{version}} failed to build."
+        }
+    },
+    "screenshot": {
+        "missingBlob": "Screenshot response missing blob",
+        "iframeUnavailable": "Iframe not available",
+        "timedOut": "Screenshot timed out"
+    }
+}

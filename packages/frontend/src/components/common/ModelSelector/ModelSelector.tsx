@@ -12,6 +12,7 @@ import {
 } from '@mantine/core';
 import { IconBolt, IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useUiString } from '../../../ee/providers/Embed/useUiStrings';
 import MantineIcon from '../MantineIcon';
 import { RetiredModelBadge } from './RetiredModelBadge';
@@ -55,6 +56,7 @@ export const ModelSelector: FC<Props> = ({
     agentDefault,
     ...buttonProps
 }) => {
+    const { t } = useTranslation('commonUi');
     const agentDefaultLabel = useUiString('aiAgent.modelSelector.agentDefault');
     const selectedModel = useMemo(
         () => models.find((m) => getModelKey(m) === value),
@@ -88,7 +90,9 @@ export const ModelSelector: FC<Props> = ({
     const showReasoning =
         selectedModel?.supportsReasoning === true &&
         onReasoningChange !== undefined;
-    const reasoningLabel = reasoningEnabled ? 'High' : null;
+    const reasoningLabel = reasoningEnabled
+        ? t('modelSelector.reasoningHigh')
+        : null;
 
     const showFastMode = onFastModeChange !== undefined;
     const fastModeOn = showFastMode && fastModeEnabled;
@@ -101,7 +105,7 @@ export const ModelSelector: FC<Props> = ({
         <Menu width={340} position="top-end" offset={8}>
             <Menu.Target>
                 <Tooltip
-                    label="Jev picks the quickest way to answer, so simple questions come back faster"
+                    label={t('modelSelector.fastModeTooltip')}
                     multiline
                     w={240}
                     position="top"
@@ -132,7 +136,8 @@ export const ModelSelector: FC<Props> = ({
                     >
                         <Group gap={6} wrap="nowrap">
                             <Text size="xs" fw={600} c="ldGray.8" span>
-                                {selectedModel?.displayName ?? 'Select model'}
+                                {selectedModel?.displayName ??
+                                    t('modelSelector.selectModel')}
                             </Text>
                             {showReasoning && reasoningLabel && (
                                 <Text size="xs" fw={500} c="dimmed" span>
@@ -150,8 +155,8 @@ export const ModelSelector: FC<Props> = ({
                         <Menu.Item
                             aria-label={
                                 fastModeOn
-                                    ? 'Disable Fast mode'
-                                    : 'Enable Fast mode'
+                                    ? t('modelSelector.disableFastMode')
+                                    : t('modelSelector.enableFastMode')
                             }
                             closeMenuOnClick={false}
                             onClick={() => onFastModeChange(!fastModeOn)}
@@ -174,10 +179,10 @@ export const ModelSelector: FC<Props> = ({
                         >
                             <Stack gap={0}>
                                 <Text size="sm" fw={500}>
-                                    Fast
+                                    {t('modelSelector.fast')}
                                 </Text>
                                 <Text size="xs" c="dimmed">
-                                    Quickest route for simple questions
+                                    {t('modelSelector.fastDescription')}
                                 </Text>
                             </Stack>
                         </Menu.Item>
@@ -186,7 +191,7 @@ export const ModelSelector: FC<Props> = ({
                 )}
                 {showReasoning && (
                     <>
-                        <Menu.Label>Reasoning</Menu.Label>
+                        <Menu.Label>{t('modelSelector.reasoning')}</Menu.Label>
                         <Menu.Item
                             onClick={() => onReasoningChange(false)}
                             rightSection={
@@ -199,7 +204,7 @@ export const ModelSelector: FC<Props> = ({
                                 ) : null
                             }
                         >
-                            Default
+                            {t('modelSelector.reasoningDefault')}
                         </Menu.Item>
                         <Menu.Item
                             onClick={() => onReasoningChange(true)}
@@ -213,7 +218,7 @@ export const ModelSelector: FC<Props> = ({
                                 ) : null
                             }
                         >
-                            High
+                            {t('modelSelector.reasoningHigh')}
                         </Menu.Item>
                         {visibleModels.length > 1 && <Menu.Divider />}
                     </>

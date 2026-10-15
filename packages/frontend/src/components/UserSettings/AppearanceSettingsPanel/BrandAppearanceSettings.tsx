@@ -25,6 +25,7 @@ import {
     IconWorld,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useColorPalettes,
     useCreateColorPalette,
@@ -103,6 +104,7 @@ const brandToForm = (brand: OrganizationBrand | null): BrandFormValues => ({
 const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
     brand,
 }) => {
+    const { t } = useTranslation('userSettings');
     const fetchMutation = useFetchOrganizationBrand();
     const saveMutation = useSaveOrganizationBrand();
     const [generatedPalette, setGeneratedPalette] = useState<string[] | null>(
@@ -172,20 +174,26 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
             <Box className={classes.grid}>
                 <Stack gap="md">
                     <TextInput
-                        label="Brand domain"
+                        label={t(
+                            'appearanceSettingsPanel.brandAppearance.domainLabel',
+                        )}
                         placeholder="acme.com"
                         leftSection={<MantineIcon icon={IconWorld} />}
                         {...form.getInputProps('domain')}
                         rightSection={
                             <Tooltip
-                                label="Fetch brand from this domain"
+                                label={t(
+                                    'appearanceSettingsPanel.brandAppearance.fetchBrandTooltip',
+                                )}
                                 position="top"
                             >
                                 <ActionIcon
                                     color={domainChanged ? 'blue' : 'gray'}
                                     loading={fetchMutation.isLoading}
                                     onClick={() => void handleRefresh()}
-                                    aria-label="Fetch brand from domain"
+                                    aria-label={t(
+                                        'appearanceSettingsPanel.brandAppearance.fetchBrandAriaLabel',
+                                    )}
                                 >
                                     <MantineIcon icon={IconRefresh} />
                                 </ActionIcon>
@@ -237,11 +245,14 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
                     <Stack gap="xs">
                         <Box>
                             <Text size="sm" fw={500}>
-                                Brand colors
+                                {t(
+                                    'appearanceSettingsPanel.brandAppearance.brandColors',
+                                )}
                             </Text>
                             <Text size="xs" c="dimmed">
-                                Colors are auto-detected from your brand. Edit
-                                any value.
+                                {t(
+                                    'appearanceSettingsPanel.brandAppearance.brandColorsDescription',
+                                )}
                             </Text>
                         </Box>
 
@@ -289,7 +300,9 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
                                         */}
                                     </Box>
                                     <Tooltip
-                                        label="Remove color"
+                                        label={t(
+                                            'appearanceSettingsPanel.brandAppearance.removeColor',
+                                        )}
                                         position="top"
                                     >
                                         <ActionIcon
@@ -300,7 +313,9 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
                                                     index,
                                                 )
                                             }
-                                            aria-label="Remove color"
+                                            aria-label={t(
+                                                'appearanceSettingsPanel.brandAppearance.removeColor',
+                                            )}
                                         >
                                             <MantineIcon icon={IconTrash} />
                                         </ActionIcon>
@@ -320,7 +335,9 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
                                     })
                                 }
                             >
-                                Add color
+                                {t(
+                                    'appearanceSettingsPanel.brandAppearance.addColor',
+                                )}
                             </Button>
                         </Stack>
                     </Stack>
@@ -328,11 +345,14 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
                     <Stack gap="xs">
                         <Box>
                             <Text size="sm" fw={500}>
-                                Chart palette
+                                {t(
+                                    'appearanceSettingsPanel.brandAppearance.chartPalette',
+                                )}
                             </Text>
                             <Text size="xs" c="dimmed">
-                                Expand your brand colors into a full chart
-                                palette.
+                                {t(
+                                    'appearanceSettingsPanel.brandAppearance.chartPaletteDescription',
+                                )}
                             </Text>
                         </Box>
                         <Button
@@ -342,7 +362,9 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
                             onClick={handleGeneratePalette}
                             disabled={form.values.colors.length === 0}
                         >
-                            Generate palette
+                            {t(
+                                'appearanceSettingsPanel.brandAppearance.generatePalette',
+                            )}
                         </Button>
                         {generatedPalette && generatedPalette.length > 0 && (
                             <Group gap={4}>
@@ -378,8 +400,12 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
                                     name: '',
                                     colors: generatedPalette,
                                 }}
-                                title="Chart palette from your brand"
-                                submitButtonText="Create palette"
+                                title={t(
+                                    'appearanceSettingsPanel.brandAppearance.paletteModalTitle',
+                                )}
+                                submitButtonText={t(
+                                    'appearanceSettingsPanel.createPaletteModal.submit',
+                                )}
                                 existingPaletteNames={palettes.map(
                                     (palette) => palette.name,
                                 )}
@@ -390,7 +416,7 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
 
                 <Stack gap="xs">
                     <Text size="sm" c="dimmed">
-                        Preview
+                        {t('appearanceSettingsPanel.brandAppearance.preview')}
                     </Text>
                     <BrandPreview
                         name={form.values.name}
@@ -408,7 +434,9 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
                     <Group gap="xs">
                         <Box className={classes.unsavedDot} />
                         <Text size="sm" c="yellow.7" fw={500}>
-                            Unsaved changes
+                            {t(
+                                'appearanceSettingsPanel.brandAppearance.unsavedChanges',
+                            )}
                         </Text>
                     </Group>
                     <Group gap="sm">
@@ -417,13 +445,17 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
                             onClick={() => form.reset()}
                             disabled={saveMutation.isLoading}
                         >
-                            Revert
+                            {t(
+                                'appearanceSettingsPanel.brandAppearance.revert',
+                            )}
                         </Button>
                         <Button
                             onClick={handleSave}
                             loading={saveMutation.isLoading}
                         >
-                            Save changes
+                            {t(
+                                'appearanceSettingsPanel.brandAppearance.saveChanges',
+                            )}
                         </Button>
                     </Group>
                 </Group>
@@ -433,6 +465,7 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
 };
 
 export const BrandAppearanceSettings: FC = () => {
+    const { t } = useTranslation('userSettings');
     const { data: brand, isInitialLoading } = useOrganizationBrand();
     const { data: health } = useHealth();
 
@@ -457,9 +490,13 @@ export const BrandAppearanceSettings: FC = () => {
         <SettingsCard mb="lg">
             <Stack gap="md">
                 <Box>
-                    <Text fw={600}>Brand appearance</Text>
+                    <Text fw={600}>
+                        {t('appearanceSettingsPanel.brandAppearance.title')}
+                    </Text>
                     <Text size="sm" c="dimmed">
-                        Your brand can be used to generate color palettes.
+                        {t(
+                            'appearanceSettingsPanel.brandAppearance.description',
+                        )}
                     </Text>
                 </Box>
                 <BrandAppearanceForm

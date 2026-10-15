@@ -1,5 +1,4 @@
 import {
-    capitalize,
     getJiraIssueIdentifier,
     getLinearIssueIdentifier,
     type AiAgentReviewItemSummary,
@@ -22,6 +21,7 @@ import {
     IconMessages,
 } from '@tabler/icons-react';
 import { type FC, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
@@ -93,6 +93,7 @@ export const IssueDetailModal: FC<Props> = ({
     isOpen,
     onClose,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const [threadOpened, { open: openThread, close: closeThread }] =
         useDisclosure(false);
     const hasThread = Boolean(projectUuid && agentUuid && threadUuid);
@@ -135,7 +136,10 @@ export const IssueDetailModal: FC<Props> = ({
         ? formatReviewDate(item.firstSeenAt) ===
           formatReviewDate(item.lastSeenAt)
             ? formatReviewDate(item.lastSeenAt)
-            : `${formatReviewDate(item.firstSeenAt)} – ${formatReviewDate(item.lastSeenAt)}`
+            : t('issueModal.seenRange', {
+                  first: formatReviewDate(item.firstSeenAt),
+                  last: formatReviewDate(item.lastSeenAt),
+              })
         : null;
     const reasoningText = item ? getReviewReasoningText(item) : null;
     const targetAnchor = item ? getTargetAnchor(item) : null;
@@ -157,7 +161,7 @@ export const IssueDetailModal: FC<Props> = ({
         ? (writebackBlockedReasonDescriptions[blockedReason] ?? null)
         : null;
 
-    const headerTitle = item ? getIssueTitle(item) : 'Issue';
+    const headerTitle = item ? getIssueTitle(item) : t('issueModal.issue');
 
     return (
         <>
@@ -231,7 +235,9 @@ export const IssueDetailModal: FC<Props> = ({
                                             className={styles.metaSep}
                                         />
                                         <Text className={styles.recurrence}>
-                                            Recurs {item.findingCount}×
+                                            {t('issueModal.recurs', {
+                                                count: item.findingCount,
+                                            })}
                                         </Text>
                                     </>
                                 )}
@@ -239,7 +245,7 @@ export const IssueDetailModal: FC<Props> = ({
 
                             <Stack gap="md">
                                 <Text className={styles.sectionLabel}>
-                                    Description
+                                    {t('issueModal.description')}
                                 </Text>
                                 {reasoningText && (
                                     <Box className={styles.description}>
@@ -253,7 +259,7 @@ export const IssueDetailModal: FC<Props> = ({
                                 high-signal, so it leads. */}
                                 <Stack gap="md">
                                     <Text className={styles.sectionLabel}>
-                                        Activity
+                                        {t('issueModal.activity')}
                                     </Text>
                                     <Box className={styles.panel}>
                                         <RemediationActivityTimeline
@@ -285,7 +291,7 @@ export const IssueDetailModal: FC<Props> = ({
                                                         styles.sectionLabel
                                                     }
                                                 >
-                                                    Evidence
+                                                    {t('issueModal.evidence')}
                                                 </Text>
                                                 {hasThread && (
                                                     <Button
@@ -315,7 +321,9 @@ export const IssueDetailModal: FC<Props> = ({
                                                             />
                                                         }
                                                     >
-                                                        Read full conversation
+                                                        {t(
+                                                            'issueModal.readConversation',
+                                                        )}
                                                     </Button>
                                                 )}
                                             </Group>
@@ -329,9 +337,7 @@ export const IssueDetailModal: FC<Props> = ({
                                                         styles.evidenceEmpty
                                                     }
                                                 >
-                                                    No excerpts were captured —
-                                                    open the full conversation
-                                                    to see what triggered this.
+                                                    {t('issueModal.noExcerpts')}
                                                 </Text>
                                             )}
                                         </Stack>
@@ -345,10 +351,10 @@ export const IssueDetailModal: FC<Props> = ({
                             <Box
                                 component="aside"
                                 className={styles.railCard}
-                                aria-label="Issue properties"
+                                aria-label={t('issueModal.properties')}
                             >
                                 <Stack gap={2}>
-                                    <RailRow label="Status">
+                                    <RailRow label={t('issueModal.status')}>
                                         <Box
                                             className={styles.statusPill}
                                             component="span"
@@ -358,16 +364,13 @@ export const IssueDetailModal: FC<Props> = ({
                                                 bg={`${threadReviewStatusColors[item.status]}.6`}
                                             />
                                             <Text className={styles.railText}>
-                                                {capitalize(
-                                                    item.status.replaceAll(
-                                                        '_',
-                                                        ' ',
-                                                    ),
+                                                {t(
+                                                    `reviews.statuses.${item.status}`,
                                                 )}
                                             </Text>
                                         </Box>
                                     </RailRow>
-                                    <RailRow label="Priority">
+                                    <RailRow label={t('issueModal.priority')}>
                                         <ReviewPriorityMenu
                                             fingerprint={item.fingerprint}
                                             priority={item.priority}
@@ -375,7 +378,7 @@ export const IssueDetailModal: FC<Props> = ({
                                             className={styles.railBadge}
                                         />
                                     </RailRow>
-                                    <RailRow label="Assignee">
+                                    <RailRow label={t('issueModal.assignee')}>
                                         <ReviewAssigneeMenu
                                             projectUuid={item.projectUuid}
                                             fingerprint={item.fingerprint}
@@ -386,7 +389,7 @@ export const IssueDetailModal: FC<Props> = ({
                                         />
                                     </RailRow>
                                     {agent && (
-                                        <RailRow label="Agent">
+                                        <RailRow label={t('issueModal.agent')}>
                                             <Group gap={6} wrap="nowrap">
                                                 <LightdashUserAvatar
                                                     size={18}
@@ -402,21 +405,23 @@ export const IssueDetailModal: FC<Props> = ({
                                         </RailRow>
                                     )}
                                     {projectName && (
-                                        <RailRow label="Project">
+                                        <RailRow
+                                            label={t('issueModal.project')}
+                                        >
                                             <Text className={styles.railText}>
                                                 {projectName}
                                             </Text>
                                         </RailRow>
                                     )}
                                     {seenValue && (
-                                        <RailRow label="Seen">
+                                        <RailRow label={t('issueModal.seen')}>
                                             <Text className={styles.railText}>
                                                 {seenValue}
                                             </Text>
                                         </RailRow>
                                     )}
                                     {item.linkedIssueUrl && (
-                                        <RailRow label="Linear">
+                                        <RailRow label={t('issueModal.linear')}>
                                             <Anchor
                                                 href={item.linkedIssueUrl}
                                                 target="_blank"
@@ -430,12 +435,15 @@ export const IssueDetailModal: FC<Props> = ({
                                                 />
                                                 {getLinearIssueIdentifier(
                                                     item.linkedIssueUrl,
-                                                ) ?? 'Open in Linear'}
+                                                ) ??
+                                                    t(
+                                                        'issueModal.openInLinear',
+                                                    )}
                                             </Anchor>
                                         </RailRow>
                                     )}
                                     {item.linkedJiraIssueUrl && (
-                                        <RailRow label="Jira">
+                                        <RailRow label={t('issueModal.jira')}>
                                             <Anchor
                                                 href={item.linkedJiraIssueUrl}
                                                 target="_blank"
@@ -449,12 +457,14 @@ export const IssueDetailModal: FC<Props> = ({
                                                 />
                                                 {getJiraIssueIdentifier(
                                                     item.linkedJiraIssueUrl,
-                                                ) ?? 'Open in Jira'}
+                                                ) ?? t('issueModal.openInJira')}
                                             </Anchor>
                                         </RailRow>
                                     )}
                                     {item.linkedPrUrl && (
-                                        <RailRow label="Pull request">
+                                        <RailRow
+                                            label={t('issueModal.pullRequest')}
+                                        >
                                             <Anchor
                                                 href={item.linkedPrUrl}
                                                 target="_blank"
@@ -466,7 +476,7 @@ export const IssueDetailModal: FC<Props> = ({
                                                     size={14}
                                                     stroke={1.4}
                                                 />
-                                                View PR
+                                                {t('issueModal.viewPr')}
                                             </Anchor>
                                         </RailRow>
                                     )}
@@ -501,7 +511,7 @@ export const IssueDetailModal: FC<Props> = ({
                     opened={threadOpened}
                     onClose={closeThread}
                     size="46rem"
-                    title="Conversation"
+                    title={t('issueModal.conversation')}
                     cancelLabel={false}
                     modalBodyProps={{ px: 0, py: 0 }}
                     bodyScrollAreaMaxHeight="calc(85vh - 130px)"
@@ -512,7 +522,7 @@ export const IssueDetailModal: FC<Props> = ({
                             rel="noopener noreferrer"
                             className={styles.toggle}
                         >
-                            Open in tab
+                            {t('issueModal.openInTab')}
                             <MantineIcon
                                 icon={IconExternalLink}
                                 size={13}

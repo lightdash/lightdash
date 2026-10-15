@@ -19,6 +19,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import {
     ContentTable,
@@ -39,6 +40,7 @@ type Props = {
 };
 
 export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const navigate = useNavigate();
     const theme = useMantineTheme();
 
@@ -71,7 +73,7 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
             () => [
                 {
                     accessorKey: 'runUuid',
-                    header: 'Run ID',
+                    header: t('evals.runs.columns.runId'),
                     enableSorting: false,
                     size: 120,
                     Cell: ({ row }) => (
@@ -82,7 +84,7 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                 },
                 {
                     accessorKey: 'status',
-                    header: 'Run Status',
+                    header: t('evals.runs.columns.runStatus'),
                     enableSorting: false,
                     size: 150,
                     Cell: ({ row }) => {
@@ -95,24 +97,24 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                                 c="ldGray.7"
                                 style={{ border: 'none' }}
                             >
-                                {evalStatus.label}
+                                {t(evalStatus.labelKey)}
                             </Badge>
                         );
                     },
                 },
                 {
                     accessorKey: 'assessment',
-                    header: 'Assessment',
+                    header: t('evals.runs.columns.assessment'),
                     enableSorting: false,
                     size: 140,
                     Cell: ({ row }) => {
                         const run = row.original;
                         return isRunning(run.status) ? (
-                            <Tooltip label="Running">
+                            <Tooltip label={t('evals.runs.running')}>
                                 <Loader size={12} color="gray" />
                             </Tooltip>
                         ) : !run.passedAssessments && !run.failedAssessments ? (
-                            <Tooltip label="No assessments available">
+                            <Tooltip label={t('evals.runs.noAssessments')}>
                                 <MantineIcon
                                     icon={IconCircleDotted}
                                     color="dimmed"
@@ -148,7 +150,7 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                 },
                 {
                     accessorKey: 'createdAt',
-                    header: 'Created',
+                    header: t('evals.runs.columns.created'),
                     enableSorting: false,
                     size: 180,
                     Cell: ({ row }) => {
@@ -166,11 +168,15 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                                 position="left-start"
                                 label={
                                     <Text size="xs">
-                                        Started {createdAt}
+                                        {t('evals.runs.started', {
+                                            date: createdAt,
+                                        })}
                                         {run.completedAt && (
                                             <>
                                                 <br />
-                                                Completed {completedAt}
+                                                {t('evals.runs.completed', {
+                                                    date: completedAt,
+                                                })}
                                             </>
                                         )}
                                     </Text>
@@ -185,7 +191,7 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                 },
                 {
                     accessorKey: 'duration',
-                    header: 'Duration',
+                    header: t('evals.runs.columns.duration'),
                     enableSorting: false,
                     size: 120,
                     Cell: ({ row }) => {
@@ -211,7 +217,7 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                     },
                 },
             ],
-            [],
+            [t],
         );
 
     const table = useContentTable({
@@ -291,7 +297,7 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
     return (
         <Stack gap="xs">
             <Title order={5} fw={500}>
-                Previous Runs
+                {t('evals.runs.previousRuns')}
             </Title>
 
             {!runs || runs.length === 0 ? (
@@ -303,10 +309,9 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                     align="center"
                 >
                     <MantineIcon icon={IconClock} size="lg" color="dimmed" />
-                    <Title order={5}>No evaluation runs yet</Title>
+                    <Title order={5}>{t('evals.runs.emptyTitle')}</Title>
                     <Text size="sm" c="dimmed" ta="center">
-                        Run this evaluation to see the results and performance
-                        metrics.
+                        {t('evals.runs.emptyDescription')}
                     </Text>
                 </Paper>
             ) : (

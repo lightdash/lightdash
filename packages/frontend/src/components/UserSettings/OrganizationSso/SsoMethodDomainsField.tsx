@@ -1,5 +1,6 @@
 import { Anchor, Checkbox, MultiSelect, Stack, Text } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useVerifiedDomains } from '../../../hooks/organization/useOrganizationDomainVerification';
 
@@ -13,9 +14,7 @@ type Props = {
 };
 
 const verifiedDomainsLink = (
-    <Anchor component={Link} to="/generalSettings/verifiedDomains" size="xs">
-        Verified domains
-    </Anchor>
+    <Anchor component={Link} to="/generalSettings/verifiedDomains" size="xs" />
 );
 
 /**
@@ -33,6 +32,7 @@ const SsoMethodDomainsField: FC<Props> = ({
     onDomainsChange,
     error,
 }) => {
+    const { t } = useTranslation('userSettings');
     const { data: verifiedDomains, isInitialLoading } = useVerifiedDomains();
     const options = (verifiedDomains ?? []).map((d) => d.domain);
     const hasVerifiedDomains = options.length > 0;
@@ -40,8 +40,13 @@ const SsoMethodDomainsField: FC<Props> = ({
     return (
         <Stack gap="xs">
             <Checkbox
-                label="Restrict to specific verified domains"
-                description={`When off, all of your organization's verified domains route to ${providerLabel}.`}
+                label={t('organizationSso.domainsField.restrict')}
+                description={t(
+                    'organizationSso.domainsField.restrictDescription',
+                    {
+                        provider: providerLabel,
+                    },
+                )}
                 checked={override}
                 onChange={(event) =>
                     onOverrideChange(event.currentTarget.checked)
@@ -49,20 +54,31 @@ const SsoMethodDomainsField: FC<Props> = ({
             />
             {override ? (
                 <MultiSelect
-                    label="Verified domains for this method"
+                    label={t('organizationSso.domainsField.selectLabel')}
                     description={
                         hasVerifiedDomains ? (
-                            `Only users whose email domain matches one of these will see ${providerLabel}.`
+                            t(
+                                'organizationSso.domainsField.selectDescription',
+                                {
+                                    provider: providerLabel,
+                                },
+                            )
                         ) : (
                             <Text span size="xs">
-                                {providerLabel} cannot be used until you verify
-                                a domain in {verifiedDomainsLink}.
+                                <Trans
+                                    t={t}
+                                    i18nKey="organizationSso.domainsField.cannotBeUsed"
+                                    values={{ provider: providerLabel }}
+                                    components={{ link: verifiedDomainsLink }}
+                                />
                             </Text>
                         )
                     }
                     placeholder={
                         hasVerifiedDomains
-                            ? 'Select verified domains'
+                            ? t(
+                                  'organizationSso.domainsField.selectPlaceholder',
+                              )
                             : undefined
                     }
                     data={options}
@@ -75,15 +91,23 @@ const SsoMethodDomainsField: FC<Props> = ({
             ) : (
                 <Text size="sm" c="dimmed">
                     {hasVerifiedDomains ? (
-                        <>
-                            All of your organization's verified domains route to{' '}
-                            {providerLabel}: <b>{options.join(', ')}</b>
-                        </>
+                        <Trans
+                            t={t}
+                            i18nKey="organizationSso.domainsField.allDomainsRoute"
+                            values={{
+                                provider: providerLabel,
+                                domains: options.join(', '),
+                            }}
+                            components={{ b: <b /> }}
+                        />
                     ) : (
                         <Text span size="sm" c="dimmed">
-                            {providerLabel} cannot be used yet. Verify a domain
-                            in {verifiedDomainsLink} before users can sign in
-                            with this provider.
+                            <Trans
+                                t={t}
+                                i18nKey="organizationSso.domainsField.cannotBeUsedYet"
+                                values={{ provider: providerLabel }}
+                                components={{ link: verifiedDomainsLink }}
+                            />
                         </Text>
                     )}
                 </Text>

@@ -12,6 +12,7 @@ import {
 } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
     getChartTypeIcon,
@@ -26,6 +27,7 @@ interface Props {
 }
 
 const ChartTypeIconPicker: FC<Props> = ({ value, onChange, disabled }) => {
+    const { t } = useTranslation('chartTypes');
     const [isOpen, setIsOpen] = useState(false);
     const [search, setSearch] = useState('');
 
@@ -54,12 +56,12 @@ const ChartTypeIconPicker: FC<Props> = ({ value, onChange, disabled }) => {
             }}
         >
             <Popover.Target>
-                <Tooltip label="Choose an icon" disabled={isOpen}>
+                <Tooltip label={t('iconPicker.chooseIcon')} disabled={isOpen}>
                     <ActionIcon
                         variant="default"
                         size="lg"
                         display="flex"
-                        aria-label="Chart type icon"
+                        aria-label={t('iconPicker.ariaLabel')}
                         disabled={disabled}
                         onClick={() => setIsOpen((opened) => !opened)}
                     >
@@ -74,7 +76,7 @@ const ChartTypeIconPicker: FC<Props> = ({ value, onChange, disabled }) => {
                         size="xs"
                         autoFocus
                         leftSection={<MantineIcon icon={IconSearch} />}
-                        placeholder="Search icons"
+                        placeholder={t('iconPicker.search')}
                         value={search}
                         onChange={(event) =>
                             setSearch(event.currentTarget.value)
@@ -87,7 +89,7 @@ const ChartTypeIconPicker: FC<Props> = ({ value, onChange, disabled }) => {
                     >
                         {filteredIcons.length === 0 ? (
                             <Text size="xs" c="dimmed" ta="center" py="xs">
-                                No icons match
+                                {t('iconPicker.noMatch')}
                             </Text>
                         ) : (
                             <Box className={classes.grid}>
@@ -133,7 +135,7 @@ const ChartTypeIconPicker: FC<Props> = ({ value, onChange, disabled }) => {
                             variant="subtle"
                             onClick={() => handleSelect(null)}
                         >
-                            No icon
+                            {t('iconPicker.noIcon')}
                         </Button>
                     )}
                 </Stack>

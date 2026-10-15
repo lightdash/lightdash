@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import TransferItemsModal from '../../components/common/TransferItemsModal/TransferItemsModal';
 import { useContentAction } from '../../hooks/useContent';
 
@@ -39,6 +40,7 @@ const toResourceViewItem = (document: Document): ResourceViewDocumentItem => ({
 
 /** Saves a personal Document into a Space, keeping its URL and versions. */
 const SaveDocumentToSpaceModal: FC<Props> = ({ document, opened, onClose }) => {
+    const { t } = useTranslation('documents');
     const queryClient = useQueryClient();
     const { mutateAsync: contentAction, isLoading } = useContentAction(
         document.projectUuid,
@@ -51,10 +53,10 @@ const SaveDocumentToSpaceModal: FC<Props> = ({ document, opened, onClose }) => {
             onClose={onClose}
             items={[toResourceViewItem(document)]}
             isLoading={isLoading}
-            title="Save to a space"
-            description="Everyone with access to the space will be able to see this document."
-            confirmLabel="Save"
-            createSpaceConfirmLabel="Create space & save"
+            title={t('saveToSpace.title')}
+            description={t('saveToSpace.description')}
+            confirmLabel={t('actions.save', { ns: 'common' })}
+            createSpaceConfirmLabel={t('saveToSpace.createSpaceConfirm')}
             onConfirm={async (targetSpaceUuid) => {
                 if (!targetSpaceUuid) {
                     return;

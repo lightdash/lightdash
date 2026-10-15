@@ -33,6 +33,7 @@ import {
     useMemo,
     useState,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import {
@@ -54,6 +55,7 @@ import ProjectsFilter from './ProjectsFilter';
 import { SearchFilter } from './SearchFilter';
 
 const AiAgentAdminAgentsTable = () => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const theme = useMantineTheme();
     const navigate = useNavigate();
     const { pathname, search: locationSearch } = useLocation();
@@ -204,7 +206,7 @@ const AiAgentAdminAgentsTable = () => {
         () => [
             {
                 accessorKey: 'name',
-                header: 'Agent Name',
+                header: t('agentsTable.columns.name'),
                 enableSorting: false,
                 size: 250,
                 Header: ({ column }) => (
@@ -233,7 +235,7 @@ const AiAgentAdminAgentsTable = () => {
             },
             {
                 accessorKey: 'projectUuid',
-                header: 'Project',
+                header: t('agentsTable.columns.project'),
                 enableSorting: true,
                 size: 200,
                 Header: ({ column }) => (
@@ -246,14 +248,14 @@ const AiAgentAdminAgentsTable = () => {
                     const project = projectsMap.get(row.original.projectUuid);
                     return (
                         <Text fz="sm" fw={400}>
-                            {project?.name ?? 'Unknown Project'}
+                            {project?.name ?? t('agentsTable.unknownProject')}
                         </Text>
                     );
                 },
             },
             {
                 accessorKey: 'tags',
-                header: 'Tags',
+                header: t('agentsTable.columns.tags'),
                 enableSorting: false,
                 size: 150,
                 Header: ({ column }) => (
@@ -267,7 +269,7 @@ const AiAgentAdminAgentsTable = () => {
                     if (!agent.tags || agent.tags.length === 0) {
                         return (
                             <Text c="ldGray.5" fz="xs" fs="italic">
-                                No tags
+                                {t('agentsTable.noTags')}
                             </Text>
                         );
                     }
@@ -280,7 +282,9 @@ const AiAgentAdminAgentsTable = () => {
                             ))}
                             {agent.tags.length > 3 && (
                                 <Text c="dimmed" fz="xs">
-                                    +{agent.tags.length - 3} more
+                                    {t('agentsTable.moreTags', {
+                                        count: agent.tags.length - 3,
+                                    })}
                                 </Text>
                             )}
                         </Group>
@@ -289,7 +293,7 @@ const AiAgentAdminAgentsTable = () => {
             },
             {
                 accessorKey: 'integrations',
-                header: 'Integrations',
+                header: t('agentsTable.columns.integrations'),
                 enableSorting: false,
                 size: 150,
                 Header: ({ column }) => (
@@ -304,7 +308,7 @@ const AiAgentAdminAgentsTable = () => {
                     if (agent.integrations.length === 0) {
                         return (
                             <Text c="ldGray.5" fz="xs" fs="italic">
-                                None
+                                {t('agentsTable.none')}
                             </Text>
                         );
                     }
@@ -328,18 +332,20 @@ const AiAgentAdminAgentsTable = () => {
                                                 label={
                                                     isResolved
                                                         ? channelName
-                                                        : 'Channel not cached yet. If this is a private channel, add the integration to the channel manually'
+                                                        : t(
+                                                              'agentsTable.channelNotCached',
+                                                          )
                                                 }
                                                 maw={300}
                                             >
                                                 <Paper
                                                     w="fit-content"
                                                     maw="100%"
-                                                    style={(t) =>
+                                                    style={(mantineTheme) =>
                                                         isResolved
                                                             ? undefined
                                                             : {
-                                                                  border: `1px dashed ${t.colors.ldGray[4]}`,
+                                                                  border: `1px dashed ${mantineTheme.colors.ldGray[4]}`,
                                                               }
                                                     }
                                                 >
@@ -376,7 +382,7 @@ const AiAgentAdminAgentsTable = () => {
             },
             {
                 accessorKey: 'groupAccess',
-                header: 'Access',
+                header: t('agentsTable.columns.access'),
                 enableSorting: false,
                 size: 120,
                 Header: ({ column }) => (
@@ -394,7 +400,7 @@ const AiAgentAdminAgentsTable = () => {
                     if (totalCount === 0) {
                         return (
                             <Text c="ldGray.5" fz="xs" fs="italic">
-                                No restrictions
+                                {t('agentsTable.noRestrictions')}
                             </Text>
                         );
                     }
@@ -437,7 +443,7 @@ const AiAgentAdminAgentsTable = () => {
             },
             {
                 accessorKey: 'createdAt',
-                header: 'Created',
+                header: t('agentsTable.columns.created'),
                 enableSorting: false,
                 size: 150,
                 Header: ({ column }) => (
@@ -487,7 +493,7 @@ const AiAgentAdminAgentsTable = () => {
                                         );
                                     }}
                                 >
-                                    Edit
+                                    {t('actions.edit', { ns: 'common' })}
                                 </Menu.Item>
                                 <Menu.Item
                                     leftSection={
@@ -500,7 +506,7 @@ const AiAgentAdminAgentsTable = () => {
                                         );
                                     }}
                                 >
-                                    Chat
+                                    {t('agentsTable.chat')}
                                 </Menu.Item>
                             </Menu.Dropdown>
                         </Menu>
@@ -508,7 +514,7 @@ const AiAgentAdminAgentsTable = () => {
                 },
             },
         ],
-        [projectsMap, slackChannels, navigate, settingsLinkState],
+        [projectsMap, slackChannels, navigate, settingsLinkState, t],
     );
 
     const table = useContentTable({
@@ -563,7 +569,7 @@ const AiAgentAdminAgentsTable = () => {
                         <SearchFilter
                             search={search}
                             setSearch={setSearch}
-                            placeholder="Search agents"
+                            placeholder={t('agentsTable.searchPlaceholder')}
                         />
 
                         <Divider orientation="vertical" w={1} h={20} />
@@ -572,13 +578,13 @@ const AiAgentAdminAgentsTable = () => {
                             setSelectedProjectUuids={
                                 handleSelectedProjectUuidsChange
                             }
-                            tooltipLabel="Filter agents by project"
+                            tooltipLabel={t('agentsTable.filterByProject')}
                         />
 
                         <Divider orientation="vertical" w={1} h={20} />
                         <Switch
                             size="xs"
-                            label="Hide preview projects"
+                            label={t('agentsTable.hidePreviewProjects')}
                             checked={hidePreviewProjects}
                             onChange={(event) =>
                                 setHidePreviewProjects(
@@ -601,7 +607,7 @@ const AiAgentAdminAgentsTable = () => {
                                     }
                                     onClick={handleClearFilters}
                                 >
-                                    Clear all filters
+                                    {t('agentsTable.clearAllFilters')}
                                 </Button>
                             </>
                         )}
@@ -621,12 +627,10 @@ const AiAgentAdminAgentsTable = () => {
                         >
                             <Text fz="sm" fw={500}>
                                 {isLoading
-                                    ? 'Loading...'
-                                    : `${filteredAgents.length} ${
-                                          filteredAgents.length === 1
-                                              ? 'agent'
-                                              : 'agents'
-                                      }`}
+                                    ? t('agentsTable.loading')
+                                    : t('agentsTable.count', {
+                                          count: filteredAgents.length,
+                                      })}
                             </Text>
                         </Box>
                     </Group>

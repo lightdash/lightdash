@@ -1,3 +1,5 @@
+import { type TFunction } from 'i18next';
+
 const AGENT_SETTINGS_SECTION_IDS = [
     'identity',
     'behaviour',
@@ -18,19 +20,33 @@ type AgentSettingsSectionMeta = {
     editOnly: boolean;
 };
 
-const SECTIONS: AgentSettingsSectionMeta[] = [
-    { id: 'identity', label: 'Identity', editOnly: false },
-    { id: 'behaviour', label: 'Behaviour', editOnly: false },
-    { id: 'knowledge-and-data', label: 'Knowledge & data', editOnly: false },
-    { id: 'capabilities', label: 'Capabilities', editOnly: false },
-    { id: 'access-and-privacy', label: 'Access & privacy', editOnly: false },
-    { id: 'connections', label: 'Connections', editOnly: false },
-    { id: 'danger-zone', label: 'Danger zone', editOnly: true },
+const SECTIONS: Omit<AgentSettingsSectionMeta, 'label'>[] = [
+    { id: 'identity', editOnly: false },
+    { id: 'behaviour', editOnly: false },
+    { id: 'knowledge-and-data', editOnly: false },
+    { id: 'capabilities', editOnly: false },
+    { id: 'access-and-privacy', editOnly: false },
+    { id: 'connections', editOnly: false },
+    { id: 'danger-zone', editOnly: true },
 ];
+
+const SECTION_LABEL_KEYS: Record<AgentSettingsSectionId, string> = {
+    identity: 'settingsSections.identity',
+    behaviour: 'settingsSections.behaviour',
+    'knowledge-and-data': 'settingsSections.knowledgeAndData',
+    capabilities: 'settingsSections.capabilities',
+    'access-and-privacy': 'settingsSections.accessAndPrivacy',
+    connections: 'settingsSections.connections',
+    'danger-zone': 'settingsSections.dangerZone',
+};
 
 export const getAgentSettingsSections = (
     mode: 'create' | 'edit',
+    t: TFunction,
 ): AgentSettingsSectionMeta[] =>
-    mode === 'edit'
-        ? SECTIONS
-        : SECTIONS.filter((section) => !section.editOnly);
+    SECTIONS.filter((section) => mode === 'edit' || !section.editOnly).map(
+        (section) => ({
+            ...section,
+            label: t(SECTION_LABEL_KEYS[section.id], { ns: 'aiAgent' }),
+        }),
+    );

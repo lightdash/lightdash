@@ -31,6 +31,7 @@ import {
     IconUpload,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
@@ -47,16 +48,23 @@ import { ReplaceCsvFileModal } from './ReplaceCsvFileModal';
 import { SourceTablePreviewDrawer } from './SourceTablePreviewDrawer';
 
 const StatusBadge: FC<{ source: ExternalSource }> = ({ source }) => {
+    const { t } = useTranslation('sync');
     switch (source.status) {
         case ExternalSourceStatus.READY:
-            return <Badge color="green">Ready</Badge>;
+            return (
+                <Badge color="green">{t('externalSources.status.ready')}</Badge>
+            );
         case ExternalSourceStatus.SYNCING:
         case ExternalSourceStatus.STAGED:
-            return <Badge color="blue">Syncing</Badge>;
+            return (
+                <Badge color="blue">
+                    {t('externalSources.status.syncing')}
+                </Badge>
+            );
         case ExternalSourceStatus.ERROR:
             return (
                 <Badge color="red" title={source.errorMessage ?? undefined}>
-                    Error
+                    {t('externalSources.status.error')}
                 </Badge>
             );
         default:
@@ -75,6 +83,7 @@ type ModalTarget = {
 export const ExternalSourcesSettingsPanel: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
+    const { t } = useTranslation('sync');
     const navigate = useNavigate();
     const sourcesResult = useExternalSources(projectUuid);
     const refreshMutation = useRefreshExternalSource(projectUuid);
@@ -103,21 +112,21 @@ export const ExternalSourcesSettingsPanel: FC<{ projectUuid: string }> = ({
                     leftSection={<MantineIcon icon={IconPlus} />}
                     onClick={addHandlers.open}
                 >
-                    Add source
+                    {t('externalSources.panel.addSource')}
                 </Button>
             </Group>
             {sources.length === 0 && !sourcesResult.isInitialLoading && (
                 <SuboptimalState
                     icon={IconDatabaseExport}
-                    title="No external sources yet"
-                    description="Upload a CSV to query it alongside your warehouse."
+                    title={t('externalSources.panel.emptyTitle')}
+                    description={t('externalSources.panel.emptyDescription')}
                     action={
                         <Button
                             variant="default"
                             onClick={addHandlers.open}
                             leftSection={<MantineIcon icon={IconPlus} />}
                         >
-                            Add source
+                            {t('externalSources.panel.addSource')}
                         </Button>
                     }
                 />
@@ -127,11 +136,23 @@ export const ExternalSourcesSettingsPanel: FC<{ projectUuid: string }> = ({
                     <Table>
                         <Table.Thead>
                             <Table.Tr>
-                                <Table.Th>Source</Table.Th>
-                                <Table.Th>Type</Table.Th>
-                                <Table.Th>Rows</Table.Th>
-                                <Table.Th>Last refreshed</Table.Th>
-                                <Table.Th>Status</Table.Th>
+                                <Table.Th>
+                                    {t('externalSources.panel.columns.source')}
+                                </Table.Th>
+                                <Table.Th>
+                                    {t('externalSources.panel.columns.type')}
+                                </Table.Th>
+                                <Table.Th>
+                                    {t('externalSources.panel.columns.rows')}
+                                </Table.Th>
+                                <Table.Th>
+                                    {t(
+                                        'externalSources.panel.columns.lastRefreshed',
+                                    )}
+                                </Table.Th>
+                                <Table.Th>
+                                    {t('externalSources.panel.columns.status')}
+                                </Table.Th>
                                 <Table.Th w={40} />
                             </Table.Tr>
                         </Table.Thead>
@@ -182,7 +203,10 @@ export const ExternalSourcesSettingsPanel: FC<{ projectUuid: string }> = ({
                                                 <Menu withArrow>
                                                     <Menu.Target>
                                                         <ActionIcon
-                                                            aria-label={`Actions for ${label}`}
+                                                            aria-label={t(
+                                                                'externalSources.panel.actionsFor',
+                                                                { label },
+                                                            )}
                                                         >
                                                             <MantineIcon
                                                                 icon={IconDots}
@@ -204,7 +228,9 @@ export const ExternalSourcesSettingsPanel: FC<{ projectUuid: string }> = ({
                                                                 )
                                                             }
                                                         >
-                                                            Open in Explorer
+                                                            {t(
+                                                                'externalSources.panel.openInExplorer',
+                                                            )}
                                                         </Menu.Item>
                                                         <Menu.Item
                                                             leftSection={
@@ -223,7 +249,9 @@ export const ExternalSourcesSettingsPanel: FC<{ projectUuid: string }> = ({
                                                                 )
                                                             }
                                                         >
-                                                            View details
+                                                            {t(
+                                                                'externalSources.panel.viewDetails',
+                                                            )}
                                                         </Menu.Item>
                                                         <Menu.Divider />
                                                         {source.type ===
@@ -243,7 +271,9 @@ export const ExternalSourcesSettingsPanel: FC<{ projectUuid: string }> = ({
                                                                         )
                                                                     }
                                                                 >
-                                                                    Refresh
+                                                                    {t(
+                                                                        'externalSources.panel.refresh',
+                                                                    )}
                                                                 </Menu.Item>
                                                                 <Menu.Item
                                                                     leftSection={
@@ -259,7 +289,9 @@ export const ExternalSourcesSettingsPanel: FC<{ projectUuid: string }> = ({
                                                                         )
                                                                     }
                                                                 >
-                                                                    Reconnect
+                                                                    {t(
+                                                                        'externalSources.panel.reconnect',
+                                                                    )}
                                                                 </Menu.Item>
                                                             </>
                                                         )}
@@ -282,7 +314,9 @@ export const ExternalSourcesSettingsPanel: FC<{ projectUuid: string }> = ({
                                                                     )
                                                                 }
                                                             >
-                                                                Replace file
+                                                                {t(
+                                                                    'externalSources.menu.replaceFile',
+                                                                )}
                                                             </Menu.Item>
                                                         )}
                                                         <Menu.Item
@@ -302,7 +336,9 @@ export const ExternalSourcesSettingsPanel: FC<{ projectUuid: string }> = ({
                                                                 )
                                                             }
                                                         >
-                                                            Rename
+                                                            {t(
+                                                                'externalSources.panel.rename',
+                                                            )}
                                                         </Menu.Item>
                                                         <Menu.Divider />
                                                         <Menu.Item
@@ -323,7 +359,12 @@ export const ExternalSourcesSettingsPanel: FC<{ projectUuid: string }> = ({
                                                                 )
                                                             }
                                                         >
-                                                            Delete
+                                                            {t(
+                                                                'actions.delete',
+                                                                {
+                                                                    ns: 'common',
+                                                                },
+                                                            )}
                                                         </Menu.Item>
                                                     </Menu.Dropdown>
                                                 </Menu>

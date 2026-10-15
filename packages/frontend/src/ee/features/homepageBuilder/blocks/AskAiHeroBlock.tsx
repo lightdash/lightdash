@@ -8,9 +8,10 @@ import {
     Text,
 } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useApp from '../../../../providers/App/useApp';
 import { DayOneAskInput } from '../DayOneAskInput';
-import { DEFAULT_GREETING_SUBTITLE, getGreeting } from '../greeting';
+import { getDefaultGreetingSubtitle, getGreeting } from '../greeting';
 import layout from '../homepageLayout.module.css';
 import { useHomepageAiState } from '../hooks/useHomepageAiState';
 import { useHomepageConfigFacts } from '../hooks/useHomepageConfigFacts';
@@ -41,6 +42,7 @@ export const AskAiHero: FC<{
     showRecommendedActions,
     preview = false,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const { user } = useApp();
     const actions = useRecommendedActions(projectUuid);
     // One answer for the whole hero: the greeting's wording and whether there
@@ -57,8 +59,10 @@ export const AskAiHero: FC<{
                 (isReady ? (
                     <Text component="h1" className={layout.heroGreeting}>
                         {isWarehouseConnected
-                            ? `${getGreeting(user.data?.firstName)}. What do you want to know?`
-                            : "Let's get started"}
+                            ? t('askAiHero.greetingQuestion', {
+                                  greeting: getGreeting(user.data?.firstName),
+                              })
+                            : t('noProject.title')}
                     </Text>
                 ) : (
                     <Skeleton h={34} w={320} radius="sm" />
@@ -86,33 +90,38 @@ export const AskAiHero: FC<{
 export const HeroDensityControl: FC<{
     value: HomepageHeroDensity | undefined;
     onChange: (density: HomepageHeroDensity | undefined) => void;
-}> = ({ value, onChange }) => (
-    <Stack gap={4}>
-        <Text size="xs" fw={500}>
-            Opening size
-        </Text>
-        <SegmentedControl
-            size="xs"
-            w="fit-content"
-            value={value ?? 'auto'}
-            onChange={(next) =>
-                onChange(
-                    next === 'auto' ? undefined : (next as HomepageHeroDensity),
-                )
-            }
-            data={[
-                { value: 'auto', label: 'Auto' },
-                { value: 'compact', label: 'Compact' },
-                { value: 'full', label: 'Full screen' },
-            ]}
-        />
-        <Text size="xs" c="dimmed">
-            {value === 'full'
-                ? 'Fills the opening view — content below starts under the fold.'
-                : 'Sized to its own content, so what you add below stays visible.'}
-        </Text>
-    </Stack>
-);
+}> = ({ value, onChange }) => {
+    const { t } = useTranslation('homepageBuilder');
+    return (
+        <Stack gap={4}>
+            <Text size="xs" fw={500}>
+                {t('heroDensity.label')}
+            </Text>
+            <SegmentedControl
+                size="xs"
+                w="fit-content"
+                value={value ?? 'auto'}
+                onChange={(next) =>
+                    onChange(
+                        next === 'auto'
+                            ? undefined
+                            : (next as HomepageHeroDensity),
+                    )
+                }
+                data={[
+                    { value: 'auto', label: t('heroDensity.auto') },
+                    { value: 'compact', label: t('heroDensity.compact') },
+                    { value: 'full', label: t('heroDensity.full') },
+                ]}
+            />
+            <Text size="xs" c="dimmed">
+                {value === 'full'
+                    ? t('heroDensity.fullDescription')
+                    : t('heroDensity.autoDescription')}
+            </Text>
+        </Stack>
+    );
+};
 
 export const AskAiHeroBlockView: FC<BlockComponentProps> = ({
     block,
@@ -129,7 +138,7 @@ export const AskAiHeroBlockView: FC<BlockComponentProps> = ({
         // right under the greeting, unless the page already has its own
         // quick-actions block (which would duplicate them).
         return (
-            <GreetingHero subtitle={DEFAULT_GREETING_SUBTITLE}>
+            <GreetingHero subtitle={getDefaultGreetingSubtitle()}>
                 {!hasQuickActionsBlock && (
                     <QuickActionCards
                         actions={getDefaultQuickActions()}
@@ -157,6 +166,7 @@ export const AskAiHeroBlockBuild: FC<BuildComponentProps> = ({
     projectUuid,
     onChange,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     if (block.type !== 'ask-ai-hero') return null;
     return (
         <Stack gap="sm">
@@ -169,7 +179,7 @@ export const AskAiHeroBlockBuild: FC<BuildComponentProps> = ({
                 preview
             />
             <Switch
-                label="Show greeting"
+                label={t('askAiHero.showGreeting')}
                 checked={block.config.showGreeting}
                 onChange={(e) =>
                     onChange({

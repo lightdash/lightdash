@@ -2,6 +2,7 @@ import { ActionIcon, Tooltip } from '@mantine/core';
 import { IconArrowsDiagonal } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import {
     selectIsChartTypeAuthoring,
     selectSavedChart,
@@ -37,6 +38,7 @@ const DashboardChartEditorHeaderActions: FC<Props> = ({
     onOpenVersionHistory,
     onDeleted,
 }) => {
+    const { t } = useTranslation('dashboard');
     // Cancel is the modal's own close: it confirms when there are edits.
     const { requestClose } = useMantineModalClose();
     const savedChart = useExplorerSelector(selectSavedChart);
@@ -71,14 +73,17 @@ const DashboardChartEditorHeaderActions: FC<Props> = ({
         <ChartEditActions
             disabled={isChartTypeAuthoring}
             verificationSavePrompt={verificationSavePrompt}
-            cancelLabel="Cancel"
+            cancelLabel={t('actions.cancel', { ns: 'common' })}
             cancelDisabled={isChartTypeAuthoring}
             onCancel={requestClose}
             trailing={
-                <Tooltip label="Open chart page" position="bottom">
+                <Tooltip
+                    label={t('chartEditor.openChartPage')}
+                    position="bottom"
+                >
                     <ActionIcon
                         variant="default"
-                        aria-label="Open chart page"
+                        aria-label={t('chartEditor.openChartPage')}
                         onClick={handleOpenChartPage}
                     >
                         <MantineIcon icon={IconArrowsDiagonal} />

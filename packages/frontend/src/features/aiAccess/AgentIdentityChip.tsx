@@ -27,6 +27,7 @@ import {
     IconUser,
 } from '@tabler/icons-react';
 import { useId, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { getWarehouseIcon } from '../../components/ProjectConnection/ProjectConnectFlow/utils';
@@ -50,7 +51,8 @@ const MissingAccounts = ({
         OrganizationAgentIdentityRule['projectsMissingAiServiceAccount']
     >;
 }) => {
-    const title = `${projects.length} ${projects.length === 1 ? 'project has' : 'projects have'} no shared agent account`;
+    const { t } = useTranslation('aiAccess');
+    const title = t('identityChip.missingTitle', { count: projects.length });
     return (
         <Stack gap="xs" role="region" aria-label={title}>
             <Group gap="xs" wrap="nowrap">
@@ -60,9 +62,9 @@ const MissingAccounts = ({
                 </Text>
             </Group>
             <Text size="sm" c="dimmed">
-                {projects.length === 1
-                    ? 'Agents are refused on it until a project admin adds one.'
-                    : 'Agents are refused on them until a project admin adds one.'}
+                {t('identityChip.missingDescription', {
+                    count: projects.length,
+                })}
             </Text>
             <Divider />
             {projects.map((project) => (
@@ -95,8 +97,12 @@ const MissingAccountsStatus = ({
     canEdit: boolean;
     onWarningHover: (hovered: boolean) => void;
 }) => {
+    const { t } = useTranslation('aiAccess');
     const [opened, setOpened] = useState(false);
-    const label = `${warehouseName}: ${projects.length} ${projects.length === 1 ? 'project has' : 'projects have'} no shared agent account`;
+    const label = t('identityChip.missingStatus', {
+        warehouse: warehouseName,
+        count: projects.length,
+    });
     const count = (
         <Badge
             component={canEdit ? 'span' : 'button'}
@@ -165,6 +171,7 @@ const ChipStatus = ({
     verificationStatus: 'verified' | 'attention' | null;
     onWarningHover: (hovered: boolean) => void;
 }) => {
+    const { t } = useTranslation('aiAccess');
     const warehouseName =
         identityWarehouseNames[
             rule.warehouseType as keyof typeof identityWarehouseNames
@@ -190,7 +197,9 @@ const ChipStatus = ({
                 color="green"
                 aria-hidden={false}
                 role="status"
-                aria-label={`Every ${warehouseName} project has a shared agent account.`}
+                aria-label={t('identityChip.allHaveAccounts', {
+                    warehouse: warehouseName,
+                })}
             />
         );
     if (rule.source === 'agent_sign_in' && verificationStatus)
@@ -204,7 +213,11 @@ const ChipStatus = ({
                 color={verificationStatus === 'verified' ? 'green' : 'orange'}
                 aria-hidden={false}
                 role="status"
-                aria-label={`Snowflake agent sign-in ${verificationStatus === 'verified' ? 'verified' : 'needs attention'}`}
+                aria-label={
+                    verificationStatus === 'verified'
+                        ? t('identityChip.signInVerified')
+                        : t('identityChip.signInNeedsAttention')
+                }
             />
         );
     return null;
@@ -227,6 +240,7 @@ const ChipContent = ({
         identityWarehouseNames[
             rule.warehouseType as keyof typeof identityWarehouseNames
         ];
+    const { t } = useTranslation('aiAccess');
     const identity = identityLabels[rule.source];
     return (
         <>
@@ -239,7 +253,9 @@ const ChipContent = ({
                 <Loader
                     size="xs"
                     role="status"
-                    aria-label={`Saving ${warehouseName} identity`}
+                    aria-label={t('identityChip.saving', {
+                        warehouse: warehouseName,
+                    })}
                 />
             ) : (
                 <MantineIcon
@@ -288,6 +304,7 @@ export const AgentIdentityChip = ({
     onToggleSetup: (() => void) | null;
     onSelect: (source: AiIdentitySource) => void;
 }) => {
+    const { t } = useTranslation('aiAccess');
     const [opened, setOpened] = useState(false);
     const [warningHovered, setWarningHovered] = useState(false);
     const headerId = useId();
@@ -301,8 +318,17 @@ export const AgentIdentityChip = ({
             ? rule.projectsMissingAiServiceAccount
             : null;
     const warning = missing && missing.length > 0 ? missing : null;
-    const label = `${warehouseName}: agents run as ${identity.label.toLowerCase()}.${canEdit ? ' Change.' : ''}`;
-    const tooltip = `${warehouseName}: ${identity.tooltip}${canEdit ? ' Click to change.' : ''}`;
+    const label = t(
+        canEdit ? 'identityChip.labelEditable' : 'identityChip.label',
+        {
+            warehouse: warehouseName,
+            identity: t(`identity.${rule.source}.inlineLabel`),
+        },
+    );
+    const tooltip = t(
+        canEdit ? 'identityChip.tooltipEditable' : 'identityChip.tooltip',
+        { warehouse: warehouseName, tooltip: identity.tooltip },
+    );
     const content = (
         <ChipContent
             rule={rule}
@@ -364,25 +390,37 @@ export const AgentIdentityChip = ({
                 <Stack gap="xs">
                     {warning && <MissingAccounts projects={warning} />}
                     <Text id={headerId} size="xs" c="dimmed" fw={500}>
-                        {warehouseName} agents run as
+                        {t('identityChip.agentsRunAs', {
+                            warehouse: warehouseName,
+                        })}
                     </Text>
                     <Stack gap={0}>
                         {AGENT_IDENTITY_SOURCES[rule.warehouseType].person.map(
                             (source) => {
                                 const settingUp = source === settingUpSource;
-                                const stateLabel = settingUp
-                                    ? identityChoiceStateLabels.settingUp
+                                const stateKey = settingUp
+                                    ? 'settingUp'
                                     : settingUpSource !== null &&
                                         source === rule.source
-                                      ? identityChoiceStateLabels.current
+                                      ? 'current'
                                       : null;
+                                const stateLabel = stateKey
+                                    ? identityChoiceStateLabels[stateKey]
+                                    : null;
                                 return (
                                     <UnstyledButton
                                         key={source}
                                         className={classes.choice}
                                         aria-label={
-                                            stateLabel
-                                                ? `${identityLabels[source].label}, ${stateLabel.toLowerCase()}`
+                                            stateKey
+                                                ? t(
+                                                      `identityChip.choiceWithState.${stateKey}`,
+                                                      {
+                                                          label: identityLabels[
+                                                              source
+                                                          ].label,
+                                                      },
+                                                  )
                                                 : identityLabels[source].label
                                         }
                                         data-setting-up={settingUp || undefined}
@@ -438,7 +476,9 @@ export const AgentIdentityChip = ({
                                                     !configured &&
                                                     !settingUp && (
                                                         <Badge size="xs">
-                                                            Setup needed
+                                                            {t(
+                                                                'identityChip.setupNeeded',
+                                                            )}
                                                         </Badge>
                                                     )}
                                             </Group>
@@ -455,7 +495,9 @@ export const AgentIdentityChip = ({
                                                     icon={IconCheck}
                                                     aria-hidden={false}
                                                     role="img"
-                                                    aria-label="Saved choice"
+                                                    aria-label={t(
+                                                        'identityChip.savedChoice',
+                                                    )}
                                                 />
                                             )}
                                     </UnstyledButton>
@@ -472,7 +514,9 @@ export const AgentIdentityChip = ({
                             }}
                         >
                             <Text size="sm">
-                                {setupExpanded ? 'Hide setup' : 'View setup'}
+                                {setupExpanded
+                                    ? t('identityChip.hideSetup')
+                                    : t('identityChip.viewSetup')}
                             </Text>
                         </UnstyledButton>
                     )}

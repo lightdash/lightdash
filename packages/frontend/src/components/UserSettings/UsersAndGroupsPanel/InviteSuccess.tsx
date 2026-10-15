@@ -2,6 +2,7 @@ import { type InviteLink } from '@lightdash/common';
 import { Alert, Stack, Text, TextInput } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import React, { useMemo, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
 import useApp from '../../../providers/App/useApp';
 import { CopyActionIcon } from '../../common/CopyActionIcon';
@@ -11,6 +12,7 @@ const InviteSuccess: FC<{
     hasMarginTop?: boolean;
     onClose?: () => void;
 }> = ({ invite, hasMarginTop, onClose }) => {
+    const { t } = useTranslation('userSettings');
     const { health } = useApp();
     const [show, toggle] = useToggle(true);
 
@@ -21,21 +23,25 @@ const InviteSuccess: FC<{
         );
         if (health.data?.hasEmailClient) {
             return (
-                <>
-                    We've just sent <b>{invite.email}</b> an email with their
-                    invite! You can also share their invite link with them to
-                    join your organization. This link will expire in {days}{' '}
-                    days.
-                </>
+                <Trans
+                    t={t}
+                    i18nKey="usersAndGroupsPanel.inviteSuccess.emailSent"
+                    values={{ email: invite.email }}
+                    count={days}
+                    components={{ b: <b /> }}
+                />
             );
         }
         return (
-            <>
-                Share this link with <b>{invite.email}</b> and they can join
-                your organization. This link will expire in {days} days.
-            </>
+            <Trans
+                t={t}
+                i18nKey="usersAndGroupsPanel.inviteSuccess.shareLink"
+                values={{ email: invite.email }}
+                count={days}
+                components={{ b: <b /> }}
+            />
         );
-    }, [health.data?.hasEmailClient, invite.email, invite.expiresAt]);
+    }, [health.data?.hasEmailClient, invite.email, invite.expiresAt, t]);
 
     if (!show) {
         return null;
@@ -47,7 +53,7 @@ const InviteSuccess: FC<{
             mt={hasMarginTop ? 'md' : 0}
             color="green"
             withCloseButton={true}
-            closeButtonLabel="Close alert"
+            closeButtonLabel={t('usersAndGroupsPanel.inviteSuccess.closeAlert')}
             onClose={() => {
                 toggle(false);
                 onClose?.();

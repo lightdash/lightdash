@@ -13,8 +13,9 @@ import {
     IconSum,
     IconTrendingUp,
 } from '@tabler/icons-react';
-import capitalize from 'lodash/capitalize';
+import { type TFunction } from 'i18next';
 import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../common/MantineIcon';
 import classes from './PillSelect.module.css';
 
@@ -52,6 +53,29 @@ const AggregationIcon: FC<{ aggregation: string | undefined }> = ({
     return <MantineIcon color="indigo.4" icon={icon} />;
 };
 
+const getAggregationLabel = (
+    t: TFunction,
+    option: VizAggregationOptions,
+): string => {
+    switch (option) {
+        case VizAggregationOptions.SUM:
+            return t('aggregation.sum');
+        case VizAggregationOptions.COUNT:
+            return t('aggregation.count');
+        case VizAggregationOptions.AVERAGE:
+            return t('aggregation.avg');
+        case VizAggregationOptions.MIN:
+            return t('aggregation.min');
+        case VizAggregationOptions.MAX:
+            return t('aggregation.max');
+        case VizAggregationOptions.ANY:
+            return t('aggregation.any');
+        default:
+            // Runtime options may include values outside the enum
+            return String(option);
+    }
+};
+
 type Props = {
     options: VizValuesLayoutOptions['aggregationOptions'] | undefined;
     aggregation: VizAggregationOptions | undefined;
@@ -60,12 +84,16 @@ type Props = {
 
 const AggregationItem = forwardRef<
     HTMLDivElement,
-    ComponentPropsWithoutRef<'div'> & { value: string; selected: boolean }
->(({ value, selected: _selected, ...others }, ref) => (
+    ComponentPropsWithoutRef<'div'> & {
+        value: string;
+        label: string;
+        selected: boolean;
+    }
+>(({ value, label, selected: _selected, ...others }, ref) => (
     <Box ref={ref} {...others}>
         <Group wrap="nowrap" gap="xs">
             <AggregationIcon aggregation={value} />
-            <Text>{capitalize(value)}</Text>
+            <Text>{label}</Text>
         </Group>
     </Box>
 ));
@@ -75,18 +103,16 @@ export const DataVizAggregationConfig: FC<Props> = ({
     onChangeAggregation,
     aggregation,
 }) => {
+    const { t } = useTranslation('dataViz');
     const aggregationOptionsWithNone = options ?? [];
 
     const selectOptions = aggregationOptionsWithNone.map((option) => ({
         value: option,
-        label:
-            option === VizAggregationOptions.ANY
-                ? 'Any value'
-                : capitalize(option),
+        label: getAggregationLabel(t, option),
     }));
 
     return (
-        <Tooltip label="Aggregation type">
+        <Tooltip label={t('aggregation.tooltip')}>
             <Select
                 allowDeselect={false}
                 comboboxProps={{ withinPortal: true }}
@@ -94,6 +120,10 @@ export const DataVizAggregationConfig: FC<Props> = ({
                 renderOption={({ option, checked }) => (
                     <AggregationItem
                         value={option.value}
+                        label={getAggregationLabel(
+                            t,
+                            option.value as VizAggregationOptions,
+                        )}
                         selected={checked ?? false}
                     />
                 )}

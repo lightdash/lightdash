@@ -24,6 +24,7 @@ import {
     IconSparkles,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { SettingsCard } from '../../../components/common/Settings/SettingsCard';
@@ -110,6 +111,7 @@ type AgentOnboardingLaunchPanelProps = {
 export const AgentOnboardingLaunchPanel: FC<
     AgentOnboardingLaunchPanelProps
 > = ({ project, warehouseType, siteUrl }) => {
+    const { t } = useTranslation('agentOnboarding');
     const [isLocalPromptOpen, setIsLocalPromptOpen] = useState(false);
     const navigate = useNavigate();
     const startAgentOnboardingRun = useStartAgentOnboardingRun();
@@ -168,10 +170,9 @@ export const AgentOnboardingLaunchPanel: FC<
     const localPrompt = (
         <Stack gap="lg" className="sentry-block ph-no-capture">
             <div>
-                <Title order={3}>Complete your project setup</Title>
+                <Title order={3}>{t('launch.localPrompt.title')}</Title>
                 <Text c="dimmed" mt="xs">
-                    Copy the prompt below and run it with your coding agent to
-                    finish setting up your Lightdash project.
+                    {t('launch.localPrompt.description')}
                 </Text>
             </div>
 
@@ -199,7 +200,9 @@ export const AgentOnboardingLaunchPanel: FC<
                             <MantineIcon icon={copied ? IconCheck : IconCopy} />
                         }
                     >
-                        {copied ? 'Prompt copied' : 'Copy prompt'}
+                        {copied
+                            ? t('launch.localPrompt.copied')
+                            : t('launch.localPrompt.copy')}
                     </Button>
                 )}
             </CopyButton>
@@ -222,12 +225,10 @@ export const AgentOnboardingLaunchPanel: FC<
                             </ThemeIcon>
                             <Stack gap={6} flex={1}>
                                 <Title order={3}>
-                                    Let Lightdash build it for you
+                                    {t('launch.managed.title')}
                                 </Title>
                                 <Text c="dimmed">
-                                    We’ll explore your warehouse, create a
-                                    semantic layer, and build a starter
-                                    dashboard. You can follow every step.
+                                    {t('launch.managed.description')}
                                 </Text>
                             </Stack>
                         </Group>
@@ -243,7 +244,7 @@ export const AgentOnboardingLaunchPanel: FC<
                                 onClick={() => void startManagedSetup()}
                                 loading={startAgentOnboardingRun.isLoading}
                             >
-                                Run it for me
+                                {t('launch.managed.runForMe')}
                             </Button>
                             <Button
                                 variant="subtle"
@@ -251,7 +252,7 @@ export const AgentOnboardingLaunchPanel: FC<
                                 onClick={openProject}
                                 disabled={startAgentOnboardingRun.isLoading}
                             >
-                                Skip to project
+                                {t('run.skipToProject')}
                             </Button>
                         </Group>
 
@@ -268,7 +269,7 @@ export const AgentOnboardingLaunchPanel: FC<
                                 setIsLocalPromptOpen((value) => !value)
                             }
                         >
-                            Use my own coding agent instead
+                            {t('launch.managed.useOwnAgent')}
                         </Button>
                         <Collapse expanded={isLocalPromptOpen}>
                             {localPrompt}

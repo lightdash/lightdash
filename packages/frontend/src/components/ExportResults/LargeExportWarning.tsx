@@ -1,4 +1,5 @@
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../common/Callout';
 import {
     getExportCellEstimate,
@@ -26,6 +27,7 @@ const LargeExportWarning: FC<LargeExportWarningProps> = ({
     csvCellsLimit,
     exportTimeoutMs,
 }) => {
+    const { t } = useTranslation('export');
     const cellEstimate = getExportCellEstimate({
         limit,
         customLimit,
@@ -40,18 +42,17 @@ const LargeExportWarning: FC<LargeExportWarningProps> = ({
     const cellMillions = (cellEstimate / 1_000_000).toLocaleString(undefined, {
         maximumFractionDigits: 1,
     });
-    const minuteUnit = exportTimeoutMinutes === 1 ? 'minute' : 'minutes';
 
     return (
         <Callout
             variant="warning"
-            title="Large export"
+            title={t('largeExportWarning.title')}
             data-testid="large-export-warning"
         >
-            This export is about {cellMillions} million cells. Exports must
-            finish within {exportTimeoutMinutes} {minuteUnit}, and one this
-            large may take longer. Filter the results or use a scheduled
-            delivery to Google Sheets.
+            {t('largeExportWarning.body', {
+                cellMillions,
+                count: exportTimeoutMinutes,
+            })}
         </Callout>
     );
 };

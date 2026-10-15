@@ -1,6 +1,7 @@
 import { Button, Menu } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 
@@ -13,6 +14,7 @@ type Props = {
  * a new role or duplicating an existing one.
  */
 export const AddRoleButton: FC<Props> = ({ size = 'md' }) => {
+    const { t } = useTranslation('customRoles');
     return (
         <Menu position="bottom-end">
             <Menu.Target>
@@ -20,7 +22,7 @@ export const AddRoleButton: FC<Props> = ({ size = 'md' }) => {
                     size={size}
                     leftSection={<MantineIcon icon={IconPlus} />}
                 >
-                    Add role
+                    {t('addRole.button')}
                 </Button>
             </Menu.Target>
             <Menu.Dropdown>
@@ -28,13 +30,13 @@ export const AddRoleButton: FC<Props> = ({ size = 'md' }) => {
                     component={Link}
                     to="/generalSettings/customRoles/create"
                 >
-                    Create new role
+                    {t('addRole.create')}
                 </Menu.Item>
                 <Menu.Item
                     component={Link}
                     to="/generalSettings/customRoles/duplicate"
                 >
-                    Duplicate existing role
+                    {t('addRole.duplicate')}
                 </Menu.Item>
             </Menu.Dropdown>
         </Menu>

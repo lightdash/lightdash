@@ -7,6 +7,7 @@ import {
 import { Menu, UnstyledButton } from '@mantine/core';
 import { IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getFilterOperatorOptions } from '../../../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../../../components/common/MantineIcon';
 import classes from './OperatorPicker.module.css';
@@ -37,6 +38,7 @@ const OperatorPicker: FC<Props> = ({
     onOpen,
     onClose,
 }) => {
+    const { t } = useTranslation('dashboardFilters');
     const options = useMemo(
         () => getFilterOperatorOptions(filterType, field),
         [filterType, field],
@@ -50,7 +52,7 @@ const OperatorPicker: FC<Props> = ({
             <Menu.Target>
                 <UnstyledButton
                     className={classes.operatorButton}
-                    aria-label={`Change operator for ${label}`}
+                    aria-label={t('requirements.changeOperatorFor', { label })}
                 >
                     {currentLabel}
                     <MantineIcon icon={IconChevronDown} size={12} />

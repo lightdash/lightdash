@@ -1,4 +1,5 @@
 import { Alert, Button, Paper, Skeleton, Stack, Text } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import { type DeepResearchRunRegistration } from '../../deepResearch/types';
 import {
     useContinueDeepResearchMutation,
@@ -19,6 +20,7 @@ const DeepResearchThreadRun = ({
     canRetry: boolean;
     onRunAgain?: (registration: DeepResearchRunRegistration) => void;
 }) => {
+    const { t } = useTranslation('aiAgent');
     const runQuery = useDeepResearchRun(registration);
     const continueMutation = useContinueDeepResearchMutation({
         projectUuid: registration.projectUuid,
@@ -33,21 +35,24 @@ const DeepResearchThreadRun = ({
                 className={styles.card}
                 p="lg"
                 radius="md"
-                aria-label="Deep research run"
+                aria-label={t('deepResearch.runAria')}
             >
                 <Stack gap="md">
                     <DeepResearchRunHeading
-                        statusLabel={failed ? 'Could not start' : 'Queued'}
+                        statusLabel={
+                            failed
+                                ? t('deepResearch.couldNotStart')
+                                : t('deepResearch.status.queued')
+                        }
                     />
                     {failed ? (
                         <Alert color="red">
                             {registration.errorMessage ??
-                                'Research didn’t start. Your question is saved in this thread.'}
+                                t('deepResearch.didNotStart')}
                         </Alert>
                     ) : (
                         <Text size="sm" c="dimmed" aria-live="polite">
-                            Starting research… You can leave this page while it
-                            runs.
+                            {t('deepResearch.starting')}
                         </Text>
                     )}
                     {failed && (
@@ -66,7 +71,7 @@ const DeepResearchThreadRun = ({
                                 });
                             }}
                         >
-                            Try starting again
+                            {t('deepResearch.tryStartingAgain')}
                         </Button>
                     )}
                 </Stack>
@@ -82,16 +87,17 @@ const DeepResearchThreadRun = ({
                 className={styles.card}
                 p="lg"
                 radius="md"
-                aria-label="Deep research run"
+                aria-label={t('deepResearch.runAria')}
             >
                 <Stack gap="sm">
-                    <DeepResearchRunHeading statusLabel="Updates unavailable" />
+                    <DeepResearchRunHeading
+                        statusLabel={t('deepResearch.updatesUnavailable')}
+                    />
                     <Alert
                         color="orange"
-                        title="Couldn’t load the latest activity"
+                        title={t('deepResearch.loadActivityFailed')}
                     >
-                        Your research is still saved. Check your connection,
-                        then refresh the activity.
+                        {t('deepResearch.loadActivityFailedHelp')}
                     </Alert>
                     <Button
                         size="xs"
@@ -102,7 +108,7 @@ const DeepResearchThreadRun = ({
                             void runQuery.eventsQuery.refetch();
                         }}
                     >
-                        Refresh activity
+                        {t('deepResearch.refreshActivity')}
                     </Button>
                 </Stack>
             </Paper>

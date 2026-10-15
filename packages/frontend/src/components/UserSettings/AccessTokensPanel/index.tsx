@@ -1,6 +1,7 @@
 import { Button } from '@mantine/core';
 import { IconKey } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAccessToken } from '../../../hooks/useAccessToken';
 import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
 import { SettingsPage } from '../../common/Settings/SettingsPage';
@@ -8,17 +9,18 @@ import { CreateTokenModal } from './CreateTokenModal';
 import { TokensTable } from './TokensTable';
 
 const AccessTokensPanel: FC = () => {
+    const { t } = useTranslation('userSettings');
     const { data } = useAccessToken();
     const [isCreatingToken, setIsCreatingToken] = useState(false);
     const hasAvailableTokens = data && data.length > 0;
 
     return (
         <SettingsPage
-            title="Personal access tokens"
-            description="Create and revoke tokens used to access the Lightdash API."
+            title={t('accessTokensPanel.title')}
+            description={t('accessTokensPanel.description')}
             actions={
                 <Button size="xs" onClick={() => setIsCreatingToken(true)}>
-                    Generate new token
+                    {t('accessTokensPanel.generateNewToken')}
                 </Button>
             }
         >
@@ -27,8 +29,8 @@ const AccessTokensPanel: FC = () => {
             ) : (
                 <SettingsEmptyState
                     icon={IconKey}
-                    title="No personal access tokens"
-                    description="Generate your first token to authenticate with the Lightdash API."
+                    title={t('accessTokensPanel.emptyState.title')}
+                    description={t('accessTokensPanel.emptyState.description')}
                 />
             )}
 

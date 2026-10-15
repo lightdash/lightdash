@@ -25,6 +25,7 @@ import {
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
 import { Fragment, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -40,7 +41,7 @@ type DeleteModalProps = {
 };
 
 type KindMeta = {
-    label: string;
+    labelKey: string;
     color: MantineColor;
     icon: TablerIcon;
     order: number;
@@ -48,25 +49,25 @@ type KindMeta = {
 
 const KIND_META: Record<RoleAssigneeKind, KindMeta> = {
     service_account: {
-        label: 'Service account',
+        labelKey: 'serviceAccount',
         color: 'blue',
         icon: IconRobot,
         order: 0,
     },
     organization_user: {
-        label: 'Org member',
+        labelKey: 'orgMember',
         color: 'gray',
         icon: IconUser,
         order: 1,
     },
     project_user: {
-        label: 'Project member',
+        labelKey: 'projectMember',
         color: 'gray',
         icon: IconUser,
         order: 2,
     },
     project_group: {
-        label: 'Project group',
+        labelKey: 'projectGroup',
         color: 'gray',
         icon: IconUsers,
         order: 3,
@@ -106,6 +107,7 @@ export const CustomRolesDeleteModal: FC<DeleteModalProps> = ({
     isDeleting = false,
     role,
 }) => {
+    const { t } = useTranslation('customRoles');
     const { data: assignees, isLoading } = useRoleAssignees(
         isOpen ? role.roleUuid : undefined,
     );
@@ -122,10 +124,14 @@ export const CustomRolesDeleteModal: FC<DeleteModalProps> = ({
             opened={isOpen}
             onClose={onClose}
             title={
-                hasAssignees ? 'Custom role is assigned' : 'Delete custom role'
+                hasAssignees
+                    ? t('deleteModal.assignedTitle')
+                    : t('deleteModal.title')
             }
             variant="delete"
-            resourceType={hasAssignees ? undefined : 'role'}
+            resourceType={
+                hasAssignees ? undefined : t('deleteModal.resourceType')
+            }
             resourceLabel={hasAssignees ? undefined : role.name}
             cancelDisabled={isDeleting}
             onConfirm={onDelete}
@@ -139,8 +145,7 @@ export const CustomRolesDeleteModal: FC<DeleteModalProps> = ({
             ) : hasAssignees ? (
                 <Stack gap="md">
                     <Callout variant="warning">
-                        This role is currently in use. Unassign it from the
-                        items below before you can delete it.
+                        {t('deleteModal.inUse')}
                     </Callout>
                     <Paper radius="md">
                         <Stack gap={0}>
@@ -218,7 +223,9 @@ export const CustomRolesDeleteModal: FC<DeleteModalProps> = ({
                                                 </Box>
                                             </Group>
                                             <Badge color={meta.color} size="sm">
-                                                {meta.label}
+                                                {t(
+                                                    `deleteModal.kinds.${meta.labelKey}`,
+                                                )}
                                             </Badge>
                                         </Group>
                                     </Fragment>
@@ -229,8 +236,7 @@ export const CustomRolesDeleteModal: FC<DeleteModalProps> = ({
                 </Stack>
             ) : (
                 <Text fz="sm" c="dimmed">
-                    This action cannot be undone. Users and groups will no
-                    longer be able to use this role.
+                    {t('deleteModal.cannotUndo')}
                 </Text>
             )}
         </MantineModal>

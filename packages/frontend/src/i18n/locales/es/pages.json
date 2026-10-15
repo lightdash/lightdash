@@ -1,0 +1,473 @@
+{
+    "common": {
+        "loading": "Cargando...",
+        "home": "Inicio",
+        "error": "Error",
+        "versionHistory": "Historial de versiones"
+    },
+    "queryHistory": {
+        "forbiddenSubject": "historial de consultas"
+    },
+    "learn": {
+        "title": "Aprender",
+        "workspaceTitle": "Espacio de trabajo"
+    },
+    "shareRedirect": {
+        "notFound": "El enlace compartido no existe"
+    },
+    "authPopup": {
+        "documentTitle": "Autenticación",
+        "success": "Gracias por autenticarte",
+        "failed": "La autenticación falló. Inténtalo de nuevo",
+        "willClose": "Esta ventana se cerrará automáticamente"
+    },
+    "agentConnected": {
+        "errors": {
+            "notAgentSession": "Tu inicio de sesión de Snowflake no es una sesión de agente. Pide a tu administrador de Snowflake que establezca IS_AGENTIC = TRUE en la integración de seguridad usada para agentes.",
+            "noRefreshToken": "Snowflake no devolvió un token de actualización. Inténtalo de nuevo.",
+            "licenseRequired": "Se requiere una licencia Enterprise.",
+            "default": "El inicio de sesión no se completó. Inténtalo de nuevo."
+        },
+        "documentTitle": "Conexión del agente",
+        "failed": "La conexión del agente falló.",
+        "tryAgain": "Inténtalo de nuevo desde Mi identidad de agente",
+        "connected": "Agente conectado.",
+        "connectedDescription": "Vuelve a tu cliente y ejecútalo de nuevo."
+    },
+    "agentConnect": {
+        "missingProject": "A este enlace de inicio de sesión del agente le falta un proyecto válido.",
+        "notAvailable": "El inicio de sesión del agente no está disponible para tu cuenta.",
+        "unavailable": "Conexión del agente no disponible.",
+        "myAgentIdentity": "Mi identidad de agente",
+        "myWarehouseConnections": "Mis conexiones al almacén",
+        "connecting": "Conectando tu agente…"
+    },
+    "savedQueries": {
+        "title": "Gráficos guardados",
+        "allSavedCharts": "Todos los gráficos guardados",
+        "createChart": "Crear gráfico"
+    },
+    "savedApps": {
+        "title": "Apps de datos",
+        "allDataApps": "Todas las apps de datos",
+        "createDataApp": "Crear app de datos"
+    },
+    "savedDashboards": {
+        "loading": "Cargando paneles",
+        "title": "Paneles",
+        "allDashboards": "Todos los paneles",
+        "createDashboard": "Crear panel"
+    },
+    "documents": {
+        "loading": "Cargando documentos",
+        "title": "Documentos",
+        "allDocuments": "Todos los documentos",
+        "newDocument": "Nuevo documento",
+        "entityName": "documentos",
+        "loadError": "No se pudieron cargar los documentos"
+    },
+    "chartHistory": {
+        "documentTitle": "Historial de versiones del gráfico",
+        "chart": "Gráfico"
+    },
+    "explorer": {
+        "tables": "Tablas",
+        "tablesAndFields": "Tablas y campos"
+    },
+    "createProject": {
+        "title": "Crear proyecto"
+    },
+    "joinOrganization": {
+        "cancelRegistration": "Cancelar registro",
+        "title": "Unirse a un espacio de trabajo",
+        "openToDomain": "Los espacios de trabajo siguientes están abiertos a cualquier persona con un dominio <domain>@{{domain}}</domain>",
+        "members_one": "{{count}} miembro",
+        "members_other": "{{count}} miembros",
+        "join": "Unirse",
+        "createNew": "Crear un nuevo espacio de trabajo"
+    },
+    "onboardingDataSource": {
+        "signInWithGoogle": "Inicia sesión con Google para conectar",
+        "connectWithSso": "Conectar con SSO",
+        "connectWithServiceAccount": "Conectar con una cuenta de servicio",
+        "title": "Añadir una fuente de datos",
+        "subtitle": "Conecta tu almacén para que tus agentes puedan consultar tus datos.",
+        "mostPopular": "Más populares",
+        "allWarehouses": "Todos los almacenes"
+    },
+    "onboardingDbt": {
+        "viewDocs": "Ver documentación",
+        "methods": {
+            "cli": {
+                "label": "Con tu CLI",
+                "description": "con lightdash deploy"
+            },
+            "manual": {
+                "label": "Manualmente",
+                "description": "Obtener el proyecto de un repositorio git"
+            }
+        },
+        "title": "¡Vamos a configurarlo!",
+        "subtitle": "Elige cómo quieres subir tu proyecto dbt.",
+        "connected": "¡Tu proyecto dbt está conectado!",
+        "steps": {
+            "install": "Instala la CLI de Lightdash",
+            "login": "Inicia sesión en Lightdash",
+            "deploy": "Despliega tu proyecto dbt"
+        },
+        "waitingTitle": "Esperando datos",
+        "waitingSubtitle": "Dentro de tu proyecto dbt, ejecuta los pasos siguientes. Lo detectaremos automáticamente.",
+        "documentTitle": "Configura tu dbt"
+    },
+    "onboardingInviteExpert": {
+        "preparingPlayground": "Preparando tu entorno de pruebas…",
+        "preparingPlaygroundDescription": "Explora datos de ejemplo mientras tu experto conecta tu almacén.",
+        "playgroundFailed": "No pudimos configurar un proyecto de ejemplo",
+        "tryAgain": "Intentar de nuevo",
+        "done": "Listo",
+        "firstName": "Tu nombre",
+        "lastName": "Tu apellido",
+        "nameHint": "Incluiremos tu nombre en la invitación para que sepan quién la envía.",
+        "email": "Su correo electrónico",
+        "emailPlaceholder": "ejemplo@empresa.com",
+        "emailHint": "Le pediremos que conecte tu almacén de datos.",
+        "sendInvite": "Enviar invitación",
+        "backToProjectSetup": "Volver a la configuración del proyecto",
+        "backToDataSources": "Volver a las fuentes de datos",
+        "documentTitle": "Invitar a un experto",
+        "title": "Invita a alguien para configurarlo",
+        "noPermission": "No tienes permiso para invitar a personas",
+        "askAdmin": "Pide a un administrador de esta organización que envíe la invitación.",
+        "subtitle": "Conectar el almacén suele ser trabajo del equipo de datos: le llevaremos directamente a configurar el almacén."
+    },
+    "organizationSetup": {
+        "stepWorkspace": "Configura tu espacio de trabajo",
+        "stepAboutYou": "Sobre ti",
+        "documentTitle": "Configura tu organización",
+        "stepOf": "Paso {{step}} de {{total}} · {{label}}",
+        "nameTitle": "Ponle nombre a tu organización",
+        "nameSubtitle": "Así es como tu equipo y tu agente se referirán a tu espacio de trabajo.",
+        "nameLabel": "Nombre de la organización",
+        "namePlaceholder": "Acme Analytics",
+        "useSuggestion": "Usar \"{{name}}\"",
+        "brand": "Marca",
+        "optional": "Opcional · puedes cambiarlo más tarde",
+        "themeColor": "Color del tema",
+        "selectThemeColor": "Seleccionar color del tema {{color}}",
+        "aboutTitle": "Cuéntanos sobre ti",
+        "aboutSubtitle": "Esto nos ayuda a adaptar Lightdash para ti.",
+        "finish": "Finalizar",
+        "themeDetectedFrom": "Tema detectado de <domain>{{domain}}</domain>",
+        "previewCaption": "Una vista previa de Lightdash con el tema de tu marca."
+    },
+    "minimalSqlChart": {
+        "loadError": "Error al cargar el gráfico SQL"
+    },
+    "minimalDocument": {
+        "empty": "Este documento está vacío."
+    },
+    "viewSqlChart": {
+        "title": "Gráfico SQL",
+        "chart": "Gráfico",
+        "results": "Resultados"
+    },
+    "sqlRunner": {
+        "sharedStateError": "No se pudo cargar el estado compartido del SQL Runner",
+        "title": "SQL Runner",
+        "loadingProject": "Cargando proyecto",
+        "unavailableManaged": "El SQL Runner no está disponible para proyectos de analítica gestionados"
+    },
+    "savedExplorer": {
+        "changeExplore": "Cambiar explore"
+    },
+    "minimalSavedExplorer": {
+        "loadError": "Error al cargar el gráfico",
+        "projectNotFound": "No se encuentra el proyecto: {{project}}"
+    },
+    "document": {
+        "loadingEditor": "Cargando editor",
+        "verifiedBy": "Verificado por {{name}}",
+        "verified": "Verificado",
+        "controls": "Controles del documento",
+        "edit": "Editar documento",
+        "loading": "Cargando documento",
+        "unavailable": "Documento no disponible",
+        "unavailableDescription": "Puede que este documento se haya eliminado o que no tengas acceso."
+    },
+    "documentHistory": {
+        "savedBy": "Guardado por",
+        "saved": "Guardado {{time}}",
+        "currentVersion": "Versión actual {{number}}",
+        "version": "Versión {{number}}",
+        "versionUnavailable": "Versión no disponible",
+        "versionUnavailableDescription": "Esta versión no pertenece a este documento o no se pudo cargar.",
+        "showCurrent": "Mostrar versión actual",
+        "controls": "Controles del historial de versiones",
+        "showThisVersion": "Mostrar esta versión",
+        "compareWithCurrent": "Comparar con la versión actual",
+        "close": "Cerrar historial de versiones",
+        "changesFrom": "Cambios de la versión {{from}} a la versión actual {{to}}.",
+        "loadingVersion": "Cargando versión",
+        "loading": "Cargando historial de versiones"
+    },
+    "dashboardHistory": {
+        "title": "Historial de versiones del panel",
+        "dashboard": "Panel",
+        "updatedByUnknown": "Actualizado por: desconocido",
+        "selectVersion": "Selecciona una versión para comparar",
+        "restoreTitle": "Restaurar versión del panel",
+        "restoreDescription": "Al restaurar esta versión del panel, se generará y guardará una nueva versión. Todas las versiones anteriores se conservan y pueden restaurarse en cualquier momento.",
+        "restoreChartsNote": "Los gráficos creados dentro de este panel también se restaurarán a su versión en el momento en que se creó esta versión del panel."
+    },
+    "dataApp": {
+        "missingRouteParams": "Faltan parámetros de ruta",
+        "notFound": "App de datos no encontrada",
+        "notFoundDescription": "Esta app de datos no existe o se ha eliminado.",
+        "loading": "Cargando app...",
+        "loadFailed": "No se pudo cargar la app: {{message}}",
+        "unknownError": "Error desconocido",
+        "stillBuilding": "Esta app todavía se está construyendo",
+        "stillBuildingDescription": "La vista previa se cargará automáticamente cuando la construcción esté lista.",
+        "notBuilt": "Esta app aún no se ha construido",
+        "notBuiltDescription": "Todavía no hay ninguna versión lista de esta app para previsualizar.",
+        "exitFullscreen": "Salir de pantalla completa",
+        "analyseView": "Analizar esta vista",
+        "enterFullscreen": "Entrar en modo pantalla completa",
+        "noReadyVersion": "No hay versión lista",
+        "noReadyVersionDescription": "Esta app de datos aún no ha terminado de construirse."
+    },
+    "userActivity": {
+        "charts": {
+            "numUsers": "N.º de usuarios",
+            "percentUsers": "% de usuarios",
+            "weeklyQueryingUsers": "Número de usuarios que consultan cada semana",
+            "percentWeeklyQueryingUsers": "% de usuarios que consultan cada semana",
+            "weeklyAverageQueries": "Promedio semanal de\nconsultas por usuario"
+        },
+        "title": "Actividad de usuarios de {{name}}",
+        "usageAnalytics": "Analítica de uso",
+        "exportTooltip": "Exporta las vistas de gráficos y paneles de los usuarios en formato CSV",
+        "exporting": "Exportando...",
+        "exportCsv": "Exportar CSV",
+        "totalUsers": "Usuarios totales en el proyecto",
+        "numViewers": "Número de lectores",
+        "numInteractiveViewers": "Número de lectores interactivos",
+        "numEditors": "Número de editores",
+        "numAdmins": "Número de administradores",
+        "weeklyActive": "Usuarios que vieron un gráfico en los últimos 7 días",
+        "chartActiveUsers": "¿Cuántos usuarios consultan este proyecto cada semana?",
+        "queriesPerUser": "¿Cuántas consultas ejecutan los usuarios cada semana, de media?",
+        "mostQueries": "¿Qué usuarios han ejecutado más consultas en los últimos 7 días?",
+        "mostChartUpdates": "¿Qué usuarios han hecho más actualizaciones de gráficos en los últimos 7 días? (top 10)",
+        "notLoggedIn": "¿Qué usuarios no han ejecutado consultas en los últimos 90 días?",
+        "mostViewedDashboard": "Panel más visto por usuario",
+        "dashboardViews": "Vistas de paneles (top 20)",
+        "chartViews": "Vistas de gráficos (top 20)",
+        "columns": {
+            "firstName": "Nombre",
+            "lastName": "Apellido",
+            "numQueries": "Número de consultas",
+            "numChartUpdates": "Número de actualizaciones de gráficos",
+            "daysSinceLastQuery": "Días desde la última consulta",
+            "dashboardName": "Nombre del panel",
+            "numViews": "Número de vistas",
+            "views": "Vistas",
+            "chartName": "Nombre del gráfico"
+        }
+    },
+    "chartTypeGallery": {
+        "searchPlaceholder": "Buscar por nombre o descripción",
+        "newChartType": "Nuevo tipo de gráfico",
+        "loading": "Cargando tipos de gráfico…",
+        "loadError": "No se pudieron cargar los tipos de gráfico",
+        "noMatch": "Ningún tipo de gráfico coincide con “{{search}}”",
+        "loadingMore": "Cargando más tipos de gráfico…",
+        "title": "Chart Studio",
+        "installed": "Tipos de gráfico instalados",
+        "library": "Biblioteca de tipos de gráfico",
+        "detailsLoadError": "No se pudieron cargar los detalles del tipo de gráfico",
+        "loadingDetails": "Cargando detalles del tipo de gráfico…"
+    },
+    "chartTypeBuilder": {
+        "savedChartLoadError": "No se pudieron cargar los datos del gráfico guardado",
+        "tableQueryError": "No se pudo ejecutar la consulta de la tabla",
+        "savedChart": "Gráfico guardado",
+        "notFound": "Tipo de gráfico no encontrado",
+        "notFoundDescription": "Puede que se haya eliminado o que el enlace sea incorrecto.",
+        "backToAll": "Volver a todos los tipos de gráfico",
+        "explorer": "Explorador",
+        "allChartTypes": "Todos los tipos de gráfico",
+        "queryResults": "Resultados de la consulta",
+        "pivotedRowsReturnedBy": "Vista previa pivotada de las filas devueltas por {{source}}.",
+        "rowsReturnedBy": "Filas devueltas por {{source}}.",
+        "theSavedChart": "el gráfico guardado"
+    },
+    "settings": {
+        "title": "Configuración",
+        "dangerZone": "Zona de peligro",
+        "pinSidebar": "Fijar barra lateral",
+        "unpinSidebar": "Desfijar barra lateral",
+        "noMatch": "Ninguna configuración coincide con “{{search}}”",
+        "clearSearch": "Borrar búsqueda",
+        "profile": {
+            "title": "Perfil",
+            "description": "Gestiona tus datos personales y las preferencias de tu cuenta.",
+            "details": "Datos del perfil",
+            "leaveDescription": "Abandona la organización para salir de ella (no puedes salir si eres el único administrador). Esta acción no se puede deshacer."
+        },
+        "password": {
+            "title": "Contraseña",
+            "description": "Actualiza tu contraseña y gestiona tus formas de iniciar sesión.",
+            "change": "Cambiar contraseña",
+            "socialLogins": "Inicios de sesión sociales"
+        },
+        "general": {
+            "title": "General",
+            "description": "Gestiona los valores predeterminados, el acceso y los controles de cuenta de la organización.",
+            "organizationDetails": "Datos de la organización",
+            "allowedDomains": "Dominios de correo permitidos",
+            "allowedDomainsDescription": "Cualquier persona con un correo de estos dominios puede unirse automáticamente a la organización.",
+            "defaultProject": "Proyecto predeterminado",
+            "defaultProjectDescription": "Es el proyecto que verán los usuarios al iniciar sesión por primera vez o desde un dispositivo nuevo. Si un usuario no tiene acceso, verá el siguiente proyecto al que tenga acceso.",
+            "invitations": "Invitaciones",
+            "invitationsDescription": "Controla cuánto tiempo siguen siendo válidas las invitaciones de nuevos usuarios en tu organización.",
+            "impersonation": "Suplantación de usuarios",
+            "supportAccess": "Acceso del soporte de Lightdash",
+            "dangerDescription": "Abandona la organización para salir de ella (no puedes salir si eres el único administrador). Estas acciones no se pueden deshacer.",
+            "dangerDescriptionWithDelete": "Abandona la organización para salir de ella (no puedes salir si eres el único administrador). Eliminar la organización elimina todo el espacio de trabajo y su contenido, incluidos los usuarios. Estas acciones no se pueden deshacer."
+        },
+        "exporting": {
+            "title": "Exportación",
+            "description": "Controla cómo se comparten fuera de Lightdash los archivos exportados.",
+            "scheduledDeliveries": "Envíos programados",
+            "scheduledDeliveriesDescription": "Controla cómo se comparten los archivos exportados de tu organización, empezando por los envíos programados. <link>Más información sobre los envíos programados</link>."
+        },
+        "limits": {
+            "title": "Límites",
+            "description": "Establece límites de consultas y exportaciones para toda la organización.",
+            "queryAndExport": "Límites de consultas y exportaciones",
+            "queryAndExportDescription": "Limita cuántas filas puede devolver una consulta y cuántas celdas puede contener una exportación CSV o Excel en tu organización."
+        },
+        "integrations": {
+            "title": "Integraciones",
+            "description": "Conecta Lightdash con las herramientas que usa tu organización.",
+            "none": "No hay integraciones disponibles"
+        },
+        "sso": {
+            "title": "Inicio de sesión único",
+            "description": "Configura proveedores SSO y la vinculación de cuentas. Los usuarios se dirigen al proveedor correspondiente según el dominio de su correo."
+        }
+    },
+    "dashboard": {
+        "parseChartError": "Error al analizar el gráfico",
+        "parseChartErrorSubtitle": "No se pudo guardar el gráfico en el panel",
+        "parseTabsError": "Error al analizar las pestañas",
+        "parseTabsErrorSubtitle": "No se pudieron guardar las pestañas en el panel",
+        "unsavedChangesMessage": "¡Tienes cambios sin guardar en tu panel! ¿Seguro que quieres salir sin guardar?",
+        "notFound": "Panel no encontrado",
+        "unsavedChanges": "Cambios sin guardar",
+        "stay": "Quedarse",
+        "leave": "Salir",
+        "saveBeforeEditTitle": "¿Guardar el panel antes de editar el gráfico?",
+        "saveBeforeEditDescription": "Tienes cambios sin guardar en el panel. Se guardarán antes de abrir el editor de gráficos.",
+        "saveAndEditChart": "Guardar y editar gráfico",
+        "saveVerifiedTitle": "Guardar panel verificado",
+        "keepVerified": "¿Mantener este panel verificado después de guardar?",
+        "saveAndVerify": "Guardar y verificar",
+        "verifiedSaveWarning": "Este panel está verificado. Al guardar tus cambios se eliminará su estado de verificado hasta que alguien lo vuelva a verificar.",
+        "saveAnyway": "Guardar de todos modos"
+    },
+    "minimalDashboard": {
+        "tabEmpty": "La pestaña está vacía",
+        "noTiles": "No hay mosaicos"
+    },
+    "dashboardVersionComparison": {
+        "columns": {
+            "tileType": "Tipo de mosaico",
+            "current": "Actual",
+            "selected": "Seleccionada",
+            "difference": "Diferencia",
+            "chartName": "Nombre del gráfico",
+            "currentVersion": "Versión actual",
+            "selectedVersion": "Versión seleccionada",
+            "rollbackAction": "Acción de reversión"
+        },
+        "tileTypes": {
+            "charts": "Gráficos",
+            "sqlCharts": "Gráficos SQL",
+            "markdown": "Markdown",
+            "loom": "Loom",
+            "heading": "Encabezado",
+            "dataApp": "App de datos",
+            "total": "Total"
+        },
+        "searchTileTypes": "Buscar tipos de mosaico...",
+        "searchCharts": "Buscar gráficos por nombre...",
+        "searchFilters": "Buscar filtros...",
+        "actions": {
+            "add": "Añadir",
+            "remove": "Quitar",
+            "versionUpdate": "Actualización de versión",
+            "update": "Actualizar"
+        },
+        "noChange": "Sin cambios",
+        "unnamedChart": "Gráfico sin nombre",
+        "loading": "Cargando detalles de la versión...",
+        "loadError": "No se pudo cargar la comparación de versiones",
+        "title": "Comparación de versiones",
+        "sections": {
+            "tiles": "Mosaicos",
+            "charts": "Gráficos",
+            "filters": "Filtros"
+        },
+        "changes_one": "{{count}} cambio",
+        "changes_other": "{{count}} cambios",
+        "chartsNote": "Solo los gráficos creados dentro de este panel se ven afectados por una reversión. Los gráficos añadidos desde el espacio mantendrán su versión actual.",
+        "noFilters": "No hay filtros configurados",
+        "description": "Descripción"
+    },
+    "appGenerate": {
+        "attached": "Adjunto",
+        "noTheme": "Sin tema",
+        "default": "Predeterminado",
+        "installedInSandbox": "Instalado en el entorno de construcción",
+        "packages_one": "{{count}} paquete",
+        "packages_other": "{{count}} paquetes",
+        "availableToApp": "Disponible para esta app",
+        "connections_one": "{{count}} conexión",
+        "connections_other": "{{count}} conexiones",
+        "generateFailed": "No se pudo generar la app",
+        "applyThemeFailed": "No se pudo aplicar el tema",
+        "missingProjectUuid": "Falta el UUID del proyecto",
+        "attachmentLimit": "Límite de adjuntos alcanzado",
+        "attachmentLimitDescription": "Puedes adjuntar hasta {{count}} archivos por mensaje.",
+        "thumbnailNotSaved": "No se guardó la miniatura",
+        "screenshotFailed": "La captura de pantalla falló",
+        "fileUploadFailed": "La subida del archivo falló",
+        "builderView": "Vista del constructor de apps",
+        "build": "Construir",
+        "preview": "Vista previa",
+        "resizeHandle": "Redimensionar chat y vista previa",
+        "showHistory": "Mostrar historial del proyecto",
+        "composeTitle": "Crea una app de datos",
+        "composeSubtitle": "Elige un punto de partida y describe lo que quieres construir.",
+        "loadingEarlier": "Cargando mensajes anteriores...",
+        "loadEarlier": "Cargar mensajes anteriores",
+        "emptyChat": "Describe lo que quieres construir y generaré una app de datos conectada a tu proyecto.",
+        "uploadedLocalVersion": "Se subió una versión construida localmente",
+        "alias": "Alias: {{alias}}",
+        "quickQuestions": "Algunas preguntas rápidas:",
+        "skip": "Omitir",
+        "holdTight": "Un momento, puede que tenga algunas preguntas antes de empezar",
+        "working": "Trabajando en tu app: puedes cambiar de pestaña o cerrar esta",
+        "generating": "Generando tu app",
+        "verifiedLocked": "Esta app está verificada. Pide a un administrador que retire la verificación antes de editarla.",
+        "promptPlaceholder": "Describe la app que quieres construir...",
+        "startingFrom": "Partiendo de {{template}}",
+        "templateLabel": "Plantilla:",
+        "stopGeneration": "Detener generación",
+        "sendMessage": "Enviar mensaje",
+        "previewLatest": "Ver la última versión",
+        "previewEmpty": "La vista previa de tu app aparecerá aquí"
+    }
+}

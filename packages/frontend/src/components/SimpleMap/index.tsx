@@ -21,6 +21,7 @@ import {
     type FC,
     type RefObject,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     CircleMarker,
     GeoJSON,
@@ -44,6 +45,7 @@ import { useTileFallback } from '../../hooks/leaflet/useTileFallback';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useAccount } from '../../hooks/user/useAccount';
+import i18n from '../../i18n/i18n';
 import { type MapUsageContext } from '../../providers/Tracking/types';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
@@ -155,6 +157,7 @@ const MapTooltipContent: FC<MapTooltipContentProps> = ({
     lon,
     noData,
 }) => {
+    const { t } = useTranslation('visualization');
     const visibleFields = tooltipFields.filter((f) => f.visible);
 
     if (noData) {
@@ -171,7 +174,7 @@ const MapTooltipContent: FC<MapTooltipContentProps> = ({
                         fontStyle: 'italic',
                     }}
                 >
-                    No data
+                    {t('map.noData')}
                 </div>
             </div>
         );
@@ -195,7 +198,10 @@ const MapTooltipContent: FC<MapTooltipContentProps> = ({
                         marginTop: 8,
                     }}
                 >
-                    Lat: {lat.toFixed(4)}, Lon: {lon.toFixed(4)}
+                    {t('map.coordinates', {
+                        lat: lat.toFixed(4),
+                        lon: lon.toFixed(4),
+                    })}
                 </div>
             )}
         </div>
@@ -223,7 +229,9 @@ const getMapTooltipHtml = ({
             noData.locationLabel,
         )}:</strong> ${escapeHtml(
             noData.locationValue,
-        )}</div><div style="font-size:14px;color:#868e96;font-style:italic">No data</div></div>`;
+        )}</div><div style="font-size:14px;color:#868e96;font-style:italic">${escapeHtml(
+            i18n.t('map.noData', { ns: 'visualization' }),
+        )}</div></div>`;
     }
 
     const rows = tooltipFields
@@ -239,9 +247,13 @@ const getMapTooltipHtml = ({
         .join('');
     const coords =
         lat !== undefined && lon !== undefined
-            ? `<div style="font-size:12px;color:#868e96;margin-top:8px">Lat: ${lat.toFixed(
-                  4,
-              )}, Lon: ${lon.toFixed(4)}</div>`
+            ? `<div style="font-size:12px;color:#868e96;margin-top:8px">${escapeHtml(
+                  i18n.t('map.coordinates', {
+                      ns: 'visualization',
+                      lat: lat.toFixed(4),
+                      lon: lon.toFixed(4),
+                  }),
+              )}</div>`
             : '';
     return `<div style="padding:4px 6px"><div style="display:flex;flex-direction:column;gap:2px">${rows}</div>${coords}</div>`;
 };
@@ -487,15 +499,16 @@ const MapBoundsFitter: FC<{
 };
 
 const EmptyChart: FC<{ locationType?: MapChartType }> = ({ locationType }) => {
+    const { t } = useTranslation('visualization');
     const description =
         locationType === MapChartType.AREA
-            ? 'Query metrics and dimensions with region data.'
-            : 'Query metrics and dimensions with latitude/longitude data.';
+            ? t('map.emptyAreaDescription')
+            : t('map.emptyScatterDescription');
 
     return (
         <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
             <SuboptimalState
-                title="No data available"
+                title={t('map.noDataTitle')}
                 description={description}
                 icon={IconMap}
             />
@@ -513,6 +526,7 @@ type SimpleMapProps = {
 
 const SimpleMap: FC<SimpleMapProps> = memo(
     ({ onScreenshotReady, onScreenshotError, ...props }) => {
+        const { t } = useTranslation('visualization');
         const {
             isLoading,
             visualizationConfig,
@@ -1026,7 +1040,7 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                 const locationFieldLabel =
                     mapConfig?.tooltipFields.find(
                         (f) => f.fieldId === mapConfig?.locationFieldId,
-                    )?.label || 'Location';
+                    )?.label || t('map.location');
                 const noData = regionEntry
                     ? undefined
                     : {
@@ -1094,6 +1108,7 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                 hasBaseMap,
                 fillOpacityWithData,
                 fillOpacityNoData,
+                t,
             ],
         );
 
@@ -1226,10 +1241,10 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     </MapContainer>
                     {isHexbin && hexbinTruncated && (
                         <Callout variant="warning" mt="xs">
-                            Showing hex bins for the first{' '}
-                            {MAX_HEXBIN_POINTS.toLocaleString()} points of{' '}
-                            {hexbinTruncated.totalPoints.toLocaleString()}.
-                            Reduce the result set for accurate binning.
+                            {t('map.hexbinTruncated', {
+                                shown: MAX_HEXBIN_POINTS.toLocaleString(),
+                                total: hexbinTruncated.totalPoints.toLocaleString(),
+                            })}
                         </Callout>
                     )}
                     {mapConfig.showLegend &&

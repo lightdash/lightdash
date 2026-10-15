@@ -9,6 +9,7 @@ import {
 import { Badge, HoverCard, Stack, Text } from '@mantine/core';
 import { IconFilter } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getConditionalRuleLabelFromItem } from '../common/Filters/FilterInputs/utils';
 import MantineIcon from '../common/MantineIcon';
 import classes from './UnderlyingDataFilterBadges.module.css';
@@ -22,6 +23,7 @@ type Props = {
 // underlying data results, mirroring the dashboard tile filter popover.
 // Rendered inside the modal title (a <p>), so the target must stay inline.
 const UnderlyingDataFilterBadges: FC<Props> = ({ filterRules, fields }) => {
+    const { t } = useTranslation('app');
     const labelledRules = filterRules.flatMap((filterRule) => {
         const field = fields.find(
             (f) => getItemId(f) === filterRule.target.fieldId,
@@ -55,8 +57,9 @@ const UnderlyingDataFilterBadges: FC<Props> = ({ filterRules, fields }) => {
                     fz="xs"
                     leftSection={<MantineIcon icon={IconFilter} size="sm" />}
                 >
-                    {labelledRules.length} filter
-                    {labelledRules.length > 1 ? 's' : ''}
+                    {t('metricQueryData.filterCount', {
+                        count: labelledRules.length,
+                    })}
                 </Badge>
             </HoverCard.Target>
             <HoverCard.Dropdown maw={500}>

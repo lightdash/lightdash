@@ -1,5 +1,6 @@
 import { TextInput, type ModalProps } from '@mantine/core';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useDeleteOrganizationMutation } from '../../../hooks/organization/useOrganizationDeleteMultation';
 import MantineModal from '../../common/MantineModal';
@@ -7,6 +8,7 @@ import MantineModal from '../../common/MantineModal';
 export const OrganizationDeleteModal: FC<
     Pick<ModalProps, 'opened' | 'onClose'>
 > = ({ opened, onClose }) => {
+    const { t } = useTranslation('userSettings');
     const { isInitialLoading, data: organization } = useOrganization();
     const { mutateAsync, isLoading: isDeleting } =
         useDeleteOrganizationMutation();
@@ -32,10 +34,14 @@ export const OrganizationDeleteModal: FC<
         <MantineModal
             opened={opened}
             onClose={handleOnClose}
-            title={`Delete “${organizationName || 'Unnamed organization'}”?`}
+            title={t('deleteOrganizationPanel.modal.title', {
+                name:
+                    organizationName ||
+                    t('deleteOrganizationPanel.unnamedOrganization'),
+            })}
             variant="delete"
-            confirmLabel="Permanently delete organization"
-            description="This permanently removes all projects, saved content, users, and service accounts in this organization. You will be signed out. This cannot be undone."
+            confirmLabel={t('deleteOrganizationPanel.modal.confirmLabel')}
+            description={t('deleteOrganizationPanel.modal.description')}
             size="md"
             onConfirm={handleConfirm}
             confirmDisabled={
@@ -45,11 +51,15 @@ export const OrganizationDeleteModal: FC<
         >
             <TextInput
                 name="confirmOrgName"
-                label={`Type ${confirmationText} to confirm`}
+                label={t('deleteOrganizationPanel.modal.typeToConfirm', {
+                    text: confirmationText,
+                })}
                 description={
                     organizationName
                         ? undefined
-                        : 'This organization has no name, so use DELETE instead.'
+                        : t('deleteOrganizationPanel.modal.noNameHint', {
+                              text: confirmationText,
+                          })
                 }
                 placeholder={confirmationText}
                 value={confirmOrgName}

@@ -1,0 +1,440 @@
+{
+    "detail": {
+        "uninstall": "Desinstalar",
+        "forkToCustomize": "Bifurcar para personalizar",
+        "previewInExplorer": "Previsualizar en el explorador",
+        "noDescription": "Sin descripción",
+        "updateAvailable": "Actualización disponible: v{{version}}",
+        "updateExplanation": "Los gráficos fijados a una versión anterior la siguen mostrando hasta que se actualice cada uno; los gráficos sin versión fijada pasan a la v{{version}} de inmediato.",
+        "upgradeTo": "Actualizar a v{{version}}",
+        "builtBy": "Creado por",
+        "lastUpdated": "Última actualización",
+        "version": "Versión",
+        "noFinishedVersion": "Aún no hay ninguna versión terminada. Abre el constructor para generar una.",
+        "forkDefaultName": "{{name}} (personalizado)"
+    },
+    "library": {
+        "install": "Instalar",
+        "requiresVersion": "Requiere Lightdash v{{version}} o posterior",
+        "pinnedVersionTitle": "Los gráficos existentes conservan su versión fijada",
+        "published": "Publicado",
+        "changelog": "Registro de cambios",
+        "title": "Biblioteca de tipos de gráfico",
+        "updatesAvailable_one": "Hay actualizaciones para {{count}} gráfico ya instalado",
+        "updatesAvailable_other": "Hay actualizaciones para {{count}} gráficos ya instalados",
+        "updatesAvailable_many": "Hay actualizaciones para {{count}} gráficos ya instalados",
+        "upgradeAll": "Actualizar todos",
+        "availableCallout": "Estos tipos de gráfico están disponibles para añadir a tu instancia. Una vez instalados, cualquier persona que cree gráficos en tu organización podrá usarlos.",
+        "loading": "Cargando la biblioteca de tipos de gráfico…",
+        "offline": "No se puede acceder a la biblioteca de tipos de gráfico en este momento. Puede ser una interrupción temporal o una restricción de red en esta instancia.",
+        "allInstalled": "Todos los tipos de gráfico de la biblioteca están instalados: encuéntralos en tus tipos de gráfico instalados.",
+        "empty": "Todavía no hay tipos de gráfico disponibles en el registro."
+    },
+    "gallery": {
+        "updateAvailable": "Actualización disponible",
+        "forkNamed": "Bifurcar {{name}}",
+        "editNamed": "Editar {{name}}",
+        "actionsFor": "Acciones de {{name}}"
+    },
+    "testInputs": {
+        "testWithData": "Probar con datos",
+        "selectTable": "Selecciona una tabla",
+        "needAtLeastOne": {
+            "metric": "Necesitas al menos una métrica en la tabla seleccionada",
+            "dimension": "Necesitas al menos una dimensión en la tabla seleccionada",
+            "column": "Necesitas al menos una columna en la tabla seleccionada"
+        },
+        "selectField": "Selecciona {{label}}"
+    },
+    "upgrade": {
+        "nonePinned": "Ninguno fija una versión, así que todos pasan a la nueva versión de inmediato.",
+        "allPinned_one": "Está fijado y sigue mostrando su versión fijada hasta que se actualice.",
+        "allPinned_other": "Todos están fijados y siguen mostrando su versión fijada hasta que se actualice cada gráfico.",
+        "allPinned_many": "Todos están fijados y siguen mostrando su versión fijada hasta que se actualice cada gráfico.",
+        "somePinned_one": "{{count}} de ellos está fijado y sigue mostrando su versión fijada hasta que se actualice cada gráfico.",
+        "somePinned_other": "{{count}} de ellos están fijados y siguen mostrando su versión fijada hasta que se actualice cada gráfico.",
+        "somePinned_many": "{{count}} de ellos están fijados y siguen mostrando su versión fijada hasta que se actualice cada gráfico.",
+        "confirm": "Actualizar",
+        "checkingImpact": "Comprobando los gráficos guardados que usan este tipo de gráfico…",
+        "impactErrorTitle": "No se pudieron comprobar los gráficos afectados",
+        "impactErrorDescription": "Vuelve a intentarlo para ver el impacto antes de continuar.",
+        "tryAgain": "Reintentar",
+        "noCharts": "Ningún gráfico guardado usa este tipo de gráfico.",
+        "chartsUsing_one": "{{count}} gráfico guardado usa este tipo de gráfico",
+        "chartsUsing_other": "{{count}} gráficos guardados usan este tipo de gráfico",
+        "chartsUsing_many": "{{count}} gráficos guardados usan este tipo de gráfico",
+        "alsoMove_one": "Mover también el gráfico fijado a v{{version}}",
+        "alsoMove_other": "Mover también los {{count}} gráficos fijados a v{{version}}",
+        "alsoMove_many": "Mover también los {{count}} gráficos fijados a v{{version}}",
+        "alsoMoveDescription": "Anula deliberadamente la versión fijada de cada gráfico. Los gráficos sin versión fijada siempre siguen la última versión."
+    },
+    "iconPicker": {
+        "chooseIcon": "Elige un icono",
+        "ariaLabel": "Icono del tipo de gráfico",
+        "search": "Buscar iconos",
+        "noMatch": "Ningún icono coincide",
+        "noIcon": "Sin icono"
+    },
+    "libraryCard": {
+        "installed": "Instalado v{{version}}",
+        "requiresNewer": "Requiere una versión más reciente de Lightdash"
+    },
+    "schemaChanges": {
+        "added": "Añadido",
+        "updated": "Actualizado",
+        "removed": "Eliminado",
+        "field": "campo {{type}}",
+        "multipleField": "campo {{type}} múltiple",
+        "withRequired": "{{description}}, obligatorio",
+        "nowRequired": "ahora obligatorio",
+        "nowOptional": "ahora opcional",
+        "nowMultiple": "ahora acepta varios campos",
+        "nowSingle": "ahora acepta un campo",
+        "renamedFrom": "renombrado desde \"{{label}}\"",
+        "gradientDefault": "{{colors}} ({{min}} a {{max}})",
+        "defaultChanged": "valor predeterminado cambiado",
+        "defaultFromTo": "valor predeterminado {{before}} → {{after}}",
+        "boundsHidden": "límites ocultos",
+        "boundsShown": "límites visibles",
+        "addsChoices": "añade {{choices}}",
+        "dropsChoices": "elimina {{choices}}",
+        "rangeChanged": "rango cambiado",
+        "option": "opción {{type}}",
+        "colorPalette": "Paleta de colores",
+        "hierarchy": "Jerarquía",
+        "fieldChanged": "campo cambiado"
+    },
+    "upgradeAll": {
+        "title_one": "Actualizar {{count}} tipo de gráfico",
+        "title_other": "Actualizar {{count}} tipos de gráfico",
+        "title_many": "Actualizar {{count}} tipos de gráfico",
+        "explanation": "Los gráficos guardados sin versión fijada pasan a las nuevas versiones de inmediato. Los gráficos fijados a una versión anterior la siguen mostrando hasta que se actualice cada uno.",
+        "alsoMove": "Mover también los gráficos guardados fijados a las nuevas versiones",
+        "alsoMoveDescription": "Anula deliberadamente la versión fijada de cada gráfico."
+    },
+    "delete": {
+        "softDeleteDescription_one": "El tipo de gráfico pasa a Eliminados recientemente y se borra de forma permanente tras {{count}} día.",
+        "softDeleteDescription_other": "El tipo de gráfico pasa a Eliminados recientemente y se borra de forma permanente tras {{count}} días.",
+        "softDeleteDescription_many": "El tipo de gráfico pasa a Eliminados recientemente y se borra de forma permanente tras {{count}} días.",
+        "hardDeleteDescription": "El tipo de gráfico y todas sus versiones se eliminarán de forma permanente, incluidos los artefactos generados en el almacenamiento. Esta acción no se puede deshacer.",
+        "uninstallTitle": "Desinstalar tipo de gráfico",
+        "deleteTitle": "Eliminar tipo de gráfico",
+        "uninstalledToast": "Tipo de gráfico desinstalado",
+        "deletedToast": "Tipo de gráfico eliminado",
+        "chartsAffected_one": "{{count}} gráfico guardado se basa en este tipo de gráfico y mostrará un error.",
+        "chartsAffected_other": "{{count}} gráficos guardados se basan en este tipo de gráfico y mostrarán un error.",
+        "chartsAffected_many": "{{count}} gráficos guardados se basan en este tipo de gráfico y mostrarán un error.",
+        "chartsKeptSoft": "Los gráficos guardados se conservan, pero mostrarán un error allí donde aparezcan, incluidos los paneles, hasta que se restaure el tipo de gráfico.",
+        "chartsKeptHard": "Los gráficos guardados se conservan, pero este tipo de gráfico no se puede restaurar. Actualiza los gráficos afectados para que usen otro tipo de gráfico y vuelvan a funcionar."
+    },
+    "fork": {
+        "nameRequired": "El nombre es obligatorio",
+        "forkedToast": "Tipo de gráfico bifurcado",
+        "description": "Al bifurcar se crea tu propia copia con su propio historial de versiones. No recibirá actualizaciones del registro.",
+        "fork": "Bifurcar",
+        "name": "Nombre",
+        "namePlaceholder": "p. ej. Indicador radial (personalizado)"
+    },
+    "preview": {
+        "unavailable": "Vista previa no disponible",
+        "loading": "Cargando vista previa…",
+        "generating": "Todavía generando…",
+        "noFinishedVersion": "Aún no hay ninguna versión terminada"
+    },
+    "testPanel": {
+        "visualizationReady": "Visualización lista",
+        "projectDefault": "Predeterminada del proyecto",
+        "runTestQuery": "Ejecutar consulta de prueba"
+    },
+    "emptyState": {
+        "title": "Aún no hay tipos de gráfico",
+        "description": "Los tipos de gráfico son visualizaciones personalizadas que creas una vez y reutilizas en todo tu proyecto.",
+        "newChartType": "Nuevo tipo de gráfico"
+    },
+    "fieldsList": {
+        "title": "Campos"
+    },
+    "previewTable": {
+        "openInExplorer": "Abrir en el explorador",
+        "table": "Tabla",
+        "description": "Elige la tabla con la que previsualizar este tipo de gráfico."
+    },
+    "libraryModal": {
+        "title": "Buscar nuevos tipos de gráfico",
+        "openChartStudio": "Abrir Chart Studio"
+    },
+    "releaseStage": {
+        "beta": "Beta",
+        "preRelease": "Prelanzamiento"
+    },
+    "officialBadge": "Creado por Lightdash",
+    "fieldType": {
+        "dimension": "dimensión",
+        "metric": "métrica",
+        "series": "serie",
+        "column": "columna"
+    },
+    "promptBar": {
+        "editQueued": "Editar instrucción en cola: {{description}}",
+        "removeQueued": "Quitar instrucción en cola: {{description}}",
+        "sending": "Enviando…",
+        "nextUp": "Siguiente",
+        "queued": "En cola",
+        "sendNow": "Enviar ahora",
+        "themesUnavailable": "Temas no disponibles",
+        "loadingThemes": "Cargando temas…",
+        "noTheme": "Sin tema",
+        "selectedTheme": "Tema seleccionado",
+        "screenshotFailed": "No se pudo capturar la pantalla",
+        "readingPrompt": "Leyendo tu instrucción…",
+        "building": "Construyendo…",
+        "buildingElapsed": "Construyendo… {{elapsed}}",
+        "couldNotCancel": "No se pudo cancelar: {{error}}",
+        "queuedCount_one": "{{count}} en cola",
+        "queuedCount_other": "{{count}} en cola",
+        "queuedCount_many": "{{count}} en cola",
+        "cancelling": "Cancelando…",
+        "queuedPrompts_one": "{{count}} instrucción en cola",
+        "queuedPrompts_other": "{{count}} instrucciones en cola",
+        "queuedPrompts_many": "{{count}} instrucciones en cola",
+        "placeholders": {
+            "answerQuestions": "Responde a las preguntas, u omítelas, para construir…",
+            "anotherChange": "Pide otro cambio…",
+            "change": "Pide un cambio…",
+            "newChartType": "Describe un nuevo tipo de gráfico…"
+        },
+        "attachScreenshotTooltip": "Adjuntar captura de la vista actual",
+        "attachScreenshot": "Adjuntar captura",
+        "selectedContext": "Contexto del gráfico seleccionado",
+        "themeRebuildHint": "Seleccionar un tema reconstruye este tipo de gráfico.",
+        "retryThemes": "Reintentar temas",
+        "manageConnection": "Gestionar conexión: {{name}}",
+        "removeConnection": "Quitar conexión: {{name}}",
+        "answerOrSkipFirst": "Responde u omite primero",
+        "cancellingGeneration": "Cancelando generación",
+        "stopGeneration": "Detener generación",
+        "queueMessage": "Poner mensaje en cola",
+        "send": "Enviar"
+    },
+    "source": {
+        "savedCharts": "Gráficos guardados",
+        "savedChartRunning": "Gráfico guardado · {{space}} · ejecutando consulta",
+        "savedChartFailed": "Gráfico guardado · {{space}} · la consulta falló",
+        "savedChartReady_one": "Gráfico guardado · {{space}} · {{count}} fila",
+        "savedChartReady_other": "Gráfico guardado · {{space}} · {{count}} filas",
+        "savedChartReady_many": "Gráfico guardado · {{space}} · {{count}} filas",
+        "useSavedChart": "Usar un gráfico guardado",
+        "useSavedChartDescription": "Previsualiza con los resultados de su consulta.",
+        "chooseSavedChart": "Elegir gráfico guardado",
+        "couldNotRunChart": "No se pudo ejecutar este gráfico.",
+        "viewQueryResults": "Ver resultados de la consulta",
+        "change": "Cambiar",
+        "useSampleData": "Usar datos de ejemplo",
+        "rowsIncluded": "Filas incluidas · se envían hasta {{max}} filas con tu instrucción.",
+        "rowsNotSent": "Las filas no se envían con tu instrucción. <include>Incluye filas</include> para enviar hasta {{max}}.",
+        "useTable": "Usar una tabla",
+        "useTableDescription": "Previsualiza con campos de una de tus tablas.",
+        "chooseTable": "Elegir tabla",
+        "table": "Tabla",
+        "couldNotLoadTable": "No se pudo cargar esta tabla.",
+        "firstVersionPicks": "La primera versión elige sus campos de {{label}} y ejecuta la consulta, hasta {{limit}} filas."
+    },
+    "exploreSource": {
+        "fields_one": "{{count}} campo",
+        "fields_other": "{{count}} campos",
+        "fields_many": "{{count}} campos",
+        "rows_one": "{{count}} fila",
+        "rows_other": "{{count}} filas",
+        "rows_many": "{{count}} filas",
+        "summary": "Tabla · {{fields}}",
+        "summaryJoined": "Tabla · {{fields}}, {{joined}} unidas",
+        "queryFailed": "la consulta falló",
+        "runningQuery": "ejecutando consulta",
+        "chipPicking": "{{label}} · eligiendo campos",
+        "chipError": "{{label}} · {{state}}",
+        "chip": "{{label}} · {{fields}} · {{state}}",
+        "metaLoading": "Tabla · cargando",
+        "metaPicking": "Tabla · eligiendo campos",
+        "metaNoFields": "Tabla · aún no hay campos elegidos",
+        "metaError": "Tabla · {{state}}",
+        "meta": "Tabla · {{fields}} · {{state}}",
+        "metaRan": "Tabla · {{fields}} · {{state}} · ejecutada {{ran}}"
+    },
+    "picker": {
+        "tablesError": "No se pudieron cargar tus tablas.",
+        "chartsError": "No se pudieron cargar tus gráficos guardados.",
+        "noMatch": {
+            "both": "Ninguna tabla ni gráfico guardado coincide con “{{search}}”",
+            "tables": "Ninguna tabla coincide con “{{search}}”",
+            "charts": "Ningún gráfico guardado coincide con “{{search}}”"
+        },
+        "none": {
+            "both": "No hay tablas ni gráficos guardados",
+            "tables": "No hay tablas",
+            "charts": "No hay gráficos guardados"
+        },
+        "suggested": "Sugerido para este gráfico",
+        "tables": "Tablas",
+        "moreTables_one": "Escribe para buscar {{count}} tabla más",
+        "moreTables_other": "Escribe para buscar {{count}} tablas más",
+        "moreTables_many": "Escribe para buscar {{count}} tablas más",
+        "savedChartsCount": "Gráficos guardados · {{total}}",
+        "search": {
+            "both": "Buscar tablas y gráficos guardados",
+            "tables": "Buscar tablas",
+            "charts": "Buscar gráficos guardados"
+        }
+    },
+    "inputs": {
+        "alsoFits": "{{reason}} También encaja: {{fields}}.",
+        "pickedForPrompt": "Elegido para tu instrucción. {{tooltip}}",
+        "pickingField": "Eligiendo un campo",
+        "noneToPick": {
+            "metric": "Esta consulta no tiene ninguna métrica para elegir",
+            "dimension": "Esta consulta no tiene ninguna dimensión para elegir",
+            "column": "Esta consulta no tiene ninguna columna para elegir"
+        },
+        "title": "Entradas del gráfico",
+        "about": "Acerca de {{label}}",
+        "required": "Obligatorio",
+        "notMapped": "sin asignar",
+        "rendersWithout": "La vista previa se muestra sin {{label}} hasta que se elija un campo."
+    },
+    "configure": {
+        "pickedFrom": "Elegidos de {{source}} para tu instrucción. Cambiar uno vuelve a ejecutar la consulta.",
+        "fieldsFrom": "Campos de {{source}}. Cambiar uno vuelve a ejecutar la consulta.",
+        "generatedOptions": "Opciones generadas",
+        "general": "General",
+        "noDisplayOptions": "Este tipo de gráfico no declara opciones de visualización."
+    },
+    "canvas": {
+        "building": "Construyendo tu tipo de gráfico…",
+        "clarifierUnavailable": "No se pudo contactar con el asistente de aclaraciones, así que se construye a partir de tu instrucción tal como está.",
+        "buildFailed": "La construcción falló",
+        "askForChange": "Pide un cambio abajo para volver a intentarlo.",
+        "createTitle": "Crear con Chart Studio",
+        "createDescription": "Describe el gráfico que siempre has querido o empieza con un ejemplo.",
+        "previewData": "Datos de vista previa",
+        "previewDataOptional": "Datos de vista previa (opcional)"
+    },
+    "rowsPeek": {
+        "series": "Serie",
+        "rows_one": "{{count}} fila",
+        "rows_other": "{{count}} filas",
+        "rows_many": "{{count}} filas",
+        "series_count_one": "{{count}} serie",
+        "series_count_other": "{{count}} series",
+        "series_count_many": "{{count}} series",
+        "values_one": "{{count}} valor",
+        "values_other": "{{count}} valores",
+        "values_many": "{{count}} valores",
+        "pivotedRows_one": "{{count}} fila pivotada",
+        "pivotedRows_other": "{{count}} filas pivotadas",
+        "pivotedRows_many": "{{count}} filas pivotadas",
+        "rowsRan": "{{rows}} · ejecutada {{ran}}",
+        "queryResults": "Resultados de la consulta",
+        "sampleData": "Datos de ejemplo",
+        "queryResultsPreview": "Vista previa de los resultados de la consulta",
+        "sampleDataPreview": "Vista previa de los datos de ejemplo",
+        "viewAll": "Ver todo",
+        "sampleDataSubtitle": "Filas generadas a partir de las entradas del gráfico, usadas hasta que se adjunte una tabla o un gráfico guardado."
+    },
+    "header": {
+        "chartStudio": "Chart Studio",
+        "description": "Descripción del tipo de gráfico",
+        "editDetails": "Editar detalles",
+        "editDetailsAria": "Editar detalles del tipo de gráfico",
+        "upgradeAvailable": "Actualización disponible",
+        "history": "Historial"
+    },
+    "sourceSection": {
+        "withRan": "{{meta}} · ejecutada {{ran}}",
+        "savedChartQueryFailed": "La consulta del gráfico guardado falló.",
+        "tableQueryFailed": "La consulta de la tabla falló.",
+        "sampleMeta": "Generados a partir de las entradas del gráfico",
+        "changePreviewData": "Cambiar datos de vista previa: {{title}}"
+    },
+    "composer": {
+        "options": "Opciones del editor",
+        "attachFile": "Adjuntar una imagen o archivo",
+        "addConnections": "Añadir conexiones externas",
+        "backToOptions": "Volver a las opciones del editor"
+    },
+    "clarifying": {
+        "aria": "Preguntas antes de construir",
+        "editPrompt": "Editar la instrucción en su lugar",
+        "skip": "Omitir y construir igualmente",
+        "answered": "{{answered}} de {{total}} respondidas",
+        "build": "Construir"
+    },
+    "chip": {
+        "running": "{{name}} · ejecutando consulta",
+        "failed": "{{name}} · la consulta falló",
+        "ready_one": "{{name}} · {{count}} fila",
+        "ready_other": "{{name}} · {{count}} filas",
+        "ready_many": "{{name}} · {{count}} filas",
+        "previewData": "Datos de vista previa: {{label}}",
+        "addPreviewData": "Añadir datos de vista previa"
+    },
+    "workspace": {
+        "resizeHistory": "Redimensionar historial de versiones"
+    },
+    "examples": {
+        "stream": "Un gráfico de flujo de la cuota a lo largo del tiempo",
+        "funnel": "Un embudo de los pasos de registro",
+        "heatmap": "Un mapa de calor de calendario con los pedidos diarios",
+        "waterfall": "Un gráfico de cascada de los cambios en los ingresos"
+    },
+    "sampleData": {
+        "rowsAria": "Filas de datos de ejemplo generadas",
+        "tableAria": "Datos de ejemplo generados",
+        "viewData_one": "Ver datos · {{count}} fila",
+        "viewData_other": "Ver datos · {{count}} filas",
+        "viewData_many": "Ver datos · {{count}} filas",
+        "viewSampleData_one": "Ver datos de ejemplo · {{count}} fila",
+        "viewSampleData_other": "Ver datos de ejemplo · {{count}} filas",
+        "viewSampleData_many": "Ver datos de ejemplo · {{count}} filas",
+        "liveSubtitle": "Filas devueltas por el gráfico guardado en el que se basa este gráfico.",
+        "sampleSubtitle": "Valores de ejemplo generados que se usan en esta vista previa."
+    },
+    "history": {
+        "whatChanged": "Qué ha cambiado",
+        "whatChangedIn": "Qué ha cambiado en v{{version}}",
+        "uploadedFromSource": "Subido desde el código fuente"
+    },
+    "restore": {
+        "title": "¿Restaurar la versión {{version}}?",
+        "confirm": "Restaurar versión",
+        "description": "Al restaurar se crea una nueva versión. Los gráficos guardados conservarán su versión actual.",
+        "failed": "No se pudo restaurar la versión."
+    },
+    "errors": {
+        "previewQueryFailed": "La consulta de vista previa falló",
+        "buildFailed": "No se pudo completar la construcción. Inténtalo de nuevo.",
+        "exploreQueryDidNotFinish": "La consulta del explorador no terminó",
+        "savedChartQueryDidNotFinish": "La consulta del gráfico guardado no terminó"
+    },
+    "install": {
+        "upgradedToast": "Tipo de gráfico actualizado",
+        "installedToast": "Tipo de gráfico instalado",
+        "chartsMoved_one": "{{count}} gráfico guardado se movió a la nueva versión",
+        "chartsMoved_other": "{{count}} gráficos guardados se movieron a la nueva versión",
+        "chartsMoved_many": "{{count}} gráficos guardados se movieron a la nueva versión",
+        "failed": "No se pudo instalar el tipo de gráfico",
+        "typesUpgraded_one": "{{count}} tipo de gráfico actualizado",
+        "typesUpgraded_other": "{{count}} tipos de gráfico actualizados",
+        "typesUpgraded_many": "{{count}} tipos de gráfico actualizados",
+        "chartsMovedPlural_one": "{{count}} gráfico guardado se movió a las nuevas versiones",
+        "chartsMovedPlural_other": "{{count}} gráficos guardados se movieron a las nuevas versiones",
+        "chartsMovedPlural_many": "{{count}} gráficos guardados se movieron a las nuevas versiones",
+        "upgradeFailed_one": "No se pudo actualizar {{count}} tipo de gráfico",
+        "upgradeFailed_other": "No se pudieron actualizar {{count}} tipos de gráfico",
+        "upgradeFailed_many": "No se pudieron actualizar {{count}} tipos de gráfico"
+    },
+    "attachments": {
+        "limitReached": "Límite de adjuntos alcanzado",
+        "limitDescription": "Puedes adjuntar hasta {{max}} archivos por mensaje.",
+        "uploadFailed": "Error al subir",
+        "uploadFailedDescription": "Inténtalo de nuevo o contacta con soporte."
+    }
+}

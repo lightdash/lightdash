@@ -9,6 +9,7 @@ import {
 } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type useLogsFilters } from '../../features/scheduler/hooks/useLogsFilters';
 import MantineIcon from '../common/MantineIcon';
 import CreatedByFilter from './filters/CreatedByFilter';
@@ -68,6 +69,7 @@ export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
         hideCreatedByFilter = false,
         hideSearchFilter = false,
     }) => {
+        const { t } = useTranslation('scheduler');
         const theme = useMantineTheme();
 
         const selectedScheduler = availableSchedulers.find(
@@ -95,7 +97,7 @@ export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
                     {!hideSchedulerPill && selectedScheduler && (
                         <>
                             <Text fz="sm" c="ldGray.7" fw={500}>
-                                Scheduler:
+                                {t('toolbar.schedulerLabel')}
                             </Text>
                             <Pill
                                 withRemoveButton
@@ -131,7 +133,7 @@ export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
                 </Group>
 
                 {hasActiveFilters && (
-                    <Tooltip label="Clear all filters">
+                    <Tooltip label={t('toolbar.clearAllFilters')}>
                         <ActionIcon
                             size="sm"
                             onClick={resetFilters}

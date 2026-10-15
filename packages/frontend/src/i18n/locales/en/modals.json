@@ -1,0 +1,390 @@
+{
+    "mantineModal": {
+        "deleteNamedDescription": "Are you sure you want to delete the {{resourceType}} \"{{resourceLabel}}\"?",
+        "deleteDescription": "Are you sure you want to delete this {{resourceType}}?",
+        "unsavedChanges": {
+            "title": "Unsaved changes",
+            "description": "You have unsaved changes. Are you sure you want to close?",
+            "keepEditing": "Keep editing",
+            "discard": "Discard changes"
+        }
+    },
+    "spaceAction": {
+        "nameLabel": "Enter a memorable name for your space",
+        "namePlaceholder": "eg. KPIs",
+        "inheritsAccessFrom": "This space will have the same access as \"{{parentName}}\". You can change this later.",
+        "inheritsAccessFromParent": "This space will have the same access as \"the parent space\". You can change this later.",
+        "projectFallback": "project",
+        "paletteOverrideActive": "A color palette override is set in your instance configuration. Space-level selection is disabled while the override is active.",
+        "colorPalette": "Color palette",
+        "nameRequired": "Name is required",
+        "errorSaving": "Error saving"
+    },
+    "deleteSpace": {
+        "confirm": "Are you sure you want to delete the space <name>“{{name}}”</name>?",
+        "confirmNameLabel": "Type the space name to confirm",
+        "confirmNamePlaceholder": "Space name",
+        "impactSoft": "This will also delete content within this space:",
+        "impactPermanent": "This will permanently delete content within this space:",
+        "counts": {
+            "spaces_one": "{{count}} space",
+            "spaces_other": "{{count}} spaces",
+            "charts_one": "{{count}} chart",
+            "charts_other": "{{count}} charts",
+            "dashboards_one": "{{count}} dashboard",
+            "dashboards_other": "{{count}} dashboards",
+            "dataApps_one": "{{count}} data app",
+            "dataApps_other": "{{count}} data apps",
+            "documents_one": "{{count}} document",
+            "documents_other": "{{count}} documents"
+        },
+        "softDeleteRetention_one": "This space and its contents will be moved to Recently deleted and permanently removed after {{count}} day.",
+        "softDeleteRetention_other": "This space and its contents will be moved to Recently deleted and permanently removed after {{count}} days."
+    },
+    "transferItems": {
+        "title": {
+            "chart": "Move chart",
+            "dashboard": "Move dashboard",
+            "space": "Move space",
+            "dataApp": "Move data app",
+            "document": "Move document",
+            "items": "Move items"
+        },
+        "createSpaceAndMove": "Create space & move",
+        "selectSpaceSingle": "Select a space to move <name>\"{{name}}\"</name> to:",
+        "selectSpaceMany_one": "Select a space to move {{count}} item to:",
+        "selectSpaceMany_other": "Select a space to move {{count}} items to:",
+        "moveSingleTo": "Move <name>\"{{name}}\"</name> to <space>\"{{space}}\"</space>",
+        "moveManyTo_one": "Move {{count}} item to <space>\"{{space}}\"</space>",
+        "moveManyTo_other": "Move {{count}} items to <space>\"{{space}}\"</space>"
+    },
+    "cannotBeUndone": "This change cannot be undone.",
+    "resourceTypes": {
+        "chart": "chart",
+        "dashboard": "dashboard",
+        "document": "document",
+        "app": "app"
+    },
+    "documentDelete": {
+        "title": "Delete document",
+        "softDeleteDescription": "This document will be moved to Recently deleted, where it can be restored or permanently deleted.",
+        "permanentDescription": "This document and all of its versions will be permanently deleted."
+    },
+    "appDelete": {
+        "title": "Delete app",
+        "softDeleteDescription_one": "This app will be moved to Recently deleted and permanently removed after {{count}} day.",
+        "softDeleteDescription_other": "This app will be moved to Recently deleted and permanently removed after {{count}} days.",
+        "permanentDescription": "This app and all of its versions will be permanently deleted, including any built artifacts in storage."
+    },
+    "chartDelete": {
+        "title": "Delete Chart",
+        "softDeleteDescription_one": "This chart will be moved to Recently deleted and permanently removed after {{count}} day.",
+        "softDeleteDescription_other": "This chart will be moved to Recently deleted and permanently removed after {{count}} days.",
+        "dashboardWarningSoft_one": "This chart tile will be removed from {{count}} dashboard. The chart can be restored from Recently deleted.",
+        "dashboardWarningSoft_other": "This chart tile will be removed from {{count}} dashboards. The chart can be restored from Recently deleted.",
+        "dashboardWarningPermanent_one": "This action will permanently remove a chart tile from {{count}} dashboard:",
+        "dashboardWarningPermanent_other": "This action will permanently remove a chart tile from {{count}} dashboards:"
+    },
+    "dashboardDelete": {
+        "title": "Delete dashboard",
+        "softDeleteDescription_one": "This dashboard will be moved to Recently deleted and permanently removed after {{count}} day.",
+        "softDeleteDescription_other": "This dashboard will be moved to Recently deleted and permanently removed after {{count}} days.",
+        "chartsWarningSoft": "The following charts created within this dashboard will also be deleted. They can be restored from Recently deleted.",
+        "chartsWarningPermanent": "This action will also permanently delete the following charts that were created from within it:"
+    },
+    "moveChartFromDashboard": {
+        "title": "Move \"{{name}}\"",
+        "move": "Move",
+        "description": "Are you sure you want to move the chart \"{{name}}\" to the space \"{{spaceName}}\"?",
+        "warning": "This chart was created from within the dashboard, moving the chart to the space will make it available in chart lists across the app."
+    },
+    "deleteChartTile": {
+        "title": "Delete chart",
+        "warning": "This chart was created from within the dashboard, so removing the tile will also result in the permanent deletion of the chart."
+    },
+    "descriptionPlaceholder": "A few words to give your team some context",
+    "chartForm": {
+        "nameLabel": "Chart name",
+        "namePlaceholder": "eg. How many weekly active users do we have?",
+        "descriptionLabel": "Chart description"
+    },
+    "dashboardForm": {
+        "nameLabel": "Enter a memorable name for your dashboard",
+        "namePlaceholder": "eg. KPI Dashboards",
+        "descriptionLabel": "Description"
+    },
+    "duplicate": {
+        "copyOf": "Copy of {{name}}",
+        "createDuplicate": "Create duplicate"
+    },
+    "chartUpdate": {
+        "title": "Update Chart"
+    },
+    "chartDuplicate": {
+        "title": "Duplicate Chart"
+    },
+    "dashboardDuplicate": {
+        "title": "Duplicate Dashboard"
+    },
+    "appUpdate": {
+        "title": "Update {{resourceLabel}}",
+        "defaultResourceLabel": "Data App",
+        "nameLabel": "Name",
+        "namePlaceholder": "eg. Sales insights",
+        "descriptionLabel": "Description",
+        "nameRequired": "Name is required"
+    },
+    "dashboardUpdate": {
+        "title": "Update Dashboard",
+        "nameLabel": "Name",
+        "ownerLabel": "Owner",
+        "ownerPlaceholder": "Assign an owner...",
+        "paletteOverrideActive": "A color palette override is set in your instance configuration. Dashboard-level selection is disabled while the override is active.",
+        "colorPalette": "Color palette"
+    },
+    "newSpace": "New Space",
+    "dashboardCreate": {
+        "title": "Create Dashboard",
+        "nameLabel": "Name your dashboard",
+        "namePlaceholder": "eg. KPI Dashboard",
+        "descriptionLabel": "Dashboard description"
+    },
+    "changeChartExplore": {
+        "title": "Change explore",
+        "submit": "Change explore",
+        "unsavedChangesWarning": "You have unsaved changes to this chart. They will be discarded when the explore is changed.",
+        "description": "Change which explore this chart uses. All field references will be remapped to the new explore.",
+        "currentExplore": "Current explore: <name>{{exploreName}}</name>",
+        "newExploreLabel": "New explore",
+        "newExplorePlaceholder": "Select an explore",
+        "sameExploreError": "Please select a different explore",
+        "fixAllLabel": "Also update all other charts using this explore",
+        "toast": {
+            "changed": "Explore changed to \"{{exploreName}}\"",
+            "updatingOthers": "Updating other charts using \"{{exploreName}}\"...",
+            "updatedOthers_one": "Updated {{count}} other chart",
+            "updatedOthers_other": "Updated {{count}} other charts",
+            "updateOthersFailed": "Unable to update other charts",
+            "changeFailed": "Unable to change explore"
+        }
+    },
+    "dashboardExport": {
+        "title": "Export dashboard",
+        "exportPdf": "Export PDF",
+        "exportCsv": "Export CSV",
+        "exportXlsx": "Export XLSX",
+        "exportDashboard": "Export dashboard",
+        "formatLabel": "Export format",
+        "formatImage": "Image",
+        "dataExportWorkbook": "Charts from the selected tabs will be exported as tables in one workbook.",
+        "dataExportZip": "Charts from the selected tabs will be exported as tables in a ZIP file.",
+        "dateZoomTitle": "Date zoom is enabled",
+        "dateZoomDescription": "Your export will include data for the selected date zoom granularity.",
+        "tabsLabel": "Tabs",
+        "tabsTooltip": "When unchecked, choose specific tabs to include in the export.",
+        "includeAllTabs": "Include all tabs",
+        "selectTabsPlaceholder": "Select tabs to include in the export",
+        "noTilesInTabs": "There are no tiles in the selected tab(s)"
+    },
+    "validation": {
+        "dashboardNameRequired": "Dashboard name is required",
+        "spaceNameRequired": "Space name is required",
+        "nameRequired": "Name is required"
+    },
+    "chartCreate": {
+        "title": {
+            "saveAs": "Save as new chart",
+            "saveToDashboard": "Save chart to \"{{dashboardName}}\"",
+            "save": "Save chart"
+        }
+    },
+    "saveToDashboardForm": {
+        "otherSpaceGroup": "Other",
+        "selectSpace": "Select a space",
+        "createNewSpace": "Create new space",
+        "newSpaceNameLabel": "Name your new space",
+        "saveToExistingSpace": "Save to existing space",
+        "saveToExistingDashboard": "Save to existing dashboard",
+        "dashboardLabel": "Dashboard",
+        "noDashboardsFound": "No matching dashboards found",
+        "createNewDashboard": "Create new dashboard"
+    },
+    "saveToDashboard": {
+        "addedToast": "Success! {{chartName}} was added to {{dashboardName}}",
+        "savingTo": "Saving to \"{{dashboardName}}\" dashboard",
+        "exclusiveDescription": "This chart will be saved exclusively to the dashboard \"{{dashboardName}}\", keeping your space clutter-free."
+    },
+    "saveToSpaceOrDashboard": {
+        "failedToLoadDashboard": "Failed to load dashboard. {{message}}",
+        "newDashboardRequirements": "A name and space are required to create a new dashboard.",
+        "dashboardNotFound": "Dashboard not found or failed to load. Please try selecting a different dashboard.",
+        "saveTo": "Save to",
+        "destination": {
+            "space": "Space",
+            "originatingDashboard": "\"{{dashboardName}}\" dashboard",
+            "differentDashboard": "Different dashboard",
+            "dashboard": "Dashboard"
+        },
+        "unusedDimensions": {
+            "title": "Chart configuration warning",
+            "description": "This chart has dimensions in the query that are not used in the chart configuration (x-axis, y-axis, or group by). This may cause incorrect results."
+        }
+    },
+    "shareSpace": {
+        "accessOptions": {
+            "canView": "Can view",
+            "canViewDescription": "View space contents.",
+            "canEdit": "Can edit",
+            "canEditDescription": "Edit space contents.",
+            "fullAccess": "Full access",
+            "fullAccessDescription": "Manage space access and content.",
+            "noAccess": "No access",
+            "noAccessDescription": "Remove user's access",
+            "resetAccess": "Reset access",
+            "resetUserAccessDescription": "Reset user's access",
+            "removeAccess": "Remove access",
+            "resetGroupAccessDescription": "Reset group's access",
+            "removeGroupAccessDescription": "Remove group's access"
+        },
+        "inheritance": {
+            "inheritedTitle": "Inherited access",
+            "restrictedTitle": "Restricted access",
+            "rootInheritedDescription": "All members of this project can access this space",
+            "rootRestrictedDescription": "Only invited users & groups can access this space",
+            "nestedInheritedDescription": "Users with access to the parent space also have access here",
+            "nestedInheritedSelectDescription": "Access from parent spaces is added to this space's own access",
+            "nestedRestrictedDescription": "Only invited users & groups, as well as admins, can access this space",
+            "nestedRestrictedSelectDescription": "This space ignores parent space permissions and uses only its own access list",
+            "inheritsFromParent": "Inherits access from \"{{name}}\"",
+            "inheritsFromProject": "Inherits access from the project"
+        },
+        "restrictConfirm": {
+            "title": "Restrict access?",
+            "confirm": "Restrict access",
+            "body": "Users with direct access will keep their access. Project members will lose access unless specifically invited.",
+            "lockoutWarning": "You don't have direct access to this space. Once it's restricted, you won't be able to change this setting again."
+        },
+        "origin": {
+            "parent": "Parent",
+            "group": "Group",
+            "direct": "Direct",
+            "project": "Project",
+            "organization": "Organization"
+        },
+        "originRole": "{{origin}} · {{role}}",
+        "serviceAccount": "Service account",
+        "you": "(you)",
+        "needsPromotion": "User needs to be promoted to interactive viewer to have this space access",
+        "allProjectMembers": "All project members",
+        "modal": {
+            "shareButton": "Share",
+            "title": "Share \"{{name}}\" space",
+            "learnMore": "Learn more about space permissions in our <docsLink>docs</docsLink>.",
+            "accessDetails": "Access details",
+            "sharedWithTab": "Shared with ({{count}})",
+            "whoHasAccessTab": "Who has access ({{count}})",
+            "groupsTipTitle": "Tip: Use groups for easier management",
+            "groupsTipBody": "This space is shared with several individual users. Consider using <groupsLink>groups</groupsLink> to manage access more efficiently.",
+            "groups": "Groups",
+            "users": "Users",
+            "emptyManage": "This space hasn't been shared with any users or groups.",
+            "searchUsersPlaceholder": "Search users...",
+            "noUsersMatch": "No users match your search.",
+            "emptyAudit": "This space hasn't been shared with any users or groups, only admins can access it.",
+            "updateUserAccessFailed": "Failed to update user access",
+            "updateGroupAccessFailed": "Failed to update group access",
+            "adminCannotHaveRole": "An admin can not be a space {{role}}"
+        },
+        "addUser": {
+            "placeholder": "Select groups or users to share this space with",
+            "nothingFound": "No users found",
+            "groupsHeader": "Groups",
+            "usersHeader": "Users",
+            "serviceAccountsHeader": "Service accounts",
+            "share": "Share",
+            "serviceAccountsLoadError": "Unable to load service accounts"
+        }
+    },
+    "dashboard": {
+        "refresh": {
+            "every": "Every {{interval}}",
+            "lastRefreshedAt": "Last refreshed at: {{time}}",
+            "never": "Never",
+            "refreshDashboard": "Refresh dashboard",
+            "refresh": "Refresh",
+            "autoRefreshOptions": "Auto-refresh options",
+            "autoRefreshWhileViewing": "Auto-refresh while viewing",
+            "off": "Off",
+            "minutesShort": "{{count}}m",
+            "hoursShort": "{{count}}h",
+            "willRefreshEvery": "Your dashboard will refresh every {{interval}}"
+        },
+        "preAggRefresh": {
+            "title": "Rebuild pre-aggregates",
+            "confirm": "Rebuild",
+            "body_one": "This will rebuild {{count}} pre-aggregate used by this dashboard:",
+            "body_other": "This will rebuild {{count}} pre-aggregates used by this dashboard:"
+        },
+        "preAggAudit": {
+            "title": "Pre-aggregation audit",
+            "withoutPreAggregates": "{{count}} without pre-aggregates",
+            "hits": "{{count}} hit",
+            "misses": "{{count}} miss",
+            "otherTab": "Other",
+            "noResultsYet": "No results yet — visit this tab to load tiles.",
+            "reasonWithField": "{{reason}}: <field>{{field}}</field>",
+            "reasonWithFieldText": "{{reason}}: {{field}}"
+        },
+        "header": {
+            "unpublishedChangesTooltip": "Only you can see these changes. A reviewer can write them back to the repo from Content review.",
+            "unpublishedChanges": "Unpublished changes",
+            "draftsAwaitingReviewTooltip": "Other people have unpublished changes on this dashboard. Review them and write them back to the repo.",
+            "draftsToReview_one": "{{count}} draft to review",
+            "draftsToReview_other": "{{count}} drafts to review",
+            "dashboardInformation": "Dashboard information",
+            "verifiedBy": "Verified by {{firstName}} {{lastName}}",
+            "verified": "Verified",
+            "dataFrom": "Data from {{time}}",
+            "detailsTitle": "Dashboard details",
+            "speedUpTitle": "Speed up this dashboard",
+            "performanceWarning": "With {{count}} charts, load times can be slower depending on the user's machine.",
+            "splitIntoTabs": "We recommend splitting this into multiple dashboard tabs, limited to {{limit}} charts per tab to keep things snappy for your team.",
+            "splitIntoDashboards": "We recommend splitting this into multiple dashboards to keep things snappy for your team.",
+            "noChangesToSave": "No changes to save",
+            "saveChanges": "Save changes",
+            "editDashboard": "Edit dashboard",
+            "cachedDataFrom": "Dashboard uses cached data from {{time}}",
+            "exitFullscreenMode": "Exit Fullscreen Mode",
+            "enterFullscreenMode": "Enter Fullscreen Mode",
+            "exitFullscreen": "Exit fullscreen",
+            "enterFullscreen": "Enter fullscreen",
+            "comments": "Comments",
+            "dashboardComments": "Dashboard comments",
+            "dashboardActions": "Dashboard actions",
+            "more": "More",
+            "details": "Details",
+            "autoRefresh": "Auto-refresh",
+            "removeFromFavorites": "Remove from favorites",
+            "addToFavorites": "Add to favorites",
+            "rebuildPreAggregates": "Rebuild pre-aggregates",
+            "editDetails": "Edit details",
+            "duplicate": "Duplicate",
+            "moveDashboard": "Move dashboard",
+            "requestReview": "Request review",
+            "share": "Share",
+            "unpinFromHomepage": "Unpin from homepage",
+            "pinToHomepage": "Pin to homepage",
+            "scheduledDeliveries": "Scheduled deliveries",
+            "upstreamProjectRequired": "You must enable first an upstream project in settings > Data ops",
+            "promoteDashboard": "Promote dashboard",
+            "versionHistory": "Version history",
+            "removeVerification": "Remove verification",
+            "verifyDashboard": "Verify dashboard",
+            "exportDashboard": "Export dashboard",
+            "contentAsCode": "Content as code",
+            "viewAsCode": "View as code",
+            "changeUrlSlug": "Change URL slug",
+            "createNewSpace": "Create new space"
+        }
+    }
+}

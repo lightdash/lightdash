@@ -2,6 +2,7 @@ import { InvalidUser, PaginationError, type ApiError } from '@lightdash/common';
 import { captureException } from '@sentry/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
+import { useTranslation } from 'react-i18next';
 import useToaster from './toaster/useToaster';
 
 type opts = {
@@ -17,6 +18,7 @@ const useQueryError = ({
 }: opts = {}): Dispatch<SetStateAction<ApiError | undefined>> => {
     const queryClient = useQueryClient();
     const [errorResponse, setErrorResponse] = useState<ApiError | undefined>();
+    const { t } = useTranslation('app');
     const { showToastError, addToastError } = useToaster();
     useEffect(() => {
         void (async function doIfError() {
@@ -59,12 +61,15 @@ const useQueryError = ({
                         ).map(({ value }) => value);
                         const keys: string[] = Object.keys(validationData);
                         showToastError({
-                            title: 'Validation error',
-                            subtitle: `Invalid field ${keys} with value ${values}. The team has been already notified, we'll fix it soon`,
+                            title: t('useQueryError.validationError'),
+                            subtitle: t(
+                                'useQueryError.invalidFieldWithValueTheTeam',
+                                { keys, values },
+                            ),
                         });
                     } catch (parseError) {
                         showToastError({
-                            title: 'Unknown validation error',
+                            title: t('useQueryError.unknownValidationError'),
                             subtitle: JSON.stringify(error),
                         });
                     }
@@ -75,7 +80,7 @@ const useQueryError = ({
                 } else {
                     addToastError({
                         title: chartName
-                            ? `Chart '${chartName}': Error`
+                            ? t('useQueryError.chartError', { chartName })
                             : undefined,
                         apiError: error,
                     });
@@ -90,6 +95,7 @@ const useQueryError = ({
         queryClient,
         showToastError,
         addToastError,
+        t,
     ]);
     return setErrorResponse;
 };

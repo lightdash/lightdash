@@ -5,6 +5,7 @@ import {
     IconPlus,
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ResizableSplitter from '../../../../../components/common/ResizableSplitter';
@@ -23,6 +24,7 @@ type EvalSectionLayoutProps = {
 };
 
 export const EvalSectionLayout: FC<EvalSectionLayoutProps> = ({ children }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const { agentUuid, evalUuid, runUuid } = useParams();
@@ -98,7 +100,7 @@ export const EvalSectionLayout: FC<EvalSectionLayoutProps> = ({ children }) => {
     if (isEvaluationsList) {
         breadcrumbItems.push(
             <Text key="evaluations" size="lg" fw={500}>
-                Evaluations
+                {t('evals.layout.evaluations')}
             </Text>,
         );
     } else {
@@ -110,7 +112,7 @@ export const EvalSectionLayout: FC<EvalSectionLayoutProps> = ({ children }) => {
                 td="none"
                 fw={500}
             >
-                Evaluations
+                {t('evals.layout.evaluations')}
             </Anchor>,
         );
     }
@@ -118,7 +120,7 @@ export const EvalSectionLayout: FC<EvalSectionLayoutProps> = ({ children }) => {
     if (isEvaluationDetail) {
         breadcrumbItems.push(
             <Text key="evaluation" size="lg" fw={500}>
-                {evaluation?.title || 'Evaluation'}
+                {evaluation?.title || t('evals.layout.evaluation')}
             </Text>,
         );
     } else if (isRunDetail) {
@@ -131,25 +133,22 @@ export const EvalSectionLayout: FC<EvalSectionLayoutProps> = ({ children }) => {
                 td="none"
                 fw={500}
             >
-                {evaluation?.title || 'Evaluation'}
+                {evaluation?.title || t('evals.layout.evaluation')}
             </Anchor>,
         );
         breadcrumbItems.push(
             <Text key="run" size="lg" fw={500}>
-                Run {runUuid?.slice(-8)}
+                {t('evals.layout.run', { id: runUuid?.slice(-8) })}
             </Text>,
         );
     }
 
-    let pageDescription =
-        'Test your AI agent with predefined prompts and measure its performance across different scenarios.';
+    let pageDescription = t('evals.layout.descriptions.list');
 
     if (isEvaluationDetail) {
-        pageDescription =
-            'Test your AI agent with predefined prompts and analyze its performance across multiple scenarios.';
+        pageDescription = t('evals.layout.descriptions.detail');
     } else if (isRunDetail) {
-        pageDescription =
-            'View detailed results and performance metrics for this evaluation run.';
+        pageDescription = t('evals.layout.descriptions.run');
     }
 
     // Render appropriate action button based on current context
@@ -166,7 +165,7 @@ export const EvalSectionLayout: FC<EvalSectionLayoutProps> = ({ children }) => {
                     loading={runEvaluationMutation.isLoading || hasActiveRun}
                     onClick={handleRunEvaluation}
                 >
-                    Run Evaluation
+                    {t('evals.layout.runEvaluation')}
                 </Button>
             );
         }
@@ -178,7 +177,7 @@ export const EvalSectionLayout: FC<EvalSectionLayoutProps> = ({ children }) => {
                     size="sm"
                     onClick={handleCreateModalOpen}
                 >
-                    Create Evaluation
+                    {t('evals.layout.createEvaluation')}
                 </Button>
             );
         }

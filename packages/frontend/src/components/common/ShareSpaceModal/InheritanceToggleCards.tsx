@@ -1,11 +1,12 @@
 import { Group, Paper, Stack, Text } from '@mantine/core';
 import { IconLock, IconUsersGroup } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../MantineIcon';
 import {
     InheritanceType,
-    NestedInheritanceOptions,
-    RootInheritanceOptions,
+    getNestedInheritanceOptions,
+    getRootInheritanceOptions,
 } from './ShareSpaceModalUtils';
 
 type InheritanceToggleCardsProps = {
@@ -21,9 +22,10 @@ const InheritanceToggleCards: FC<InheritanceToggleCardsProps> = ({
     disabled,
     isNestedSpace = false,
 }) => {
+    const { t } = useTranslation('modals');
     const options = isNestedSpace
-        ? NestedInheritanceOptions
-        : RootInheritanceOptions;
+        ? getNestedInheritanceOptions(t)
+        : getRootInheritanceOptions(t);
 
     const inheritOption = options.find(
         (o) => o.value === InheritanceType.INHERIT,

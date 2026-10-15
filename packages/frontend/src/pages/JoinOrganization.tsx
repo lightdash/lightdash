@@ -11,6 +11,7 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import AuthLayout from '../components/common/AuthLayout';
 import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
@@ -25,6 +26,7 @@ import useApp from '../providers/App/useApp';
 import styles from './JoinOrganization.module.css';
 
 const JoinOrganizationPage: FC = () => {
+    const { t } = useTranslation('pages');
     const { health, user } = useApp();
     const { isNewLayout } = useAuthLayoutVariant();
     const navigate = useNavigate();
@@ -80,23 +82,26 @@ const JoinOrganizationPage: FC = () => {
         const errorState = (
             <SuboptimalState
                 icon={IconAlertCircle}
-                title="Error"
+                title={t('common.error')}
                 description={createOrgError.error.message}
                 action={
                     <Button onClick={() => deleteUser()}>
-                        Cancel registration
+                        {t('joinOrganization.cancelRegistration')}
                     </Button>
                 }
             />
         );
 
         return isNewLayout ? (
-            <AuthLayout pageTitle="Join a workspace" withLegacyCard={false}>
+            <AuthLayout
+                pageTitle={t('joinOrganization.title')}
+                withLegacyCard={false}
+            >
                 {errorState}
             </AuthLayout>
         ) : (
             <Page
-                title="Join a workspace"
+                title={t('joinOrganization.title')}
                 withCenteredContent
                 withNavbar={false}
             >
@@ -109,15 +114,16 @@ const JoinOrganizationPage: FC = () => {
         <Stack justify="center" gap="md" mb="xs">
             {!isNewLayout && (
                 <Title order={3} ta="center">
-                    Join a workspace
+                    {t('joinOrganization.title')}
                 </Title>
             )}
             <Text c="dimmed" ta={isNewLayout ? 'left' : 'center'}>
-                The workspaces below are open to anyone with a{' '}
-                <Text span fw={600}>
-                    @{emailDomain}
-                </Text>{' '}
-                domain
+                <Trans
+                    t={t}
+                    i18nKey="joinOrganization.openToDomain"
+                    values={{ domain: emailDomain }}
+                    components={{ domain: <Text span fw={600} /> }}
+                />
             </Text>
             {allowedOrgs?.map((org) => (
                 <Card key={org.organizationUuid}>
@@ -131,7 +137,9 @@ const JoinOrganizationPage: FC = () => {
                                     {org.name}
                                 </Text>
                                 <Text fz="xs" c="gray">
-                                    {org.membersCount} members
+                                    {t('joinOrganization.members', {
+                                        count: org.membersCount,
+                                    })}
                                 </Text>
                             </Stack>
                         </Group>
@@ -139,7 +147,7 @@ const JoinOrganizationPage: FC = () => {
                             onClick={() => joinOrg(org.organizationUuid)}
                             loading={isJoiningOrg}
                         >
-                            Join
+                            {t('joinOrganization.join')}
                         </Button>
                     </Group>
                 </Card>
@@ -149,8 +157,8 @@ const JoinOrganizationPage: FC = () => {
 
     return (
         <AuthLayout
-            pageTitle="Join a workspace"
-            title={isNewLayout ? 'Join a workspace' : undefined}
+            pageTitle={t('joinOrganization.title')}
+            title={isNewLayout ? t('joinOrganization.title') : undefined}
             withLegacyCard={false}
             footer={
                 <Anchor
@@ -160,7 +168,7 @@ const JoinOrganizationPage: FC = () => {
                     ta="center"
                     size="sm"
                 >
-                    Create a new workspace
+                    {t('joinOrganization.createNew')}
                 </Anchor>
             }
         >

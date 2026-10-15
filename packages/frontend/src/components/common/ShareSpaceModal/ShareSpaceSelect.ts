@@ -1,3 +1,5 @@
+import { type TFunction } from 'i18next';
+
 export interface AccessOption {
     title: string;
     description?: string;
@@ -12,25 +14,27 @@ export const enum UserAccessAction {
     ADMIN = 'admin',
 }
 
-export const UserAccessOptions: AccessOption[] = [
+export const getUserAccessOptions = (
+    t: TFunction<'modals'>,
+): AccessOption[] => [
     {
-        title: 'Can view',
-        selectDescription: `View space contents.`,
+        title: t('shareSpace.accessOptions.canView'),
+        selectDescription: t('shareSpace.accessOptions.canViewDescription'),
         value: UserAccessAction.VIEWER,
     },
     {
-        title: 'Can edit',
-        selectDescription: `Edit space contents.`,
+        title: t('shareSpace.accessOptions.canEdit'),
+        selectDescription: t('shareSpace.accessOptions.canEditDescription'),
         value: UserAccessAction.EDITOR,
     },
     {
-        title: 'Full access',
-        selectDescription: `Manage space access and content.`,
+        title: t('shareSpace.accessOptions.fullAccess'),
+        selectDescription: t('shareSpace.accessOptions.fullAccessDescription'),
         value: UserAccessAction.ADMIN,
     },
     {
-        title: 'No access',
-        selectDescription: `Remove user's access`,
+        title: t('shareSpace.accessOptions.noAccess'),
+        selectDescription: t('shareSpace.accessOptions.noAccessDescription'),
         value: UserAccessAction.DELETE,
     },
 ];

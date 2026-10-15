@@ -9,6 +9,7 @@ import {
     type FC,
     type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../MantineIcon';
 import classes from './OverflowTabsList.module.css';
 
@@ -30,6 +31,7 @@ const EDGE_TOLERANCE_PX = 2;
  * invisible.
  */
 const OverflowTabsList: FC<Props> = ({ children, className, ...boxProps }) => {
+    const { t } = useTranslation('commonUi');
     const listRef = useRef<HTMLDivElement>(null);
     const [edges, setEdges] = useState({ start: false, end: false });
 
@@ -91,7 +93,7 @@ const OverflowTabsList: FC<Props> = ({ children, className, ...boxProps }) => {
                     <Box className={classes.fadeStart}>
                         <UnstyledButton
                             className={classes.arrow}
-                            aria-label="Scroll tabs left"
+                            aria-label={t('overflowTabsList.scrollLeft')}
                             onClick={() => step(-1)}
                         >
                             <MantineIcon
@@ -106,7 +108,7 @@ const OverflowTabsList: FC<Props> = ({ children, className, ...boxProps }) => {
                     <Box className={classes.fadeEnd}>
                         <UnstyledButton
                             className={classes.arrow}
-                            aria-label="Scroll tabs right"
+                            aria-label={t('overflowTabsList.scrollRight')}
                             onClick={() => step(1)}
                         >
                             <MantineIcon

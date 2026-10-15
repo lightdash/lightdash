@@ -1,6 +1,7 @@
 import { assertUnreachable, ChartType } from '@lightdash/common';
 import { Loader, ScrollArea, Text } from '@mantine/core';
 import { lazy, Suspense, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import scrollAreaClasses from '../../../styles/ScrollArea.module.css';
 import Callout from '../../common/Callout';
 import { ConfigTabs as BigNumberConfigTabs } from '../../VisualizationConfigs/BigNumberConfig/BigNumberConfigTabs';
@@ -24,17 +25,20 @@ const CustomVisConfigTabsLazy = lazy(() =>
     ),
 );
 
-const VegaEditorUnavailable: FC = () => (
-    <Config>
-        <Config.Section>
-            <Callout variant="info" hideIcon p="xs">
-                <Text fz="xs">
-                    Vega charts can't be edited in embedded views.
-                </Text>
-            </Callout>
-        </Config.Section>
-    </Config>
-);
+const VegaEditorUnavailable: FC = () => {
+    const { t } = useTranslation('explorer');
+    return (
+        <Config>
+            <Config.Section>
+                <Callout variant="info" hideIcon p="xs">
+                    <Text fz="xs">
+                        {t('visualizationConfig.vegaUnavailable')}
+                    </Text>
+                </Callout>
+            </Config.Section>
+        </Config>
+    );
+};
 
 type Props = {
     chartType: ChartType;

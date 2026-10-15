@@ -12,6 +12,7 @@ import {
 import { useForm } from '@mantine/form';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { z } from 'zod';
 import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
@@ -21,6 +22,7 @@ import useApp from '../providers/App/useApp';
 type RecoverPasswordForm = { email: string };
 
 export const PasswordRecoveryForm: FC = () => {
+    const { t } = useTranslation('auth');
     const { health } = useApp();
     const { isNewLayout } = useAuthLayoutVariant();
     const textAlign = isNewLayout ? 'left' : 'center';
@@ -43,11 +45,10 @@ export const PasswordRecoveryForm: FC = () => {
             {!isSuccess ? (
                 <>
                     <Title order={3} ta={textAlign} mb="sm">
-                        Forgot your password?
+                        {t('login.forgotPassword')}
                     </Title>
                     <Text ta={textAlign} mb="md" c="dimmed">
-                        Enter your email address and we’ll send you a password
-                        reset link
+                        {t('passwordRecovery.description')}
                     </Text>
                     <form
                         name="password-recovery"
@@ -55,18 +56,18 @@ export const PasswordRecoveryForm: FC = () => {
                     >
                         <Stack gap="lg">
                             <TextInput
-                                label="Email address"
+                                label={t('login.emailAddress')}
                                 name="email"
                                 type="email"
                                 autoComplete="email"
-                                placeholder="Your email address"
+                                placeholder={t('login.emailPlaceholderLegacy')}
                                 required
                                 {...form.getInputProps('email')}
                                 disabled={isLoading || isSuccess}
                             />
 
                             <Button type="submit" loading={isLoading}>
-                                Send reset email
+                                {t('passwordRecovery.sendResetEmail')}
                             </Button>
                             {!health.data?.isAuthenticated && (
                                 <Center>
@@ -75,7 +76,7 @@ export const PasswordRecoveryForm: FC = () => {
                                         component={Link}
                                         to="/login"
                                     >
-                                        Back to sign in
+                                        {t('passwordRecovery.backToSignIn')}
                                     </Anchor>
                                 </Center>
                             )}
@@ -85,33 +86,36 @@ export const PasswordRecoveryForm: FC = () => {
             ) : (
                 <>
                     <Title order={3} ta={textAlign} mb="sm">
-                        Check your inbox!
+                        {t('verifyEmail.checkInbox')}
                     </Title>
                     <Text ta={textAlign} mb="lg" c="dimmed">
-                        We have emailed you instructions about how to reset your
-                        password. Haven’t received anything yet?
+                        {t('passwordRecovery.emailSent')}
                     </Text>
 
                     <List size="sm" spacing="xs">
-                        <List.Item>Try checking your spam folder</List.Item>
+                        <List.Item>{t('passwordRecovery.checkSpam')}</List.Item>
                         <List.Item>
-                            Try{' '}
-                            <Anchor
-                                inherit
-                                component={Link}
-                                to="/recover-password"
-                                onClick={reset}
-                            >
-                                resubmitting a password reset
-                            </Anchor>{' '}
-                            request,
-                            <br /> ensuring that there are no typos!
+                            <Trans
+                                t={t}
+                                i18nKey="passwordRecovery.resubmit"
+                                components={{
+                                    br: <br />,
+                                    link: (
+                                        <Anchor
+                                            inherit
+                                            component={Link}
+                                            to="/recover-password"
+                                            onClick={reset}
+                                        />
+                                    ),
+                                }}
+                            />
                         </List.Item>
                     </List>
 
                     <Center mt="lg">
                         <Anchor inherit component={Link} to="/login">
-                            Back to sign in
+                            {t('passwordRecovery.backToSignIn')}
                         </Anchor>
                     </Center>
                 </>

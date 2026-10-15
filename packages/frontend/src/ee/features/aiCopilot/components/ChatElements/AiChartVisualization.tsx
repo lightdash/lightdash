@@ -20,6 +20,7 @@ import {
 } from '@mantine/core';
 import { IconExclamationCircle, IconX } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
@@ -62,6 +63,7 @@ export const AiChartVisualization: FC<Props> = ({
     message,
     showCloseButton = true,
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const dispatch = useAiAgentStoreDispatch();
     const isMobile = useAgentMaxWidth(768);
     const isEmbed = useIsEmbedded();
@@ -148,7 +150,7 @@ export const AiChartVisualization: FC<Props> = ({
             <Center h="100%">
                 <Loader
                     color="gray"
-                    delayedMessage="Loading visualization..."
+                    delayedMessage={t('artifact.loadingVisualizationDelayed')}
                 />
             </Center>
         );
@@ -173,8 +175,7 @@ export const AiChartVisualization: FC<Props> = ({
                             color="gray"
                         />
                         <Text size="xs" c="dimmed" ta="center">
-                            Something went wrong loading the visualization data.
-                            Please try again.
+                            {t('chartViz.loadFailed')}
                         </Text>
                     </Stack>
                 </Paper>
@@ -205,7 +206,10 @@ export const AiChartVisualization: FC<Props> = ({
                             queryResults.totalResults ??
                             queryResults.rows.length
                         }
-                        title={sqlVizQueryData.metadata.title ?? 'SQL results'}
+                        title={
+                            sqlVizQueryData.metadata.title ??
+                            t('chartViz.sqlResults')
+                        }
                         description={sqlVizQueryData.metadata.description}
                         columns={Object.values(queryResults.columns ?? {})}
                     />

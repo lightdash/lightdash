@@ -29,5 +29,10 @@
     },
     "language": {
         "label": "Idioma"
+    },
+    "feedback": {
+        "copied": "¡Copiado!",
+        "copiedToClipboard": "¡Copiado al portapapeles!",
+        "copiedShort": "Copiado"
     }
 }

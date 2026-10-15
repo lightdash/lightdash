@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { Box, Divider, Stack, Tabs, Text } from '@mantine/core';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import OverflowTabsList from '../../../components/common/OverflowTabsList/OverflowTabsList';
 import { PalettePicker } from '../../../components/common/PalettePicker/PalettePicker';
 import DataAppVizInputGuidance from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizInputGuidance';
@@ -73,6 +74,7 @@ const ConfigurePanel: FC<Props> = ({
     exploreSource = null,
     inputsBinding = null,
 }) => {
+    const { t } = useTranslation('chartTypes');
     const attachedExploreSource = exploreSource?.attached
         ? exploreSource
         : null;
@@ -90,13 +92,19 @@ const ConfigurePanel: FC<Props> = ({
             : exploreSource?.attached
               ? {
                     text: isAiPicked
-                        ? `Picked from ${exploreSource.attached.label} for your prompt. Changing one re-runs the query.`
-                        : `Fields from ${exploreSource.attached.label}. Changing one re-runs the query.`,
+                        ? t('configure.pickedFrom', {
+                              source: exploreSource.attached.label,
+                          })
+                        : t('configure.fieldsFrom', {
+                              source: exploreSource.attached.label,
+                          }),
                     isAiPicked,
                 }
               : savedChartSource?.attached
                 ? {
-                      text: `Fields from ${savedChartSource.attached.chartName}. Changing one re-runs the query.`,
+                      text: t('configure.fieldsFrom', {
+                          source: savedChartSource.attached.chartName,
+                      }),
                       isAiPicked: false,
                   }
                 : null;
@@ -150,13 +158,15 @@ const ConfigurePanel: FC<Props> = ({
                         labelPosition="center"
                         label={
                             <Text className={classes.generatedChip}>
-                                Generated options
+                                {t('configure.generatedOptions')}
                             </Text>
                         }
                     />
                 </>
             ) : (
-                <Text className={classes.generatedChip}>Generated options</Text>
+                <Text className={classes.generatedChip}>
+                    {t('configure.generatedOptions')}
+                </Text>
             )}
             <Tabs
                 value={activeTab}
@@ -166,7 +176,7 @@ const ConfigurePanel: FC<Props> = ({
             >
                 <OverflowTabsList className={classes.tabsList}>
                     <Tabs.Tab value="general" px="xs">
-                        General
+                        {t('configure.general')}
                     </Tabs.Tab>
                     {optionGroups.map((group) => (
                         <Tabs.Tab key={group.id} value={group.id} px="xs">
@@ -200,7 +210,7 @@ const ConfigurePanel: FC<Props> = ({
                         )}
                         {optionGroups.length === 0 && (
                             <Text fz="xs" c="dimmed">
-                                This chart type declares no display options.
+                                {t('configure.noDisplayOptions')}
                             </Text>
                         )}
                     </Stack>
@@ -226,11 +236,11 @@ const ConfigurePanel: FC<Props> = ({
                             ))}
                             {group.hasPalette && (
                                 <PalettePicker
-                                    label="Color palette"
+                                    label={t('schemaChanges.colorPalette')}
                                     value={colorPaletteUuid}
                                     onChange={onPaletteChange}
                                     palettes={palettes}
-                                    parentLabel="Project default"
+                                    parentLabel={t('testPanel.projectDefault')}
                                     showPreview={false}
                                 />
                             )}

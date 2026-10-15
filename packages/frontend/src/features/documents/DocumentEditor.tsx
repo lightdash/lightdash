@@ -30,6 +30,7 @@ import {
     useRef,
     useState,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useBeforeUnload, useBlocker } from 'react-router';
 import Callout from '../../components/common/Callout';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
@@ -103,6 +104,7 @@ const DocumentEditor = ({
     initialScrollTop?: number;
     onScrollTopChange?: (scrollTop: number) => void;
 }) => {
+    const { t } = useTranslation('documents');
     const { track } = useTracking();
     const { canDrillInto: canAuthorCharts } = useContextMenuPermissions({
         projectUuid: document.projectUuid,
@@ -352,8 +354,8 @@ const DocumentEditor = ({
                         variant="unstyled"
                         autosize
                         minRows={1}
-                        aria-label="Document name"
-                        placeholder="Untitled document"
+                        aria-label={t('editor.nameLabel')}
+                        placeholder={t('editor.namePlaceholder')}
                         value={name}
                         disabled={busy}
                         error={nameValid ? undefined : true}
@@ -379,14 +381,16 @@ const DocumentEditor = ({
                 actions={
                     <ActionIcon.Group
                         role="group"
-                        aria-label="Editing controls"
+                        aria-label={t('editor.controls')}
                     >
-                        <Tooltip label="Cancel editing">
+                        <Tooltip label={t('editor.cancelEditing')}>
                             <ActionIcon
                                 ref={cancelRef}
                                 variant="default"
                                 size="lg"
-                                aria-label="Cancel"
+                                aria-label={t('actions.cancel', {
+                                    ns: 'common',
+                                })}
                                 disabled={busy}
                                 onClick={() =>
                                     dirty ? setConfirmCancel(true) : onClose()
@@ -396,11 +400,11 @@ const DocumentEditor = ({
                             </ActionIcon>
                         </Tooltip>
                         {canAuthorCharts && (
-                            <Tooltip label="Add chart">
+                            <Tooltip label={t('editor.addChart')}>
                                 <ActionIcon
                                     variant="default"
                                     size="lg"
-                                    aria-label="Add chart"
+                                    aria-label={t('editor.addChart')}
                                     disabled={busy}
                                     // Anchor for scope walkthroughs (data-tour-via)
                                     data-tour-anchor="document-add-chart"
@@ -418,11 +422,11 @@ const DocumentEditor = ({
                                 </ActionIcon>
                             </Tooltip>
                         )}
-                        <Tooltip label="Add saved chart">
+                        <Tooltip label={t('editor.addSavedChart')}>
                             <ActionIcon
                                 variant="default"
                                 size="lg"
-                                aria-label="Add saved chart"
+                                aria-label={t('editor.addSavedChart')}
                                 disabled={busy}
                                 onClick={() =>
                                     setChartEditor({
@@ -434,12 +438,12 @@ const DocumentEditor = ({
                                 <MantineIcon icon={IconLink} />
                             </ActionIcon>
                         </Tooltip>
-                        <Tooltip label="Save document">
+                        <Tooltip label={t('editor.save')}>
                             <ActionIcon
                                 variant="default"
                                 size="lg"
                                 className={styles.quietDisabled}
-                                aria-label="Save document"
+                                aria-label={t('editor.save')}
                                 loading={busy}
                                 disabled={!dirty || !nameValid}
                                 // Walkthrough: write a document with a live
@@ -464,7 +468,7 @@ const DocumentEditor = ({
                             variant="default"
                             size="lg"
                             className={styles.quietDisabled}
-                            aria-label="Document actions are unavailable while editing"
+                            aria-label={t('editor.actionsUnavailable')}
                             disabled
                         >
                             <MantineIcon icon={IconDots} />
@@ -481,7 +485,7 @@ const DocumentEditor = ({
                                 color="blue"
                                 role="status"
                             >
-                                Editing
+                                {t('editor.editingBadge')}
                             </Badge>
                         }
                     />
@@ -490,16 +494,13 @@ const DocumentEditor = ({
                 <Stack gap="lg">
                     {newerVersionSaved && !saveError && (
                         <Callout variant="warning">
-                            A newer version of this document was saved while you
-                            were editing. Saving will fail, so copy any text you
-                            want to keep, then cancel and reopen the editor to
-                            load the latest version.
+                            {t('editor.newerVersionSaved')}
                         </Callout>
                     )}
                     {saveError && (
                         <Callout variant="danger">
                             {saveError.error.statusCode === 409
-                                ? 'This document changed while you were editing. Your changes have not been saved. Copy any text you want to keep, then cancel and reopen the editor to load the latest version.'
+                                ? t('editor.conflict')
                                 : saveError.error.message}
                         </Callout>
                     )}
@@ -518,7 +519,11 @@ const DocumentEditor = ({
             </DocumentReportLayout>
             {chartEditor?.kind === 'explore' && canAuthorCharts && (
                 <Suspense
-                    fallback={<EmptyStateLoader title="Loading chart editor" />}
+                    fallback={
+                        <EmptyStateLoader
+                            title={t('editor.loadingChartEditor')}
+                        />
+                    }
                 >
                     <DocumentChartEditorModal
                         chart={chartEditor.chart}
@@ -530,7 +535,11 @@ const DocumentEditor = ({
             )}
             {chartEditor?.kind === 'saved' && (
                 <Suspense
-                    fallback={<EmptyStateLoader title="Loading saved charts" />}
+                    fallback={
+                        <EmptyStateLoader
+                            title={t('editor.loadingSavedCharts')}
+                        />
+                    }
                 >
                     <DocumentSavedChartPickerModal
                         projectUuid={document.projectUuid}
@@ -544,14 +553,14 @@ const DocumentEditor = ({
             {(confirmCancel || blocker.state === 'blocked') && (
                 <MantineModal
                     opened
-                    title="Discard unsaved changes?"
+                    title={t('editor.discard.title')}
                     onClose={() => {
                         setConfirmCancel(false);
                         if (blocker.state === 'blocked') {
                             blocker.reset();
                         }
                     }}
-                    cancelLabel="Keep editing"
+                    cancelLabel={t('editor.discard.keepEditing')}
                     actions={
                         <Button
                             color="red"
@@ -564,13 +573,11 @@ const DocumentEditor = ({
                                 }
                             }}
                         >
-                            Discard changes
+                            {t('editor.discard.confirm')}
                         </Button>
                     }
                 >
-                    <Text>
-                        Your changes to this Document have not been saved.
-                    </Text>
+                    <Text>{t('editor.discard.body')}</Text>
                 </MantineModal>
             )}
         </DocumentPageLayout>

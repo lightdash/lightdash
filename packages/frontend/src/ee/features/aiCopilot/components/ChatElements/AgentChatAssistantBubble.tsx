@@ -38,6 +38,7 @@ import {
     IconThumbUpFilled,
 } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { type CustomRendererProps } from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
@@ -190,19 +191,12 @@ const getToolOutputStatus = (toolOutput: unknown) => {
     return typeof status === 'string' ? status : undefined;
 };
 
-const getRunSqlTimeoutErrorMessage = (
-    message: AiAgentMessageAssistant,
-): string | null => {
-    const hasRunSqlTimeout = message.toolResults.some(
+const hasRunSqlTimeout = (message: AiAgentMessageAssistant): boolean =>
+    message.toolResults.some(
         (result) =>
             result.toolName === 'runSql' &&
             getToolOutputStatus(result) === 'timeout',
     );
-
-    return hasRunSqlTimeout
-        ? 'SQL approval timed out before the query could run. Approve the SQL prompt or retry when ready.'
-        : null;
-};
 
 const getRunSqlLinkStateFromArgs = (
     toolArgs: unknown,
@@ -275,6 +269,7 @@ const getLatestSuccessfulRunSqlLinkState = ({
 const SqlMarkdownCodeBlock: FC<
     CustomRendererProps & { projectUuid: string; canOpenSqlRunner: boolean }
 > = ({ code, isIncomplete, projectUuid, canOpenSqlRunner }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const sql = code.trim();
     const canOpen = canOpenSqlRunner && !isIncomplete && sql.length > 0;
 
@@ -287,7 +282,7 @@ const SqlMarkdownCodeBlock: FC<
                 className={styles.sqlMarkdownCodeHeader}
             >
                 <Text size="xs" fw={600} c="dimmed">
-                    SQL
+                    {t('assistant.sql')}
                 </Text>
                 {canOpen ? (
                     <Button
@@ -304,7 +299,7 @@ const SqlMarkdownCodeBlock: FC<
                             <MantineIcon icon={IconTerminal2} size={12} />
                         }
                     >
-                        Open in SQL Runner
+                        {t('assistant.openInSqlRunner')}
                     </Button>
                 ) : null}
             </Group>
@@ -346,6 +341,7 @@ const AssistantBubbleContent: FC<{
     mcpServers,
     onDashboardLinkClick,
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const threadStreamingState = useAiAgentThreadStreamQuery(
         message.threadUuid,
     );
@@ -371,15 +367,17 @@ const AssistantBubbleContent: FC<{
         streamingState?.connection.status === 'error'
             ? streamingState.connection.error
             : null;
-    const runSqlTimeoutErrorMessage = getRunSqlTimeoutErrorMessage(message);
+    const runSqlTimeoutErrorMessage = hasRunSqlTimeout(message)
+        ? t('assistant.sqlApprovalTimedOutMessage')
+        : null;
     const displayErrorMessage =
         runSqlTimeoutErrorMessage ||
         streamingError ||
         message.errorMessage ||
-        'Failed to generate response. Please try again.';
+        t('assistant.failedToGenerate');
     const displayErrorTitle = runSqlTimeoutErrorMessage
-        ? 'SQL approval timed out'
-        : 'Something went wrong';
+        ? t('assistant.sqlApprovalTimedOut')
+        : t('assistant.somethingWentWrong');
     const sqlRunnerLinkState = getLatestSuccessfulRunSqlLinkState({
         message,
         streamParts: streamingState?.parts,
@@ -419,10 +417,10 @@ const AssistantBubbleContent: FC<{
 
     const isBenignEmptyResponse = hasNoResponse && !hasError && !streamingError;
     const noticeTitle = isBenignEmptyResponse
-        ? 'No response'
+        ? t('assistant.noResponse')
         : displayErrorTitle;
     const noticeMessage = isBenignEmptyResponse
-        ? 'The agent finished without a response. You can try again.'
+        ? t('assistant.noResponseMessage')
         : displayErrorMessage;
 
     const baseMessageContent =
@@ -435,12 +433,14 @@ const AssistantBubbleContent: FC<{
         !isPending &&
         message.referencedArtifacts &&
         message.referencedArtifacts.length > 0
-            ? `\n\nReferenced answers: ${message.referencedArtifacts
-                  .map(
-                      (artifact) =>
-                          `[${artifact.title}](#artifact-link#artifact-uuid-${artifact.artifactUuid}#version-uuid-${artifact.versionUuid}#artifact-type-${artifact.artifactType})`,
-                  )
-                  .join(', ')}`
+            ? `\n\n${t('assistant.referencedAnswers', {
+                  links: message.referencedArtifacts
+                      .map(
+                          (artifact) =>
+                              `[${artifact.title}](#artifact-link#artifact-uuid-${artifact.artifactUuid}#version-uuid-${artifact.versionUuid}#artifact-type-${artifact.artifactType})`,
+                      )
+                      .join(', '),
+              })}`
             : '';
 
     const messageContent = baseMessageContent + referencedArtifactsMarkdown;
@@ -589,7 +589,7 @@ const AssistantBubbleContent: FC<{
                                     })
                                 }
                             >
-                                Try again
+                                {t('assistant.tryAgain')}
                             </Button>
                         )}
                     </Group>
@@ -762,7 +762,9 @@ const AssistantBubbleContent: FC<{
                                 text. */}
                             {showFinishingUp && (
                                 <Box className={styles.streamPart} pl={7}>
-                                    <TypingDots label="Finishing up" />
+                                    <TypingDots
+                                        label={t('assistant.finishingUp')}
+                                    />
                                 </Box>
                             )}
                         </Stack>
@@ -949,6 +951,7 @@ export const AssistantBubble: FC<Props> = memo(
         mcpServers,
         onDashboardLinkClick,
     }) => {
+        const { t } = useTranslation('aiCopilotChat');
         const artifact = useAiAgentStoreSelector(selectArtifactPreview);
         const dispatch = useAiAgentStoreDispatch();
 
@@ -1160,7 +1163,7 @@ export const AssistantBubble: FC<Props> = memo(
                                     color="ldGray.7"
                                 />
                                 <Text size="xs" c="dimmed" fw={600}>
-                                    User feedback
+                                    {t('assistant.userFeedback')}
                                 </Text>
                             </Group>
                             <Text size="sm" c="dimmed" fw={500}>
@@ -1182,17 +1185,17 @@ export const AssistantBubble: FC<Props> = memo(
                         <CopyActionIcon
                             value={message.message ?? ''}
                             color="ldGray.9"
-                            aria-label="copy"
+                            aria-label={t('assistant.copy')}
                         />
 
                         {(!hasRating || upVoted) && (
                             <ActionIcon
                                 color="ldGray.9"
-                                aria-label="upvote"
+                                aria-label={t('assistant.upvote')}
                                 onClick={handleUpvote}
                             >
                                 <Tooltip
-                                    label="Feedback sent"
+                                    label={t('assistant.feedbackSent')}
                                     position="top"
                                     // Hack to only render tooltip (on hover) when `hasRating` is false
                                     opened={hasRating ? undefined : false}
@@ -1223,7 +1226,7 @@ export const AssistantBubble: FC<Props> = memo(
                                 <Popover.Target>
                                     <ActionIcon
                                         color="ldGray.9"
-                                        aria-label="downvote"
+                                        aria-label={t('assistant.downvote')}
                                         onClick={handleDownvote}
                                     >
                                         <MantineIcon
@@ -1248,7 +1251,9 @@ export const AssistantBubble: FC<Props> = memo(
                                                 classNames={{
                                                     input: styles.feedbackInput,
                                                 }}
-                                                placeholder="Tell us what went wrong, feedback will be added to agent context (optional)"
+                                                placeholder={t(
+                                                    'assistant.feedbackPlaceholder',
+                                                )}
                                                 value={feedbackText}
                                                 onChange={(e) =>
                                                     setFeedbackText(
@@ -1265,7 +1270,7 @@ export const AssistantBubble: FC<Props> = memo(
                                                     size="xs"
                                                     color="ldDark.5"
                                                 >
-                                                    Submit
+                                                    {t('assistant.submit')}
                                                 </Button>
                                                 <Button
                                                     type="button"
@@ -1275,7 +1280,9 @@ export const AssistantBubble: FC<Props> = memo(
                                                         handleCancelFeedback
                                                     }
                                                 >
-                                                    Cancel
+                                                    {t('actions.cancel', {
+                                                        ns: 'common',
+                                                    })}
                                                 </Button>
                                             </Group>
                                         </Stack>
@@ -1285,10 +1292,10 @@ export const AssistantBubble: FC<Props> = memo(
                         )}
 
                         {showAddToEvalsButton && onAddToEvals && (
-                            <Tooltip label="Add this response to evals">
+                            <Tooltip label={t('assistant.addToEvalsTooltip')}>
                                 <ActionIcon
                                     color="ldGray.9"
-                                    aria-label="Add to evaluation set"
+                                    aria-label={t('assistant.addToEvals')}
                                     onClick={() => onAddToEvals(message.uuid)}
                                 >
                                     <MantineIcon icon={IconTestPipe} />
@@ -1299,7 +1306,7 @@ export const AssistantBubble: FC<Props> = memo(
                         {isArtifactAvailable && canViewDebugInfo && (
                             <ActionIcon
                                 color="ldGray.9"
-                                aria-label="Debug information"
+                                aria-label={t('assistant.debugInformation')}
                                 onClick={openDrawer}
                             >
                                 <MantineIcon icon={IconBug} />

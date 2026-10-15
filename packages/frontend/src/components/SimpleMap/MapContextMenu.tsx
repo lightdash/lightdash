@@ -11,6 +11,7 @@ import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import type { TooltipFieldInfo } from '../../hooks/leaflet/useLeafletMapConfig';
@@ -58,6 +59,7 @@ const MapContextMenu: FC<MapContextMenuProps> = ({
     opened,
     onClose,
 }) => {
+    const { t } = useTranslation('visualization');
     const location = useLocation();
     const isDashboardPage = location.pathname.includes('/dashboards');
 
@@ -89,7 +91,7 @@ const MapContextMenu: FC<MapContextMenuProps> = ({
         if (copyValue) {
             clipboard.copy(copyValue);
             showToastSuccess({
-                title: 'Copied to clipboard!',
+                title: t('contextMenu.copiedToClipboard'),
             });
         }
     };
@@ -148,7 +150,7 @@ const MapContextMenu: FC<MapContextMenuProps> = ({
                             {noData.locationValue}
                         </Text>
                         <Text size="sm" c="dimmed" fs="italic">
-                            No data
+                            {t('map.noData')}
                         </Text>
                     </Box>
                 ) : (
@@ -168,7 +170,10 @@ const MapContextMenu: FC<MapContextMenuProps> = ({
                             </Stack>
                             {lat !== undefined && lon !== undefined && (
                                 <Text size="xs" c="dimmed" mt="xs">
-                                    Lat: {lat.toFixed(4)}, Lon: {lon.toFixed(4)}
+                                    {t('map.coordinates', {
+                                        lat: lat.toFixed(4),
+                                        lon: lon.toFixed(4),
+                                    })}
                                 </Text>
                             )}
                         </Box>
@@ -184,8 +189,8 @@ const MapContextMenu: FC<MapContextMenuProps> = ({
                                 onClick={handleCopy}
                             >
                                 {visibleFields.length > 1
-                                    ? 'Copy values'
-                                    : 'Copy value'}
+                                    ? t('map.copyValues')
+                                    : t('contextMenu.copyValue')}
                             </Menu.Item>
                         )}
                         {rowData && fieldValues && drillMetricItem && (

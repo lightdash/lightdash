@@ -23,16 +23,12 @@ import {
     type SelectProps,
 } from '@mantine/core';
 import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { FILTER_SELECT_LIMIT } from '../Filters/constants';
 import FieldIcon from '../Filters/FieldIcon';
 import classes from './FieldSelect.module.css';
-import {
-    ADD_TO_QUERY_GROUP_LABEL,
-    MORE_OPTIONS_VALUE,
-    optionsFilter,
-    SUGGESTED_GROUP_LABEL,
-} from './optionsFilter';
+import { MORE_OPTIONS_VALUE, optionsFilter } from './optionsFilter';
 
 interface FieldSelectItem extends ComboboxItem {
     item: Item;
@@ -86,6 +82,7 @@ const FieldSelectComponent = <T extends Item = Item>({
     focusOnRender = false,
     ...rest
 }: FieldSelectProps<T>) => {
+    const { t } = useTranslation('commonUi');
     const inputRef = useRef<HTMLInputElement | null>(null); // Input ref for focus handling
     useEffect(() => {
         if (focusOnRender) {
@@ -215,7 +212,7 @@ const FieldSelectComponent = <T extends Item = Item>({
                     : isCustomDimension(i)
                       ? tableLabelMap.get(i.table) // Custom dimensions don't have table labels, so we use the table map to get them
                       : isTableCalculation(i)
-                        ? 'Table Calculations'
+                        ? t('fieldSelect.tableCalculationsGroup')
                         : undefined;
             const entry: FieldSelectItem = {
                 item: i,
@@ -293,12 +290,22 @@ const FieldSelectComponent = <T extends Item = Item>({
 
         return [
             ...(suggestedEntries.length > 0
-                ? [{ group: SUGGESTED_GROUP_LABEL, items: suggestedEntries }]
+                ? [
+                      {
+                          group: t('fieldSelect.suggestedGroup'),
+                          items: suggestedEntries,
+                      },
+                  ]
                 : []),
             ...ungrouped,
             ...groupedData,
             ...(addEntries.length > 0
-                ? [{ group: ADD_TO_QUERY_GROUP_LABEL, items: addEntries }]
+                ? [
+                      {
+                          group: t('fieldSelect.addToQueryGroup'),
+                          items: addEntries,
+                      },
+                  ]
                 : []),
         ];
     }, [
@@ -309,6 +316,7 @@ const FieldSelectComponent = <T extends Item = Item>({
         hasGrouping,
         tableLabelMap,
         inactiveItemIds,
+        t,
     ]);
 
     const getUiString = useUiStrings();
@@ -388,7 +396,7 @@ const FieldSelectComponent = <T extends Item = Item>({
             }}
             renderOption={renderOption}
             leftSection={item ? <FieldIcon item={item} /> : undefined}
-            placeholder={rest.placeholder ?? 'Search field...'}
+            placeholder={rest.placeholder ?? t('fieldSelect.searchPlaceholder')}
             nothingFoundMessage={getUiString('filters.config.noMatchingFields')}
             allowDeselect={false}
             rightSectionPointerEvents={

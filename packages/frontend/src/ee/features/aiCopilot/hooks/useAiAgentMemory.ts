@@ -9,6 +9,7 @@ import type {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import i18n from '../../../../i18n/i18n';
 import { getAiAgentApiBase } from './aiAgentRouting';
 
 const getAiAgentMemory = (
@@ -120,11 +121,17 @@ export const usePromoteAiAgentMemory = () => {
             void queryClient.invalidateQueries({
                 queryKey: ['ai-agent-admin-review-items'],
             });
-            showToastSuccess({ title: 'Proposal created' });
+            showToastSuccess({
+                title: i18n.t('toasts.memory.proposalCreated', {
+                    ns: 'aiAgent',
+                }),
+            });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: "Couldn't create proposal",
+                title: i18n.t('toasts.memory.proposalCreateFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },
@@ -208,16 +215,22 @@ export const useUpdateAiAgentMemoryStatus = () => {
             showToastSuccess({
                 title:
                     status === 'retired'
-                        ? 'Memory retired'
-                        : 'Memory reactivated',
+                        ? i18n.t('toasts.memory.retired', { ns: 'aiAgent' })
+                        : i18n.t('toasts.memory.reactivated', {
+                              ns: 'aiAgent',
+                          }),
             });
         },
         onError: ({ error }, { status }) => {
             showToastApiError({
                 title:
                     status === 'retired'
-                        ? 'Failed to retire memory'
-                        : 'Failed to reactivate memory',
+                        ? i18n.t('toasts.memory.retireFailed', {
+                              ns: 'aiAgent',
+                          })
+                        : i18n.t('toasts.memory.reactivateFailed', {
+                              ns: 'aiAgent',
+                          }),
                 apiError: error,
             });
         },

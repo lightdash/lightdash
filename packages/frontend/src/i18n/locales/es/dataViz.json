@@ -1,0 +1,154 @@
+{
+    "switcher": {
+        "table": "Tabla",
+        "barChart": "Gráfico de barras",
+        "lineChart": "Gráfico de líneas",
+        "pieChart": "Gráfico circular",
+        "bigValue": "Valor grande"
+    },
+    "common": {
+        "aggregation": "Agregación"
+    },
+    "errors": {
+        "columnNotInQuery": "La columna \"{{column}}\" no está en la consulta SQL",
+        "columnDoesNotExist": "La columna \"{{column}}\" no existe. Elige otra"
+    },
+    "bigNumber": {
+        "tabs": {
+            "data": "Datos",
+            "display": "Visualización",
+            "comparison": "Comparación",
+            "formatting": "Formato"
+        },
+        "value": "Valor",
+        "selectValue": "Selecciona un valor",
+        "label": "Etiqueta",
+        "hideLabel": "Ocultar etiqueta",
+        "showLabel": "Mostrar etiqueta",
+        "format": "Formato",
+        "comparison": {
+            "compareToField": "Comparar con un campo",
+            "field": "Campo",
+            "selectFieldPlaceholder": "Selecciona un campo para comparar",
+            "rawValue": "Valor bruto",
+            "percentage": "Porcentaje",
+            "flipColors": "Invertir color positivo",
+            "label": "Etiqueta de comparación",
+            "labelPlaceholder": "Añade una etiqueta opcional"
+        },
+        "rules": {
+            "title": "Reglas",
+            "description": "El valor toma el color de la primera regla que cumple.",
+            "remove": "Eliminar regla",
+            "add": "Añadir regla",
+            "operators": {
+                "greaterThan": "es mayor que",
+                "greaterThanOrEqual": "es mayor o igual que",
+                "lessThan": "es menor que",
+                "lessThanOrEqual": "es menor o igual que",
+                "equals": "es igual a",
+                "notEquals": "no es igual a"
+            }
+        }
+    },
+    "cartesian": {
+        "tabs": {
+            "data": "Datos",
+            "series": "Series",
+            "display": "Visualización"
+        },
+        "display": {
+            "xAxis": "Eje X",
+            "label": "Etiqueta",
+            "format": "Formato",
+            "yAxis": "Eje Y",
+            "yAxisLeft": "Eje Y (izquierdo)",
+            "yAxisRight": "Eje Y (derecho)"
+        },
+        "format": {
+            "none": "Ninguno",
+            "percent": "Porcentaje",
+            "si": "SI"
+        },
+        "fields": {
+            "selectYAxis": "Selecciona el eje Y",
+            "removeYAxis": "Quitar eje Y",
+            "selectXAxis": "Selecciona el eje X",
+            "removeXAxis": "Quitar eje X",
+            "selectGroupBy": "Selecciona agrupación",
+            "addYAxis": "Añadir eje Y",
+            "groupBy": "Agrupar por"
+        },
+        "series": {
+            "noSeries": "No se encontraron series. Añade una métrica para crear una serie.",
+            "stacking": "Apilado",
+            "stackNone": "Ninguno",
+            "stacked": "Apilado",
+            "stack100": "100%"
+        },
+        "seriesType": {
+            "bar": "Barras",
+            "line": "Líneas"
+        },
+        "valueLabel": {
+            "hidden": "Oculto",
+            "top": "Arriba",
+            "bottom": "Abajo",
+            "left": "Izquierda",
+            "right": "Derecha",
+            "inside": "Dentro",
+            "selectColor": "Selecciona el color de la etiqueta de valor",
+            "useAutomaticColor": "Usar color automático"
+        },
+        "dateFormat": {
+            "none": "Ninguno",
+            "day": "Día",
+            "week": "Semana",
+            "month": "Mes",
+            "quarter": "Trimestre",
+            "year": "Año"
+        },
+        "seriesConfig": {
+            "label": "Etiqueta",
+            "chartType": "Tipo de gráfico",
+            "yAxis": "Eje Y",
+            "left": "Izquierdo",
+            "right": "Derecho",
+            "valueLabels": "Etiquetas de valor"
+        }
+    },
+    "aggregation": {
+        "tooltip": "Tipo de agregación",
+        "sum": "Suma",
+        "count": "Recuento",
+        "avg": "Media",
+        "min": "Mín",
+        "max": "Máx",
+        "any": "Cualquier valor"
+    },
+    "sort": {
+        "sortAscending": "Orden ascendente",
+        "sortDescending": "Orden descendente",
+        "noSorting": "Sin ordenar",
+        "ascending": "Ascendente",
+        "descending": "Descendente",
+        "tooltip": "Ordenar por"
+    },
+    "pie": {
+        "data": "Datos",
+        "aggregateBy": "Agregar por"
+    },
+    "table": {
+        "columnLabels": "Etiquetas de columna",
+        "toggleColumnVisibility": "Alternar visibilidad de la columna",
+        "cannotSortGroupColumn": "No puedes ordenar por una columna de grupo",
+        "copyValue": "Copiar valor"
+    },
+    "view": {
+        "incompleteConfig": "Configuración del gráfico incompleta",
+        "missingValueField": "Falta un campo de valor",
+        "missingXAxis": "Falta un eje X",
+        "missingYAxis": "Falta un eje Y",
+        "errorGenerating": "Error al generar el gráfico"
+    }
+}

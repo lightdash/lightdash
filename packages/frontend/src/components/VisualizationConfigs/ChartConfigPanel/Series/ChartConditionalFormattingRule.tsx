@@ -19,6 +19,7 @@ import {
 import { useHover } from '@mantine/hooks';
 import { IconChevronDown, IconChevronUp, IconTrash } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import FilterInputComponent from '../../../common/Filters/FilterInputs';
 import { getFilterOperatorOptions } from '../../../common/Filters/FilterInputs/utils';
@@ -44,6 +45,7 @@ export const ChartConditionalFormattingRule: FC<Props> = ({
     onChangeRuleOperator,
     onRemoveRule,
 }) => {
+    const { t } = useTranslation('vizConfig');
     const projectUuid = useProjectUuid();
     const { ref, hovered } = useHover();
     const [isOpen, setIsOpen] = useState(ruleIndex === 0);
@@ -61,21 +63,37 @@ export const ChartConditionalFormattingRule: FC<Props> = ({
             return getFilterOperatorOptions(filterType);
         }
         return [
-            { value: FilterOperator.EQUALS, label: 'Equals' },
-            { value: FilterOperator.NOT_EQUALS, label: 'Does not equal' },
-            { value: FilterOperator.INCLUDE, label: 'Contains' },
+            {
+                value: FilterOperator.EQUALS,
+                label: t('chartConditionalFormatting.operator.equals'),
+            },
+            {
+                value: FilterOperator.NOT_EQUALS,
+                label: t('chartConditionalFormatting.operator.notEquals'),
+            },
+            {
+                value: FilterOperator.INCLUDE,
+                label: t('chartConditionalFormatting.operator.contains'),
+            },
         ];
-    }, [filterType]);
+    }, [filterType, t]);
 
     return (
         <Stack gap="xs" ref={ref}>
             <Group wrap="nowrap" justify="space-between">
                 <Group gap="xs">
                     <Text fw={500} fz="xs">
-                        Condition {ruleIndex + 1}
+                        {t('chartConditionalFormatting.conditionNumber', {
+                            number: ruleIndex + 1,
+                        })}
                     </Text>
                     {hasRemove && hovered && (
-                        <Tooltip label="Remove condition" position="left">
+                        <Tooltip
+                            label={t(
+                                'chartConditionalFormatting.removeCondition',
+                            )}
+                            position="left"
+                        >
                             <ActionIcon onClick={onRemoveRule}>
                                 <MantineIcon icon={IconTrash} />
                             </ActionIcon>
@@ -98,13 +116,15 @@ export const ChartConditionalFormattingRule: FC<Props> = ({
                             if (!value) return;
                             onChangeRuleOperator(value as FilterOperator);
                         }}
-                        placeholder="Condition"
+                        placeholder={t('chartConditionalFormatting.condition')}
                         disabled={!field || !filterType}
                     />
                     <Select
                         allowDeselect={false}
                         display={field && filterType ? 'none' : 'block'}
-                        placeholder="Value(s)"
+                        placeholder={t(
+                            'chartConditionalFormatting.valuesPlaceholder',
+                        )}
                         data={[]}
                         disabled={!field || !filterType}
                     />
@@ -121,7 +141,9 @@ export const ChartConditionalFormattingRule: FC<Props> = ({
                                 <TextInput
                                     size="xs"
                                     disabled
-                                    placeholder="Values"
+                                    placeholder={t(
+                                        'chartConditionalFormatting.values',
+                                    )}
                                 />
                             )}
                         </FiltersProvider>

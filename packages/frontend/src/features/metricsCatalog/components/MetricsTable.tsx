@@ -26,6 +26,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import {
     ContentTable,
     useContentTable,
@@ -54,7 +55,7 @@ import {
 } from '../store/metricsCatalogSlice';
 import { MetricCatalogView, type MetricsCatalogFilter } from '../types';
 import { MetricExploreModal } from './MetricExploreModal';
-import { MetricsCatalogColumns } from './MetricsCatalogColumns';
+import { getMetricsCatalogColumns } from './MetricsCatalogColumns';
 import { MetricsTableTopToolbar } from './MetricsTableTopToolbar';
 import SavedTreesContainer from './SavedTrees/SavedTreesContainer';
 
@@ -69,6 +70,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({
     isEmbed,
     hiddenFilters,
 }) => {
+    const { t } = useTranslation('metricsCatalog');
     const { track } = useTracking();
     const dispatch = useAppDispatch();
     const theme = useMantineTheme();
@@ -313,8 +315,10 @@ export const MetricsTable: FC<MetricsTableProps> = ({
         [columnConfig.columnVisibility, canManageTags, dataHasCategories],
     );
 
+    const columns = useMemo(() => getMetricsCatalogColumns(t), [t]);
+
     const table = useContentTable({
-        columns: MetricsCatalogColumns,
+        columns,
         data: flatData,
         enableColumnResizing: true,
         positionActionsColumn: 'last',
@@ -479,19 +483,23 @@ export const MetricsTable: FC<MetricsTableProps> = ({
             >
                 {isFetching ? (
                     <Text fz="sm" fw={500}>
-                        Loading more...
+                        {t('table.loadingMore')}
                     </Text>
                 ) : (
                     <Group gap="two">
                         <Text fz="sm" fw={500}>
                             {hasNextPage
-                                ? 'Scroll for more metrics'
-                                : 'All metrics loaded'}
+                                ? t('table.scrollForMore')
+                                : t('table.allLoaded')}
                         </Text>
                         <Text fz="sm" fw={400} c="dimmed">
                             {hasNextPage
-                                ? `(${flatData.length} loaded)`
-                                : `(${flatData.length})`}
+                                ? t('table.loadedCount', {
+                                      count: flatData.length,
+                                  })
+                                : t('table.totalCount', {
+                                      count: flatData.length,
+                                  })}
                         </Text>
                     </Group>
                 )}
@@ -500,18 +508,23 @@ export const MetricsTable: FC<MetricsTableProps> = ({
         renderEmptyRowsFallback: () => {
             return noMetricsAvailable ? (
                 <SuboptimalState
-                    title="No metrics defined in this project"
+                    title={t('table.noMetricsTitle')}
                     action={
                         isEmbed ? undefined : (
                             <Text>
-                                To learn how to define metrics, check out our{' '}
-                                <Anchor
-                                    inherit
-                                    target="_blank"
-                                    href="https://docs.lightdash.com/references/metrics/"
-                                >
-                                    documentation
-                                </Anchor>
+                                <Trans
+                                    t={t}
+                                    i18nKey="table.noMetricsDocs"
+                                    components={{
+                                        anchor: (
+                                            <Anchor
+                                                inherit
+                                                target="_blank"
+                                                href="https://docs.lightdash.com/references/metrics/"
+                                            />
+                                        ),
+                                    }}
+                                />
                             </Text>
                         )
                     }
@@ -519,7 +532,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({
             ) : (
                 <Center>
                     <Text fs="italic" c="gray">
-                        No results found
+                        {t('table.noResults')}
                     </Text>
                 </Center>
             );

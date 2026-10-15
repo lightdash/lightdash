@@ -13,6 +13,7 @@ import {
 import { useDeepCompareEffect } from 'react-use';
 import { getLightdashMonacoTheme } from '../../../features/sqlRunner/utils/monaco';
 import { useEditorTheme } from '../../../hooks/useEditorTheme';
+import i18n from '../../../i18n/i18n';
 import '../../../styles/monaco.css';
 import {
     Editor,
@@ -79,7 +80,9 @@ const registerCompletionProvider = (
                         kind: monaco.languages.CompletionItemKind.Variable,
                         insertText,
                         range,
-                        detail: 'Date granularity (day, week, month...)',
+                        detail: i18n.t('common.dateGranularityDetail', {
+                            ns: 'vizConfig',
+                        }),
                     };
                 },
             );

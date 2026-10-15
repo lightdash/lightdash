@@ -3,6 +3,7 @@ import {
     type SuggestChartTypeExploreRequest,
 } from '@lightdash/common';
 import { formatDistanceToNow } from 'date-fns';
+import i18n from '../../../i18n/i18n';
 import { type PreviewSource } from './savedChartSource';
 
 /** One visible field of the attached explore, with the label it reads by. */
@@ -67,49 +68,60 @@ export type ExploreSourceControls = {
     retry: () => void;
 };
 
-const plural = (count: number, noun: string) =>
-    `${count} ${noun}${count === 1 ? '' : 's'}`;
+const tr = (key: string, options?: Record<string, unknown>): string =>
+    i18n.t(`exploreSource.${key}`, { ns: 'chartTypes', ...options });
+
+const fieldsLabel = (count: number) => tr('fields', { count });
 
 /** "Table · 42 fields, Customers joined" */
-export const exploreSummary = (attached: AttachedExplore): string => {
-    const joined =
-        attached.joinedTableLabels.length > 0
-            ? `, ${attached.joinedTableLabels.join(', ')} joined`
-            : '';
-    return `Table · ${plural(attached.fieldCount, 'field')}${joined}`;
-};
+export const exploreSummary = (attached: AttachedExplore): string =>
+    attached.joinedTableLabels.length > 0
+        ? tr('summaryJoined', {
+              fields: fieldsLabel(attached.fieldCount),
+              joined: attached.joinedTableLabels.join(', '),
+          })
+        : tr('summary', { fields: fieldsLabel(attached.fieldCount) });
 
 /** The query's state after the field count, e.g. "142 rows"; null while
  *  no field is picked. */
 const queryState = (attached: AttachedExplore): string | null => {
-    if (attached.status === 'error') return 'query failed';
+    if (attached.status === 'error') return tr('queryFailed');
     if (attached.queriedFieldCount === 0) return null;
     if (attached.isRunning || attached.rowCount === null) {
-        return 'running query';
+        return tr('runningQuery');
     }
-    return plural(attached.rowCount, 'row');
+    return tr('rows', { count: attached.rowCount });
 };
 
 /** The composer chip: "Orders", then "Orders · 3 fields · 142 rows". */
 export const exploreChipLabel = (attached: AttachedExplore): string => {
-    if (attached.isPickingFields) return `${attached.label} · picking fields`;
+    if (attached.isPickingFields)
+        return tr('chipPicking', { label: attached.label });
     const state = queryState(attached);
     if (state === null) return attached.label;
-    if (attached.status === 'error') return `${attached.label} · ${state}`;
-    return `${attached.label} · ${plural(attached.queriedFieldCount, 'field')} · ${state}`;
+    if (attached.status === 'error')
+        return tr('chipError', { label: attached.label, state });
+    return tr('chip', {
+        label: attached.label,
+        fields: fieldsLabel(attached.queriedFieldCount),
+        state,
+    });
 };
 
 /** The sidebar tile's meta line, e.g.
  *  "Table · 3 fields · 142 rows · ran less than a minute ago". */
 export const exploreQueryMeta = (attached: AttachedExplore): string => {
-    if (attached.status === 'loading') return 'Table · loading';
-    if (attached.isPickingFields) return 'Table · picking fields';
+    if (attached.status === 'loading') return tr('metaLoading');
+    if (attached.isPickingFields) return tr('metaPicking');
     const state = queryState(attached);
-    if (state === null) return 'Table · no fields picked yet';
-    if (attached.status === 'error') return `Table · ${state}`;
-    const ran =
-        attached.ranAt !== null && !attached.isRunning
-            ? ` · ran ${formatDistanceToNow(attached.ranAt, { addSuffix: true })}`
-            : '';
-    return `Table · ${plural(attached.queriedFieldCount, 'field')} · ${state}${ran}`;
+    if (state === null) return tr('metaNoFields');
+    if (attached.status === 'error') return tr('metaError', { state });
+    const fields = fieldsLabel(attached.queriedFieldCount);
+    return attached.ranAt !== null && !attached.isRunning
+        ? tr('metaRan', {
+              fields,
+              state,
+              ran: formatDistanceToNow(attached.ranAt, { addSuffix: true }),
+          })
+        : tr('meta', { fields, state });
 };

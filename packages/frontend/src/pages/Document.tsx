@@ -7,6 +7,7 @@ import {
 import { ActionIcon, Button, Group, Tooltip } from '@mantine/core';
 import { IconCircleCheckFilled, IconPencil } from '@tabler/icons-react';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     Link,
     Navigate,
@@ -42,6 +43,7 @@ const DocumentEditor = lazy(
 );
 
 const DocumentWorkspace = ({ document }: { document: Document }) => {
+    const { t } = useTranslation('pages');
     const location = useLocation();
     const navigate = useNavigate();
     const startEditing = isStartEditingState(location.state);
@@ -73,7 +75,12 @@ const DocumentWorkspace = ({ document }: { document: Document }) => {
     if (editingDocument && canEdit) {
         return (
             <Suspense
-                fallback={<EmptyStateLoader my="xl" title="Loading editor" />}
+                fallback={
+                    <EmptyStateLoader
+                        my="xl"
+                        title={t('document.loadingEditor')}
+                    />
+                }
             >
                 <DocumentEditor
                     document={editingDocument}
@@ -101,14 +108,16 @@ const DocumentWorkspace = ({ document }: { document: Document }) => {
                     <Group gap="xs" wrap="nowrap">
                         {document.verification && (
                             <Tooltip
-                                label={`Verified by ${document.verification.verifiedBy.firstName} ${document.verification.verifiedBy.lastName}`}
+                                label={t('document.verifiedBy', {
+                                    name: `${document.verification.verifiedBy.firstName} ${document.verification.verifiedBy.lastName}`,
+                                })}
                             >
                                 <IconCircleCheckFilled
                                     size={16}
                                     style={{
                                         color: 'var(--mantine-color-green-6)',
                                     }}
-                                    aria-label="Verified"
+                                    aria-label={t('document.verified')}
                                 />
                             </Tooltip>
                         )}
@@ -120,14 +129,14 @@ const DocumentWorkspace = ({ document }: { document: Document }) => {
                         <SaveDocumentToSpaceButton document={document} />
                         <ActionIcon.Group
                             role="group"
-                            aria-label="Document controls"
+                            aria-label={t('document.controls')}
                         >
                             {canEdit && (
-                                <Tooltip label="Edit document">
+                                <Tooltip label={t('document.edit')}>
                                     <ActionIcon
                                         variant="default"
                                         size="lg"
-                                        aria-label="Edit document"
+                                        aria-label={t('document.edit')}
                                         onClick={() => {
                                             setOpenAt(scrollTop.current);
                                             setEditingDocument(document);
@@ -156,6 +165,7 @@ const DocumentContent = ({
     projectUuid: string;
     documentUuidOrSlug: UuidOrSlug;
 }) => {
+    const { t } = useTranslation('pages');
     const query = useDocument(projectUuid, documentUuidOrSlug);
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const [searchParams] = useSearchParams();
@@ -164,16 +174,16 @@ const DocumentContent = ({
         projectUrlIdentifier,
     );
     if (query.isInitialLoading) {
-        return <EmptyStateLoader my="xl" title="Loading document" />;
+        return <EmptyStateLoader my="xl" title={t('document.loading')} />;
     }
     if (query.isError || !query.data) {
         return (
             <SuboptimalState
-                title="Document unavailable"
-                description="This document may have been deleted, or you may not have access."
+                title={t('document.unavailable')}
+                description={t('document.unavailableDescription')}
                 action={
                     <Button component={Link} to={backUrl} variant="default">
-                        Back
+                        {t('actions.back', { ns: 'common' })}
                     </Button>
                 }
             />
@@ -194,13 +204,14 @@ const DocumentContent = ({
 };
 
 const DocumentPage = () => {
+    const { t } = useTranslation('pages');
     const projectUuid = useProjectUuid();
     const { documentUuidOrSlug } = useParams<{
         documentUuidOrSlug: UuidOrSlug;
     }>();
     const flag = useServerFeatureFlag(FeatureFlags.Documents);
     if (!projectUuid || flag.isInitialLoading) {
-        return <EmptyStateLoader my="xl" title="Loading document" />;
+        return <EmptyStateLoader my="xl" title={t('document.loading')} />;
     }
     if (flag.isError || !flag.data?.enabled || !documentUuidOrSlug) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;

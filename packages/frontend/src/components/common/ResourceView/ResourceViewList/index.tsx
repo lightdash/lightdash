@@ -13,6 +13,7 @@ import {
     IconChevronUp,
 } from '@tabler/icons-react';
 import React, { useMemo, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import { useProjectUrlIdentifier } from '../../../../hooks/useProjectRoute';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
@@ -84,6 +85,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
     hideVerification = false,
     onAction,
 }) => {
+    const { t } = useTranslation('resourceView');
     const navigate = useNavigate();
     const projectUuid = useProjectUuid();
     const projectUrlIdentifier = useProjectUrlIdentifier();
@@ -118,7 +120,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
         () => [
             {
                 id: 'name',
-                label: 'Name',
+                label: t('columns.name'),
                 cell: (item: ResourceViewItem) => {
                     if (!projectUuid) {
                         return null;
@@ -158,34 +160,30 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                         }}
                                         tooltipLabel={
                                             canUserManageValidation ? (
-                                                <>
-                                                    This content is broken.
-                                                    Learn more about the
-                                                    validation error(s){' '}
-                                                    <Anchor
-                                                        component={Link}
-                                                        fw={600}
-                                                        to={{
-                                                            pathname: `/generalSettings/projectManagement/${projectUuid}/validator`,
-                                                            search: `?validationUuid=${item.data.validationErrors[0].validationUuid}`,
-                                                        }}
-                                                        c="blue.4"
-                                                        fz="xs"
-                                                    >
-                                                        here
-                                                    </Anchor>
-                                                    .
-                                                </>
+                                                <Trans
+                                                    t={t}
+                                                    i18nKey="validation.brokenContent"
+                                                    components={{
+                                                        link: (
+                                                            <Anchor
+                                                                component={Link}
+                                                                fw={600}
+                                                                to={{
+                                                                    pathname: `/generalSettings/projectManagement/${projectUuid}/validator`,
+                                                                    search: `?validationUuid=${item.data.validationErrors[0].validationUuid}`,
+                                                                }}
+                                                                c="blue.4"
+                                                                fz="xs"
+                                                            />
+                                                        ),
+                                                    }}
+                                                />
+                                            ) : isResourceViewItemChart(
+                                                  item,
+                                              ) ? (
+                                                t('validation.chartError')
                                             ) : (
-                                                <>
-                                                    There's an error with this{' '}
-                                                    {isResourceViewItemChart(
-                                                        item,
-                                                    )
-                                                        ? 'chart'
-                                                        : 'dashboard'}
-                                                    .
-                                                </>
+                                                t('validation.dashboardError')
                                             )
                                         }
                                     >
@@ -236,7 +234,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                     </Group>
                                     {isResourceViewDocumentItem(item) && (
                                         <Text fz="xs" c="dimmed">
-                                            Document
+                                            {t('resourceType.document')}
                                         </Text>
                                     )}
                                     {canBelongToSpace && (
@@ -253,7 +251,9 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                                     item,
                                                 )}
                                             >
-                                                {item.data.views || '0'} views
+                                                {t('views.count', {
+                                                    count: item.data.views || 0,
+                                                })}
                                             </ViewsCountPopover>
                                         </Text>
                                     )}
@@ -277,7 +277,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
             },
             {
                 id: 'space',
-                label: 'Space',
+                label: t('columns.space'),
                 cell: (item: ResourceViewItem) => {
                     if (isResourceViewSpaceItem(item)) {
                         return null;
@@ -330,7 +330,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
             },
             {
                 id: 'updatedAt',
-                label: 'Last Edited',
+                label: t('columns.lastEdited'),
                 cell: (item: ResourceViewItem) => {
                     if (isResourceViewSpaceItem(item)) return null;
                     return <ResourceLastEdited item={item} />;
@@ -386,6 +386,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
             onAction,
             hoveredItem,
             hideVerification,
+            t,
         ],
     );
 

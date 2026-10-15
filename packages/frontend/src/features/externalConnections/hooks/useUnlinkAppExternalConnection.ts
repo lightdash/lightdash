@@ -3,6 +3,7 @@ import {
     type AppExternalConnectionLinked,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -44,6 +45,7 @@ const linksQueryKey = (projectUuid: string, appUuid: string) => [
 export const useUnlinkAppExternalConnection = () => {
     const queryClient = useQueryClient();
     const { showToastInfo, showToastApiError } = useToaster();
+    const { t } = useTranslation('sync');
     return useMutation<
         undefined,
         ApiError,
@@ -69,9 +71,8 @@ export const useUnlinkAppExternalConnection = () => {
         },
         onSuccess: (_data, { name }) => {
             showToastInfo({
-                title: `Unlinked ${name}`,
-                subtitle:
-                    'The generated code still calls it until you ask for a change.',
+                title: t('externalConnections.toasts.unlinked', { name }),
+                subtitle: t('externalConnections.toasts.unlinkedSubtitle'),
             });
         },
         onError: ({ error }, { projectUuid, appUuid }, context) => {
@@ -80,7 +81,7 @@ export const useUnlinkAppExternalConnection = () => {
                 context?.previousLinks,
             );
             showToastApiError({
-                title: 'Failed to unlink connection',
+                title: t('externalConnections.toasts.unlinkFailed'),
                 apiError: error,
             });
         },

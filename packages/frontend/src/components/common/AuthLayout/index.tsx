@@ -9,6 +9,7 @@ import {
     type PropsWithChildren,
     type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import LightdashLogo from '../../LightdashLogo/LightdashLogo';
 import PageSpinner from '../../PageSpinner';
 import { DocumentTitle } from '../DocumentTitle';
@@ -64,6 +65,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
     footer,
     children,
 }) => {
+    const { t } = useTranslation('commonUi');
     const { isNewLayout, isInitialLoading } = useAuthLayoutVariant();
     const brandPanelRef = useRef<HTMLDivElement>(null);
 
@@ -173,12 +175,10 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
 
                     <Stack gap="lg" className={classes.brandIntro}>
                         <Title order={1} className={classes.headline}>
-                            Analytics at the speed of code.
+                            {t('authLayout.headline')}
                         </Title>
                         <Text className={classes.subcopy}>
-                            The only open-source, AI-native BI platform that
-                            lets AI build, refactor, and ship analytics in
-                            minutes.
+                            {t('authLayout.subcopy')}
                         </Text>
                         {withCustomerLogos && <CustomerLogos />}
                     </Stack>

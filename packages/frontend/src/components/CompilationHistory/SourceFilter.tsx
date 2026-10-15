@@ -11,9 +11,10 @@ import {
 } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../common/MantineIcon';
 import classes from './SourceFilter.module.css';
-import { ALL_SOURCES, SOURCE_LABELS, type CompilationSource } from './types';
+import { ALL_SOURCES, getSourceLabel, type CompilationSource } from './types';
 
 type CompilationSourceFilterProps = {
     selectedSource: CompilationSource | null;
@@ -24,10 +25,14 @@ const CompilationSourceFilter: FC<CompilationSourceFilterProps> = ({
     selectedSource,
     setSelectedSource,
 }) => {
+    const { t } = useTranslation('projectConnection');
     const hasSelectedSource = selectedSource !== null;
     const buttonLabel = useMemo(
-        () => (selectedSource ? SOURCE_LABELS[selectedSource] : 'Source'),
-        [selectedSource],
+        () =>
+            selectedSource
+                ? getSourceLabel(t, selectedSource)
+                : t('compilationHistory.source'),
+        [selectedSource, t],
     );
 
     const handleSourceChange = (value: string) => {
@@ -38,7 +43,7 @@ const CompilationSourceFilter: FC<CompilationSourceFilterProps> = ({
         <Group gap={2} wrap="nowrap">
             <Popover width={250} position="bottom-start">
                 <Popover.Target>
-                    <Tooltip label="Filter logs by source">
+                    <Tooltip label={t('compilationHistory.filterTooltip')}>
                         <Button
                             h={32}
                             c="foreground"
@@ -61,7 +66,7 @@ const CompilationSourceFilter: FC<CompilationSourceFilterProps> = ({
                 <Popover.Dropdown p="sm">
                     <Stack gap={4}>
                         <Text fz="xs" c="ldDark.3" fw={600}>
-                            Filter by source:
+                            {t('compilationHistory.filterBySource')}
                         </Text>
 
                         <ScrollArea.Autosize
@@ -78,7 +83,7 @@ const CompilationSourceFilter: FC<CompilationSourceFilterProps> = ({
                                         <Radio
                                             key={source}
                                             value={source}
-                                            label={SOURCE_LABELS[source]}
+                                            label={getSourceLabel(t, source)}
                                             size="xs"
                                         />
                                     ))}
@@ -89,9 +94,9 @@ const CompilationSourceFilter: FC<CompilationSourceFilterProps> = ({
                 </Popover.Dropdown>
             </Popover>
             {hasSelectedSource && (
-                <Tooltip label="Clear source filter">
+                <Tooltip label={t('compilationHistory.clearFilter')}>
                     <ActionIcon
-                        aria-label="Clear source filter"
+                        aria-label={t('compilationHistory.clearFilter')}
                         size="xs"
                         color="ldGray.5"
                         onClick={() => setSelectedSource(null)}

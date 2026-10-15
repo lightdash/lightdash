@@ -1,6 +1,7 @@
 import { Box } from '@mantine/core';
 import { IconUnlink } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import LoadingChart from '../../../../../components/common/LoadingChart';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
@@ -13,6 +14,7 @@ type Props = {
 };
 
 const EmbedChart: FC<Props> = ({ containerStyles, savedQueryUuid }) => {
+    const { t } = useTranslation('embed');
     const projectUuid = useProjectUuid();
     const { data, isInitialLoading, isError, error } = useSavedQuery({
         uuidOrSlug: savedQueryUuid,
@@ -37,11 +39,11 @@ const EmbedChart: FC<Props> = ({ containerStyles, savedQueryUuid }) => {
         return (
             <Box mt={20}>
                 <SuboptimalState
-                    title="Error loading chart"
+                    title={t('chart.loadError')}
                     icon={IconUnlink}
                     description={
                         error.error.message.includes('jwt expired')
-                            ? 'This embed link has expired'
+                            ? t('expired')
                             : error.error.message
                     }
                 />
@@ -52,7 +54,10 @@ const EmbedChart: FC<Props> = ({ containerStyles, savedQueryUuid }) => {
     if (!data) {
         return (
             <Box mt={20}>
-                <SuboptimalState title="Chart not found" icon={IconUnlink} />
+                <SuboptimalState
+                    title={t('chart.notFound')}
+                    icon={IconUnlink}
+                />
             </Box>
         );
     }

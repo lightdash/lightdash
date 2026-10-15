@@ -1,0 +1,212 @@
+{
+    "editorActions": {
+        "formatSql": "Format SQL",
+        "disableSoftWrap": "Disable editor soft-wrapping",
+        "enableSoftWrap": "Enable editor soft-wrapping"
+    },
+    "runButton": {
+        "run": "Run"
+    },
+    "content": {
+        "couldNotFetchResults": "Could not fetch SQL query results",
+        "hints": {
+            "run": "run",
+            "selection": "selection"
+        },
+        "errorLine": "Line {{line}}",
+        "copyError": "Copy error",
+        "resultsRows_one": "{{formattedCount}} row",
+        "resultsRows_other": "{{formattedCount}} rows",
+        "resultsRowsLimited_one": "{{formattedCount}} row, limited to {{limit}}",
+        "resultsRowsLimited_other": "{{formattedCount}} rows, limited to {{limit}}",
+        "tabs": {
+            "notRunYet": "You haven't run this query yet.",
+            "sql": "SQL",
+            "runToSeeChart": "Run a query to see the chart",
+            "chart": "Chart"
+        },
+        "running": "Running",
+        "results": "Results",
+        "unknownError": "Unknown error",
+        "pivotColumnLimit": "This query exceeds the maximum number of columns ({{limit}}). Showing the first {{limit}} columns."
+    },
+    "tables": {
+        "devSchemasGroup": "dev & pr schemas",
+        "recent": "Recent",
+        "allSchemas": "All schemas",
+        "noResults": "No results found"
+    },
+    "tableType": {
+        "view": "View",
+        "materializedView": "Materialized view",
+        "external": "External table",
+        "table": "Table"
+    },
+    "tablesToolbar": {
+        "allTypes": "All types",
+        "tablesOnly": "Tables only",
+        "viewsOnly": "Views only",
+        "clearSearch": "Clear search",
+        "searchTables": "Search tables",
+        "filterAndRefresh": "Filter and refresh",
+        "groupDevSchemas": "Group dev schemas",
+        "refreshCatalog": "Refresh catalog"
+    },
+    "tableFields": {
+        "copyColumn": "Copy column",
+        "copyTablePath": "Copy full table path",
+        "searchFields": "Search fields",
+        "noColumns": "No columns found"
+    },
+    "tablesPanel": {
+        "stillLoading": "Hang on, still loading..."
+    },
+    "sidebar": {
+        "chartTitle": "Chart"
+    },
+    "connectionHeader": {
+        "activeConnection": "Active connection"
+    },
+    "chartErrors": {
+        "title": "Fix errors before saving",
+        "fixErrors": "Fix errors",
+        "description": "You have errors in your chart configuration. Please fix the errors and try again."
+    },
+    "beforeSaveAlert": {
+        "title": "You haven't run your query yet",
+        "description": "You can verify your query before saving or you can review it later."
+    },
+    "deleteModal": {
+        "title": "Delete chart",
+        "softDeleteDescription_one": "This chart will be moved to Recently deleted and permanently removed after {{count}} day.",
+        "softDeleteDescription_other": "This chart will be moved to Recently deleted and permanently removed after {{count}} days."
+    },
+    "saveModal": {
+        "nameRequired": "Name is required",
+        "chooseConnection": "Choose a connection before you save this chart",
+        "newSpace": "New Space",
+        "title": "Save Chart",
+        "chartName": "Chart name",
+        "chartNamePlaceholder": "eg. How many weekly active users do we have?",
+        "description": "Description"
+    },
+    "updateModal": {
+        "title": "Update chart"
+    },
+    "writeBack": {
+        "title": "Write back to dbt",
+        "openPullRequest": "Open Pull Request",
+        "tooltip": "Create a new model in your dbt project from this SQL query. This will create a new branch and start a pull request.",
+        "name": "Name",
+        "filesToBeCreatedIn": "Files to be created in <repo/>:",
+        "openInNewTab": "Open \"{{url}}\" in new tab",
+        "authoredAs": "The pull request will be authored as <login>@{{login}}</login>.",
+        "openedByBot": "The pull request will be opened by the Lightdash bot. <link>Connect your GitHub account</link> to author it as you."
+    },
+    "history": {
+        "openInEditor": "Open in query editor",
+        "title": "SQL query history"
+    },
+    "download": {
+        "downloadChart": "Download chart",
+        "downloadAs": "Download as",
+        "results": "Results",
+        "image": "Image",
+        "downloadResults": "Download results"
+    },
+    "editor": {
+        "warehouseConnectionUnavailable": "Warehouse connection not available"
+    },
+    "header": {
+        "writeBack": {
+            "noPermission": "You don't have permission to write back to dbt in this project.",
+            "onlyDbtProjects": "SQL Runner model creation is only supported for dbt projects.",
+            "bitbucketCloudOnly": "SQL writeback supports Bitbucket Cloud only. Update the project connection.",
+            "githubNotEnabled": "Github integration is not enabled on this instance, click here to see more details",
+            "githubNotActive": "Github integration is not active on this organization, click here to open integrations page",
+            "notConnectedToRepo": "This project <project>{{projectName}}</project> is not connected to a GitHub, GitLab or Bitbucket Cloud repository, click here to open project settings page"
+        },
+        "cta": {
+            "saveChart": "Save chart",
+            "saveChartDescription": "Save as an adhoc query",
+            "createVirtualView": "Create virtual view",
+            "createVirtualViewDescription": "Save as a reusable query",
+            "writeBackToDbt": "Write back to dbt",
+            "writeBackToDbtDescription": "Save as a model in dbt"
+        },
+        "shareUrlCopied": "Shared URL copied to clipboard!",
+        "runToSave": "Run the query to save it",
+        "noSavePermission": "You don't have permission to save SQL charts in this project.",
+        "noVirtualViewPermission": "You don't have permission to create virtual views in this project.",
+        "copyLink": "Copy link to this query",
+        "backToViewPage": "Back to view page",
+        "manage": "Manage",
+        "editChart": "Edit chart",
+        "addToDashboard": "Add to dashboard",
+        "requestReview": "Request review",
+        "googleSheetsSync": "Google Sheets Sync",
+        "promoteRequiresUpstream": "You must enable first an upstream project in settings > Data ops",
+        "promoteChart": "Promote chart",
+        "share": "Share"
+    },
+    "toasts": {
+        "chartCreated": "Success! SQL chart created",
+        "createFailed": "Failed to create chart",
+        "chartUpdated": "Success! SQL chart updated",
+        "updateFailed": "Failed to update chart",
+        "chartDeleted": "Success! SQL chart deleted",
+        "goToRecentlyDeleted": "Go to recently deleted",
+        "deleteFailed": "Failed to delete chart",
+        "chartPromoted": "Success! SQL chart promoted.",
+        "openChart": "Open chart",
+        "promoteFailed": "Failed to promote SQL chart",
+        "promoteDiffFailed": "Failed to get diff from SQL chart",
+        "createPullRequestFailed": "Failed to create a pull request",
+        "writePreviewFailed": "Failed to preview dbt writeback"
+    },
+    "completion": {
+        "snippet": "snippet",
+        "schema": "schema",
+        "table": "table",
+        "cte": "CTE",
+        "database": "database",
+        "subquery": "subquery",
+        "function": "function",
+        "selectedInSchema": "{{schema}} · selected",
+        "columnOf": "Column of {{owner}}",
+        "columnOfWithType": "Column of {{owner}} ({{type}})",
+        "allColumnsOf_one": "All {{count}} column of {{table}}",
+        "allColumnsOf_other": "All {{count}} columns of {{table}}"
+    },
+    "errors": {
+        "projectStillLoading": "The project is still loading. Run the query again.",
+        "chooseConnectionToRun": "Choose a connection before you run this query.",
+        "unexpectedQueryError": "Unexpected query error"
+    },
+    "tree": {
+        "failedToLoadDatabases": "Failed to load databases",
+        "failedToLoadTables": "Failed to load tables",
+        "loadingTables": "Loading tables...",
+        "connectionNeedsCredentials": "This connection needs your warehouse credentials. Add or select them in the credentials switcher in the navigation bar.",
+        "namedConnectionNeedsCredentials": "{{connectionName}} needs your warehouse credentials. Add or select them in the credentials switcher in the navigation bar.",
+        "cannotBrowse": "You cannot browse this connection",
+        "couldNotLoadTables": "Could not load tables",
+        "databasesTruncated": "Showing the first {{limit}} databases. Name others in the connection settings.",
+        "active": "Active",
+        "chooseConnection": "Choose a connection to browse its tables",
+        "allConnections": "All connections"
+    },
+    "connection": {
+        "namedRemoved": "\"{{name}}\" was removed from this project",
+        "removed": "This connection was removed from this project",
+        "removedSubtitle": "Your SQL is still here. Choose another connection to browse its tables.",
+        "choose": "Choose a connection"
+    },
+    "connectionSwitch": {
+        "title": "Switch to {{name}}?",
+        "description": "{{table}} is on another connection. Your editor has SQL that did not come from a table click, so nothing has changed yet.",
+        "confirm": "Switch and replace SQL",
+        "keepNamed": "Keep {{name}}",
+        "keepThis": "Keep this connection"
+    }
+}

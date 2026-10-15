@@ -10,6 +10,8 @@ import {
 import { Text } from '@mantine/core';
 import startCase from 'lodash/startCase';
 import { Fragment, type ReactNode } from 'react';
+import { Trans } from 'react-i18next';
+import i18n from '../i18n/i18n';
 
 export const systemRolesOrder: string[] = Object.values(OrganizationMemberRole);
 
@@ -41,39 +43,46 @@ const formatScopeExamples = (scopeNames: ScopeName[]): string => {
     const displayNames = [...new Set(sorted.map(formatScopeName))];
     const examples = displayNames.slice(0, 3).join(', ');
     const remaining = displayNames.length - 3;
-    return remaining > 0 ? `${examples} and ${remaining} more` : examples;
+    return remaining > 0
+        ? i18n.t('roleAccessWarnings.andMore', {
+              ns: 'app',
+              examples,
+              count: remaining,
+          })
+        : examples;
 };
 
 const joinWithAnd = (nodes: ReactNode[]): ReactNode =>
     nodes.map((node, index) => (
         // eslint-disable-next-line react/no-array-index-key
         <Fragment key={index}>
-            {index > 0 && (index === nodes.length - 1 ? ' and ' : ', ')}
+            {index > 0 &&
+                (index === nodes.length - 1
+                    ? ` ${i18n.t('roleAccessWarnings.and', { ns: 'app' })} `
+                    : ', ')}
             {node}
         </Fragment>
     ));
+
+const bold = <Text fw={600} span />;
 
 const getLegacyCustomGroupWarning = (
     customGroup: UserGroupAccess,
 ): ReactNode => (
     <>
         <Text fw={400}>
-            This user belongs to a group{' '}
-            <Text fw={600} span>
-                {customGroup.group.name}
-            </Text>{' '}
+            <Trans
+                ns="app"
+                i18nKey="roleAccessWarnings.legacyGroup"
+                values={{
+                    group: customGroup.group.name,
+                    role: customGroup.roleName,
+                }}
+                components={{ b: bold }}
+            />
         </Text>
         <Text fw={400}>
-            which has a custom role
-            <Text fw={600} span>
-                {' '}
-                {customGroup.roleName}
-            </Text>{' '}
-            assigned.{' '}
-        </Text>
-        <Text fw={400}>
-            Make sure the organization or project role doesn't override the
-            group role permissions.
+            {i18n.t('roleAccessWarnings.legacyGroupHint', { ns: 'app' })}
         </Text>
     </>
 );
@@ -130,15 +139,17 @@ export const getAccessWarning = ({
                 ) {
                     return (
                         <Text fw={400} fz="sm">
-                            User inherits role{' '}
-                            <Text fw={600} span fz="sm">
-                                {bestGroup.roleName}
-                            </Text>{' '}
-                            from group{' '}
-                            <Text fw={600} span fz="sm">
-                                {bestGroup.group.name}
-                            </Text>
-                            .
+                            <Trans
+                                ns="app"
+                                i18nKey="roleAccessWarnings.inheritsFromGroup"
+                                values={{
+                                    role: bestGroup.roleName,
+                                    group: bestGroup.group.name,
+                                }}
+                                components={{
+                                    b: <Text fw={600} span fz="sm" />,
+                                }}
+                            />
                         </Text>
                     );
                 }
@@ -151,11 +162,14 @@ export const getAccessWarning = ({
             ) {
                 return (
                     <Text fw={400} fz="sm">
-                        User inherits higher role{' '}
-                        <Text fw={600} span fz="sm">
-                            {organizationRole}
-                        </Text>{' '}
-                        from organization.
+                        <Trans
+                            ns="app"
+                            i18nKey="roleAccessWarnings.inheritsFromOrg"
+                            values={{ role: organizationRole }}
+                            components={{
+                                b: <Text fw={600} span fz="sm" />,
+                            }}
+                        />
                     </Text>
                 );
             }
@@ -170,15 +184,21 @@ export const getAccessWarning = ({
                 return (
                     <>
                         <Text fw={400}>
-                            This user has a custom role and an organization role{' '}
-                            <Text fw={600} span>
-                                {organizationRoleName ?? organizationRole}
-                            </Text>{' '}
-                            assigned.{' '}
+                            <Trans
+                                ns="app"
+                                i18nKey="roleAccessWarnings.customAndOrgRole"
+                                values={{
+                                    role:
+                                        organizationRoleName ??
+                                        organizationRole,
+                                }}
+                                components={{ b: bold }}
+                            />
                         </Text>
                         <Text fw={400}>
-                            Make sure the organization or group role doesn't
-                            override the project role permissions.
+                            {i18n.t('roleAccessWarnings.customAndOrgRoleHint', {
+                                ns: 'app',
+                            })}
                         </Text>
                     </>
                 );
@@ -187,28 +207,28 @@ export const getAccessWarning = ({
             const additiveSources: { label: ReactNode; scopes: string[] }[] = [
                 {
                     label: (
-                        <>
-                            organization role{' '}
-                            <Text fw={600} span>
-                                {organizationRoleName ?? organizationRole}
-                            </Text>
-                        </>
+                        <Trans
+                            ns="app"
+                            i18nKey="roleAccessWarnings.organizationRoleLabel"
+                            values={{
+                                role: organizationRoleName ?? organizationRole,
+                            }}
+                            components={{ b: bold }}
+                        />
                     ),
                     scopes: roleScopesById.get(organizationRole) ?? [],
                 },
                 ...(userGroupAccesses ?? []).map((uga) => ({
                     label: (
-                        <>
-                            group{' '}
-                            <Text fw={600} span>
-                                {uga.group.name}
-                            </Text>{' '}
-                            (role{' '}
-                            <Text fw={600} span>
-                                {uga.roleName}
-                            </Text>
-                            )
-                        </>
+                        <Trans
+                            ns="app"
+                            i18nKey="roleAccessWarnings.groupRoleLabel"
+                            values={{
+                                group: uga.group.name,
+                                role: uga.roleName,
+                            }}
+                            components={{ b: bold }}
+                        />
                     ),
                     scopes: roleScopesById.get(uga.access.roleId) ?? [],
                 })),
@@ -234,18 +254,29 @@ export const getAccessWarning = ({
             return (
                 <>
                     <Text fw={400}>
-                        This user has a custom role, but{' '}
-                        {joinWithAnd(conflicts.map((c) => c.label))} grant
-                        {conflicts.length === 1 ? 's' : ''} them permissions the
-                        custom role does not include (e.g.{' '}
-                        <Text fw={600} span>
-                            {formatScopeExamples(uncoveredScopes)}
-                        </Text>
-                        ).
+                        <Trans
+                            ns="app"
+                            i18nKey="roleAccessWarnings.customRoleConflict"
+                            count={conflicts.length}
+                            values={{
+                                examples: formatScopeExamples(uncoveredScopes),
+                            }}
+                            components={{
+                                sources: (
+                                    <>
+                                        {joinWithAnd(
+                                            conflicts.map((c) => c.label),
+                                        )}
+                                    </>
+                                ),
+                                b: bold,
+                            }}
+                        />
                     </Text>
                     <Text fw={400}>
-                        Organization and group permissions are additive and
-                        cannot be restricted by the project role.
+                        {i18n.t('roleAccessWarnings.additiveProject', {
+                            ns: 'app',
+                        })}
                     </Text>
                 </>
             );
@@ -288,24 +319,22 @@ export const getAccessWarning = ({
                 return (
                     <>
                         <Text fw={400}>
-                            This user belongs to group{' '}
-                            <Text fw={600} span>
-                                {customGroup.group.name}
-                            </Text>{' '}
-                            which has custom role{' '}
-                            <Text fw={600} span>
-                                {customGroup.roleName}
-                            </Text>{' '}
-                            assigned, but their other roles grant them
-                            permissions beyond it (e.g.{' '}
-                            <Text fw={600} span>
-                                {formatScopeExamples(uncoveredScopes)}
-                            </Text>
-                            ).
+                            <Trans
+                                ns="app"
+                                i18nKey="roleAccessWarnings.customGroupConflict"
+                                values={{
+                                    group: customGroup.group.name,
+                                    role: customGroup.roleName,
+                                    examples:
+                                        formatScopeExamples(uncoveredScopes),
+                                }}
+                                components={{ b: bold }}
+                            />
                         </Text>
                         <Text fw={400}>
-                            Organization and project permissions are additive
-                            and cannot be restricted by the group role.
+                            {i18n.t('roleAccessWarnings.additiveGroup', {
+                                ns: 'app',
+                            })}
                         </Text>
                     </>
                 );

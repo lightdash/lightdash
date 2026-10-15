@@ -4,6 +4,7 @@ import {
     type ExternalConnectionSample,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -26,6 +27,7 @@ const saveSample = async ({
 export const useSaveConnectionSample = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('sync');
     return useMutation<ExternalConnectionSample, ApiError, SaveSampleParams>({
         mutationFn: saveSample,
         onSuccess: async (_data, variables) => {
@@ -36,11 +38,13 @@ export const useSaveConnectionSample = () => {
                     variables.connectionUuid,
                 ],
             });
-            showToastSuccess({ title: 'Sample saved' });
+            showToastSuccess({
+                title: t('externalConnections.toasts.sampleSaved'),
+            });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to save sample',
+                title: t('externalConnections.toasts.sampleSaveFailed'),
                 apiError: error,
             });
         },

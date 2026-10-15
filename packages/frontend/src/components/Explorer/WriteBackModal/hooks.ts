@@ -11,6 +11,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProject } from '../../../hooks/useProject';
+import i18n from '../../../i18n/i18n';
 
 const writeBackCustomDimensions = async (
     projectUuid: string,
@@ -61,9 +62,13 @@ export const useWriteBackCustomDimensions = (projectUuid: string) => {
                 window.open(pullRequest.prUrl, '_blank', 'noopener,noreferrer'); // always open in new tab by default
 
                 showToastSuccess({
-                    title: `Success! Custom dimension was written back.`,
+                    title: i18n.t('writeBack.toast.dimensionSuccess', {
+                        ns: 'explorer',
+                    }),
                     action: {
-                        children: 'Open Pull Request',
+                        children: i18n.t('writeBack.openPullRequest', {
+                            ns: 'explorer',
+                        }),
                         icon: IconArrowRight,
                         onClick: () => {
                             window.open(
@@ -77,7 +82,9 @@ export const useWriteBackCustomDimensions = (projectUuid: string) => {
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to write back custom dimension`,
+                    title: i18n.t('writeBack.toast.dimensionFailed', {
+                        ns: 'explorer',
+                    }),
                     apiError: error,
                 });
             },
@@ -108,9 +115,13 @@ export const useWriteBackCustomMetrics = (projectUuid: string) => {
                 window.open(pullRequest.prUrl, '_blank', 'noopener,noreferrer'); // always open in new tab by default
 
                 showToastSuccess({
-                    title: `Success! Custom metric was written back.`,
+                    title: i18n.t('writeBack.toast.metricSuccess', {
+                        ns: 'explorer',
+                    }),
                     action: {
-                        children: 'Open Pull Request',
+                        children: i18n.t('writeBack.openPullRequest', {
+                            ns: 'explorer',
+                        }),
                         icon: IconArrowRight,
                         onClick: () => {
                             window.open(
@@ -124,7 +135,9 @@ export const useWriteBackCustomMetrics = (projectUuid: string) => {
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to write back custom metric`,
+                    title: i18n.t('writeBack.toast.metricFailed', {
+                        ns: 'explorer',
+                    }),
                     apiError: error,
                 });
             },

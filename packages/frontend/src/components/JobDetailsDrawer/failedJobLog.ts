@@ -1,14 +1,21 @@
 import { JobStepStatusType, type Job } from '@lightdash/common';
+import i18n from '../../i18n/i18n';
+
+const tLog = (key: string, options?: Record<string, unknown>) =>
+    i18n.t(`jobDetails.failedLog.${key}`, {
+        ns: 'projectConnection',
+        ...options,
+    });
 
 export const formatFailedJobLog = (job: Job): string =>
     [
-        `Compilation job: ${job.jobUuid}`,
-        `Status: ${job.jobStatus}`,
-        `Started: ${new Date(job.createdAt).toISOString()}`,
-        `Updated: ${new Date(job.updatedAt).toISOString()}`,
+        tLog('job', { jobUuid: job.jobUuid }),
+        tLog('status', { status: job.jobStatus }),
+        tLog('started', { date: new Date(job.createdAt).toISOString() }),
+        tLog('updated', { date: new Date(job.updatedAt).toISOString() }),
         '',
-        'This file contains persisted job errors and captured dbt logs only.',
-        'Output from successful commands, non-JSON output, and stderr may not have been captured.',
+        tLog('contents'),
+        tLog('limitations'),
         '',
         ...job.steps.flatMap((step) => [
             `--- ${step.stepLabel} (${step.stepStatus}) ---`,
@@ -16,13 +23,13 @@ export const formatFailedJobLog = (job: Job): string =>
             ...(step.stepDbtLogs?.length
                 ? step.stepDbtLogs.map(
                       (log) =>
-                          `[${log.info.ts || 'timestamp unavailable'}] [${log.info.level}] ${log.info.msg}`,
+                          `[${log.info.ts || tLog('timestampUnavailable')}] [${log.info.level}] ${log.info.msg}`,
                   )
                 : [
                       step.stepStatus === JobStepStatusType.PENDING ||
                       step.stepStatus === JobStepStatusType.SKIPPED
-                          ? 'This step did not run.'
-                          : 'No dbt output was captured for this step.',
+                          ? tLog('stepDidNotRun')
+                          : tLog('noOutput'),
                   ]),
             '',
         ]),

@@ -1,5 +1,6 @@
 import { type RoadmapProjectGroup } from '@lightdash/common';
 import { Box, Button, Group, Text } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import {
     formatRoadmapDetailDate,
     getPriorityColor,
@@ -10,7 +11,10 @@ import {
 } from './FollowProjectButton';
 import { RoadmapDetails, RoadmapRailRow } from './RoadmapDetails';
 import styles from './RoadmapDetails.module.css';
-import { getProjectPresentation } from './roadmapPresentation';
+import {
+    getProjectPresentation,
+    getRoadmapPriorityLabel,
+} from './roadmapPresentation';
 import { RoadmapSlackThreadsRow } from './RoadmapSlackThreads';
 
 export function RoadmapProjectDetails({
@@ -26,14 +30,15 @@ export function RoadmapProjectDetails({
     onOpenBoard: (() => void) | null;
     followAction: FollowProjectAction;
 }) {
+    const { t } = useTranslation('eeMisc');
     const project = item ? getProjectPresentation(item.project) : null;
     return (
         <RoadmapDetails
             compact
             opened={item !== null}
             onClose={onClose}
-            title={item?.project.title ?? 'Roadmap project'}
-            propertiesLabel="Roadmap project properties"
+            title={item?.project.title ?? t('roadmap.details.projectFallback')}
+            propertiesLabel={t('roadmap.details.projectProperties')}
             headerActions={
                 item ? (
                     <FollowProjectButton item={item} {...followAction} />
@@ -42,7 +47,7 @@ export function RoadmapProjectDetails({
             actions={
                 onOpenBoard ? (
                     <Button onClick={onOpenBoard} size="xs" variant="default">
-                        Open project board
+                        {t('roadmap.details.openBoard')}
                     </Button>
                 ) : null
             }
@@ -52,13 +57,13 @@ export function RoadmapProjectDetails({
                     c={item?.project.description.trim() ? undefined : 'dimmed'}
                 >
                     {item?.project.description.trim() ||
-                        'No further detail is available for this project.'}
+                        t('roadmap.details.noProjectDetail')}
                 </Text>
             }
         >
             {project && (
                 <>
-                    <RoadmapRailRow label="Status">
+                    <RoadmapRailRow label={t('roadmap.details.status')}>
                         <Group gap={6} wrap="nowrap">
                             <Box
                                 className={styles.detailPropertyDot}
@@ -69,23 +74,25 @@ export function RoadmapProjectDetails({
                             </Text>
                         </Group>
                     </RoadmapRailRow>
-                    <RoadmapRailRow label="Priority">
+                    <RoadmapRailRow label={t('roadmap.details.priority')}>
                         <Group gap={6} wrap="nowrap">
                             <Box
                                 className={styles.detailPropertyDot}
                                 bg={`${getPriorityColor(project.priority)}.6`}
                             />
                             <Text className={styles.detailRailText}>
-                                {project.priority}
+                                {getRoadmapPriorityLabel(project.priority)}
                             </Text>
                         </Group>
                     </RoadmapRailRow>
-                    <RoadmapRailRow label="Progress">
+                    <RoadmapRailRow label={t('roadmap.details.progress')}>
                         <Text className={styles.detailRailText}>
                             {project.progress}%
                         </Text>
                     </RoadmapRailRow>
-                    <RoadmapRailRow label="Last ticket update">
+                    <RoadmapRailRow
+                        label={t('roadmap.details.lastTicketUpdate')}
+                    >
                         <Text className={styles.detailRailText}>
                             {item?.project.lastIssueUpdatedAt ? (
                                 <time
@@ -101,19 +108,18 @@ export function RoadmapProjectDetails({
                         </Text>
                     </RoadmapRailRow>
                     {item && item.ownRequestCount > 0 && (
-                        <RoadmapRailRow label="Following">
+                        <RoadmapRailRow label={t('roadmap.details.following')}>
                             <Text className={styles.detailRailText}>
-                                {item.ownRequestCount}{' '}
-                                {item.ownRequestCount === 1
-                                    ? 'ticket'
-                                    : 'tickets'}
+                                {t('roadmap.details.ticketCount', {
+                                    count: item.ownRequestCount,
+                                })}
                             </Text>
                         </RoadmapRailRow>
                     )}
                     {item?.hasDirectNeed && (
-                        <RoadmapRailRow label="Interest">
+                        <RoadmapRailRow label={t('roadmap.details.interest')}>
                             <Text className={styles.detailRailText}>
-                                Following
+                                {t('roadmap.details.following')}
                             </Text>
                         </RoadmapRailRow>
                     )}

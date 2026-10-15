@@ -58,6 +58,7 @@ import { useOrganization } from '../../../../hooks/organization/useOrganization'
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useActiveProject } from '../../../../hooks/useActiveProject';
 import { type UserWithAbility } from '../../../../hooks/user/useUser';
+import i18n from '../../../../i18n/i18n';
 import useApp from '../../../../providers/App/useApp';
 import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
 import { useAiAgentThreadStreamMutation } from '../streaming/useAiAgentThreadStreamMutation';
@@ -122,7 +123,9 @@ export const useProjectAiAgents = ({
                 !getAiAccessRefusal(error.error)
             ) {
                 showToastApiError({
-                    title: 'Failed to fetch project AI agents',
+                    title: i18n.t('toasts.agents.fetchFailed', {
+                        ns: 'aiAgent',
+                    }),
                     apiError: error.error,
                 });
             } else if (
@@ -161,7 +164,9 @@ export const useProjectAiAgent = (
                 );
             } else if (!getAiAccessRefusal(error.error)) {
                 showToastApiError({
-                    title: `Failed to fetch project AI agent details`,
+                    title: i18n.t('toasts.agents.fetchDetailsFailed', {
+                        ns: 'aiAgent',
+                    }),
                     apiError: error.error,
                 });
             }
@@ -205,7 +210,7 @@ export const useProjectCreateAiAgentMutation = (
         onSuccess: (result) => {
             if (!options?.skipSuccessToast) {
                 showToastSuccess({
-                    title: 'AI agent created successfully',
+                    title: i18n.t('toasts.agents.created', { ns: 'aiAgent' }),
                 });
             }
             void queryClient.invalidateQueries({
@@ -219,7 +224,7 @@ export const useProjectCreateAiAgentMutation = (
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to create AI agent',
+                title: i18n.t('toasts.agents.createFailed', { ns: 'aiAgent' }),
                 apiError: error,
             });
         },
@@ -319,7 +324,7 @@ export const useProjectUpdateAiAgentMutation = (
         onSuccess: async (data) => {
             if (showSuccessToast) {
                 showToastSuccess({
-                    title: 'AI agent updated successfully',
+                    title: i18n.t('toasts.agents.updated', { ns: 'aiAgent' }),
                 });
             }
             await queryClient.invalidateQueries({
@@ -338,7 +343,7 @@ export const useProjectUpdateAiAgentMutation = (
                 context?.previousAgentMcpServers,
             );
             showToastApiError({
-                title: 'Failed to update AI agent',
+                title: i18n.t('toasts.agents.updateFailed', { ns: 'aiAgent' }),
                 apiError: error,
             });
         },
@@ -368,7 +373,9 @@ export const useProjectUploadAiAgentAvatarMutation = (projectUuid: string) => {
         },
         onError: (error) => {
             showToastApiError({
-                title: 'Failed to upload agent avatar',
+                title: i18n.t('toasts.agents.avatarUploadFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error.error,
             });
         },
@@ -392,7 +399,7 @@ export const useDeleteAiAgentMutation = (projectUuid: string) => {
         mutationFn: (agentUuid) => deleteAgent(projectUuid, agentUuid),
         onSuccess: async () => {
             showToastSuccess({
-                title: 'AI agent deleted successfully',
+                title: i18n.t('toasts.agents.deleted', { ns: 'aiAgent' }),
             });
             await Promise.all(
                 [
@@ -419,7 +426,7 @@ export const useDeleteAiAgentMutation = (projectUuid: string) => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to delete AI agent',
+                title: i18n.t('toasts.agents.deleteFailed', { ns: 'aiAgent' }),
                 apiError: error,
             });
         },
@@ -463,7 +470,7 @@ export const useCreateAgentThreadShareMutation = () => {
             createAgentThreadShare(projectUuid, agentUuid, threadUuid),
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to create AI agent thread share',
+                title: i18n.t('toasts.threads.shareFailed', { ns: 'aiAgent' }),
                 apiError: error,
             });
         },
@@ -510,7 +517,9 @@ export const useCloneAgentThreadShareMutation = (projectUuid: string) => {
                 return;
             }
             showToastApiError({
-                title: 'Failed to open shared AI thread',
+                title: i18n.t('toasts.threads.openSharedFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },
@@ -575,7 +584,9 @@ export const useInfiniteAiAgentThreads = (
                 );
             } else if (!getAiAccessRefusal(error.error)) {
                 showToastApiError({
-                    title: 'Failed to fetch AI agent threads',
+                    title: i18n.t('toasts.threads.fetchListFailed', {
+                        ns: 'aiAgent',
+                    }),
                     apiError: error.error,
                 });
             }
@@ -612,7 +623,9 @@ export const useDeleteAiAgentThreadMutation = (projectUuid: string) => {
         mutationFn: ({ agentUuid, threadUuid }) =>
             deleteAgentThread(projectUuid, agentUuid, threadUuid),
         onSuccess: async (_result, { agentUuid, threadUuid }) => {
-            showToastSuccess({ title: 'Thread deleted' });
+            showToastSuccess({
+                title: i18n.t('toasts.threads.deleted', { ns: 'aiAgent' }),
+            });
             // Leave the thread page before touching the cache, otherwise the
             // still-mounted thread query refetches the deleted thread and 404s
             if (threadUuid === activeThreadUuid) {
@@ -645,7 +658,7 @@ export const useDeleteAiAgentThreadMutation = (projectUuid: string) => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to delete thread',
+                title: i18n.t('toasts.threads.deleteFailed', { ns: 'aiAgent' }),
                 apiError: error,
             });
         },
@@ -739,7 +752,7 @@ export const useRenameAiAgentThreadMutation = (projectUuid: string) => {
         onError: ({ error }, _variables, context) => {
             if (context) restoreProjectThreads(queryClient, context.snapshot);
             showToastApiError({
-                title: 'Failed to rename thread',
+                title: i18n.t('toasts.threads.renameFailed', { ns: 'aiAgent' }),
                 apiError: error,
             });
         },
@@ -799,8 +812,8 @@ export const usePinAiAgentThreadMutation = (projectUuid: string) => {
             if (context) restoreProjectThreads(queryClient, context.snapshot);
             showToastApiError({
                 title: pinned
-                    ? 'Failed to pin thread'
-                    : 'Failed to unpin thread',
+                    ? i18n.t('toasts.threads.pinFailed', { ns: 'aiAgent' })
+                    : i18n.t('toasts.threads.unpinFailed', { ns: 'aiAgent' }),
                 apiError: error,
             });
         },
@@ -841,7 +854,9 @@ export const useAiAgentThread = (
                 );
             } else if (!getAiAccessRefusal(error.error)) {
                 showToastApiError({
-                    title: 'Failed to fetch AI agent thread',
+                    title: i18n.t('toasts.threads.fetchFailed', {
+                        ns: 'aiAgent',
+                    }),
                     apiError: error.error,
                 });
             }
@@ -944,7 +959,9 @@ const toOptimisticContextItem = (
             return {
                 type: 'external_source',
                 sourceUuid: item.sourceUuid,
-                displayName: 'External source',
+                displayName: i18n.t('optimistic.externalSource', {
+                    ns: 'aiAgent',
+                }),
                 sourceType: null,
                 tables: [],
             };
@@ -952,7 +969,7 @@ const toOptimisticContextItem = (
             return {
                 type: 'thread_file',
                 fileUuid: item.fileUuid,
-                fileName: 'Attachment',
+                fileName: i18n.t('optimistic.attachment', { ns: 'aiAgent' }),
                 sizeBytes: 0,
             };
         case 'pull_request':
@@ -1042,7 +1059,11 @@ const getOptimisticUserName = (
         .filter(Boolean)
         .join(' ');
 
-    return name || user?.email || (isEmbed ? '' : 'Unknown user');
+    return (
+        name ||
+        user?.email ||
+        (isEmbed ? '' : i18n.t('optimistic.unknownUser', { ns: 'aiAgent' }))
+    );
 };
 
 const createOptimisticMessages = (
@@ -1088,7 +1109,9 @@ const createOptimisticMessages = (
             interrupted: false,
             createdAt: new Date().toISOString(),
             user: {
-                name: agent?.name ?? 'Unknown',
+                name:
+                    agent?.name ??
+                    i18n.t('optimistic.unknownAgent', { ns: 'aiAgent' }),
                 uuid: agent?.uuid ?? 'unknown',
             },
             vizConfigOutput: null,
@@ -1365,7 +1388,9 @@ export const useCreateAgentThreadMutation = (
                 );
             } else if (!getAiAccessRefusal(error)) {
                 showToastApiError({
-                    title: 'Failed to create AI agent',
+                    title: i18n.t('toasts.agents.createFailed', {
+                        ns: 'aiAgent',
+                    }),
                     apiError: error,
                 });
             }
@@ -1572,7 +1597,9 @@ export const useCreateAgentThreadMessageMutation = (
                 );
             } else if (!getAiAccessRefusal(error)) {
                 showToastApiError({
-                    title: 'Failed to generate AI agent thread response',
+                    title: i18n.t('toasts.threads.generateResponseFailed', {
+                        ns: 'aiAgent',
+                    }),
                     apiError: error,
                 });
             }
@@ -1825,7 +1852,9 @@ export const useUpdatePromptFeedbackMutation = (
                 );
             } else if (!getAiAccessRefusal(error)) {
                 showToastApiError({
-                    title: 'Failed to submit feedback',
+                    title: i18n.t('toasts.feedback.submitFailed', {
+                        ns: 'aiAgent',
+                    }),
                     apiError: error,
                 });
             }
@@ -1898,7 +1927,9 @@ export const useSavePromptQuery = (
                 );
             } else if (!getAiAccessRefusal(error)) {
                 showToastApiError({
-                    title: 'Failed to save prompt query',
+                    title: i18n.t('toasts.artifacts.savePromptQueryFailed', {
+                        ns: 'aiAgent',
+                    }),
                     apiError: error,
                 });
             }
@@ -1991,7 +2022,9 @@ export const useUpdateArtifactVersion = (
                 );
             } else if (!getAiAccessRefusal(error)) {
                 showToastApiError({
-                    title: 'Failed to save artifact dashboard',
+                    title: i18n.t('toasts.artifacts.saveDashboardFailed', {
+                        ns: 'aiAgent',
+                    }),
                     apiError: error,
                 });
             }
@@ -2035,7 +2068,9 @@ export const useUpdateArtifactVersionSavedSql = (
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to link saved SQL chart',
+                title: i18n.t('toasts.artifacts.linkSqlChartFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },
@@ -2115,7 +2150,9 @@ export const useAiAgentArtifactVizQuery = (
                 );
             } else if (!getAiAccessRefusal(error.error)) {
                 showToastApiError({
-                    title: 'Failed to fetch artifact visualization',
+                    title: i18n.t('toasts.artifacts.fetchVizFailed', {
+                        ns: 'aiAgent',
+                    }),
                     apiError: error.error,
                 });
             }
@@ -2215,7 +2252,10 @@ export const useAiAgentDashboardChartVizQuery = (
                 );
             } else if (!getAiAccessRefusal(error.error)) {
                 showToastApiError({
-                    title: 'Failed to fetch dashboard chart visualization',
+                    title: i18n.t(
+                        'toasts.artifacts.fetchDashboardChartVizFailed',
+                        { ns: 'aiAgent' },
+                    ),
                     apiError: error.error,
                 });
             }

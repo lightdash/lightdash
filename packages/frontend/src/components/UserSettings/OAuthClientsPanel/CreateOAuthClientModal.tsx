@@ -2,6 +2,7 @@ import { Button, Stack, Textarea, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPlug } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useCreateOAuthClient } from '../../../hooks/useOAuthClients';
 import Callout from '../../common/Callout';
 import { CopyActionIcon } from '../../common/CopyActionIcon';
@@ -10,6 +11,7 @@ import MantineModal from '../../common/MantineModal';
 export const CreateOAuthClientModal: FC<{
     onClose: () => void;
 }> = ({ onClose }) => {
+    const { t } = useTranslation('userSettings');
     const {
         data,
         mutate: createClient,
@@ -24,10 +26,12 @@ export const CreateOAuthClientModal: FC<{
         },
         validate: {
             clientName: (value) =>
-                value.trim().length === 0 ? 'Name is required' : null,
+                value.trim().length === 0
+                    ? t('oauthClientsPanel.form.nameRequired')
+                    : null,
             redirectUris: (value) => {
                 if (value.trim().length === 0)
-                    return 'At least one redirect URI is required';
+                    return t('oauthClientsPanel.form.redirectUriRequired');
                 const uris = value
                     .split('\n')
                     .map((u) => u.trim())
@@ -36,7 +40,7 @@ export const CreateOAuthClientModal: FC<{
                     try {
                         new URL(uri);
                     } catch {
-                        return `Invalid URI: ${uri}`;
+                        return t('oauthClientsPanel.form.invalidUri', { uri });
                     }
                 }
                 return null;
@@ -59,10 +63,14 @@ export const CreateOAuthClientModal: FC<{
             role="alertdialog"
             title={
                 isSuccess
-                    ? 'Application registered'
-                    : 'Register new OAuth application'
+                    ? t('oauthClientsPanel.createModal.registeredTitle')
+                    : t('oauthClientsPanel.createModal.title')
             }
-            cancelLabel={isSuccess ? 'Close' : 'Cancel'}
+            cancelLabel={
+                isSuccess
+                    ? t('actions.close', { ns: 'common' })
+                    : t('actions.cancel', { ns: 'common' })
+            }
             icon={IconPlug}
             actions={
                 !isSuccess ? (
@@ -71,7 +79,7 @@ export const CreateOAuthClientModal: FC<{
                         form="create-oauth-client-form"
                         loading={isLoading}
                     >
-                        Register application
+                        {t('oauthClientsPanel.createModal.submit')}
                     </Button>
                 ) : undefined
             }
@@ -80,18 +88,22 @@ export const CreateOAuthClientModal: FC<{
                 <form id="create-oauth-client-form" onSubmit={handleOnSubmit}>
                     <Stack>
                         <TextInput
-                            label="Application name"
+                            label={t('oauthClientsPanel.form.applicationName')}
                             disabled={isLoading}
-                            placeholder="My App"
+                            placeholder={t(
+                                'oauthClientsPanel.form.applicationNamePlaceholder',
+                            )}
                             required
                             {...form.getInputProps('clientName')}
                         />
                         <Textarea
-                            label="Redirect URI"
+                            label={t('oauthClientsPanel.form.redirectUri')}
                             disabled={isLoading}
                             placeholder="https://myapp.example.com/callback"
                             required
-                            description="One URI per line for multiple redirect URIs"
+                            description={t(
+                                'oauthClientsPanel.form.redirectUriDescription',
+                            )}
                             {...form.getInputProps('redirectUris')}
                         />
                     </Stack>
@@ -99,7 +111,7 @@ export const CreateOAuthClientModal: FC<{
             ) : (
                 <Stack gap="md">
                     <TextInput
-                        label="Client ID"
+                        label={t('oauthClientsPanel.createModal.clientId')}
                         readOnly
                         value={data?.clientId}
                         rightSection={
@@ -110,7 +122,7 @@ export const CreateOAuthClientModal: FC<{
                         }
                     />
                     <TextInput
-                        label="Client secret"
+                        label={t('oauthClientsPanel.createModal.clientSecret')}
                         readOnly
                         className="sentry-block ph-no-capture"
                         value={data?.clientSecret}
@@ -122,8 +134,7 @@ export const CreateOAuthClientModal: FC<{
                         }
                     />
                     <Callout variant="warning">
-                        Make sure to copy the client secret now. You won't be
-                        able to see it again!
+                        {t('oauthClientsPanel.createModal.copySecretWarning')}
                     </Callout>
                 </Stack>
             )}

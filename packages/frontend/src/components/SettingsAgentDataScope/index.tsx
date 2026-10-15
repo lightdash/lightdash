@@ -14,6 +14,7 @@ import { useForm } from '@mantine/form';
 import { IconLock } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';
 import { useCallback, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useTables } from '../../features/sqlRunner/hooks/useTables';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
@@ -55,6 +56,7 @@ const AgentDataScopeForm: FC<{
     catalogOptions,
     onSubmit,
 }) => {
+    const { t } = useTranslation('projectSettings');
     const form = useForm<AgentDataScopeFormValues>({ initialValues });
 
     const hasChanged = (
@@ -73,11 +75,15 @@ const AgentDataScopeForm: FC<{
                     variant="subtle"
                     size="xs"
                     classNames={compactMultiSelectClassNames}
-                    label="Allowed schemas"
-                    description="The agent can only read from these. Empty means no restriction."
+                    label={t('agentDataScope.form.allowedSchemas.label')}
+                    description={t(
+                        'agentDataScope.form.allowedSchemas.description',
+                    )}
                     placeholder={
                         form.values.schemas.length === 0
-                            ? 'All schemas (no restriction)'
+                            ? t(
+                                  'agentDataScope.form.allowedSchemas.placeholder',
+                              )
                             : undefined
                     }
                     data={schemaOptions}
@@ -90,11 +96,15 @@ const AgentDataScopeForm: FC<{
                     variant="subtle"
                     size="xs"
                     classNames={compactMultiSelectClassNames}
-                    label="Allowed catalogs"
-                    description="Optional. Restricts which catalogs/databases the schemas above may be read from."
+                    label={t('agentDataScope.form.allowedCatalogs.label')}
+                    description={t(
+                        'agentDataScope.form.allowedCatalogs.description',
+                    )}
                     placeholder={
                         form.values.catalogs.length === 0
-                            ? 'Any catalog'
+                            ? t(
+                                  'agentDataScope.form.allowedCatalogs.placeholder',
+                              )
                             : undefined
                     }
                     data={catalogOptions}
@@ -108,11 +118,13 @@ const AgentDataScopeForm: FC<{
                     variant="subtle"
                     size="xs"
                     classNames={compactMultiSelectClassNames}
-                    label="Excluded schemas"
-                    description="The agent can never read these, even if the allow list above would permit them."
+                    label={t('agentDataScope.form.excludedSchemas.label')}
+                    description={t(
+                        'agentDataScope.form.excludedSchemas.description',
+                    )}
                     placeholder={
                         form.values.deniedSchemas.length === 0
-                            ? 'Nothing excluded'
+                            ? t('agentDataScope.form.nothingExcluded')
                             : undefined
                     }
                     data={schemaOptions}
@@ -125,11 +137,13 @@ const AgentDataScopeForm: FC<{
                     variant="subtle"
                     size="xs"
                     classNames={compactMultiSelectClassNames}
-                    label="Excluded catalogs"
-                    description="Optional. The agent can never read these catalogs/databases."
+                    label={t('agentDataScope.form.excludedCatalogs.label')}
+                    description={t(
+                        'agentDataScope.form.excludedCatalogs.description',
+                    )}
                     placeholder={
                         form.values.deniedCatalogs.length === 0
-                            ? 'Nothing excluded'
+                            ? t('agentDataScope.form.nothingExcluded')
                             : undefined
                     }
                     data={catalogOptions}
@@ -147,7 +161,7 @@ const AgentDataScopeForm: FC<{
                     disabled={!hasChanged || isLoading}
                     onClick={() => form.reset()}
                 >
-                    Cancel
+                    {t('actions.cancel', { ns: 'common' })}
                 </Button>
                 <Button
                     type="submit"
@@ -155,7 +169,7 @@ const AgentDataScopeForm: FC<{
                     disabled={!hasChanged}
                     loading={isLoading}
                 >
-                    Save changes
+                    {t('agentDataScope.form.saveChanges')}
                 </Button>
             </Group>
         </form>
@@ -165,6 +179,7 @@ const AgentDataScopeForm: FC<{
 const SettingsAgentDataScope: FC<SettingsAgentDataScopeProps> = ({
     projectUuid,
 }) => {
+    const { t } = useTranslation('projectSettings');
     const { showToastError, showToastSuccess } = useToaster();
     const { data: scope, isInitialLoading: isLoadingScope } =
         useAgentSqlScope(projectUuid);
@@ -232,18 +247,18 @@ const SettingsAgentDataScope: FC<SettingsAgentDataScopeProps> = ({
                           },
                 });
                 showToastSuccess({
-                    title: `Successfully updated the agent's data scope`,
+                    title: t('agentDataScope.toast.updateSuccess'),
                 });
             } catch (e) {
                 showToastError({
-                    title: `Failed to update the agent's data scope`,
+                    title: t('agentDataScope.toast.updateFailed'),
                     subtitle: isApiError(e)
                         ? e.error.message
                         : getErrorMessage(e),
                 });
             }
         },
-        [mutation, showToastError, showToastSuccess],
+        [mutation, showToastError, showToastSuccess, t],
     );
 
     return (
@@ -256,10 +271,9 @@ const SettingsAgentDataScope: FC<SettingsAgentDataScopeProps> = ({
                         <MantineIcon icon={IconLock} size="md" />
                     </Paper>
                     <Stack gap={2}>
-                        <Title order={5}>Warehouse access</Title>
+                        <Title order={5}>{t('agentDataScope.title')}</Title>
                         <Text size="xs" c="dimmed">
-                            Control which warehouse schemas and catalogs AI
-                            agents can query with SQL.
+                            {t('agentDataScope.description')}
                         </Text>
                     </Stack>
                 </Group>
@@ -267,24 +281,16 @@ const SettingsAgentDataScope: FC<SettingsAgentDataScopeProps> = ({
                 <Callout
                     variant="info"
                     color="gray"
-                    title="How agent data scope works"
+                    title={t('agentDataScope.callout.title')}
                 >
                     <Text fz="xs">
-                        Leave every field empty to let AI agents query the
-                        entire warehouse connection.
+                        {t('agentDataScope.callout.emptyFields')}
                     </Text>
                     <Text fz="xs" mt="xs">
-                        Use exclusions to block known schemas or catalogs. Use
-                        allow lists when agents should query only an approved
-                        set; newly added schemas are not included automatically.
+                        {t('agentDataScope.callout.exclusions')}
                     </Text>
                     <Text fz="xs" mt="xs">
-                        Agents query the semantic layer by default; direct SQL
-                        requires approval for every query and is available only
-                        to users with SQL Runner access. These rules apply to AI
-                        agents only. They do not change warehouse permissions or
-                        restrict SQL Runner users. Use warehouse grants to
-                        enforce security.
+                        {t('agentDataScope.callout.semanticLayer')}
                     </Text>
                 </Callout>
 

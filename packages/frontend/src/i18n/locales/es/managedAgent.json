@@ -1,0 +1,396 @@
+{
+    "runSummary": {
+        "showLess": "Mostrar menos",
+        "readFullReport": "Leer el informe completo"
+    },
+    "setup": {
+        "title": "Activar Autopilot",
+        "enable": "Activar",
+        "enableFailed": "No se pudo activar Autopilot",
+        "description": "Un agente de IA que supervisa automáticamente el estado de tu proyecto: limpia contenido obsoleto, corrige gráficos rotos y destaca información útil. Todas las acciones quedan registradas y son reversibles.",
+        "whatItDoes": "Qué hace",
+        "frequency": "Frecuencia",
+        "frequencyHint": "Todas las acciones quedan registradas y son reversibles. Los gráficos creados van a un espacio \"Agent Suggestions\" para su revisión.",
+        "schedule": {
+            "every6Hours": "Cada 6 horas",
+            "every12Hours": "Cada 12 horas",
+            "daily": "Diario",
+            "every2Days": "Cada 2 días",
+            "weekly": "Semanal"
+        },
+        "capabilities": {
+            "staleCleanup": {
+                "title": "Limpieza de contenido obsoleto",
+                "detail": "Revisa gráficos, dashboards y proyectos de vista previa obsoletos. Marca o elimina contenido según el modo de limpieza y las protecciones del proyecto."
+            },
+            "brokenChartRepair": {
+                "title": "Reparación de gráficos rotos",
+                "detail": "Detecta referencias a campos no válidos y las corrige automáticamente creando nuevas versiones del gráfico."
+            },
+            "contentCreation": {
+                "title": "Creación de contenido",
+                "detail": "Explora tu modelo de datos y crea gráficos útiles en un espacio \"Agent Suggestions\" para su revisión."
+            },
+            "insights": {
+                "title": "Insights",
+                "detail": "Destaca contenido popular que podría fijarse o hacerse más accesible."
+            }
+        }
+    },
+    "runtime": {
+        "unavailable": "Configuración de IA no disponible",
+        "loadFailed": "No se pudo cargar la configuración de IA.",
+        "checking": "Comprobando la configuración de IA…",
+        "runsOnOrganizationKey": "Se ejecuta en {{provider}} · {{model}} usando la clave de IA de tu organización.",
+        "runsOnInstanceKey": "Se ejecuta en {{provider}} · {{model}} usando la clave de IA de la instancia.",
+        "tokenUsageHint": "Las ejecuciones programadas consumen tokens de esta clave. Cada ejecución usa la configuración de IA actual.",
+        "aiSettings": "Configuración de IA"
+    },
+    "toolActivity": {
+        "thinking": "Pensando",
+        "working": "Autopilot está trabajando"
+    },
+    "suggestionsAccess": {
+        "audience": {
+            "everyone": "Todos",
+            "admins": "Administradores"
+        },
+        "memberCount_one": "{{count}} miembro",
+        "memberCount_other": "{{count}} miembros",
+        "groupCount_one": "{{count}} grupo",
+        "groupCount_other": "{{count}} grupos",
+        "restricted": "{{members}} pueden ver las sugerencias.",
+        "restrictedWithGroups": "{{members}} y {{groups}} pueden ver las sugerencias.",
+        "checking": "Comprobando quién puede ver las sugerencias…",
+        "notCreated": "El espacio \"Agent Suggestions\" se crea la primera vez que Autopilot sugiere contenido. Esto define quién puede verlo.",
+        "everyoneCanSee": "Todos en este proyecto pueden ver las sugerencias.",
+        "title": "Acceso a sugerencias",
+        "badge": {
+            "everyone": "Todos",
+            "restricted": "Restringido"
+        },
+        "manageAccess": "Gestionar acceso"
+    },
+    "relativeTime": {
+        "justNow": "justo ahora",
+        "minutesAgo_one": "hace {{count}} min",
+        "minutesAgo_other": "hace {{count}} min",
+        "hoursAgo_one": "hace {{count}} h",
+        "hoursAgo_other": "hace {{count}} h",
+        "daysAgo_one": "hace {{count}} d",
+        "daysAgo_other": "hace {{count}} d"
+    },
+    "homeCard": {
+        "title": "Autopilot",
+        "features": {
+            "fixesBrokenCharts": "Corrige gráficos rotos",
+            "flagsStaleContent": "Marca contenido obsoleto",
+            "createsVisualizations": "Crea visualizaciones"
+        },
+        "schedule": {
+            "every6Hours": "6 h",
+            "every12Hours": "12 h",
+            "daily": "24 h",
+            "every2Days": "2 d",
+            "weekly": "7 d"
+        },
+        "summary": {
+            "fixed_one": "{{count}} corregido",
+            "fixed_other": "{{count}} corregidos",
+            "created_one": "{{count}} creado",
+            "created_other": "{{count}} creados",
+            "flagged_one": "{{count}} marcado",
+            "flagged_other": "{{count}} marcados",
+            "deleted_one": "{{count}} eliminado",
+            "deleted_other": "{{count}} eliminados",
+            "separator": ", "
+        },
+        "activeSchedule": "Activo · {{schedule}}",
+        "actions_one": "{{count}} acción",
+        "actions_other": "{{count}} acciones",
+        "actionsWithSummary_one": "{{count}} acción - {{summary}}",
+        "actionsWithSummary_other": "{{count}} acciones - {{summary}}",
+        "monitoring": "Supervisando tu proyecto",
+        "lastAction": " · última acción {{time}}",
+        "viewProgress": "Ver progreso",
+        "getStarted": "Empezar"
+    },
+    "actionTypes": {
+        "flagged_stale": {
+            "label": "Marcado obsoleto",
+            "count_one": "{{count}} marcado obsoleto",
+            "count_other": "{{count}} marcados obsoletos",
+            "tooltip": "Marcado como no usado. Las próximas ejecuciones de Autopilot revisarán los elementos marcados y los limpiarán."
+        },
+        "soft_deleted": {
+            "label": "Eliminado",
+            "count_one": "{{count}} eliminado",
+            "count_other": "{{count}} eliminados"
+        },
+        "flagged_broken": {
+            "label": "Marcado roto",
+            "count_one": "{{count}} marcado roto",
+            "count_other": "{{count}} marcados rotos",
+            "tooltip": "Marcado como roto. Las próximas ejecuciones de Autopilot revisarán los elementos marcados e intentarán corregirlos."
+        },
+        "flagged_slow": {
+            "label": "Marcado lento",
+            "count_one": "{{count}} marcado lento",
+            "count_other": "{{count}} marcados lentos",
+            "tooltip": "Marcado como lento. Las próximas ejecuciones de Autopilot revisarán los elementos marcados e intentarán optimizarlos."
+        },
+        "fixed_broken": {
+            "label": "Corregido",
+            "count_one": "{{count}} corregido",
+            "count_other": "{{count}} corregidos"
+        },
+        "created_content": {
+            "label": "Creado",
+            "count_one": "{{count}} creado",
+            "count_other": "{{count}} creados"
+        },
+        "insight": {
+            "label": "Insight",
+            "count_one": "{{count}} insight",
+            "count_other": "{{count}} insights"
+        },
+        "blocked": {
+            "label": "Bloqueado",
+            "count_one": "{{count}} bloqueado",
+            "count_other": "{{count}} bloqueados",
+            "tooltip": "Autopilot intentó esto, pero una protección de administrador lo impidió. Descártalo para confirmarlo."
+        }
+    },
+    "actions": {
+        "alreadyUndone": "Ya deshecho",
+        "undoAction": "Deshacer acción",
+        "alreadyDismissed": "Ya descartado",
+        "dismiss": "Descartar"
+    },
+    "header": {
+        "status": {
+            "running": "En ejecución",
+            "disabled": "Desactivado"
+        },
+        "tagline": "Corrige gráficos rotos, marca contenido obsoleto y sugiere nuevos",
+        "runTooltip": {
+            "running": "Autopilot se está ejecutando…",
+            "runNow": "Ejecutar Autopilot ahora",
+            "enableToRun": "Activa Autopilot para ejecutarlo ahora"
+        },
+        "settings": "Configuración"
+    },
+    "details": {
+        "chartInfo": "Información del gráfico",
+        "type": "Tipo",
+        "explore": "Explore",
+        "dimensions": "Dimensiones",
+        "metrics": "Métricas",
+        "tableCalculations": "Cálculos de tabla",
+        "validationError": "Error de validación",
+        "source": "Origen",
+        "performance": "Rendimiento",
+        "executionTime": "Tiempo de ejecución",
+        "seconds": "{{value}} s",
+        "context": "Contexto",
+        "viewChartHistory": "Ver historial completo del gráfico",
+        "changesApplied": "Cambios aplicados",
+        "diffUnavailable": "Diferencias no disponibles para esta corrección; consulta el historial del gráfico.",
+        "chartType": "Tipo de gráfico",
+        "filters": "Filtros",
+        "fieldsNotSurfaced": "Esta corrección modificó campos que no se muestran en esta vista; consulta el historial del gráfico.",
+        "space": "Espacio",
+        "lastModified": "Última modificación",
+        "modifiedBy": "{{time}} por {{name}}",
+        "totalViews": "Visualizaciones totales",
+        "verified": "Verificado",
+        "verifiedBy": "por {{name}}",
+        "deleted": "Eliminado",
+        "projectMetadata": "Metadatos del proyecto",
+        "project": "Proyecto",
+        "previewProject": "Proyecto de vista previa",
+        "upstreamProject": "Proyecto de origen",
+        "branch": "Rama",
+        "created": "Creado",
+        "errors": {
+            "restorePermanentlyDeleted": "No se pudo restaurar. El original se eliminó de forma permanente",
+            "undoFailed": "No se pudo deshacer la acción",
+            "dismissFailed": "No se pudo descartar la acción"
+        },
+        "dashboardContext": "Contexto del dashboard",
+        "chartContext": "Contexto del gráfico",
+        "reversed": {
+            "undone": "Deshecho hace {{time}}",
+            "undoneBy": "Deshecho hace {{time}} por {{name}}",
+            "dismissed": "Descartado hace {{time}}",
+            "dismissedBy": "Descartado hace {{time}} por {{name}}"
+        },
+        "open": {
+            "chart": "Abrir gráfico",
+            "dashboard": "Abrir dashboard",
+            "space": "Abrir espacio",
+            "project": "Abrir proyecto"
+        },
+        "deletedByAutopilot": "Eliminado por Autopilot",
+        "restore": "Restaurar",
+        "autoFixedByAutopilot": "Corregido automáticamente por Autopilot",
+        "revert": "Revertir",
+        "revertUnsupported": "Esta corrección se registró antes de que existiera la opción de revertir. Restáurala manualmente desde el historial del gráfico.",
+        "description": "Descripción",
+        "agentReasoning": "Razonamiento del agente"
+    },
+    "settings": {
+        "updateFailed": "No se pudo actualizar la configuración de Autopilot",
+        "title": "Configuración de Autopilot",
+        "subtitle": "Configura cómo Autopilot supervisa este proyecto.",
+        "enableDescription": "Activa o desactiva las comprobaciones programadas del estado del proyecto.",
+        "schedule": "Programación",
+        "slack": {
+            "title": "Enviar actualizaciones a Slack",
+            "description": "Publica los resúmenes de estado de Autopilot en un canal de Slack después de cada ejecución.",
+            "searchChannels": "Buscar canales...",
+            "inviteHint": "Invita a Lightdash al canal para que pueda publicar en él.",
+            "connectHint": "Conecta Slack para publicar los resúmenes de Autopilot en un canal.",
+            "openIntegrations": "Abrir integraciones"
+        },
+        "permissions": {
+            "title": "Permisos",
+            "description": "Elige qué puede hacer Autopilot.",
+            "alwaysOn": "Siempre activo"
+        },
+        "capabilities": {
+            "readOnly": {
+                "label": "Leer contenido",
+                "description": "Lee el estado del proyecto, el uso del contenido, el contenido roto, el historial de consultas y la actividad de los miembros. Siempre activo."
+            },
+            "createContent": {
+                "label": "Crear contenido",
+                "description": "Crea gráficos sugeridos en el espacio Agent Suggestions."
+            },
+            "modifyExistingContent": {
+                "label": "Modificar contenido existente",
+                "description": "Elimina temporalmente contenido obsoleto, repara gráficos rotos y revierte sus propios cambios."
+            }
+        },
+        "spaceScope": {
+            "title": "Alcance de espacios",
+            "modeAllExcept": "Supervisar todos los espacios excepto…",
+            "modeOnly": "Supervisar solo estos espacios…",
+            "searchSpaces": "Buscar espacios...",
+            "apply": "Aplicar alcance",
+            "summaryOnly_one": "Supervisando {{count}} espacio seleccionado.",
+            "summaryOnly_other": "Supervisando {{count}} espacios seleccionados.",
+            "summaryAll": "Supervisando todos los espacios.",
+            "summaryAllExcept_one": "Supervisando todos los espacios excepto {{count}} excluido.",
+            "summaryAllExcept_other": "Supervisando todos los espacios excepto {{count}} excluidos.",
+            "onlyHint": "Los espacios nuevos no se supervisan hasta que se añaden aquí. La selección incluye los espacios hijos.",
+            "allExceptHint": "Los espacios excluidos y sus espacios hijos son invisibles para Autopilot."
+        }
+    },
+    "policy": {
+        "title": "Política",
+        "cleanupMode": "Modo de limpieza",
+        "sectionDescription": {
+            "observe": "Ajusta los umbrales siguientes. En modo observación deciden lo que Autopilot informa, no lo que cambia.",
+            "flag": "Ajusta los umbrales de obsolescencia y lo que Autopilot marca para revisión.",
+            "cleanup": "Ajusta los umbrales de obsolescencia y la intensidad con la que Autopilot limpia."
+        },
+        "aggression": {
+            "observe": {
+                "label": "Observar",
+                "description": "Solo registra insights. Nunca marca ni elimina contenido."
+            },
+            "flag": {
+                "label": "Marcar",
+                "description": "Marca contenido obsoleto y roto para revisión. Nunca elimina."
+            },
+            "cleanup": {
+                "label": "Limpiar",
+                "description": "Primero marca y después elimina temporalmente el contenido que sigue marcado tras la ventana de escalado."
+            }
+        },
+        "protectRecent": {
+            "observe": "Omitir contenido más reciente que",
+            "flag": "Proteger contenido nuevo",
+            "cleanup": "Proteger contenido nuevo"
+        },
+        "staleChartsAfter": "Gráficos obsoletos tras",
+        "staleDashboardsAfter": "Dashboards obsoletos tras",
+        "oldPreviewsAfter": "Vistas previas antiguas tras",
+        "flagBeforeDelete": "Marcar antes de eliminar",
+        "slowQueryThreshold": "Umbral de consulta lenta",
+        "suffix": {
+            "days": " días",
+            "hours": " horas",
+            "ms": " ms"
+        },
+        "protectVerified": {
+            "title": "Proteger contenido verificado",
+            "description": "Autopilot puede informar sobre gráficos y dashboards verificados, pero nunca los cambia ni los elimina."
+        }
+    },
+    "runs": {
+        "triggeredBy": {
+            "cron": "Programada",
+            "manual": "Manual",
+            "on_enable": "Programada"
+        },
+        "run": "Ejecución",
+        "failed": "Fallida",
+        "noActions": "Sin acciones",
+        "loadingActions": "Cargando acciones…",
+        "quietRuns_one": "{{count}} ejecución tranquila · sin acciones",
+        "quietRuns_other": "{{count}} ejecuciones tranquilas · sin acciones",
+        "quietRunMeta": "· {{time}} · {{trigger}}"
+    },
+    "filters": {
+        "targetTypes": {
+            "charts": "Gráficos",
+            "dashboards": "Dashboards",
+            "spaces": "Espacios",
+            "project": "Proyecto"
+        },
+        "clearFilter": "Quitar filtro",
+        "selectedMore": "{{first}} +{{count}}",
+        "dateRange": {
+            "between": "{{from}} – {{to}}",
+            "from": "Desde {{date}}",
+            "to": "Hasta {{date}}",
+            "label": "Rango de fechas"
+        },
+        "searchActions": "Buscar acciones…",
+        "action": "Acción",
+        "content": "Contenido",
+        "clear": "Limpiar",
+        "searching": "Buscando acciones…",
+        "noMatches": "No hay acciones coincidentes",
+        "noMatchesHint": "Prueba a ampliar el rango de fechas o a quitar un filtro."
+    },
+    "table": {
+        "action": "Acción",
+        "name": "Nombre",
+        "message": "Mensaje"
+    },
+    "page": {
+        "toasts": {
+            "finished": "Autopilot ha terminado",
+            "noActionsNeeded": "No se necesitan acciones",
+            "actionsTaken_one": "{{count}} acción realizada",
+            "actionsTaken_other": "{{count}} acciones realizadas",
+            "runFailed": "La ejecución de Autopilot falló",
+            "unknownError": "Error desconocido",
+            "runStarted": "Ejecución de Autopilot iniciada",
+            "runStartedSubtitle": "Las comprobaciones de estado del proyecto se están ejecutando en segundo plano.",
+            "startFailed": "No se pudo iniciar Autopilot"
+        },
+        "resizeSidebar": "Redimensionar panel de actividad",
+        "empty": {
+            "noRunsTitle": "Aún no hay ejecuciones",
+            "offTitle": "Autopilot está desactivado",
+            "noRunsDescription": "La primera ejecución programada aún no se ha producido. Ejecútalo ahora para ver resultados antes.",
+            "offDescription": "Actívalo en la configuración para empezar a supervisar este proyecto."
+        },
+        "loading": "Cargando…",
+        "loadOlderRuns": "Cargar ejecuciones anteriores"
+    }
+}

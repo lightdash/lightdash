@@ -1,5 +1,6 @@
 import { Box, Group, HoverCard } from '@mantine/core';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { SlackChannelSelect } from '../../../../components/common/SlackChannelSelect';
 import { useGetSlack } from '../../../../hooks/slack/useSlack';
 import SlackSvg from '../../../../svgs/slack.svg?react';
@@ -18,6 +19,7 @@ export const SchedulerFormSlackInput: FC<Props> = ({
     onChange,
     hideIcon,
 }) => {
+    const { t } = useTranslation('scheduler');
     const { data: slackInstallation, isInitialLoading } = useGetSlack();
     const organizationHasSlack = !!slackInstallation?.organizationUuid;
 
@@ -57,7 +59,7 @@ export const SchedulerFormSlackInput: FC<Props> = ({
                         <SlackChannelSelect
                             multiple
                             size="sm"
-                            placeholder="Search slack channels"
+                            placeholder={t('slackInput.placeholder')}
                             value={value}
                             disabled={isDisabled}
                             includeDms

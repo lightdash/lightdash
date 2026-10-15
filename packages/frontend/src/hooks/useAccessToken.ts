@@ -10,6 +10,7 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
@@ -60,6 +61,7 @@ export const useAccessToken = (
 
 export const useCreateAccessToken = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError } = useToaster();
     return useMutation<
         ApiCreateUserTokenResults,
@@ -73,7 +75,7 @@ export const useCreateAccessToken = () => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to create token`,
+                title: t('useAccessToken.failedToCreateToken'),
                 apiError: error,
             });
         },
@@ -82,18 +84,19 @@ export const useCreateAccessToken = () => {
 
 export const useDeleteAccessToken = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(deleteAccessToken, {
         mutationKey: ['personal_access_tokens'],
         onSuccess: async () => {
             await queryClient.invalidateQueries(['personal_access_tokens']);
             showToastSuccess({
-                title: `Success! Your token was deleted.`,
+                title: t('useAccessToken.successYourTokenWasDeleted'),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to delete token`,
+                title: t('useAccessToken.failedToDeleteToken'),
                 apiError: error,
             });
         },
@@ -102,6 +105,7 @@ export const useDeleteAccessToken = () => {
 
 export const useRotateAccessToken = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         ApiCreateUserTokenResults,
@@ -112,12 +116,12 @@ export const useRotateAccessToken = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries(['personal_access_tokens']);
             showToastSuccess({
-                title: `Success! Your token was rotated.`,
+                title: t('useAccessToken.successYourTokenWasRotated'),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to rotate token`,
+                title: t('useAccessToken.failedToRotateToken'),
                 apiError: error,
             });
         },

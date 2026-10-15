@@ -46,6 +46,7 @@ import React, {
     useRef,
     useState,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useDeepCompareEffect, useMount } from 'react-use';
 import { type SdkFilter } from '../../ee/features/embed/EmbedDashboard/types';
@@ -133,6 +134,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     const searchRef = useRef(search);
     searchRef.current = search;
     const navigate = useNavigate();
+    const { t } = useTranslation('app');
     const { showToastWarning, showToastInfo } = useToaster();
     const hasNotifiedLockedOverrideRef = useRef(false);
 
@@ -450,12 +452,11 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     useEffect(() => {
         if (hasInvalidUrlParametersRef.current) {
             showToastWarning({
-                title: 'Could not restore parameters from URL',
-                subtitle:
-                    'The link appears to be incomplete. Please ask for it to be shared again.',
+                title: t('dashboardProvider.restoreParamsFailed'),
+                subtitle: t('dashboardProvider.incompleteLink'),
             });
         }
-    }, [showToastWarning]);
+    }, [showToastWarning, t]);
 
     // Set pinned parameters when dashboard is loaded
     useEffect(() => {
@@ -1109,9 +1110,12 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                     );
                 } catch {
                     showToastWarning({
-                        title: 'Could not restore unsaved filters',
-                        subtitle:
-                            'Your previous filter changes could not be loaded',
+                        title: t(
+                            'dashboardProvider.restoreUnsavedFiltersFailed',
+                        ),
+                        subtitle: t(
+                            'dashboardProvider.restoreUnsavedFiltersFailedSubtitle',
+                        ),
                     });
                 }
             }
@@ -1236,11 +1240,10 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             ) {
                 hasNotifiedLockedOverrideRef.current = true;
                 showToastInfo({
-                    title: 'Locked dashboard filter',
-                    subtitle:
-                        droppedLockedOverrides === 1
-                            ? 'A filter override was ignored because the dashboard editor locked that filter.'
-                            : `${droppedLockedOverrides} filter overrides were ignored because the dashboard editor locked those filters.`,
+                    title: t('dashboardProvider.lockedFilter'),
+                    subtitle: t('dashboardProvider.lockedOverridesIgnored', {
+                        count: droppedLockedOverrides,
+                    }),
                 });
             }
 
@@ -1266,6 +1269,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         showToastWarning,
         activeTab,
         dashboardUuid,
+        t,
     ]);
 
     // Derive the effective temporary filters by stripping any that would
@@ -1298,15 +1302,16 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         if (hasNotifiedLockedOverrideRef.current) return;
         hasNotifiedLockedOverrideRef.current = true;
         const hasTabs = (dashboard?.tabs?.length ?? 0) > 0;
-        const scopeSuffix = hasTabs ? ' on this tab' : '';
         showToastInfo({
-            title: 'Locked dashboard filter',
-            subtitle:
-                lockedTemporaryDroppedCount === 1
-                    ? `A temporary filter was ignored because the dashboard editor locked it${scopeSuffix}.`
-                    : `${lockedTemporaryDroppedCount} temporary filters were ignored because the dashboard editor locked them${scopeSuffix}.`,
+            title: t('dashboardProvider.lockedFilter'),
+            subtitle: t(
+                hasTabs
+                    ? 'dashboardProvider.lockedTemporaryIgnoredOnTab'
+                    : 'dashboardProvider.lockedTemporaryIgnored',
+                { count: lockedTemporaryDroppedCount },
+            ),
         });
-    }, [lockedTemporaryDroppedCount, showToastInfo, dashboard?.tabs]);
+    }, [lockedTemporaryDroppedCount, showToastInfo, dashboard?.tabs, t]);
 
     // Updates url with temp and overridden filters and deep compare to avoid unnecessary re-renders for dashboardTemporaryFilters
     // Only sync URL in regular dashboards or 'direct' embed mode (not 'sdk' mode)
@@ -1454,9 +1459,8 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                 );
             } catch {
                 showToastWarning({
-                    title: 'Could not restore filters from URL',
-                    subtitle:
-                        'The link appears to be incomplete. Please ask for it to be shared again.',
+                    title: t('dashboardProvider.restoreFiltersFailed'),
+                    subtitle: t('dashboardProvider.incompleteLink'),
                 });
             }
         }

@@ -2,6 +2,7 @@ import { type AiAgentSummary } from '@lightdash/common';
 import { ActionIcon, Group, Loader, Text } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { type FC, type KeyboardEvent, type MouseEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { type LauncherDockItem } from '../../store/aiAgentLauncherSlice';
@@ -23,6 +24,7 @@ export const DockTab: FC<Props> = ({
     onSelect,
     onClose,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const isStreaming = useAiAgentThreadStreaming(item.threadId);
 
     const handleClose = (e: MouseEvent) => {
@@ -62,7 +64,7 @@ export const DockTab: FC<Props> = ({
                 <ActionIcon
                     size="xs"
                     onClick={handleClose}
-                    aria-label="Close conversation"
+                    aria-label={t('launcher.closeConversation')}
                     className={isActive ? undefined : styles.dockTabCloseButton}
                 >
                     <MantineIcon icon={IconX} size={14} />

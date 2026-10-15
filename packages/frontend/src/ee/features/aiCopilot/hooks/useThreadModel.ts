@@ -4,6 +4,7 @@ import {
     getSupersedingModel,
     matchesModelConfig,
 } from '../../../../components/common/ModelSelector/utils';
+import i18n from '../../../../i18n/i18n';
 import { useModelOptions } from './useModelOptions';
 
 export type ThreadModel = {
@@ -32,9 +33,13 @@ export const getThreadModel = (
     const replacement = getSupersedingModel(models, model);
     return {
         name,
-        deprecationWarning: `${name} is deprecated. Start a new thread to use ${
-            replacement?.displayName ?? 'a newer model'
-        }.`,
+        deprecationWarning: replacement
+            ? i18n.t('threadModel.deprecatedWithReplacement', {
+                  ns: 'aiAgent',
+                  name,
+                  replacement: replacement.displayName,
+              })
+            : i18n.t('threadModel.deprecated', { ns: 'aiAgent', name }),
     };
 };
 

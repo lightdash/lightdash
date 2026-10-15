@@ -18,6 +18,7 @@ import {
 } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import Callout from '../../components/common/Callout';
 import MantineModal from '../../components/common/MantineModal';
 import { useDashboardSchedulers } from '../../features/scheduler/hooks/useDashboardSchedulers';
@@ -49,6 +50,7 @@ export const TabDeleteModal: FC<DeleteProps> = ({
     onDeleteTab,
     onMoveTile,
 }) => {
+    const { t } = useTranslation('dashboard');
     const [removeAction, setRemoveAction] = useState('move');
     const [destinationTabId, setDestinationTabId] = useState<
         string | undefined
@@ -121,7 +123,6 @@ export const TabDeleteModal: FC<DeleteProps> = ({
         [tab.uuid, dashboardTiles],
     );
 
-    const pluralTiles = tilesToRemove.length === 1 ? '' : 's';
     const newSavedCharts = useMemo(
         () => tilesToRemove.filter(isNewSavedChart) as DashboardChartTile[],
         [tilesToRemove],
@@ -140,11 +141,15 @@ export const TabDeleteModal: FC<DeleteProps> = ({
                     tabUuid: destinationTabId,
                 });
             });
-            toastMessage = `Tab "${tab.name}" was removed and ${numTiles} tile${
-                pluralTiles ? ' were' : ' was'
-            } successfully transferred.`;
+            toastMessage = t('tabs.deleteModal.toastTransferred', {
+                name: tab.name,
+                count: numTiles,
+            });
         } else {
-            toastMessage = `Tab "${tab.name}" was removed and ${numTiles} tile${pluralTiles} deleted.`;
+            toastMessage = t('tabs.deleteModal.toastDeleted', {
+                name: tab.name,
+                count: numTiles,
+            });
         }
         onDeleteTab(tab.uuid);
         showToastSuccess({ title: toastMessage });
@@ -156,7 +161,7 @@ export const TabDeleteModal: FC<DeleteProps> = ({
         tab.uuid,
         tab.name,
         showToastSuccess,
-        pluralTiles,
+        t,
         onMoveTile,
         destinationTabId,
     ]);
@@ -166,7 +171,7 @@ export const TabDeleteModal: FC<DeleteProps> = ({
             opened={opened}
             onClose={onClose}
             role="alertdialog"
-            title="Remove tab"
+            title={t('tabs.deleteModal.title')}
             icon={IconTrash}
             actions={
                 <Button
@@ -181,23 +186,20 @@ export const TabDeleteModal: FC<DeleteProps> = ({
                     onClick={handleSubmit}
                 >
                     {removeAction === RemoveActions.MOVE
-                        ? 'Transfer'
-                        : 'Delete tiles'}
+                        ? t('tabs.deleteModal.transfer')
+                        : t('tabs.deleteModal.deleteTiles')}
                 </Button>
             }
         >
             <Stack gap="md">
-                <Text>
-                    What would you like to do with the tiles in this tab before
-                    removing it?
-                </Text>
+                <Text>{t('tabs.deleteModal.question')}</Text>
                 <Radio.Group
                     value={removeAction}
                     onChange={(val: string) => setRemoveAction(val)}
                 >
                     <Stack gap="xs" mt={0}>
                         <Radio
-                            label="Delete all tiles in this tab"
+                            label={t('tabs.deleteModal.deleteAllOption')}
                             value={RemoveActions.DELETE}
                             styles={{
                                 label: {
@@ -206,7 +208,7 @@ export const TabDeleteModal: FC<DeleteProps> = ({
                             }}
                         />
                         <Radio
-                            label="Transfer all tiles to another tab"
+                            label={t('tabs.deleteModal.transferAllOption')}
                             value={RemoveActions.MOVE}
                             styles={{
                                 label: {
@@ -217,7 +219,9 @@ export const TabDeleteModal: FC<DeleteProps> = ({
                         {dashboardTabs?.length &&
                             removeAction === RemoveActions.MOVE && (
                                 <Select
-                                    placeholder="Pick a tab"
+                                    placeholder={t(
+                                        'tabs.deleteModal.pickTabPlaceholder',
+                                    )}
                                     value={destinationTabId}
                                     onChange={(value) =>
                                         setDestinationTabId(value || undefined)
@@ -240,19 +244,19 @@ export const TabDeleteModal: FC<DeleteProps> = ({
                 {affectedSchedulers.length > 0 && (
                     <Callout
                         variant="warning"
-                        title="Warning: Scheduled deliveries affected"
+                        title={t('tabs.deleteModal.schedulersWarningTitle')}
                     >
                         <Stack gap="xs">
                             <Text size="sm">
-                                This tab is currently used by{' '}
-                                <Text fw={600} span>
-                                    {totalSchedulersCount}
-                                </Text>{' '}
-                                scheduled{' '}
-                                {affectedSchedulers.length === 1
-                                    ? 'delivery'
-                                    : 'deliveries'}
-                                :
+                                <Trans
+                                    t={t}
+                                    i18nKey="tabs.deleteModal.schedulersUsedBy"
+                                    count={totalSchedulersCount}
+                                    values={{ count: totalSchedulersCount }}
+                                    components={{
+                                        bold: <Text fw={600} span />,
+                                    }}
+                                />
                             </Text>
                             <Box
                                 ref={scrollContainerRef}
@@ -284,19 +288,23 @@ export const TabDeleteModal: FC<DeleteProps> = ({
                 {removeAction === RemoveActions.DELETE && (
                     <>
                         <Text>
-                            Are you sure you want to delete the tab{' '}
-                            <b>"{tab.name}"</b> and its{' '}
-                            <b>{tilesToRemove?.length}</b> tile{pluralTiles}?
+                            <Trans
+                                t={t}
+                                i18nKey="tabs.deleteModal.confirmDelete"
+                                count={tilesToRemove.length}
+                                values={{
+                                    name: tab.name,
+                                    count: tilesToRemove.length,
+                                }}
+                                components={{ bold: <b /> }}
+                            />
                         </Text>
                         {newSavedCharts.length > 0 && (
                             <Stack gap="xs">
                                 <Text>
-                                    On save, this action will also permanently
-                                    delete the following
-                                    {newSavedCharts.length === 1
-                                        ? ' chart that was '
-                                        : ' charts that were '}
-                                    created from within it:
+                                    {t('tabs.deleteModal.alsoDeletesCharts', {
+                                        count: newSavedCharts.length,
+                                    })}
                                 </Text>
                                 <List size="sm" pr={20}>
                                     {newSavedCharts.map((tile) => (

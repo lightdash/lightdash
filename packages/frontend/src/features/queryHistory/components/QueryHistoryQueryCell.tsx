@@ -6,6 +6,7 @@ import {
 import { Badge, Box, Group, Loader, Stack, Tooltip } from '@mantine/core';
 import { IconBolt } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import TruncatedText from '../../../components/common/TruncatedText';
 import { isRunningStatus } from '../utils/format';
@@ -13,6 +14,7 @@ import { isRunningStatus } from '../utils/format';
 export const QueryStatusBadge: FC<{ status: QueryHistoryStatus }> = ({
     status,
 }) => {
+    const { t } = useTranslation('queryHistory');
     if (isRunningStatus(status)) {
         return (
             <Badge
@@ -20,7 +22,7 @@ export const QueryStatusBadge: FC<{ status: QueryHistoryStatus }> = ({
                 flex="0 0 auto"
                 leftSection={<Loader size={8} color="gray" />}
             >
-                Running
+                {t('statuses.running')}
             </Badge>
         );
     }
@@ -28,19 +30,19 @@ export const QueryStatusBadge: FC<{ status: QueryHistoryStatus }> = ({
         case QueryHistoryStatus.ERROR:
             return (
                 <Badge size="xs" color="red" flex="0 0 auto">
-                    Failed
+                    {t('statuses.failed')}
                 </Badge>
             );
         case QueryHistoryStatus.CANCELLED:
             return (
                 <Badge size="xs" flex="0 0 auto">
-                    Cancelled
+                    {t('statuses.cancelled')}
                 </Badge>
             );
         case QueryHistoryStatus.EXPIRED:
             return (
                 <Badge size="xs" flex="0 0 auto">
-                    Expired
+                    {t('statuses.expired')}
                 </Badge>
             );
         default:
@@ -53,6 +55,7 @@ type Props = {
 };
 
 export const QueryHistoryQueryCell: FC<Props> = ({ item }) => {
+    const { t } = useTranslation('queryHistory');
     const failed = item.status === QueryHistoryStatus.ERROR;
     const sublineIsMono = item.language === QueryLanguage.SQL || failed;
     const servedFromCache =
@@ -66,7 +69,7 @@ export const QueryHistoryQueryCell: FC<Props> = ({ item }) => {
                 </TruncatedText>
                 <QueryStatusBadge status={item.status} />
                 {servedFromCache ? (
-                    <Tooltip label="Served from cache">
+                    <Tooltip label={t('queryCell.servedFromCache')}>
                         <Box
                             component="span"
                             display="inline-flex"

@@ -18,6 +18,7 @@ import {
     SegmentedControl,
 } from '@mantine/core';
 import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../common/MantineIcon';
 import {
     SeriesDepthControl,
@@ -81,6 +82,7 @@ export const SingleSeriesConfiguration = ({
     onValueLabelPositionChange,
     onValueLabelColorChange,
 }: SingleSeriesConfigurationProps) => {
+    const { t } = useTranslation('dataViz');
     const resolvedType =
         type ?? getEChartsChartTypeFromChartKind(selectedChartType);
     const seriesColor = color ?? colors[0];
@@ -105,7 +107,9 @@ export const SingleSeriesConfiguration = ({
                     {drawOrder && <SeriesDepthControl control={drawOrder} />}
                 </Group>
                 <Flex justify="flex-start" align="center" wrap="nowrap">
-                    <Config.Label w={LABEL_WIDTH}>Label</Config.Label>
+                    <Config.Label w={LABEL_WIDTH}>
+                        {t('cartesian.seriesConfig.label')}
+                    </Config.Label>
                     <Group
                         gap="xs"
                         justify="flex-start"
@@ -138,7 +142,9 @@ export const SingleSeriesConfiguration = ({
                     </Group>
                 </Flex>
                 <Flex justify="flex-start" align="center" wrap="nowrap">
-                    <Config.Label w={LABEL_WIDTH}>Chart Type</Config.Label>
+                    <Config.Label w={LABEL_WIDTH}>
+                        {t('cartesian.seriesConfig.chartType')}
+                    </Config.Label>
                     <CartesianChartTypeConfig
                         canSelectDifferentTypeFromBaseChart={true}
                         type={resolvedType}
@@ -146,7 +152,9 @@ export const SingleSeriesConfiguration = ({
                     />
                 </Flex>
                 <Flex justify="flex-start" align="center" wrap="nowrap">
-                    <Config.Label w={LABEL_WIDTH}>Y Axis</Config.Label>
+                    <Config.Label w={LABEL_WIDTH}>
+                        {t('cartesian.seriesConfig.yAxis')}
+                    </Config.Label>
                     <SegmentedControl
                         miw={130}
                         flex={1}
@@ -160,7 +168,9 @@ export const SingleSeriesConfiguration = ({
                                             icon={IconAlignLeft}
                                             color="ldDark.8"
                                         />
-                                        <Text inherit>Left</Text>
+                                        <Text inherit>
+                                            {t('cartesian.seriesConfig.left')}
+                                        </Text>
                                     </Group>
                                 ),
                             },
@@ -172,7 +182,9 @@ export const SingleSeriesConfiguration = ({
                                         wrap="nowrap"
                                         justify="flex-end"
                                     >
-                                        <Text inherit>Right</Text>
+                                        <Text inherit>
+                                            {t('cartesian.seriesConfig.right')}
+                                        </Text>
                                         <MantineIcon
                                             icon={IconAlignRight}
                                             color="ldDark.8"
@@ -193,7 +205,9 @@ export const SingleSeriesConfiguration = ({
                     />
                 </Flex>
                 <Flex justify="flex-start" align="center" wrap="nowrap">
-                    <Config.Label w={LABEL_WIDTH}>Value labels</Config.Label>
+                    <Config.Label w={LABEL_WIDTH}>
+                        {t('cartesian.seriesConfig.valueLabels')}
+                    </Config.Label>
                     <CartesianChartValueLabelConfig
                         colors={colors}
                         defaultColor={automaticLabelColor}

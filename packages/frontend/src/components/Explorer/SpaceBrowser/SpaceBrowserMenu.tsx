@@ -12,6 +12,7 @@ import {
     IconUsers,
 } from '@tabler/icons-react';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
 import useFavoritesContext from '../../../providers/Favorites/useFavoritesContext';
@@ -38,6 +39,7 @@ export const SpaceBrowserMenu: React.FC<Props> = ({
     onShare,
     children,
 }) => {
+    const { t } = useTranslation('explorer');
     const { user } = useApp();
     const organizationUuid = user.data?.organizationUuid;
     const projectUuid = useProjectUuid();
@@ -74,8 +76,8 @@ export const SpaceBrowserMenu: React.FC<Props> = ({
                             }
                         >
                             {isFavorited
-                                ? 'Remove from favorites'
-                                : 'Add to favorites'}
+                                ? t('spaceMenu.removeFromFavorites')
+                                : t('spaceMenu.addToFavorites')}
                         </Menu.Item>
 
                         <Menu.Divider />
@@ -88,7 +90,7 @@ export const SpaceBrowserMenu: React.FC<Props> = ({
                     leftSection={<MantineIcon icon={IconEdit} />}
                     onClick={onRename}
                 >
-                    Update space
+                    {t('spaceMenu.updateSpace')}
                 </Menu.Item>
 
                 {user.data?.ability.can(
@@ -110,7 +112,9 @@ export const SpaceBrowserMenu: React.FC<Props> = ({
                         }
                         onClick={onTogglePin}
                     >
-                        {isPinned ? 'Unpin from homepage' : 'Pin to homepage'}
+                        {isPinned
+                            ? t('chartActions.unpinFromHomepage')
+                            : t('chartActions.pinToHomepage')}
                     </Menu.Item>
                 )}
 
@@ -124,7 +128,7 @@ export const SpaceBrowserMenu: React.FC<Props> = ({
                         onTransferToSpace();
                     }}
                 >
-                    Move
+                    {t('spaceMenu.move')}
                 </Menu.Item>
 
                 <Menu.Item
@@ -136,7 +140,7 @@ export const SpaceBrowserMenu: React.FC<Props> = ({
                     data-tour-anchor="space-share"
                     data-tour-hint="Click Share"
                 >
-                    Share
+                    {t('chartActions.share')}
                 </Menu.Item>
 
                 <Menu.Divider />
@@ -148,7 +152,7 @@ export const SpaceBrowserMenu: React.FC<Props> = ({
                     leftSection={<MantineIcon icon={IconTrash} />}
                     onClick={onDelete}
                 >
-                    Delete space
+                    {t('spaceMenu.deleteSpace')}
                 </Menu.Item>
             </Menu.Dropdown>
         </Menu>

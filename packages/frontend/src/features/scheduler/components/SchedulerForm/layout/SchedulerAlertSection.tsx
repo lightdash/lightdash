@@ -12,7 +12,8 @@ import {
 } from '@lightdash/common';
 import { Checkbox, Divider, Group, Select, Stack, Text } from '@mantine/core';
 import { IconPercentage } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FieldSelect from '../../../../../components/common/FieldSelect';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { NumberInput } from '../../../../../components/common/NumberInput';
@@ -20,12 +21,13 @@ import { SchedulerFormChartFiltersTab } from '../SchedulerFormChartFiltersTab';
 import { useSchedulerFormContext } from '../schedulerFormContext';
 import { SchedulerFormParametersTab } from '../SchedulerFormParametersTab';
 import classes from './SchedulerDeliveryModal.module.css';
+import { THRESHOLD_OPERATOR_KEYS } from './schedulerDetailSummary';
 
-const thresholdOperatorOptions = [
-    { label: 'is greater than', value: ThresholdOperator.GREATER_THAN },
-    { label: 'is less than', value: ThresholdOperator.LESS_THAN },
-    { label: 'increased by', value: ThresholdOperator.INCREASED_BY },
-    { label: 'decreased by', value: ThresholdOperator.DECREASED_BY },
+const THRESHOLD_OPERATORS = [
+    ThresholdOperator.GREATER_THAN,
+    ThresholdOperator.LESS_THAN,
+    ThresholdOperator.INCREASED_BY,
+    ThresholdOperator.DECREASED_BY,
 ];
 
 type Props = {
@@ -50,7 +52,16 @@ export const SchedulerAlertSection: FC<Props> = ({
     availableParameters,
     loading,
 }) => {
+    const { t } = useTranslation('scheduler');
     const form = useSchedulerFormContext();
+    const thresholdOperatorOptions = useMemo(
+        () =>
+            THRESHOLD_OPERATORS.map((value) => ({
+                value,
+                label: t(THRESHOLD_OPERATOR_KEYS[value]),
+            })),
+        [t],
+    );
     const { onChange: _onChange, ...thresholdInputProps } =
         form.getInputProps('thresholds.0.value');
     const operator = form.values.thresholds?.[0]?.operator;
@@ -61,7 +72,7 @@ export const SchedulerAlertSection: FC<Props> = ({
     return (
         <Stack gap="lg">
             <FieldSelect
-                label="Alert field"
+                label={t('alert.field')}
                 required
                 disabled={isThresholdAlertWithNoFields}
                 comboboxProps={{ withinPortal: true }}
@@ -86,18 +97,17 @@ export const SchedulerAlertSection: FC<Props> = ({
             />
             {isThresholdAlertWithNoFields && (
                 <Text c="red" size="xs">
-                    No numeric fields available. You must have at least one
-                    numeric metric or calculation to set an alert.
+                    {t('alert.noNumericFields')}
                 </Text>
             )}
             <Group wrap="nowrap" grow>
                 <Select
-                    label="Condition"
+                    label={t('alert.condition')}
                     data={thresholdOperatorOptions}
                     {...form.getInputProps('thresholds.0.operator')}
                 />
                 <NumberInput
-                    label="Threshold"
+                    label={t('alert.threshold')}
                     size="sm"
                     w="100%"
                     hideControls
@@ -120,7 +130,7 @@ export const SchedulerAlertSection: FC<Props> = ({
 
             <Stack gap="xs">
                 <Checkbox
-                    label="Notify me only once"
+                    label={t('alert.notifyOnce')}
                     {...{
                         ...form.getInputProps('notificationFrequency'),
                         checked:
@@ -141,15 +151,16 @@ export const SchedulerAlertSection: FC<Props> = ({
                     form.values.notificationFrequency ===
                         NotificationFrequency.ALWAYS && (
                         <Text size="xs" c="dimmed" fs="italic">
-                            You will be notified at the specified frequency
-                            whenever the threshold conditions are met
+                            {t('alert.notifyAlways')}
                         </Text>
                     )}
             </Stack>
 
             <Divider />
             <Stack gap="xs">
-                <span className={classes.subBlockLabel}>Filters</span>
+                <span className={classes.subBlockLabel}>
+                    {t('alert.filters')}
+                </span>
                 <SchedulerFormChartFiltersTab
                     projectUuid={projectUuid}
                     itemsMap={itemsMap}
@@ -162,7 +173,9 @@ export const SchedulerAlertSection: FC<Props> = ({
 
             <Divider />
             <Stack gap="xs">
-                <span className={classes.subBlockLabel}>Parameters</span>
+                <span className={classes.subBlockLabel}>
+                    {t('alert.parameters')}
+                </span>
                 <SchedulerFormParametersTab
                     projectUuid={projectUuid}
                     currentParameterValues={currentParameterValues}

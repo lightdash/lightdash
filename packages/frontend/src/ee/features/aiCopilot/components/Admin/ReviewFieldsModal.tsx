@@ -15,6 +15,7 @@ import {
     IconPlus,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../../../hooks/useExplorerRoute';
@@ -28,10 +29,10 @@ type Props = {
     isLoading: boolean;
 };
 
-const CHANGE_LABEL: Record<UpstreamFieldChangeKind, string> = {
-    added: 'Added',
-    label_changed: 'Updated',
-    removed: 'Removed',
+const CHANGE_LABEL_KEY: Record<UpstreamFieldChangeKind, string> = {
+    added: 'fieldsModal.changes.added',
+    label_changed: 'fieldsModal.changes.labelChanged',
+    removed: 'fieldsModal.changes.removed',
 };
 
 const CHANGE_ICON: Record<UpstreamFieldChangeKind, typeof IconPlus> = {
@@ -97,6 +98,7 @@ export const ReviewFieldsModal: FC<Props> = ({
     fields,
     isLoading,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const groups = CHANGE_ORDER.map((change) => ({
         change,
         fields: fields
@@ -135,7 +137,7 @@ export const ReviewFieldsModal: FC<Props> = ({
                         }
                         onClick={() => handleCreateChart(field)}
                     >
-                        Create chart
+                        {t('fieldsModal.createChart')}
                     </Button>
                 </div>
             )}
@@ -146,7 +148,7 @@ export const ReviewFieldsModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Fields"
+            title={t('fieldsModal.title')}
             icon={IconColumns}
             size="md"
         >
@@ -156,8 +158,7 @@ export const ReviewFieldsModal: FC<Props> = ({
                 </Center>
             ) : fields.length === 0 ? (
                 <Text fz="sm" c="dimmed" py="md">
-                    No field changes between this preview and its upstream
-                    project.
+                    {t('fieldsModal.empty')}
                 </Text>
             ) : (
                 <Stack gap="md">
@@ -170,7 +171,7 @@ export const ReviewFieldsModal: FC<Props> = ({
                                     color={CHANGE_COLOR[group.change]}
                                 />
                                 <Text fz="sm" fw={600}>
-                                    {CHANGE_LABEL[group.change]}
+                                    {t(CHANGE_LABEL_KEY[group.change])}
                                 </Text>
                             </Group>
                             {group.fields.map(renderField)}

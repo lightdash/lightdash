@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { Box, Skeleton, Text } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import classes from './FormulaConversionPreview.module.css';
 
 type Props = {
@@ -23,12 +24,13 @@ const FormulaConversionPreviewBody: FC<Props> = ({
     error,
     result,
 }) => {
+    const { t } = useTranslation('tableCalculation');
     if (error) {
         return (
             <Box className={classes.formulaBox}>
                 <Text size="xs" c="red">
                     {error.error?.message ??
-                        'Something went wrong. Try again or write the formula yourself.'}
+                        t('conversionPreview.genericError')}
                 </Text>
             </Box>
         );

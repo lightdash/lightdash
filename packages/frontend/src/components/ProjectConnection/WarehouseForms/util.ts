@@ -1,10 +1,11 @@
 import { capitalize, type WarehouseTypes } from '@lightdash/common';
+import i18n from '../../../i18n/i18n';
 
 export const getSsoLabel = (warehouse: WarehouseTypes, provider?: string) =>
-    `User Account (Sign in with ${provider ?? capitalize(warehouse)})`;
+    i18n.t('warehouseAuth.sso', {
+        ns: 'projectConnection',
+        provider: provider ?? capitalize(warehouse),
+    });
 export const PRIVATE_KEY_LABEL = `Key Pair (private key file)`;
 export const PASSWORD_LABEL = `Password`;
-export const EXTERNAL_BROWSER_LABEL = `External Browser`;
 export const PERSONAL_ACCESS_TOKEN_LABEL = `Personal Access Token`;
-export const NONE_LABEL = `None`;
-export const CLI_SSO_LABEL = `Connect via Lightdash CLI (SSO)`;

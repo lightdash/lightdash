@@ -4,7 +4,9 @@ import {
     type UpdateSchedulerSettings,
 } from '@lightdash/common';
 import { Box, LoadingOverlay, Stack, Text, Title } from '@mantine/core';
+import { type TFunction } from 'i18next';
 import { useCallback, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
     useProject,
@@ -18,24 +20,21 @@ type SettingsSchedulerProps = {
     projectUuid: string;
 };
 
-const FIELD_LABELS: Record<keyof UpdateSchedulerSettings, string> = {
-    schedulerTimezone: 'Default time zone',
-    schedulerFailureNotifyRecipients: 'Notify recipients if a delivery fails',
-    schedulerFailureIncludeContact: 'Include a contact in failure messages',
-    schedulerFailureContactOverride: 'Custom contact sentence',
-};
-
-const summarizeChange = (changes: UpdateSchedulerSettings): string => {
+const summarizeChange = (
+    changes: UpdateSchedulerSettings,
+    t: TFunction<'projectSettings'>,
+): string => {
     const changedKeys = (
         Object.keys(changes) as (keyof UpdateSchedulerSettings)[]
     ).filter((k) => changes[k] !== undefined);
     if (changedKeys.length === 1) {
-        return `${FIELD_LABELS[changedKeys[0]]} updated`;
+        return t(`scheduler.toast.fieldUpdated.${changedKeys[0]}`);
     }
-    return 'Scheduled delivery settings updated';
+    return t('scheduler.toast.settingsUpdated');
 };
 
 const SettingsScheduler: FC<SettingsSchedulerProps> = ({ projectUuid }) => {
+    const { t } = useTranslation('projectSettings');
     const { showToastError, showToastSuccess } = useToaster();
     const { data: project, isLoading: isLoadingProject } =
         useProject(projectUuid);
@@ -46,18 +45,18 @@ const SettingsScheduler: FC<SettingsSchedulerProps> = ({ projectUuid }) => {
         async (changes: UpdateSchedulerSettings) => {
             try {
                 await projectMutation.mutateAsync(changes);
-                showToastSuccess({ title: summarizeChange(changes) });
+                showToastSuccess({ title: summarizeChange(changes, t) });
             } catch (e) {
                 const errorMessage = isApiError(e)
                     ? e.error.message
                     : getErrorMessage(e);
                 showToastError({
-                    title: `Failed to update project's scheduled delivery settings`,
+                    title: t('scheduler.toast.updateFailed'),
                     subtitle: errorMessage,
                 });
             }
         },
-        [projectMutation, showToastError, showToastSuccess],
+        [projectMutation, showToastError, showToastSuccess, t],
     );
 
     return (
@@ -65,11 +64,11 @@ const SettingsScheduler: FC<SettingsSchedulerProps> = ({ projectUuid }) => {
             <LoadingOverlay visible={isLoadingProject} />
             <SettingsGridCard>
                 <Stack gap="xs">
-                    <Title order={5}>Delivery defaults</Title>
+                    <Title order={5}>
+                        {t('scheduler.deliveryDefaults.title')}
+                    </Title>
                     <Text c="dimmed" fz="sm">
-                        Default settings applied to all of this project's
-                        scheduled deliveries. Owners can override these
-                        per-delivery when creating or editing a scheduler.
+                        {t('scheduler.deliveryDefaults.description')}
                     </Text>
                 </Stack>
                 <Box>

@@ -1,5 +1,6 @@
 import { Anchor, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import Callout from '../../../components/common/Callout';
 import { type useManagedAgentRuntime } from './hooks/useManagedAgentRuntime';
@@ -11,16 +12,17 @@ type Runtime = ReturnType<typeof useManagedAgentRuntime>;
 export const ManagedAgentRuntimeAlerts: FC<{ runtime: Runtime }> = ({
     runtime,
 }) => {
+    const { t } = useTranslation('managedAgent');
     if (runtime.isError || runtime.data?.error) {
         return (
-            <Callout variant="danger" title="AI configuration unavailable">
-                {runtime.data?.error ?? 'Could not load the AI configuration.'}{' '}
+            <Callout variant="danger" title={t('runtime.unavailable')}>
+                {runtime.data?.error ?? t('runtime.loadFailed')}{' '}
                 <Anchor
                     component="button"
                     fz="sm"
                     onClick={() => void runtime.refetch()}
                 >
-                    Retry
+                    {t('actions.retry', { ns: 'common' })}
                 </Anchor>
             </Callout>
         );
@@ -34,36 +36,46 @@ export const ManagedAgentRuntimeAlerts: FC<{ runtime: Runtime }> = ({
 export const ManagedAgentRuntimeDetails: FC<{
     runtime: Runtime;
     canManageAiSettings: boolean;
-}> = ({ runtime, canManageAiSettings }) => (
-    <Stack gap="xs">
-        {runtime.isLoading ? (
-            <Text fz="sm" c="dimmed">
-                Checking AI configuration…
-            </Text>
-        ) : (
-            <>
-                {runtime.data && !runtime.data.error && (
-                    <>
-                        <Text fz="sm" c="dimmed">
-                            Runs on {runtime.data.provider} ·{' '}
-                            {runtime.data.model} using{' '}
-                            {runtime.data.keySource === 'organization'
-                                ? "your organization's AI key."
-                                : 'the instance AI key.'}
-                        </Text>
-                        <Text fz="xs" c="dimmed">
-                            Scheduled runs consume tokens on this key. Each run
-                            uses the current AI settings.
-                        </Text>
-                    </>
-                )}
-                <ManagedAgentRuntimeAlerts runtime={runtime} />
-            </>
-        )}
-        {canManageAiSettings && (
-            <Anchor component={Link} to="/generalSettings/ai/general" fz="xs">
-                AI settings
-            </Anchor>
-        )}
-    </Stack>
-);
+}> = ({ runtime, canManageAiSettings }) => {
+    const { t } = useTranslation('managedAgent');
+    return (
+        <Stack gap="xs">
+            {runtime.isLoading ? (
+                <Text fz="sm" c="dimmed">
+                    {t('runtime.checking')}
+                </Text>
+            ) : (
+                <>
+                    {runtime.data && !runtime.data.error && (
+                        <>
+                            <Text fz="sm" c="dimmed">
+                                {runtime.data.keySource === 'organization'
+                                    ? t('runtime.runsOnOrganizationKey', {
+                                          provider: runtime.data.provider,
+                                          model: runtime.data.model,
+                                      })
+                                    : t('runtime.runsOnInstanceKey', {
+                                          provider: runtime.data.provider,
+                                          model: runtime.data.model,
+                                      })}
+                            </Text>
+                            <Text fz="xs" c="dimmed">
+                                {t('runtime.tokenUsageHint')}
+                            </Text>
+                        </>
+                    )}
+                    <ManagedAgentRuntimeAlerts runtime={runtime} />
+                </>
+            )}
+            {canManageAiSettings && (
+                <Anchor
+                    component={Link}
+                    to="/generalSettings/ai/general"
+                    fz="xs"
+                >
+                    {t('runtime.aiSettings')}
+                </Anchor>
+            )}
+        </Stack>
+    );
+};

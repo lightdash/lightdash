@@ -9,6 +9,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useEffect, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useBlocker } from 'react-router';
 import { type SuggestionsItem } from '../../../../../../features/comments/types';
 import { useActiveProjectUuid } from '../../../../../../hooks/useActiveProject';
@@ -24,10 +25,11 @@ import { AiRouterInstructionsEditor } from './AiRouterInstructionsEditor';
 
 // Split out so the relative-time hook only runs when there is a saved version.
 const SavedAtLabel: FC<{ savedAt: Date | string }> = ({ savedAt }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const timeAgo = useTimeAgo(savedAt);
     return (
         <Text c="dimmed" fz="xs">
-            Saved {timeAgo}
+            {t('settings.routing.savedAgo', { timeAgo })}
         </Text>
     );
 };
@@ -47,6 +49,7 @@ const AiRouterInstructionsForm: FC<FormProps> = ({
     suggestions,
     onDirtyChange,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const [draft, setDraft] = useState(initialInstruction);
     const { mutate: save, isLoading: isSaving } =
         useUpsertAiRouterInstruction(projectUuid);
@@ -68,9 +71,7 @@ const AiRouterInstructionsForm: FC<FormProps> = ({
         ) {
             return false;
         }
-        return !window.confirm(
-            'You have unsaved routing instructions. Are you sure you want to leave without saving?',
-        );
+        return !window.confirm(t('settings.routing.confirmLeave'));
     });
 
     // Guards full-page unload (refresh, tab close) the in-app blocker can't see.
@@ -105,7 +106,7 @@ const AiRouterInstructionsForm: FC<FormProps> = ({
                         })
                     }
                 >
-                    Save instructions
+                    {t('settings.routing.save')}
                 </Button>
             </Group>
         </Stack>
@@ -113,6 +114,7 @@ const AiRouterInstructionsForm: FC<FormProps> = ({
 };
 
 export const AiRouterInstructionsCard: FC = () => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const { data: projects, isInitialLoading: isProjectsLoading } =
         useProjects();
     const { activeProjectUuid, isLoading: isActiveProjectLoading } =
@@ -134,9 +136,7 @@ export const AiRouterInstructionsCard: FC = () => {
         if (
             isFormDirty &&
             nextProjectUuid !== projectUuid &&
-            !window.confirm(
-                'You have unsaved routing instructions. Are you sure you want to switch projects without saving?',
-            )
+            !window.confirm(t('settings.routing.confirmSwitch'))
         ) {
             return;
         }
@@ -177,19 +177,16 @@ export const AiRouterInstructionsCard: FC = () => {
         <Stack gap="md">
             <Box>
                 <Title order={6} mb={4}>
-                    Routing instructions
+                    {t('settings.routing.title')}
                 </Title>
                 <Text c="dimmed" fz="xs">
-                    Tell the router how to direct questions for a project. For
-                    example, send billing questions to a specific agent. Type @
-                    to tag an agent. Rules guide the router but never override
-                    an agent's access restrictions.
+                    {t('settings.routing.description')}
                 </Text>
             </Box>
 
             <Select
-                label="Project"
-                placeholder="Select a project"
+                label={t('settings.routing.project')}
+                placeholder={t('settings.routing.selectProject')}
                 data={projectOptions}
                 value={projectUuid}
                 onChange={handleProjectChange}
@@ -200,15 +197,13 @@ export const AiRouterInstructionsCard: FC = () => {
 
             {!isProjectsLoading && projectOptions.length === 0 && (
                 <Text c="dimmed" fz="xs">
-                    No projects available to configure.
+                    {t('settings.routing.noProjects')}
                 </Text>
             )}
 
             {projectUuid && hasTooFewAgents && (
                 <Text c="dimmed" fz="xs">
-                    This project has fewer than two accessible agents, so the
-                    router won't run here yet. You can still prepare
-                    instructions.
+                    {t('settings.routing.tooFewAgents')}
                 </Text>
             )}
 

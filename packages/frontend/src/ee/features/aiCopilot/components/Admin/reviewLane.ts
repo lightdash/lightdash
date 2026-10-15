@@ -7,13 +7,24 @@ import {
 export type ReviewLane = 'needs_triage' | 'todo' | 'in_progress' | 'done';
 
 // ts-unused-exports:disable-next-line
-export const REVIEW_LANES: { id: ReviewLane; label: string; color: string }[] =
-    [
-        { id: 'needs_triage', label: 'Needs triage', color: 'gray' },
-        { id: 'todo', label: 'To Do', color: 'indigo' },
-        { id: 'in_progress', label: 'In Progress', color: 'yellow' },
-        { id: 'done', label: 'Done', color: 'green' },
-    ];
+export const REVIEW_LANES: {
+    id: ReviewLane;
+    labelKey: string;
+    color: string;
+}[] = [
+    {
+        id: 'needs_triage',
+        labelKey: 'reviews.lanes.needsTriage',
+        color: 'gray',
+    },
+    { id: 'todo', labelKey: 'reviews.lanes.todo', color: 'indigo' },
+    {
+        id: 'in_progress',
+        labelKey: 'reviews.lanes.inProgress',
+        color: 'yellow',
+    },
+    { id: 'done', labelKey: 'reviews.lanes.done', color: 'green' },
+];
 
 // ts-unused-exports:disable-next-line
 export const BOARD_STATUSES: AiAgentReviewItemStatus[] = [

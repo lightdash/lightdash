@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import { Box, Center, Flex, Loader } from '@mantine/core';
 import { useCallback, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useOutletContext, useParams, useSearchParams } from 'react-router';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
@@ -57,6 +58,7 @@ import useIsEmbedded from '../../providers/Embed/useIsEmbedded';
 import { type AgentContext } from './AgentPage';
 
 const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
+    const { t } = useTranslation('eeMisc');
     const { agentUuid, threadUuid, promptUuid } = useParams();
     const projectUuid = useProjectUuid();
     const [searchParams] = useSearchParams();
@@ -211,12 +213,11 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const disabledReasons: { when: boolean; message: string }[] = [
         {
             when: thread?.createdFrom === 'slack',
-            message:
-                'This thread is read-only. To continue the conversation, reply in Slack.',
+            message: t('agents.thread.readOnlySlack'),
         },
         {
             when: !isEmbed && !!thread && !isThreadFromCurrentUser,
-            message: 'This thread is read-only. It belongs to another user.',
+            message: t('agents.thread.readOnlyOtherUser'),
         },
     ];
     const activeDisabledReason = disabledReasons.find((r) => r.when);
@@ -427,7 +428,9 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                                 ? handleStartDeepResearch
                                 : undefined
                         }
-                        placeholder={`Ask ${agent.name} anything about your data...`}
+                        placeholder={t('agents.askAgentAnything', {
+                            name: agent.name,
+                        })}
                         messageCount={thread.messages?.length || 0}
                         projectUuid={projectUuid}
                         agentUuid={agentUuid}

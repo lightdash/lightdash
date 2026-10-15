@@ -1,6 +1,7 @@
 import { Stack, Text } from '@mantine/core';
 import { IconRestore } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../../components/common/Callout';
 import MantineModal from '../../../components/common/MantineModal';
 import { useRestoreAppVersion } from '../../apps/hooks/useRestoreAppVersion';
@@ -18,6 +19,7 @@ const RestoreVersionModal: FC<Props> = ({
     version,
     onClose,
 }) => {
+    const { t } = useTranslation('chartTypes');
     const {
         mutate: restoreVersion,
         isLoading: isRestoring,
@@ -31,9 +33,9 @@ const RestoreVersionModal: FC<Props> = ({
                 if (isRestoring) return;
                 onClose();
             }}
-            title={`Restore version ${version}?`}
+            title={t('restore.title', { version })}
             icon={IconRestore}
-            confirmLabel="Restore version"
+            confirmLabel={t('restore.confirm')}
             cancelDisabled={isRestoring}
             confirmLoading={isRestoring}
             onConfirm={() =>
@@ -44,14 +46,10 @@ const RestoreVersionModal: FC<Props> = ({
             }
         >
             <Stack gap="sm">
-                <Text fz="sm">
-                    Restoring creates a new version. Saved charts will keep
-                    their current version.
-                </Text>
+                <Text fz="sm">{t('restore.description')}</Text>
                 {restoreError && (
                     <Callout variant="danger">
-                        {restoreError.error?.message ??
-                            'Failed to restore version.'}
+                        {restoreError.error?.message ?? t('restore.failed')}
                     </Callout>
                 )}
             </Stack>

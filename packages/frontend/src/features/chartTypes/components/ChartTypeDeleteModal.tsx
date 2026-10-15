@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { Button, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../../components/common/Callout';
 import MantineModal from '../../../components/common/MantineModal';
 import useApp from '../../../providers/App/useApp';
@@ -24,6 +25,7 @@ const ChartTypeDeleteModal: FC<Props> = ({
     onClose,
     onDeleted,
 }) => {
+    const { t } = useTranslation('chartTypes');
     const { health } = useApp();
     const softDeleteEnabled = health.data?.softDelete.enabled;
     const retentionDays = health.data?.softDelete.retentionDays;
@@ -42,19 +44,23 @@ const ChartTypeDeleteModal: FC<Props> = ({
     const isOfficial = isOfficialChartType(dataAppViz);
 
     const description = softDeleteEnabled
-        ? `The chart type moves to Recently deleted and is permanently removed after ${retentionDays} days.`
-        : 'The chart type and all of its versions will be permanently deleted, including any built artifacts in storage. This cannot be undone.';
+        ? t('delete.softDeleteDescription', { count: retentionDays })
+        : t('delete.hardDeleteDescription');
 
     return (
         <MantineModal
             opened
             onClose={onClose}
-            title={isOfficial ? 'Uninstall chart type' : 'Delete chart type'}
+            title={
+                isOfficial
+                    ? t('delete.uninstallTitle')
+                    : t('delete.deleteTitle')
+            }
             subtitle={getAppDisplayName(
                 dataAppViz.name,
                 dataAppViz.dataAppVizUuid,
             )}
-            confirmLabel={isOfficial ? 'Uninstall' : undefined}
+            confirmLabel={isOfficial ? t('detail.uninstall') : undefined}
             variant="delete"
             resourceType="chart type"
             resourceLabel={getAppDisplayName(
@@ -67,8 +73,8 @@ const ChartTypeDeleteModal: FC<Props> = ({
                     projectUuid,
                     appUuid: dataAppViz.dataAppVizUuid,
                     successTitle: isOfficial
-                        ? 'Chart type uninstalled'
-                        : 'Chart type deleted',
+                        ? t('delete.uninstalledToast')
+                        : t('delete.deletedToast'),
                 });
                 onDeleted();
             }}
@@ -80,36 +86,38 @@ const ChartTypeDeleteModal: FC<Props> = ({
         >
             {isLoadingImpact ? (
                 <Text size="sm" c="dimmed" role="status">
-                    Checking saved charts that use this chart type…
+                    {t('upgrade.checkingImpact')}
                 </Text>
             ) : isImpactError ? (
                 <Callout
                     variant="warning"
-                    title="Could not check affected charts"
+                    title={t('upgrade.impactErrorTitle')}
                 >
                     <Stack gap="sm" align="flex-start">
                         <Text size="sm">
-                            Try again to see the impact before continuing.
+                            {t('upgrade.impactErrorDescription')}
                         </Text>
                         <Button
                             variant="default"
                             size="xs"
                             onClick={() => void refetchImpact()}
                         >
-                            Try again
+                            {t('upgrade.tryAgain')}
                         </Button>
                     </Stack>
                 </Callout>
             ) : impact?.chartCount === 0 ? (
-                <Text size="sm">No saved charts use this chart type.</Text>
+                <Text size="sm">{t('upgrade.noCharts')}</Text>
             ) : impact ? (
                 <Callout
                     variant={softDeleteEnabled ? 'warning' : 'danger'}
-                    title={`${impact.chartCount} saved chart${impact.chartCount === 1 ? ' is' : 's are'} built on this chart type and will show an error.`}
+                    title={t('delete.chartsAffected', {
+                        count: impact.chartCount,
+                    })}
                 >
                     {softDeleteEnabled
-                        ? 'The saved charts are kept, but will show an error wherever they appear, including on dashboards, until the chart type is restored.'
-                        : 'The saved charts are kept, but this chart type cannot be restored. Update the affected charts to use a different chart type to make them work again.'}
+                        ? t('delete.chartsKeptSoft')
+                        : t('delete.chartsKeptHard')}
                 </Callout>
             ) : null}
         </MantineModal>

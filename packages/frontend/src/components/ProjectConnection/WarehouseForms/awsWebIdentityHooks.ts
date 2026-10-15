@@ -9,6 +9,7 @@ import {
     useQuery,
     type UseMutationOptions,
 } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -33,6 +34,7 @@ export const useCreateAwsWebIdentityAudience = (
     >,
 ) => {
     const { showToastApiError } = useToaster();
+    const { t } = useTranslation('projectConnection');
     return useMutation<
         ApiAwsWebIdentityAudienceResponse['results'],
         ApiError,
@@ -47,7 +49,7 @@ export const useCreateAwsWebIdentityAudience = (
         mutationKey: ['createAwsWebIdentityAudience'],
         onError: ({ error }) => {
             showToastApiError({
-                title: "Couldn't generate an audience",
+                title: t('awsWebIdentity.audienceFailed'),
                 apiError: error,
             });
         },

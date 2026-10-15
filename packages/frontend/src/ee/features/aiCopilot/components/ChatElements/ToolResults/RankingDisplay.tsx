@@ -5,6 +5,7 @@ import {
     type ToolFindFieldsOutput,
 } from '@lightdash/common';
 import { Box, Stack, Text } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import { RankingTable, TableCellText } from './RankingTable';
 
 type FieldResult = {
@@ -29,6 +30,7 @@ export const RankingDisplay: React.FC<{
         | ToolFindExploresOutput['metadata']['ranking'];
     type: 'findFields' | 'findExplores';
 }> = ({ ranking, type }) => {
+    const { t } = useTranslation('aiCopilotChat');
     if (type === 'findFields') {
         const findFieldsRanking =
             findFieldsRankingMetadataSchema.safeParse(ranking);
@@ -45,13 +47,13 @@ export const RankingDisplay: React.FC<{
         return (
             <Box>
                 <Text fw={500} size="xs" c="dark" mb="xs">
-                    Ranking Metadata
+                    {t('ranking.title')}
                 </Text>
                 <Stack gap="xs">
                     {parsedRanking.searchQueries.map((query, queryIndex) => (
                         <Box key={queryIndex}>
                             <Text fw={500} size="xs" c="dark" mb="xs">
-                                Search: "{query.label}"
+                                {t('ranking.search', { query: query.label })}
                             </Text>
                             {query.status === 'error' ? (
                                 <Text size="xs" c="red" mb="xs">
@@ -61,16 +63,23 @@ export const RankingDisplay: React.FC<{
                                 <>
                                     {query.pagination && (
                                         <Text size="xs" c="dimmed" mb="xs">
-                                            Page {query.pagination.page} of{' '}
-                                            {query.pagination.totalPageCount} (
-                                            {query.pagination.totalResults}{' '}
-                                            total results)
+                                            {t('ranking.pagination', {
+                                                page: query.pagination.page,
+                                                totalPages:
+                                                    query.pagination
+                                                        .totalPageCount,
+                                                totalResults:
+                                                    query.pagination
+                                                        .totalResults,
+                                            })}
                                         </Text>
                                     )}
                                     <RankingTable<FieldResult>
                                         columns={[
                                             {
-                                                header: 'Field',
+                                                header: t(
+                                                    'ranking.columns.field',
+                                                ),
                                                 render: (field) => (
                                                     <Box>
                                                         <TableCellText>
@@ -83,7 +92,9 @@ export const RankingDisplay: React.FC<{
                                                 ),
                                             },
                                             {
-                                                header: 'Table',
+                                                header: t(
+                                                    'ranking.columns.table',
+                                                ),
                                                 render: (field) => (
                                                     <TableCellText>
                                                         {field.tableName}
@@ -91,7 +102,9 @@ export const RankingDisplay: React.FC<{
                                                 ),
                                             },
                                             {
-                                                header: 'Type',
+                                                header: t(
+                                                    'ranking.columns.type',
+                                                ),
                                                 render: (field) => (
                                                     <TableCellText>
                                                         {field.fieldType}
@@ -99,7 +112,9 @@ export const RankingDisplay: React.FC<{
                                                 ),
                                             },
                                             {
-                                                header: 'Rank',
+                                                header: t(
+                                                    'ranking.columns.rank',
+                                                ),
                                                 render: (field) => (
                                                     <TableCellText>
                                                         {field.searchRank !==
@@ -109,16 +124,22 @@ export const RankingDisplay: React.FC<{
                                                             ? field.searchRank.toFixed(
                                                                   3,
                                                               )
-                                                            : 'N/A'}
+                                                            : t(
+                                                                  'ranking.notAvailable',
+                                                              )}
                                                     </TableCellText>
                                                 ),
                                             },
                                             {
-                                                header: 'Usage',
+                                                header: t(
+                                                    'ranking.columns.usage',
+                                                ),
                                                 render: (field) => (
                                                     <TableCellText>
                                                         {field.chartUsage ??
-                                                            'N/A'}
+                                                            t(
+                                                                'ranking.notAvailable',
+                                                            )}
                                                     </TableCellText>
                                                 ),
                                             },
@@ -151,24 +172,30 @@ export const RankingDisplay: React.FC<{
         return (
             <Box>
                 <Text fw={500} size="xs" c="dark" mb="xs">
-                    Ranking Metadata
+                    {t('ranking.title')}
                 </Text>
                 <Stack gap="md">
                     <Text size="xs" c="dimmed">
-                        Search Query: "{parsedRanking.searchQuery}"
+                        {t('ranking.searchQuery', {
+                            query: parsedRanking.searchQuery,
+                        })}
                     </Text>
 
                     {parsedRanking.exploreSearchResults &&
                         parsedRanking.exploreSearchResults.length > 0 && (
                             <Box>
                                 <Text fw={500} size="xs" c="dark" mb="xs">
-                                    Explore Results (
-                                    {parsedRanking.exploreSearchResults.length})
+                                    {t('ranking.exploreResults', {
+                                        count: parsedRanking
+                                            .exploreSearchResults.length,
+                                    })}
                                 </Text>
                                 <RankingTable<ExploreResult>
                                     columns={[
                                         {
-                                            header: 'Explore',
+                                            header: t(
+                                                'ranking.columns.explore',
+                                            ),
                                             render: (explore) => (
                                                 <Box>
                                                     <TableCellText>
@@ -181,7 +208,7 @@ export const RankingDisplay: React.FC<{
                                             ),
                                         },
                                         {
-                                            header: 'Rank',
+                                            header: t('ranking.columns.rank'),
                                             render: (explore) => (
                                                 <TableCellText>
                                                     {explore.searchRank !==
@@ -191,12 +218,16 @@ export const RankingDisplay: React.FC<{
                                                         ? explore.searchRank.toFixed(
                                                               3,
                                                           )
-                                                        : 'N/A'}
+                                                        : t(
+                                                              'ranking.notAvailable',
+                                                          )}
                                                 </TableCellText>
                                             ),
                                         },
                                         {
-                                            header: 'Joined Tables',
+                                            header: t(
+                                                'ranking.columns.joinedTables',
+                                            ),
                                             render: (explore) => (
                                                 <TableCellText>
                                                     {explore.joinedTables &&
@@ -205,7 +236,7 @@ export const RankingDisplay: React.FC<{
                                                         ? explore.joinedTables.join(
                                                               ', ',
                                                           )
-                                                        : 'None'}
+                                                        : t('ranking.none')}
                                                 </TableCellText>
                                             ),
                                         },
@@ -220,13 +251,15 @@ export const RankingDisplay: React.FC<{
                         parsedRanking.topMatchingFields.length > 0 && (
                             <Box>
                                 <Text fw={500} size="xs" c="dark" mb="xs">
-                                    Top Matching Fields (
-                                    {parsedRanking.topMatchingFields.length})
+                                    {t('ranking.topMatchingFields', {
+                                        count: parsedRanking.topMatchingFields
+                                            .length,
+                                    })}
                                 </Text>
                                 <RankingTable<FieldResult>
                                     columns={[
                                         {
-                                            header: 'Field',
+                                            header: t('ranking.columns.field'),
                                             render: (field) => (
                                                 <Box>
                                                     <TableCellText>
@@ -239,7 +272,9 @@ export const RankingDisplay: React.FC<{
                                             ),
                                         },
                                         {
-                                            header: 'Explore',
+                                            header: t(
+                                                'ranking.columns.explore',
+                                            ),
                                             render: (field) => (
                                                 <TableCellText>
                                                     {field.tableName}
@@ -247,7 +282,7 @@ export const RankingDisplay: React.FC<{
                                             ),
                                         },
                                         {
-                                            header: 'Type',
+                                            header: t('ranking.columns.type'),
                                             render: (field) => (
                                                 <TableCellText>
                                                     {field.fieldType}
@@ -255,7 +290,7 @@ export const RankingDisplay: React.FC<{
                                             ),
                                         },
                                         {
-                                            header: 'Rank',
+                                            header: t('ranking.columns.rank'),
                                             render: (field) => (
                                                 <TableCellText>
                                                     {field.searchRank !==
@@ -265,15 +300,20 @@ export const RankingDisplay: React.FC<{
                                                         ? field.searchRank.toFixed(
                                                               3,
                                                           )
-                                                        : 'N/A'}
+                                                        : t(
+                                                              'ranking.notAvailable',
+                                                          )}
                                                 </TableCellText>
                                             ),
                                         },
                                         {
-                                            header: 'Usage',
+                                            header: t('ranking.columns.usage'),
                                             render: (field) => (
                                                 <TableCellText>
-                                                    {field.chartUsage ?? 'N/A'}
+                                                    {field.chartUsage ??
+                                                        t(
+                                                            'ranking.notAvailable',
+                                                        )}
                                                 </TableCellText>
                                             ),
                                         },

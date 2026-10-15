@@ -11,7 +11,9 @@ import {
     Text,
     Title,
 } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../components/common/Callout';
+import i18n from '../../i18n/i18n';
 
 interface GroupPickerProps {
     groups: OrganizationGroup[];
@@ -39,7 +41,12 @@ const groupOptions = (
         ...options,
         ...(selection ?? [])
             .filter((uuid) => !visible.has(uuid))
-            .map((uuid) => ({ value: uuid, label: 'A saved group' })),
+            .map((uuid) => ({
+                value: uuid,
+                label: i18n.t('permissionChoices.savedGroupFallback', {
+                    ns: 'aiAccess',
+                }),
+            })),
     ];
 };
 const AgentGroupPicker = ({
@@ -48,77 +55,85 @@ const AgentGroupPicker = ({
     onChange,
     disabled,
     invalid,
-}: GroupPickerProps) => (
-    <>
-        <Radio.Group
-            value={selection === null ? 'everyone' : 'groups'}
-            aria-label="Who can use agents"
-        >
-            <Stack gap="sm">
-                <Radio.Card
-                    value="everyone"
-                    p="md"
-                    disabled={disabled}
-                    aria-label="Everyone whose role allows AI"
-                    onClick={() => onChange(null)}
-                >
-                    <Group wrap="nowrap">
-                        <Radio.Indicator />
-                        <Stack gap={0}>
-                            <Text fw={500}>Everyone whose role allows AI</Text>
-                            <Text size="sm" c="dimmed">
-                                Anyone with a role that allows AI can use
-                                agents.
-                            </Text>
-                        </Stack>
-                    </Group>
-                </Radio.Card>
-                <Radio.Card
-                    value="groups"
-                    p="md"
-                    disabled={disabled}
-                    aria-label="Only these groups"
-                    onClick={() => {
-                        if (selection === null) onChange([]);
-                    }}
-                >
-                    <Group wrap="nowrap">
-                        <Radio.Indicator />
-                        <Stack gap={0}>
-                            <Text fw={500}>Only these groups</Text>
-                            <Text size="sm" c="dimmed">
-                                People must belong to at least one of these
-                                groups. Their role must also allow AI.
-                            </Text>
-                        </Stack>
-                    </Group>
-                </Radio.Card>
-            </Stack>
-        </Radio.Group>
-        {selection !== null && (
-            <Stack gap="xs">
-                <MultiSelect
-                    aria-label="Groups"
-                    placeholder="Choose groups..."
-                    data={groupOptions(groups, selection)}
-                    value={selection}
-                    onChange={onChange}
-                    searchable
-                    disabled={disabled}
-                    error={invalid ? 'Choose at least one group.' : null}
-                    nothingFoundMessage="No groups available"
-                />
-                {groups.length === 0 && (
-                    <Text size="sm">No groups available</Text>
-                )}
-                <Text size="sm" c="dimmed">
-                    Only members of these groups can use Ask AI, the Slack
-                    agent, MCP clients and the CLI.
-                </Text>
-            </Stack>
-        )}
-    </>
-);
+}: GroupPickerProps) => {
+    const { t } = useTranslation('aiAccess');
+    return (
+        <>
+            <Radio.Group
+                value={selection === null ? 'everyone' : 'groups'}
+                aria-label={t('groupAdmission.title')}
+            >
+                <Stack gap="sm">
+                    <Radio.Card
+                        value="everyone"
+                        p="md"
+                        disabled={disabled}
+                        aria-label={t('groupAdmission.everyone')}
+                        onClick={() => onChange(null)}
+                    >
+                        <Group wrap="nowrap">
+                            <Radio.Indicator />
+                            <Stack gap={0}>
+                                <Text fw={500}>
+                                    {t('groupAdmission.everyone')}
+                                </Text>
+                                <Text size="sm" c="dimmed">
+                                    {t('groupAdmission.everyoneDescription')}
+                                </Text>
+                            </Stack>
+                        </Group>
+                    </Radio.Card>
+                    <Radio.Card
+                        value="groups"
+                        p="md"
+                        disabled={disabled}
+                        aria-label={t('groupAdmission.onlyGroups')}
+                        onClick={() => {
+                            if (selection === null) onChange([]);
+                        }}
+                    >
+                        <Group wrap="nowrap">
+                            <Radio.Indicator />
+                            <Stack gap={0}>
+                                <Text fw={500}>
+                                    {t('groupAdmission.onlyGroups')}
+                                </Text>
+                                <Text size="sm" c="dimmed">
+                                    {t('groupAdmission.onlyGroupsDescription')}
+                                </Text>
+                            </Stack>
+                        </Group>
+                    </Radio.Card>
+                </Stack>
+            </Radio.Group>
+            {selection !== null && (
+                <Stack gap="xs">
+                    <MultiSelect
+                        aria-label={t('groupAdmission.groups')}
+                        placeholder={t('groupAdmission.chooseGroups')}
+                        data={groupOptions(groups, selection)}
+                        value={selection}
+                        onChange={onChange}
+                        searchable
+                        disabled={disabled}
+                        error={
+                            invalid
+                                ? t('groupAdmission.chooseAtLeastOne')
+                                : null
+                        }
+                        nothingFoundMessage={t('groupAdmission.noGroups')}
+                    />
+                    {groups.length === 0 && (
+                        <Text size="sm">{t('groupAdmission.noGroups')}</Text>
+                    )}
+                    <Text size="sm" c="dimmed">
+                        {t('groupAdmission.membersOnlyNote')}
+                    </Text>
+                </Stack>
+            )}
+        </>
+    );
+};
 export const AgentGroupAdmissionSection = ({
     available,
     groups,
@@ -128,33 +143,29 @@ export const AgentGroupAdmissionSection = ({
     disabled,
     invalid,
 }: GroupAdmissionProps) => {
+    const { t } = useTranslation('aiAccess');
     if (!available && savedSelection === null) return null;
     const deleted = selection?.length === 0 && savedSelection?.length === 0;
     const notice = deleted ? (
-        <Callout variant="warning">
-            No one can use agents. All chosen groups are deleted.
-        </Callout>
+        <Callout variant="warning">{t('groupAdmission.allDeleted')}</Callout>
     ) : null;
     if (!available)
         return (
             <Stack gap="sm">
-                <Text size="sm">
-                    Groups are unavailable. The saved group restriction still
-                    applies.
-                </Text>
+                <Text size="sm">{t('groupAdmission.unavailable')}</Text>
                 {notice}
                 <Button
                     variant="default"
                     disabled={disabled || selection === null}
                     onClick={() => onChange(null)}
                 >
-                    Allow everyone
+                    {t('groupAdmission.allowEveryone')}
                 </Button>
             </Stack>
         );
     return (
         <Stack gap="sm">
-            <Title order={5}>Who can use agents</Title>
+            <Title order={5}>{t('groupAdmission.title')}</Title>
             {notice}
             <AgentGroupPicker
                 groups={groups}

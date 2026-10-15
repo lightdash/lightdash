@@ -10,6 +10,7 @@ import {
     IconTableShortcut,
 } from '@tabler/icons-react';
 import { Fragment, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useContentAuthoringEnabled } from '../../../../../hooks/useContentAuthoringEnabled';
@@ -30,6 +31,7 @@ export const AiDashboardQuickOptions: FC<Props> = ({
     agentUuid,
     dashboardConfig,
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const authoringEnabled = useContentAuthoringEnabled();
     const openEmbedDashboard = useEmbedAiAgentDashboardOpener(projectUuid);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -74,7 +76,7 @@ export const AiDashboardQuickOptions: FC<Props> = ({
                     </ActionIcon>
                 </Menu.Target>
                 <Menu.Dropdown>
-                    <Menu.Label>Quick actions</Menu.Label>
+                    <Menu.Label>{t('chartOptions.quickActions')}</Menu.Label>
                     {savedDashboardUuid ? (
                         openEmbedDashboard ? (
                             <Menu.Item
@@ -88,7 +90,7 @@ export const AiDashboardQuickOptions: FC<Props> = ({
                                     <MantineIcon icon={IconTableShortcut} />
                                 }
                             >
-                                View saved dashboard
+                                {t('dashboardOptions.viewSaved')}
                             </Menu.Item>
                         ) : (
                             <Menu.Item
@@ -99,7 +101,7 @@ export const AiDashboardQuickOptions: FC<Props> = ({
                                     <MantineIcon icon={IconTableShortcut} />
                                 }
                             >
-                                View saved dashboard
+                                {t('dashboardOptions.viewSaved')}
                             </Menu.Item>
                         )
                     ) : (
@@ -111,7 +113,7 @@ export const AiDashboardQuickOptions: FC<Props> = ({
                                     <MantineIcon icon={IconDeviceFloppy} />
                                 }
                             >
-                                Save dashboard
+                                {t('dashboardOptions.save')}
                             </Menu.Item>
                         )
                     )}

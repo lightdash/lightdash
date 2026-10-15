@@ -1,4 +1,5 @@
 import { type ComponentProps, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import Page from '../../components/common/Page/Page';
 import { ControlSidebar } from './ControlSidebar';
 import { ControlsSidebarProvider } from './ControlsSidebarProvider';
@@ -16,13 +17,14 @@ const SIDEBAR_WIDTH = { defaultWidth: 380, minWidth: 320, maxWidth: 560 };
 // The sidebar element is always passed so the page tree keeps its shape;
 // only isSidebarOpen changes when a control is opened.
 const PageWithControlSidebar: FC<Props> = (props) => {
+    const { t } = useTranslation('dashboardFilters');
     const { isSidebarOpen } = useControlsSidebar();
     usePinnedSidebarTop();
     return (
         <Page
             {...props}
             sidebar={<ControlSidebar />}
-            sidebarTitle="Edit filter"
+            sidebarTitle={t('controls.editor.editFilter')}
             isSidebarOpen={isSidebarOpen}
             noSidebarPadding
             sidebarWidthProps={SIDEBAR_WIDTH}

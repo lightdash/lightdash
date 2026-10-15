@@ -13,6 +13,7 @@ import {
 } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { lightdashApi } from '../../../../api';
+import i18n from '../../../../i18n/i18n';
 import {
     tableUnitId,
     type TableIdentity,
@@ -297,7 +298,7 @@ export const useTableUnits = ({
                     status: 'error',
                     message:
                         (result.error as ApiError | null)?.error?.message ??
-                        'Failed to load tables',
+                        i18n.t('tree.failedToLoadTables', { ns: 'sqlRunner' }),
                 });
             } else if (result?.fetchStatus === 'fetching') {
                 byUnit.set(id, { status: 'loading' });

@@ -43,6 +43,7 @@ import {
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import i18n from '../../../../i18n/i18n';
 
 export type AiAgentAdminThreadsArgs = {
     filters: AiAgentAdminFilters;
@@ -346,13 +347,19 @@ export const useDownloadAiAgentAdminThreadDump = () => {
             link.click();
             URL.revokeObjectURL(url);
             showToastSuccess({
-                title: 'Thread dump downloaded',
-                subtitle: 'Review the file before sharing it.',
+                title: i18n.t('toasts.admin.threadDumpDownloaded', {
+                    ns: 'aiAgent',
+                }),
+                subtitle: i18n.t('toasts.admin.threadDumpReview', {
+                    ns: 'aiAgent',
+                }),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to download thread dump',
+                title: i18n.t('toasts.admin.threadDumpFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },
@@ -374,14 +381,16 @@ export const useDeleteAiAgentAdminThread = () => {
     return useMutation<undefined, ApiError, string>({
         mutationFn: deleteAiAgentAdminThread,
         onSuccess: () => {
-            showToastSuccess({ title: 'Thread deleted' });
+            showToastSuccess({
+                title: i18n.t('toasts.threads.deleted', { ns: 'aiAgent' }),
+            });
             void queryClient.invalidateQueries({
                 queryKey: ['ai-agent-admin-threads'],
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to delete thread',
+                title: i18n.t('toasts.threads.deleteFailed', { ns: 'aiAgent' }),
                 apiError: error,
             });
         },
@@ -399,7 +408,9 @@ export const useCreateAiAgentReviewItem = () => {
     >({
         mutationFn: createAiAgentReviewItem,
         onSuccess: (createdItem) => {
-            showToastSuccess({ title: 'Issue created' });
+            showToastSuccess({
+                title: i18n.t('toasts.admin.issueCreated', { ns: 'aiAgent' }),
+            });
             queryClient.setQueryData(
                 ['ai-agent-admin-review-item', createdItem.fingerprint],
                 createdItem,
@@ -410,7 +421,9 @@ export const useCreateAiAgentReviewItem = () => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to create issue',
+                title: i18n.t('toasts.admin.issueCreateFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },
@@ -551,7 +564,9 @@ export const useRetestAiAgentReviewRemediation = () => {
         mutationFn: ({ fingerprint }) =>
             retestAiAgentReviewRemediation(fingerprint),
         onSuccess: (_data, { fingerprint }) => {
-            showToastSuccess({ title: 'Re-testing the fix…' });
+            showToastSuccess({
+                title: i18n.t('toasts.admin.retesting', { ns: 'aiAgent' }),
+            });
             void queryClient.invalidateQueries({
                 queryKey: ['ai-agent-admin-review-item-activity', fingerprint],
             });
@@ -560,7 +575,10 @@ export const useRetestAiAgentReviewRemediation = () => {
             });
         },
         onError: ({ error }) => {
-            showToastApiError({ title: 'Failed to retest', apiError: error });
+            showToastApiError({
+                title: i18n.t('toasts.admin.retestFailed', { ns: 'aiAgent' }),
+                apiError: error,
+            });
         },
     });
 };
@@ -599,7 +617,9 @@ export const useAddAiAgentReviewItemComment = () => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to add comment',
+                title: i18n.t('toasts.admin.addCommentFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },
@@ -741,7 +761,11 @@ export const useUpdateAiAgentReviewItemStatus = () => {
     >({
         mutationFn: updateAiAgentReviewItemStatus,
         onSuccess: (updatedItem, { fingerprint }) => {
-            showToastSuccess({ title: 'Review item updated' });
+            showToastSuccess({
+                title: i18n.t('toasts.admin.reviewItemUpdated', {
+                    ns: 'aiAgent',
+                }),
+            });
             queryClient.setQueryData(
                 ['ai-agent-admin-review-item', fingerprint],
                 updatedItem,
@@ -756,7 +780,9 @@ export const useUpdateAiAgentReviewItemStatus = () => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to update review item',
+                title: i18n.t('toasts.admin.reviewItemUpdateFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },
@@ -788,7 +814,11 @@ export const useUpdateAiAgentReviewItemAssignee = () => {
     >({
         mutationFn: updateAiAgentReviewItemAssignee,
         onSuccess: (updatedItem, { fingerprint }) => {
-            showToastSuccess({ title: 'Assignee updated' });
+            showToastSuccess({
+                title: i18n.t('toasts.admin.assigneeUpdated', {
+                    ns: 'aiAgent',
+                }),
+            });
             queryClient.setQueryData(
                 ['ai-agent-admin-review-item', fingerprint],
                 updatedItem,
@@ -800,7 +830,9 @@ export const useUpdateAiAgentReviewItemAssignee = () => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to update assignee',
+                title: i18n.t('toasts.admin.assigneeUpdateFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },
@@ -835,7 +867,11 @@ export const useUpdateAiAgentReviewItemPriority = () => {
     >({
         mutationFn: updateAiAgentReviewItemPriority,
         onSuccess: (updatedItem, { fingerprint }) => {
-            showToastSuccess({ title: 'Priority updated' });
+            showToastSuccess({
+                title: i18n.t('toasts.admin.priorityUpdated', {
+                    ns: 'aiAgent',
+                }),
+            });
             queryClient.setQueryData(
                 ['ai-agent-admin-review-item', fingerprint],
                 updatedItem,
@@ -847,7 +883,9 @@ export const useUpdateAiAgentReviewItemPriority = () => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to update priority',
+                title: i18n.t('toasts.admin.priorityUpdateFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },
@@ -930,7 +968,7 @@ export const useReorderReviewItems = () => {
         mutationFn: reorderAiAgentReviewItems,
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to reorder items',
+                title: i18n.t('toasts.admin.reorderFailed', { ns: 'aiAgent' }),
                 apiError: error,
             });
         },
@@ -964,23 +1002,27 @@ export const getReviewItemWritebackSuccessToast = (
         reviewItem.prWritebackStatus === 'running';
     if (isInProgress) {
         return {
-            title: 'Writeback queued',
-            subtitle: 'The review item will update as it runs.',
+            title: i18n.t('toasts.admin.writebackQueued', { ns: 'aiAgent' }),
+            subtitle: i18n.t('toasts.admin.writebackQueuedSubtitle', {
+                ns: 'aiAgent',
+            }),
         };
     }
 
     if (reviewItem.linkedPrUrl) {
-        return { title: 'Pull request opened' };
+        return {
+            title: i18n.t('toasts.admin.pullRequestOpened', { ns: 'aiAgent' }),
+        };
     }
 
     if (reviewItem.prWritebackStatus === 'completed') {
         return {
-            title: 'Writeback completed',
+            title: i18n.t('toasts.admin.writebackCompleted', { ns: 'aiAgent' }),
             subtitle: reviewItem.prWritebackMessage ?? undefined,
         };
     }
 
-    return { title: 'Writeback queued' };
+    return { title: i18n.t('toasts.admin.writebackQueued', { ns: 'aiAgent' }) };
 };
 
 export const useCreateAiAgentReviewItemWriteback = () => {
@@ -1003,7 +1045,9 @@ export const useCreateAiAgentReviewItemWriteback = () => {
                 ...toast,
                 ...(showPrAction && {
                     action: {
-                        children: 'View pull request',
+                        children: i18n.t('toasts.admin.viewPullRequest', {
+                            ns: 'aiAgent',
+                        }),
                         icon: IconArrowRight,
                         onClick: () =>
                             window.open(reviewItem.linkedPrUrl!, '_blank'),
@@ -1016,7 +1060,9 @@ export const useCreateAiAgentReviewItemWriteback = () => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to open pull request',
+                title: i18n.t('toasts.admin.openPullRequestFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },

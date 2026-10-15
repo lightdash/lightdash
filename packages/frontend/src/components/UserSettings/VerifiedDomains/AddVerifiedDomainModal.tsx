@@ -2,8 +2,10 @@ import { type DomainVerificationStatus } from '@lightdash/common';
 import { Button, PinInput, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconWorldCheck } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useState, type FC } from 'react';
 import Countdown, { zeroPad } from 'react-countdown';
+import { Trans, useTranslation } from 'react-i18next';
 import {
     useConfirmDomainVerification,
     useRequestDomainVerification,
@@ -13,15 +15,16 @@ import MantineModal from '../../common/MantineModal';
 
 const attemptMessage = (
     otp: DomainVerificationStatus['otp'],
+    t: TFunction<'userSettings'>,
 ): string | null => {
     if (!otp || otp.numberOfAttempts === 0) return null;
     if (otp.isExpired) {
-        return 'Your code expired. Resend a new verification email.';
+        return t('verifiedDomains.addModal.codeExpired');
     }
     if (otp.isMaxAttempts) {
-        return "That code doesn't match. You've used all your attempts — resend a new code.";
+        return t('verifiedDomains.addModal.maxAttempts');
     }
-    return "That code doesn't match the one we sent. Try again.";
+    return t('verifiedDomains.addModal.codeMismatch');
 };
 
 type Props = {
@@ -35,6 +38,7 @@ type Props = {
  * state resets each time it is reopened.
  */
 const AddVerifiedDomainModal: FC<Props> = ({ opened, onClose }) => {
+    const { t } = useTranslation('userSettings');
     const requestVerification = useRequestDomainVerification();
     const confirmVerification = useConfirmDomainVerification();
 
@@ -53,7 +57,9 @@ const AddVerifiedDomainModal: FC<Props> = ({ opened, onClose }) => {
         initialValues: { domain: '', challengeEmail: '' },
         validate: {
             domain: (value) =>
-                value.trim().length === 0 ? 'Enter a domain' : null,
+                value.trim().length === 0
+                    ? t('verifiedDomains.addModal.domainRequired')
+                    : null,
         },
     });
 
@@ -113,15 +119,21 @@ const AddVerifiedDomainModal: FC<Props> = ({ opened, onClose }) => {
 
     const otp = pending?.status.otp;
     const isLockedOut = expired || !!otp?.isExpired || !!otp?.isMaxAttempts;
-    const error = attemptMessage(otp);
+    const error = attemptMessage(otp, t);
 
     return (
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title={pending ? `Verify ${pending.domain}` : 'Add domain'}
+            title={
+                pending
+                    ? t('verifiedDomains.addModal.verifyTitle', {
+                          domain: pending.domain,
+                      })
+                    : t('verifiedDomains.addModal.addTitle')
+            }
             icon={IconWorldCheck}
-            cancelLabel="Cancel"
+            cancelLabel={t('actions.cancel', { ns: 'common' })}
             actions={
                 pending ? (
                     <>
@@ -130,14 +142,14 @@ const AddVerifiedDomainModal: FC<Props> = ({ opened, onClose }) => {
                             loading={requestVerification.isLoading}
                             onClick={handleResend}
                         >
-                            Resend code
+                            {t('verifiedDomains.addModal.resendCode')}
                         </Button>
                         <Button
                             loading={confirmVerification.isLoading}
                             disabled={code.length < 6 || isLockedOut}
                             onClick={handleConfirm}
                         >
-                            Verify domain
+                            {t('verifiedDomains.addModal.verifyDomain')}
                         </Button>
                     </>
                 ) : (
@@ -145,7 +157,7 @@ const AddVerifiedDomainModal: FC<Props> = ({ opened, onClose }) => {
                         loading={requestVerification.isLoading}
                         onClick={() => handleRequest()}
                     >
-                        Send verification code
+                        {t('verifiedDomains.addModal.sendCode')}
                     </Button>
                 )
             }
@@ -153,18 +165,18 @@ const AddVerifiedDomainModal: FC<Props> = ({ opened, onClose }) => {
             {pending ? (
                 <Stack gap="xs">
                     <Text size="sm" c="dimmed">
-                        Enter the 6-digit code we sent to{' '}
-                        <Text span fw={500}>
-                            {pending.challengeEmail}
-                        </Text>{' '}
-                        to verify{' '}
-                        <Text span fw={500}>
-                            {pending.domain}
-                        </Text>
-                        .
+                        <Trans
+                            t={t}
+                            i18nKey="verifiedDomains.addModal.enterCode"
+                            values={{
+                                email: pending.challengeEmail,
+                                domain: pending.domain,
+                            }}
+                            components={{ b: <Text span fw={500} /> }}
+                        />
                     </Text>
                     <PinInput
-                        aria-label="Domain verification code"
+                        aria-label={t('verifiedDomains.addModal.codeAriaLabel')}
                         length={6}
                         oneTimeCode
                         value={code}
@@ -186,14 +198,23 @@ const AddVerifiedDomainModal: FC<Props> = ({ opened, onClose }) => {
                                 completed ? (
                                     <Callout
                                         variant="warning"
-                                        title="Your verification code has expired."
+                                        title={t(
+                                            'verifiedDomains.addModal.expiredTitle',
+                                        )}
                                     >
-                                        Resend a new code to continue.
+                                        {t(
+                                            'verifiedDomains.addModal.expiredBody',
+                                        )}
                                     </Callout>
                                 ) : (
                                     <Text c="dimmed" size="sm">
-                                        Code expires in {zeroPad(minutes)}:
-                                        {zeroPad(seconds)}
+                                        {t(
+                                            'verifiedDomains.addModal.expiresIn',
+                                            {
+                                                minutes: zeroPad(minutes),
+                                                seconds: zeroPad(seconds),
+                                            },
+                                        )}
                                     </Text>
                                 )
                             }
@@ -204,18 +225,22 @@ const AddVerifiedDomainModal: FC<Props> = ({ opened, onClose }) => {
                 <form onSubmit={handleRequest}>
                     <Stack gap="md">
                         <TextInput
-                            label="Domain"
+                            label={t('verifiedDomains.addModal.domain')}
                             placeholder="acme.com"
-                            description="The domain your organization owns."
+                            description={t(
+                                'verifiedDomains.addModal.domainDescription',
+                            )}
                             data-autofocus
                             {...form.getInputProps('domain')}
                         />
                         <TextInput
-                            label="Send code to"
+                            label={t('verifiedDomains.addModal.sendCodeTo')}
                             placeholder={`admin@${
                                 form.values.domain.trim() || 'your-domain.com'
                             }`}
-                            description="An email address at this domain."
+                            description={t(
+                                'verifiedDomains.addModal.sendCodeToDescription',
+                            )}
                             {...form.getInputProps('challengeEmail')}
                         />
                     </Stack>

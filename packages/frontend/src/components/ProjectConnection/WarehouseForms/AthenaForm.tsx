@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { TextInput, Stack, Anchor, Select, PasswordInput } from '@mantine/core';
 import { useEffect, type FC, type ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
 import useHealth from '../../../hooks/health/useHealth';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -22,14 +23,15 @@ export const AthenaSchemaInput: FC<{
     disabled: boolean;
     description?: ReactNode;
 }> = ({ disabled, description }) => {
+    const { t } = useTranslation('projectConnection');
     const form = useFormContext();
 
     return (
         <TextInput
             name="warehouse.schema"
-            label="Schema"
+            label={t('warehouseFields.schema')}
             description={
-                description ?? 'This is the schema name (database in Athena).'
+                description ?? t('warehouseFields.athenaSchemaDescription')
             }
             required
             {...form.getInputProps('warehouse.schema')}
@@ -41,6 +43,7 @@ export const AthenaSchemaInput: FC<{
 const AthenaForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
+    const { t } = useTranslation('projectConnection');
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject, projectUuid } = useProjectFormContext();
     const health = useHealth();
@@ -164,20 +167,23 @@ const AthenaForm: FC<{
             <Stack mt="sm">
                 <TextInput
                     name="warehouse.region"
-                    label="AWS Region"
+                    label={t('warehouseFields.awsRegion')}
                     description={
                         <p>
-                            The AWS region where your Athena workgroup is
-                            located. See{' '}
-                            <Anchor
-                                inherit
-                                target="_blank"
-                                href="https://docs.getdbt.com/docs/core/connect-data-platform/athena-setup"
-                                rel="noreferrer"
-                            >
-                                dbt Athena documentation
-                            </Anchor>{' '}
-                            for more details.
+                            <Trans
+                                t={t}
+                                i18nKey="warehouseFields.athenaRegionDescription"
+                                components={{
+                                    docsLink: (
+                                        <Anchor
+                                            inherit
+                                            target="_blank"
+                                            href="https://docs.getdbt.com/docs/core/connect-data-platform/athena-setup"
+                                            rel="noreferrer"
+                                        />
+                                    ),
+                                }}
+                            />
                         </p>
                     }
                     required
@@ -187,8 +193,8 @@ const AthenaForm: FC<{
                 />
                 <TextInput
                     name="warehouse.database"
-                    label="Catalog"
-                    description="This is the Athena data catalog name (typically 'AwsDataCatalog')."
+                    label={t('warehouseFields.catalog')}
+                    description={t('warehouseFields.athenaCatalogDescription')}
                     required
                     {...form.getInputProps('warehouse.database')}
                     placeholder="AwsDataCatalog"
@@ -196,16 +202,16 @@ const AthenaForm: FC<{
                 />
                 <TextInput
                     name="warehouse.schema"
-                    label="Database"
-                    description="This is the Athena database name (also known as schema)."
+                    label={t('warehouseFields.database')}
+                    description={t('warehouseFields.athenaDatabaseDescription')}
                     required
                     {...form.getInputProps('warehouse.schema')}
                     disabled={disabled}
                 />
                 <TextInput
                     name="warehouse.s3StagingDir"
-                    label="S3 Staging Directory"
-                    description="S3 location for Athena query results."
+                    label={t('warehouseFields.s3StagingDir')}
+                    description={t('warehouseFields.s3StagingDirDescription')}
                     required
                     {...form.getInputProps('warehouse.s3StagingDir')}
                     placeholder="s3://your-bucket/athena-results/"
@@ -213,8 +219,8 @@ const AthenaForm: FC<{
                 />
                 <TextInput
                     name="warehouse.s3DataDir"
-                    label="S3 Data Directory"
-                    description="S3 location for storing table data (optional)."
+                    label={t('warehouseFields.s3DataDir')}
+                    description={t('warehouseFields.s3DataDirDescription')}
                     {...form.getInputProps('warehouse.s3DataDir')}
                     placeholder="s3://your-bucket/data/"
                     disabled={disabled}
@@ -223,18 +229,20 @@ const AthenaForm: FC<{
                     <Select
                         allowDeselect={false}
                         name="warehouse.authenticationType"
-                        label="Authentication Type"
-                        description="Choose how Lightdash authenticates to AWS."
+                        label={t('warehouseFields.authenticationType')}
+                        description={t(
+                            'warehouseFields.athenaAuthenticationDescription',
+                        )}
                         data={[
                             {
                                 value: AthenaAuthenticationType.ACCESS_KEY,
-                                label: 'Access Keys',
+                                label: t('warehouseFields.accessKeys'),
                             },
                             ...(isIamRoleAuthEnabled
                                 ? [
                                       {
                                           value: AthenaAuthenticationType.IAM_ROLE,
-                                          label: 'IAM Role',
+                                          label: t('warehouseFields.iamRole'),
                                       },
                                   ]
                                 : []),
@@ -242,7 +250,9 @@ const AthenaForm: FC<{
                                 ? [
                                       {
                                           value: AthenaAuthenticationType.WEB_IDENTITY,
-                                          label: 'Web Identity (No Keys)',
+                                          label: t(
+                                              'warehouseFields.webIdentity',
+                                          ),
                                       },
                                   ]
                                 : []),
@@ -258,8 +268,10 @@ const AthenaForm: FC<{
                     <>
                         <TextInput
                             name="warehouse.accessKeyId"
-                            label="AWS Access Key ID"
-                            description="Your AWS access key ID."
+                            label={t('warehouseFields.awsAccessKeyId')}
+                            description={t(
+                                'warehouseFields.awsAccessKeyIdDescription',
+                            )}
                             required
                             placeholder={
                                 disabled || !requireSecrets
@@ -271,8 +283,10 @@ const AthenaForm: FC<{
                         />
                         <PasswordInput
                             name="warehouse.secretAccessKey"
-                            label="AWS Secret Access Key"
-                            description="Your AWS secret access key."
+                            label={t('warehouseFields.awsSecretAccessKey')}
+                            description={t(
+                                'warehouseFields.awsSecretAccessKeyDescription',
+                            )}
                             required
                             placeholder={
                                 disabled || !requireSecrets
@@ -300,8 +314,10 @@ const AthenaForm: FC<{
                             <>
                                 <TextInput
                                     name="warehouse.assumeRoleArn"
-                                    label="Assume Role ARN"
-                                    description="Optional IAM role ARN to assume after authenticating. Works with any authentication type."
+                                    label={t('warehouseFields.assumeRoleArn')}
+                                    description={t(
+                                        'warehouseFields.assumeRoleArnDescription',
+                                    )}
                                     {...form.getInputProps(
                                         'warehouse.assumeRoleArn',
                                     )}
@@ -310,8 +326,12 @@ const AthenaForm: FC<{
                                 />
                                 <TextInput
                                     name="warehouse.assumeRoleExternalId"
-                                    label="Assume Role External ID"
-                                    description="Optional external ID for the assume role trust policy."
+                                    label={t(
+                                        'warehouseFields.assumeRoleExternalId',
+                                    )}
+                                    description={t(
+                                        'warehouseFields.assumeRoleExternalIdDescription',
+                                    )}
                                     {...form.getInputProps(
                                         'warehouse.assumeRoleExternalId',
                                     )}
@@ -321,8 +341,10 @@ const AthenaForm: FC<{
                         )}
                         <TextInput
                             name="warehouse.workGroup"
-                            label="Workgroup"
-                            description="The Athena workgroup to use for queries."
+                            label={t('warehouseFields.workgroup')}
+                            description={t(
+                                'warehouseFields.workgroupDescription',
+                            )}
                             {...form.getInputProps('warehouse.workGroup')}
                             placeholder="primary"
                             disabled={disabled}
@@ -330,8 +352,10 @@ const AthenaForm: FC<{
 
                         <NumberInput
                             name="warehouse.threads"
-                            label="Threads"
-                            description="Number of threads for dbt to use."
+                            label={t('warehouseFields.threads')}
+                            description={t(
+                                'warehouseFields.threadsDescription',
+                            )}
                             defaultValue={AthenaDefaultValues.threads}
                             {...form.getInputProps('warehouse.threads')}
                             disabled={disabled}
@@ -339,8 +363,10 @@ const AthenaForm: FC<{
 
                         <NumberInput
                             name="warehouse.numRetries"
-                            label="Number of Retries"
-                            description="Number of times to retry failed queries."
+                            label={t('warehouseFields.numberOfRetries')}
+                            description={t(
+                                'warehouseFields.retriesDescription',
+                            )}
                             defaultValue={AthenaDefaultValues.numRetries}
                             {...form.getInputProps('warehouse.numRetries')}
                             disabled={disabled}
@@ -350,7 +376,7 @@ const AthenaForm: FC<{
                     </Stack>
                 </FormSection>
                 <FormCollapseButton isSectionOpen={isOpen} onClick={toggleOpen}>
-                    Advanced configuration options
+                    {t('dbtSettings.advancedOptions')}
                 </FormCollapseButton>
             </Stack>
         </>

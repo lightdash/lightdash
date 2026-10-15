@@ -10,6 +10,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { useTranslation } from 'react-i18next';
 import ErrorState from '../../../../../../components/common/ErrorState';
 import { NumberInput } from '../../../../../../components/common/NumberInput';
 import {
@@ -33,38 +34,21 @@ type LimitsFormValues = {
 
 const LIMIT_FIELDS: Array<{
     key: keyof LimitsFormValues;
-    label: string;
-    description: string;
 }> = [
     {
         key: 'maxSteps',
-        label: 'Maximum steps',
-        description:
-            'The maximum number of model steps the coordinator may take in a deep research run.',
     },
     {
         key: 'maxToolCalls',
-        label: 'Maximum tool calls',
-        description:
-            'The maximum number of tool calls across a deep research run.',
     },
     {
         key: 'maxWarehouseQueries',
-        label: 'Maximum warehouse queries',
-        description:
-            'The maximum number of warehouse queries across a deep research run.',
     },
     {
         key: 'maxTokens',
-        label: 'Maximum tokens',
-        description:
-            'The maximum total model tokens consumed across a deep research run.',
     },
     {
         key: 'deadlineMinutes',
-        label: 'Time limit (minutes)',
-        description:
-            'The wall-clock limit for a deep research run before it stops and reports what it has.',
     },
 ];
 
@@ -89,6 +73,7 @@ const DeepResearchLimitsForm = ({
 }: {
     initialLimits: AiDeepResearchLimits;
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const updateSettings = useUpdateAiOrganizationSettings();
 
     const initialValues = toFormValues(initialLimits);
@@ -105,11 +90,9 @@ const DeepResearchLimitsForm = ({
     return (
         <SettingsGridCard>
             <Box>
-                <Title order={5}>Run limits</Title>
+                <Title order={5}>{t('settings.deepResearch.runLimits')}</Title>
                 <Text c="dimmed" fz="xs">
-                    Ceilings applied to every deep research run in your
-                    organization. A run that reaches any of these limits stops
-                    and reports what it has.
+                    {t('settings.deepResearch.runLimitsDescription')}
                 </Text>
             </Box>
 
@@ -118,8 +101,12 @@ const DeepResearchLimitsForm = ({
                     {LIMIT_FIELDS.map((field) => (
                         <NumberInput
                             key={field.key}
-                            label={field.label}
-                            description={field.description}
+                            label={t(
+                                `settings.deepResearch.fields.${field.key}.label`,
+                            )}
+                            description={t(
+                                `settings.deepResearch.fields.${field.key}.description`,
+                            )}
                             min={1}
                             allowDecimal={false}
                             allowNegative={false}
@@ -133,7 +120,7 @@ const DeepResearchLimitsForm = ({
                                 variant="outline"
                                 onClick={() => form.reset()}
                             >
-                                Cancel
+                                {t('actions.cancel', { ns: 'common' })}
                             </Button>
                         )}
                         <Button
@@ -141,7 +128,7 @@ const DeepResearchLimitsForm = ({
                             loading={updateSettings.isLoading}
                             disabled={isUnchanged}
                         >
-                            Update
+                            {t('actions.update', { ns: 'common' })}
                         </Button>
                     </Group>
                 </Stack>
@@ -151,6 +138,7 @@ const DeepResearchLimitsForm = ({
 };
 
 const DeepResearchRawSqlSetting = ({ enabled }: { enabled: boolean }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const updateSettings = useUpdateAiOrganizationSettings();
 
     return (
@@ -162,16 +150,14 @@ const DeepResearchRawSqlSetting = ({ enabled }: { enabled: boolean }) => {
                 gap="md"
             >
                 <Box flex={1}>
-                    <Title order={5}>Allow raw SQL</Title>
+                    <Title order={5}>{t('settings.deepResearch.rawSql')}</Title>
                     <Text c="dimmed" fz="xs">
-                        Let Deep Research run raw SQL when the initiating user
-                        has SQL Runner permission. Disable to keep
-                        investigations on governed explores and metrics.
+                        {t('settings.deepResearch.rawSqlDescription')}
                     </Text>
                 </Box>
                 <Switch
                     size="md"
-                    aria-label="Allow raw SQL"
+                    aria-label={t('settings.deepResearch.rawSql')}
                     checked={enabled}
                     disabled={updateSettings.isLoading}
                     onChange={(event) =>
@@ -187,6 +173,7 @@ const DeepResearchRawSqlSetting = ({ enabled }: { enabled: boolean }) => {
 };
 
 export const AiDeepResearchSettingsPage = () => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const {
         data: settings,
         isInitialLoading,
@@ -198,9 +185,9 @@ export const AiDeepResearchSettingsPage = () => {
     if (!isInitialLoading && !isError && settings) {
         return (
             <SettingsPage
-                title="Deep research"
+                title={t('settings.deepResearch.title')}
                 isBeta={isDeepResearchBeta}
-                description="Configure organization-wide data access and safety limits for deep research runs."
+                description={t('settings.deepResearch.description')}
             >
                 <Stack gap="lg">
                     <DeepResearchRawSqlSetting
@@ -219,9 +206,9 @@ export const AiDeepResearchSettingsPage = () => {
 
     return (
         <SettingsPage
-            title="Deep research"
+            title={t('settings.deepResearch.title')}
             isBeta={isDeepResearchBeta}
-            description="Configure organization-wide data access and safety limits for deep research runs."
+            description={t('settings.deepResearch.description')}
         >
             <SettingsCard>
                 {isInitialLoading ? (
@@ -235,7 +222,7 @@ export const AiDeepResearchSettingsPage = () => {
                             variant="default"
                             onClick={() => void refetch()}
                         >
-                            Try again
+                            {t('settings.deepResearch.tryAgain')}
                         </Button>
                     </Stack>
                 )}

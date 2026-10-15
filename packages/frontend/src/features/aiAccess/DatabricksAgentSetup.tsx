@@ -3,6 +3,7 @@ import {
     type DatabricksCredentials,
 } from '@lightdash/common';
 import { Stack, Text } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import CodeBlock from '../../components/common/CodeBlock/CodeBlock';
 import { AiServiceAccountSetupGuide } from './AiServiceAccountSetupGuide';
 
@@ -10,34 +11,32 @@ export const DatabricksAgentSetup = ({
     connection,
 }: {
     connection: DatabricksCredentials;
-}) => (
-    <AiServiceAccountSetupGuide
-        warehouseName="Databricks"
-        createContent={
-            <Text size="sm" c="dimmed">
-                Create a service principal and an OAuth secret in the Databricks
-                account console. Add it to the workspace and give it CAN USE on
-                the SQL warehouse.
-            </Text>
-        }
-        grantContent={
-            <Stack gap="xs">
-                <CodeBlock
-                    language="sql"
-                    copyLabel="Copy SQL"
-                    code={buildDatabricksAiServiceAccountCommands({
-                        catalog: connection.catalog || null,
-                        schema: connection.database || null,
-                    })}
-                />
+}) => {
+    const { t } = useTranslation('aiAccess');
+    return (
+        <AiServiceAccountSetupGuide
+            warehouseName="Databricks"
+            createContent={
                 <Text size="sm" c="dimmed">
-                    Replace the placeholders and repeat SELECT for each
-                    permitted table or view. Unity Catalog row filters and
-                    column masks apply to this principal. Grant only the data
-                    every agent user may see.
+                    {t('databricksSetup.create')}
                 </Text>
-            </Stack>
-        }
-        addHelp="Use the service principal's application ID as the Client ID."
-    />
-);
+            }
+            grantContent={
+                <Stack gap="xs">
+                    <CodeBlock
+                        language="sql"
+                        copyLabel={t('setupGuide.copySql')}
+                        code={buildDatabricksAiServiceAccountCommands({
+                            catalog: connection.catalog || null,
+                            schema: connection.database || null,
+                        })}
+                    />
+                    <Text size="sm" c="dimmed">
+                        {t('databricksSetup.grant')}
+                    </Text>
+                </Stack>
+            }
+            addHelp={t('databricksSetup.addHelp')}
+        />
+    );
+};

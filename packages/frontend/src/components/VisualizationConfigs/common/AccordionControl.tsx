@@ -9,6 +9,7 @@ import {
 } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ConfirmDeleteButton } from '../../common/ConfirmDeleteButton';
 import MantineIcon from '../../common/MantineIcon';
 import classes from './Accordion.module.css';
@@ -30,6 +31,7 @@ export const AccordionControl: FC<Props> = ({
     extraControlElements,
     ...props
 }) => {
+    const { t } = useTranslation('vizConfig');
     return (
         <Flex
             py="xs"
@@ -69,7 +71,7 @@ export const AccordionControl: FC<Props> = ({
                 {onRemove && (
                     <ConfirmDeleteButton
                         data-cf-rule-delete
-                        aria-label={`Remove ${label}`}
+                        aria-label={t('common.removeItem', { label })}
                         onConfirm={onRemove}
                     >
                         <MantineIcon icon={IconTrash} />

@@ -5,23 +5,24 @@ import {
     type AgentSystemRoleMatrix,
 } from '@lightdash/common';
 import { Center, Checkbox, Stack, Table, Text, Tooltip } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import {
     agentCapabilityGroups,
     agentPageCapabilityLabels,
 } from './agentCapabilityLabels';
 
-const columnLabels: Record<AgentCapability, string> = {
-    [AgentCapability.ReadDiscover]: 'Read',
-    [AgentCapability.Query]: 'Query',
-    [AgentCapability.Export]: 'Export',
-    [AgentCapability.RawSql]: 'Raw SQL',
-    [AgentCapability.ContentWrite]: 'Create / edit',
-    [AgentCapability.Delete]: 'Delete',
-    [AgentCapability.Publish]: 'Publish',
-    [AgentCapability.DeployUpload]: 'Deploy',
+const columnLabelKeys: Record<AgentCapability, string> = {
+    [AgentCapability.ReadDiscover]: 'read',
+    [AgentCapability.Query]: 'query',
+    [AgentCapability.Export]: 'export',
+    [AgentCapability.RawSql]: 'rawSql',
+    [AgentCapability.ContentWrite]: 'contentWrite',
+    [AgentCapability.Delete]: 'delete',
+    [AgentCapability.Publish]: 'publish',
+    [AgentCapability.DeployUpload]: 'deploy',
     [AgentCapability.DbtWriteback]: 'dbt',
-    [AgentCapability.Administration]: 'Admin',
-    [AgentCapability.ExternalTools]: 'External tools',
+    [AgentCapability.Administration]: 'admin',
+    [AgentCapability.ExternalTools]: 'externalTools',
 };
 
 export const AgentCapabilityMatrix = ({
@@ -35,6 +36,7 @@ export const AgentCapabilityMatrix = ({
     onChange: (matrix: AgentSystemRoleMatrix) => void;
     disabled: boolean;
 }) => {
+    const { t } = useTranslation('aiAccess');
     const allowed = new Set(allowedCapabilities);
     return (
         <Stack gap="xs">
@@ -47,15 +49,15 @@ export const AgentCapabilityMatrix = ({
                     <Table.Thead>
                         <Table.Tr>
                             <Table.Th rowSpan={2} w={100}>
-                                Role
+                                {t('capabilityMatrix.role')}
                             </Table.Th>
                             {agentCapabilityGroups.map((group) => (
                                 <Table.Th
-                                    key={group.label}
+                                    key={group.key}
                                     colSpan={group.capabilities.length}
                                     scope="colgroup"
                                 >
-                                    {group.label}
+                                    {t(`capabilityGroups.${group.key}`)}
                                 </Table.Th>
                             ))}
                         </Table.Tr>
@@ -74,7 +76,18 @@ export const AgentCapabilityMatrix = ({
                                                 focus: true,
                                                 touch: false,
                                             }}
-                                            label={`${agentPageCapabilityLabels[capability].label}: ${agentPageCapabilityLabels[capability].description}`}
+                                            label={t(
+                                                'capabilityMatrix.columnTooltip',
+                                                {
+                                                    label: agentPageCapabilityLabels[
+                                                        capability
+                                                    ].label,
+                                                    description:
+                                                        agentPageCapabilityLabels[
+                                                            capability
+                                                        ].description,
+                                                },
+                                            )}
                                             multiline
                                             w={240}
                                         >
@@ -88,7 +101,9 @@ export const AgentCapabilityMatrix = ({
                                                     ].label
                                                 }
                                             >
-                                                {columnLabels[capability]}
+                                                {t(
+                                                    `capabilityMatrix.columns.${columnLabelKeys[capability]}`,
+                                                )}
                                             </Text>
                                         </Tooltip>
                                     </Table.Th>
@@ -112,7 +127,18 @@ export const AgentCapabilityMatrix = ({
                                                 <Table.Td key={capability}>
                                                     <Center>
                                                         <Checkbox
-                                                            aria-label={`${OrganizationMemberRoleLabels[role]}: ${agentPageCapabilityLabels[capability].label}`}
+                                                            aria-label={t(
+                                                                'capabilityMatrix.cellAriaLabel',
+                                                                {
+                                                                    role: OrganizationMemberRoleLabels[
+                                                                        role
+                                                                    ],
+                                                                    capability:
+                                                                        agentPageCapabilityLabels[
+                                                                            capability
+                                                                        ].label,
+                                                                },
+                                                            )}
                                                             checked={row.has(
                                                                 capability,
                                                             )}

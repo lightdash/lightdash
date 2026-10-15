@@ -1,4 +1,5 @@
 import { Text } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../../components/common/MantineModal';
 import { useDeleteVirtualView } from '../../virtualView/hooks/useVirtualView';
 
@@ -13,6 +14,7 @@ export const DeleteVirtualViewModal = ({
     virtualViewName: string;
     projectUuid: string;
 }) => {
+    const { t } = useTranslation('explorer');
     const { mutate, isLoading } = useDeleteVirtualView(projectUuid);
     const handleConfirm = () => {
         mutate({ projectUuid, name: virtualViewName });
@@ -23,16 +25,15 @@ export const DeleteVirtualViewModal = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Delete virtual view"
+            title={t('virtualView.delete.title')}
             variant="delete"
-            resourceType="virtual view"
+            resourceType={t('virtualView.resourceType')}
             resourceLabel={virtualViewName}
             onConfirm={handleConfirm}
             confirmLoading={isLoading}
         >
             <Text fz="sm" c="dimmed">
-                This action cannot be undone and charts based on this virtual
-                view will break.
+                {t('virtualView.delete.description')}
             </Text>
         </MantineModal>
     );

@@ -22,6 +22,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDeleteColorPalette } from '../../../hooks/appearance/useOrganizationAppearance';
 import useToaster from '../../../hooks/toaster/useToaster';
 import MantineIcon from '../../common/MantineIcon';
@@ -43,6 +44,7 @@ export const PaletteItem: FC<PaletteItemProps> = ({
     readOnly,
     canManage,
 }) => {
+    const { t } = useTranslation('userSettings');
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
@@ -57,8 +59,10 @@ export const PaletteItem: FC<PaletteItemProps> = ({
 
     const handleCopyUuid = useCallback(() => {
         clipboard.copy(palette.colorPaletteUuid);
-        showToastSuccess({ title: 'Palette UUID copied to clipboard' });
-    }, [clipboard, showToastSuccess, palette.colorPaletteUuid]);
+        showToastSuccess({
+            title: t('appearanceSettingsPanel.paletteItem.uuidCopied'),
+        });
+    }, [clipboard, showToastSuccess, palette.colorPaletteUuid, t]);
 
     const hasDarkColors =
         palette.darkColors !== null && palette.darkColors !== undefined;
@@ -75,7 +79,12 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                 <Flex justify="space-between" align="center">
                     <Group gap="sm">
                         <Group gap="two">
-                            <Tooltip label="Light mode" position="top">
+                            <Tooltip
+                                label={t(
+                                    'appearanceSettingsPanel.paletteItem.lightMode',
+                                )}
+                                position="top"
+                            >
                                 <Group gap="two">
                                     <MantineIcon
                                         icon={IconSun}
@@ -98,7 +107,12 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                                     <Text c="ldGray.3" mx={4}>
                                         /
                                     </Text>
-                                    <Tooltip label="Dark mode" position="top">
+                                    <Tooltip
+                                        label={t(
+                                            'appearanceSettingsPanel.paletteItem.darkMode',
+                                        )}
+                                        position="top"
+                                    >
                                         <Group gap="two">
                                             <MantineIcon
                                                 icon={IconMoon}
@@ -127,13 +141,17 @@ export const PaletteItem: FC<PaletteItemProps> = ({
 
                         {readOnly && (
                             <Tooltip
-                                label="This palette is read only. It has been configured as the override color palette for your organization. While this is set, you cannot update/edit, or delete this palette."
+                                label={t(
+                                    'appearanceSettingsPanel.paletteItem.readOnlyTooltip',
+                                )}
                                 position="bottom-end"
                                 maw={200}
                             >
                                 <Badge>
                                     <Group gap={2}>
-                                        Override
+                                        {t(
+                                            'appearanceSettingsPanel.paletteItem.override',
+                                        )}
                                         <MantineIcon
                                             size="sm"
                                             icon={IconInfoCircle}
@@ -158,17 +176,27 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                                             : 'hidden',
                                 }}
                             >
-                                Use This Theme
+                                {t(
+                                    'appearanceSettingsPanel.paletteItem.useThisTheme',
+                                )}
                             </Button>
                         )}
 
-                        {isActive && <Badge color="green">Active</Badge>}
+                        {isActive && (
+                            <Badge color="green">
+                                {t(
+                                    'appearanceSettingsPanel.paletteItem.active',
+                                )}
+                            </Badge>
+                        )}
 
                         <Menu position="bottom-end" disabled={readOnly}>
                             <Menu.Target>
                                 <ActionIcon
                                     size="xs"
-                                    aria-label="Palette actions"
+                                    aria-label={t(
+                                        'appearanceSettingsPanel.paletteItem.actions',
+                                    )}
                                 >
                                     <MantineIcon icon={IconDotsVertical} />
                                 </ActionIcon>
@@ -181,7 +209,9 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                                     }
                                     onClick={handleCopyUuid}
                                 >
-                                    Copy UUID
+                                    {t(
+                                        'appearanceSettingsPanel.paletteItem.copyUuid',
+                                    )}
                                 </Menu.Item>
                                 {canManage && (
                                     <>
@@ -194,7 +224,9 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                                                 setIsEditModalOpen(true)
                                             }
                                         >
-                                            Edit palette
+                                            {t(
+                                                'appearanceSettingsPanel.paletteItem.editPalette',
+                                            )}
                                         </Menu.Item>
                                         <Menu.Item
                                             leftSection={
@@ -206,7 +238,9 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                                             disabled={isActive || readOnly}
                                             color="red"
                                         >
-                                            Delete palette
+                                            {t(
+                                                'appearanceSettingsPanel.paletteItem.deletePalette',
+                                            )}
                                         </Menu.Item>
                                     </>
                                 )}

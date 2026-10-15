@@ -10,6 +10,7 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useMergeCompiledSql } from '../features/mergeQuery/hooks/useMergeCompiledSql';
 import {
     getLightdashMonacoTheme,
@@ -36,6 +37,7 @@ interface RenderedSqlProps {
 export const RenderedSql: FC<RenderedSqlProps> = ({
     selectedView = 'query',
 }) => {
+    const { t } = useTranslation('app');
     const { colorScheme } = useMantineColorScheme();
     const projectUuid = useProjectUuid();
     const { data: project } = useProject(projectUuid);
@@ -100,7 +102,7 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
             <Stack my="xs" align="center">
                 <Loader size="lg" color="gray" mt="xs" />
                 <Title order={4} fw={500} c="ldGray.7">
-                    Compiling SQL
+                    {t('renderedSql.compiling')}
                 </Title>
             </Stack>
         );
@@ -111,7 +113,7 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
             <Box m="sm">
                 <Alert
                     icon={<IconAlertCircle size="1rem" />}
-                    title="Compilation error"
+                    title={t('renderedSql.compilationError')}
                     color="red"
                     variant="filled"
                 >
@@ -125,7 +127,7 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
             <Box m="sm">
                 <Alert
                     icon={<IconAlertCircle size="1rem" />}
-                    title="Compilation error"
+                    title={t('renderedSql.compilationError')}
                     color="red"
                     variant="filled"
                 >
@@ -149,7 +151,7 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
                 <Box m="sm">
                     <Alert
                         icon={<IconAlertCircle size="1rem" />}
-                        title="This merge cannot compile"
+                        title={t('renderedSql.mergeCannotCompile')}
                         color="red"
                         variant="filled"
                     >
@@ -167,7 +169,7 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
                 <Box m="sm">
                     <Alert
                         icon={<IconAlertCircle size="1rem" />}
-                        title="Compilation error"
+                        title={t('renderedSql.compilationError')}
                         color="red"
                         variant="filled"
                     >

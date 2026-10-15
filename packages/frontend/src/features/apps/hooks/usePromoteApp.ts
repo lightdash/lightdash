@@ -4,6 +4,7 @@ import {
     type ApiPromoteAppResponse,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -41,6 +42,7 @@ const promoteApp = ({ projectUuid, appUuid }: PromoteAppParams) =>
 
 export const usePromoteApp = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('apps');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<PromoteAppResult, ApiError, PromoteAppParams>({
         mutationFn: promoteApp,
@@ -50,13 +52,13 @@ export const usePromoteApp = () => {
             showToastSuccess({
                 title:
                     result.action === 'update'
-                        ? 'Data app updated in production'
-                        : 'Data app promoted to production',
+                        ? t('toasts.promotedUpdate')
+                        : t('toasts.promoted'),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to promote app',
+                title: t('toasts.promoteFailed'),
                 apiError: error,
             });
         },

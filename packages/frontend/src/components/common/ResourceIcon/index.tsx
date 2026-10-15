@@ -21,6 +21,7 @@ import {
     type Icon as TablerIconType,
 } from '@tabler/icons-react';
 import { useRef, useState, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon, { type MantineIconProps } from '../MantineIcon';
 import classes from './ResourceIcon.module.css';
 import { getChartIcon } from './utils';
@@ -179,6 +180,7 @@ export const VerifiedResourceIcon: FC<{
     item: ResourceViewItem;
     verification: ContentVerificationInfo | null;
 }> = ({ item, verification }) => {
+    const { t } = useTranslation('commonUi');
     if (!verification) return <ResourceIcon item={item} />;
     return (
         <ResourceIndicator
@@ -190,13 +192,11 @@ export const VerifiedResourceIcon: FC<{
                 offset: -2,
                 position: 'bottom',
             }}
-            tooltipLabel={
-                <>
-                    Verified by {verification.verifiedBy.firstName}{' '}
-                    {verification.verifiedBy.lastName} on{' '}
-                    {new Date(verification.verifiedAt).toLocaleDateString()}
-                </>
-            }
+            tooltipLabel={t('resourceIcon.verifiedBy', {
+                firstName: verification.verifiedBy.firstName,
+                lastName: verification.verifiedBy.lastName,
+                date: new Date(verification.verifiedAt).toLocaleDateString(),
+            })}
         >
             <ResourceIcon item={item} />
         </ResourceIndicator>

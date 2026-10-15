@@ -2,6 +2,7 @@ import { ResourceViewItemType, type PinnedItems } from '@lightdash/common';
 import { Box, Card, Group, Text } from '@mantine/core';
 import { IconPin } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import usePinnedItemsContext from '../../providers/PinnedItems/usePinnedItemsContext';
 import MantineIcon from '../common/MantineIcon';
 import MantineLinkButton from '../common/MantineLinkButton';
@@ -28,6 +29,7 @@ const TOUR_MARKER = {
 } as const;
 
 const PinnedItemsPanel: FC<Props> = ({ pinnedItems, isEnabled }) => {
+    const { t } = useTranslation('home');
     const { userCanManage } = usePinnedItemsContext();
 
     return pinnedItems && pinnedItems.length > 0 ? (
@@ -59,11 +61,11 @@ const PinnedItemsPanel: FC<Props> = ({ pinnedItems, isEnabled }) => {
                     }}
                     headerProps={{
                         title: userCanManage
-                            ? 'Pinned items'
-                            : 'Pinned for you',
+                            ? t('pinned.titleManager')
+                            : t('pinned.titleViewer'),
                         description: userCanManage
-                            ? 'Pin Spaces, Dashboards, Charts and Data apps to the top of the homepage to guide your business users to the right content.'
-                            : 'Your data team have pinned these items to help guide you towards the most relevant content!',
+                            ? t('pinned.descriptionManager')
+                            : t('pinned.descriptionViewer'),
                     }}
                 />
             </Box>
@@ -80,11 +82,10 @@ const PinnedItemsPanel: FC<Props> = ({ pinnedItems, isEnabled }) => {
                         fill="ldGray.1"
                     />
                     <Text fw={600} c="ldGray.8" fz="sm">
-                        No pinned items.
+                        {t('pinned.emptyTitle')}
                     </Text>
                     <Text c="dimmed" fz="sm">
-                        Pin items to the top of the homepage to guide users to
-                        relevant content.
+                        {t('pinned.emptyDescription')}
                     </Text>
                 </Group>
                 <MantineLinkButton
@@ -93,7 +94,7 @@ const PinnedItemsPanel: FC<Props> = ({ pinnedItems, isEnabled }) => {
                     variant="subtle"
                     size="compact-sm"
                 >
-                    View docs
+                    {t('pinned.viewDocs')}
                 </MantineLinkButton>
             </Group>
         </Card>

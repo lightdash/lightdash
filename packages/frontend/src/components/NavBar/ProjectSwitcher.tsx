@@ -26,6 +26,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { matchRoutes, useLocation, useMatch, useNavigate } from 'react-router';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
@@ -58,33 +59,40 @@ const getExpiresInDays = (expiresAt: Date | null): number | null => {
     return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 };
 
-const CurrentBadge: FC = () => (
-    <Badge
-        color="blue"
-        variant="filled"
-        size="xs"
-        fw={600}
-        className={classes.badge}
-    >
-        current
-    </Badge>
-);
+const CurrentBadge: FC = () => {
+    const { t } = useTranslation('navigation');
+    return (
+        <Badge
+            color="blue"
+            variant="filled"
+            size="xs"
+            fw={600}
+            className={classes.badge}
+        >
+            {t('projectSwitcher.current')}
+        </Badge>
+    );
+};
 
 /** The org's training playground, so nobody takes it for a real project. */
-const PlaygroundBadge: FC = () => (
-    <Badge color="grape" size="xs" className={classes.badge}>
-        Playground
-    </Badge>
-);
+const PlaygroundBadge: FC = () => {
+    const { t } = useTranslation('navigation');
+    return (
+        <Badge color="grape" size="xs" className={classes.badge}>
+            {t('projectSwitcher.playground')}
+        </Badge>
+    );
+};
 
 const ExpiryBadge: FC<{ expiresAt: Date | null }> = ({ expiresAt }) => {
+    const { t } = useTranslation('navigation');
     const expiresInDays = getExpiresInDays(expiresAt);
     if (expiresInDays === null) return null;
     return (
         <Badge color="orange" size="xs" className={classes.badge}>
             {expiresInDays === 0
-                ? 'Expires today'
-                : `Expires in ${expiresInDays}d`}
+                ? t('projectSwitcher.expiresToday')
+                : t('projectSwitcher.expiresInDays', { count: expiresInDays })}
         </Badge>
     );
 };
@@ -164,6 +172,7 @@ const ProjectRow: FC<{
     onNavigate: (projectUuid: string) => void;
     onDrill: (projectUuid: string) => void;
 }> = ({ item, previewCount, isActive, searchQuery, onNavigate, onDrill }) => {
+    const { t } = useTranslation('navigation');
     const { ref: truncatedRef, isTruncated } = useIsTruncated<HTMLDivElement>();
 
     return (
@@ -200,8 +209,9 @@ const ProjectRow: FC<{
                             }}
                         >
                             <Text fz="xs" fw={500} c="inherit">
-                                {previewCount}{' '}
-                                {previewCount === 1 ? 'preview' : 'previews'}
+                                {t('projectSwitcher.previewCount', {
+                                    count: previewCount,
+                                })}
                             </Text>
                             <MantineIcon icon={IconChevronRight} size="xs" />
                         </Box>
@@ -307,6 +317,7 @@ type ProjectSwitcherProps = {
 };
 
 const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
+    const { t } = useTranslation('navigation');
     const { showToastSuccess } = useToaster();
     const navigate = useNavigate();
 
@@ -379,11 +390,13 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
             setLastProjectMutation(project.projectUuid);
 
             showToastSuccess({
-                title: `You are now viewing ${project.name}`,
+                title: t('projectSwitcher.nowViewing', {
+                    name: project.name,
+                }),
                 action:
                     !isHomePage && shouldSwapProjectRoute
                         ? {
-                              children: 'Go to project home',
+                              children: t('projectSwitcher.goToProjectHome'),
                               icon: IconArrowRight,
                               onClick: () => {
                                   void navigate(
@@ -432,6 +445,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
             shouldSwapProjectRoute,
             showToastSuccess,
             swappableRouteMatch,
+            t,
         ],
     );
 
@@ -603,7 +617,11 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
             >
                 <Menu.Target>
                     <Button
-                        aria-label={`Switch project, current: ${activeProject?.name ?? 'none'}`}
+                        aria-label={t('projectSwitcher.ariaLabel', {
+                            name:
+                                activeProject?.name ??
+                                t('projectSwitcher.none'),
+                        })}
                         variant="default"
                         size="xs"
                         className={classes.targetButton}
@@ -611,7 +629,8 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                     >
                         <SwitcherLabel
                             activeProjectName={
-                                activeProject?.name ?? 'Select a project'
+                                activeProject?.name ??
+                                t('projectSwitcher.selectProject')
                             }
                             upstreamProjectName={upstreamProject?.name ?? null}
                         />
@@ -626,13 +645,15 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                     {isLoadingProjects ? (
                         <Box p="lg" ta="center">
                             <Text {...MENU_TEXT_PROPS}>
-                                Loading projects...
+                                {t('projectSwitcher.loading')}
                             </Text>
                         </Box>
                     ) : drilledProject ? (
                         <>
                             {renderSearchInput(
-                                `Search previews in ${drilledProject.name}...`,
+                                t('projectSwitcher.searchPreviewsIn', {
+                                    name: drilledProject.name,
+                                }),
                             )}
                             <Box
                                 component="button"
@@ -649,7 +670,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                                         color="dimmed"
                                     />
                                     <Text fz="xs" fw={500} c="ldGray.5">
-                                        Projects
+                                        {t('projectSwitcher.projects')}
                                     </Text>
                                     <Text fz="xs" c="ldGray.4">
                                         /
@@ -681,8 +702,15 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                                         <Box p="lg" ta="center">
                                             <Text {...MENU_TEXT_PROPS}>
                                                 {isSearching
-                                                    ? `No previews match "${debouncedSearchQuery}"`
-                                                    : 'No previews available'}
+                                                    ? t(
+                                                          'projectSwitcher.noPreviewsMatch',
+                                                          {
+                                                              query: debouncedSearchQuery,
+                                                          },
+                                                      )
+                                                    : t(
+                                                          'projectSwitcher.noPreviews',
+                                                      )}
                                             </Text>
                                         </Box>
                                     )}
@@ -702,8 +730,10 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                                         }
                                     >
                                         <Text {...MENU_TEXT_PROPS}>
-                                            Create Preview in{' '}
-                                            {drilledProject.name}
+                                            {t(
+                                                'projectSwitcher.createPreviewIn',
+                                                { name: drilledProject.name },
+                                            )}
                                         </Text>
                                     </Menu.Item>
                                 </Box>
@@ -712,7 +742,9 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                     ) : (
                         <>
                             {baseProjects.length + totalPreviewCount > 2 &&
-                                renderSearchInput('Search projects...')}
+                                renderSearchInput(
+                                    t('projectSwitcher.searchProjects'),
+                                )}
                             <Box
                                 className={classes.sectionHeader}
                                 display={
@@ -723,7 +755,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                             >
                                 <Group gap="xs" wrap="nowrap">
                                     <Text fz="xs" fw={600} c="ldDark.9">
-                                        Projects
+                                        {t('projectSwitcher.projects')}
                                     </Text>
                                     <Badge
                                         color="blue"
@@ -775,10 +807,12 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                                                         c="ldGray.5"
                                                         tt="uppercase"
                                                     >
-                                                        Matching previews ·{' '}
-                                                        {
-                                                            matchingPreviews.length
-                                                        }
+                                                        {t(
+                                                            'projectSwitcher.matchingPreviews',
+                                                            {
+                                                                count: matchingPreviews.length,
+                                                            },
+                                                        )}
                                                     </Text>
                                                 </Box>
                                                 {matchingPreviews.map(
@@ -823,8 +857,15 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                                                     />
                                                     <Text {...MENU_TEXT_PROPS}>
                                                         {isSearching
-                                                            ? `No projects or previews match "${debouncedSearchQuery}"`
-                                                            : 'No projects available'}
+                                                            ? t(
+                                                                  'projectSwitcher.noProjectsMatch',
+                                                                  {
+                                                                      query: debouncedSearchQuery,
+                                                                  },
+                                                              )
+                                                            : t(
+                                                                  'projectSwitcher.noProjects',
+                                                              )}
                                                     </Text>
                                                 </Stack>
                                             </Box>
@@ -844,7 +885,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
                                         }
                                     >
                                         <Text {...MENU_TEXT_PROPS}>
-                                            Create Preview
+                                            {t('projectSwitcher.createPreview')}
                                         </Text>
                                     </Menu.Item>
                                 </Box>

@@ -9,6 +9,7 @@ import {
     type SearchResults,
 } from '@lightdash/common';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
+import i18n from '../../../i18n/i18n';
 import { type SearchItem } from '../types/searchItem';
 
 export const getSearchItemMap = (
@@ -55,7 +56,10 @@ export const getSearchItemMap = (
     const dashboardTabs = results.dashboardTabs.map<SearchItem>((item) => ({
         type: SearchItemType.DASHBOARD_TAB,
         title: item.name,
-        description: `Dashboard: ${item.dashboardName}`,
+        description: i18n.t('searchItem.dashboardDescription', {
+            ns: 'omnibar',
+            name: item.dashboardName,
+        }),
         item: item,
         location: {
             pathname: `/projects/${projectUrlIdentifier}/dashboards/${item.dashboardSlug}/view/tabs/${item.uuid}`,

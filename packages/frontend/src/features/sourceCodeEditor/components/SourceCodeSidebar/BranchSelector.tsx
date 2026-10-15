@@ -2,6 +2,7 @@ import { type GitBranch } from '@lightdash/common';
 import { Button, Group, Select, Text } from '@mantine/core';
 import { IconGitBranch, IconLock, IconPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 
 type BranchSelectorProps = {
@@ -19,6 +20,7 @@ const BranchSelector: FC<BranchSelectorProps> = ({
     onCreateBranch,
     isLoading,
 }) => {
+    const { t } = useTranslation('sourceCode');
     const currentBranchData = branches.find((b) => b.name === currentBranch);
     const isProtected = currentBranchData?.isProtected ?? false;
 
@@ -32,7 +34,7 @@ const BranchSelector: FC<BranchSelectorProps> = ({
             <Select
                 flex={1}
                 size="xs"
-                placeholder="Select branch"
+                placeholder={t('branchSelector.placeholder')}
                 leftSection={<MantineIcon icon={IconGitBranch} />}
                 rightSection={
                     isProtected ? (
@@ -53,7 +55,7 @@ const BranchSelector: FC<BranchSelectorProps> = ({
                     onClick={onCreateBranch}
                     disabled={isLoading}
                 >
-                    <Text fz="xs">Create branch</Text>
+                    <Text fz="xs">{t('branchSelector.createBranch')}</Text>
                 </Button>
             )}
         </Group>

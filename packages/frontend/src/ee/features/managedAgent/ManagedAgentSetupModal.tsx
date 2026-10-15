@@ -8,7 +8,9 @@ import {
     IconTrendingUp,
 } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { type TFunction } from 'i18next';
 import { type FC, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import MantineModal from '../../../components/common/MantineModal';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -27,37 +29,53 @@ const updateSettings = async (
         body: JSON.stringify(body),
     });
 
-const SCHEDULE_OPTIONS = [
-    { value: ManagedAgentScheduleOption.EVERY_6_HOURS, label: 'Every 6 hours' },
+const getScheduleOptions = (t: TFunction) => [
+    {
+        value: ManagedAgentScheduleOption.EVERY_6_HOURS,
+        label: t('setup.schedule.every6Hours'),
+    },
     {
         value: ManagedAgentScheduleOption.EVERY_12_HOURS,
-        label: 'Every 12 hours',
+        label: t('setup.schedule.every12Hours'),
     },
-    { value: ManagedAgentScheduleOption.DAILY, label: 'Daily' },
-    { value: ManagedAgentScheduleOption.EVERY_2_DAYS, label: 'Every 2 days' },
-    { value: ManagedAgentScheduleOption.WEEKLY, label: 'Weekly' },
+    {
+        value: ManagedAgentScheduleOption.DAILY,
+        label: t('setup.schedule.daily'),
+    },
+    {
+        value: ManagedAgentScheduleOption.EVERY_2_DAYS,
+        label: t('setup.schedule.every2Days'),
+    },
+    {
+        value: ManagedAgentScheduleOption.WEEKLY,
+        label: t('setup.schedule.weekly'),
+    },
 ];
 
-const CAPABILITIES = [
+const getCapabilities = (t: TFunction) => [
     {
+        key: 'staleCleanup',
         icon: IconClock,
-        title: 'Stale content cleanup',
-        detail: 'Reviews stale charts, dashboards, and preview projects. Flags or deletes content according to the cleanup mode and project protections.',
+        title: t('setup.capabilities.staleCleanup.title'),
+        detail: t('setup.capabilities.staleCleanup.detail'),
     },
     {
+        key: 'brokenChartRepair',
         icon: IconTool,
-        title: 'Broken chart repair',
-        detail: 'Detects invalid field references and automatically fixes them by creating new chart versions.',
+        title: t('setup.capabilities.brokenChartRepair.title'),
+        detail: t('setup.capabilities.brokenChartRepair.detail'),
     },
     {
+        key: 'contentCreation',
         icon: IconChartBar,
-        title: 'Content creation',
-        detail: 'Explores your data model and creates useful charts in an "Agent Suggestions" space for review.',
+        title: t('setup.capabilities.contentCreation.title'),
+        detail: t('setup.capabilities.contentCreation.detail'),
     },
     {
+        key: 'insights',
         icon: IconTrendingUp,
-        title: 'Insights',
-        detail: 'Surfaces popular content that could be pinned or made more accessible.',
+        title: t('setup.capabilities.insights.title'),
+        detail: t('setup.capabilities.insights.detail'),
     },
 ];
 
@@ -68,6 +86,7 @@ export const ManagedAgentSetupModal: FC<{
     onClose: () => void;
     onEnabled: () => void;
 }> = ({ projectUuid, opened, onClose, onEnabled }) => {
+    const { t } = useTranslation('managedAgent');
     const queryClient = useQueryClient();
     const { user } = useApp();
     const runtime = useManagedAgentRuntime(projectUuid, opened);
@@ -91,7 +110,7 @@ export const ManagedAgentSetupModal: FC<{
         },
         onError: (error) => {
             showToastApiError({
-                title: 'Failed to enable Autopilot',
+                title: t('setup.enableFailed'),
                 apiError: error.error,
             });
         },
@@ -101,11 +120,11 @@ export const ManagedAgentSetupModal: FC<{
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Enable Autopilot"
+            title={t('setup.title')}
             icon={IconTarget}
             size="lg"
             onConfirm={() => mutation.mutate()}
-            confirmLabel="Enable"
+            confirmLabel={t('setup.enable')}
             confirmLoading={mutation.isLoading}
             confirmDisabled={
                 runtime.isLoading || runtime.isError || !!runtime.data?.error
@@ -115,20 +134,17 @@ export const ManagedAgentSetupModal: FC<{
             <Stack gap="xl">
                 {/* Description */}
                 <Text fz="sm" c="dimmed">
-                    An AI agent that monitors your project&apos;s health
-                    automatically, cleaning up stale content, fixing broken
-                    charts, and surfacing insights. All actions are logged and
-                    reversible.
+                    {t('setup.description')}
                 </Text>
 
                 {/* Capabilities */}
                 <Stack gap="xs">
                     <Text fz="xs" fw={600} c="dimmed" tt="uppercase" lts={0.4}>
-                        What it does
+                        {t('setup.whatItDoes')}
                     </Text>
-                    {CAPABILITIES.map((cap) => (
+                    {getCapabilities(t).map((cap) => (
                         <Group
-                            key={cap.title}
+                            key={cap.key}
                             gap="sm"
                             wrap="nowrap"
                             align="flex-start"
@@ -167,10 +183,10 @@ export const ManagedAgentSetupModal: FC<{
                         lts={0.4}
                         mb={6}
                     >
-                        Frequency
+                        {t('setup.frequency')}
                     </Text>
                     <Select
-                        data={SCHEDULE_OPTIONS}
+                        data={getScheduleOptions(t)}
                         value={schedule}
                         onChange={(value) =>
                             value &&
@@ -179,8 +195,7 @@ export const ManagedAgentSetupModal: FC<{
                         size="sm"
                     />
                     <Text fz="xs" c="dimmed" mt={6}>
-                        All actions are logged and reversible. Created charts go
-                        to an &quot;Agent Suggestions&quot; space for review.
+                        {t('setup.frequencyHint')}
                     </Text>
                 </Box>
             </Stack>

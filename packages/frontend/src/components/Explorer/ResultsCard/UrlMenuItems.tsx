@@ -15,6 +15,7 @@ import { Box, Menu, Tooltip } from '@mantine/core';
 import { IconExclamationCircle, IconLink } from '@tabler/icons-react';
 import { type Cell } from '@tanstack/react-table';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
@@ -32,6 +33,7 @@ const UrlMenuItem: FC<{
     row: TemplatedUrlRow;
     showError?: boolean;
 }> = ({ urlConfig, getItem, itemIdsInRow, value, row, showError = true }) => {
+    const { t } = useTranslation('explorer');
     const tracking = useTracking({ failSilently: true });
     const [url, renderError] = useMemo(() => {
         let parsedUrl: string | undefined = undefined;
@@ -61,24 +63,26 @@ const UrlMenuItem: FC<{
             );
             if (missingDependencies.length > 0) {
                 if (getItem) {
-                    errorMessage = `To use this action add ${missingDependencies
-                        .map((rowReference) => {
-                            const item = getItem(rowReference);
-                            const label = item
-                                ? getItemLabel(item)
-                                : friendlyName(rowReference);
-                            return `"${label}"`;
-                        })
-                        .join(' and ')} to your query`;
+                    errorMessage = t('urlMenuItems.addFieldsToUse', {
+                        fields: missingDependencies
+                            .map((rowReference) => {
+                                const item = getItem(rowReference);
+                                const label = item
+                                    ? getItemLabel(item)
+                                    : friendlyName(rowReference);
+                                return `"${label}"`;
+                            })
+                            .join(t('urlMenuItems.fieldSeparator')),
+                    });
                 } else {
-                    errorMessage = 'Action not available for this query';
+                    errorMessage = t('urlMenuItems.actionNotAvailable');
                 }
             }
         } catch (e) {
             errorMessage = e instanceof Error ? e.message : `${e}`;
         }
         return errorMessage;
-    }, [itemIdsInRow, getItem, urlConfig]);
+    }, [itemIdsInRow, getItem, urlConfig, t]);
     const error: string | undefined = validationError || renderError;
     if (!showError && error) {
         return null;

@@ -9,6 +9,7 @@ import {
 import { Button, Group } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDeleteApp } from '../../../features/apps/hooks/useDeleteApp';
@@ -59,6 +60,7 @@ type Props = {
 /** The builder hosted by the Explorer: the chart moves onto the type being
  *  authored, so the sidebar configures what the preview renders. */
 const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
+    const { t } = useTranslation('explorer');
     const projectUuid = useProjectUuid();
     const dispatch = useExplorerDispatch();
     const queryClient = useQueryClient();
@@ -154,11 +156,11 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
         (dataAppViz !== undefined && dataAppViz.registrySlug !== null);
     useEffect(() => {
         if (!isForbidden) return;
-        showToastError({ title: 'You cannot author this chart type' });
+        showToastError({ title: t('chartStudio.toast.forbidden') });
         // Run the same cleanup as a manual cancel to avoid orphaned drafts.
         cleanupAbandonedTypeRef.current();
         dispatch(explorerActions.cancelChartTypeAuthoring());
-    }, [isForbidden, showToastError, dispatch]);
+    }, [isForbidden, showToastError, dispatch, t]);
 
     const colorPalette = useExplorerChartColorPalette(projectUuid);
     const schema = dataAppViz?.schema ?? null;
@@ -279,7 +281,7 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
             deleteApp({
                 projectUuid,
                 appUuid: dataAppVizUuid,
-                successTitle: 'Chart type discarded',
+                successTitle: t('chartStudio.toast.discarded'),
             });
         }
     };
@@ -299,13 +301,15 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
             void queryClient.invalidateQueries({ queryKey: ['data-app-vizs'] });
             const typeName = dataAppViz
                 ? getAppDisplayName(dataAppViz.name, dataAppViz.dataAppVizUuid)
-                : 'this chart type';
+                : t('chartStudio.toast.thisChartType');
             showToastSuccess({
-                title: `Chart now uses ${typeName}${
+                title:
                     history.latestReadyVersion !== null
-                        ? ` v${history.latestReadyVersion}`
-                        : ''
-                }`,
+                        ? t('chartStudio.toast.chartUsesVersion', {
+                              typeName,
+                              version: history.latestReadyVersion,
+                          })
+                        : t('chartStudio.toast.chartUses', { typeName }),
             });
             dispatch(explorerActions.finishChartTypeAuthoring());
         } else {
@@ -340,7 +344,7 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
             <MantineModal
                 opened
                 onClose={handleDone}
-                title="Chart Studio"
+                title={t('chartStudio.title')}
                 fullScreen
                 withCloseButton={false}
                 cancelLabel={false}
@@ -395,22 +399,22 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
                 <MantineModal
                     opened
                     onClose={() => setIsExitConfirmOpen(false)}
-                    title="Build in progress"
+                    title={t('chartStudio.exitConfirm.title')}
                 >
                     <Callout
                         variant={exitDiscardsBuild ? 'danger' : 'info'}
                         mb="md"
                     >
                         {exitDiscardsBuild
-                            ? 'Leaving now discards the build that is still running.'
-                            : 'The build keeps running and lands in version history when it finishes.'}
+                            ? t('chartStudio.exitConfirm.discards')
+                            : t('chartStudio.exitConfirm.keepsRunning')}
                     </Callout>
                     <Group justify="flex-end">
                         <Button
                             variant="default"
                             onClick={() => setIsExitConfirmOpen(false)}
                         >
-                            Keep building
+                            {t('chartStudio.exitConfirm.keepBuilding')}
                         </Button>
                         <Button
                             color={exitDiscardsBuild ? 'red' : undefined}
@@ -419,7 +423,9 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
                                 performExit();
                             }}
                         >
-                            {exitDiscardsBuild ? 'Discard and leave' : 'Leave'}
+                            {exitDiscardsBuild
+                                ? t('chartStudio.exitConfirm.discardAndLeave')
+                                : t('chartStudio.exitConfirm.leave')}
                         </Button>
                     </Group>
                 </MantineModal>

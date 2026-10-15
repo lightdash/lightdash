@@ -35,6 +35,7 @@ import {
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { useCanManageDashboard } from '../../../hooks/dashboard/useCanManageDashboard';
 import { useCopyTileLink } from '../../../hooks/dashboard/useTileLink';
@@ -78,6 +79,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     transparent = false,
     fullWidth = false,
 }: TileBaseProps<T>) => {
+    const { t } = useTranslation('dashboard');
     const getUiString = useUiStrings();
     const [isEditingTileContent, setIsEditingTileContent] = useState(false);
     const [isMovingTabs, setIsMovingTabs] = useState(false);
@@ -156,7 +158,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     leftSection={<MantineIcon icon={IconLink} />}
                     onClick={copyTileLink}
                 >
-                    Copy link to tile
+                    {t('tile.copyLink')}
                 </Menu.Item>
             )}
             {canCopyTileLink && (!!extraMenuItems || canEditTileContent) && (
@@ -170,7 +172,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         leftSection={<MantineIcon icon={IconEdit} />}
                         onClick={() => setIsEditingTileContent(true)}
                     >
-                        Edit tile content
+                        {t('tileForms.editContent.title')}
                     </Menu.Item>
                 </Box>
             )}
@@ -183,7 +185,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             }
                             onClick={() => setIsMovingTabs(true)}
                         >
-                            Move to another tab
+                            {t('tile.moveToAnotherTab')}
                         </Menu.Item>
                     )}
                     <Menu.Divider />
@@ -194,7 +196,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                 setIsDeletingChartThatBelongsToDashboard(true)
                             }
                         >
-                            Delete chart
+                            {t('tile.deleteChart')}
                         </Menu.Item>
                     ) : (
                         <Menu.Item
@@ -202,7 +204,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             leftSection={<MantineIcon icon={IconTrash} />}
                             onClick={() => onDelete(tile)}
                         >
-                            Remove tile
+                            {t('tile.removeTile')}
                         </Menu.Item>
                     )}
                 </>
@@ -239,7 +241,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                 <MantineIcon icon={IconExternalLink} />
                             }
                         >
-                            View chart
+                            {t('tile.viewChart')}
                         </Menu.Item>
                     )}
                     {canViewChart && hasMenuContent && <Menu.Divider />}
@@ -279,8 +281,10 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 <Tooltip
                     label={
                         verification?.verifiedBy
-                            ? `Verified by ${verification.verifiedBy.firstName} ${verification.verifiedBy.lastName}`
-                            : 'Verified'
+                            ? t('tile.verifiedBy', {
+                                  name: `${verification.verifiedBy.firstName} ${verification.verifiedBy.lastName}`,
+                              })
+                            : t('tile.verified')
                     }
                 >
                     <IconCircleCheckFilled
@@ -294,14 +298,14 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
             )}
 
             {canViewChart && (
-                <Tooltip label="View chart">
+                <Tooltip label={t('tile.viewChart')}>
                     <ActionIcon
                         component="a"
                         size="sm"
                         href={titleHref}
                         target="_blank"
                         rel="noreferrer"
-                        aria-label="View chart"
+                        aria-label={t('tile.viewChart')}
                     >
                         <MantineIcon icon={IconExternalLink} />
                     </ActionIcon>

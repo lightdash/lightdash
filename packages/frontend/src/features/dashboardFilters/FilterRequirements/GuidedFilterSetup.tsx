@@ -27,6 +27,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import FilterInputComponent from '../../../components/common/Filters/FilterInputs';
 import { getConditionalRuleLabelFromItem } from '../../../components/common/Filters/FilterInputs/utils';
 import FiltersProvider from '../../../components/common/Filters/FiltersProvider';
@@ -196,6 +197,7 @@ const GuidedFilterSetup: FC<Props> = ({
     onSubPopoverOpen,
     onSubPopoverClose,
 }) => {
+    const { t } = useTranslation('dashboardFilters');
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const allFilters = useDashboardContext((c) => c.allFilters);
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
@@ -302,7 +304,9 @@ const GuidedFilterSetup: FC<Props> = ({
                                                         truncate
                                                     >
                                                         {isMultiMember
-                                                            ? 'At least one of'
+                                                            ? t(
+                                                                  'requirements.guided.atLeastOneOf',
+                                                              )
                                                             : getDashboardFilterRuleLabel(
                                                                   firstMember,
                                                                   getField,
@@ -412,6 +416,7 @@ export const GuidedFilterSetupProgress: FC<GuidedFilterSetupProgressProps> = ({
     onDismiss,
 }) => {
     const getUiString = useUiStrings();
+    const { t } = useTranslation('dashboardFilters');
     const satisfiedCount = rules.filter(isRequirementRuleSatisfied).length;
     const remainingCount = rules.length - satisfiedCount;
 
@@ -419,12 +424,17 @@ export const GuidedFilterSetupProgress: FC<GuidedFilterSetupProgressProps> = ({
         <Stack gap={6}>
             <Group justify="space-between">
                 <Text size="xs" c="dimmed">
-                    {satisfiedCount} of {rules.length} set
+                    {t('requirements.guided.progress', {
+                        satisfied: satisfiedCount,
+                        total: rules.length,
+                    })}
                 </Text>
                 <Text size="xs" c={remainingCount === 0 ? 'green' : 'ldGray.5'}>
                     {remainingCount === 0
-                        ? 'Loading your dashboard'
-                        : `${remainingCount} more to go`}
+                        ? t('requirements.guided.loading')
+                        : t('requirements.guided.remaining', {
+                              count: remainingCount,
+                          })}
                 </Text>
             </Group>
             <Progress

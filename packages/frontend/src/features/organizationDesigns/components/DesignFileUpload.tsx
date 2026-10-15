@@ -8,6 +8,7 @@ import {
 import { Box, FileButton, Group, Loader, Stack, Text } from '@mantine/core';
 import { IconUpload } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useUploadDesignFile } from '../hooks/useOrganizationDesigns';
@@ -66,6 +67,7 @@ export const DesignFileUpload: FC<Props> = ({
     themeName,
     existingFiles,
 }) => {
+    const { t } = useTranslation('settings');
     const uploadFile = useUploadDesignFile();
     const { showToastError } = useToaster();
     const [isDragging, setIsDragging] = useState(false);
@@ -85,18 +87,23 @@ export const DesignFileUpload: FC<Props> = ({
             const kind = inferKind(file.name);
             if (!kind) {
                 showToastError({
-                    title: `Unsupported file: ${file.name}`,
-                    subtitle:
-                        'Allowed: .css, .md, .png, .jpg, .jpeg, .gif, .webp, .svg, .woff, .woff2, .ttf, .otf',
+                    title: t('designs.upload.unsupportedTitle', {
+                        filename: file.name,
+                    }),
+                    subtitle: t('designs.upload.unsupportedSubtitle', {
+                        extensions: ACCEPT.split(',').join(', '),
+                    }),
                 });
                 continue;
             }
             if (file.size > MAX_THEME_FILE_BYTES) {
                 showToastError({
-                    title: `${file.name} is too large`,
-                    subtitle: `Files must be under ${formatMb(
-                        MAX_THEME_FILE_BYTES,
-                    )}.`,
+                    title: t('designs.upload.tooLargeTitle', {
+                        filename: file.name,
+                    }),
+                    subtitle: t('designs.upload.tooLargeSubtitle', {
+                        max: formatMb(MAX_THEME_FILE_BYTES),
+                    }),
                 });
                 continue;
             }
@@ -106,7 +113,9 @@ export const DesignFileUpload: FC<Props> = ({
             ]);
             if (violation) {
                 showToastError({
-                    title: `Can't add ${file.name}`,
+                    title: t('designs.upload.cantAddTitle', {
+                        filename: file.name,
+                    }),
                     subtitle: themeLimitMessage(violation, themeName),
                 });
                 continue;
@@ -166,8 +175,8 @@ export const DesignFileUpload: FC<Props> = ({
                 )}
                 <Text size="sm" c="dimmed" ta="center">
                     {uploadFile.isLoading
-                        ? 'Uploading…'
-                        : 'Drop files here or click to browse'}
+                        ? t('designs.upload.uploading')
+                        : t('designs.upload.dropHint')}
                 </Text>
                 <Group gap="xs">
                     <FileButton
@@ -182,7 +191,7 @@ export const DesignFileUpload: FC<Props> = ({
                         accept={ACCEPT}
                         multiple
                         inputProps={{
-                            'aria-label': 'Upload theme files',
+                            'aria-label': t('designs.upload.ariaLabel'),
                         }}
                     >
                         {(props) => (
@@ -194,7 +203,7 @@ export const DesignFileUpload: FC<Props> = ({
                                 type="button"
                                 className={classes.browseButton}
                             >
-                                Browse files
+                                {t('designs.upload.browse')}
                             </Text>
                         )}
                     </FileButton>

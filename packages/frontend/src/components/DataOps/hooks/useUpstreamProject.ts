@@ -1,5 +1,6 @@
 import { type ApiError, type UpdateMetadata } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -11,6 +12,7 @@ const updateProject = async (id: string, data: UpdateMetadata) =>
     });
 
 export const useUpdateMutation = (id: string) => {
+    const { t } = useTranslation('app');
     const queryClient = useQueryClient();
     const { showToastError, showToastSuccess } = useToaster();
     return useMutation<null, ApiError, UpdateMetadata>(
@@ -20,13 +22,13 @@ export const useUpdateMutation = (id: string) => {
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['project', id]);
                 showToastSuccess({
-                    title: `Project updated`,
-                    subtitle: `Project upstream project updated successfully`,
+                    title: t('dataOps.toast.updated'),
+                    subtitle: t('dataOps.toast.updatedSubtitle'),
                 });
             },
             onError: (error) => {
                 showToastError({
-                    title: `Failed to update project`,
+                    title: t('dataOps.toast.updateFailed'),
                     subtitle: error.error.message,
                 });
             },

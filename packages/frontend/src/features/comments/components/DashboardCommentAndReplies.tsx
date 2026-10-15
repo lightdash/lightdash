@@ -2,6 +2,7 @@ import { type Comment } from '@lightdash/common';
 import { Box, Button, Collapse, Divider, Stack } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { useCallback, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useApp from '../../../providers/App/useApp';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import {
@@ -29,6 +30,7 @@ export const DashboardCommentAndReplies: FC<Props> = ({
     targetRef,
     isResolved = false,
 }) => {
+    const { t } = useTranslation('comments');
     const { user } = useApp();
     const canCreateDashboardComments = !!useDashboardContext(
         (c) => c.dashboardCommentsCheck?.canCreateDashboardComments,
@@ -116,10 +118,9 @@ export const DashboardCommentAndReplies: FC<Props> = ({
                                 fz="xs"
                                 onClick={toggleReplies}
                             >
-                                {comment.replies.length}{' '}
-                                {comment.replies.length === 1
-                                    ? 'reply'
-                                    : 'replies'}
+                                {t('replies.count', {
+                                    count: comment.replies.length,
+                                })}
                             </Button>
                         }
                     />

@@ -15,12 +15,14 @@ import { useEditor, type Editor } from '@tiptap/react';
 import type { JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import ResizableSplitter from '../../../../components/common/ResizableSplitter';
 import {
     generateFieldSuggestion,
     sortFieldSuggestions,
     type FieldSuggestionItem,
 } from '../../../../components/common/SuggestionList';
+import i18n from '../../../../i18n/i18n';
 import styles from './FormulaEditor.module.css';
 import { FormulaReferenceBar, FormulaReferencePanel } from './FormulaReference';
 import {
@@ -134,7 +136,13 @@ const buildGhostPlugin = (state: GhostState) =>
                     }
                     const badge = document.createElement('kbd');
                     badge.className = classes.join(' ');
-                    badge.textContent = showRetry ? '⇥ Retry' : '⇥ Tab';
+                    badge.textContent = showRetry
+                        ? i18n.t('formula.editor.retryKey', {
+                              ns: 'tableCalculation',
+                          })
+                        : i18n.t('formula.editor.tabKey', {
+                              ns: 'tableCalculation',
+                          });
                     container.appendChild(badge);
                 }
 
@@ -172,11 +180,6 @@ type Props = {
     onReferenceToggle: (next: boolean) => void;
 };
 
-const PLACEHOLDER_FORMULA =
-    'Type @ to use your selected fields or # for functions. Example: =IF(@Revenue > 1000, "high", "low")';
-const PLACEHOLDER_DUAL =
-    'Describe the calculation, or type @ to use your selected fields — e.g. =SUM(@Revenue)';
-
 export const FormulaEditor: FC<Props> = ({
     explore,
     metricQuery,
@@ -195,6 +198,7 @@ export const FormulaEditor: FC<Props> = ({
     referenceOpened,
     onReferenceToggle,
 }) => {
+    const { t } = useTranslation('tableCalculation');
     const [currentText, setCurrentText] = useState(initialContent ?? '');
     const mode = getInputMode(currentText);
 
@@ -257,7 +261,9 @@ export const FormulaEditor: FC<Props> = ({
         [],
     );
 
-    const placeholder = aiEnabled ? PLACEHOLDER_DUAL : PLACEHOLDER_FORMULA;
+    const placeholder = aiEnabled
+        ? t('formula.editor.placeholderWithAi')
+        : t('formula.editor.placeholder');
     const placeholderRef = useRef(placeholder);
     placeholderRef.current = placeholder;
 
@@ -449,7 +455,7 @@ export const FormulaEditor: FC<Props> = ({
     return (
         <Box className={styles.container}>
             <ResizableSplitter
-                handleLabel="Resize formula reference"
+                handleLabel={t('formula.editor.resizeReference')}
                 classNames={{ handle: styles.resizeHandle }}
                 orientation="vertical"
                 className={styles.panelGroup}

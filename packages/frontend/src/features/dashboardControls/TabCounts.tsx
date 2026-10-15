@@ -1,6 +1,7 @@
 import { Badge, Tooltip } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { getTabCounts, getTabCountsForField } from './peers';
 import classes from './TabCounts.module.css';
@@ -13,6 +14,7 @@ const getTabSelector = (tabUuid: string) =>
     `[role="tab"][id$="-tab-${tabUuid}"]`;
 
 export const TabCounts: FC = () => {
+    const { t } = useTranslation('dashboardFilters');
     const { editingRule, isPlaceholder, activeFieldId } = useControlsSidebar();
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
@@ -65,7 +67,7 @@ export const TabCounts: FC = () => {
     ]);
 
     const getFilterSubject = (): string => {
-        if (activeFieldId === null) return 'this filter';
+        if (activeFieldId === null) return t('controls.tabCounts.thisFilter');
         const activeField = fieldsMap[activeFieldId];
         return activeField ? activeField.label : activeFieldId;
     };
@@ -85,7 +87,11 @@ export const TabCounts: FC = () => {
                 return createPortal(
                     <Tooltip
                         fz="xs"
-                        label={`${count.applied} of ${count.total} ${count.total === 1 ? 'tile on this tab is' : 'tiles on this tab are'} filtered by ${subject}`}
+                        label={t('controls.tabCounts.tooltip', {
+                            applied: count.applied,
+                            count: count.total,
+                            subject,
+                        })}
                     >
                         <Badge
                             size="xs"
@@ -96,7 +102,10 @@ export const TabCounts: FC = () => {
                             data-field-active={isFieldActive}
                             className={classes.count}
                         >
-                            {`${count.applied} of ${count.total}`}
+                            {t('controls.tabCounts.badge', {
+                                applied: count.applied,
+                                total: count.total,
+                            })}
                         </Badge>
                     </Tooltip>,
                     element,

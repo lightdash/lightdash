@@ -5,6 +5,7 @@ import {
     type DashboardFilters,
 } from '@lightdash/common';
 import { useEffect, useReducer, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
 import useToaster from './toaster/useToaster';
 
@@ -156,6 +157,7 @@ export const useSavedDashboardFiltersOverrides = (
     savedDashboardFilters?: DashboardFilters,
 ) => {
     const { search } = useLocation();
+    const { t } = useTranslation('app');
     const { showToastWarning } = useToaster();
     const searchParams = new URLSearchParams(search);
     const overridesForSavedDashboardFiltersParam = searchParams.get('filters');
@@ -183,12 +185,15 @@ export const useSavedDashboardFiltersOverrides = (
     useEffect(() => {
         if (parseErrorRef.current) {
             showToastWarning({
-                title: 'Could not restore filters from URL',
-                subtitle:
-                    'The link appears to be incomplete. Please ask for it to be shared again.',
+                title: t(
+                    'useSavedDashboardFiltersOverrides.couldNotRestoreFiltersFromUrl',
+                ),
+                subtitle: t(
+                    'useSavedDashboardFiltersOverrides.theLinkAppearsToBeIncomplete',
+                ),
             });
         }
-    }, [showToastWarning]);
+    }, [showToastWarning, t]);
 
     useEffect(() => {
         if (savedDashboardFilters) {

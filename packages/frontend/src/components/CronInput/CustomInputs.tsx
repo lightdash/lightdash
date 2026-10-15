@@ -1,6 +1,7 @@
 import { TextInput } from '@mantine/core';
 import cronstrue from 'cronstrue';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { isInvalidCronExpression } from '../../utils/fieldValidators';
 
 const CustomInputs: FC<{
@@ -10,15 +11,17 @@ const CustomInputs: FC<{
     error?: string;
     onChange: (value: string) => void;
 }> = ({ name, disabled, cronExpression, error, onChange }) => {
+    const { t } = useTranslation('scheduler');
     const cronHelperText = useMemo(() => {
-        const validationError =
-            isInvalidCronExpression('Cron expression')(cronExpression);
+        const validationError = isInvalidCronExpression(
+            t('cronInput.cronExpression'),
+        )(cronExpression);
         const cronHumanString = cronstrue.toString(cronExpression, {
             verbose: true,
             throwExceptionOnParseError: false,
         });
         return validationError ?? cronHumanString;
-    }, [cronExpression]);
+    }, [cronExpression, t]);
 
     return (
         <TextInput

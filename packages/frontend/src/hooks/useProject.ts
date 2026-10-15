@@ -24,6 +24,7 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
 import { lightdashApi } from '../api';
 import useActiveJob from '../providers/ActiveJob/useActiveJob';
@@ -111,6 +112,7 @@ export const useProject = (
 export const useUpdateMutation = (uuid: string) => {
     const queryClient = useQueryClient();
     const { setActiveJobId } = useActiveJob();
+    const { t } = useTranslation('app');
     const { showToastApiError } = useToaster();
     return useMutation<ApiJobStartedResults, ApiError, UpdateProject>(
         (data) => updateProject(uuid, data),
@@ -129,7 +131,7 @@ export const useUpdateMutation = (uuid: string) => {
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to update project`,
+                    title: t('useProject.failedToUpdateProject'),
                     apiError: error,
                 });
             },
@@ -142,6 +144,7 @@ export const useCreateMutation = (options?: {
     warehouseOnly?: boolean;
 }) => {
     const { setActiveJobId, setQuietActiveJobId } = useActiveJob();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastInfo } = useToaster();
     const { track } = useTracking();
     const { pathname } = useLocation();
@@ -185,7 +188,7 @@ export const useCreateMutation = (options?: {
                     },
                 });
                 showToastApiError({
-                    title: `Failed to create project`,
+                    title: t('useProject.failedToCreateProject'),
                     apiError: error,
                 });
             },
@@ -195,6 +198,7 @@ export const useCreateMutation = (options?: {
 
 export const useCreateProjectWithoutCompileMutation = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError } = useToaster();
     return useMutation<ApiCreateProjectResults, ApiError, CreateProject>(
         (data) => createProjectWithoutCompile(data),
@@ -206,7 +210,7 @@ export const useCreateProjectWithoutCompileMutation = () => {
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to create project',
+                    title: t('useProject.failedToCreateProject'),
                     apiError: error,
                 });
             },
@@ -240,6 +244,7 @@ const testWarehouseConnection = async (
     });
 
 export const useTestWarehouseConnectionMutation = (uuid: string) => {
+    const { t } = useTranslation('app');
     const { showToastApiError } = useToaster();
     return useMutation<
         WarehouseConnectionTestResults,
@@ -254,7 +259,7 @@ export const useTestWarehouseConnectionMutation = (uuid: string) => {
             mutationKey: ['project_warehouse_connection_test', uuid],
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Could not run the connection test',
+                    title: t('useProject.couldNotRunTheConnectionTest'),
                     apiError: error,
                 });
             },
@@ -264,6 +269,7 @@ export const useTestWarehouseConnectionMutation = (uuid: string) => {
 
 export const useUpdateWarehouseCredentialsMutation = (uuid: string) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<undefined, ApiError, CreateWarehouseCredentials>(
         (warehouseCredentials) =>
@@ -272,13 +278,13 @@ export const useUpdateWarehouseCredentialsMutation = (uuid: string) => {
             mutationKey: ['project_warehouse_credentials_update', uuid],
             onSuccess: async () => {
                 showToastSuccess({
-                    title: 'Warehouse credentials updated',
+                    title: t('useProject.warehouseCredentialsUpdated'),
                 });
                 await queryClient.invalidateQueries(['project', uuid]);
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to update warehouse credentials',
+                    title: t('useProject.failedToUpdateWarehouseCredentials'),
                     apiError: error,
                 });
             },
@@ -398,6 +404,7 @@ const updateProjectColorPalette = async (
 
 export const useUpdateProjectColorPalette = (uuid: string) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<undefined, ApiError, string | null>(
         (colorPaletteUuid) => updateProjectColorPalette(uuid, colorPaletteUuid),
@@ -406,12 +413,12 @@ export const useUpdateProjectColorPalette = (uuid: string) => {
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['project', uuid]);
                 showToastSuccess({
-                    title: 'Project color palette updated',
+                    title: t('useProject.projectColorPaletteUpdated'),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to update project color palette',
+                    title: t('useProject.failedToUpdateProjectColorPalette'),
                     apiError: error,
                 });
             },
@@ -421,6 +428,7 @@ export const useUpdateProjectColorPalette = (uuid: string) => {
 
 export const useUpdateDefaultUserSpaces = (uuid: string) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<undefined, ApiError, UpdateDefaultUserSpaces>(
         (data) => updateDefaultUserSpaces(uuid, data),
@@ -429,12 +437,12 @@ export const useUpdateDefaultUserSpaces = (uuid: string) => {
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['project', uuid]);
                 showToastSuccess({
-                    title: 'Default user spaces updated',
+                    title: t('useProject.defaultUserSpacesUpdated'),
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to update default user spaces',
+                    title: t('useProject.failedToUpdateDefaultUserSpaces'),
                     apiError: error,
                 });
             },

@@ -2,6 +2,7 @@ import { MergeJoinType } from '@lightdash/common';
 import { Box, Group, Paper, Text, ThemeIcon } from '@mantine/core';
 import { IconArrowMerge } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
@@ -14,6 +15,7 @@ import { getJoinClauseLabel } from './mergeJoinLabels';
  * merged numbers with nothing saying where half of them came from.
  */
 export const MergeReadOnlyBar: FC = () => {
+    const { t } = useTranslation('mergeQuery');
     const merge = useMergeSafe();
     const {
         effectiveParts,
@@ -39,19 +41,19 @@ export const MergeReadOnlyBar: FC = () => {
                 : '?';
 
             return getJoinClauseLabel(
-                primaryExploreLabel ?? 'First data',
+                primaryExploreLabel ?? t('labels.firstData'),
                 primaryField,
-                additionalExploreLabel ?? 'Combined data',
+                additionalExploreLabel ?? t('labels.combinedData'),
                 additionalField,
             );
         })
-        .join(' AND ');
+        .join(` ${t('labels.and')} `);
     const keepLabel =
         merge.joinType === MergeJoinType.LEFT
-            ? `Keep ${primaryExploreLabel}`
+            ? t('readOnlyBar.keep', { label: primaryExploreLabel })
             : merge.joinType === MergeJoinType.INNER
-              ? 'Matches only'
-              : 'Keep all rows';
+              ? t('readOnlyBar.matchesOnly')
+              : t('readOnlyBar.keepAllRows');
     const runError = merge.mergeResults?.results.error ?? null;
 
     return (
@@ -77,16 +79,21 @@ export const MergeReadOnlyBar: FC = () => {
                         </Text>
                     </Group>
                     <Text size="xs" c="dimmed" truncate>
-                        Matched on{' '}
-                        <Text span size="xs" fw={600} c="gray.7">
-                            {keys}
-                        </Text>{' '}
-                        · {keepLabel}
+                        <Trans
+                            t={t}
+                            i18nKey="readOnlyBar.matchedOn"
+                            values={{ keys, keep: keepLabel }}
+                            components={{
+                                bold: (
+                                    <Text span size="xs" fw={600} c="gray.7" />
+                                ),
+                            }}
+                        />
                     </Text>
                 </Box>
                 {runError && (
                     <Text size="xs" c="orange.8" truncate>
-                        {runError.error?.message ?? 'The merge failed to run'}
+                        {runError.error?.message ?? t('readOnlyBar.runFailed')}
                     </Text>
                 )}
             </Group>

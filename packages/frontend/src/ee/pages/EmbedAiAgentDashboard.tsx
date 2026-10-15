@@ -2,6 +2,7 @@ import { Button, Group, Stack } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import clsx from 'clsx';
 import { type CSSProperties, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../components/common/MantineIcon';
 import useEmbed from '../providers/Embed/useEmbed';
 import styles from './EmbedAiAgentDashboard.module.css';
@@ -16,6 +17,7 @@ const DASHBOARD_CONTAINER_STYLES: CSSProperties = {
 
 /** A saved dashboard opened from an embedded AI conversation, read-only. */
 const EmbedAiAgentDashboardPage: FC = () => {
+    const { t } = useTranslation('embed');
     const { onBackToDashboard, mode } = useEmbed();
 
     return (
@@ -32,7 +34,7 @@ const EmbedAiAgentDashboardPage: FC = () => {
                         leftSection={<MantineIcon icon={IconArrowLeft} />}
                         onClick={onBackToDashboard}
                     >
-                        Back to AI
+                        {t('page.backToAi')}
                     </Button>
                 </Group>
             )}

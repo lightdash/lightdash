@@ -11,6 +11,7 @@ import {
 import { IconPlus } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MultiValuePastePopover from '../../../../components/common/Filters/FilterInputs/MultiValuePastePopover';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { MultiSelectCombobox } from '../../../../components/common/MultiSelectCombobox/MultiSelectCombobox';
@@ -50,6 +51,7 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
     comboboxProps,
     ...rest
 }) => {
+    const { t } = useTranslation('metricsCatalog');
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -177,7 +179,11 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
                 createLabel={
                     <Group gap="xxs">
                         <MantineIcon icon={IconPlus} color="blue" size="sm" />
-                        <Text c="blue">Add "{search.trim()}"</Text>
+                        <Text c="blue">
+                            {t('autocomplete.addValue', {
+                                value: search.trim(),
+                            })}
+                        </Text>
                     </Group>
                 }
                 classNames={{
@@ -196,7 +202,9 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
                 onSearchChange={setSearch}
                 onPaste={handlePaste}
                 nothingFoundMessage={
-                    isInitialLoading ? 'Loading...' : 'No results found'
+                    isInitialLoading
+                        ? t('autocomplete.loading')
+                        : t('autocomplete.noResults')
                 }
                 rightSection={
                     isInitialLoading ? <Loader size="xs" color="gray" /> : null
@@ -204,8 +212,13 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
                 topContent={
                     searchedMaxResults ? (
                         <Text c="dimmed" size="xs" px="sm" pt="xs" pb="xxs">
-                            Showing first {MAX_AUTOCOMPLETE_RESULTS} results.{' '}
-                            {search ? 'Continue' : 'Start'} typing...
+                            {search
+                                ? t('autocomplete.showingFirstContinue', {
+                                      count: MAX_AUTOCOMPLETE_RESULTS,
+                                  })
+                                : t('autocomplete.showingFirstStart', {
+                                      count: MAX_AUTOCOMPLETE_RESULTS,
+                                  })}
                         </Text>
                     ) : null
                 }
@@ -213,7 +226,7 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
                     healthData?.hasCacheAutocompleResults ? (
                         <Tooltip
                             position="left"
-                            label="Click here to refresh cache filter values"
+                            label={t('autocomplete.refreshCache')}
                         >
                             <Text
                                 c="dimmed"
@@ -223,7 +236,9 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
                                 className={styles.cacheHint}
                                 onClick={() => setForceRefresh(true)}
                             >
-                                Results loaded at {refreshedAt.toLocaleString()}
+                                {t('autocomplete.loadedAt', {
+                                    date: refreshedAt.toLocaleString(),
+                                })}
                             </Text>
                         </Tooltip>
                     ) : null

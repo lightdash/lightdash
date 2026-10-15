@@ -3,6 +3,7 @@ import {
     type ApiError,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
+import i18n from '../../../i18n/i18n';
 
 type UploadFileParams = {
     projectUuid: string;
@@ -38,7 +39,10 @@ const uploadFile = async ({
         headers: { 'Content-Type': file.type || 'application/octet-stream' },
     });
     if (!response.ok) {
-        let message = `Upload failed: ${response.status}`;
+        let message = i18n.t('upload.failed', {
+            ns: 'apps',
+            status: response.status,
+        });
         try {
             const errorBody = await response.json();
             message = errorBody?.error?.message ?? message;

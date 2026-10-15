@@ -48,6 +48,7 @@ import {
 } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router';
 import { useDebounce } from 'react-use';
 import {
@@ -101,6 +102,7 @@ const SortableColumn: FC<{
     column: { name: string; uuid: string; visible: boolean; frozen: boolean };
     onToggleVisibility: () => void;
 }> = ({ column, onToggleVisibility }) => {
+    const { t } = useTranslation('metricsCatalog');
     const { attributes, listeners, setNodeRef, transform, transition } =
         useSortable({
             id: column.uuid,
@@ -122,7 +124,7 @@ const SortableColumn: FC<{
             <Group gap={4}>
                 <Tooltip
                     disabled={!column.frozen}
-                    label={`The ${column.name} column is pinned for usability`}
+                    label={t('toolbar.columnPinned', { column: column.name })}
                     position="top"
                 >
                     <Box>
@@ -131,7 +133,9 @@ const SortableColumn: FC<{
                             color="ldGray.5"
                             {...attributes}
                             {...listeners}
-                            aria-label={`Reorder ${column.name} column`}
+                            aria-label={t('toolbar.reorderColumn', {
+                                column: column.name,
+                            })}
                             disabled={column.frozen}
                         >
                             <MantineIcon icon={IconGripVertical} />
@@ -146,7 +150,7 @@ const SortableColumn: FC<{
                 data-tour-anchor="catalog-column-toggle"
                 data-tour-hint="Toggle the {value} column"
                 data-tour-value={column.name}
-                aria-label={`Toggle ${column.name} column`}
+                aria-label={t('toolbar.toggleColumn', { column: column.name })}
                 aria-pressed={column.visible}
                 size="xs"
                 color="ldGray.5"
@@ -183,6 +187,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
         hiddenFilters,
         ...props
     }) => {
+        const { t } = useTranslation('metricsCatalog');
         const [search, setSearch] = useState(_search);
         const showCategories =
             showCategoriesFilter && !hiddenFilters.includes('categories');
@@ -375,7 +380,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         })}
                         type="search"
                         variant="default"
-                        placeholder="Search by name or description"
+                        placeholder={t('toolbar.searchPlaceholder')}
                         value={search ?? ''}
                         leftSection={
                             <MantineIcon
@@ -389,7 +394,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         rightSection={
                             search && (
                                 <ActionIcon
-                                    aria-label="Clear search"
+                                    aria-label={t('toolbar.clearSearch')}
                                     onMouseDown={(event) =>
                                         event.preventDefault()
                                     }
@@ -452,7 +457,9 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         <Group gap={6}>
                             <TotalMetricsDot />
                             <Text fz="sm" fw={500}>
-                                {totalResults} metrics
+                                {t('toolbar.metricsCount', {
+                                    count: totalResults,
+                                })}
                             </Text>
                         </Group>
                     </Badge>
@@ -466,12 +473,12 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         <Popover.Target>
                             <Tooltip
                                 maw={150}
-                                label="Manage column visibility"
+                                label={t('toolbar.manageColumns')}
                                 position="top"
                             >
                                 <ActionIcon
                                     variant="transparent"
-                                    aria-label="Manage column visibility"
+                                    aria-label={t('toolbar.manageColumns')}
                                     className={classes.columnTrigger}
                                     size="xs"
                                     color="ldGray.5"
@@ -572,8 +579,12 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                                 position="bottom"
                                                 label={
                                                     hasConfigChanges
-                                                        ? 'Discard unsaved changes'
-                                                        : 'Reset configuration for everyone'
+                                                        ? t(
+                                                              'toolbar.discardChanges',
+                                                          )
+                                                        : t(
+                                                              'toolbar.resetForEveryone',
+                                                          )
                                                 }
                                             >
                                                 <Button
@@ -593,8 +604,8 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                                     }
                                                 >
                                                     {hasConfigChanges
-                                                        ? 'Discard'
-                                                        : 'Reset'}
+                                                        ? t('toolbar.discard')
+                                                        : t('toolbar.reset')}
                                                 </Button>
                                             </Tooltip>
 
@@ -614,13 +625,13 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                                     isCreatingSpotlightConfig
                                                 }
                                             >
-                                                Save for everyone
+                                                {t('toolbar.saveForEveryone')}
                                             </Button>
                                         </>
                                     ) : (
                                         <Tooltip
                                             position="bottom"
-                                            label={'Discard unsaved changes'}
+                                            label={t('toolbar.discardChanges')}
                                         >
                                             <Button
                                                 fullWidth
@@ -635,7 +646,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                                         theme.shadows.subtle,
                                                 })}
                                             >
-                                                Discard
+                                                {t('toolbar.discard')}
                                             </Button>
                                         </Tooltip>
                                     )}
@@ -675,12 +686,12 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             {
                                 label: (
                                     <Tooltip
-                                        label="List view"
+                                        label={t('toolbar.listView')}
                                         position="bottom-end"
                                     >
                                         <Center>
                                             <VisuallyHidden>
-                                                List view
+                                                {t('toolbar.listView')}
                                             </VisuallyHidden>
                                             <MantineIcon
                                                 icon={IconList}
@@ -694,7 +705,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             {
                                 label: (
                                     <Tooltip
-                                        label="Canvas"
+                                        label={t('toolbar.canvas')}
                                         position="bottom-end"
                                     >
                                         <Center
@@ -711,7 +722,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                             data-tour-docs="explore/metrics-catalog/build-saved-trees.mdx#intro:p3:1"
                                         >
                                             <VisuallyHidden>
-                                                Canvas
+                                                {t('toolbar.canvas')}
                                             </VisuallyHidden>
                                             <MantineIcon
                                                 icon={IconSitemap}

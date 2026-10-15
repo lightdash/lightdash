@@ -4,6 +4,7 @@ import { useClipboard } from '@mantine/hooks';
 import { IconArrowBarToDown, IconCopy } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -26,6 +27,7 @@ const BigNumberContextMenu: FC<
     React.PropsWithChildren<BigNumberContextMenuProps>
 > = ({ children, isMinimal = false, canDrillInto, canViewUnderlyingData }) => {
     const clipboard = useClipboard({ timeout: 200 });
+    const { t } = useTranslation('visualization');
     const { showToastSuccess } = useToaster();
     const { resultsData, visualizationConfig, itemsMap } =
         useVisualizationContext();
@@ -73,7 +75,7 @@ const BigNumberContextMenu: FC<
     const handleCopyToClipboard = () => {
         if (!value) return;
         clipboard.copy(value.formatted);
-        showToastSuccess({ title: 'Copied to clipboard!' });
+        showToastSuccess({ title: t('contextMenu.copiedToClipboard') });
     };
 
     const handleViewUnderlyingData = () => {
@@ -121,7 +123,7 @@ const BigNumberContextMenu: FC<
                         leftSection={<MantineIcon icon={IconCopy} />}
                         onClick={handleCopyToClipboard}
                     >
-                        Copy value
+                        {t('contextMenu.copyValue')}
                     </Menu.Item>
                 )}
 
@@ -137,7 +139,7 @@ const BigNumberContextMenu: FC<
                         leftSection={<MantineIcon icon={IconArrowBarToDown} />}
                         onClick={handleOpenDrillIntoModal}
                     >
-                        Drill into{' '}
+                        {t('contextMenu.drillIntoPrefix')}{' '}
                         <Text span fw="bold" fz="sm">
                             {value.formatted}
                         </Text>

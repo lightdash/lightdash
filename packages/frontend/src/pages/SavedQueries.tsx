@@ -2,6 +2,7 @@ import { ContentType, LightdashMode } from '@lightdash/common';
 import { Group, Stack, Button } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
@@ -13,6 +14,7 @@ import useApp from '../providers/App/useApp';
 import { FavoritesProvider } from '../providers/Favorites/FavoritesProvider';
 
 const SavedQueries: FC = () => {
+    const { t } = useTranslation('pages');
     const authoringEnabled = useContentAuthoringEnabled();
     const projectUuid = useProjectUuid();
     const { health } = useApp();
@@ -31,7 +33,7 @@ const SavedQueries: FC = () => {
     return (
         <FavoritesProvider projectUuid={projectUuid}>
             <Page
-                title="Saved charts"
+                title={t('savedQueries.title')}
                 withCenteredRoot
                 withCenteredContent
                 withXLargePaddedContent
@@ -41,8 +43,11 @@ const SavedQueries: FC = () => {
                     <Group justify="space-between">
                         <PageBreadcrumbs
                             items={[
-                                { title: 'Home', to: '/home' },
-                                { title: 'All saved charts', active: true },
+                                { title: t('common.home'), to: '/home' },
+                                {
+                                    title: t('savedQueries.allSavedCharts'),
+                                    active: true,
+                                },
                             ]}
                         />
                         {!isDemo && userCanCreateCharts ? (
@@ -51,7 +56,7 @@ const SavedQueries: FC = () => {
                                 leftSection={<IconPlus size={18} />}
                                 onClick={handleCreateChart}
                             >
-                                Create chart
+                                {t('savedQueries.createChart')}
                             </Button>
                         ) : undefined}
                     </Group>

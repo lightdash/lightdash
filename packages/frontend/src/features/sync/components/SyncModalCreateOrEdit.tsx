@@ -1,5 +1,6 @@
 import { Button } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import ErrorState from '../../../components/common/ErrorState';
 import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
 import MantineModal, {
@@ -22,6 +23,7 @@ export const SyncModalCreateOrEdit: FC<Props> = ({
     opened,
     onClose,
 }) => {
+    const { t } = useTranslation('sync');
     const { setAction } = useSyncModal();
     const {
         form,
@@ -36,7 +38,7 @@ export const SyncModalCreateOrEdit: FC<Props> = ({
     const hasSetGoogleSheet = form.values.options.gdriveId !== '';
 
     if (isEditing && isLoadingSchedulerData) {
-        return <SuboptimalState title="Loading Sync" loading />;
+        return <SuboptimalState title={t('modal.loadingSync')} loading />;
     }
 
     if (isEditing && isSchedulerError && schedulerError) {
@@ -50,7 +52,7 @@ export const SyncModalCreateOrEdit: FC<Props> = ({
             <MantineModal
                 opened={opened}
                 onClose={onClose}
-                title="Sync with Google Sheets"
+                title={t('modal.title')}
                 icon={GSheetsIcon}
                 size="xl"
                 onCancel={() => setAction(SyncModalAction.VIEW)}
@@ -64,7 +66,9 @@ export const SyncModalCreateOrEdit: FC<Props> = ({
                         disabled={!hasSetGoogleSheet || !form.isValid()}
                         loading={isLoading}
                     >
-                        {isEditing ? 'Save changes' : 'Create'}
+                        {isEditing
+                            ? t('form.saveChanges')
+                            : t('actions.create', { ns: 'common' })}
                     </Button>
                 }
             >

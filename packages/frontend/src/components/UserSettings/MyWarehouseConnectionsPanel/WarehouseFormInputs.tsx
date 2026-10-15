@@ -25,6 +25,7 @@ import {
     IconInfoCircle,
 } from '@tabler/icons-react';
 import { type FC, useEffect, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useGoogleLoginPopup } from '../../../hooks/gdrive/useGdrive';
 import { useDatabricksLoginPopup } from '../../../hooks/useDatabricks';
 import { useProject } from '../../../hooks/useProject';
@@ -89,6 +90,7 @@ export const SnowflakeFormInput: FC<{
     form?: UseFormReturnType<UpsertUserWarehouseCredentials>;
     onClose: () => void;
 }> = ({ disabled = false, form, onClose }) => {
+    const { t } = useTranslation('userSettings');
     const [privateKeyFile, setPrivateKeyFile] = useState<File | null>(null);
     const { mutate: openLoginPopup, isSsoEnabled } = useSnowflakeLoginPopup({
         onLogin: async () => {
@@ -142,7 +144,9 @@ export const SnowflakeFormInput: FC<{
                 required
                 allowDeselect={false}
                 size="xs"
-                label="Authentication type"
+                label={t(
+                    'myWarehouseConnectionsPanel.warehouseFormInputs.authenticationTypeLabel',
+                )}
                 data={authenticationOptions}
                 value={authenticationType}
                 disabled={disabled}
@@ -170,7 +174,9 @@ export const SnowflakeFormInput: FC<{
                     <TextInput
                         required
                         size="xs"
-                        label="Username/email"
+                        label={t(
+                            'myWarehouseConnectionsPanel.warehouseFormInputs.usernameLabel',
+                        )}
                         disabled={disabled}
                         {...form.getInputProps('credentials.user')}
                     />
@@ -180,9 +186,15 @@ export const SnowflakeFormInput: FC<{
                             <FileInput
                                 required
                                 size="xs"
-                                label="Private key file"
-                                description="Upload your Snowflake .p8 private key."
-                                placeholder="Choose file..."
+                                label={t(
+                                    'myWarehouseConnectionsPanel.warehouseFormInputs.privateKeyFileLabel',
+                                )}
+                                description={t(
+                                    'myWarehouseConnectionsPanel.warehouseFormInputs.privateKeyFileDescription',
+                                )}
+                                placeholder={t(
+                                    'myWarehouseConnectionsPanel.warehouseFormInputs.privateKeyFilePlaceholder',
+                                )}
                                 accept=".p8"
                                 value={privateKeyFile}
                                 disabled={disabled}
@@ -224,8 +236,12 @@ export const SnowflakeFormInput: FC<{
                             />
                             <PasswordInput
                                 size="xs"
-                                label="Private key passphrase"
-                                description="Optional passphrase for encrypted private keys."
+                                label={t(
+                                    'myWarehouseConnectionsPanel.warehouseFormInputs.privateKeyPassphraseLabel',
+                                )}
+                                description={t(
+                                    'myWarehouseConnectionsPanel.warehouseFormInputs.privateKeyPassphraseDescription',
+                                )}
                                 disabled={disabled}
                                 {...form.getInputProps(
                                     'credentials.privateKeyPass',
@@ -236,7 +252,9 @@ export const SnowflakeFormInput: FC<{
                         <PasswordInput
                             required
                             size="xs"
-                            label="Password"
+                            label={t(
+                                'myWarehouseConnectionsPanel.warehouseFormInputs.passwordLabel',
+                            )}
                             disabled={disabled}
                             {...form.getInputProps('credentials.password')}
                         />
@@ -262,6 +280,7 @@ const DatabricksFormInputs: FC<{
     projectName,
     credentialsName,
 }) => {
+    const { t } = useTranslation('userSettings');
     const { mutate: openLoginPopup, isSsoEnabled } = useDatabricksLoginPopup({
         onLogin: async () => {
             onClose();
@@ -283,7 +302,9 @@ const DatabricksFormInputs: FC<{
                     required
                     allowDeselect={false}
                     size="xs"
-                    label="Authentication type"
+                    label={t(
+                        'myWarehouseConnectionsPanel.warehouseFormInputs.authenticationTypeLabel',
+                    )}
                     data={[
                         {
                             value: DatabricksAuthenticationType.OAUTH_U2M,
@@ -312,8 +333,12 @@ const DatabricksFormInputs: FC<{
                 <PasswordInput
                     required
                     size="xs"
-                    label="Personal access token"
-                    description="Create a personal access token in your Databricks user settings."
+                    label={t(
+                        'myWarehouseConnectionsPanel.warehouseFormInputs.personalAccessTokenLabel',
+                    )}
+                    description={t(
+                        'myWarehouseConnectionsPanel.warehouseFormInputs.personalAccessTokenDescription',
+                    )}
                     disabled={disabled}
                     {...form.getInputProps('credentials.personalAccessToken')}
                 />
@@ -339,6 +364,7 @@ const RedshiftIamFormInputs: FC<{
     projectName,
     isAwsSsoConfigured,
 }) => {
+    const { t } = useTranslation('userSettings');
     const redshiftCredentials =
         form.values.credentials.type === WarehouseTypes.REDSHIFT
             ? form.values.credentials
@@ -375,9 +401,13 @@ const RedshiftIamFormInputs: FC<{
                     disabled={isAwsSsoDisabled}
                     disabledTooltip={
                         !projectUuid
-                            ? 'Open this from a Redshift project to sign in with AWS'
+                            ? t(
+                                  'myWarehouseConnectionsPanel.warehouseFormInputs.redshiftIam.openFromProjectTooltip',
+                              )
                             : !isAwsSsoConfigured
-                              ? 'Ask an admin to configure AWS IAM Identity Center on the Redshift project connection'
+                              ? t(
+                                    'myWarehouseConnectionsPanel.warehouseFormInputs.redshiftIam.askAdminTooltip',
+                                )
                               : undefined
                     }
                     loading={isAwsSsoLoading}
@@ -392,21 +422,27 @@ const RedshiftIamFormInputs: FC<{
 
                 {!projectUuid && (
                     <Text fz="xs" c="dimmed">
-                        Browser sign-in is available from a project that has AWS
-                        IAM Identity Center configured.
+                        {t(
+                            'myWarehouseConnectionsPanel.warehouseFormInputs.redshiftIam.browserSignInUnavailable',
+                        )}
                     </Text>
                 )}
                 {projectUuid && !isAwsSsoConfigured && (
                     <Text fz="xs" c="dimmed">
-                        Ask an admin to configure AWS IAM Identity Center on the
-                        Redshift project connection.
+                        {t(
+                            'myWarehouseConnectionsPanel.warehouseFormInputs.redshiftIam.askAdmin',
+                        )}
                     </Text>
                 )}
 
                 <TextInput
                     size="xs"
-                    label="Database user"
-                    description="Optional. Leave blank to use the IAM identity as the Redshift database user."
+                    label={t(
+                        'myWarehouseConnectionsPanel.warehouseFormInputs.redshiftIam.databaseUserLabel',
+                    )}
+                    description={t(
+                        'myWarehouseConnectionsPanel.warehouseFormInputs.redshiftIam.databaseUserDescription',
+                    )}
                     disabled={disabled}
                     {...form.getInputProps('credentials.user')}
                 />
@@ -419,20 +455,24 @@ const RedshiftIamFormInputs: FC<{
             <Alert color="blue" icon={<MantineIcon icon={IconInfoCircle} />}>
                 <Stack gap="xxs">
                     <Text fz="xs">
-                        Paste temporary AWS credentials generated from your
-                        terminal. For AWS SSO, log in first, then export the
-                        credentials.
+                        {t(
+                            'myWarehouseConnectionsPanel.warehouseFormInputs.redshiftIam.alert.pasteCredentials',
+                        )}
                     </Text>
                     <Code fz="xs">
                         aws configure export-credentials --format env-no-export
                     </Code>
                     <Text fz="xs">
-                        For a named SSO profile, add{' '}
-                        <Code fz="xs">--profile your-profile</Code>.
+                        <Trans
+                            t={t}
+                            i18nKey="myWarehouseConnectionsPanel.warehouseFormInputs.redshiftIam.alert.namedProfile"
+                            components={{ code: <Code fz="xs" /> }}
+                        />
                     </Text>
                     <Text fz="xs">
-                        Or use the advanced options to provide an IAM role that
-                        Lightdash can assume.
+                        {t(
+                            'myWarehouseConnectionsPanel.warehouseFormInputs.redshiftIam.alert.advancedOptions',
+                        )}
                     </Text>
                 </Stack>
             </Alert>
@@ -440,23 +480,35 @@ const RedshiftIamFormInputs: FC<{
             <TextInput
                 withAsterisk
                 size="xs"
-                label="AWS access key ID"
-                description="Paste AWS_ACCESS_KEY_ID from the export command."
+                label={t(
+                    'myWarehouseConnectionsPanel.warehouseFormInputs.redshiftIam.accessKeyIdLabel',
+                )}
+                description={t(
+                    'myWarehouseConnectionsPanel.warehouseFormInputs.redshiftIam.accessKeyIdDescription',
+                )}
                 disabled={disabled}
                 {...form.getInputProps('credentials.accessKeyId')}
             />
             <PasswordInput
                 withAsterisk
                 size="xs"
-                label="AWS secret access key"
-                description="Paste AWS_SECRET_ACCESS_KEY from the export command."
+                label={t(
+                    'myWarehouseConnectionsPanel.warehouseFormInputs.redshiftIam.secretAccessKeyLabel',
+                )}
+                description={t(
+                    'myWarehouseConnectionsPanel.warehouseFormInputs.redshiftIam.secretAccessKeyDescription',
+                )}
                 disabled={disabled}
                 {...form.getInputProps('credentials.secretAccessKey')}
             />
             <PasswordInput
                 size="xs"
-                label="AWS session token"
-                description="Paste AWS_SESSION_TOKEN. Required for AWS SSO and temporary credentials."
+                label={t(
+                    'myWarehouseConnectionsPanel.warehouseFormInputs.redshiftIam.sessionTokenLabel',
+                )}
+                description={t(
+                    'myWarehouseConnectionsPanel.warehouseFormInputs.redshiftIam.sessionTokenDescription',
+                )}
                 disabled={disabled}
                 {...form.getInputProps('credentials.sessionToken')}
             />
@@ -475,29 +527,43 @@ const RedshiftIamFormInputs: FC<{
                 }
                 onClick={() => setIsAdvancedOpen((isOpen) => !isOpen)}
             >
-                Advanced IAM options
+                {t(
+                    'myWarehouseConnectionsPanel.warehouseFormInputs.redshiftIam.advancedOptions',
+                )}
             </Button>
 
             <Collapse expanded={isAdvancedOpen}>
                 <Stack gap="xs">
                     <TextInput
                         size="xs"
-                        label="Database user"
-                        description="Optional. Leave blank to use the IAM identity as the Redshift database user."
+                        label={t(
+                            'myWarehouseConnectionsPanel.warehouseFormInputs.redshiftIam.databaseUserLabel',
+                        )}
+                        description={t(
+                            'myWarehouseConnectionsPanel.warehouseFormInputs.redshiftIam.databaseUserDescription',
+                        )}
                         disabled={disabled}
                         {...form.getInputProps('credentials.user')}
                     />
                     <TextInput
                         size="xs"
-                        label="Assume role ARN"
-                        description="Optional. IAM role to assume before requesting Redshift credentials."
+                        label={t(
+                            'myWarehouseConnectionsPanel.warehouseFormInputs.redshiftIam.assumeRoleArnLabel',
+                        )}
+                        description={t(
+                            'myWarehouseConnectionsPanel.warehouseFormInputs.redshiftIam.assumeRoleArnDescription',
+                        )}
                         disabled={disabled}
                         {...form.getInputProps('credentials.assumeRoleArn')}
                     />
                     <TextInput
                         size="xs"
-                        label="Assume role external ID"
-                        description="Optional. Only required when the IAM role trust policy requires it."
+                        label={t(
+                            'myWarehouseConnectionsPanel.warehouseFormInputs.redshiftIam.assumeRoleExternalIdLabel',
+                        )}
+                        description={t(
+                            'myWarehouseConnectionsPanel.warehouseFormInputs.redshiftIam.assumeRoleExternalIdDescription',
+                        )}
                         disabled={disabled}
                         {...form.getInputProps(
                             'credentials.assumeRoleExternalId',
@@ -528,6 +594,7 @@ export const WarehouseFormInputs: FC<{
     databricksCredentialsName,
     existingAthenaAccessKeyId,
 }) => {
+    const { t } = useTranslation('userSettings');
     const { data: project } = useProject(projectUuid, {
         enabled:
             form.values.credentials.type === WarehouseTypes.REDSHIFT &&
@@ -586,14 +653,18 @@ export const WarehouseFormInputs: FC<{
                     <TextInput
                         required
                         size="xs"
-                        label="Username/email"
+                        label={t(
+                            'myWarehouseConnectionsPanel.warehouseFormInputs.usernameLabel',
+                        )}
                         disabled={disabled}
                         {...form.getInputProps('credentials.user')}
                     />
                     <PasswordInput
                         required
                         size="xs"
-                        label="Password"
+                        label={t(
+                            'myWarehouseConnectionsPanel.warehouseFormInputs.passwordLabel',
+                        )}
                         disabled={disabled}
                         {...form.getInputProps('credentials.password')}
                     />
@@ -606,15 +677,21 @@ export const WarehouseFormInputs: FC<{
                         <Select
                             required
                             size="xs"
-                            label="Authentication type"
+                            label={t(
+                                'myWarehouseConnectionsPanel.warehouseFormInputs.authenticationTypeLabel',
+                            )}
                             data={[
                                 {
                                     value: RedshiftAuthenticationType.PASSWORD,
-                                    label: 'Username & password',
+                                    label: t(
+                                        'myWarehouseConnectionsPanel.warehouseFormInputs.redshiftAuth.usernamePassword',
+                                    ),
                                 },
                                 {
                                     value: RedshiftAuthenticationType.IAM,
-                                    label: 'AWS IAM (CLI credentials)',
+                                    label: t(
+                                        'myWarehouseConnectionsPanel.warehouseFormInputs.redshiftAuth.iamCli',
+                                    ),
                                 },
                                 {
                                     value: RedshiftAuthenticationType.IAM_BROWSER,
@@ -649,14 +726,18 @@ export const WarehouseFormInputs: FC<{
                             <TextInput
                                 required
                                 size="xs"
-                                label="Username/email"
+                                label={t(
+                                    'myWarehouseConnectionsPanel.warehouseFormInputs.usernameLabel',
+                                )}
                                 disabled={disabled}
                                 {...form.getInputProps('credentials.user')}
                             />
                             <PasswordInput
                                 required
                                 size="xs"
-                                label="Password"
+                                label={t(
+                                    'myWarehouseConnectionsPanel.warehouseFormInputs.passwordLabel',
+                                )}
                                 disabled={disabled}
                                 {...form.getInputProps('credentials.password')}
                             />
@@ -689,18 +770,24 @@ export const WarehouseFormInputs: FC<{
                     <TextInput
                         required
                         size="xs"
-                        label="AWS access key ID"
+                        label={t(
+                            'myWarehouseConnectionsPanel.warehouseFormInputs.athena.accessKeyIdLabel',
+                        )}
                         disabled={disabled}
                         {...form.getInputProps('credentials.accessKeyId')}
                     />
                     <PasswordInput
                         withAsterisk={isSecretAccessKeyRequired}
                         size="xs"
-                        label="AWS secret access key"
+                        label={t(
+                            'myWarehouseConnectionsPanel.warehouseFormInputs.athena.secretAccessKeyLabel',
+                        )}
                         description={
                             isSecretAccessKeyRequired
                                 ? undefined
-                                : 'Leave blank to keep the current secret access key.'
+                                : t(
+                                      'myWarehouseConnectionsPanel.warehouseFormInputs.athena.keepSecretAccessKey',
+                                  )
                         }
                         disabled={disabled}
                         {...form.getInputProps('credentials.secretAccessKey')}
@@ -711,8 +798,12 @@ export const WarehouseFormInputs: FC<{
             return (
                 <PasswordInput
                     size="xs"
-                    label="MotherDuck access token"
-                    description="Create an access token in MotherDuck Settings."
+                    label={t(
+                        'myWarehouseConnectionsPanel.warehouseFormInputs.motherDuck.tokenLabel',
+                    )}
+                    description={t(
+                        'myWarehouseConnectionsPanel.warehouseFormInputs.motherDuck.tokenDescription',
+                    )}
                     disabled={disabled}
                     {...form.getInputProps('credentials.token')}
                 />

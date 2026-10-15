@@ -9,6 +9,7 @@ import {
 import { useForm } from '@mantine/form';
 import { IconLayoutDashboard } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useColorPalettes } from '../../../hooks/appearance/useOrganizationAppearance';
 import {
     useDashboardQuery,
@@ -38,6 +39,7 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
     onConfirm,
     ...modalProps
 }) => {
+    const { t } = useTranslation('modals');
     const projectUuid = useProjectUuid();
     const { data: dashboard, isInitialLoading } = useDashboardQuery({
         uuidOrSlug: uuid,
@@ -95,7 +97,7 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
 
     return (
         <MantineModal
-            title="Update Dashboard"
+            title={t('dashboardUpdate.title')}
             {...modalProps}
             icon={IconLayoutDashboard}
             actions={
@@ -105,27 +107,27 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
                     type="submit"
                     form="update-dashboard"
                 >
-                    Save
+                    {t('actions.save', { ns: 'common' })}
                 </Button>
             }
         >
             <form
                 id="update-dashboard"
-                title="Update Dashboard"
+                title={t('dashboardUpdate.title')}
                 onSubmit={handleConfirm}
             >
                 <Stack>
                     <TextInput
-                        label="Name"
+                        label={t('dashboardUpdate.nameLabel')}
                         required
-                        placeholder="eg. KPI Dashboards"
+                        placeholder={t('dashboardForm.namePlaceholder')}
                         disabled={isUpdating}
                         {...form.getInputProps('name')}
                     />
 
                     <Textarea
-                        label="Description"
-                        placeholder="A few words to give your team some context"
+                        label={t('dashboardForm.descriptionLabel')}
+                        placeholder={t('descriptionPlaceholder')}
                         disabled={isUpdating}
                         autosize
                         maxRows={3}
@@ -133,8 +135,8 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
                     />
 
                     <UserSelect
-                        label="Owner"
-                        placeholder="Assign an owner..."
+                        label={t('dashboardUpdate.ownerLabel')}
+                        placeholder={t('dashboardUpdate.ownerPlaceholder')}
                         value={form.values.ownerUserUuid}
                         onChange={(next) =>
                             form.setFieldValue('ownerUserUuid', next)
@@ -145,14 +147,12 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
 
                     {overrideActive && (
                         <Callout variant="info">
-                            A color palette override is set in your instance
-                            configuration. Dashboard-level selection is disabled
-                            while the override is active.
+                            {t('dashboardUpdate.paletteOverrideActive')}
                         </Callout>
                     )}
 
                     <PalettePicker
-                        label="Color palette"
+                        label={t('dashboardUpdate.colorPalette')}
                         size="sm"
                         value={form.values.colorPaletteUuid}
                         onChange={(next) =>

@@ -23,6 +23,7 @@ import {
 import { IconArrowRight, IconCode } from '@tabler/icons-react';
 import ReactMarkdownPreview from '@uiw/react-markdown-preview';
 import { Fragment, useState, type FC, type PropsWithChildren } from 'react';
+import { useTranslation } from 'react-i18next';
 import rehypeExternalLinks from 'rehype-external-links';
 import useCanViewEmbedCompiledSql from '../../../../ee/providers/Embed/useCanViewEmbedCompiledSql';
 import {
@@ -120,6 +121,7 @@ export const ItemDetailPreview: FC<{
         baseMetric?: Metric;
     };
 }> = ({ description, onViewDescription, metricInfo }) => {
+    const { t } = useTranslation('explorer');
     /**
      * This value is pretty arbitrary - it's an amount of characters that will exceed
      * a single line, and for which the 'Read more' option should make sense, and not
@@ -148,13 +150,13 @@ export const ItemDetailPreview: FC<{
                     </Group>
                     {metricInfo.baseDimension && (
                         <SourceFieldRow
-                            label="Source field"
+                            label={t('itemDetail.preview.sourceField')}
                             field={metricInfo.baseDimension}
                         />
                     )}
                     {metricInfo.baseMetric && (
                         <SourceFieldRow
-                            label="Source metric"
+                            label={t('itemDetail.preview.sourceMetric')}
                             field={metricInfo.baseMetric}
                         />
                     )}
@@ -176,7 +178,7 @@ export const ItemDetailPreview: FC<{
                             <>
                                 <Divider color="ldGray.2" />
                                 <Text fz="xs" fw={500} c="ldDark.7">
-                                    Description
+                                    {t('itemDetail.description')}
                                 </Text>
                             </>
                         )}
@@ -198,7 +200,7 @@ export const ItemDetailPreview: FC<{
                             onViewDescription();
                         }}
                     >
-                        Read full description
+                        {t('itemDetail.preview.readFullDescription')}
                     </Button>
                 </Box>
             )}
@@ -214,14 +216,18 @@ export const ItemDetailPreview: FC<{
                                     justify="space-between"
                                 >
                                     <Text fz="xs" fw={500} c="ldDark.7">
-                                        SQL
+                                        {t('itemDetail.preview.sql')}
                                     </Text>
                                     <Tooltip
                                         position="right"
                                         label={
                                             showCompiled
-                                                ? 'Show original SQL'
-                                                : 'Show compiled SQL'
+                                                ? t(
+                                                      'itemDetail.preview.showOriginalSql',
+                                                  )
+                                                : t(
+                                                      'itemDetail.preview.showCompiledSql',
+                                                  )
                                         }
                                     >
                                         <Button
@@ -239,8 +245,12 @@ export const ItemDetailPreview: FC<{
                                             }
                                         >
                                             {showCompiled
-                                                ? 'Original SQL'
-                                                : 'Compiled SQL'}
+                                                ? t(
+                                                      'itemDetail.preview.originalSql',
+                                                  )
+                                                : t(
+                                                      'itemDetail.preview.compiledSql',
+                                                  )}
                                         </Button>
                                     </Tooltip>
                                 </Group>
@@ -256,7 +266,7 @@ export const ItemDetailPreview: FC<{
                                 <>
                                     {canViewSql && <Divider color="ldGray.2" />}
                                     <Text fz="xs" fw={500} c="ldDark.7">
-                                        Filters
+                                        {t('itemDetail.preview.filters')}
                                     </Text>
                                     {metricInfo.filters.map((filter) => {
                                         const operationLabel =
@@ -291,7 +301,9 @@ export const ItemDetailPreview: FC<{
                                                             {' '}
                                                             {filter.settings
                                                                 ?.completed
-                                                                ? 'completed'
+                                                                ? t(
+                                                                      'itemDetail.preview.completed',
+                                                                  )
                                                                 : ''}
                                                             {
                                                                 filter.settings

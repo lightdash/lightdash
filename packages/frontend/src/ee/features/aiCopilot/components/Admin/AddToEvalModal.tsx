@@ -6,6 +6,7 @@ import { Button, Loader, Select, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconArrowLeft, IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import {
@@ -31,6 +32,7 @@ export const AddToEvalModal: FC<AddToEvalModalProps> = ({
     threadUuid,
     promptUuid,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const [createMode, setCreateMode] = useState(false);
 
     const { data: evaluations, isLoading: isLoadingEvals } =
@@ -53,9 +55,9 @@ export const AddToEvalModal: FC<AddToEvalModalProps> = ({
         },
         validate: {
             selectedEvalUuid: (value: string) =>
-                !createMode && !value ? 'Please select an evaluation' : null,
+                !createMode && !value ? t('addToEval.selectRequired') : null,
             newEvalName: (value: string) =>
-                createMode && !value ? 'Please enter an evaluation name' : null,
+                createMode && !value ? t('addToEval.nameRequired') : null,
         },
     });
 
@@ -103,7 +105,7 @@ export const AddToEvalModal: FC<AddToEvalModalProps> = ({
             opened={isOpen}
             onClose={handleClose}
             icon={IconPlus}
-            title="Add Prompt to Evaluation Set"
+            title={t('addToEval.title')}
             size="lg"
             leftActions={
                 !createMode ? (
@@ -116,7 +118,7 @@ export const AddToEvalModal: FC<AddToEvalModalProps> = ({
                             form.setFieldValue('selectedEvalUuid', '');
                         }}
                     >
-                        New Evaluation
+                        {t('addToEval.newEvaluation')}
                     </Button>
                 ) : (
                     <Button
@@ -128,14 +130,14 @@ export const AddToEvalModal: FC<AddToEvalModalProps> = ({
                             form.setFieldValue('newEvalName', '');
                         }}
                     >
-                        Back
+                        {t('actions.back', { ns: 'common' })}
                     </Button>
                 )
             }
             description={
                 createMode
-                    ? 'Create a new evaluation set and add the prompt to it.'
-                    : 'Add this prompt to an existing evaluation set.'
+                    ? t('addToEval.createDescription')
+                    : t('addToEval.addDescription')
             }
             actions={
                 <Button
@@ -146,7 +148,9 @@ export const AddToEvalModal: FC<AddToEvalModalProps> = ({
                         appendToEvaluationMutation.isLoading
                     }
                 >
-                    {createMode ? 'Create & Add' : 'Add'}
+                    {createMode
+                        ? t('addToEval.createAndAdd')
+                        : t('actions.add', { ns: 'common' })}
                 </Button>
             }
         >
@@ -154,7 +158,7 @@ export const AddToEvalModal: FC<AddToEvalModalProps> = ({
                 <Stack align="center" py="lg">
                     <Loader size="md" />
                     <Text size="sm" c="dimmed">
-                        Loading evaluations...
+                        {t('addToEval.loading')}
                     </Text>
                 </Stack>
             ) : (
@@ -165,8 +169,8 @@ export const AddToEvalModal: FC<AddToEvalModalProps> = ({
                     <Stack>
                         {!createMode ? (
                             <Select
-                                label="Select Evaluation"
-                                placeholder="Choose an evaluation set"
+                                label={t('addToEval.selectLabel')}
+                                placeholder={t('addToEval.selectPlaceholder')}
                                 data={
                                     evaluations?.map((evaluation) => ({
                                         value: evaluation.evalUuid,
@@ -178,8 +182,8 @@ export const AddToEvalModal: FC<AddToEvalModalProps> = ({
                             />
                         ) : (
                             <TextInput
-                                label="Evaluation Name"
-                                placeholder="Enter evaluation name"
+                                label={t('addToEval.nameLabel')}
+                                placeholder={t('addToEval.namePlaceholder')}
                                 {...form.getInputProps('newEvalName')}
                             />
                         )}

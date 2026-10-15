@@ -5,60 +5,44 @@ import {
     type AiBillableFeature,
     type AiCreditDailyUsageSeries,
     type AiCreditUsageBreakdown,
-    type AiUsageChannel,
 } from '@lightdash/common';
+import i18n from '../../../i18n/i18n';
 
-const FEATURE_LABELS: Record<AiBillableFeature, string> = {
-    agent: 'Ask AI',
-    'agent-subtask': 'Ask AI Tool',
-    compaction: 'Compaction',
-    'deep-research': 'Deep Research',
-    'data-app': 'Data App',
-};
+const tr = (key: string, options?: Record<string, unknown>) =>
+    i18n.t(`labels.${key}`, { ns: 'eeMisc', ...options });
 
-const CHANNEL_LABELS: Record<AiUsageChannel, string> = {
-    web: 'Web app',
-    slack: 'Slack',
-    embed: 'Embedded',
-    api: 'API',
-    mcp: 'MCP',
-    evals: 'Evals',
-    scheduler: 'Scheduled deliveries',
-    data_app: 'Data apps',
+const FEATURE_KEYS: Record<AiBillableFeature, string> = {
+    agent: 'agent',
+    'agent-subtask': 'agentSubtask',
+    compaction: 'compaction',
+    'deep-research': 'deepResearch',
+    'data-app': 'dataApp',
 };
 
 // Calls recorded before the channel was tracked have no channel.
-const OTHER_LABEL = 'Other';
+const otherLabel = () => tr('other');
 
 export const getAiCreditFeatureLabel = (key: string): string =>
-    isAiBillableFeature(key) ? FEATURE_LABELS[key] : OTHER_LABEL;
+    isAiBillableFeature(key)
+        ? tr(`features.${FEATURE_KEYS[key]}`)
+        : otherLabel();
 
 export const getAiCreditChannelLabel = (key: string): string =>
-    isAiUsageChannel(key) ? CHANNEL_LABELS[key] : OTHER_LABEL;
-
-const BREAKDOWN_LABELS: Record<AiCreditUsageBreakdown, string> = {
-    feature: 'Feature',
-    channel: 'Channel',
-    user: 'User',
-    project: 'Project',
-    agent: 'Agent',
-};
+    isAiUsageChannel(key) ? tr(`channels.${key}`) : otherLabel();
 
 export const getAiCreditBreakdownLabel = (
     breakdown: AiCreditUsageBreakdown,
-): string => BREAKDOWN_LABELS[breakdown];
+): string => tr(`breakdowns.${breakdown}`);
 
 const getUnattributedLabel = (breakdown: AiCreditUsageBreakdown): string => {
     switch (breakdown) {
         case 'feature':
         case 'channel':
-            return OTHER_LABEL;
+            return otherLabel();
         case 'user':
-            return 'No user';
         case 'project':
-            return 'No project';
         case 'agent':
-            return 'No agent';
+            return tr(`unattributed.${breakdown}`);
         default:
             return assertUnreachable(
                 breakdown,
@@ -86,11 +70,11 @@ export const getAiCreditSeriesLabel = (
         case 'value':
             return getValueLabel(breakdown, series.key, series.name);
         case 'other':
-            return 'Other';
+            return otherLabel();
         case 'deleted':
-            return `Deleted ${getAiCreditBreakdownLabel(breakdown).toLowerCase()}`;
+            return tr(`deleted.${breakdown}`);
         case 'embeddedViewers':
-            return 'Embedded viewers';
+            return tr('embeddedViewers');
         case 'unattributed':
             return getUnattributedLabel(breakdown);
         default:

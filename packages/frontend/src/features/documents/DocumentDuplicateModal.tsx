@@ -6,6 +6,7 @@ import {
 import { Button, Fieldset, Stack, Textarea, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconCopy } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import Callout from '../../components/common/Callout';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
@@ -34,13 +35,14 @@ const DocumentDuplicateModal = ({
     opened,
     onClose,
 }: Props) => {
+    const { t } = useTranslation('documents');
     const spaces = useDocumentCreationSpaces(projectUuid);
     const duplicate = useDuplicateDocument(projectUuid, documentUuid);
     const navigate = useNavigate();
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const form = useForm<DuplicateDocumentRequest>({
         initialValues: {
-            name: `Copy of ${name}`,
+            name: t('duplicate.defaultName', { name }),
             description,
             spaceUuid:
                 spaceUuid !== null &&
@@ -49,7 +51,7 @@ const DocumentDuplicateModal = ({
                     : '',
         },
         validate: {
-            name: (value) => (value.trim() ? null : 'Enter a document name'),
+            name: (value) => (value.trim() ? null : t('form.nameRequired')),
         },
     });
     const hasDestination =
@@ -86,7 +88,7 @@ const DocumentDuplicateModal = ({
                     onClose();
                 }
             }}
-            title="Duplicate document"
+            title={t('duplicate.title')}
             icon={IconCopy}
             cancelDisabled={duplicate.isLoading}
             actions={
@@ -96,34 +98,34 @@ const DocumentDuplicateModal = ({
                     loading={duplicate.isLoading}
                     disabled={!hasDestination || !form.values.name.trim()}
                 >
-                    Create duplicate
+                    {t('duplicate.submit')}
                 </Button>
             }
         >
             <form id="duplicate-document-form" onSubmit={handleSubmit}>
                 <Stack>
                     <TextInput
-                        label="Document name"
+                        label={t('form.nameLabel')}
                         required
                         disabled={duplicate.isLoading}
                         {...form.getInputProps('name')}
                     />
                     <Textarea
-                        label="Description"
+                        label={t('form.descriptionLabel')}
                         autosize
                         maxRows={3}
                         disabled={duplicate.isLoading}
                         {...form.getInputProps('description')}
                     />
                     {spaces.isLoading ? (
-                        <EmptyStateLoader title="Loading spaces" />
+                        <EmptyStateLoader title={t('form.loadingSpaces')} />
                     ) : spaces.error ? (
                         <Callout variant="danger">
                             {spaces.error.error.message}
                         </Callout>
                     ) : (
                         <Fieldset
-                            legend="Destination space"
+                            legend={t('duplicate.destinationSpace')}
                             disabled={duplicate.isLoading}
                         >
                             <SpaceSelector

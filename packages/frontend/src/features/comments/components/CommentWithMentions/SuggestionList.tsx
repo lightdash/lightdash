@@ -1,6 +1,7 @@
 import { Paper, Text, Tooltip, UnstyledButton } from '@mantine/core';
 import { type SuggestionProps } from '@tiptap/suggestion';
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type SuggestionsItem } from '../../types';
 import classes from './SuggestionList.module.css';
 
@@ -12,6 +13,7 @@ export const SuggestionList = forwardRef<
     SuggestionListRef,
     SuggestionProps<SuggestionsItem>
 >((props, ref) => {
+    const { t } = useTranslation('comments');
     const [selectedIndex, setSelectedIndex] = useState(0);
 
     const selectItem = (index: number) => {
@@ -68,7 +70,7 @@ export const SuggestionList = forwardRef<
                 <Tooltip
                     key={item.id}
                     fz="xs"
-                    label="User doesn't have access to this Dashboard's space"
+                    label={t('mentions.noSpaceAccess')}
                     disabled={!item.disabled}
                     position="right"
                 >

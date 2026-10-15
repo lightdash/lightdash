@@ -11,6 +11,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import useEchartsPieConfig, {
     type PieSeriesDataPoint,
 } from '../../hooks/echarts/useEchartsPieConfig';
@@ -24,15 +25,18 @@ import PieChartContextMenu, {
     type PieChartContextMenuProps,
 } from './PieChartContextMenu';
 
-const EmptyChart = () => (
-    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
-        <SuboptimalState
-            title="No data available"
-            description="Query metrics and dimensions with results."
-            icon={IconChartPieOff}
-        />
-    </div>
-);
+const EmptyChart = () => {
+    const { t } = useTranslation('visualization');
+    return (
+        <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
+            <SuboptimalState
+                title={t('emptyState.noDataTitle')}
+                description={t('emptyState.noDataDescription')}
+                icon={IconChartPieOff}
+            />
+        </div>
+    );
+};
 
 type SimplePieChartProps = Omit<EChartsReactProps, 'option'> & {
     isInDashboard: boolean;

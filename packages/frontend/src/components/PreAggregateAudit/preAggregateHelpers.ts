@@ -6,12 +6,6 @@ import {
 
 export type QueryType = 'explorer' | 'chart' | 'dashboard';
 
-export const QUERY_TYPE_LABELS: Record<QueryType, string> = {
-    explorer: 'Ad-hoc Explorer',
-    chart: 'Saved Chart',
-    dashboard: 'Dashboard Chart',
-};
-
 export const ALL_QUERY_TYPES: QueryType[] = ['explorer', 'chart', 'dashboard'];
 
 export type AggregatedRow = {

@@ -1,6 +1,7 @@
 import { type InlineError } from '@lightdash/common';
 import { Box, Stack, Text } from '@mantine/core';
 import type { FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import styles from './WarningsHoverCardContent.module.css';
 
 type WarningsHoverCardContentProps = {
@@ -15,26 +16,33 @@ type WarningsHoverCardContentProps = {
 const WarningsHoverCardContent: FC<WarningsHoverCardContentProps> = ({
     type,
     warnings,
-}) => (
-    <>
-        <Text fz="sm" fw={600} mb="xs">
-            Compilation {type} ({warnings.length})
-        </Text>
-        <Stack className={styles.warningsList} gap="xs" mah={250}>
-            {warnings.map((warning, idx) => (
-                <Box
-                    className={styles.warningBox}
-                    key={idx}
-                    p="xs"
-                    bg="ldGray.0"
-                >
-                    <Text className={styles.warningText} fz="xs">
-                        {warning.message}
-                    </Text>
-                </Box>
-            ))}
-        </Stack>
-    </>
-);
+}) => {
+    const { t } = useTranslation('explorer');
+    return (
+        <>
+            <Text fz="sm" fw={600} mb="xs">
+                {type === 'warnings'
+                    ? t('compilationIssues.warnings', {
+                          count: warnings.length,
+                      })
+                    : t('compilationIssues.errors', { count: warnings.length })}
+            </Text>
+            <Stack className={styles.warningsList} gap="xs" mah={250}>
+                {warnings.map((warning, idx) => (
+                    <Box
+                        className={styles.warningBox}
+                        key={idx}
+                        p="xs"
+                        bg="ldGray.0"
+                    >
+                        <Text className={styles.warningText} fz="xs">
+                            {warning.message}
+                        </Text>
+                    </Box>
+                ))}
+            </Stack>
+        </>
+    );
+};
 
 export default WarningsHoverCardContent;

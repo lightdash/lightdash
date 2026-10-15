@@ -18,6 +18,7 @@ import {
     IconUser,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import InfoRow from '../../../components/common/PageHeader/InfoRow';
@@ -38,9 +39,10 @@ type Props = {
 
 /** Own component so the timeAgo hook runs unconditionally. */
 const LastModifiedRow: FC<{ date: Date }> = ({ date }) => {
+    const { t } = useTranslation('apps');
     const timeAgo = useTimeAgo(date);
     return (
-        <InfoRow icon={IconClock} label="Last modified">
+        <InfoRow icon={IconClock} label={t('info.lastModified')}>
             {timeAgo}
         </InfoRow>
     );
@@ -60,71 +62,82 @@ const AppInfoOverlay: FC<Props> = ({
     lastModified,
     views,
     slug,
-}) => (
-    <Stack gap="sm" w={320} p="md" className={styles.appInfoOverlay}>
-        <Box>
-            <Text fz="sm" fw={600} mb={4}>
-                {displayName}
-            </Text>
-            {description && (
-                <Text fz="xs" c="dimmed">
-                    {description}
+}) => {
+    const { t } = useTranslation('apps');
+    return (
+        <Stack gap="sm" w={320} p="md" className={styles.appInfoOverlay}>
+            <Box>
+                <Text fz="sm" fw={600} mb={4}>
+                    {displayName}
                 </Text>
-            )}
-        </Box>
+                {description && (
+                    <Text fz="xs" c="dimmed">
+                        {description}
+                    </Text>
+                )}
+            </Box>
 
-        <Stack gap={10}>
-            {lastModified && <LastModifiedRow date={lastModified} />}
+            <Stack gap={10}>
+                {lastModified && <LastModifiedRow date={lastModified} />}
 
-            {views !== null && (
-                <InfoRow icon={IconEye} label="Views">
-                    {views.toLocaleString()}
-                </InfoRow>
-            )}
-
-            {spaceUuid ? (
-                <InfoRow icon={IconFolder} label="Space">
-                    <Anchor
-                        component={Link}
-                        to={`/projects/${projectUuid}/spaces/${spaceUuid}`}
-                        fz="xs"
-                        fw={500}
-                    >
-                        {spaceName ?? 'Space'}
-                    </Anchor>
-                </InfoRow>
-            ) : (
-                <InfoRow icon={IconUser} label="Space">
-                    Personal
-                </InfoRow>
-            )}
-
-            {slug && (
-                <>
-                    <Divider mb={4} />
-
-                    <InfoRow icon={IconHash} label="Slug">
-                        <CopyButton value={slug}>
-                            {({ copied, copy }) => (
-                                <UnstyledButton onClick={copy}>
-                                    <Group gap={6} wrap="nowrap">
-                                        <Text fz="xs" fw={500} ff="monospace">
-                                            {slug}
-                                        </Text>
-                                        <MantineIcon
-                                            icon={copied ? IconCheck : IconCopy}
-                                            color="dimmed"
-                                            size="sm"
-                                        />
-                                    </Group>
-                                </UnstyledButton>
-                            )}
-                        </CopyButton>
+                {views !== null && (
+                    <InfoRow icon={IconEye} label={t('info.views')}>
+                        {views.toLocaleString()}
                     </InfoRow>
-                </>
-            )}
+                )}
+
+                {spaceUuid ? (
+                    <InfoRow icon={IconFolder} label={t('info.space')}>
+                        <Anchor
+                            component={Link}
+                            to={`/projects/${projectUuid}/spaces/${spaceUuid}`}
+                            fz="xs"
+                            fw={500}
+                        >
+                            {spaceName ?? t('info.space')}
+                        </Anchor>
+                    </InfoRow>
+                ) : (
+                    <InfoRow icon={IconUser} label={t('info.space')}>
+                        {t('info.personal')}
+                    </InfoRow>
+                )}
+
+                {slug && (
+                    <>
+                        <Divider mb={4} />
+
+                        <InfoRow icon={IconHash} label={t('info.slug')}>
+                            <CopyButton value={slug}>
+                                {({ copied, copy }) => (
+                                    <UnstyledButton onClick={copy}>
+                                        <Group gap={6} wrap="nowrap">
+                                            <Text
+                                                fz="xs"
+                                                fw={500}
+                                                ff="monospace"
+                                            >
+                                                {slug}
+                                            </Text>
+                                            <MantineIcon
+                                                icon={
+                                                    copied
+                                                        ? IconCheck
+                                                        : IconCopy
+                                                }
+                                                color="dimmed"
+                                                size="sm"
+                                            />
+                                        </Group>
+                                    </UnstyledButton>
+                                )}
+                            </CopyButton>
+                        </InfoRow>
+                    </>
+                )}
+            </Stack>
         </Stack>
-    </Stack>
-);
+    );
+};
 
 export default AppInfoOverlay;

@@ -14,6 +14,7 @@ import {
     type KeyboardEventHandler,
     type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { TagPill, type TagPillSize } from './TagPill';
 
 export type PillTagsInputProps = {
@@ -63,6 +64,7 @@ export const PillTagsInput: FC<PillTagsInputProps> = ({
     'data-autofocus': dataAutofocus,
     classNames,
 }) => {
+    const { t } = useTranslation('commonUi');
     const [search, setSearch] = useUncontrolled({
         value: searchValue,
         defaultValue: '',
@@ -149,7 +151,7 @@ export const PillTagsInput: FC<PillTagsInputProps> = ({
             rightSection={
                 showClearButton ? (
                     <CloseButton
-                        aria-label="Clear all"
+                        aria-label={t('tagsInput.clearAll')}
                         size="sm"
                         variant="transparent"
                         onMouseDown={(event) => event.preventDefault()}

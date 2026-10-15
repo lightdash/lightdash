@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import i18n from '../../../i18n/i18n';
 import type { ExternalRequestEvent } from './useAppSdkBridge';
 
 export type UseTrackedExternalRequestsResult = {
@@ -43,7 +44,9 @@ export const useTrackedExternalRequests =
                     return {
                         ...r,
                         status: 'error' as const,
-                        error: 'Interrupted by reload',
+                        error: i18n.t('inspector.interruptedByReload', {
+                            ns: 'apps',
+                        }),
                     };
                 });
                 return mutated ? next : prev;

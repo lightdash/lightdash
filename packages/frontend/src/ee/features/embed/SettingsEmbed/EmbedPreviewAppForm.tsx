@@ -26,12 +26,14 @@ import { useForm } from '@mantine/form';
 import { IconEye, IconLink, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import { useCallback, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { v4 as uuidv4 } from 'uuid';
 import { lightdashApi } from '../../../../api';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useAsyncClipboard } from '../../../../hooks/useAsyncClipboard';
 import useUser from '../../../../hooks/user/useUser';
+import i18n from '../../../../i18n/i18n';
 import EmbedCodeSnippet from './EmbedCodeSnippet';
 
 const useEmbedUrlCreateMutation = (projectUuid: string) => {
@@ -47,7 +49,9 @@ const useEmbedUrlCreateMutation = (projectUuid: string) => {
             mutationKey: ['create-embed-url'],
             onError: (error) => {
                 showToastError({
-                    title: `We couldn't create your embed url.`,
+                    title: i18n.t('preview.toasts.urlCreateFailed', {
+                        ns: 'embed',
+                    }),
                     subtitle: error.error.message,
                 });
             },
@@ -71,6 +75,7 @@ const EmbedPreviewAppForm: FC<{
     siteUrl: string;
     apps: EmbedProjectApp[];
 }> = ({ projectUuid, siteUrl, apps }) => {
+    const { t } = useTranslation('embed');
     const { mutateAsync: createEmbedUrl } =
         useEmbedUrlCreateMutation(projectUuid);
     const { colorScheme } = useMantineColorScheme();
@@ -91,7 +96,7 @@ const EmbedPreviewAppForm: FC<{
             appUuid: (value: undefined | string) => {
                 return value && value.length > 0
                     ? null
-                    : 'Data app is required';
+                    : t('preview.dataAppRequired');
             },
         },
     });
@@ -172,15 +177,15 @@ const EmbedPreviewAppForm: FC<{
             <Stack gap="md" mb="md">
                 <Select
                     required
-                    label="Data app"
+                    label={t('preview.dataApp')}
                     data={apps.map((app) => ({
                         value: app.appUuid,
                         label: getAppDisplayName(app.name, app.appUuid),
                     }))}
                     placeholder={
                         apps.length === 0
-                            ? 'No data apps available to embed'
-                            : 'Select a data app...'
+                            ? t('allowList.noApps')
+                            : t('allowList.selectApp')
                     }
                     disabled={apps.length === 0}
                     searchable
@@ -189,7 +194,7 @@ const EmbedPreviewAppForm: FC<{
 
                 <Stack gap="xs">
                     <Text size="sm" fw={500}>
-                        Expires in
+                        {t('preview.expiresIn')}
                     </Text>
                     <SegmentedControl
                         value={form.values.expiresIn}
@@ -197,11 +202,23 @@ const EmbedPreviewAppForm: FC<{
                             form.setFieldValue('expiresIn', value)
                         }
                         data={[
-                            { label: '1 hour', value: '1 hour' },
-                            { label: '1 day', value: '1 day' },
-                            { label: '1 week', value: '1 week' },
-                            { label: '30 days', value: '30 days' },
-                            { label: '1 year', value: '1 year' },
+                            {
+                                label: t('preview.expiry.hour'),
+                                value: '1 hour',
+                            },
+                            { label: t('preview.expiry.day'), value: '1 day' },
+                            {
+                                label: t('preview.expiry.week'),
+                                value: '1 week',
+                            },
+                            {
+                                label: t('preview.expiry.days30'),
+                                value: '30 days',
+                            },
+                            {
+                                label: t('preview.expiry.year'),
+                                value: '1 year',
+                            },
                         ]}
                         size="xs"
                     />
@@ -209,9 +226,9 @@ const EmbedPreviewAppForm: FC<{
 
                 <Paper p="md">
                     <Stack gap="md">
-                        <Title order={6}>Identification & Security</Title>
+                        <Title order={6}>{t('preview.identification')}</Title>
                         <Stack gap="xs">
-                            <Input.Wrapper label="User identifier">
+                            <Input.Wrapper label={t('preview.userIdentifier')}>
                                 <TextInput
                                     size="xs"
                                     placeholder="1234"
@@ -219,15 +236,17 @@ const EmbedPreviewAppForm: FC<{
                                 />
                             </Input.Wrapper>
 
-                            <Input.Wrapper label="User email">
+                            <Input.Wrapper label={t('preview.userEmail')}>
                                 <TextInput
                                     size="xs"
-                                    placeholder="Type an email to add as intrinsic user attribute"
+                                    placeholder={t(
+                                        'preview.userEmailPlaceholder',
+                                    )}
                                     {...form.getInputProps('email')}
                                 />
                             </Input.Wrapper>
 
-                            <Input.Wrapper label="User attributes">
+                            <Input.Wrapper label={t('preview.userAttributes')}>
                                 <Stack gap="xs" mt="xs">
                                     {form.values.userAttributes.map(
                                         (item, index) => (
@@ -238,7 +257,9 @@ const EmbedPreviewAppForm: FC<{
                                             >
                                                 <TextInput
                                                     size="xs"
-                                                    placeholder="E.g. user_country"
+                                                    placeholder={t(
+                                                        'preview.attributeKeyPlaceholder',
+                                                    )}
                                                     flex={1}
                                                     {...form.getInputProps(
                                                         `userAttributes.${index}.key`,
@@ -246,7 +267,9 @@ const EmbedPreviewAppForm: FC<{
                                                 />
                                                 <TextInput
                                                     size="xs"
-                                                    placeholder="E.g. US"
+                                                    placeholder={t(
+                                                        'preview.attributeValuePlaceholder',
+                                                    )}
                                                     flex={1}
                                                     {...form.getInputProps(
                                                         `userAttributes.${index}.value`,
@@ -286,7 +309,7 @@ const EmbedPreviewAppForm: FC<{
                                             )
                                         }
                                     >
-                                        Add attribute
+                                        {t('preview.addAttribute')}
                                     </Button>
                                 </Stack>
                             </Input.Wrapper>
@@ -300,24 +323,23 @@ const EmbedPreviewAppForm: FC<{
                         leftSection={<MantineIcon icon={IconEye} />}
                         onClick={handlePreview}
                     >
-                        Preview
+                        {t('preview.preview')}
                     </Button>
                     <Button
                         variant="default"
                         type="submit"
                         leftSection={<MantineIcon icon={IconLink} />}
                     >
-                        Generate & copy URL
+                        {t('preview.generateUrl')}
                     </Button>
                 </Flex>
             </Stack>
 
             <Stack gap="md" mb="md">
                 <Stack gap="xs">
-                    <Title order={5}>Iframe embed code</Title>
+                    <Title order={5}>{t('preview.iframeCode')}</Title>
                     <Text c="dimmed" fz="sm">
-                        Use this for iframe or direct embedding with a full
-                        embed URL.
+                        {t('preview.iframeDescription')}
                     </Text>
                 </Stack>
                 <EmbedCodeSnippet

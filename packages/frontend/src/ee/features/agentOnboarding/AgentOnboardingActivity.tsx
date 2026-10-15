@@ -9,6 +9,7 @@ import {
     type FC,
     type UIEvent,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import classes from './AgentOnboardingRunPage.module.css';
 import { sanitizeTerminalText } from './utils';
@@ -35,6 +36,7 @@ const AgentOnboardingActivity: FC<{
     events: AgentOnboardingRunEvent[];
     id: string;
 }> = ({ events, id }) => {
+    const { t } = useTranslation('agentOnboarding');
     const viewportRef = useRef<HTMLDivElement>(null);
     const shouldFollowRef = useRef(true);
 
@@ -64,7 +66,7 @@ const AgentOnboardingActivity: FC<{
             <Stack gap={4} p="md">
                 {events.length === 0 ? (
                     <Text c="dimmed" fz="xs" ff="monospace">
-                        Waiting for the agent to start…
+                        {t('activity.waiting')}
                     </Text>
                 ) : (
                     events.map((event, index) => (
@@ -105,6 +107,7 @@ const AgentOnboardingActivity: FC<{
 export const AgentOnboardingActivityPanel: FC<{
     events: AgentOnboardingRunEvent[];
 }> = ({ events }) => {
+    const { t } = useTranslation('agentOnboarding');
     const [isCollapsed, setIsCollapsed] = useState(false);
     const activityId = useId();
     const lastEvent = events.at(-1);
@@ -114,7 +117,7 @@ export const AgentOnboardingActivityPanel: FC<{
             <Box className={classes.activityHeader}>
                 <Group gap="xs" wrap="nowrap" miw={0}>
                     <Text fz="sm" fw={500}>
-                        Activity
+                        {t('activity.title')}
                     </Text>
                     {isCollapsed && lastEvent ? (
                         <Text c="dimmed" fz="xs" ff="monospace" truncate>
@@ -139,7 +142,7 @@ export const AgentOnboardingActivityPanel: FC<{
                     aria-controls={activityId}
                     onClick={() => setIsCollapsed((value) => !value)}
                 >
-                    {isCollapsed ? 'Show' : 'Hide'}
+                    {isCollapsed ? t('activity.show') : t('activity.hide')}
                 </Button>
             </Box>
             <AgentOnboardingActivity id={activityId} events={events} />

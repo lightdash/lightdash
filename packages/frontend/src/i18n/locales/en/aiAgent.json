@@ -1,0 +1,966 @@
+{
+    "toasts": {
+        "agents": {
+            "fetchFailed": "Failed to fetch project AI agents",
+            "fetchDetailsFailed": "Failed to fetch project AI agent details",
+            "created": "AI agent created successfully",
+            "createFailed": "Failed to create AI agent",
+            "updated": "AI agent updated successfully",
+            "updateFailed": "Failed to update AI agent",
+            "avatarUploadFailed": "Failed to upload agent avatar",
+            "deleted": "AI agent deleted successfully",
+            "deleteFailed": "Failed to delete AI agent"
+        },
+        "threads": {
+            "shareFailed": "Failed to create AI agent thread share",
+            "openSharedFailed": "Failed to open shared AI thread",
+            "fetchListFailed": "Failed to fetch AI agent threads",
+            "deleted": "Thread deleted",
+            "deleteFailed": "Failed to delete thread",
+            "renameFailed": "Failed to rename thread",
+            "pinFailed": "Failed to pin thread",
+            "unpinFailed": "Failed to unpin thread",
+            "fetchFailed": "Failed to fetch AI agent thread",
+            "generateResponseFailed": "Failed to generate AI agent thread response"
+        },
+        "feedback": {
+            "submitFailed": "Failed to submit feedback"
+        },
+        "artifacts": {
+            "savePromptQueryFailed": "Failed to save prompt query",
+            "saveDashboardFailed": "Failed to save artifact dashboard",
+            "linkSqlChartFailed": "Failed to link saved SQL chart",
+            "fetchVizFailed": "Failed to fetch artifact visualization",
+            "fetchDashboardChartVizFailed": "Failed to fetch dashboard chart visualization",
+            "fetchVersionFailed": "Failed to fetch artifact version",
+            "fetchFailed": "Failed to fetch artifact",
+            "verifiedAdded": "Added to verified answers list",
+            "verifiedRemoved": "Removed from verified answers list",
+            "goToVerifiedAnswers": "Go to verified answers",
+            "verificationUpdateFailed": "Failed to update answer verification",
+            "chartChangeNotSaved": "Chart change not saved"
+        },
+        "mcp": {
+            "fetchFailed": "Failed to fetch MCP servers",
+            "fetchAgentServersFailed": "Failed to fetch agent MCP servers",
+            "fetchToolsFailed": "Failed to fetch MCP tools",
+            "createFailed": "Failed to create MCP server",
+            "tokenUpdated": "Token updated",
+            "tokenUpdateFailed": "Failed to update token",
+            "renameFailed": "Failed to rename MCP server",
+            "deleteFailed": "Failed to delete MCP server",
+            "githubConnected": "GitHub connected",
+            "githubConnectFailed": "Failed to connect GitHub",
+            "refreshToolsFailed": "Failed to refresh MCP tools",
+            "disconnectFailed": "Failed to disconnect MCP account",
+            "updateToolsFailed": "Failed to update MCP tools",
+            "created": "MCP server created successfully",
+            "deleted": "MCP server deleted",
+            "toolsRefreshed": "MCP tools refreshed",
+            "accountConnected": "MCP account connected successfully",
+            "accountDisconnected": "MCP account disconnected",
+            "readyToUse": "{{name}} is ready to use with your agents."
+        },
+        "generic": {
+            "tryAgain": "Please try again"
+        },
+        "admin": {
+            "threadDumpDownloaded": "Thread dump downloaded",
+            "threadDumpReview": "Review the file before sharing it.",
+            "threadDumpFailed": "Failed to download thread dump",
+            "issueCreated": "Issue created",
+            "issueCreateFailed": "Failed to create issue",
+            "retesting": "Re-testing the fix…",
+            "retestFailed": "Failed to retest",
+            "addCommentFailed": "Failed to add comment",
+            "reviewItemUpdated": "Review item updated",
+            "reviewItemUpdateFailed": "Failed to update review item",
+            "assigneeUpdated": "Assignee updated",
+            "assigneeUpdateFailed": "Failed to update assignee",
+            "priorityUpdated": "Priority updated",
+            "priorityUpdateFailed": "Failed to update priority",
+            "reorderFailed": "Failed to reorder items",
+            "writebackQueued": "Writeback queued",
+            "writebackQueuedSubtitle": "The review item will update as it runs.",
+            "pullRequestOpened": "Pull request opened",
+            "writebackCompleted": "Writeback completed",
+            "viewPullRequest": "View pull request",
+            "openPullRequestFailed": "Failed to open pull request"
+        },
+        "attachments": {
+            "attachFailed": "Could not attach the file",
+            "uploadFailedFallback": "Something went wrong while uploading.",
+            "removeFailed": "Could not remove the file",
+            "tooLarge": "{{name}} is larger than the {{limitKb}} KB limit."
+        },
+        "pullRequests": {
+            "mergeFailed": "Failed to merge pull request",
+            "closed": "Pull request closed",
+            "closeFailed": "Failed to close pull request"
+        },
+        "deepResearch": {
+            "startFailed": "Could not start research",
+            "stopFailed": "Could not stop research"
+        },
+        "skills": {
+            "updateAgentSkillsFailed": "Failed to update agent skills",
+            "createFailed": "Failed to create skill",
+            "saveFailed": "Failed to save skill",
+            "created": "Skill /{{name}} created",
+            "savedVersion": "Skill /{{name}} saved as version {{version}}"
+        },
+        "memory": {
+            "proposalCreated": "Proposal created",
+            "proposalCreateFailed": "Couldn't create proposal",
+            "retired": "Memory retired",
+            "reactivated": "Memory reactivated",
+            "retireFailed": "Failed to retire memory",
+            "reactivateFailed": "Failed to reactivate memory"
+        },
+        "evaluations": {
+            "fetchListFailed": "Failed to fetch evaluations",
+            "fetchFailed": "Failed to fetch evaluation",
+            "fetchRunsFailed": "Failed to fetch evaluation runs",
+            "fetchRunResultsFailed": "Failed to fetch evaluation run results",
+            "createFailed": "Failed to create evaluation",
+            "created": "Evaluation created successfully",
+            "goToEvaluation": "Go to Evaluation",
+            "runFailed": "Failed to run evaluation",
+            "runStarted": "Evaluation run started successfully",
+            "updateFailed": "Failed to update evaluation",
+            "updated": "Evaluation updated successfully",
+            "addFailed": "Failed to add to evaluation",
+            "promptAdded": "Prompt added to evaluation successfully",
+            "deleteFailed": "Failed to delete evaluation",
+            "deleted": "Evaluation deleted successfully"
+        },
+        "preferences": {
+            "setDefaultFailed": "Failed to set agent as default",
+            "removeFailed": "Failed to remove agent preferences"
+        },
+        "router": {
+            "updateFailed": "Failed to update AI router configuration",
+            "instructionsSaved": "Routing instructions saved",
+            "instructionsSaveFailed": "Failed to save routing instructions"
+        },
+        "documents": {
+            "uploadFailed": "Failed to upload document",
+            "updateContentFailed": "Failed to update document content",
+            "updateFailed": "Failed to update document",
+            "deleteFailed": "Failed to delete document"
+        },
+        "credentials": {
+            "added": "Credential added",
+            "addFailed": "Failed to add credential",
+            "updated": "Credential updated",
+            "updateFailed": "Failed to update credential",
+            "replaced": "Credential replaced",
+            "replaceFailed": "Failed to replace credential",
+            "deleted": "Credential deleted",
+            "deleteFailed": "Failed to delete credential",
+            "bedrockConverted": "Bedrock configuration converted",
+            "bedrockConvertFailed": "Failed to convert the Bedrock configuration",
+            "defaultUpdated": "Default credential updated",
+            "defaultUpdateFailed": "Failed to set default credential"
+        },
+        "csv": {
+            "prepareFailedFallback": "Something went wrong while preparing the source.",
+            "stillPreparing": "The CSV is still preparing. Please try attaching it again later.",
+            "prepareFailed": "Could not prepare the CSV",
+            "removeFailed": "Could not remove the CSV"
+        },
+        "reviewNotifications": {
+            "updated": "Success! Review notification settings updated",
+            "updateFailed": "Failed to update review notification settings",
+            "linearUpdated": "Linear destination updated",
+            "linearUpdateFailed": "Failed to update Linear destination",
+            "linearNoneNeeded": "No existing findings needed a Linear issue",
+            "linearExportFailed": "Failed to export existing findings to Linear",
+            "jiraUpdated": "Jira destination updated",
+            "jiraUpdateFailed": "Failed to update Jira destination",
+            "jiraNoneNeeded": "No existing findings needed a Jira issue",
+            "jiraExportFailed": "Failed to export existing findings to Jira",
+            "linearCreating_one": "Creating Linear issues for {{count}} existing finding",
+            "linearCreating_other": "Creating Linear issues for {{count}} existing findings",
+            "jiraCreating_one": "Creating Jira issues for {{count}} existing finding",
+            "jiraCreating_other": "Creating Jira issues for {{count}} existing findings"
+        },
+        "projectCredential": {
+            "updated": "Project AI credential updated",
+            "updateFailed": "Failed to update project AI credential"
+        },
+        "orgSettings": {
+            "updated": "Success! AI organization settings updated",
+            "updateFailed": "Failed to update AI organization settings"
+        }
+    },
+    "optimistic": {
+        "externalSource": "External source",
+        "attachment": "Attachment",
+        "unknownUser": "Unknown user",
+        "unknownAgent": "Unknown"
+    },
+    "mcp": {
+        "errors": {
+            "popupFailed": "Failed to open popup window",
+            "authFailed": "Authentication failed",
+            "authTimedOut": "Authentication timed out"
+        }
+    },
+    "sqlApproval": {
+        "notificationTitle": "Approval needed",
+        "defaultAgentName": "AI agent"
+    },
+    "errors": {
+        "unknown": "Unknown error occurred"
+    },
+    "pinnedContext": {
+        "chartFallback": "Chart",
+        "conversationFallback": "Conversation",
+        "dashboardFallback": "Dashboard",
+        "documentFallback": "Document"
+    },
+    "runProgress": {
+        "activity": {
+            "lightdashMetadata": "Reviewed project data and metric definitions",
+            "warehouseQuery": "Executed a warehouse query",
+            "webSearch": "Searched public evidence sources",
+            "webFetch": "Reviewed a source document",
+            "reporting": "Prepared the evidence-backed report",
+            "updated": "Updated the investigation"
+        },
+        "event": {
+            "cancellationRequested": "Cancellation requested",
+            "reportAdjusted": "Report adjusted to preserve valid evidence"
+        },
+        "phase": {
+            "planning": "Planning the investigation",
+            "testingExplanations": "Testing explanations",
+            "gatheringContext": "Gathering context",
+            "reviewingEvidence": "Reviewing evidence",
+            "validatingFindings": "Validating findings",
+            "writingReport": "Writing the report"
+        },
+        "statusChanged": {
+            "queued": "Research queued",
+            "running": "Research running",
+            "completed": "Research completed",
+            "partiallyCompleted": "Research partially completed",
+            "failed": "Research failed",
+            "cancelled": "Research cancelled"
+        }
+    },
+    "settingsSections": {
+        "identity": "Identity",
+        "behaviour": "Behaviour",
+        "knowledgeAndData": "Knowledge & data",
+        "capabilities": "Capabilities",
+        "accessAndPrivacy": "Access & privacy",
+        "connections": "Connections",
+        "dangerZone": "Danger zone"
+    },
+    "retention": {
+        "hours_one": "{{count}} hour",
+        "hours_other": "{{count}} hours",
+        "days_one": "{{count}} day",
+        "days_other": "{{count}} days",
+        "inheritOrgDefault": "Inherit org default ({{duration}})",
+        "keepForever": "Keep forever",
+        "custom": "Custom…",
+        "hoursPlaceholder": "Hours",
+        "notice": "Threads are deleted after {{duration}} of inactivity"
+    },
+    "threadModel": {
+        "deprecatedWithReplacement": "{{name}} is deprecated. Start a new thread to use {{replacement}}.",
+        "deprecated": "{{name}} is deprecated. Start a new thread to use a newer model."
+    },
+    "form": {
+        "credentialOption": "{{label}} — {{region}}",
+        "credentialUnavailableNamed": "{{label}} — unavailable",
+        "credentialUnavailable": "Unavailable credential",
+        "organizationDefault": "Organization default",
+        "identity": {
+            "description": "How this agent introduces itself wherever it appears.",
+            "viewAsCode": "View as code",
+            "name": "Name",
+            "namePlaceholder": "Enter a name for this agent",
+            "descriptionLabel": "Description",
+            "descriptionHelp": "A brief description of what this agent does and its purpose.",
+            "descriptionPlaceholder": "Describe what this agent specializes in...",
+            "avatar": "Avatar",
+            "avatarHelp": "Upload an image (PNG, JPG, GIF) or use an image URL. Images are cropped to a square; a default avatar is used if none is set.",
+            "avatarUrl": "Avatar image URL",
+            "uploadImage": "Upload image",
+            "uploadInstead": "Upload an image instead",
+            "urlInstead": "Use an image URL instead",
+            "revert": "Revert"
+        },
+        "behaviour": {
+            "description": "How the agent acts on every request, the workflows it can follow, and the model it thinks with.",
+            "instructions": "Instructions",
+            "instructionsDescription": "Always applied. Guidance for the agent's role, behaviour, priorities, and response style.",
+            "instructionsPlaceholder": "You are a marketing analytics expert. Focus on campaign performance, customer acquisition costs, and ROI metrics. Always use bar charts and tables to visualize data.",
+            "guidelines": "Guidelines",
+            "guidelinesHelp": "When writing instructions, consider the following guidelines to help the agent perform its tasks effectively.",
+            "docsLink": "Visit our <anchor>docs</anchor> to learn more about instructions and how they work.",
+            "defaultModel": "Default model",
+            "defaultModelDescription": "Used for new chats with this agent. Users can still change it in each chat.",
+            "highReasoning": "High reasoning",
+            "highReasoningDescription": "Use high reasoning for new chats with this agent.",
+            "credential": "AI provider credential",
+            "credentialDescription": "Where this agent's requests are processed. Leave empty to follow the project or organization setting.",
+            "credentialPlaceholder": "Project or organization default"
+        },
+        "learnMore": "Learn more",
+        "knowledge": {
+            "description": "What this agent can look at when it answers.",
+            "documents": "Reference documents",
+            "documentsDescription": "Consulted when relevant. Business context and source material the agent can retrieve, or include on every request. A short summary is generated for each file.",
+            "documentsAfterCreate": "You can upload documents once this agent is created.",
+            "explores": "Explores",
+            "exploresDescription": "Limit which explores, metrics and dimensions the agent can query, by tag. Leave empty to allow all of them.",
+            "exploreTags": "Explore tags",
+            "selectTags": "Select tags",
+            "noExplores": "No explorers are available for this tag selection. Make sure to use the correct tags, or tag the project with the correct tags and redeploy the project.",
+            "exploresAvailable_one": "{{count}} explore will be available to this agent. <anchor>Click here</anchor> to see detailed list with metrics and dimensions.",
+            "exploresAvailable_other": "{{count}} explores will be available to this agent. <anchor>Click here</anchor> to see detailed list with metrics and dimensions.",
+            "loadingAccess": "Loading agent access information...",
+            "spaces": "Spaces",
+            "spacesDescription": "Restrict which saved charts and dashboards the agent can read. Empty selection means all spaces."
+        },
+        "capabilities": {
+            "description": "What the agent may do with your data.",
+            "dataAccess": "Read the rows behind a chart",
+            "dataAccessHelp": "When enabled, the agent can analyze chart data and provide insights. When disabled, it only builds visualizations, without reading the data behind them.",
+            "dataAccessDescription": "Query the underlying data, not just the chart.",
+            "content": "Create and edit content",
+            "contentHelp": "Requires reading rows to be enabled. Only works for users with content-as-code access (admins, developers, and editors).",
+            "contentDescription": "Build or change dashboards, charts and scheduled deliveries.",
+            "sql": "Run SQL against the warehouse",
+            "sqlHelp": "SQL Runner is only available to users whose role includes SQL Runner access (project developers and admins by default). This setting never grants permission: users without access cannot use SQL Runner, whether this is on or off.",
+            "sqlDescription": "On by default in new chats; users can switch it off per conversation.",
+            "sqlConfigure": "Configure which schemas and tables it can query",
+            "readAccessNote": "Which explores, spaces and documents it can read is set in <anchor>Knowledge & data</anchor>."
+        },
+        "access": {
+            "description": "What the agent knows about the person asking, how long threads are kept, and who can use it.",
+            "userContext": "Use user information",
+            "userContextHelp": "Only applies when the agent knows who is asking — on Slack this requires the OAuth requirement to be enabled in the organization's Slack settings.",
+            "userContextDescription": "Shares the requesting user's name, role and group memberships, so answers can be tailored to who is asking.",
+            "threadRetention": "Thread retention",
+            "threadRetentionDescription": "Delete this agent's threads after a period of inactivity. Active threads are never cut off.",
+            "threadRetentionDescriptionCapped": "Delete this agent's threads after a period of inactivity. Active threads are never cut off. The organization retention policy caps this setting.",
+            "whoCanUse": "Who can use the agent",
+            "everyone": "Everyone in the project",
+            "everyoneDescription": "All project members can see and use this agent.",
+            "adminsOnly": "Admins & developers only",
+            "adminsOnlyDescription": "Hidden from everyone else — useful while setting up or testing the agent.",
+            "specificUsers": "Specific users",
+            "specificUsersAndGroups": "Specific users & groups",
+            "specificUsersDescription": "Only the users you choose. Admins and developers (Manage AI Agents scope) always have access.",
+            "specificUsersAndGroupsDescription": "Only the users and groups you choose. Admins and developers (Manage AI Agents scope) always have access.",
+            "groupAccess": "Group Access",
+            "groupAccessTooltip": "Admins and developers (Manage AI Agents scope) will always have access to this agent.",
+            "groupAccessDescription": "Select groups that can access this agent.",
+            "loadingGroups": "Loading groups...",
+            "noGroups": "No groups available",
+            "selectGroups": "Select groups or leave empty for all users"
+        },
+        "connections": {
+            "description": "Where people reach this agent, and which external tools it can reach.",
+            "slack": "Slack",
+            "slackDescription": "Channels where people can talk to this agent.",
+            "disabled": "Disabled",
+            "channelsNotConfigured": "Channels not configured",
+            "enabled": "Enabled",
+            "slackNotConnected": "To enable AI agent interactions through Slack, please connect your Slack workspace in the <anchor>Integrations settings</anchor>. Once connected, you can select channels where this agent will be available.",
+            "tagSlackApp": "Tag the Slack app <code>@{{appName}}</code> to get started.",
+            "channels": "Channels",
+            "searchChannels": "Search channel(s)"
+        },
+        "danger": {
+            "deleteAgent": "Delete agent",
+            "deleteAgentDescription": "Removes all of its data and conversations.",
+            "deleteModalTitle": "Delete Agent",
+            "cannotBeUndone": "This action cannot be undone.",
+            "resourceType": "agent"
+        }
+    },
+    "mcpInput": {
+        "validation": {
+            "nameRequired": "Name is required",
+            "invalidUrl": "Enter a valid URL",
+            "bearerRequired": "Bearer token is required",
+            "clientSecretRequired": "Client secret is required",
+            "clientIdRequired": "Client ID is required",
+            "clientCredsPersonalOnly": "Client credentials are only supported for personal OAuth"
+        },
+        "sharingPolicy": {
+            "shared": "Shared sign-in allowed",
+            "personal": "Personal sign-in only"
+        },
+        "oauthSummary": {
+            "sharedOrPersonal": "Can use a shared project account or a personal sign-in.",
+            "personal": "Each person signs in with their own account.",
+            "connecting": "Waiting for OAuth to complete.",
+            "error": "Your connection needs attention before tools can run."
+        },
+        "oauthAction": {
+            "reauthenticate": "Reauthenticate",
+            "connecting": "Connecting...",
+            "signIn": "Sign in to {{name}}"
+        },
+        "create": {
+            "title": "Create MCP server",
+            "createAndConnectShared": "Create and connect shared",
+            "createAndConnect": "Create and connect",
+            "createMcp": "Create MCP",
+            "oauthSharedHelp": "This MCP can use a shared project account or personal sign-ins.",
+            "oauthPersonalHelp": "Each person who uses this agent will be asked to connect their own account the first time they use this agent.",
+            "moreOptions": "More options",
+            "allowSharing": "Allow shared project credentials for this MCP",
+            "allowSharingDescription": "Optional. Agent managers can connect a shared project account for this MCP.",
+            "tokenHelp": "The token will be encrypted and stored securely. This credential will be shared across all users of the agent."
+        },
+        "fields": {
+            "name": "Name",
+            "namePlaceholder": "Docs MCP",
+            "url": "URL",
+            "authType": "Auth type",
+            "clientId": "OAuth client ID",
+            "clientSecret": "OAuth client secret",
+            "tokenPlaceholder": "API key or personal access token"
+        },
+        "authTypes": {
+            "none": "No auth",
+            "bearer": "Bearer token",
+            "oauth": "OAuth"
+        },
+        "sharedAlert": {
+            "title": "Shared OAuth connection",
+            "line1": "Agent manager can connect one shared project account for this MCP.",
+            "line2": "Create and connect shared will connect that shared project account now.",
+            "line3": "Anyone who can run an agent attached to this MCP may use that shared account.",
+            "line4": "Actions on the remote system may appear as the connected shared account."
+        },
+        "updateToken": {
+            "title": "Update token",
+            "newToken": "New bearer token",
+            "help": "Enter a new token to replace the current one. It will be encrypted and shared across all users of the agent."
+        },
+        "attach": {
+            "title": "Add MCP",
+            "addSelected": "Add selected",
+            "selectExisting": "Select existing MCP servers",
+            "createNew": "Create a new MCP server",
+            "noneAvailable": "No existing MCP servers available yet.",
+            "manage": "Manage MCP servers"
+        },
+        "toolsEnabled": "{{enabled}}/{{total}} enabled",
+        "tokens": "{{value}} tokens",
+        "createNewOption": "+ Create new MCP",
+        "retestSuccess": "Connection re-tested successfully",
+        "github": {
+            "tooltipApp": "Let the agent read the code behind your metrics, using your organization's GitHub App installation.",
+            "tooltipPat": "Let the agent read the code behind your metrics, using a GitHub personal access token.",
+            "tooltipNudge": "Let the agent read the code behind your metrics. Requires the Lightdash GitHub App.",
+            "connect": "Connect GitHub",
+            "nudgeIntro": "Connecting GitHub lets the agent read the code behind your metrics.",
+            "nudgeInstall": "To get started, an organization admin needs to install the Lightdash GitHub App from <anchor>Organization settings → Integrations</anchor>. Once it's installed, you can connect GitHub here with one click."
+        },
+        "menu": {
+            "hideTools": "Hide tools",
+            "viewTools": "View tools",
+            "testing": "Testing...",
+            "testConnection": "Test connection",
+            "disconnecting": "Disconnecting...",
+            "disconnectToken": "Disconnect your token",
+            "disconnectAccount": "Disconnect your account"
+        },
+        "section": {
+            "title": "MCP servers",
+            "description": "External tool servers this agent can call. Adding or removing one applies immediately, without saving the page.",
+            "tokensHelp": "Tokens measure how much of the model's working space these tools can take up. A larger tool set can leave less room for your question and the agent's answer, and may make requests slower or more expensive. Lightdash loads tools only when needed, so actual usage is often lower.",
+            "tokensHelpAria": "Why tool token usage matters",
+            "manage": "Manage MCPs",
+            "add": "+ Add",
+            "empty": "No MCP servers attached"
+        },
+        "toolPermissions": "Tool permissions",
+        "hide": "Hide",
+        "view": "View"
+    },
+    "githubMcp": {
+        "valueSummary": "Connect GitHub so the agent can read the code behind your metrics.",
+        "suggestedPrompt": "Trace one of my metrics back to the code that produces it",
+        "connectedHeadline": "GitHub connected",
+        "connectedSummary": "Ask the agent about the code behind a metric or event."
+    },
+    "mcpConnections": {
+        "signIn": "Sign in",
+        "notes": {
+            "shared": "Some tools are using a shared project connection. Connect your own account if you want to use your personal access.",
+            "error": "One or more sign-ins did not finish. Reconnect to use those tools.",
+            "connecting": "Finish the sign-in window to keep going."
+        },
+        "summarySingle": "This agent can use {{name}} if you connect it.",
+        "summaryMultiple": "This agent can use {{names}}. Connect the apps you want to use in this thread.",
+        "dismiss": "Dismiss",
+        "github": "GitHub"
+    },
+    "mcpLabels": {
+        "auth": {
+            "oauth": "OAuth",
+            "bearer": "Bearer",
+            "none": "No auth"
+        },
+        "status": {
+            "connected": "Connected",
+            "connecting": "Connecting",
+            "reconnectRequired": "Reconnect required",
+            "notConnected": "Not connected"
+        },
+        "iconAlt": "{{name}} icon"
+    },
+    "knowledge": {
+        "deleteTitle": "Delete knowledge document",
+        "resourceType": "knowledge document",
+        "alwaysIncludeTitle": "Always include in context?",
+        "alwaysIncludeDescription": "The full content of “{{name}}” will be added to every session. This uses more tokens and may increase response time.",
+        "alwaysInclude": "Always include",
+        "mayNotBeRelevant": "This document may not be relevant to the project",
+        "skipped": "Skipped {{name}}",
+        "exceedsLimit": "Exceeds {{limit}} limit.",
+        "unsupportedType": "Only .md and .txt files are supported.",
+        "upload": "Upload",
+        "heading": "Knowledge documents",
+        "headingDescription": "Reference documents can be retrieved when relevant or always included in the agent context. A short summary is generated for each file.",
+        "empty": "No knowledge document yet",
+        "fileCount_one": "{{count}} file",
+        "fileCount_other": "{{count}} files",
+        "generatingSummaryEllipsis": "Generating summary…",
+        "alwaysIncluded": "Always included",
+        "whenRelevant": "When relevant",
+        "uploaded": "Uploaded {{date}}",
+        "preview": "Preview",
+        "deleteDocument": "Delete document",
+        "generatingSummary": "Generating summary",
+        "aiSummary": "AI summary",
+        "generatingSummaryHelp": "Generating a short summary so the agent knows when to reference this document. This usually takes a few seconds.",
+        "usageTitle": "How the agent uses it",
+        "usageAria": "How the agent uses this document",
+        "retrieveTitle": "Retrieve when relevant",
+        "retrieveDescription": "Searched only when a question needs it.",
+        "alwaysIncludeOptionDescription": "Full document added to every session. Uses more tokens.",
+        "notRelevant": "This document does not appear to relate to the project — the agent may ignore it.",
+        "summaryUsage": "The agent uses this summary to decide whether to read the file. The full text is retrieved on demand.",
+        "tooLarge": "Document is too large",
+        "contentExceedsLimit": "Content exceeds the {{limit}} limit.",
+        "editTitle": "Edit knowledge document",
+        "name": "Name",
+        "content": "Content",
+        "loadFailed": "Unable to load this document.",
+        "tryAgain": "Try again"
+    },
+    "deepResearch": {
+        "status": {
+            "queued": "Queued",
+            "running": "Running",
+            "waitingForPermission": "Permission required",
+            "waitingForReconnection": "Reconnect required",
+            "completed": "Completed",
+            "partiallyCompleted": "Partially completed",
+            "failed": "Couldn’t complete",
+            "cancelled": "Stopped",
+            "noRelevantData": "No relevant data"
+        },
+        "elapsed": {
+            "seconds": "{{seconds}}s",
+            "minutes": "{{minutes}}m",
+            "minutesSeconds": "{{minutes}}m {{seconds}}s"
+        },
+        "eyebrow": "Deep research",
+        "completedSummary": "{{status}} in {{elapsed}} · {{queries}} · {{findings}}",
+        "queryCount_one": "{{count}} query",
+        "queryCount_other": "{{count}} queries",
+        "findingCount_one": "{{count}} finding",
+        "findingCount_other": "{{count}} findings",
+        "runAria": "Deep research run",
+        "stop": "Stop research",
+        "statusChanged": "Research status changed to {{status}}",
+        "metrics": {
+            "queries": "Queries",
+            "sources": "Sources",
+            "findings": "Findings"
+        },
+        "continuesInBackground": "Research continues if you leave this page.",
+        "reviewPermissions": "Review permissions",
+        "reconnectNamed": "Reconnect {{name}}",
+        "reconnectSource": "Reconnect source",
+        "continueWithoutNamed": "Continue without {{name}}",
+        "continueWithoutSource": "Continue without source",
+        "stoppedBeforeReady": "Research stopped before the report was ready.",
+        "tryRefining": "Try refining your question or choosing data that covers the topic.",
+        "completedSaved": "Any completed queries and findings are saved below.",
+        "startOverNote": "Starting over creates a new research run. Previous queries won't be reused.",
+        "startOver": "Start over",
+        "incomplete": "This report is incomplete. Completed queries and available findings are saved below.",
+        "expired": "This report is no longer available.",
+        "retention": "Deep Research reports are available for 30 days.",
+        "completedOn": "Completed {{date}}",
+        "runAgain": "Run research again",
+        "summary": "Research summary",
+        "viewFullReport": "View full report",
+        "hideActivity": "Hide activity",
+        "viewActivity": "View activity",
+        "activityAria": "Research activity",
+        "couldNotStart": "Could not start",
+        "didNotStart": "Research didn’t start. Your question is saved in this thread.",
+        "starting": "Starting research… You can leave this page while it runs.",
+        "tryStartingAgain": "Try starting again",
+        "updatesUnavailable": "Updates unavailable",
+        "loadActivityFailed": "Couldn’t load the latest activity",
+        "loadActivityFailedHelp": "Your research is still saved. Check your connection, then refresh the activity.",
+        "refreshActivity": "Refresh activity",
+        "loadingReportChart": "Loading report chart",
+        "chartUnavailable": "Chart unavailable",
+        "chartCouldNotDisplay": "This chart could not be displayed.",
+        "backToChat": "Back to chat",
+        "conclusion": "Conclusion",
+        "openNamedInExplore": "Open {{title}} in Explore",
+        "openInExplore": "Open in Explore",
+        "chartLimitExceeded": "This chart exceeds the warehouse query limit. Open it in Explore to narrow the query.",
+        "liveDataFailed": "The live data for this chart could not be loaded.",
+        "loadingLiveData": "Loading live chart data"
+    },
+    "createIssue": {
+        "rootCause": {
+            "semanticLayer": "Semantic layer",
+            "projectContext": "Project context",
+            "agentConfiguration": "Agent configuration",
+            "runtimeReliability": "Runtime reliability",
+            "feedbackQuality": "Feedback quality",
+            "notAFailure": "Not a failure",
+            "ambiguous": "Ambiguous"
+        },
+        "priority": {
+            "none": "None",
+            "urgent": "Urgent",
+            "high": "High",
+            "medium": "Medium",
+            "low": "Low"
+        },
+        "reportedFrom": "Reported from {{name}}",
+        "reportedFromChart": "Reported from a chart",
+        "reportedFromDashboard": "Reported from a dashboard",
+        "title": "New issue",
+        "fields": {
+            "title": "Title",
+            "description": "Description",
+            "descriptionHelp": "Describe the gap or fix, and the outcome you want.",
+            "project": "Project",
+            "relatedExplores": "Related explores",
+            "relatedExploresHelp": "Which models this issue is about — guides the fix.",
+            "noExplores": "No explores",
+            "agent": "Agent",
+            "rootCause": "Root cause",
+            "priority": "Priority"
+        },
+        "suggest": "Suggest",
+        "suggested": "Suggested: {{reasoning}}",
+        "submit": "Create issue"
+    },
+    "memory": {
+        "defaultThreadTitle": "AI agent thread",
+        "openThread": "Open thread",
+        "consolidatedFrom_one": "Consolidated from {{count}} memory",
+        "consolidatedFrom_other": "Consolidated from {{count}} memories",
+        "consolidated": "Consolidated memory",
+        "extractedFromThread": "Extracted from one thread",
+        "statusCallout": {
+            "active": "This memory is active",
+            "superseded": "This memory is superseded",
+            "retired": "This memory is retired",
+            "promoted": "This memory is promoted"
+        },
+        "viewPromotionProposal": "View the promotion proposal",
+        "viewCurrentMemory": "View the current memory",
+        "auditHistory": "It remains available for audit history.",
+        "memory": "Memory",
+        "evidence": "Evidence",
+        "evidenceDescription": "Why this memory was learned",
+        "apply": "Apply",
+        "applyDescription": "When and how to use it",
+        "source": "Source",
+        "noSources": "No source threads recorded",
+        "rail": {
+            "status": "Status",
+            "saved": "Saved",
+            "citations": "Citations",
+            "slug": "Slug"
+        },
+        "terms": "Terms",
+        "noTerms": "No retrieval terms",
+        "catalogObjects": "Catalog objects",
+        "fieldIn": "Field in {{explore}}",
+        "explore": "Explore",
+        "noCatalogObjects": "No catalog objects",
+        "changeStatus": "Change memory status",
+        "retire": "Retire memory",
+        "reactivate": "Reactivate memory",
+        "loadFailed": "Unable to load this memory."
+    },
+    "memoryPromotion": {
+        "promoted": "Promoted",
+        "pending": "Proposal pending",
+        "viewProposal": "View proposal",
+        "onlyActive": "Only active memories can be proposed.",
+        "enableReviews": "Enable project context reviews before proposing a memory.",
+        "propose": "Propose for project context",
+        "modalTitle": "Propose memory for project context",
+        "create": "Create proposal",
+        "explanation": "This proposes making this guidance available to everyone in the project. The memory will only be prompted if reviewer approves.",
+        "reasonLabel": "Why should this become project context?",
+        "reasonDescription": "Optional, shown to reviewers and used to guide the proposal."
+    },
+    "githubConnect": {
+        "title": "Give the agent the code behind your data",
+        "intro": "Once connected, your agent can use your repositories to enhance its understanding of your semantic layer when answering questions or making changes.",
+        "whoCanUse": "Who can use this token?",
+        "justMe": "Just me",
+        "wholeProject": "Whole project",
+        "justMeHelp": "Each user connects their own token — the agent reads code as whoever is asking.",
+        "wholeProjectHelp": "One token shared by everyone using this agent.",
+        "createToken": "Create a GitHub personal access token",
+        "step1": "Open <anchor>GitHub → Fine-grained tokens</anchor>.",
+        "step2": "Under <b>Repository access</b>, select the repos that you want to give the agent access to.",
+        "step3": "Under <b>Permissions → Repository</b>, set <b>Contents</b> to <b>Read-only</b>.",
+        "step4": "Generate the token and paste it below.",
+        "tokenLabel": "Personal access token",
+        "storageNote": "Stored encrypted — use a read-only token scoped to only the repos you need. You can remove it any time from the agent's settings."
+    },
+    "skillModal": {
+        "validation": {
+            "nameRequired": "A name is required",
+            "nameFormat": "Lowercase letters, digits and single hyphens only",
+            "nameReserved": "Names starting with lightdash- are reserved",
+            "descriptionRequired": "A description is required",
+            "instructionsRequired": "Instructions are required"
+        },
+        "fixBeforeSaving": "Fix these before saving",
+        "warnings": "Warnings",
+        "editTitle": "Edit /{{name}}",
+        "newTitle": "New skill",
+        "saveNewVersion": "Save new version",
+        "create": "Create skill",
+        "name": "Name",
+        "nameLocked": "The name is the command and cannot change.",
+        "description": "Description",
+        "descriptionPlaceholder": "Summarise the week for a region, with movers and risks",
+        "instructions": "Instructions",
+        "instructionsPlaceholder": "## When to use\nWeekly performance review for a region.\n\n## Steps\n1. Pull revenue and orders for the last 7 days in $ARGUMENTS.\n2. Compare with the previous week and flag moves over 10%.\n3. Summarise the top three movers and one risk.",
+        "markdown": "Markdown",
+        "argumentsHelp": "text typed after the command",
+        "loadFailed": "Could not load this skill",
+        "loading": "Loading skill"
+    },
+    "skills": {
+        "library": "Library",
+        "addSkill": "Add skill",
+        "searchLibrary": "Search library",
+        "version": "v{{version}}",
+        "noMatch": "No skill matches \"{{search}}\"",
+        "noneToAdd": "No skills to add",
+        "noneToAddHelp": "Skills you create are saved to the library so any agent can use them.",
+        "createNew": "Create new skill",
+        "afterCreate": "You can add skills once this agent is created.",
+        "loadFailed": "Could not load this agent’s skills",
+        "loading": "Loading skills…",
+        "empty": "No skills yet",
+        "actionsFor": "Actions for /{{name}}",
+        "edit": "Edit skill",
+        "removeFromAgent": "Remove from this agent",
+        "title": "Skills",
+        "description": "Used for matching tasks. Reusable workflows the agent loads when relevant or users invoke with /."
+    },
+    "toolsPanel": {
+        "reconnectMessage": "Reconnect to load and configure tools.",
+        "reconnect": "Reconnect",
+        "connectMessage": "Connect your account to load tools.",
+        "connectAccount": "Connect account",
+        "toolName": "Tool name",
+        "description": "Description",
+        "createAgentFirst": "Create this agent before configuring MCP tools.",
+        "saving": "Saving MCP settings...",
+        "tools": "Tools",
+        "autoSave": "Changes save automatically.",
+        "refresh": "Refresh tools from this MCP",
+        "loading": "Loading tools...",
+        "empty": "No tools found for this MCP server yet.",
+        "enableAll": "Enable all",
+        "tokensHelp": "Approximate input tokens for each tool definition. Actual usage varies by model and provider.",
+        "tokens": "Tokens",
+        "toggle": "Toggle {{name}}",
+        "viewDescription": "View description for {{name}}",
+        "noDescription": "No description provided",
+        "toolDescription": "Tool description"
+    },
+    "sidebar": {
+        "threadTitle": "Thread title",
+        "untitledThread": "Untitled thread",
+        "slackReadOnly": "Threads created in slack are read only",
+        "threadOptions": "Thread options",
+        "unpin": "Unpin",
+        "pin": "Pin",
+        "rename": "Rename",
+        "pinned": "Pinned",
+        "recent": "Recent",
+        "noThreads": "No threads yet",
+        "viewMore": "View more",
+        "deleteThread": "Delete thread",
+        "deleteThreadDescription": "The whole conversation and everything derived from it will be permanently deleted. This action cannot be undone.",
+        "trial": "You're currently using AI agents in free trial mode",
+        "resourceType": "thread"
+    },
+    "layout": {
+        "resizePanels": "Resize workspace panels",
+        "expandSidebar": "Expand sidebar",
+        "collapseSidebar": "Collapse sidebar",
+        "expandAskAiSidebar": "Expand Ask AI sidebar",
+        "collapseAskAiSidebar": "Collapse Ask AI sidebar",
+        "openAskAiSidebar": "Open Ask AI sidebar",
+        "closeThreads": "Close threads",
+        "threads": "Threads",
+        "newThread": "New thread"
+    },
+    "header": {
+        "memories": "Memories",
+        "settings": "Settings",
+        "shareThread": "Share thread",
+        "minimize": "Minimize"
+    },
+    "memoryTour": {
+        "rememberTitle": "Your agents remember",
+        "rememberBody": "As you chat, agents save useful facts about you and how you like your data. Open Memories any time to see what they have picked up.",
+        "reviewTitle": "Review and manage memories",
+        "reviewBody": "These are the memories agents saved from your conversations. Select one to see the details, and retire anything you no longer want agents to use."
+    },
+    "myMemories": {
+        "neverCited": "never cited",
+        "cited_one": "{{formatted}}× cited",
+        "cited_other": "{{formatted}}× cited",
+        "loadFailed": "Unable to load your memories.",
+        "empty": "No memories yet",
+        "emptyDescription": "The agents haven't saved any memories from your threads in this project yet.",
+        "search": "Search memories",
+        "noMatches": "No memories match your search.",
+        "title": "My memories",
+        "subtitle": "What the agents learned from your conversations in {{project}}. Only you and your organization's admins can see these.",
+        "subtitleThisProject": "What the agents learned from your conversations in this project. Only you and your organization's admins can see these."
+    },
+    "spaceAccess": {
+        "loading": "Loading spaces...",
+        "allSpacesRestrict": "All spaces (click to restrict)",
+        "selectedOfTotal_one": "{{selected}} of {{count}} space selected",
+        "selectedOfTotal_other": "{{selected}} of {{count}} spaces selected",
+        "selected_one": "{{count}} space selected",
+        "selected_other": "{{count}} spaces selected",
+        "clear": "Clear selection",
+        "none": "No spaces found",
+        "allSpaces": "All spaces"
+    },
+    "actionBar": {
+        "unsavedChanges": "You have unsaved changes",
+        "createAgent": "Create agent",
+        "saveChanges": "Save changes"
+    },
+    "guidelines": {
+        "domainKnowledge": {
+            "title": "Domain knowledge",
+            "description": "Specify the industry, field, or subject matter expertise. Include relevant methodologies, frameworks, and technical knowledge."
+        },
+        "companyContext": {
+            "title": "Company context",
+            "description": "Include relevant business context, goals, and constraints. Mention industry, target audience, and strategic objectives."
+        },
+        "analysisPreferences": {
+            "title": "Analysis preferences",
+            "description": "Define how data should be analyzed and presented. Specify preferred metrics, dimensions, visualization types, and reporting formats."
+        },
+        "roleExpertise": {
+            "title": "Role & expertise",
+            "description": "Describe the analyst's role, responsibilities, and expertise level. Define communication style and decision-making authority."
+        }
+    },
+    "deprecatedModel": {
+        "retired": "{{name}} is retired",
+        "replacementNotice": "New chats already run on {{name}}. Switch this setting so it matches the model that runs.",
+        "switchTo": "Switch to {{name}}",
+        "noReplacement": "No replacement is offered to your organization, so new chats still run on it. Pick another model to move off it."
+    },
+    "manageMcp": {
+        "serverName": "MCP server name",
+        "attachedTo_one": "Attached to {{count}} agent",
+        "attachedTo_other": "Attached to {{count}} agents",
+        "actionsFor": "Actions for {{name}}",
+        "loading": "Loading MCP servers…",
+        "loadFailed": "Failed to load MCP servers.",
+        "empty": "No MCP servers in this project yet.",
+        "subtitle": "Servers available to every agent in {{project}}.",
+        "subtitleThisProject": "Servers available to every agent in this project.",
+        "deleteTitle": "Delete MCP server",
+        "resourceType": "MCP server",
+        "deleteDescription_one": "Deleting \"{{name}}\" detaches it from {{count}} agent and removes the shared sign-in and every user's personal sign-in. This cannot be undone.",
+        "deleteDescription_other": "Deleting \"{{name}}\" detaches it from {{count}} agents and removes the shared sign-in and every user's personal sign-in. This cannot be undone."
+    },
+    "askAiAgent": "Ask AI Agent",
+    "defaultAgent": {
+        "remove": "Remove as default agent",
+        "set": "Set as default agent"
+    },
+    "agentSelector": {
+        "askAiSettings": "Ask AI settings",
+        "askAiSettingsDescription": "General settings for all agents",
+        "agentSettings": "Agent settings",
+        "auto": "Auto",
+        "autoDescription": "We'll route to the best-fit agent",
+        "createNew": "Create new agent",
+        "adminsOnlyBadge": "Admins only"
+    },
+    "reviewEntity": {
+        "prState": {
+            "open": "open",
+            "merged": "merged",
+            "closed": "closed"
+        },
+        "proposedChange": "Proposed change",
+        "evidence": "Evidence ({{count}})",
+        "redacted": "[redacted]",
+        "previewEnvironment": "Preview environment"
+    },
+    "launcher": {
+        "aiTitle": "AI",
+        "autoDescription": "Routes each new question to the best-fit agent",
+        "pinnedContext": "Pinned context",
+        "askAnything": "Ask {{name}} anything...",
+        "chooseAgent": "Choose agent",
+        "recommended": "Recommended",
+        "slackReadOnly": "This thread is read-only. To continue the conversation, reply in Slack.",
+        "switchAgent": "Switch agent",
+        "openFullscreen": "Open in fullscreen",
+        "closePanel": "Close panel",
+        "closeConversation": "Close conversation",
+        "resizeHint": "Drag to resize, double-click to reset",
+        "resizePanel": "Resize panel",
+        "dataAppFallback": "Data app"
+    },
+    "reviewPreview": {
+        "prompts": "Prompts",
+        "promptsInDays": "{{count}} in {{days}}d",
+        "issues": "Issues",
+        "open": "{{count}} open",
+        "viewAll": "View all issues"
+    },
+    "suggestedQuestions": "Suggested questions",
+    "editChart": "Edit chart"
+}

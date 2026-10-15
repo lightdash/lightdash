@@ -1,5 +1,6 @@
 import { MAX_APP_FILES_PER_VERSION } from '@lightdash/common';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useAppFileUpload } from '../../apps/hooks/useAppFileUpload';
 import {
@@ -35,6 +36,7 @@ export const useVizComposerAttachments = ({
 }: Args): VizComposerAttachments => {
     const [attachments, setAttachments] = useState<VizAttachment[]>([]);
     const { mutateAsync: uploadFile } = useAppFileUpload();
+    const { t } = useTranslation('chartTypes');
     const { showToastError, showToastWarning } = useToaster();
     const nextKey = useRef(0);
     const previewUrls = useRef(new Map<string, string>());
@@ -83,8 +85,10 @@ export const useVizComposerAttachments = ({
                 if (warnedAboutLimit) return;
                 warnedAboutLimit = true;
                 showToastWarning({
-                    title: 'Attachment limit reached',
-                    subtitle: `You can attach up to ${MAX_APP_FILES_PER_VERSION} files per message.`,
+                    title: t('attachments.limitReached'),
+                    subtitle: t('attachments.limitDescription', {
+                        max: MAX_APP_FILES_PER_VERSION,
+                    }),
                 });
             };
 
@@ -126,9 +130,10 @@ export const useVizComposerAttachments = ({
                                 prev.filter((a) => a.key !== key),
                             );
                             showToastError({
-                                title: 'Upload failed',
-                                subtitle:
-                                    'Please try again or contact support.',
+                                title: t('attachments.uploadFailed'),
+                                subtitle: t(
+                                    'attachments.uploadFailedDescription',
+                                ),
                             });
                         });
                 });
@@ -162,6 +167,7 @@ export const useVizComposerAttachments = ({
             uploadFile,
             showToastError,
             showToastWarning,
+            t,
             revokePreview,
         ],
     );

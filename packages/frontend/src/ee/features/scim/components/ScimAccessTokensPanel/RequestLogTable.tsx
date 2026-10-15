@@ -2,6 +2,7 @@ import { type ScimRequestLog } from '@lightdash/common';
 import { Text } from '@mantine/core';
 import { format } from 'date-fns';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     ContentTable,
     useContentTable,
@@ -13,11 +14,12 @@ import { useScimRequestLogs } from '../../hooks/useScimRequestLogs';
 import { RequestLogDetailsDrawer } from './RequestLogDetailsDrawer';
 import { RequestLogStatusBadges } from './RequestLogStatusBadges';
 import styles from './RequestLogTable.module.css';
-import { SCIM_ACTION_LABELS } from './scimActionLabels';
+import { getScimActionLabel } from './scimActionLabels';
 
 const fetchSize = 50;
 
 export const RequestLogTable: FC = () => {
+    const { t } = useTranslation('serviceAccounts');
     const [drawerOpened, setDrawerOpened] = useState(false);
     const [selectedLog, setSelectedLog] = useState<ScimRequestLog | null>(null);
 
@@ -53,7 +55,7 @@ export const RequestLogTable: FC = () => {
         () => [
             {
                 accessorKey: 'createdAt',
-                header: 'Time',
+                header: t('scim.log.time'),
                 enableSorting: false,
                 size: 170,
                 Cell: ({ row }) => (
@@ -67,18 +69,18 @@ export const RequestLogTable: FC = () => {
             },
             {
                 accessorKey: 'action',
-                header: 'Action',
+                header: t('scim.details.action'),
                 enableSorting: false,
                 size: 160,
                 Cell: ({ row }) => (
                     <Text size="xs">
-                        {SCIM_ACTION_LABELS[row.original.action]}
+                        {getScimActionLabel(row.original.action)}
                     </Text>
                 ),
             },
             {
                 accessorKey: 'targetIdentity',
-                header: 'Identity',
+                header: t('scim.log.identity'),
                 enableSorting: false,
                 size: 240,
                 Cell: ({ row }) =>
@@ -94,7 +96,7 @@ export const RequestLogTable: FC = () => {
             },
             {
                 accessorKey: 'status',
-                header: 'Status',
+                header: t('scim.details.status'),
                 enableSorting: false,
                 size: 150,
                 Cell: ({ row }) => (
@@ -105,7 +107,7 @@ export const RequestLogTable: FC = () => {
                 ),
             },
         ],
-        [],
+        [t],
     );
 
     const table = useContentTable({
@@ -119,10 +121,9 @@ export const RequestLogTable: FC = () => {
         enableBottomToolbar: false,
         enableRowActions: false,
         emptyState: {
-            entityName: 'SCIM requests',
-            title: 'No SCIM requests yet',
-            description:
-                'Requests from your identity provider will appear here as they arrive.',
+            entityName: t('scim.log.entityName'),
+            title: t('scim.log.emptyTitle'),
+            description: t('scim.log.emptyDescription'),
         },
         mantineTableContainerProps: {
             ref: tableContainerRef,

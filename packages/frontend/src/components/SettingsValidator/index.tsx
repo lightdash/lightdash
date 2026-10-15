@@ -11,6 +11,7 @@ import { Button, Group, Loader, Paper, Stack, Text } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconCheck } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router';
 import useSearchParams from '../../hooks/useSearchParams';
 import {
@@ -39,6 +40,7 @@ export const SettingsValidator: FC<{
     projectUuid: string;
     flush?: boolean;
 }> = ({ projectUuid, flush = false }) => {
+    const { t } = useTranslation('projectSettings');
     const [isValidating, setIsValidating] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch] = useDebouncedValue(searchQuery, 300);
@@ -284,7 +286,7 @@ export const SettingsValidator: FC<{
                         <Group justify="center" gap="xs" p="md">
                             <MantineIcon icon={IconCheck} color="green" />
                             <Text fw={500} c="ldGray.7">
-                                No validation errors found
+                                {t('validator.noErrors')}
                             </Text>
                         </Group>
                     </Paper>
@@ -299,8 +301,8 @@ export const SettingsValidator: FC<{
 
     return (
         <SettingsPage
-            title="Validator"
-            description="Find content errors and issues across this project."
+            title={t('validator.page.title')}
+            description={t('validator.page.description')}
             actions={
                 <Button
                     size="xs"
@@ -325,7 +327,7 @@ export const SettingsValidator: FC<{
                     data-tour-via='[data-tour-nav="settings"] >> [data-tour-nav="project-settings"] >> [data-tour-nav="validator"]'
                     data-tour-docs="workflow/validating-your-content.mdx#how-can-i-validate-my-content:1"
                 >
-                    Run validation
+                    {t('validator.page.runValidation')}
                 </Button>
             }
         >

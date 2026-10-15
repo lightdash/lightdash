@@ -1,0 +1,139 @@
+{
+    "resources": {
+        "chart": "gráfico",
+        "dashboard": "panel",
+        "scheduledDelivery": "entrega programada",
+        "virtualView": "vista virtual"
+    },
+    "asCodeModal": {
+        "title": "Ver {{resource}} como código",
+        "download": "Descargar {{format}}",
+        "copy": "Copiar {{format}}",
+        "copied": "Copiado",
+        "generating": "Generando YAML de {{resource}}",
+        "notFoundTitle": "Contenido no encontrado",
+        "notFoundDescription": "No se pudo generar el contenido como código para este {{resource}}.",
+        "formatAriaLabel": "Formato de código",
+        "compatible": "Este {{format}} es compatible con el contenido como código de Lightdash.",
+        "unsavedChartWarning": "Este YAML contiene la última versión guardada. Guarda el gráfico para incluir tus cambios actuales.",
+        "unsavedDashboardWarning": "Este YAML contiene la última versión guardada. Guarda el panel para incluir tus cambios actuales."
+    },
+    "dismissedDraft": {
+        "title": "Tu borrador descartado sigue disponible",
+        "description": "Vuelve a abrirlo para seguir editando y enviarlo de nuevo a revisión.",
+        "reopen": "Reabrir borrador"
+    },
+    "overlayFailure": {
+        "title": "No se pudo mostrar tu borrador sin publicar",
+        "description_chart": "Estás viendo el gráfico publicado. Tu borrador sigue guardado para revisión. Pide a un administrador de Contenido como código que lo revise o lo descarte.",
+        "description_dashboard": "Estás viendo el panel publicado. Tu borrador sigue guardado para revisión. Pide a un administrador de Contenido como código que lo revise o lo descarte."
+    },
+    "draftFields": {
+        "label": {
+            "name": "Nombre",
+            "description": "Descripción",
+            "tableName": "Nombre de tabla",
+            "metricQuery": "Consulta de métricas",
+            "chartConfig": "Configuración del gráfico",
+            "tableConfig": "Configuración de tabla",
+            "pivotConfig": "Configuración de pivote",
+            "parameters": "Parámetros",
+            "merge": "Combinación",
+            "spaceSlug": "Espacio",
+            "tiles": "Mosaicos",
+            "filters": "Filtros",
+            "tabs": "Pestañas",
+            "config": "Configuración"
+        },
+        "inline": {
+            "name": "nombre",
+            "description": "descripción",
+            "tableName": "nombre de tabla",
+            "metricQuery": "consulta de métricas",
+            "chartConfig": "configuración del gráfico",
+            "tableConfig": "configuración de tabla",
+            "pivotConfig": "configuración de pivote",
+            "parameters": "parámetros",
+            "merge": "combinación",
+            "spaceSlug": "espacio",
+            "tiles": "mosaicos",
+            "filters": "filtros",
+            "tabs": "pestañas",
+            "config": "configuración"
+        }
+    },
+    "staleAlert": {
+        "title_chart": "Este gráfico cambió en el repositorio desde tu borrador",
+        "title_dashboard": "Este panel cambió en el repositorio desde tu borrador",
+        "conflicts": "Ambos cambiasteis {{fields}}. Elige qué versión conservar; todo lo demás se mantiene.",
+        "noConflicts": "Tus cambios no se solapan, así que se mantienen tal cual.",
+        "reviewChanges": "Revisar cambios",
+        "updateToLatest": "Actualizar a la última versión",
+        "columns": {
+            "field": "Campo",
+            "inRepo": "En el repositorio",
+            "inDraft": "En tu borrador",
+            "keep": "Conservar"
+        },
+        "unchanged": "sin cambios",
+        "mine": "Mío",
+        "repo": "Repositorio",
+        "repoAutomatically": "Versión del repositorio, automáticamente",
+        "notNow": "Ahora no",
+        "updateDraft": "Actualizar borrador"
+    },
+    "review": {
+        "timeAgo": {
+            "justNow": "justo ahora",
+            "minutes": "hace {{count}} min",
+            "hours": "hace {{count}} h",
+            "days": "hace {{count}} d"
+        },
+        "writeback": {
+            "merged": "PR fusionada",
+            "closed": "PR cerrada",
+            "error": "Error al escribir de vuelta",
+            "opened": "PR abierta"
+        },
+        "unknownAuthor": "Autor desconocido",
+        "rowMetaWrittenBack": "{{status}} · {{author}} · {{when}}",
+        "rowMetaDismissed": "Descartado · {{author}} · {{when}}",
+        "rowMeta": "{{author}} · {{when}}",
+        "behindRepoBadge": "Desactualizado",
+        "selectDraft": "Selecciona un borrador para revisar",
+        "contentMissing_chart": "El gráfico de este borrador ya no existe.",
+        "contentMissing_dashboard": "El panel de este borrador ya no existe.",
+        "loadFailed": "No se pudo cargar este borrador.",
+        "dismissDraft": "Descartar borrador",
+        "allClear": "Todo al día",
+        "emptyDescription": "Cuando los editores guarden cambios sin publicar en gráficos o paneles gestionados, sus borradores aparecerán aquí para que los revises y los escribas de vuelta en el repositorio.",
+        "awaitingReview": "Pendientes de revisión",
+        "history": "Historial",
+        "draftBy": "Borrador de {{author}} · actualizado {{when}}",
+        "unknown": "desconocido",
+        "open_chart": "Abrir gráfico",
+        "open_dashboard": "Abrir panel",
+        "viewPullRequest": "Ver pull request",
+        "dismiss": "Descartar",
+        "dismissConfirm": "¿Descartar este borrador? Los cambios del autor seguirán sin publicar y no llegarán al repositorio.",
+        "staleTooltip": "El repositorio cambió {{fields}} desde que se inició este borrador. El autor debe actualizarlo primero.",
+        "writeBackTooltip_chart": "Abre la pull request de este gráfico con el contenido del borrador",
+        "writeBackTooltip_dashboard": "Abre la pull request de este panel con el contenido del borrador",
+        "writeBack": "Escribir en el repositorio",
+        "behindTitle": "Desactualizado respecto al repositorio",
+        "behindDescription": "El repositorio publicó una versión posterior a la que dio origen a este borrador. El autor debe actualizarlo antes de poder escribirlo de vuelta.",
+        "changeRepo": ": repositorio {{change}}",
+        "changeMine": "; este borrador {{change}}"
+    },
+    "toasts": {
+        "writtenBack": "Borrador escrito en el repositorio",
+        "openPullRequest": "Abrir pull request",
+        "writeBackFailed": "No se pudo escribir el borrador en el repositorio",
+        "dismissed": "Borrador descartado",
+        "dismissFailed": "No se pudo descartar el borrador",
+        "updated": "Borrador actualizado a la última versión",
+        "updateFailed": "No se pudo actualizar el borrador",
+        "reopened": "Borrador reabierto",
+        "reopenFailed": "No se pudo reabrir el borrador"
+    }
+}

@@ -2,6 +2,7 @@ import { type OrganizationWarehouseCredentials } from '@lightdash/common';
 import { ActionIcon, Group, Paper, Table } from '@mantine/core';
 import { IconEdit, IconTrash } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
+import { useTranslation } from 'react-i18next';
 import tableStyles from '../../../hooks/styles/tableStyles.module.css';
 import MantineIcon from '../../common/MantineIcon';
 import { getWarehouseLabel } from '../../ProjectConnection/ProjectConnectFlow/utils';
@@ -28,44 +29,50 @@ const CredentialsItem: FC<
     credentials,
     setWarehouseCredentialsToBeDeleted,
     setWarehouseCredentialsToBeEdited,
-}) => (
-    <Table.Tr>
-        <Table.Td fw={500}>{credentials.name}</Table.Td>
-        <Table.Td>{credentials.description || '-'}</Table.Td>
-        <Table.Td>{getWarehouseLabel(credentials.warehouseType)}</Table.Td>
-        <Table.Td
-            style={{
-                display: 'flex',
-                justifyContent: 'flex-end',
-                alignItems: 'center',
-            }}
-        >
-            <Group>
-                <ActionIcon
-                    onClick={() =>
-                        setWarehouseCredentialsToBeEdited(credentials)
-                    }
-                >
-                    <MantineIcon icon={IconEdit} />
-                </ActionIcon>
+}) => {
+    const { t } = useTranslation('userSettings');
+    return (
+        <Table.Tr>
+            <Table.Td fw={500}>{credentials.name}</Table.Td>
+            <Table.Td>{credentials.description || '-'}</Table.Td>
+            <Table.Td>{getWarehouseLabel(credentials.warehouseType)}</Table.Td>
+            <Table.Td
+                style={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    alignItems: 'center',
+                }}
+            >
+                <Group>
+                    <ActionIcon
+                        aria-label={t('actions.edit', { ns: 'common' })}
+                        onClick={() =>
+                            setWarehouseCredentialsToBeEdited(credentials)
+                        }
+                    >
+                        <MantineIcon icon={IconEdit} />
+                    </ActionIcon>
 
-                <ActionIcon
-                    onClick={() =>
-                        setWarehouseCredentialsToBeDeleted(credentials)
-                    }
-                >
-                    <MantineIcon icon={IconTrash} />
-                </ActionIcon>
-            </Group>
-        </Table.Td>
-    </Table.Tr>
-);
+                    <ActionIcon
+                        aria-label={t('actions.delete', { ns: 'common' })}
+                        onClick={() =>
+                            setWarehouseCredentialsToBeDeleted(credentials)
+                        }
+                    >
+                        <MantineIcon icon={IconTrash} />
+                    </ActionIcon>
+                </Group>
+            </Table.Td>
+        </Table.Tr>
+    );
+};
 
 export const CredentialsTable: FC<CredentialsTableProps> = ({
     credentials,
     setWarehouseCredentialsToBeEdited,
     setWarehouseCredentialsToBeDeleted,
 }) => {
+    const { t } = useTranslation('userSettings');
     return (
         <Paper className={tableStyles.paper}>
             <Table
@@ -74,9 +81,21 @@ export const CredentialsTable: FC<CredentialsTableProps> = ({
             >
                 <Table.Thead>
                     <Table.Tr>
-                        <Table.Th>Name</Table.Th>
-                        <Table.Th>Description</Table.Th>
-                        <Table.Th>Warehouse</Table.Th>
+                        <Table.Th>
+                            {t(
+                                'organizationWarehouseCredentialsPanel.credentialsTable.columns.name',
+                            )}
+                        </Table.Th>
+                        <Table.Th>
+                            {t(
+                                'organizationWarehouseCredentialsPanel.credentialsTable.columns.description',
+                            )}
+                        </Table.Th>
+                        <Table.Th>
+                            {t(
+                                'organizationWarehouseCredentialsPanel.credentialsTable.columns.warehouse',
+                            )}
+                        </Table.Th>
                         <Table.Th />
                     </Table.Tr>
                 </Table.Thead>

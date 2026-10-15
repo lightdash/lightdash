@@ -1,6 +1,8 @@
 import { type AiIdentitySource, type WarehouseTypes } from '@lightdash/common';
 import { Anchor, Button, Group, Loader, Text } from '@mantine/core';
+import { type TFunction } from 'i18next';
 import { Fragment } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import Callout from '../../components/common/Callout';
 import MantineModal from '../../components/common/MantineModal';
@@ -18,19 +20,14 @@ interface AgentIdentityRuleConfirmModalProps {
 const getConfirmationCopy = (
     source: AgentIdentityRuleConfirmModalProps['source'],
     warehouseName: string,
+    t: TFunction,
 ) => {
-    if (source === 'ai_service_account') {
-        return {
-            title: `Use a shared agent account for ${warehouseName}?`,
-            body: `Agents on ${warehouseName} will run as each project's shared agent account, not as the person asking.`,
-            confirmLabel: 'Use a shared agent account',
-        };
-    }
-
+    const key =
+        source === 'ai_service_account' ? 'sharedAccount' : 'markedPerson';
     return {
-        title: `Run agents as the person on ${warehouseName}?`,
-        body: `Agents will get the same ${warehouseName} access as the person asking. Your warehouse can't limit agent queries separately.`,
-        confirmLabel: 'Run as the person',
+        title: t(`ruleConfirm.${key}.title`, { warehouse: warehouseName }),
+        body: t(`ruleConfirm.${key}.body`, { warehouse: warehouseName }),
+        confirmLabel: t(`ruleConfirm.${key}.confirm`),
     };
 };
 
@@ -39,22 +36,23 @@ const ProjectsWithoutAiServiceAccountNotice = ({
 }: {
     projects: ReturnType<typeof useProjectsWithoutAiServiceAccount>;
 }) => {
+    const { t } = useTranslation('aiAccess');
     if (projects.isFetching) {
-        return <Loader size="sm" aria-label="Checking shared agent accounts" />;
+        return <Loader size="sm" aria-label={t('ruleConfirm.checking')} />;
     }
 
     if (projects.isError) {
         return (
             <Group gap="xs">
                 <Text size="sm" c="dimmed">
-                    Could not check which projects have a shared agent account.
+                    {t('ruleConfirm.checkFailed')}
                 </Text>
                 <Button
                     variant="default"
                     size="xs"
                     onClick={() => void projects.refetch()}
                 >
-                    Retry
+                    {t('actions.retry', { ns: 'common' })}
                 </Button>
             </Group>
         );
@@ -65,9 +63,9 @@ const ProjectsWithoutAiServiceAccountNotice = ({
 
     return (
         <Callout variant="warning" color="yellow">
-            {missingProjects.length}{' '}
-            {missingProjects.length === 1 ? 'project has' : 'projects have'} no
-            shared agent account yet:{' '}
+            {t('ruleConfirm.missingPrefix', {
+                count: missingProjects.length,
+            })}{' '}
             {missingProjects.slice(0, 3).map((project, index) => (
                 <Fragment key={project.projectUuid}>
                     {index > 0 && ', '}
@@ -81,11 +79,13 @@ const ProjectsWithoutAiServiceAccountNotice = ({
                 </Fragment>
             ))}
             {missingProjects.length > 3 &&
-                ` and ${missingProjects.length - 3} more`}
+                t('ruleConfirm.andMore', {
+                    count: missingProjects.length - 3,
+                })}
             .{' '}
-            {missingProjects.length === 1
-                ? 'Agents stop working on it until a project admin adds one.'
-                : 'Agents stop working on them until a project admin adds one.'}
+            {t('ruleConfirm.missingSuffix', {
+                count: missingProjects.length,
+            })}
         </Callout>
     );
 };
@@ -97,6 +97,7 @@ const AgentIdentityRuleConfirmModal = ({
     onConfirm,
     saving,
 }: AgentIdentityRuleConfirmModalProps) => {
+    const { t } = useTranslation('aiAccess');
     const usesServiceAccount = source === 'ai_service_account';
     const projects = useProjectsWithoutAiServiceAccount(
         warehouseType,
@@ -106,7 +107,7 @@ const AgentIdentityRuleConfirmModal = ({
         identityWarehouseNames[
             warehouseType as keyof typeof identityWarehouseNames
         ];
-    const copy = getConfirmationCopy(source, warehouseName);
+    const copy = getConfirmationCopy(source, warehouseName, t);
     const confirmDisabled =
         usesServiceAccount && (!projects.isSuccess || projects.isFetching);
 

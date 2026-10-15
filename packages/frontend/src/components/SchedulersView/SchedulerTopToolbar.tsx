@@ -10,6 +10,7 @@ import {
 } from '@mantine/core';
 import { IconTrash, IconUserEdit } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type useSchedulerFilters } from '../../features/scheduler/hooks/useSchedulerFilters';
 import MantineIcon from '../common/MantineIcon';
 import CreatedByFilter from './filters/CreatedByFilter';
@@ -70,6 +71,7 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
         hideBulkReassign = false,
         ...props
     }) => {
+        const { t } = useTranslation('scheduler');
         const theme = useMantineTheme();
         const hasSelection = selectedCount > 0;
 
@@ -143,8 +145,9 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
                     {hasSelection && onBulkReassign && !hideBulkReassign && (
                         <>
                             <Text size="sm" c="dimmed">
-                                {selectedCount}{' '}
-                                {selectedCount === 1 ? 'selected' : 'selected'}
+                                {t('toolbar.selectedCount', {
+                                    count: selectedCount,
+                                })}
                             </Text>
                             <Button
                                 size="xs"
@@ -154,12 +157,12 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
                                 }
                                 onClick={onBulkReassign}
                             >
-                                Reassign owner
+                                {t('toolbar.reassignOwner')}
                             </Button>
                         </>
                     )}
                     {hasActiveFilters && onClearFilters && !hasSelection && (
-                        <Tooltip label="Clear all filters">
+                        <Tooltip label={t('toolbar.clearAllFilters')}>
                             <ActionIcon size="sm" onClick={onClearFilters}>
                                 <MantineIcon icon={IconTrash} />
                             </ActionIcon>

@@ -21,6 +21,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
@@ -45,6 +46,7 @@ import UserAttributeModal from './UserAttributeModal';
 import { UserAttributesTopToolbar } from './UserAttributesTopToolbar';
 
 const UserAttributesPanel: FC = () => {
+    const { t } = useTranslation('userSettings');
     const theme = useMantineTheme();
     const { user } = useApp();
     const userGroupsFeatureFlagQuery = useServerFeatureFlag(
@@ -70,7 +72,7 @@ const UserAttributesPanel: FC = () => {
         () => [
             {
                 accessorKey: 'name',
-                header: 'Attribute name',
+                header: t('userAttributesPanel.table.attributeName'),
                 enableSorting: false,
                 size: 380,
                 Cell: ({ row }) => {
@@ -97,15 +99,18 @@ const UserAttributesPanel: FC = () => {
                             </Group>
                             <Group gap="sm">
                                 <Text fz="xs" c="dimmed">
-                                    {attribute.users.length} user
-                                    {attribute.users.length !== 1 ? 's' : ''}
+                                    {t('userAttributesPanel.table.userCount', {
+                                        count: attribute.users.length,
+                                    })}
                                 </Text>
                                 {isGroupManagementEnabled && (
                                     <Text fz="xs" c="dimmed">
-                                        {attribute.groups.length} group
-                                        {attribute.groups.length !== 1
-                                            ? 's'
-                                            : ''}
+                                        {t(
+                                            'userAttributesPanel.table.groupCount',
+                                            {
+                                                count: attribute.groups.length,
+                                            },
+                                        )}
                                     </Text>
                                 )}
                             </Group>
@@ -145,7 +150,7 @@ const UserAttributesPanel: FC = () => {
                                             setEditAttribute(attribute)
                                         }
                                     >
-                                        Edit
+                                        {t('actions.edit', { ns: 'common' })}
                                     </Menu.Item>
                                     <Menu.Item
                                         leftSection={
@@ -156,7 +161,9 @@ const UserAttributesPanel: FC = () => {
                                             setDeleteAttribute(attribute)
                                         }
                                     >
-                                        Delete
+                                        {t('actions.delete', {
+                                            ns: 'common',
+                                        })}
                                     </Menu.Item>
                                 </Menu.Dropdown>
                             </Menu>
@@ -165,7 +172,7 @@ const UserAttributesPanel: FC = () => {
                 },
             },
         ],
-        [isGroupManagementEnabled],
+        [isGroupManagementEnabled, t],
     );
 
     const tableData = useMemo(() => {
@@ -239,22 +246,26 @@ const UserAttributesPanel: FC = () => {
         renderEmptyRowsFallback: () =>
             searchQuery.trim() ? (
                 <Text fz="sm" c="dimmed" ta="center" py="xl">
-                    No attributes match your search.
+                    {t('userAttributesPanel.table.noSearchResults')}
                 </Text>
             ) : (
                 <Text fz="sm" c="dimmed" ta="center" py="xl">
-                    There's no user attributes defined yet. <br /> To learn how
-                    to define user attributes, check out our{' '}
-                    <Anchor
-                        href="https://docs.lightdash.com/references/user-attributes"
-                        target="_blank"
-                        rel="noreferrer"
-                        fz="sm"
-                        fw="bold"
-                    >
-                        documentation
-                    </Anchor>
-                    .
+                    <Trans
+                        t={t}
+                        i18nKey="userAttributesPanel.table.empty"
+                        components={{
+                            br: <br />,
+                            docsLink: (
+                                <Anchor
+                                    href="https://docs.lightdash.com/references/user-attributes"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    fz="sm"
+                                    fw="bold"
+                                />
+                            ),
+                        }}
+                    />
                 </Text>
             ),
         state: {
@@ -280,10 +291,10 @@ const UserAttributesPanel: FC = () => {
         <SettingsPage
             title={
                 isGroupManagementEnabled
-                    ? 'User and group attributes'
-                    : 'User attributes'
+                    ? t('userAttributesPanel.title.userAndGroupAttributes')
+                    : t('userAttributesPanel.title.userAttributes')
             }
-            description="Define organization metadata used for data access and personalization."
+            description={t('userAttributesPanel.description')}
             actions={
                 <SettingsPageActions>
                     <SettingsPageDocumentationLink href="https://docs.lightdash.com/references/user-attributes" />
@@ -292,7 +303,7 @@ const UserAttributesPanel: FC = () => {
                         leftSection={<MantineIcon icon={IconPlus} />}
                         onClick={addAttributeModal.open}
                     >
-                        Add attribute
+                        {t('userAttributesPanel.addAttribute')}
                     </Button>
                 </SettingsPageActions>
             }
@@ -318,9 +329,11 @@ const UserAttributesPanel: FC = () => {
                 <MantineModal
                     opened={true}
                     onClose={() => setDeleteAttribute(undefined)}
-                    title="Delete user attribute"
+                    title={t('userAttributesPanel.deleteModal.title')}
                     variant="delete"
-                    resourceType="user attribute"
+                    resourceType={t(
+                        'userAttributesPanel.deleteModal.resourceType',
+                    )}
                     resourceLabel={deleteAttribute.name}
                     onConfirm={() => {
                         deleteUserAttribute(deleteAttribute.uuid);

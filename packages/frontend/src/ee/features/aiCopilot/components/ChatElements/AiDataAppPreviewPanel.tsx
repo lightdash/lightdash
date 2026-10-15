@@ -24,6 +24,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useCallback, useRef, useState, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -61,11 +62,7 @@ import {
 } from '../../store/hooks';
 import artifactStyles from './AiArtifactPanel.module.css';
 import { type DataAppBuildCardState } from './DataAppBuildCard/DataAppBuildCard';
-import {
-    DATA_APP_BUILD_CANCELLED_TITLE,
-    DATA_APP_BUILD_FAILED_TITLE,
-    getDataAppLatestVersionState,
-} from './DataAppBuildCard/dataAppBuildCardState';
+import { getDataAppLatestVersionState } from './DataAppBuildCard/dataAppBuildCardState';
 import { getEffectiveDataAppVersion } from './DataAppBuildCard/dataAppPreviewVersion';
 import { DataAppVersionPill } from './DataAppVersionPill';
 
@@ -78,17 +75,20 @@ type Props = {
 
 /** Shown in place of the iframe while the app has no ready version. */
 const BuildStateBody: FC<{ state: DataAppBuildCardState }> = ({ state }) => {
+    const { t } = useTranslation('aiCopilotChat');
     switch (state.kind) {
         case 'queued':
         case 'building':
             return (
                 <Box className={artifactStyles.previewEmpty}>
                     <MantineIcon icon={IconAppWindow} size={48} />
-                    <Text size="sm">Your app preview will appear here</Text>
+                    <Text size="sm">
+                        {t('dataAppPreview.previewPlaceholder')}
+                    </Text>
                     <Text size="xs" c="dimmed">
                         {state.kind === 'building'
                             ? state.statusMessage
-                            : 'Starting the build'}{' '}
+                            : t('dataAppPreview.startingBuild')}{' '}
                         <LoadingDots />
                     </Text>
                 </Box>
@@ -97,7 +97,7 @@ const BuildStateBody: FC<{ state: DataAppBuildCardState }> = ({ state }) => {
             return (
                 <Box className={artifactStyles.previewEmpty}>
                     <MantineIcon icon={IconAlertTriangle} size={48} />
-                    <Text size="sm">{DATA_APP_BUILD_FAILED_TITLE}</Text>
+                    <Text size="sm">{t('dataAppBuild.failedTitle')}</Text>
                     <Text size="xs" c="dimmed" ta="center">
                         {state.message}
                     </Text>
@@ -107,7 +107,7 @@ const BuildStateBody: FC<{ state: DataAppBuildCardState }> = ({ state }) => {
             return (
                 <Box className={artifactStyles.previewEmpty}>
                     <MantineIcon icon={IconCircleMinus} size={48} />
-                    <Text size="sm">{DATA_APP_BUILD_CANCELLED_TITLE}</Text>
+                    <Text size="sm">{t('dataAppBuild.cancelledTitle')}</Text>
                 </Box>
             );
         // A ready row without a ready version is a stale app read; the
@@ -124,6 +124,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
     dataAppPreview,
     showInspector,
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const dispatch = useAiAgentStoreDispatch();
     const navigate = useNavigate();
     const {
@@ -359,7 +360,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
             ? {
                   onClick: () => setRestoreTargetVersion(effectiveVersion),
                   disabledReason: isBuildInProgress
-                      ? 'A version is building; restore once it finishes.'
+                      ? t('dataAppPreview.restoreDisabled')
                       : null,
               }
             : null;
@@ -368,7 +369,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
         <ActionIcon
             size="sm"
             onClick={() => dispatch(clearPreview())}
-            aria-label="Close"
+            aria-label={t('actions.close', { ns: 'common' })}
         >
             <MantineIcon icon={IconX} />
         </ActionIcon>
@@ -388,15 +389,13 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
     );
 
     if (isNotFound) {
-        return renderMessage('This data app no longer exists.');
+        return renderMessage(t('dataAppPreview.notFound'));
     }
     if (isForbidden) {
-        return renderMessage(
-            "You don't have permission to view this data app.",
-        );
+        return renderMessage(t('dataAppPreview.forbidden'));
     }
     if (otherError) {
-        return renderMessage('Failed to load data app. Please try again.');
+        return renderMessage(t('dataAppPreview.loadFailed'));
     }
 
     if (appQuery.isLoading || !app) {
@@ -407,7 +406,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                         <Loader
                             type="dots"
                             color="ldGray.6"
-                            delayedMessage="Loading data app..."
+                            delayedMessage={t('dataAppPreview.loading')}
                         />
                         {closeButton}
                     </Stack>
@@ -430,7 +429,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                 <Loader
                     type="dots"
                     color="ldGray.6"
-                    delayedMessage="Loading data app..."
+                    delayedMessage={t('dataAppPreview.loading')}
                 />
             </Center>
         );
@@ -515,7 +514,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                                             />
                                         }
                                     >
-                                        Open in new tab
+                                        {t('dataAppPreview.openInNewTab')}
                                     </Menu.Item>
                                     <Menu.Item
                                         leftSection={
@@ -533,7 +532,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                                             )
                                         }
                                     >
-                                        Continue in builder
+                                        {t('dataAppPreview.continueInBuilder')}
                                     </Menu.Item>
                                 </>
                             }
@@ -542,8 +541,8 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                                 showInspector && isRenderingVersion
                                     ? {
                                           label: isInspectorVisible
-                                              ? 'Hide network'
-                                              : 'Show network',
+                                              ? t('dataAppPreview.hideNetwork')
+                                              : t('dataAppPreview.showNetwork'),
                                           onClick: toggleInspector,
                                       }
                                     : null
@@ -589,8 +588,8 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                             target={{
                                 size: 'sm',
                                 variant: 'subtle',
-                                ariaLabel: 'More options',
-                                tooltip: 'More options',
+                                ariaLabel: t('dataAppPreview.moreOptions'),
+                                tooltip: t('dataAppPreview.moreOptions'),
                             }}
                         />
                         {showInspector &&

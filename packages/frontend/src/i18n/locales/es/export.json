@@ -1,0 +1,74 @@
+{
+    "exportSelector": {
+        "downloadData": "Descargar datos"
+    },
+    "largeExportWarning": {
+        "title": "Exportación grande",
+        "body_one": "Esta exportación tiene unos {{cellMillions}} millones de celdas. Las exportaciones deben completarse en {{count}} minuto, y una tan grande puede tardar más. Filtra los resultados o usa un envío programado a Google Sheets.",
+        "body_other": "Esta exportación tiene unos {{cellMillions}} millones de celdas. Las exportaciones deben completarse en {{count}} minutos, y una tan grande puede tardar más. Filtra los resultados o usa un envío programado a Google Sheets."
+    },
+    "exportResults": {
+        "toast": {
+            "exporting": "Exportando resultados",
+            "mayTakeMinutes": "Esto puede tardar unos minutos...",
+            "truncatedTitle": "Los resultados de esta exportación se han limitado.",
+            "truncatedSubtitle": "La exportación se truncó por limitaciones de tamaño.",
+            "downloadFailed": "No se pudieron descargar los resultados"
+        },
+        "errors": {
+            "noDownloadUrl": "La exportación no devolvió una URL de descarga."
+        },
+        "noData": "No hay datos para exportar",
+        "limit": {
+            "tableRows": "Filas de la tabla",
+            "allResults": "Todos los resultados",
+            "custom": "Personalizado",
+            "rowsToExport": "Filas a exportar"
+        },
+        "layout": {
+            "title": "Diseño",
+            "tooltip": "Agrupado mantiene las columnas pivotadas del gráfico. Plano exporta las filas sin procesar del gráfico.",
+            "description": "Elige si exportar el diseño agrupado del gráfico o las filas planas subyacentes.",
+            "grouped": "Agrupado",
+            "flat": "Plano"
+        },
+        "dialog": {
+            "title": "Configuración de exportación",
+            "description": "Elige el tipo de archivo, el formato de los valores y el alcance de los resultados para esta exportación."
+        },
+        "fileFormat": {
+            "title": "Formato de archivo",
+            "description": "CSV es ideal para pipelines. XLSX está listo para hojas de cálculo."
+        },
+        "values": {
+            "title": "Valores",
+            "description": "Con formato mantiene la presentación de la tabla. Sin procesar usa los valores subyacentes.",
+            "formatted": "Con formato",
+            "raw": "Sin procesar"
+        },
+        "resultScope": {
+            "title": "Alcance de los resultados",
+            "description": "Exporta solo las filas visibles de la tabla o amplía el conjunto de resultados."
+        },
+        "pivotLimitNote": "<strong>Límite de exportación pivotada.</strong> Las exportaciones pivotadas están limitadas a {{cells}} celdas y {{columns}} columnas.",
+        "excelLimitNote": "<strong>Límite de filas de Excel.</strong> Las exportaciones de Excel están limitadas a 1.000.000 de filas."
+    },
+    "googleSheets": {
+        "exportMenuItem": "Exportar a Google Sheets",
+        "button": "Google Sheets",
+        "progress": {
+            "mayTakeMinutes": "Esto puede tardar unos minutos...",
+            "runningQuery": "Ejecutando consulta...",
+            "writing": "Escribiendo en Google Sheets...",
+            "writingRetry": "Escribiendo en Google Sheets... (reintento {{attempt}})"
+        },
+        "toast": {
+            "exporting": "Exportando a Google Sheets",
+            "uploadFailed": "No se pudo subir a Google Sheets",
+            "exportFailed": "No se pudo exportar a Google Sheets"
+        },
+        "errors": {
+            "schedulerJobFailed": "No se pudo crear la tarea programada para la exportación a Google Sheets"
+        }
+    }
+}

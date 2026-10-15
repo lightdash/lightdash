@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
+import i18n from '../../../i18n/i18n';
 import { roadmapApi } from './roadmapApi';
 
 export function useFollowRoadmapProject(cacheKey: string) {
@@ -16,7 +17,10 @@ export function useFollowRoadmapProject(cacheKey: string) {
         retry: false,
         onSuccess: ({ message }, { projectId }) => {
             setSubmittedProjectIds((ids) => [...new Set([...ids, projectId])]);
-            showToastSuccess({ title: 'Request sent', subtitle: message });
+            showToastSuccess({
+                title: i18n.t('roadmap.follow.sent', { ns: 'eeMisc' }),
+                subtitle: message,
+            });
             void queryClient.invalidateQueries({
                 queryKey: ['roadmap-projects', cacheKey],
             });
@@ -35,8 +39,8 @@ export function useFollowRoadmapProject(cacheKey: string) {
             return true;
         } catch {
             showToastError({
-                title: 'Could not send request',
-                subtitle: 'Your note has been kept. Please try again.',
+                title: i18n.t('roadmap.follow.sendFailed', { ns: 'eeMisc' }),
+                subtitle: i18n.t('roadmap.follow.noteKept', { ns: 'eeMisc' }),
             });
             return false;
         } finally {

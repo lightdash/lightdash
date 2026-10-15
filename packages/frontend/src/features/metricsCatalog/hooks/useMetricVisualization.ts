@@ -37,6 +37,7 @@ import {
 } from '../../../hooks/cartesianChartConfig/utils';
 import { useExplore } from '../../../hooks/useExplore';
 import { type QueryResultsProps } from '../../../hooks/useQueryResults';
+import i18n from '../../../i18n/i18n';
 import { useQueryExecutor } from '../../../providers/Explorer/useQueryExecutor';
 import { useMetric } from './useMetricsCatalog';
 
@@ -202,7 +203,10 @@ const buildLineChartConfig = (
                   METRICS_EXPLORER_PREVIOUS_PERIOD_OFFSET_DEFAULT,
               )})`
             : comparison === MetricExplorerComparison.DIFFERENT_METRIC
-              ? (compareMetricLabel ?? 'Comparison')
+              ? (compareMetricLabel ??
+                i18n.t('visualization.comparisonSeries', {
+                    ns: 'metricsCatalog',
+                }))
               : undefined;
 
     return {

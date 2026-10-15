@@ -1,0 +1,28 @@
+{
+    "defaultUserSpaces": {
+        "title": "Personal spaces",
+        "description": "When enabled, each project member will automatically get a personal space where they can save their own charts and dashboards.",
+        "enable": "Enable default user spaces"
+    },
+    "spacesPage": {
+        "title": "Spaces",
+        "home": "Home",
+        "sharedWithMeEmpty": "Nothing has been shared with you yet.",
+        "createNewSpace": "Create new space"
+    },
+    "spacePage": {
+        "loading": "Loading space",
+        "notFoundTitle": "Space does not exist",
+        "notFoundDescription": "We could not find space with uuid {{spaceUuid}}",
+        "noAccess": "You do not have access to this space",
+        "createSpace": "Create space",
+        "createDashboard": "Create new dashboard",
+        "createChart": "Create new chart",
+        "createDocument": "Create new document",
+        "createDataApp": "Create new data app",
+        "actions": "Space actions",
+        "updateSpace": "Update space",
+        "deleteSpace": "Delete space",
+        "createSpaceIn": "Create space in \"{{name}}\""
+    }
+}

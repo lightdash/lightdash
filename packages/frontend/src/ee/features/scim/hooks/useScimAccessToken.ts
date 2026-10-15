@@ -13,6 +13,7 @@ import {
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import useQueryError from '../../../../hooks/useQueryError';
+import i18n from '../../../../i18n/i18n';
 
 // gets users access tokens
 const getScimToken = async () =>
@@ -64,7 +65,9 @@ export const useCreateScimToken = () => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to create token`,
+                title: i18n.t('scim.toasts.createFailed', {
+                    ns: 'serviceAccounts',
+                }),
                 apiError: error,
             });
         },
@@ -79,12 +82,14 @@ export const useDeleteScimToken = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries(['scim_access_tokens']);
             showToastSuccess({
-                title: `Success! Your token was deleted.`,
+                title: i18n.t('scim.toasts.deleted', { ns: 'serviceAccounts' }),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to delete token`,
+                title: i18n.t('scim.toasts.deleteFailed', {
+                    ns: 'serviceAccounts',
+                }),
                 apiError: error,
             });
         },

@@ -1,6 +1,7 @@
 import { ECHARTS_DEFAULT_COLORS } from '@lightdash/common';
 import { Group, Text, UnstyledButton } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useResolvedColorPalette } from '../../../hooks/appearance/useResolvedColorPalette';
 import classes from './BuilderPromptExamples.module.css';
 
@@ -90,28 +91,23 @@ const WaterfallThumbnail: FC<ThumbnailProps> = ({ colors }) => (
 );
 
 const EXAMPLES: {
-    key: string;
-    prompt: string;
+    key: 'stream' | 'funnel' | 'heatmap' | 'waterfall';
     Thumbnail: FC<ThumbnailProps>;
 }[] = [
     {
         key: 'stream',
-        prompt: 'A stream graph of share over time',
         Thumbnail: StreamThumbnail,
     },
     {
         key: 'funnel',
-        prompt: 'A funnel of signup steps',
         Thumbnail: FunnelThumbnail,
     },
     {
         key: 'heatmap',
-        prompt: 'A calendar heatmap of daily orders',
         Thumbnail: HeatmapThumbnail,
     },
     {
         key: 'waterfall',
-        prompt: 'A waterfall of revenue changes',
         Thumbnail: WaterfallThumbnail,
     },
 ];
@@ -124,23 +120,27 @@ type Props = {
 
 /** Starter prompts for the empty builder, previewed in the project's colors. */
 const BuilderPromptExamples: FC<Props> = ({ projectUuid, onPick }) => {
+    const { t } = useTranslation('chartTypes');
     const palette = useResolvedColorPalette(projectUuid);
     const colors = palette.length > 0 ? palette : ECHARTS_DEFAULT_COLORS;
 
     return (
         <Group gap="sm" align="stretch" justify="center">
-            {EXAMPLES.map(({ key, prompt, Thumbnail }) => (
-                <UnstyledButton
-                    key={key}
-                    className={classes.card}
-                    onClick={() => onPick(prompt)}
-                >
-                    <Thumbnail colors={colors} />
-                    <Text fz="sm" fw={500} c="ldGray.8" lh={1.35}>
-                        {prompt}
-                    </Text>
-                </UnstyledButton>
-            ))}
+            {EXAMPLES.map(({ key, Thumbnail }) => {
+                const prompt = t(`examples.${key}`);
+                return (
+                    <UnstyledButton
+                        key={key}
+                        className={classes.card}
+                        onClick={() => onPick(prompt)}
+                    >
+                        <Thumbnail colors={colors} />
+                        <Text fz="sm" fw={500} c="ldGray.8" lh={1.35}>
+                            {prompt}
+                        </Text>
+                    </UnstyledButton>
+                );
+            })}
         </Group>
     );
 };

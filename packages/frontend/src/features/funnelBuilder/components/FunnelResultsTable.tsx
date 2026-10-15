@@ -1,12 +1,14 @@
 import { friendlyName } from '@lightdash/common';
 import { Table, Text } from '@mantine/core';
 import { Fragment, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '../store';
 import { selectResults } from '../store/funnelBuilderSlice';
 import { formatTimeDuration } from '../utils/funnelChartConfig';
 import styles from './FunnelResultsTable.module.css';
 
 export const FunnelResultsTable: FC = () => {
+    const { t } = useTranslation('metricsCatalog');
     const results = useAppSelector(selectResults);
 
     const { stepNames, breakdownValues, stepsByKey } = useMemo(() => {
@@ -60,7 +62,7 @@ export const FunnelResultsTable: FC = () => {
                             rowSpan={2}
                             className={styles.breakdownHeader}
                         >
-                            Breakdown
+                            {t('funnelBuilder.table.breakdown')}
                         </Table.Th>
                     )}
                     {stepNames.map((stepName, idx) => (
@@ -85,19 +87,21 @@ export const FunnelResultsTable: FC = () => {
                                 ta="right"
                                 className={styles.metricHeader}
                             >
-                                Users
+                                {t('funnelBuilder.table.users')}
                             </Table.Th>
                             <Table.Th
                                 ta="right"
                                 className={styles.metricHeader}
                             >
-                                Conv %
+                                {t('funnelBuilder.table.conversion')}
                             </Table.Th>
                             <Table.Th
                                 ta="right"
                                 className={styles.metricHeader}
                             >
-                                {idx === 0 ? '—' : 'Time'}
+                                {idx === 0
+                                    ? '—'
+                                    : t('funnelBuilder.table.time')}
                             </Table.Th>
                         </Fragment>
                     ))}

@@ -2,6 +2,7 @@ import { type ApiError, type ClosePullRequestResult } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import i18n from '../../../../i18n/i18n';
 
 type CloseArgs = { prUrl: string };
 
@@ -27,7 +28,9 @@ export const useClosePullRequest = (projectUuid: string) => {
     return useMutation<ClosePullRequestResult, ApiError, CloseArgs>({
         mutationFn: (args) => closePullRequest(projectUuid, args),
         onSuccess: (_result, { prUrl }) => {
-            showToastSuccess({ title: 'Pull request closed' });
+            showToastSuccess({
+                title: i18n.t('toasts.pullRequests.closed', { ns: 'aiAgent' }),
+            });
             void queryClient.invalidateQueries({
                 queryKey: ['pullRequestCiChecks', projectUuid, prUrl],
             });
@@ -41,7 +44,9 @@ export const useClosePullRequest = (projectUuid: string) => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to close pull request',
+                title: i18n.t('toasts.pullRequests.closeFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },

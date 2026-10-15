@@ -14,6 +14,7 @@ import {
 } from '@tabler/icons-react';
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import ErrorBoundary from '../../errorBoundary/ErrorBoundary';
 import DocumentLinkedChart from '../DocumentLinkedChart';
@@ -29,6 +30,7 @@ const RetitleButton = ({
     title: string | undefined;
     onChange: (title: string | undefined) => void;
 }) => {
+    const { t } = useTranslation('documents');
     const [opened, setOpened] = useState(false);
     const [value, setValue] = useState(title ?? '');
     const apply = (next: string) => {
@@ -43,9 +45,9 @@ const RetitleButton = ({
             trapFocus
         >
             <Popover.Target>
-                <Tooltip label="Title in this document">
+                <Tooltip label={t('savedChartNode.titleLabel')}>
                     <ActionIcon
-                        aria-label="Edit title in this document"
+                        aria-label={t('savedChartNode.editTitle')}
                         onClick={() => {
                             setValue(title ?? '');
                             setOpened((isOpen) => !isOpen);
@@ -64,8 +66,8 @@ const RetitleButton = ({
                 >
                     <Stack gap="xs" w={260}>
                         <TextInput
-                            label="Title in this document"
-                            placeholder="The chart's own title"
+                            label={t('savedChartNode.titleLabel')}
+                            placeholder={t('savedChartNode.titlePlaceholder')}
                             value={value}
                             onChange={(event) =>
                                 setValue(event.currentTarget.value)
@@ -79,11 +81,11 @@ const RetitleButton = ({
                                     size="xs"
                                     onClick={() => apply('')}
                                 >
-                                    Use the chart's title
+                                    {t('savedChartNode.useChartTitle')}
                                 </Button>
                             )}
                             <Button type="submit" size="xs">
-                                Apply
+                                {t('savedChartNode.apply')}
                             </Button>
                         </Group>
                     </Stack>
@@ -100,6 +102,7 @@ const DocumentSavedChartNodeView = ({
     updateAttributes,
     selected,
 }: NodeViewProps) => {
+    const { t } = useTranslation('documents');
     const { block } = node.attrs as DocumentSavedChartAttributes;
     const target = useDocumentEditorTarget();
     if (!block) {
@@ -118,13 +121,13 @@ const DocumentSavedChartNodeView = ({
     const actions = editor.isEditable ? (
         <Group gap="xs" wrap="nowrap">
             <RetitleButton title={block.attributes.title} onChange={retitle} />
-            <Tooltip label="Drag to move">
+            <Tooltip label={t('editor.dragToMove')}>
                 {/* A div, not a button: Firefox never starts a drag from a <button> */}
                 <ActionIcon
                     component="div"
                     role="button"
                     tabIndex={0}
-                    aria-label="Drag linked chart"
+                    aria-label={t('savedChartNode.drag')}
                     className={styles.chartDragHandle}
                     draggable
                     data-drag-handle
@@ -132,9 +135,9 @@ const DocumentSavedChartNodeView = ({
                     <MantineIcon icon={IconGripVertical} />
                 </ActionIcon>
             </Tooltip>
-            <Tooltip label="Remove linked chart">
+            <Tooltip label={t('savedChartNode.remove')}>
                 <ActionIcon
-                    aria-label="Remove linked chart"
+                    aria-label={t('savedChartNode.remove')}
                     onClick={deleteNode}
                 >
                     <MantineIcon icon={IconTrash} />

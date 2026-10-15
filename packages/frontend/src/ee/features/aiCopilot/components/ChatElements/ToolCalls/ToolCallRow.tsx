@@ -15,6 +15,7 @@ import {
 } from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { ToolCallChip } from './ToolCallChip';
@@ -85,6 +86,7 @@ export const ToolCallRow: FC<Props> = ({
     toolResults,
     display,
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const builtInToolName = isToolName(toolName) ? toolName : null;
     const linkedMcpServer =
         toolCalls.find((toolCall) => toolCall.mcpServer)?.mcpServer ??
@@ -208,7 +210,9 @@ export const ToolCallRow: FC<Props> = ({
                 </Text>
             ) : (
                 <Text size="xs" className={styles.label}>
-                    Used {mcpDisplayMetadata?.label ?? 'MCP'}:{' '}
+                    {t('activity.usedMcp', {
+                        server: mcpDisplayMetadata?.label ?? 'MCP',
+                    })}{' '}
                     <ToolCallChip maxWidth={260} className={styles.mcpToolChip}>
                         {mcpToolDisplayName}
                     </ToolCallChip>

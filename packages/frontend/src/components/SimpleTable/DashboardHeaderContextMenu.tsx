@@ -7,6 +7,7 @@ import {
 import { ActionIcon, Flex, Menu, Text } from '@mantine/core';
 import { IconCheck, IconDots } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     getSortDirectionOrder,
@@ -23,6 +24,7 @@ type Props = {
 };
 
 const ColumnHeaderSortMenuOptions: FC<Props> = ({ item, tileUuid }) => {
+    const { t } = useTranslation('visualization');
     const itemFieldId = getItemId(item);
     const chartSort = useDashboardContext((c) => c.chartSort);
     const setChartSort = useDashboardContext((c) => c.setChartSort);
@@ -60,7 +62,7 @@ const ColumnHeaderSortMenuOptions: FC<Props> = ({ item, tileUuid }) => {
                             });
                         }}
                     >
-                        Sort{' '}
+                        {t('contextMenu.sort')}{' '}
                         <Text span fw={500}>
                             {getSortLabel(item, sortDirection)}
                         </Text>
@@ -80,7 +82,7 @@ const ColumnHeaderSortMenuOptions: FC<Props> = ({ item, tileUuid }) => {
                             });
                         }}
                     >
-                        Remove sort
+                        {t('contextMenu.removeSort')}
                     </Menu.Item>
                 </>
             )}
@@ -94,6 +96,7 @@ const DashboardHeaderContextMenu: FC<HeaderProps & { tileUuid: string }> = ({
 }) => {
     const meta = header.column.columnDef.meta as TableColumn['meta'];
     const item = meta?.item;
+    const { t } = useTranslation('visualization');
     const chartSort = useDashboardContext((c) => c.chartSort);
 
     const iconSort = useMemo(() => {
@@ -129,7 +132,7 @@ const DashboardHeaderContextMenu: FC<HeaderProps & { tileUuid: string }> = ({
                             variant="light"
                             color="gray"
                             bg="transparent"
-                            aria-label="Context menu"
+                            aria-label={t('contextMenu.contextMenu')}
                         >
                             <MantineIcon icon={IconDots} />
                         </ActionIcon>

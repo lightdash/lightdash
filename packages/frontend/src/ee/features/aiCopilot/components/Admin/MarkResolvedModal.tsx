@@ -1,6 +1,7 @@
 import { Button, Stack, Text } from '@mantine/core';
 import { IconCircleCheck, IconGitMerge } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { useUpdateAiAgentReviewItemStatus } from '../../hooks/useAiAgentAdmin';
@@ -26,6 +27,7 @@ export const MarkResolvedModal: FC<Props> = ({
     projectUuid,
     prUrl,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const merge = useMergePullRequest(projectUuid);
     const updateStatus = useUpdateAiAgentReviewItemStatus();
 
@@ -50,17 +52,15 @@ export const MarkResolvedModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Resolve issue"
+            title={t('markResolved.title')}
             icon={IconCircleCheck}
             size="md"
         >
             <Stack gap="md">
                 <Text size="sm" c="dimmed">
-                    Resolving marks this issue as done and closes its
-                    remediation.
                     {prUrl
-                        ? ' Merge the pull request first, or resolve without merging.'
-                        : ''}
+                        ? t('markResolved.descriptionWithPr')
+                        : t('markResolved.description')}
                 </Text>
                 <Stack gap="xs">
                     {prUrl && (
@@ -71,7 +71,7 @@ export const MarkResolvedModal: FC<Props> = ({
                             disabled={isResolving}
                             onClick={mergeAndResolve}
                         >
-                            Merge PR & mark resolved
+                            {t('markResolved.mergeAndResolve')}
                         </Button>
                     )}
                     <Button
@@ -82,8 +82,8 @@ export const MarkResolvedModal: FC<Props> = ({
                         onClick={markResolved}
                     >
                         {prUrl
-                            ? 'Mark resolved without merging'
-                            : 'Mark resolved'}
+                            ? t('markResolved.resolveWithoutMerging')
+                            : t('markResolved.resolve')}
                     </Button>
                 </Stack>
             </Stack>

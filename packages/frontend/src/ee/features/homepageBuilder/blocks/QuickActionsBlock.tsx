@@ -29,7 +29,9 @@ import {
     IconX,
     type Icon,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
@@ -44,9 +46,16 @@ import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 type StaticActionDefinition = {
     icon: Icon;
+    titleKey: string;
+    descriptionKey: string;
+    url: (projectUuid: string) => string;
+};
+
+type ActionPresentation = {
+    icon: Icon;
     title: string;
     description: string;
-    url: (projectUuid: string) => string;
+    url: string;
 };
 
 const STATIC_ACTIONS: Record<
@@ -55,42 +64,42 @@ const STATIC_ACTIONS: Record<
 > = {
     'ask-ai': {
         icon: IconSparkles,
-        title: 'Ask AI',
-        description: 'Ask a question in plain English.',
+        titleKey: 'quickActions.static.askAi.title',
+        descriptionKey: 'quickActions.static.askAi.description',
         url: (projectUuid) => `/projects/${projectUuid}/ai-agents`,
     },
     'run-query': {
         icon: IconTable,
-        title: 'Run a query',
-        description: 'Explore your data and answer a business question.',
+        titleKey: 'quickActions.static.runQuery.title',
+        descriptionKey: 'quickActions.static.runQuery.description',
         url: (projectUuid) => `/projects/${projectUuid}/tables`,
     },
     'browse-dashboards': {
         icon: IconLayoutDashboard,
-        title: 'Browse dashboards',
-        description: 'See what your team has already built.',
+        titleKey: 'quickActions.static.browseDashboards.title',
+        descriptionKey: 'quickActions.static.browseDashboards.description',
         url: (projectUuid) => `/projects/${projectUuid}/dashboards`,
     },
     'browse-spaces': {
         icon: IconFolder,
-        title: 'Browse spaces',
-        description: 'Content organized by team and topic.',
+        titleKey: 'quickActions.static.browseSpaces.title',
+        descriptionKey: 'quickActions.static.browseSpaces.description',
         url: (projectUuid) => `/projects/${projectUuid}/spaces`,
     },
     'my-space': {
         icon: IconUserCircle,
-        title: 'My space',
-        description: 'Your personal space.',
+        titleKey: 'quickActions.static.mySpace.title',
+        descriptionKey: 'quickActions.static.mySpace.description',
         // Resolved per viewer at render time; the chip is hidden without one.
         url: (projectUuid) => `/projects/${projectUuid}/spaces`,
     },
 };
 
-const STATIC_ACTION_HINTS: Partial<
+const STATIC_ACTION_HINT_KEYS: Partial<
     Record<keyof typeof STATIC_ACTIONS, string>
 > = {
-    'ask-ai': 'Hidden automatically for viewers without AI access.',
-    'my-space': 'Only shown to viewers who have a personal space.',
+    'ask-ai': 'quickActions.hints.askAi',
+    'my-space': 'quickActions.hints.mySpace',
 };
 
 const actionKey = (action: HomepageQuickAction): string => {
@@ -105,15 +114,16 @@ const actionKey = (action: HomepageQuickAction): string => {
 };
 
 const actionPresentation = (
+    t: TFunction,
     action: HomepageQuickAction,
     projectUuid: string,
     projectUrlIdentifier = projectUuid,
-): Omit<StaticActionDefinition, 'url'> & { url: string } => {
+): ActionPresentation => {
     if (action.type === 'dashboard') {
         return {
             icon: IconLayoutDashboard,
             title: action.label,
-            description: 'Open this dashboard.',
+            description: t('quickActions.openDashboard'),
             url: `/projects/${projectUrlIdentifier}/dashboards/${action.dashboardUuid}/view`,
         };
     }
@@ -121,16 +131,21 @@ const actionPresentation = (
         return {
             icon: IconFolder,
             title: action.label,
-            description: 'Open this space.',
+            description: t('quickActions.openSpace'),
             url: `/projects/${projectUrlIdentifier}/spaces/${action.spaceUuid}`,
         };
     }
-    const { url, ...definition } = STATIC_ACTIONS[action.type];
+    const definition = STATIC_ACTIONS[action.type];
     const identifier =
         action.type === 'browse-dashboards' || action.type === 'browse-spaces'
             ? projectUrlIdentifier
             : projectUuid;
-    return { ...definition, url: url(identifier) };
+    return {
+        icon: definition.icon,
+        title: t(definition.titleKey),
+        description: t(definition.descriptionKey),
+        url: definition.url(identifier),
+    };
 };
 
 const chipClassName = (action: HomepageQuickAction): string =>
@@ -150,6 +165,7 @@ export const QuickActionCards: FC<{
     justify = 'center',
     personalPlaceholders = false,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const { track } = useTracking();
     const { canAskAi } = useHomepageAiState(projectUuid);
@@ -174,6 +190,7 @@ export const QuickActionCards: FC<{
         <Group gap={8} justify={justify}>
             {visibleActions.map((action) => {
                 const presentation = actionPresentation(
+                    t,
                     action,
                     projectUuid,
                     projectUrlIdentifier,
@@ -189,7 +206,7 @@ export const QuickActionCards: FC<{
                     return (
                         <Tooltip
                             key={actionKey(action)}
-                            label="Resolves to each viewer's own personal space."
+                            label={t('quickActions.mySpacePlaceholder')}
                         >
                             <span
                                 className={chipClassName(action)}
@@ -233,16 +250,16 @@ type PickableContentType = ContentType.DASHBOARD | ContentType.SPACE;
 
 const PICKER_COPY: Record<
     PickableContentType,
-    { title: string; placeholder: string; icon: Icon }
+    { titleKey: string; placeholderKey: string; icon: Icon }
 > = {
     [ContentType.DASHBOARD]: {
-        title: 'Pick a dashboard',
-        placeholder: 'Search dashboards…',
+        titleKey: 'quickActions.picker.dashboardTitle',
+        placeholderKey: 'quickActions.picker.dashboardSearch',
         icon: IconLayoutDashboard,
     },
     [ContentType.SPACE]: {
-        title: 'Pick a space',
-        placeholder: 'Search spaces…',
+        titleKey: 'quickActions.picker.spaceTitle',
+        placeholderKey: 'quickActions.picker.spaceSearch',
         icon: IconFolder,
     },
 };
@@ -253,6 +270,7 @@ const ContentPickerModal: FC<{
     projectUuid: string;
     onPick: (uuid: string, label: string) => void;
 }> = ({ contentType, onClose, projectUuid, onPick }) => {
+    const { t } = useTranslation('homepageBuilder');
     const opened = contentType !== null;
     const copy = PICKER_COPY[contentType ?? ContentType.DASHBOARD];
     const [search, setSearch] = useState('');
@@ -271,12 +289,12 @@ const ContentPickerModal: FC<{
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title={copy.title}
+            title={t(copy.titleKey)}
             size="lg"
         >
             <Stack gap="sm">
                 <TextInput
-                    placeholder={copy.placeholder}
+                    placeholder={t(copy.placeholderKey)}
                     value={search}
                     onChange={(e) => setSearch(e.currentTarget.value)}
                     rightSection={isFetching ? <Loader size="xs" /> : null}
@@ -328,6 +346,7 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
     projectUuid,
     onChange,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     const { canAskAi } = useHomepageAiState(projectUuid);
     const [pickerContentType, setPickerContentType] =
         useState<PickableContentType | null>(null);
@@ -357,6 +376,7 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
             <Group gap={8} justify="center" className={classes.editableChipRow}>
                 {block.config.actions.map((action, index) => {
                     const presentation = actionPresentation(
+                        t,
                         action,
                         projectUuid,
                     );
@@ -392,8 +412,10 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                                     <Tooltip
                                         label={
                                             action.primary
-                                                ? 'Primary action'
-                                                : 'Make primary'
+                                                ? t(
+                                                      'quickActions.primaryAction',
+                                                  )
+                                                : t('quickActions.makePrimary')
                                         }
                                     >
                                         <ActionIcon
@@ -403,7 +425,12 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                                                     : 'ldGray.6'
                                             }
                                             size="sm"
-                                            aria-label={`Make ${presentation.title} the primary action`}
+                                            aria-label={t(
+                                                'quickActions.makePrimaryAria',
+                                                {
+                                                    title: presentation.title,
+                                                },
+                                            )}
                                             aria-pressed={
                                                 action.primary === true
                                             }
@@ -434,7 +461,12 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                                     <ActionIcon
                                         size="sm"
                                         disabled={index === 0}
-                                        aria-label={`Move ${presentation.title} earlier`}
+                                        aria-label={t(
+                                            'quickActions.moveEarlier',
+                                            {
+                                                title: presentation.title,
+                                            },
+                                        )}
                                         onClick={() => move(index, -1)}
                                     >
                                         <MantineIcon icon={IconArrowLeft} />
@@ -445,14 +477,21 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                                             index ===
                                             block.config.actions.length - 1
                                         }
-                                        aria-label={`Move ${presentation.title} later`}
+                                        aria-label={t(
+                                            'quickActions.moveLater',
+                                            {
+                                                title: presentation.title,
+                                            },
+                                        )}
                                         onClick={() => move(index, 1)}
                                     >
                                         <MantineIcon icon={IconArrowRight} />
                                     </ActionIcon>
                                     <ActionIcon
                                         size="sm"
-                                        aria-label={`Remove ${presentation.title}`}
+                                        aria-label={t('quickActions.remove', {
+                                            title: presentation.title,
+                                        })}
                                         onClick={() =>
                                             setActions(
                                                 block.config.actions.filter(
@@ -477,7 +516,7 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                             size="xs"
                             leftSection={<MantineIcon icon={IconPlus} />}
                         >
-                            Add action
+                            {t('quickActions.addAction')}
                         </Button>
                     </Menu.Target>
                     <Menu.Dropdown>
@@ -490,9 +529,11 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                                     />
                                 }
                                 rightSection={
-                                    STATIC_ACTION_HINTS[type] ? (
+                                    STATIC_ACTION_HINT_KEYS[type] ? (
                                         <Tooltip
-                                            label={STATIC_ACTION_HINTS[type]}
+                                            label={t(
+                                                STATIC_ACTION_HINT_KEYS[type],
+                                            )}
                                         >
                                             <MantineIcon
                                                 icon={IconInfoCircle}
@@ -508,7 +549,7 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                                     ])
                                 }
                             >
-                                {STATIC_ACTIONS[type].title}
+                                {t(STATIC_ACTIONS[type].titleKey)}
                             </Menu.Item>
                         ))}
                         <Menu.Item
@@ -519,7 +560,7 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                                 setPickerContentType(ContentType.DASHBOARD)
                             }
                         >
-                            A specific dashboard…
+                            {t('quickActions.specificDashboard')}
                         </Menu.Item>
                         <Menu.Item
                             leftSection={<MantineIcon icon={IconFolder} />}
@@ -527,7 +568,7 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                                 setPickerContentType(ContentType.SPACE)
                             }
                         >
-                            A specific space…
+                            {t('quickActions.specificSpace')}
                         </Menu.Item>
                     </Menu.Dropdown>
                 </Menu>

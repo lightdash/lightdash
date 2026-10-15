@@ -24,8 +24,10 @@ import {
     IconPlus,
     IconTrash,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import {
     useAllowedEmailDomains,
@@ -36,69 +38,89 @@ import MantineIcon from '../../common/MantineIcon';
 import { MultiSelectCombobox } from '../../common/MultiSelectCombobox/MultiSelectCombobox';
 import styles from './AllowedDomainsPanel.module.css';
 
-const roleOptions: Array<{
+const getRoleOptions = (
+    t: TFunction<'userSettings'>,
+): Array<{
     value: AllowedEmailDomains['role'];
     label: string;
     subLabel: string;
-}> = [
+}> => [
     {
         value: OrganizationMemberRole.EDITOR,
-        label: 'Organization Editor',
-        subLabel: 'Has edit access across all projects in the org',
+        label: t('allowedDomainsPanel.roles.orgEditor'),
+        subLabel: t('allowedDomainsPanel.roles.orgEditorDescription'),
     },
     {
         value: OrganizationMemberRole.INTERACTIVE_VIEWER,
-        label: 'Organization Interactive Viewer',
-        subLabel: 'Has interactive access across all projects in the org',
+        label: t('allowedDomainsPanel.roles.orgInteractiveViewer'),
+        subLabel: t(
+            'allowedDomainsPanel.roles.orgInteractiveViewerDescription',
+        ),
     },
     {
         value: OrganizationMemberRole.VIEWER,
-        label: 'Organization Viewer',
-        subLabel: 'Has view access across all projects in the org',
+        label: t('allowedDomainsPanel.roles.orgViewer'),
+        subLabel: t('allowedDomainsPanel.roles.orgViewerDescription'),
     },
     {
         value: OrganizationMemberRole.MEMBER,
-        label: 'Organization Member',
-        subLabel: 'Has view access to selected projects only',
+        label: t('allowedDomainsPanel.roles.orgMember'),
+        subLabel: t('allowedDomainsPanel.roles.orgMemberDescription'),
     },
 ];
 
-const projectRoleOptions: Array<{
+const getProjectRoleOptions = (
+    t: TFunction<'userSettings'>,
+): Array<{
     value: ProjectMemberRole;
     label: string;
     subLabel: string;
-}> = [
+}> => [
     {
         value: ProjectMemberRole.EDITOR,
-        label: 'Editor',
-        subLabel: 'Has edit access in this project',
+        label: t('allowedDomainsPanel.roles.projectEditor'),
+        subLabel: t('allowedDomainsPanel.roles.projectEditorDescription'),
     },
     {
         value: ProjectMemberRole.INTERACTIVE_VIEWER,
-        label: 'Interactive Viewer',
-        subLabel: 'Has interactive access in this project',
+        label: t('allowedDomainsPanel.roles.projectInteractiveViewer'),
+        subLabel: t(
+            'allowedDomainsPanel.roles.projectInteractiveViewerDescription',
+        ),
     },
     {
         value: ProjectMemberRole.VIEWER,
-        label: 'Viewer',
-        subLabel: 'Has view access in this project',
+        label: t('allowedDomainsPanel.roles.projectViewer'),
+        subLabel: t('allowedDomainsPanel.roles.projectViewerDescription'),
     },
 ];
 
-const validationSchema = z.object({
-    emailDomains: z.array(z.string().min(1, 'Domain cannot be empty')),
-    role: z.enum(OrganizationMemberRole),
-    projects: z.array(
-        z.object({
-            projectUuid: z.string().min(1, 'Project is required'),
-            role: z.enum(ProjectMemberRole),
-        }),
-    ),
-});
+const getValidationSchema = (t: TFunction<'userSettings'>) =>
+    z.object({
+        emailDomains: z.array(
+            z.string().min(1, t('allowedDomainsPanel.validation.domainEmpty')),
+        ),
+        role: z.enum(OrganizationMemberRole),
+        projects: z.array(
+            z.object({
+                projectUuid: z
+                    .string()
+                    .min(
+                        1,
+                        t('allowedDomainsPanel.validation.projectRequired'),
+                    ),
+                role: z.enum(ProjectMemberRole),
+            }),
+        ),
+    });
 
-type FormValues = z.infer<typeof validationSchema>;
+type FormValues = z.infer<ReturnType<typeof getValidationSchema>>;
 
 const AllowedDomainsPanel: FC = () => {
+    const { t } = useTranslation('userSettings');
+    const roleOptions = useMemo(() => getRoleOptions(t), [t]);
+    const projectRoleOptions = useMemo(() => getProjectRoleOptions(t), [t]);
+    const validationSchema = useMemo(() => getValidationSchema(t), [t]);
     const [domainSearch, setDomainSearch] = useState('');
     const form = useForm<FormValues>({
         initialValues: {
@@ -195,7 +217,9 @@ const AllowedDomainsPanel: FC = () => {
         if (!isValidEmailDomain(value)) {
             form.setFieldError(
                 'emailDomains',
-                `${value} is not a valid email domain, e.g. lightdash.com`,
+                t('allowedDomainsPanel.validation.invalidDomain', {
+                    domain: value,
+                }),
             );
             return;
         }
@@ -222,8 +246,8 @@ const AllowedDomainsPanel: FC = () => {
             <Stack>
                 <MultiSelectCombobox
                     name="emailDomains"
-                    label="Allowed email domains"
-                    placeholder="E.g. lightdash.com"
+                    label={t('allowedDomainsPanel.allowedEmailDomains')}
+                    placeholder={t('allowedDomainsPanel.domainsPlaceholder')}
                     disabled={isLoading}
                     error={form.errors.emailDomains}
                     options={form.values.emailDomains.map((domain) => ({
@@ -269,7 +293,9 @@ const AllowedDomainsPanel: FC = () => {
                                 size="sm"
                             />
                             <Text c="blue.7" fz="sm" fw={500}>
-                                Add {domainSearch.trim()} domain
+                                {t('allowedDomainsPanel.addDomain', {
+                                    domain: domainSearch.trim(),
+                                })}
                             </Text>
                         </Group>
                     }
@@ -279,9 +305,11 @@ const AllowedDomainsPanel: FC = () => {
                     <>
                         <Select
                             allowDeselect={false}
-                            label="Default role"
+                            label={t('allowedDomainsPanel.defaultRole')}
                             name="role"
-                            placeholder="Organization viewer"
+                            placeholder={t(
+                                'allowedDomainsPanel.defaultRolePlaceholder',
+                            )}
                             disabled={isLoading}
                             data={roleOptions}
                             renderOption={({ option, checked }) => {
@@ -335,7 +363,7 @@ const AllowedDomainsPanel: FC = () => {
                         {form.values.role === OrganizationMemberRole.MEMBER ? (
                             <div>
                                 <Title order={5} mb="md">
-                                    Project access
+                                    {t('allowedDomainsPanel.projectAccess')}
                                 </Title>
 
                                 <Stack gap="sm" align="flex-start">
@@ -352,7 +380,9 @@ const AllowedDomainsPanel: FC = () => {
                                                     disabled={isLoading}
                                                     label={
                                                         index === 0
-                                                            ? 'Project name'
+                                                            ? t(
+                                                                  'allowedDomainsPanel.projectName',
+                                                              )
                                                             : undefined
                                                     }
                                                     data={projectOptions.filter(
@@ -386,7 +416,9 @@ const AllowedDomainsPanel: FC = () => {
                                                     allowDeselect={false}
                                                     label={
                                                         index === 0
-                                                            ? 'Project role'
+                                                            ? t(
+                                                                  'allowedDomainsPanel.projectRole',
+                                                              )
                                                             : undefined
                                                     }
                                                     disabled={isLoading}
@@ -464,9 +496,9 @@ const AllowedDomainsPanel: FC = () => {
 
                                     <Tooltip
                                         disabled={canAddMoreProjects}
-                                        label={
-                                            'There are no other projects to add'
-                                        }
+                                        label={t(
+                                            'allowedDomainsPanel.noMoreProjects',
+                                        )}
                                     >
                                         <Button
                                             {...(!canAddMoreProjects && {
@@ -480,7 +512,9 @@ const AllowedDomainsPanel: FC = () => {
                                                 <MantineIcon icon={IconPlus} />
                                             }
                                         >
-                                            Add project
+                                            {t(
+                                                'allowedDomainsPanel.addProject',
+                                            )}
                                         </Button>
                                     </Tooltip>
                                 </Stack>
@@ -492,7 +526,7 @@ const AllowedDomainsPanel: FC = () => {
                 <Flex justify="flex-end" gap="sm">
                     {form.isDirty() && !isUpdateAllowedEmailDomainsLoading && (
                         <Button variant="outline" onClick={() => form.reset()}>
-                            Cancel
+                            {t('actions.cancel', { ns: 'common' })}
                         </Button>
                     )}
                     <Button
@@ -501,7 +535,7 @@ const AllowedDomainsPanel: FC = () => {
                         loading={isLoading}
                         disabled={!form.isDirty()}
                     >
-                        Update
+                        {t('actions.update', { ns: 'common' })}
                     </Button>
                 </Flex>
             </Stack>

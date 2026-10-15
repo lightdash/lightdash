@@ -17,6 +17,7 @@ import {
 } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import { useMemo, useState, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
@@ -106,6 +107,7 @@ export const ViewerControls: FC<Props> = ({
     onChange,
     onEditRules,
 }) => {
+    const { t } = useTranslation('dashboardFilters');
     const getUiString = useUiStrings();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const savedFilters = useDashboardContext((c) => c.dashboard?.filters);
@@ -164,12 +166,15 @@ export const ViewerControls: FC<Props> = ({
         !isLocked(key) &&
         isLockedRequiredMissingValue(toggleFilterLockOnTab(rule, key, hasTabs));
 
-    const everyTab = hasTabs ? ' on every tab' : '';
+    const everyTabContext = hasTabs ? 'everyTab' : undefined;
     const lockSummary = isLockedEverywhere
-        ? `Locked${everyTab}`
+        ? t('controls.viewer.locked', { context: everyTabContext })
         : isLockedSomewhere
-          ? `Locked on ${lockedCount} of ${lockKeys.length} tabs`
-          : `Not locked: viewers can change it${everyTab}`;
+          ? t('controls.viewer.lockedOnSome', {
+                count: lockedCount,
+                total: lockKeys.length,
+            })
+          : t('controls.viewer.notLocked', { context: everyTabContext });
 
     // Required: rules are over dimensions and metrics, as in the shipped card
     const savedRules = useMemo(
@@ -222,17 +227,21 @@ export const ViewerControls: FC<Props> = ({
         .map((other) => getDashboardFilterRuleLabel(other, getField));
     const requiredSummary = isRequired
         ? alternativeLabels.length > 0
-            ? `Required, or ${alternativeLabels.join(' or ')}`
-            : 'Required'
-        : 'Not required';
+            ? t('controls.viewer.requiredOr', {
+                  labels: alternativeLabels.join(
+                      t('controls.viewer.orSeparator'),
+                  ),
+              })
+            : t('controls.viewer.required')
+        : t('controls.viewer.notRequired');
     const requiredSub = isRequired
-        ? 'Viewers must set this filter to load the dashboard.'
-        : 'Viewers would have to set this filter before the tiles load.';
+        ? t('controls.viewer.requiredDescription')
+        : t('controls.viewer.notRequiredDescription');
 
     return (
         <Stack gap={0}>
             <QuestionRow
-                label="Lock"
+                label={t('controls.viewer.lock')}
                 summary={lockSummary}
                 isChanged={isLockedSomewhere}
                 {...rowProps('lock')}
@@ -244,8 +253,12 @@ export const ViewerControls: FC<Props> = ({
                     <Box w="max-content">
                         <Switch
                             size="xs"
-                            label={hasTabs ? 'Lock on every tab' : 'Lock'}
-                            description="Viewers see the value but cannot change it."
+                            label={
+                                hasTabs
+                                    ? t('controls.viewer.lockEveryTab')
+                                    : t('controls.viewer.lock')
+                            }
+                            description={t('controls.viewer.lockDescription')}
                             checked={isLockedEverywhere}
                             disabled={
                                 lockKeys.length === 0 || isLockEverywhereBlocked
@@ -257,7 +270,11 @@ export const ViewerControls: FC<Props> = ({
                     </Box>
                 </Tooltip>
                 {showPerTab && (
-                    <Stack gap="xs" role="group" aria-label="Lock per tab">
+                    <Stack
+                        gap="xs"
+                        role="group"
+                        aria-label={t('controls.viewer.lockPerTab')}
+                    >
                         {dashboardTabs.map((tab) => (
                             <Tooltip
                                 key={tab.uuid}
@@ -292,20 +309,19 @@ export const ViewerControls: FC<Props> = ({
                             variant="subtle"
                             onClick={() => setIsPerTab(true)}
                         >
-                            Set per tab
+                            {t('controls.viewer.setPerTab')}
                         </Button>
                     </Group>
                 )}
                 {isLockedSomewhere && (
                     <Text size="xs" c="dimmed">
-                        A locked filter still filters the tiles. Values from the
-                        URL or an embed are ignored.
+                        {t('controls.viewer.lockedHint')}
                     </Text>
                 )}
             </QuestionRow>
 
             <QuestionRow
-                label="Required"
+                label={t('controls.viewer.required')}
                 summary={requiredSummary}
                 isChanged={isRequired}
                 {...rowProps('required')}
@@ -317,7 +333,7 @@ export const ViewerControls: FC<Props> = ({
                     <Box w="max-content">
                         <Switch
                             size="xs"
-                            label="Required"
+                            label={t('controls.viewer.required')}
                             description={requiredSub}
                             checked={isRequired}
                             disabled={isRequiredBlocked}
@@ -342,14 +358,14 @@ export const ViewerControls: FC<Props> = ({
                             variant="subtle"
                             onClick={onEditRules}
                         >
-                            Edit rule
+                            {t('controls.viewer.editRule')}
                         </Button>
                     </Group>
                 )}
                 {isRequired && allRules.length > 1 && (
                     <Stack gap="xs">
                         <Text size="xs" fw={500}>
-                            Or one of these instead
+                            {t('controls.viewer.orOneOfThese')}
                         </Text>
                         {allRules
                             .filter((other) => other.id !== rule.id)

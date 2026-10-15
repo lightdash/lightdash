@@ -45,6 +45,7 @@ import {
     IconSearch,
     IconX,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import uniqBy from 'lodash/uniqBy';
 import {
     useCallback,
@@ -53,6 +54,7 @@ import {
     type ClipboardEvent,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
 import { ModelSelector } from '../../components/common/ModelSelector/ModelSelector';
@@ -105,9 +107,6 @@ export type SelectedDashboard = {
 
 export type SelectedConnection = AppVersionExternalConnectionResource;
 
-const SAMPLE_DATA_TOOLTIP =
-    'Include sample data - runs this query and shares up to 10 rows with the app generator so it can see actual values (date ranges, labels, magnitudes). Off by default because rows can be sensitive.';
-
 /**
  * Button that captures a screenshot of the live preview and adds it as an
  * image attachment. Shows a loader while the capture is in flight.
@@ -120,31 +119,29 @@ export const ScreenshotButton: FC<{
     onClick: () => void;
     disabled: boolean;
     loading?: boolean;
-}> = ({ onClick, disabled, loading }) => (
-    <Tooltip
-        label="Capture a screenshot of the preview and attach it"
-        position="top"
-    >
-        <ActionIcon
-            size="md"
-            radius="xl"
-            onClick={onClick}
-            disabled={disabled}
-            loading={loading}
-            aria-label="Capture screenshot"
-        >
-            <MantineIcon icon={IconCamera} size={16} />
-        </ActionIcon>
-    </Tooltip>
-);
+}> = ({ onClick, disabled, loading }) => {
+    const { t } = useTranslation('apps');
+    return (
+        <Tooltip label={t('resourcePicker.screenshot.tooltip')} position="top">
+            <ActionIcon
+                size="md"
+                radius="xl"
+                onClick={onClick}
+                disabled={disabled}
+                loading={loading}
+                aria-label={t('resourcePicker.screenshot.ariaLabel')}
+            >
+                <MantineIcon icon={IconCamera} size={16} />
+            </ActionIcon>
+        </Tooltip>
+    );
+};
 
 type ModelOption = {
     value: DataAppCodingAgentModel;
     label: string;
-    // Short advantage line shown in the popover. Together with the order
-    // below, these form a capability spectrum (premium → balanced → budget)
-    // so the trade-off is legible at a glance.
-    tagline: string;
+    // Translation key of the short advantage line shown in the popover.
+    taglineKey: string;
     isDefault?: boolean;
 };
 
@@ -155,18 +152,18 @@ const CLAUDE_MODEL_OPTIONS: ModelOption[] = [
     {
         value: 'opus',
         label: 'Opus',
-        tagline: 'Highest quality. Best for complex builds. Slowest.',
+        taglineKey: 'models.opus',
     },
     {
         value: 'sonnet',
         label: 'Sonnet',
-        tagline: 'Balanced quality and speed. Good fit for most work.',
+        taglineKey: 'models.sonnet',
         isDefault: true,
     },
     {
         value: 'haiku',
         label: 'Haiku',
-        tagline: 'Fastest. Best for quick iterations and simple tweaks.',
+        taglineKey: 'models.haiku',
     },
 ];
 
@@ -174,18 +171,18 @@ const CODEX_MODEL_OPTIONS: ModelOption[] = [
     {
         value: 'gpt-5.6-sol',
         label: 'Sol',
-        tagline: 'Highest quality. Best for complex builds.',
+        taglineKey: 'models.sol',
     },
     {
         value: 'gpt-5.6-terra',
         label: 'Terra',
-        tagline: 'Balanced intelligence and cost. Good fit for most work.',
+        taglineKey: 'models.terra',
         isDefault: true,
     },
     {
         value: 'gpt-5.6-luna',
         label: 'Luna',
-        tagline: 'Lowest cost. Best for simple iterations and high volume.',
+        taglineKey: 'models.luna',
     },
 ];
 
@@ -210,11 +207,12 @@ const toModelKey = (
 const toModelOption = (
     opt: ModelOption,
     provider: 'anthropic' | 'openai',
+    t: TFunction,
 ): AiModelOption => ({
     name: opt.value,
     modelId: opt.value,
     displayName: opt.label,
-    description: opt.tagline,
+    description: t(opt.taglineKey),
     provider,
     default: opt.isDefault === true,
     supportsReasoning: false,
@@ -241,6 +239,7 @@ export const ModelPicker: FC<{
     visibleModels?: DataAppCodingAgentModel[];
     codingAgent?: DataAppCodingAgent;
 }> = ({ value, onChange, disabled, visibleModels, codingAgent = 'claude' }) => {
+    const { t } = useTranslation('apps');
     const options =
         codingAgent === 'codex' ? CODEX_MODEL_OPTIONS : CLAUDE_MODEL_OPTIONS;
     const provider = codingAgent === 'codex' ? 'openai' : 'anthropic';
@@ -251,8 +250,8 @@ export const ModelPicker: FC<{
                     (opt) =>
                         !visibleModels || visibleModels.includes(opt.value),
                 )
-                .map((option) => toModelOption(option, provider)),
-        [options, provider, visibleModels],
+                .map((option) => toModelOption(option, provider, t)),
+        [options, provider, visibleModels, t],
     );
 
     return (
@@ -315,6 +314,7 @@ const QueryPickerView: FC<{
     attachFromLink,
     isResolvingLink,
 }) => {
+    const { t } = useTranslation('apps');
     const projectUuid = useProjectUuid();
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch] = useDebouncedValue(searchQuery, 300);
@@ -384,7 +384,7 @@ const QueryPickerView: FC<{
             <Box px="xs" pb="xs">
                 <TextInput
                     size="xs"
-                    placeholder="Search or paste a link..."
+                    placeholder={t('resourcePicker.searchOrPaste')}
                     leftSection={<MantineIcon icon={IconSearch} size={14} />}
                     rightSection={
                         (isFetching && !isInitialLoading) || isResolvingLink ? (
@@ -410,7 +410,7 @@ const QueryPickerView: FC<{
                     </Group>
                 ) : allCharts.length === 0 ? (
                     <Text size="xs" c="dimmed" ta="center" p="sm">
-                        No charts found
+                        {t('resourcePicker.queries.empty')}
                     </Text>
                 ) : (
                     <>
@@ -478,7 +478,7 @@ const QueryPickerView: FC<{
                                     onClick={() => void fetchNextPage()}
                                     loading={isFetching}
                                 >
-                                    Load more
+                                    {t('resourcePicker.loadMore')}
                                 </Button>
                             </Box>
                         )}
@@ -487,7 +487,7 @@ const QueryPickerView: FC<{
             </ScrollArea.Autosize>
             <Box className={classes.attachPickerFooter}>
                 <Button size="compact-xs" onClick={onDone}>
-                    Done
+                    {t('resourcePicker.done')}
                 </Button>
             </Box>
         </>
@@ -509,6 +509,7 @@ export const SelectedAttachmentSection: FC<{
     disabled?: boolean;
     loading?: boolean;
 }> = ({ attachments, onRemove, disabled, loading }) => {
+    const { t } = useTranslation('apps');
     if (attachments.length === 0) return null;
 
     return (
@@ -519,7 +520,7 @@ export const SelectedAttachmentSection: FC<{
                         <Image
                             src={att.previewUrl}
                             className={classes.imageThumb}
-                            alt="Attached"
+                            alt={t('resourcePicker.attachedImageAlt')}
                         />
                         <LoadingOverlay
                             visible={loading ?? false}
@@ -585,19 +586,25 @@ const AddDataButton: FC<{
     onClick: () => void;
     disabled?: boolean;
     tooltipSuffix?: string;
-}> = ({ onClick, disabled, tooltipSuffix }) => (
-    <Tooltip label={`${SAMPLE_DATA_TOOLTIP}${tooltipSuffix ?? ''}`} w={260}>
-        <UnstyledButton
-            type="button"
-            onClick={onClick}
-            disabled={disabled}
-            className={classes.addDataButton}
-            aria-label="Include sample data"
+}> = ({ onClick, disabled, tooltipSuffix }) => {
+    const { t } = useTranslation('apps');
+    return (
+        <Tooltip
+            label={`${t('resourcePicker.sampleData.tooltip')}${tooltipSuffix ?? ''}`}
+            w={260}
         >
-            <MantineIcon icon={IconDatabasePlus} size={12} />
-        </UnstyledButton>
-    </Tooltip>
-);
+            <UnstyledButton
+                type="button"
+                onClick={onClick}
+                disabled={disabled}
+                className={classes.addDataButton}
+                aria-label={t('resourcePicker.sampleData.include')}
+            >
+                <MantineIcon icon={IconDatabasePlus} size={12} />
+            </UnstyledButton>
+        </Tooltip>
+    );
+};
 
 /**
  * Inline database icon button inside the pill when sample data is on.
@@ -608,62 +615,65 @@ const InlineDataToggle: FC<{
     onClick: () => void;
     disabled?: boolean;
     tooltipSuffix?: string;
-}> = ({ onClick, disabled, tooltipSuffix }) => (
-    <Tooltip
-        label={`Sample data included — click to remove.${tooltipSuffix ?? ''}`}
-        w={260}
-    >
-        <UnstyledButton
-            type="button"
-            onClick={onClick}
-            disabled={disabled}
-            className={classes.inlineDataToggle}
-            aria-label="Sample data: on"
+}> = ({ onClick, disabled, tooltipSuffix }) => {
+    const { t } = useTranslation('apps');
+    return (
+        <Tooltip
+            label={`${t('resourcePicker.sampleData.includedTooltip')}${tooltipSuffix ?? ''}`}
+            w={260}
         >
-            <MantineIcon icon={IconDatabase} size={12} />
-        </UnstyledButton>
-    </Tooltip>
-);
+            <UnstyledButton
+                type="button"
+                onClick={onClick}
+                disabled={disabled}
+                className={classes.inlineDataToggle}
+                aria-label={t('resourcePicker.sampleData.on')}
+            >
+                <MantineIcon icon={IconDatabase} size={12} />
+            </UnstyledButton>
+        </Tooltip>
+    );
+};
 
 const AddLinkButton: FC<{ onClick: () => void; disabled?: boolean }> = ({
     onClick,
     disabled,
-}) => (
-    <Tooltip
-        label="Link live — run this chart by reference so the app updates when the chart changes in Lightdash."
-        w={260}
-    >
-        <UnstyledButton
-            type="button"
-            onClick={onClick}
-            disabled={disabled}
-            className={classes.addDataButton}
-            aria-label="Link live"
-        >
-            <MantineIcon icon={IconLink} size={12} />
-        </UnstyledButton>
-    </Tooltip>
-);
+}) => {
+    const { t } = useTranslation('apps');
+    return (
+        <Tooltip label={t('resourcePicker.linkLive.tooltip')} w={260}>
+            <UnstyledButton
+                type="button"
+                onClick={onClick}
+                disabled={disabled}
+                className={classes.addDataButton}
+                aria-label={t('resourcePicker.linkLive.ariaLabel')}
+            >
+                <MantineIcon icon={IconLink} size={12} />
+            </UnstyledButton>
+        </Tooltip>
+    );
+};
 
 const InlineLinkToggle: FC<{ onClick: () => void; disabled?: boolean }> = ({
     onClick,
     disabled,
-}) => (
-    <Tooltip
-        label="Linked live — click to unlink (revert to a copied query)."
-        w={260}
-    >
-        <UnstyledButton
-            type="button"
-            onClick={onClick}
-            disabled={disabled}
-            className={classes.inlineDataToggle}
-            aria-label="Linked: on"
-        >
-            <MantineIcon icon={IconLink} size={12} />
-        </UnstyledButton>
-    </Tooltip>
-);
+}) => {
+    const { t } = useTranslation('apps');
+    return (
+        <Tooltip label={t('resourcePicker.linkLive.linkedTooltip')} w={260}>
+            <UnstyledButton
+                type="button"
+                onClick={onClick}
+                disabled={disabled}
+                className={classes.inlineDataToggle}
+                aria-label={t('resourcePicker.linkLive.on')}
+            >
+                <MantineIcon icon={IconLink} size={12} />
+            </UnstyledButton>
+        </Tooltip>
+    );
+};
 
 /**
  * Renders selected queries as a list using the same visual as the picker.
@@ -781,6 +791,7 @@ const DashboardPickerView: FC<{
     attachFromLink,
     isResolvingLink,
 }) => {
+    const { t } = useTranslation('apps');
     const projectUuid = useProjectUuid();
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch] = useDebouncedValue(searchQuery, 300);
@@ -837,7 +848,7 @@ const DashboardPickerView: FC<{
             <Box px="xs" pb="xs">
                 <TextInput
                     size="xs"
-                    placeholder="Search or paste a link..."
+                    placeholder={t('resourcePicker.searchOrPaste')}
                     leftSection={<MantineIcon icon={IconSearch} size={14} />}
                     rightSection={
                         (isFetching && !isInitialLoading) || isResolvingLink ? (
@@ -857,7 +868,7 @@ const DashboardPickerView: FC<{
                     </Group>
                 ) : allDashboards.length === 0 ? (
                     <Text size="xs" c="dimmed" ta="center" p="sm">
-                        No dashboards found
+                        {t('resourcePicker.dashboard.empty')}
                     </Text>
                 ) : (
                     <>
@@ -904,7 +915,7 @@ const DashboardPickerView: FC<{
                                     onClick={() => void fetchNextPage()}
                                     loading={isFetching}
                                 >
-                                    Load more
+                                    {t('resourcePicker.loadMore')}
                                 </Button>
                             </Box>
                         )}
@@ -913,7 +924,7 @@ const DashboardPickerView: FC<{
             </ScrollArea.Autosize>
             <Box className={classes.attachPickerFooter}>
                 <Button size="compact-xs" onClick={onDone}>
-                    Done
+                    {t('resourcePicker.done')}
                 </Button>
             </Box>
         </>
@@ -944,6 +955,7 @@ export const ConnectionPickerView: FC<{
     linkedAppUuid,
     onUnlinkConfirmationChange,
 }) => {
+    const { t } = useTranslation('apps');
     const projectUuid = useProjectUuid();
     const [searchQuery, setSearchQuery] = useState('');
     const [pendingUnlink, setPendingUnlink] = useState<{
@@ -1017,11 +1029,11 @@ export const ConnectionPickerView: FC<{
     }, [searchQuery, visibleConnections]);
 
     const hasConnections = visibleConnections.length > 0;
-    let emptyMessage = 'No connections match your search';
+    let emptyMessage = t('resourcePicker.connections.noMatches');
     if (!hasConnections) {
         emptyMessage = canManageConnections
-            ? 'No external connections yet'
-            : 'No external connections available';
+            ? t('resourcePicker.connections.noneYet')
+            : t('resourcePicker.connections.noneAvailable');
     }
 
     const handleToggle = useCallback(
@@ -1088,7 +1100,7 @@ export const ConnectionPickerView: FC<{
             <Box px="xs" pb="xs">
                 <TextInput
                     size="xs"
-                    placeholder="Search connections..."
+                    placeholder={t('resourcePicker.connections.search')}
                     leftSection={<MantineIcon icon={IconSearch} size={14} />}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.currentTarget.value)}
@@ -1107,8 +1119,7 @@ export const ConnectionPickerView: FC<{
                         </Text>
                         {!hasConnections && !canManageConnections && (
                             <Text size="xs" c="dimmed" ta="center">
-                                Ask a project admin to enable a connection for
-                                builder linking.
+                                {t('resourcePicker.connections.askAdmin')}
                             </Text>
                         )}
                     </Stack>
@@ -1168,24 +1179,30 @@ export const ConnectionPickerView: FC<{
                         <Group gap={4} wrap="nowrap">
                             <MantineIcon icon={IconPlus} size={14} />
                             <Text size="xs" fw={500}>
-                                New connection
+                                {t('resourcePicker.connections.new')}
                             </Text>
                         </Group>
                     </Anchor>
                 )}
                 <Button size="compact-xs" onClick={onDone}>
-                    Done
+                    {t('resourcePicker.done')}
                 </Button>
             </Box>
             <MantineModal
                 opened={pendingUnlink !== null}
                 onClose={handleCancelUnlink}
-                title={`Unlink ${pendingUnlink?.connection.name ?? 'connection'}?`}
+                title={
+                    pendingUnlink
+                        ? t('resourcePicker.connections.unlink.title', {
+                              name: pendingUnlink.connection.name,
+                          })
+                        : t('resourcePicker.connections.unlink.titleFallback')
+                }
                 variant="delete"
                 size="md"
-                description="Unlinking removes access to this connection. You may not be able to link it again without help from a project admin."
-                confirmLabel="Unlink connection"
-                cancelLabel="Keep connection"
+                description={t('resourcePicker.connections.unlink.description')}
+                confirmLabel={t('resourcePicker.connections.unlink.confirm')}
+                cancelLabel={t('resourcePicker.connections.unlink.cancel')}
                 onConfirm={handleConfirmUnlink}
             />
         </>
@@ -1232,6 +1249,7 @@ export const AttachButton: FC<{
     linkedAppUuid,
     iconOnly = false,
 }) => {
+    const { t } = useTranslation('apps');
     const projectUuid = useProjectUuid();
     const [opened, setOpened] = useState(false);
     const [view, setView] = useState<AttachView>('menu');
@@ -1257,17 +1275,17 @@ export const AttachButton: FC<{
     const headerTitle =
         // eslint-disable-next-line no-nested-ternary
         view === 'queries'
-            ? 'Add queries'
+            ? t('resourcePicker.header.queries.title')
             : view === 'connections'
-              ? 'Add external connections'
-              : 'Add a dashboard';
+              ? t('resourcePicker.header.connections.title')
+              : t('resourcePicker.header.dashboard.title');
     const headerSubtitle =
         // eslint-disable-next-line no-nested-ternary
         view === 'queries'
-            ? 'Select queries to include in the app'
+            ? t('resourcePicker.header.queries.subtitle')
             : view === 'connections'
-              ? 'Let the app fetch from these external APIs'
-              : 'All chart tiles will be included as references';
+              ? t('resourcePicker.header.connections.subtitle')
+              : t('resourcePicker.header.dashboard.subtitle');
 
     return (
         <Popover
@@ -1281,7 +1299,7 @@ export const AttachButton: FC<{
         >
             <Popover.Target>
                 <Tooltip
-                    label="Add charts, dashboards, connections or files"
+                    label={t('resourcePicker.attach.tooltip')}
                     position="top"
                     disabled={opened}
                 >
@@ -1293,7 +1311,7 @@ export const AttachButton: FC<{
                             radius="xl"
                             onClick={() => setOpened((o) => !o)}
                             disabled={disabled}
-                            aria-label="Attach resources"
+                            aria-label={t('resourcePicker.attach.ariaLabel')}
                             data-tour-scope="create:DataApp"
                             data-tour-look="2"
                             data-tour-after='[data-tour-anchor="app-prompt"]'
@@ -1313,7 +1331,7 @@ export const AttachButton: FC<{
                             py={6}
                             onClick={() => setOpened((o) => !o)}
                             disabled={disabled}
-                            aria-label="Attach resources"
+                            aria-label={t('resourcePicker.attach.ariaLabel')}
                             // Walkthrough look for create:DataApp: context makes
                             // the agent's first version better.
                             data-tour-scope="create:DataApp"
@@ -1326,7 +1344,7 @@ export const AttachButton: FC<{
                             }
                         >
                             <Text span size="xs" fw={600} lh={1.2} c="inherit">
-                                Attach
+                                {t('resourcePicker.attach.button')}
                             </Text>
                         </Button>
                     )}
@@ -1343,10 +1361,12 @@ export const AttachButton: FC<{
                             <MantineIcon icon={IconChartBar} />
                             <Box flex={1}>
                                 <Text size="sm" fw={500}>
-                                    Queries
+                                    {t('resourcePicker.menu.queries.title')}
                                 </Text>
                                 <Text size="xs" c="dimmed">
-                                    Attach saved charts
+                                    {t(
+                                        'resourcePicker.menu.queries.description',
+                                    )}
                                 </Text>
                             </Box>
                         </UnstyledButton>
@@ -1358,10 +1378,12 @@ export const AttachButton: FC<{
                             <MantineIcon icon={IconLayoutDashboard} />
                             <Box flex={1}>
                                 <Text size="sm" fw={500}>
-                                    Dashboard
+                                    {t('resourcePicker.menu.dashboard.title')}
                                 </Text>
                                 <Text size="xs" c="dimmed">
-                                    Attach all tiles from a dashboard
+                                    {t(
+                                        'resourcePicker.menu.dashboard.description',
+                                    )}
                                 </Text>
                             </Box>
                         </UnstyledButton>
@@ -1375,12 +1397,14 @@ export const AttachButton: FC<{
                             <MantineIcon icon={IconPhoto} />
                             <Box flex={1}>
                                 <Text size="sm" fw={500}>
-                                    Files
+                                    {t('resourcePicker.menu.files.title')}
                                 </Text>
                                 <Text size="xs" c="dimmed">
                                     {filesDisabled
-                                        ? 'Attachment limit reached'
-                                        : 'Upload images, PDFs, or text files'}
+                                        ? t('resourcePicker.menu.files.limit')
+                                        : t(
+                                              'resourcePicker.menu.files.description',
+                                          )}
                                 </Text>
                             </Box>
                         </UnstyledButton>
@@ -1392,10 +1416,12 @@ export const AttachButton: FC<{
                             <MantineIcon icon={IconPlugConnected} />
                             <Box flex={1}>
                                 <Text size="sm" fw={500}>
-                                    External connections
+                                    {t('resourcePicker.menu.connections.title')}
                                 </Text>
                                 <Text size="xs" c="dimmed">
-                                    Let the app fetch from external APIs
+                                    {t(
+                                        'resourcePicker.menu.connections.description',
+                                    )}
                                 </Text>
                             </Box>
                         </UnstyledButton>
@@ -1410,7 +1436,7 @@ export const AttachButton: FC<{
                             <ActionIcon
                                 size="sm"
                                 onClick={() => setView('menu')}
-                                aria-label="Back to attach menu"
+                                aria-label={t('resourcePicker.backToMenu')}
                             >
                                 <MantineIcon icon={IconArrowLeft} size={14} />
                             </ActionIcon>
@@ -1493,6 +1519,7 @@ export const ConnectionAttachButton: FC<{
     description,
     linkedAppUuid,
 }) => {
+    const { t } = useTranslation('apps');
     const projectUuid = useProjectUuid();
     const [opened, setOpened] = useState(false);
     const [unlinkConfirmationOpen, setUnlinkConfirmationOpen] = useState(false);
@@ -1518,13 +1545,16 @@ export const ConnectionAttachButton: FC<{
     const attachedCount = attachedNames.length;
     const triggerLabel =
         attachedCount > 0
-            ? `${attachedCount} external connection${
-                  attachedCount === 1 ? '' : 's'
-              } attached`
-            : 'Add external connections';
+            ? t('resourcePicker.connections.attachedCount', {
+                  count: attachedCount,
+              })
+            : t('resourcePicker.header.connections.title');
     const tooltipLabel =
         attachedCount > 0
-            ? `${triggerLabel}: ${attachedNames.join(', ')}`
+            ? t('resourcePicker.connections.attachedTooltip', {
+                  label: triggerLabel,
+                  names: attachedNames.join(', '),
+              })
             : triggerLabel;
 
     return (
@@ -1571,7 +1601,7 @@ export const ConnectionAttachButton: FC<{
                 <Box p="xs" pb={0} className={classes.attachPickerHeader}>
                     <Box>
                         <Text size="sm" fw={500}>
-                            Add external connections
+                            {t('resourcePicker.header.connections.title')}
                         </Text>
                         <Text size="xs" c="dimmed">
                             {description}
@@ -1609,6 +1639,7 @@ export const SelectedDashboardSection: FC<{
     sampleDataEnabled,
     disabled,
 }) => {
+    const { t } = useTranslation('apps');
     return (
         <Box className={classes.selectedQueryList}>
             <Box className={classes.selectedQueryItemRow}>
@@ -1637,7 +1668,7 @@ export const SelectedDashboardSection: FC<{
                         <InlineDataToggle
                             onClick={onToggleSampleData}
                             disabled={disabled}
-                            tooltipSuffix=" Applies to every chart in this dashboard."
+                            tooltipSuffix={` ${t('resourcePicker.sampleData.dashboardSuffix')}`}
                         />
                     )}
                     <ActionIcon
@@ -1653,7 +1684,7 @@ export const SelectedDashboardSection: FC<{
                     <AddDataButton
                         onClick={onToggleSampleData}
                         disabled={disabled}
-                        tooltipSuffix=" Applies to every chart in this dashboard."
+                        tooltipSuffix={` ${t('resourcePicker.sampleData.dashboardSuffix')}`}
                     />
                 )}
             </Box>

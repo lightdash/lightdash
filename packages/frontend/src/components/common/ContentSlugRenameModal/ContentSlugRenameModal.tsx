@@ -11,6 +11,7 @@ import { IconLink } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -37,9 +38,9 @@ const ContentSlugRenameModal: FC<Props> = ({
     currentSlug,
     resourceType,
 }) => {
+    const { t } = useTranslation('commonUi');
     const queryClient = useQueryClient();
-    const resourceLabel =
-        resourceType === ContentType.CHART ? 'Chart' : 'Dashboard';
+    const isChart = resourceType === ContentType.CHART;
     const formId = `${resourceType}-slug-rename-form`;
     const { showToastSuccess } = useToaster();
     const form = useForm({
@@ -49,15 +50,15 @@ const ContentSlugRenameModal: FC<Props> = ({
                 slug: z
                     .string()
                     .trim()
-                    .min(1, 'Enter a slug')
-                    .max(255, 'Slugs must be 255 characters or fewer')
+                    .min(1, t('contentSlugRenameModal.validation.required'))
+                    .max(255, t('contentSlugRenameModal.validation.maxLength'))
                     .refine(
                         (value) => generateSlug(value) === value,
-                        'Use lowercase letters, numbers, and hyphens only',
+                        t('contentSlugRenameModal.validation.format'),
                     )
                     .refine(
                         (value) => value !== currentSlug,
-                        'Enter a different slug',
+                        t('contentSlugRenameModal.validation.different'),
                     ),
             }),
         ),
@@ -85,7 +86,9 @@ const ContentSlugRenameModal: FC<Props> = ({
                     ]),
                 ]);
                 showToastSuccess({
-                    title: `${resourceLabel} URL slug changed`,
+                    title: isChart
+                        ? t('contentSlugRenameModal.chartSlugChanged')
+                        : t('contentSlugRenameModal.dashboardSlugChanged'),
                 });
                 onRenamed(to);
             },
@@ -114,7 +117,7 @@ const ContentSlugRenameModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Change URL slug"
+            title={t('contentSlugRenameModal.title')}
             icon={IconLink}
             size="lg"
             cancelDisabled={renameMutation.isLoading}
@@ -125,19 +128,22 @@ const ContentSlugRenameModal: FC<Props> = ({
                     loading={renameMutation.isLoading}
                     disabled={!form.isDirty()}
                 >
-                    Change slug
+                    {t('contentSlugRenameModal.submit')}
                 </Button>
             }
         >
             <form id={formId} onSubmit={handleSubmit}>
                 <Stack gap="md">
                     <Text size="sm" c="dimmed">
-                        Change the last part of this {resourceType}&apos;s URL.
-                        Existing links will keep working.
+                        {isChart
+                            ? t('contentSlugRenameModal.chartDescription')
+                            : t('contentSlugRenameModal.dashboardDescription')}
                     </Text>
                     <TextInput
-                        label="New slug"
-                        description="Lowercase letters, numbers, and hyphens"
+                        label={t('contentSlugRenameModal.newSlugLabel')}
+                        description={t(
+                            'contentSlugRenameModal.newSlugDescription',
+                        )}
                         data-autofocus
                         maxLength={255}
                         disabled={renameMutation.isLoading}
@@ -146,7 +152,7 @@ const ContentSlugRenameModal: FC<Props> = ({
                     />
                     <Stack gap="xs">
                         <Text size="sm" fw={500}>
-                            URL preview
+                            {t('contentSlugRenameModal.urlPreview')}
                         </Text>
                         <Paper withBorder p="sm">
                             <Text

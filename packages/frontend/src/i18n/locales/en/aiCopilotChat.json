@@ -1,0 +1,641 @@
+{
+    "input": {
+        "placeholder": "Ask anything",
+        "deepResearch": "Deep research",
+        "activeDeepResearchReason": "Only one deep research run can be active in a thread at a time.",
+        "deepResearchUnavailable": "Deep research unavailable. Only one deep research run can be active in a thread at a time.",
+        "enableDeepResearch": "Enable deep research",
+        "disableDeepResearch": "Disable deep research",
+        "composerOptions": "Composer options",
+        "attachCsv": "Attach a CSV",
+        "attachCsvUnavailable": "Attach a CSV unavailable in deep research",
+        "attachDocument": "Attach a document",
+        "attachDocumentUnavailable": "Attach a document unavailable in deep research",
+        "sqlRunner": "SQL Runner",
+        "enableSqlRunner": "Enable SQL Runner",
+        "disableSqlRunner": "Disable SQL Runner",
+        "fast": "Fast",
+        "enableFastMode": "Enable Fast mode",
+        "disableFastMode": "Disable Fast mode",
+        "canRunSql": "Can run SQL",
+        "fastModeTooltip": "Jev picks the quickest way to answer, so simple questions come back faster",
+        "sendGuidance": "Send guidance",
+        "stopAgent": "Stop agent",
+        "startResearch": "Start research",
+        "sendMessage": "Send message",
+        "dropFiles": "Drop files to analyze them"
+    },
+    "contentMentions": {
+        "groups": {
+            "thread": "Already mentioned",
+            "current": "Current page",
+            "dashboardTile": "Dashboard tiles",
+            "search": "Search results",
+            "files": "Files",
+            "repositories": "Repositories"
+        },
+        "chartFallback": "Chart",
+        "dashboardFallback": "Dashboard",
+        "noContentFound": "No content found",
+        "typeMoreToSearch_one": "Type {{count}} more character to search content",
+        "typeMoreToSearch_other": "Type {{count}} more characters to search content",
+        "readOnlyRepoTitle": "The coding agent can't open a pull request on this repository",
+        "readOnly": "Read-only"
+    },
+    "assistant": {
+        "sql": "SQL",
+        "openInSqlRunner": "Open in SQL Runner",
+        "sqlApprovalTimedOutMessage": "SQL approval timed out before the query could run. Approve the SQL prompt or retry when ready.",
+        "sqlApprovalTimedOut": "SQL approval timed out",
+        "failedToGenerate": "Failed to generate response. Please try again.",
+        "somethingWentWrong": "Something went wrong",
+        "noResponse": "No response",
+        "noResponseMessage": "The agent finished without a response. You can try again.",
+        "referencedAnswers": "Referenced answers: {{links}}",
+        "tryAgain": "Try again",
+        "finishingUp": "Finishing up",
+        "userFeedback": "User feedback",
+        "copy": "copy",
+        "upvote": "upvote",
+        "downvote": "downvote",
+        "feedbackSent": "Feedback sent",
+        "feedbackPlaceholder": "Tell us what went wrong, feedback will be added to agent context (optional)",
+        "submit": "Submit",
+        "addToEvalsTooltip": "Add this response to evals",
+        "addToEvals": "Add to evaluation set",
+        "debugInformation": "Debug information"
+    },
+    "pipeline": {
+        "nodeType": {
+            "semanticLayer": "Semantic layer",
+            "warehouseSql": "Warehouse SQL",
+            "externalData": "External data",
+            "python": "Python"
+        },
+        "layer": {
+            "sources_one": "Source",
+            "sources_other": "Sources",
+            "transformations_one": "Transformation",
+            "transformations_other": "Transformations",
+            "result": "Result"
+        },
+        "hideCode": "Hide code",
+        "viewCode": "View code",
+        "hideQuery": "Hide query",
+        "viewQuery": "View query",
+        "compileFailed": "Could not compile this query.",
+        "compilingQuery": "Compiling query…",
+        "displayNode": "Display {{title}}",
+        "reads": "Reads {{reads}}",
+        "transformationsHelp": "Transformations run in DuckDB or Python on top of the source results. They never touch the warehouse.",
+        "aboutTransformations": "About transformations",
+        "queries": "Queries",
+        "modeList": "List",
+        "modeGraph": "Graph",
+        "stepCount_one": "{{count}} step",
+        "stepCount_other": "{{count}} steps",
+        "resizeHandle": "Resize results and pipeline"
+    },
+    "vizFields": {
+        "sort": {
+            "none": "No sorting",
+            "ascending": "Ascending",
+            "descending": "Descending"
+        },
+        "aggregation": {
+            "sum": "Sum",
+            "count": "Count",
+            "avg": "Avg",
+            "min": "Min",
+            "max": "Max",
+            "any": "Any value"
+        },
+        "xAxis": "X axis",
+        "selectXAxis": "Select X axis",
+        "sortLabel": "Sort",
+        "yAxis": "Y-axis",
+        "addYAxisValue": "Add a Y axis value",
+        "yAxisValue": "Y axis value {{index}}",
+        "selectYAxis": "Select Y axis",
+        "aggregationLabel": "Aggregation {{index}}",
+        "removeValue": "Remove this value",
+        "removeYAxisValue": "Remove Y axis value {{index}}",
+        "splitNotice": "With a split, only the first Y axis value is charted.",
+        "splitSeriesBy": "Split series by",
+        "selectColumn": "Select a column"
+    },
+    "vizKind": {
+        "table": "Table",
+        "bar": "Bar",
+        "line": "Line",
+        "pie": "Pie",
+        "bigNumber": "Big value",
+        "switcherLabel": "Chart kind",
+        "doesNotFit": "{{kind}} does not fit this result"
+    },
+    "vizConfig": {
+        "chart": "Chart",
+        "tableNotice": "Tables show every column of the result."
+    },
+    "activity": {
+        "reasoning": "Reasoning",
+        "usingMcp": "Using {{server}}:",
+        "awaitingApproval": "awaiting approval",
+        "usedMcp": "Used {{server}}:"
+    },
+    "toolGroups": {
+        "dataModelSearch": {
+            "live": "Searching the data model",
+            "done": "Searched the data model"
+        },
+        "contentSearch": {
+            "live": "Finding relevant content",
+            "done": "Found relevant content"
+        },
+        "warehouseInspection": {
+            "live": "Inspecting warehouse tables",
+            "done": "Inspected warehouse tables"
+        },
+        "knowledgeSearch": {
+            "live": "Reading knowledge documents",
+            "done": "Read knowledge documents"
+        },
+        "chartBuild": {
+            "live": "Building a chart",
+            "done": "Built a chart"
+        },
+        "projectContext": {
+            "live": "Loading project context",
+            "done": "Loaded project context"
+        },
+        "contentEditing": {
+            "live": "Editing content",
+            "done": "Edited content"
+        }
+    },
+    "contentTool": {
+        "types": {
+            "dashboard": "dashboard",
+            "chart": "chart",
+            "sqlChart": "SQL chart",
+            "dataApp": "data app",
+            "document": "document"
+        },
+        "reading": "Reading {{type}}",
+        "read": "Read {{type}}",
+        "editing": "Editing {{type}}",
+        "edited": "Edited {{type}}",
+        "creating": "Creating {{type}}",
+        "created": "Created {{type}}"
+    },
+    "activityTitle": {
+        "stepsTaken": "Steps taken",
+        "dashboardBuilt": "How this dashboard was built",
+        "contentCreated": "How this content was created",
+        "chartBuilt": "How this chart was built",
+        "calculated": "How this was calculated",
+        "researchSteps": "Research steps"
+    },
+    "chipLabel": {
+        "metrics": "metrics",
+        "dimensions": "dimensions",
+        "fields": "fields",
+        "fieldSearch": "{{fieldType}}: {{query}}",
+        "root": "root",
+        "skillResource": "{{resource}} from {{skill}}",
+        "skill": "skill: {{skill}}"
+    },
+    "ci": {
+        "readiness": {
+            "ready": "Ready to merge",
+            "mergeable": "Mergeable",
+            "blocked": "Merge blocked",
+            "conflicts": "Merge conflicts",
+            "behind": "Out of date",
+            "draft": "Draft",
+            "unknown": "Checking merge status"
+        },
+        "failingChecks_one": "{{count}} failing check",
+        "failingChecks_other": "{{count}} failing checks",
+        "runningChecks_one": "{{count}} check running",
+        "runningChecks_other": "{{count}} checks running",
+        "allPassed_one": "All {{count}} checks passed",
+        "allPassed_other": "All {{count}} checks passed",
+        "merged": "Merged",
+        "closed": "Closed",
+        "viewAll": "View all"
+    },
+    "pullRequest": {
+        "installGithubApp": "Install GitHub App",
+        "connectGitlab": "Connect GitLab",
+        "view": "View",
+        "preview": "Preview",
+        "pullRequest": "Pull request",
+        "diff": "Diff",
+        "merged": "Merged",
+        "closed": "Closed",
+        "closePr": "Close PR",
+        "mergePr": "Merge PR",
+        "configureBitbucketToken": "Configure Bitbucket API token",
+        "sourceControlNotSupported": "Source control not supported",
+        "configureBitbucketTokenDescription": "Update the API token in this project connection. It needs repository and pull request read/write permissions in Bitbucket Cloud.",
+        "sourceControlNotSupportedDescription": "AI writeback needs a GitHub, GitLab or Bitbucket Cloud dbt connection. Update the connection to open pull requests from chat.",
+        "editProjectConnection": "Edit project connection",
+        "noWriteAccess": "No write access to this repository",
+        "noWriteAccessDescription": "The change was prepared, but no pull request could be opened — this project's Git connection doesn't have permission to create a branch. An admin needs to reconnect via the GitHub/GitLab App, or grant the personal access token write access to contents and pull requests, before retrying.",
+        "threadPrClosed": "This thread's pull request is closed",
+        "threadPrClosedDescription": "Its pull request has already been merged or closed, so further changes can't be added here. Ask to open a new pull request for further changes.",
+        "changeFailed": "The change couldn't be completed",
+        "changeFailedDescription": "No pull request was opened. Ask again, or rephrase the request, to retry.",
+        "workingOnChange": "Working on the change — this can take a few minutes.",
+        "noChangesNeeded": "No file changes were needed — no pull request was opened.",
+        "editedSemanticLayer": "Edited semantic layer",
+        "editedRepository": "Edited repository"
+    },
+    "sqlApproval": {
+        "couldNotSubmit": "Could not submit",
+        "approve": "Approve",
+        "approveAlways": "Approve & don't ask again this thread",
+        "reject": "Reject",
+        "expandSql": "Expand SQL"
+    },
+    "diff": {
+        "noFileChanges": "This pull request has no file changes.",
+        "filesChanged_one": "{{count}} file changed",
+        "filesChanged_other": "{{count}} files changed",
+        "title": "Pull request diff",
+        "loadFailed": "Couldn't load the diff for this pull request."
+    },
+    "agentSteps": {
+        "read_one": "Read {{count}} file",
+        "read_other": "Read {{count}} files",
+        "edited_one": "Edited {{count}} file",
+        "edited_other": "Edited {{count}} files",
+        "searched_one": "Searched {{count}} search",
+        "searched_other": "Searched {{count}} searches",
+        "compilingProject": "Compiling project"
+    },
+    "contentEditor": {
+        "types": {
+            "dashboard": "dashboard",
+            "chart": "chart",
+            "sqlChart": "SQL chart",
+            "dataApp": "data app",
+            "document": "Document"
+        },
+        "read": "Read {{type}} <chip>{{slug}}</chip>",
+        "edited": "Edited {{type}} <chip>{{slug}}</chip>",
+        "created": "Created {{type}} <chip>{{slug}}</chip>"
+    },
+    "toolDescriptions": {
+        "dashboardCharts": "Looking up charts in dashboard <chip>{{dashboardName}}</chip>",
+        "pageSuffix": "(page {{page}})",
+        "searchedExplores": "Searched relevant explores",
+        "matchingQuery": "matching query:",
+        "readMetadataFor": "Read metadata for",
+        "searchedFieldsMatching": "Searched fields matching",
+        "in": "in",
+        "readKnowledgeDocument": "Read knowledge document",
+        "listedSpaceContent": "Listed content in space",
+        "listedRootContent": "Listed root content",
+        "page": "page {{page}}",
+        "listedWarehouseTables": "Listed warehouse tables",
+        "inSchema": "in schema:",
+        "matching": "matching:",
+        "builtIn": "built-in",
+        "from": "from",
+        "query": {
+            "shows": "shows",
+            "by": "by",
+            "groupedBy": "grouped by",
+            "withCustomMetrics_one": "with {{count}} custom metric",
+            "withCustomMetrics_other": "with {{count}} custom metrics",
+            "withCalculations_one": "with {{count}} calculation",
+            "withCalculations_other": "with {{count}} calculations",
+            "andCalculations_one": "and {{count}} calculation",
+            "andCalculations_other": "and {{count}} calculations"
+        },
+        "repoShell": {
+            "searched": "Searched",
+            "read": "Read",
+            "foundFiles": "Found files",
+            "listed": "Listed",
+            "counted": "Counted",
+            "ran": "Ran",
+            "readRepository": "Read repository"
+        },
+        "runContent": {
+            "metricQueryOn": "Ran metric query on",
+            "dashboardChart": "Ran dashboard chart",
+            "savedChart": "Ran saved chart",
+            "limit": "limit {{limit}}"
+        },
+        "createdScheduledDelivery": "Created scheduled delivery",
+        "viewDelivery": "view delivery",
+        "searchedFieldTypeFor": "Searched {{fieldType}} for",
+        "listedFieldType": "Listed {{fieldType}}",
+        "built": "Built",
+        "searchTypes": {
+            "content": "content",
+            "dashboards": "dashboards",
+            "charts": "charts"
+        },
+        "searchedFor": "Searched for {{type}}",
+        "inspectedSchemaOf": "Inspected schema of",
+        "discoveredFieldsFor": "Discovered fields for",
+        "analyzedImpactOf": "Analyzed the impact of changing",
+        "searchedForFields": "Searched for fields",
+        "searchedValuesInField": "Searched for values in field",
+        "matchingWord": "matching"
+    },
+    "composerQueries": {
+        "dimensions_one": "{{count}} dimension",
+        "dimensions_other": "{{count}} dimensions",
+        "metrics_one": "{{count}} metric",
+        "metrics_other": "{{count}} metrics",
+        "projectWarehouse": "Project warehouse",
+        "duckdbCompose": "DuckDB compose"
+    },
+    "sqlChart": {
+        "kinds": {
+            "bar": "Bar chart",
+            "line": "Line chart",
+            "pie": "Pie chart",
+            "bigNumber": "Big number",
+            "table": "Table"
+        },
+        "inSpace": "in {{space}}",
+        "save": "Save SQL chart",
+        "update": "Update SQL chart",
+        "created": "Created SQL chart",
+        "edited": "Edited SQL chart"
+    },
+    "sqlRun": {
+        "rowLimit": "Row limit: {{limit}}",
+        "runSql": "Run SQL",
+        "reviewPrompt": "Review the query, then approve to execute",
+        "sqlQuery": "SQL query"
+    },
+    "ranking": {
+        "title": "Ranking Metadata",
+        "search": "Search: \"{{query}}\"",
+        "pagination": "Page {{page}} of {{totalPages}} ({{totalResults}} total results)",
+        "searchQuery": "Search Query: \"{{query}}\"",
+        "exploreResults": "Explore Results ({{count}})",
+        "topMatchingFields": "Top Matching Fields ({{count}})",
+        "columns": {
+            "field": "Field",
+            "table": "Table",
+            "type": "Type",
+            "rank": "Rank",
+            "usage": "Usage",
+            "explore": "Explore",
+            "joinedTables": "Joined Tables"
+        },
+        "notAvailable": "N/A",
+        "none": "None"
+    },
+    "dataAppBuild": {
+        "appReady": "Your app is ready!",
+        "versionReady": "Version {{version}} is ready!",
+        "buildingYourApp": "Building your app",
+        "dataAppFallback": "Data app",
+        "restoredVersion": "Restored version {{from}} as version {{version}}.",
+        "restoredFrom": "restored from v{{version}}",
+        "builtIn": "built in {{duration}}",
+        "theme": "{{theme}} theme",
+        "view": "View",
+        "seeLess": "See less",
+        "seeMore": "See more",
+        "buildingDataApp": "Building data app",
+        "startingBuild": "Starting the build. This can take a few minutes.",
+        "backgroundNotice": "Builds in the background, so it's safe to close the tab.",
+        "failedTitle": "The app couldn't be built",
+        "failedWithMessage": "The app couldn't be built. {{message}}",
+        "cancelledTitle": "Build cancelled",
+        "unavailable": "This app is no longer available."
+    },
+    "dataAppPreview": {
+        "previewPlaceholder": "Your app preview will appear here",
+        "startingBuild": "Starting the build",
+        "restoreDisabled": "A version is building; restore once it finishes.",
+        "notFound": "This data app no longer exists.",
+        "forbidden": "You don't have permission to view this data app.",
+        "loadFailed": "Failed to load data app. Please try again.",
+        "loading": "Loading data app...",
+        "openInNewTab": "Open in new tab",
+        "continueInBuilder": "Continue in builder",
+        "hideNetwork": "Hide network",
+        "showNetwork": "Show network",
+        "moreOptions": "More options"
+    },
+    "saveDashboard": {
+        "nameRequired": "Dashboard name is required",
+        "saveFailed": "Failed to save dashboard",
+        "visualizationsFailed": "Some visualizations didn't run successfully. ",
+        "created": "Dashboard created successfully!",
+        "openDashboard": "Open dashboard",
+        "createFailed": "Failed to create dashboard",
+        "title": "Save Dashboard",
+        "newSpace": "New Space",
+        "nameLabel": "Dashboard name",
+        "namePlaceholder": "eg. Sales KPI Dashboard",
+        "descriptionLabel": "Dashboard description",
+        "descriptionPlaceholder": "A few words to give your team some context"
+    },
+    "chartOptions": {
+        "untitledChart": "Untitled chart",
+        "addedToDashboard": "Chart added to \"{{dashboard}}\"",
+        "addToDashboardFailed": "Failed to add chart to dashboard",
+        "removeFromVerified": "Remove from verified answers",
+        "addToVerified": "Add to verified answers",
+        "quickActions": "Quick actions",
+        "downloadResults": "Download results",
+        "viewSavedChart": "View saved chart",
+        "scheduleDelivery": "Schedule delivery",
+        "saveToCurrentDashboard": "Save to current dashboard",
+        "saveTo": "Save to…",
+        "exploreFromHere": "Explore from here",
+        "viewSql": "View SQL",
+        "saveChart": "Save chart",
+        "removeFromVerifiedDescription": "Are you sure you want to remove this answer from verified answers? It will no longer be used as an example in future Agent responses.",
+        "exportImage": "Export image"
+    },
+    "vizDetails": {
+        "fields": "Fields {{count}}",
+        "filters": "Filters {{count}}",
+        "parameters": "Parameters {{count}}"
+    },
+    "artifact": {
+        "chartLoadFailed": "Could not load this chart.",
+        "loadingArtifact": "Loading artifact…",
+        "loadingArtifactDelayed": "Loading artifact...",
+        "unavailable": "This artifact is unavailable.",
+        "loadFailed": "Failed to load artifact. Please try again.",
+        "composerResultsTitle": "Composer query results",
+        "visualizationLoadFailed": "Could not load the visualization.",
+        "loadingVisualization": "Loading visualization…",
+        "loadingVisualizationDelayed": "Loading visualization..."
+    },
+    "chatDisplay": {
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "summarizedConversation": "Summarized Conversation",
+        "summarizedTooltip": "Earlier messages are automatically summarized when a conversation gets long, so responses stay fast and relevant.",
+        "aboutSummarized": "About summarized conversations"
+    },
+    "contextItems": {
+        "theme": "Theme: {{name}}",
+        "themeUnavailable": "unavailable",
+        "conversation": "Conversation",
+        "pullRequest": "PR #{{number}}",
+        "previewEnvironment": "Preview environment",
+        "document": "Document"
+    },
+    "sqlArtifact": {
+        "actions": "SQL artifact actions",
+        "continueInSqlRunner": "Continue exploring in SQL Runner",
+        "saveAnotherCopy": "Save another copy",
+        "loadingResults": "Loading SQL results..."
+    },
+    "composerArtifact": {
+        "readOnlyReason": "Only the thread owner or an agent admin can change this chart",
+        "backToResult": "Back to result"
+    },
+    "attachments": {
+        "tables_one": "{{count}} table",
+        "tables_other": "{{count}} tables",
+        "queued": "Queued {{filename}}",
+        "preparing": "Preparing {{filename}}",
+        "uploading": "Uploading {{filename}}"
+    },
+    "streamRecovery": {
+        "ariaLabel": "Connection lost. Reconnecting",
+        "reconnectingElapsed": "Connection lost. Reconnecting… {{seconds}}s",
+        "reconnecting": "Connection lost. Reconnecting…",
+        "stillWorking": "Your agent is still working",
+        "refreshPage": "Refresh page"
+    },
+    "workstreams": {
+        "state": {
+            "open": "Open",
+            "merged": "Merged",
+            "closed": "Closed"
+        },
+        "title": "Pull requests in this conversation"
+    },
+    "theme": {
+        "apply": "Apply theme",
+        "default": "Default: {{name}}",
+        "unselect": "Unselect theme {{name}}",
+        "select": "Select theme {{name}}",
+        "organizationDefault": "Organization default",
+        "tooltip": "Theme for the data app this prompt builds"
+    },
+    "savedChartPreview": {
+        "verifiedBy": "Verified by {{firstName}} {{lastName}} on {{date}}",
+        "loadFailed": "Failed to load chart. Please try again.",
+        "loading": "Loading chart..."
+    },
+    "documentPreview": {
+        "loading": "Loading document...",
+        "open": "Open Document"
+    },
+    "dashboardViz": {
+        "invalidConfig": "Invalid dashboard configuration",
+        "closePreview": "Close preview",
+        "itemLoadFailed": "Failed to load visualization"
+    },
+    "chartViz": {
+        "loadFailed": "Something went wrong loading the visualization data. Please try again.",
+        "sqlResults": "SQL results"
+    },
+    "fieldItem": {
+        "writeBack": "Write back to project",
+        "fieldId": "Field ID: {{fieldId}}",
+        "type": "Type: {{type}}",
+        "types": {
+            "metric": "metric",
+            "dimension": "dimension"
+        }
+    },
+    "debug": {
+        "title": "Debug",
+        "configuration": "Configuration",
+        "cannotDisplayConfiguration": "Cannot display configuration",
+        "toolCalls": "Tool Calls ({{count}})",
+        "arguments": "Arguments",
+        "cannotDisplayArguments": "Cannot display arguments",
+        "empty": "No debug information available"
+    },
+    "accessCallout": {
+        "title": "Connect your agent to your warehouse",
+        "inlineMessage": "Connect your agent to your warehouse to run this.",
+        "cardMessage": "Connect once so the agent can query Snowflake as you, in a session your warehouse can verify.",
+        "connectAgent": "Connect agent",
+        "myAgentIdentity": "My agent identity"
+    },
+    "jevChoices": {
+        "ariaLabel": "Suggested answers"
+    },
+    "versionPill": {
+        "viewing": "Viewing v{{version}}",
+        "returnToLatest": "Return to latest",
+        "restore": "Restore"
+    },
+    "documentCard": {
+        "personal": "Personal document",
+        "document": "Document"
+    },
+    "sqlModal": {
+        "copySql": "Copy SQL"
+    },
+    "artifactButton": {
+        "creating": "Creating…"
+    },
+    "userBubble": {
+        "noMessage": "No message"
+    },
+    "memory": {
+        "showWithSlug": "Show memory {{slug}}",
+        "show": "Show memory",
+        "titleWithSlug": "Memory: {{slug}}",
+        "title": "Memory",
+        "saved": "Saved {{date}}",
+        "view": "View memory",
+        "unavailable": "Memory details unavailable",
+        "sources_one": "{{count}} source",
+        "sources_other": "{{count}} sources",
+        "cardUnavailable": "Memory unavailable"
+    },
+    "composerChart": {
+        "missingColumns": "This chart uses columns that are not in the result"
+    },
+    "accessGate": {
+        "checkFailed": "Could not check your agent identity. <retry>Try again</retry>."
+    },
+    "dashboardOptions": {
+        "viewSaved": "View saved dashboard",
+        "save": "Save dashboard"
+    },
+    "typingDots": {
+        "working": "Working on your request"
+    },
+    "timing": {
+        "notAvailable": "n/a",
+        "firstToken": "First token {{ttft}} · total {{total}}",
+        "stages": "Prep {{prep}} · provider {{provider}} · query {{query}} · API {{api}} · render {{render}}",
+        "cacheHits_one": "{{count}} query cache hit",
+        "cacheHits_other": "{{count}} query cache hits",
+        "reuseHits_one": "{{count}} prior result reuse",
+        "reuseHits_other": "{{count}} prior result reuses",
+        "tokens": "Tokens: {{decisionName}} {{decisions}} · agent {{agent}}",
+        "footnote": "Server wall time. Concurrent stage spans can overlap."
+    },
+    "parameters": {
+        "is": "is"
+    },
+    "filters": {
+        "or": "OR"
+    }
+}

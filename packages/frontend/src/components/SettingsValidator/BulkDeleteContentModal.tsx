@@ -3,6 +3,7 @@ import { List, ScrollArea, Text } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useContentBulkAction } from '../../hooks/useContent';
 import useApp from '../../providers/App/useApp';
 import Callout from '../common/Callout';
@@ -27,6 +28,7 @@ export const BulkDeleteContentModal: FC<Props> = ({
     onClose,
     onDeleted,
 }) => {
+    const { t } = useTranslation('projectSettings');
     const { health } = useApp();
     const isSoftDeleteEnabled = health.data?.softDelete.enabled ?? false;
     const queryClient = useQueryClient();
@@ -50,22 +52,22 @@ export const BulkDeleteContentModal: FC<Props> = ({
     const dashboardCount = items.length - chartCount;
 
     const summaryParts = [
-        chartCount > 0 && `${chartCount} chart${chartCount === 1 ? '' : 's'}`,
+        chartCount > 0 && t('validator.counts.charts', { count: chartCount }),
         dashboardCount > 0 &&
-            `${dashboardCount} dashboard${dashboardCount === 1 ? '' : 's'}`,
+            t('validator.counts.dashboards', { count: dashboardCount }),
     ].filter(Boolean);
 
     return (
         <MantineModal
             size="lg"
-            title="Delete broken content"
+            title={t('validator.bulkDelete.title')}
             icon={IconTrash}
             opened={opened}
             onClose={onClose}
             variant="delete"
-            confirmLabel={`Delete ${items.length} item${
-                items.length === 1 ? '' : 's'
-            }`}
+            confirmLabel={t('validator.bulkDelete.confirm', {
+                count: items.length,
+            })}
             confirmLoading={isLoading}
             confirmDisabled={items.length === 0}
             onConfirm={() =>
@@ -77,14 +79,16 @@ export const BulkDeleteContentModal: FC<Props> = ({
         >
             <Callout
                 variant="warning"
-                title={`This will delete ${summaryParts.join(' and ')} from this project.`}
+                title={t('validator.bulkDelete.warning', {
+                    content: summaryParts.join(t('validator.andSeparator')),
+                })}
             >
                 {isSoftDeleteEnabled ? (
                     <Text fz="xs">
-                        Deleted content can be restored from recently deleted.
+                        {t('validator.bulkDelete.softDeleteNote')}
                     </Text>
                 ) : (
-                    <Text fz="xs">This cannot be undone.</Text>
+                    <Text fz="xs">{t('validator.bulkDelete.cannotUndo')}</Text>
                 )}
             </Callout>
             <ScrollArea.Autosize mah={300} scrollbars="y">
@@ -94,8 +98,12 @@ export const BulkDeleteContentModal: FC<Props> = ({
                             {item.name}
                             <Text span c="dimmed" fz="xs">
                                 {' '}
-                                ({item.contentType}, {item.views} view
-                                {item.views === 1 ? '' : 's'})
+                                {t('validator.bulkDelete.itemMeta', {
+                                    contentType: item.contentType,
+                                    views: t('validator.counts.views', {
+                                        count: item.views,
+                                    }),
+                                })}
                             </Text>
                         </List.Item>
                     ))}

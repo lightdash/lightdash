@@ -15,6 +15,7 @@ import {
     type UseMutationOptions,
     type UseQueryOptions,
 } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import useEmbed from '../ee/providers/Embed/useEmbed';
@@ -209,6 +210,7 @@ export const useChartVersionRollbackMutation = (
     >,
 ) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(
         (versionUuid: string) =>
@@ -230,13 +232,13 @@ export const useChartVersionRollbackMutation = (
                         query.queryKey[2] === chartUuid,
                 });
                 showToastSuccess({
-                    title: `Success! Chart was reverted.`,
+                    title: t('useSavedQuery.successChartWasReverted'),
                 });
                 useMutationOptions?.onSuccess?.(...args);
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to revert chart`,
+                    title: t('useSavedQuery.failedToRevertChart'),
                     apiError: error,
                 });
             },
@@ -249,6 +251,7 @@ export const useSavedQueryDeleteMutation = (projectUuid?: string) => {
     const navigate = useNavigate();
     const { health } = useApp();
     const isSoftDeleteEnabled = health.data?.softDelete.enabled ?? false;
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(
         async (data) => {
@@ -266,10 +269,10 @@ export const useSavedQueryDeleteMutation = (projectUuid?: string) => {
                 await queryClient.invalidateQueries(['deletedContent']);
 
                 showToastSuccess({
-                    title: `Success! Chart was deleted.`,
+                    title: t('useSavedQuery.successChartWasDeleted'),
                     action: isSoftDeleteEnabled
                         ? {
-                              children: 'Go to recently deleted',
+                              children: t('useSavedQuery.goToRecentlyDeleted'),
                               icon: IconArrowRight,
                               onClick: () =>
                                   navigate(
@@ -281,7 +284,7 @@ export const useSavedQueryDeleteMutation = (projectUuid?: string) => {
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to delete chart`,
+                    title: t('useSavedQuery.failedToDeleteChart'),
                     apiError: error,
                 });
             },
@@ -296,6 +299,7 @@ export const useUpdateMutation = (
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const params = useParams();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<
@@ -360,11 +364,11 @@ export const useUpdateMutation = (
 
                 showToastSuccess({
                     title: data.hasUnpublishedChanges
-                        ? 'Chart draft saved for review'
-                        : 'Success! Chart was saved.',
+                        ? t('useSavedQuery.draftSaved')
+                        : t('useSavedQuery.successChartWasSaved'),
                     action: dashboardUuid
                         ? {
-                              children: 'Open dashboard',
+                              children: t('useSavedQuery.openDashboard'),
                               icon: IconArrowRight,
                               onClick: () =>
                                   navigate(
@@ -376,7 +380,7 @@ export const useUpdateMutation = (
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to save chart`,
+                    title: t('useSavedQuery.failedToSaveChart'),
                     apiError: error,
                 });
             },
@@ -402,6 +406,7 @@ export const useCreateMutation = ({
     const queryClient = useQueryClient();
     const { embedToken } = useEmbed();
     const isEmbedded = embedToken !== undefined;
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastError, showToastApiError } =
         useToaster();
     return useMutation<SavedChart, ApiError, CreateSavedChart>(
@@ -419,14 +424,14 @@ export const useCreateMutation = ({
                 );
                 if (showToastOnSuccess) {
                     showToastSuccess({
-                        title: `Success! Chart was saved.`,
+                        title: t('useSavedQuery.successChartWasSaved'),
                         action:
                             isEmbedded ||
                             redirectOnSuccess ||
                             !showViewChartAction
                                 ? undefined
                                 : {
-                                      children: 'View chart',
+                                      children: t('useSavedQuery.viewChart'),
                                       icon: IconArrowRight,
                                       onClick: () => navigate(navigateUrl),
                                   },
@@ -441,14 +446,13 @@ export const useCreateMutation = ({
             onError: ({ error }) => {
                 if (isCustomSqlDimensionForbiddenError(error)) {
                     showToastError({
-                        title: "Can't save chart",
-                        subtitle:
-                            "You don't have permission to author custom SQL dimensions. Remove them from your chart to save.",
+                        title: t('useSavedQuery.canTSaveChart'),
+                        subtitle: t('useSavedQuery.youDonTHavePermissionTo'),
                     });
                     return;
                 }
                 showToastApiError({
-                    title: `Failed to save chart`,
+                    title: t('useSavedQuery.failedToSaveChart'),
                     apiError: error,
                 });
             },
@@ -468,6 +472,7 @@ export const useDuplicateChartMutation = (
     const navigate = useNavigate();
     const projectUuid = useProjectUuid();
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         SavedChart,
@@ -503,10 +508,10 @@ export const useDuplicateChartMutation = (
                 showToastSuccess({
                     title:
                         options?.successMessage ||
-                        `Chart successfully duplicated!`,
+                        t('useSavedQuery.duplicated'),
                     action: options?.showRedirectButton
                         ? {
-                              children: 'Open chart',
+                              children: t('useSavedQuery.openChart'),
                               icon: IconArrowRight,
                               onClick: () => {
                                   void navigate(
@@ -519,7 +524,7 @@ export const useDuplicateChartMutation = (
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to duplicate chart`,
+                    title: t('useSavedQuery.failedToDuplicateChart'),
                     apiError: error,
                 });
             },
@@ -539,6 +544,7 @@ export const useAddVersionMutation = (options?: {
     const dashboardUuid = useSearchParams('fromDashboard');
     const projectRoute = useOptionalProjectRoute();
 
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastError, showToastApiError } =
         useToaster();
     return useMutation<
@@ -595,10 +601,10 @@ export const useAddVersionMutation = (options?: {
             if (dashboardUuid)
                 showToastSuccess({
                     title: data.hasUnpublishedChanges
-                        ? 'Chart draft saved for review'
-                        : 'Success! Chart was updated.',
+                        ? t('useSavedQuery.draftSaved')
+                        : t('useSavedQuery.successUpdated'),
                     action: {
-                        children: 'Open dashboard',
+                        children: t('useSavedQuery.openDashboard'),
                         icon: IconArrowRight,
                         onClick: () =>
                             navigate(
@@ -609,8 +615,8 @@ export const useAddVersionMutation = (options?: {
             else {
                 showToastSuccess({
                     title: data.hasUnpublishedChanges
-                        ? 'Chart draft saved for review'
-                        : 'Success! Chart was updated.',
+                        ? t('useSavedQuery.draftSaved')
+                        : t('useSavedQuery.successUpdated'),
                 });
                 if (redirectOnSuccess) {
                     void navigate(
@@ -622,14 +628,13 @@ export const useAddVersionMutation = (options?: {
         onError: ({ error }) => {
             if (isCustomSqlDimensionForbiddenError(error)) {
                 showToastError({
-                    title: "Can't update chart",
-                    subtitle:
-                        "You don't have permission to author custom SQL dimensions. Remove them from your chart to save.",
+                    title: t('useSavedQuery.canTUpdateChart'),
+                    subtitle: t('useSavedQuery.youDonTHavePermissionTo'),
                 });
                 return;
             }
             showToastApiError({
-                title: `Failed to update chart`,
+                title: t('useSavedQuery.failedToUpdateChart'),
                 apiError: error,
             });
         },

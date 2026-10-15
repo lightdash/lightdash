@@ -24,7 +24,9 @@ import {
     IconTable,
     IconX,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useCallback, useMemo, useRef, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { useDeleteValidation } from '../../../hooks/validation/useValidation';
 import {
@@ -61,7 +63,10 @@ const Icon = ({ validationError }: { validationError: ValidationResponse }) => {
     return <IconBox icon={IconTable} color="indigo.6" />;
 };
 
-const getErrorName = (validationError: ValidationResponse) => {
+const getErrorName = (
+    validationError: ValidationResponse,
+    t: TFunction<'projectSettings'>,
+) => {
     if (
         isChartValidationError(validationError) ||
         isDashboardValidationError(validationError) ||
@@ -69,7 +74,7 @@ const getErrorName = (validationError: ValidationResponse) => {
     )
         return validationError.name;
     if (isTableValidationError(validationError))
-        return validationError.name ?? 'Table';
+        return validationError.name ?? t('validator.sourceTypes.table');
 };
 
 const getViews = (
@@ -149,6 +154,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
     setRowSelection,
     onBulkDelete,
 }) => {
+    const { t } = useTranslation('projectSettings');
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
             null,
@@ -198,7 +204,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
         () => [
             {
                 accessorKey: 'name',
-                header: 'Name',
+                header: t('validator.table.name'),
                 enableSorting: false,
                 size: 300,
                 Cell: ({ row }) => {
@@ -212,7 +218,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                                 <Icon validationError={validationError} />
                                 <Stack gap={2}>
                                     <Text fz="xs" fw={600}>
-                                        {getErrorName(validationError)}
+                                        {getErrorName(validationError, t)}
                                     </Text>
                                     {(isChartValidationError(validationError) ||
                                         isDashboardValidationError(
@@ -220,25 +226,33 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                                         )) &&
                                         !isDeleted(validationError) && (
                                             <Text fz="xs" c="dimmed">
-                                                {getViews(validationError)} view
-                                                {getViews(validationError) === 1
-                                                    ? ''
-                                                    : 's'}
+                                                {t('validator.counts.views', {
+                                                    count:
+                                                        getViews(
+                                                            validationError,
+                                                        ) ?? 0,
+                                                })}
                                                 {'lastUpdatedBy' in
                                                     validationError &&
                                                 validationError.lastUpdatedBy ? (
                                                     <>
                                                         {' • '}
-                                                        Last edited by{' '}
-                                                        <Text
-                                                            span
-                                                            fw={500}
-                                                            fz="xs"
-                                                        >
-                                                            {
-                                                                validationError.lastUpdatedBy
-                                                            }
-                                                        </Text>
+                                                        <Trans
+                                                            t={t}
+                                                            i18nKey="validator.table.lastEditedBy"
+                                                            values={{
+                                                                name: validationError.lastUpdatedBy,
+                                                            }}
+                                                            components={{
+                                                                b: (
+                                                                    <Text
+                                                                        span
+                                                                        fw={500}
+                                                                        fz="xs"
+                                                                    />
+                                                                ),
+                                                            }}
+                                                        />
                                                     </>
                                                 ) : null}
                                             </Text>
@@ -251,7 +265,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
             },
             {
                 accessorKey: 'error',
-                header: 'Error',
+                header: t('validator.table.error'),
                 enableSorting: false,
                 size: 400,
                 Cell: ({ row }) => {
@@ -284,7 +298,10 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                             align="center"
                             className={classes.actions}
                         >
-                            <Tooltip label="Dismiss Error" position="top">
+                            <Tooltip
+                                label={t('validator.table.dismissError')}
+                                position="top"
+                            >
                                 <ActionIcon
                                     size="xs"
                                     onClick={(
@@ -323,7 +340,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                                         e.stopPropagation();
                                     }}
                                 >
-                                    Fix
+                                    {t('validator.table.fix')}
                                 </Button>
                             )}
                         </Flex>
@@ -337,6 +354,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
             onSelectValidationError,
             onUnpin,
             deleteValidation,
+            t,
         ],
     );
 

@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { IconPin, IconStar } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useApp from '../../providers/App/useApp';
 import usePinnedItemsContext from '../../providers/PinnedItems/usePinnedItemsContext';
 import MantineIcon from '../common/MantineIcon';
@@ -44,6 +45,7 @@ const PinnedAndFavoritesSection: FC<Props> = ({
     favoriteItems,
     pinnedIsEnabled,
 }) => {
+    const { t } = useTranslation('home');
     const { user } = useApp();
     const { userCanManage } = usePinnedItemsContext();
     const isAdmin = user.data?.ability?.can('manage', 'Organization') ?? false;
@@ -74,10 +76,9 @@ const PinnedAndFavoritesSection: FC<Props> = ({
                 tabs={[
                     {
                         id: 'favorites',
-                        name: 'My favorites',
+                        name: t('favorites.title'),
                         icon: <MantineIcon icon={IconStar} size="sm" />,
-                        infoTooltipText:
-                            'Your personally favorited spaces, dashboards, charts, data apps, and documents.',
+                        infoTooltipText: t('favorites.description'),
                         hasReorder: false,
                         sort: sortByType,
                         filter: (item) =>
@@ -85,37 +86,37 @@ const PinnedAndFavoritesSection: FC<Props> = ({
                             item.category === ResourceItemCategory.FAVORITES,
                         emptyStateProps: {
                             icon: <MantineIcon icon={IconStar} size={24} />,
-                            title: 'No favorites yet',
-                            description:
-                                'Star items to add them to your personal favorites.',
+                            title: t('favorites.emptyTitleShort'),
+                            description: t('favorites.emptyDescription'),
                         },
                     },
                     {
                         id: 'pinned',
-                        name: userCanManage ? 'Pinned items' : 'Pinned for you',
+                        name: userCanManage
+                            ? t('pinned.titleManager')
+                            : t('pinned.titleViewer'),
                         icon: <MantineIcon icon={IconPin} size="sm" />,
                         infoTooltipText: userCanManage
-                            ? 'Pin Spaces, Dashboards, Charts and Data apps to the top of the homepage to guide your business users to the right content.'
-                            : 'Your data team have pinned these items to help guide you towards the most relevant content!',
+                            ? t('pinned.descriptionManager')
+                            : t('pinned.descriptionViewer'),
                         hasReorder: userCanManage,
                         filter: (item) =>
                             'category' in item &&
                             item.category === ResourceItemCategory.PINNED,
                         emptyStateProps: {
                             icon: <MantineIcon icon={IconPin} size={24} />,
-                            title: 'No pinned items',
+                            title: t('pinned.emptyTitleShort'),
                             description: userCanManage
-                                ? 'Pin items to the top of the homepage to guide users to relevant content.'
-                                : 'Your data team has not pinned any items yet.',
+                                ? t('pinned.emptyDescription')
+                                : t('pinned.emptyDescriptionViewer'),
                         },
                     },
                 ]}
                 gridProps={{ groups: GRID_GROUPS }}
                 emptyStateProps={{
                     icon: <MantineIcon icon={IconStar} size={24} />,
-                    title: 'No favorites yet',
-                    description:
-                        'Star items to add them to your personal favorites.',
+                    title: t('favorites.emptyTitleShort'),
+                    description: t('favorites.emptyDescription'),
                 }}
             />
         );

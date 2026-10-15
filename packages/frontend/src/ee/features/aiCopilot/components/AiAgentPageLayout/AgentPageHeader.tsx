@@ -6,6 +6,7 @@ import {
     IconWindowMinimize,
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useAgentMaxWidth } from '../../hooks/useAgentMaxWidth';
@@ -29,6 +30,7 @@ export const AgentPageHeader: FC<Props> = ({
     isSharing,
     settingsHref,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const settingsLinkState = useAgentSettingsLinkState();
     const isMobile = useAgentMaxWidth(768, {
         getInitialValueInEffect: false,
@@ -63,7 +65,7 @@ export const AgentPageHeader: FC<Props> = ({
                                     />
                                 }
                             >
-                                Memories
+                                {t('header.memories')}
                             </Button>
                         )}
                         {showSettings && settingsHref && (
@@ -84,7 +86,7 @@ export const AgentPageHeader: FC<Props> = ({
                                     />
                                 }
                             >
-                                Settings
+                                {t('header.settings')}
                             </Button>
                         )}
                     </Group>
@@ -92,13 +94,13 @@ export const AgentPageHeader: FC<Props> = ({
             </Group>
             <Group gap={4}>
                 {onShare && (
-                    <Tooltip label="Share thread" position="bottom">
+                    <Tooltip label={t('header.shareThread')} position="bottom">
                         <ActionIcon
                             color="ldGray"
                             className={styles.threadAction}
                             onClick={onShare}
                             loading={isSharing}
-                            aria-label="Share thread"
+                            aria-label={t('header.shareThread')}
                         >
                             <MantineIcon
                                 icon={IconShare2}
@@ -109,12 +111,12 @@ export const AgentPageHeader: FC<Props> = ({
                     </Tooltip>
                 )}
                 {showMinimize && (
-                    <Tooltip label="Minimize" position="bottom">
+                    <Tooltip label={t('header.minimize')} position="bottom">
                         <ActionIcon
                             color="ldGray"
                             className={styles.threadAction}
                             onClick={onMinimize}
-                            aria-label="Minimize"
+                            aria-label={t('header.minimize')}
                         >
                             <MantineIcon
                                 icon={IconWindowMinimize}

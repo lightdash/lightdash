@@ -2,6 +2,7 @@ import { Anchor, Box, Button, PinInput, Stack, Text } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { type FC } from 'react';
 import Countdown, { zeroPad } from 'react-countdown';
+import { useTranslation } from 'react-i18next';
 import Callout from '../common/Callout';
 import classes from './VerifyEmailCodeForm.module.css';
 
@@ -26,6 +27,7 @@ const VerifyEmailCodeForm: FC<Props> = ({
     isVerified,
     isVerifying,
 }) => {
+    const { t } = useTranslation('auth');
     const errorMessage = form.errors.code;
 
     return (
@@ -35,7 +37,7 @@ const VerifyEmailCodeForm: FC<Props> = ({
         >
             <Stack gap="md">
                 <PinInput
-                    aria-label="One-time password"
+                    aria-label={t('otp.inputLabel')}
                     name="code"
                     length={6}
                     size="lg"
@@ -66,7 +68,7 @@ const VerifyEmailCodeForm: FC<Props> = ({
                             return (
                                 <Callout
                                     variant="warning"
-                                    title="Your verification code has expired."
+                                    title={t('verifyEmail.codeExpired')}
                                 >
                                     <Anchor
                                         component="button"
@@ -74,7 +76,7 @@ const VerifyEmailCodeForm: FC<Props> = ({
                                         fz="sm"
                                         onClick={onResend}
                                     >
-                                        Send a new code
+                                        {t('verifyEmail.sendNewCode')}
                                     </Anchor>
                                 </Callout>
                             );
@@ -83,18 +85,18 @@ const VerifyEmailCodeForm: FC<Props> = ({
                             <Stack gap="md">
                                 {!isMaxAttempts && (
                                     <Button type="submit" loading={isVerifying}>
-                                        Verify email
+                                        {t('verifyEmail.verify')}
                                     </Button>
                                 )}
                                 <Text mx="auto" mt="md" fz="sm">
-                                    Didn't get it?{' '}
+                                    {t('verifyEmail.didntGetIt')}{' '}
                                     <Anchor
                                         component="button"
                                         type="button"
                                         fz="sm"
                                         onClick={onResend}
                                     >
-                                        Resend code
+                                        {t('otp.resend')}
                                     </Anchor>
                                     {!isMaxAttempts && (
                                         <Text
@@ -104,8 +106,9 @@ const VerifyEmailCodeForm: FC<Props> = ({
                                             className={classes.countdown}
                                         >
                                             {' '}
-                                            · Expires in {zeroPad(minutes)}:
-                                            {zeroPad(seconds)}
+                                            {t('verifyEmail.expiresIn', {
+                                                time: `${zeroPad(minutes)}:${zeroPad(seconds)}`,
+                                            })}
                                         </Text>
                                     )}
                                 </Text>

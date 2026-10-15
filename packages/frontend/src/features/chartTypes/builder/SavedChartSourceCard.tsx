@@ -23,6 +23,7 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import DataSourcePicker from './DataSourcePicker';
@@ -34,33 +35,34 @@ import classes from './SavedChartSourceCard.module.css';
 
 type Props = { source: SavedChartSourceControls };
 
-const rowsLabel = (rowCount: number): string =>
-    `${rowCount} ${rowCount === 1 ? 'row' : 'rows'}`;
-
 /** The right-hand side of the meta line: how the one run is going. Never
  *  wraps; a long chart name truncates instead. */
 const MetaLine: FC<{ attached: AttachedSavedChart }> = ({ attached }) => {
-    const space = attached.spaceName ?? 'Saved charts';
+    const { t } = useTranslation('chartTypes');
+    const space = attached.spaceName ?? t('source.savedCharts');
     switch (attached.status) {
         case 'running':
             return (
                 <Group gap={6} wrap="nowrap" flex="0 0 auto">
                     <Loader size={12} />
                     <Text fz="xs" c="dimmed" truncate>
-                        Saved chart · {space} · running query
+                        {t('source.savedChartRunning', { space })}
                     </Text>
                 </Group>
             );
         case 'error':
             return (
                 <Text fz="xs" c="red" truncate flex="0 0 auto">
-                    Saved chart · {space} · query failed
+                    {t('source.savedChartFailed', { space })}
                 </Text>
             );
         case 'ready':
             return (
                 <Text fz="xs" c="dimmed" truncate flex="0 0 auto">
-                    Saved chart · {space} · {rowsLabel(attached.rowCount ?? 0)}
+                    {t('source.savedChartReady', {
+                        space,
+                        count: attached.rowCount ?? 0,
+                    })}
                 </Text>
             );
         default:
@@ -76,6 +78,7 @@ const MetaLine: FC<{ attached: AttachedSavedChart }> = ({ attached }) => {
  * one is attached, and the attached chart with its result columns after.
  */
 const SavedChartSourceCard: FC<Props> = ({ source }) => {
+    const { t } = useTranslation('chartTypes');
     const [pickerOpened, setPickerOpened] = useState(false);
     const attached = source.attached;
 
@@ -88,10 +91,10 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
                     </Box>
                     <Stack gap={2} flex={1} miw={0}>
                         <Text fz="sm" fw={500} c="ldGray.8">
-                            Use a saved chart
+                            {t('source.useSavedChart')}
                         </Text>
                         <Text fz="xs" c="dimmed" lh={1.5}>
-                            Preview with its query results.
+                            {t('source.useSavedChartDescription')}
                         </Text>
                     </Stack>
                     <DataSourcePicker
@@ -110,7 +113,7 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
                             }
                             onClick={() => setPickerOpened((opened) => !opened)}
                         >
-                            Choose saved chart
+                            {t('source.chooseSavedChart')}
                         </Button>
                     </DataSourcePicker>
                 </Group>
@@ -140,7 +143,7 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
                     )}
                     {attached.status === 'error' && (
                         <Text fz="xs" c="red" lh={1.4}>
-                            {attached.message ?? 'Couldn’t run this chart.'}
+                            {attached.message ?? t('source.couldNotRunChart')}
                         </Text>
                     )}
                     {attached.columns.length > 0 && (
@@ -172,7 +175,7 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
                             }
                             onClick={source.retry}
                         >
-                            Try again
+                            {t('upgrade.tryAgain')}
                         </Button>
                     )}
                     {attached.status === 'ready' && (
@@ -184,7 +187,7 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
                             }
                             onClick={source.viewRows}
                         >
-                            View query results
+                            {t('source.viewQueryResults')}
                         </Button>
                     )}
                     <DataSourcePicker
@@ -206,12 +209,12 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
                             }
                             onClick={() => setPickerOpened((opened) => !opened)}
                         >
-                            Change
+                            {t('source.change')}
                         </Button>
                     </DataSourcePicker>
-                    <Tooltip label="Use sample data instead">
+                    <Tooltip label={t('source.useSampleData')}>
                         <CloseButton
-                            aria-label="Use sample data instead"
+                            aria-label={t('source.useSampleData')}
                             onClick={source.detach}
                         />
                     </Tooltip>
@@ -219,20 +222,25 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
             </Group>
             <Text fz="xs" c="dimmed" ta="center" className={classes.rowsNote}>
                 {source.includeRows ? (
-                    `Rows included · sends up to ${MAX_APP_VIZ_BUILD_SAMPLE_ROWS} rows with your prompt.`
+                    t('source.rowsIncluded', {
+                        max: MAX_APP_VIZ_BUILD_SAMPLE_ROWS,
+                    })
                 ) : (
-                    <>
-                        Rows aren’t sent with your prompt.{' '}
-                        <Anchor
-                            component="button"
-                            type="button"
-                            fz="xs"
-                            onClick={() => source.setIncludeRows(true)}
-                        >
-                            Include rows
-                        </Anchor>{' '}
-                        to send up to {MAX_APP_VIZ_BUILD_SAMPLE_ROWS}.
-                    </>
+                    <Trans
+                        t={t}
+                        i18nKey="source.rowsNotSent"
+                        values={{ max: MAX_APP_VIZ_BUILD_SAMPLE_ROWS }}
+                        components={{
+                            include: (
+                                <Anchor
+                                    component="button"
+                                    type="button"
+                                    fz="xs"
+                                    onClick={() => source.setIncludeRows(true)}
+                                />
+                            ),
+                        }}
+                    />
                 )}
             </Text>
         </Box>

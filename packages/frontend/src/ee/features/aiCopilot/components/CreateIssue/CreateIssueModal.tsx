@@ -20,7 +20,9 @@ import {
     IconPlus,
     IconWand,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useMemo, useState, type FC, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { useDashboardQuery } from '../../../../../hooks/dashboard/useDashboard';
@@ -34,22 +36,41 @@ import {
 import { useAiRouterRoute } from '../../hooks/useAiRouter';
 import { type CreateIssueContext } from '../../store/createIssueSlice';
 
-const rootCauseOptions: { value: AiAgentRootCause; label: string }[] = [
-    { value: 'semantic_layer', label: 'Semantic layer' },
-    { value: 'project_context', label: 'Project context' },
-    { value: 'agent_configuration', label: 'Agent configuration' },
-    { value: 'runtime_reliability', label: 'Runtime reliability' },
-    { value: 'feedback_quality', label: 'Feedback quality' },
-    { value: 'not_a_failure', label: 'Not a failure' },
-    { value: 'ambiguous', label: 'Ambiguous' },
+const getRootCauseOptions = (
+    t: TFunction,
+): { value: AiAgentRootCause; label: string }[] => [
+    {
+        value: 'semantic_layer',
+        label: t('createIssue.rootCause.semanticLayer'),
+    },
+    {
+        value: 'project_context',
+        label: t('createIssue.rootCause.projectContext'),
+    },
+    {
+        value: 'agent_configuration',
+        label: t('createIssue.rootCause.agentConfiguration'),
+    },
+    {
+        value: 'runtime_reliability',
+        label: t('createIssue.rootCause.runtimeReliability'),
+    },
+    {
+        value: 'feedback_quality',
+        label: t('createIssue.rootCause.feedbackQuality'),
+    },
+    { value: 'not_a_failure', label: t('createIssue.rootCause.notAFailure') },
+    { value: 'ambiguous', label: t('createIssue.rootCause.ambiguous') },
 ];
 
-const priorityOptions: { value: AiAgentReviewItemPriority; label: string }[] = [
-    { value: 'none', label: 'None' },
-    { value: 'urgent', label: 'Urgent' },
-    { value: 'high', label: 'High' },
-    { value: 'medium', label: 'Medium' },
-    { value: 'low', label: 'Low' },
+const getPriorityOptions = (
+    t: TFunction,
+): { value: AiAgentReviewItemPriority; label: string }[] => [
+    { value: 'none', label: t('createIssue.priority.none') },
+    { value: 'urgent', label: t('createIssue.priority.urgent') },
+    { value: 'high', label: t('createIssue.priority.high') },
+    { value: 'medium', label: t('createIssue.priority.medium') },
+    { value: 'low', label: t('createIssue.priority.low') },
 ];
 
 type Props = {
@@ -61,6 +82,7 @@ type Props = {
 // The chip showing which piece of content the issue was filed from. Resolves
 // the chart/dashboard name; falls back to a generic label while it loads.
 const ReportedFromChip: FC<{ context: CreateIssueContext }> = ({ context }) => {
+    const { t } = useTranslation('aiAgent');
     const { data: chart } = useSavedQuery({
         uuidOrSlug: context.chartUuid,
         projectUuid: context.projectUuid,
@@ -73,7 +95,9 @@ const ReportedFromChip: FC<{ context: CreateIssueContext }> = ({ context }) => {
     if (context.chartUuid) {
         return (
             <Badge leftSection={<MantineIcon icon={IconChartBar} size={12} />}>
-                Reported from {chart?.name ?? 'a chart'}
+                {chart?.name
+                    ? t('createIssue.reportedFrom', { name: chart.name })
+                    : t('createIssue.reportedFromChart')}
             </Badge>
         );
     }
@@ -84,7 +108,9 @@ const ReportedFromChip: FC<{ context: CreateIssueContext }> = ({ context }) => {
                     <MantineIcon icon={IconLayoutDashboard} size={12} />
                 }
             >
-                Reported from {dashboard?.name ?? 'a dashboard'}
+                {dashboard?.name
+                    ? t('createIssue.reportedFrom', { name: dashboard.name })
+                    : t('createIssue.reportedFromDashboard')}
             </Badge>
         );
     }
@@ -92,6 +118,7 @@ const ReportedFromChip: FC<{ context: CreateIssueContext }> = ({ context }) => {
 };
 
 export const CreateIssueModal: FC<Props> = ({ opened, onClose, context }) => {
+    const { t } = useTranslation('aiAgent');
     const { data: projects = [] } = useProjects();
     const { data: agents = [] } = useAiAgentAdminAgents();
     const createIssue = useCreateAiAgentReviewItem();
@@ -223,7 +250,7 @@ export const CreateIssueModal: FC<Props> = ({ opened, onClose, context }) => {
         <MantineModal
             opened={opened}
             onClose={handleClose}
-            title="New issue"
+            title={t('createIssue.title')}
             icon={IconPlus}
             size="lg"
         >
@@ -236,7 +263,7 @@ export const CreateIssueModal: FC<Props> = ({ opened, onClose, context }) => {
                             </Group>
                         )}
                     <TextInput
-                        label="Title"
+                        label={t('createIssue.fields.title')}
                         value={title}
                         onChange={(event) =>
                             setTitle(event.currentTarget.value)
@@ -245,8 +272,8 @@ export const CreateIssueModal: FC<Props> = ({ opened, onClose, context }) => {
                         autoFocus
                     />
                     <Textarea
-                        label="Description"
-                        description="Describe the gap or fix, and the outcome you want."
+                        label={t('createIssue.fields.description')}
+                        description={t('createIssue.fields.descriptionHelp')}
                         value={description}
                         onChange={(event) =>
                             setDescription(event.currentTarget.value)
@@ -254,7 +281,7 @@ export const CreateIssueModal: FC<Props> = ({ opened, onClose, context }) => {
                         minRows={4}
                     />
                     <Select
-                        label="Project"
+                        label={t('createIssue.fields.project')}
                         data={projects.map((project) => ({
                             value: project.projectUuid,
                             label: project.name,
@@ -270,15 +297,17 @@ export const CreateIssueModal: FC<Props> = ({ opened, onClose, context }) => {
                         disabled={projectLocked}
                     />
                     <MultiSelect
-                        label="Related explores"
-                        description="Which models this issue is about — guides the fix."
+                        label={t('createIssue.fields.relatedExplores')}
+                        description={t(
+                            'createIssue.fields.relatedExploresHelp',
+                        )}
                         data={exploreOptions}
                         value={targetExploreNames}
                         onChange={setTargetExploreNamesOverride}
                         searchable
                         clearable
                         disabled={!projectUuid}
-                        nothingFoundMessage="No explores"
+                        nothingFoundMessage={t('createIssue.fields.noExplores')}
                     />
                     <Stack gap={4}>
                         <Group
@@ -287,7 +316,7 @@ export const CreateIssueModal: FC<Props> = ({ opened, onClose, context }) => {
                             gap="xs"
                         >
                             <Select
-                                label="Agent"
+                                label={t('createIssue.fields.agent')}
                                 data={agentOptions}
                                 value={agentUuid}
                                 onChange={(value) => {
@@ -310,19 +339,21 @@ export const CreateIssueModal: FC<Props> = ({ opened, onClose, context }) => {
                                     disabled={!projectUuid || !title.trim()}
                                     onClick={handleSuggestAgent}
                                 >
-                                    Suggest
+                                    {t('createIssue.suggest')}
                                 </Button>
                             )}
                         </Group>
                         {suggestionReasoning && (
                             <Text c="dimmed" fz="xs">
-                                Suggested: {suggestionReasoning}
+                                {t('createIssue.suggested', {
+                                    reasoning: suggestionReasoning,
+                                })}
                             </Text>
                         )}
                     </Stack>
                     <Select
-                        label="Root cause"
-                        data={rootCauseOptions}
+                        label={t('createIssue.fields.rootCause')}
+                        data={getRootCauseOptions(t)}
                         value={primaryRootCause}
                         onChange={(value) =>
                             setPrimaryRootCause(
@@ -332,8 +363,8 @@ export const CreateIssueModal: FC<Props> = ({ opened, onClose, context }) => {
                         clearable
                     />
                     <Select
-                        label="Priority"
-                        data={priorityOptions}
+                        label={t('createIssue.fields.priority')}
+                        data={getPriorityOptions(t)}
                         value={priority}
                         onChange={(value) =>
                             setPriority(
@@ -347,14 +378,14 @@ export const CreateIssueModal: FC<Props> = ({ opened, onClose, context }) => {
                             color="gray"
                             onClick={handleClose}
                         >
-                            Cancel
+                            {t('actions.cancel', { ns: 'common' })}
                         </Button>
                         <Button
                             type="submit"
                             loading={createIssue.isLoading}
                             disabled={!projectUuid || !title.trim()}
                         >
-                            Create issue
+                            {t('createIssue.submit')}
                         </Button>
                     </Group>
                 </Stack>

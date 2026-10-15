@@ -1,7 +1,8 @@
 import { type ParameterDefinitions } from '@lightdash/common';
 import { Box, Group, Text } from '@mantine/core';
 import { IconAdjustmentsHorizontal } from '@tabler/icons-react';
-import { type FC, type ReactNode } from 'react';
+import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FilterGroupSeparator from '../../../../../features/dashboardFilters/FilterGroupSeparator';
 import { Parameters } from '../../../../../features/parameters';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
@@ -9,22 +10,22 @@ import useDashboardTileStatusContext from '../../../../../providers/Dashboard/us
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { embedContractClass } from '../../styles/embedClassContract';
 
-const parametersSeparator: ReactNode = (
-    <FilterGroupSeparator
-        icon={IconAdjustmentsHorizontal}
-        tooltipLabel={
-            <Box>
-                <Text fw={500} fz="xs">
-                    Parameters
-                </Text>
-                <Text fz="xs">
-                    Adjust preset inputs that change how the dashboard's numbers
-                    are calculated.
-                </Text>
-            </Box>
-        }
-    />
-);
+const ParametersSeparator: FC = () => {
+    const { t } = useTranslation('embed');
+    return (
+        <FilterGroupSeparator
+            icon={IconAdjustmentsHorizontal}
+            tooltipLabel={
+                <Box>
+                    <Text fw={500} fz="xs">
+                        {t('parameters.title')}
+                    </Text>
+                    <Text fz="xs">{t('parameters.description')}</Text>
+                </Box>
+            }
+        />
+    );
+};
 
 type Props = {
     /** Parameters referenced by the charts on the active tab */
@@ -61,7 +62,7 @@ const EmbedDashboardParameters: FC<Props> = ({ parameters }) => {
                 dropdownClassName={embedContractClass(
                     'ld-dashboard-parameter-dropdown',
                 )}
-                separator={parametersSeparator}
+                separator={<ParametersSeparator />}
                 getUiString={getUiString}
             />
         </Group>

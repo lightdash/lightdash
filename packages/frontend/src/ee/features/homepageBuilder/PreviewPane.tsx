@@ -14,6 +14,7 @@ import {
     Text,
 } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import classes from './HomepageEditor.module.css';
@@ -32,6 +33,7 @@ export const ViewAsControl: FC<{
     onViewTypeChange: (viewType: HomepageViewType) => void;
     onTargetChange: (target: HomepageViewAsTarget | null) => void;
 }> = ({ projectUuid, viewType, target, onViewTypeChange, onTargetChange }) => {
+    const { t } = useTranslation('homepageBuilder');
     const { data: users } = useOrganizationUsers({
         projectUuid,
         enabled: viewType === 'user',
@@ -55,7 +57,7 @@ export const ViewAsControl: FC<{
                 c="dimmed"
                 className={classes.viewAsLabel}
             >
-                Viewing as
+                {t('preview.viewingAs')}
             </Text>
             <SegmentedControl
                 size="xs"
@@ -65,16 +67,19 @@ export const ViewAsControl: FC<{
                     onTargetChange(null);
                 }}
                 data={[
-                    { value: 'everyone', label: 'Everyone' },
-                    { value: 'user', label: 'User' },
-                    { value: 'group', label: 'Group' },
-                    { value: 'role', label: 'Role' },
+                    {
+                        value: 'everyone',
+                        label: t('preview.viewTypes.everyone'),
+                    },
+                    { value: 'user', label: t('preview.viewTypes.user') },
+                    { value: 'group', label: t('preview.viewTypes.group') },
+                    { value: 'role', label: t('preview.viewTypes.role') },
                 ]}
             />
             {viewType === 'user' && (
                 <Select
                     size="xs"
-                    placeholder="Pick a user"
+                    placeholder={t('preview.pickUser')}
                     searchable
                     w={220}
                     data={(users ?? []).map((user) => ({
@@ -92,7 +97,7 @@ export const ViewAsControl: FC<{
             {viewType === 'group' && (
                 <Select
                     size="xs"
-                    placeholder="Pick a group"
+                    placeholder={t('preview.pickGroup')}
                     searchable
                     w={200}
                     data={(groups ?? []).map((group) => ({
@@ -110,7 +115,7 @@ export const ViewAsControl: FC<{
             {viewType === 'role' && (
                 <Select
                     size="xs"
-                    placeholder="Pick a role"
+                    placeholder={t('preview.pickRole')}
                     w={160}
                     data={Object.values(ProjectMemberRole).map((role) => ({
                         value: role,
@@ -131,10 +136,15 @@ export const ViewAsControl: FC<{
             )}
             {target && result.data?.resolved?.type === 'homepage' && (
                 <Badge className={classes.viewAsBadge}>
-                    {result.data.resolved.homepage.name}
                     {result.data.reason
-                        ? ` · ${reasonLabel(result.data.reason, groupNames)}`
-                        : ''}
+                        ? t('preview.resolvedWithReason', {
+                              name: result.data.resolved.homepage.name,
+                              reason: reasonLabel(
+                                  result.data.reason,
+                                  groupNames,
+                              ),
+                          })
+                        : result.data.resolved.homepage.name}
                 </Badge>
             )}
         </Group>
@@ -147,6 +157,7 @@ export const PreviewPane: FC<{
     projectUuid: string;
     target: HomepageViewAsTarget | null;
 }> = ({ draft, projectUuid, target }) => {
+    const { t } = useTranslation('homepageBuilder');
     const result = useHomepageViewAs(projectUuid, target);
 
     if (!target) {
@@ -163,8 +174,7 @@ export const PreviewPane: FC<{
         return (
             <Stack align="center" gap="xs" p="xl">
                 <Text size="sm" c="dimmed">
-                    No published homepage applies — this viewer lands on the
-                    day-one default.
+                    {t('preview.noHomepageApplies')}
                 </Text>
             </Stack>
         );

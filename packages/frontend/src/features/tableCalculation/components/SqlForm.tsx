@@ -16,6 +16,7 @@ import { useLocalStorage } from '@mantine/hooks';
 import { IconAlertCircle, IconSparkles, IconWand } from '@tabler/icons-react';
 import { useCallback, type CSSProperties, type FC } from 'react';
 import AceEditor, { type IAceEditorProps } from 'react-ace';
+import { Trans, useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { SqlEditorActions } from '../../../components/SqlRunner/SqlEditorActions';
 import {
@@ -106,6 +107,7 @@ export const SqlForm: FC<Props> = ({
     readOnly = false,
     conversionState,
 }) => {
+    const { t } = useTranslation('tableCalculation');
     const theme = useMantineTheme();
     const { ace: aceTheme } = useEditorTheme();
     const [isSoftWrapEnabled, setSoftWrapEnabled] = useLocalStorage({
@@ -158,11 +160,11 @@ export const SqlForm: FC<Props> = ({
         : 'indigo.4';
     const slotTitle = conversionState
         ? conversionState.error
-            ? "Couldn't convert to formula"
+            ? t('sqlForm.conversion.failed')
             : conversionState.isLoading
-              ? 'Generating suggestion…'
-              : 'Suggested formula'
-        : 'Generate and improve your table calculation with AI';
+              ? t('sqlForm.conversion.generating')
+              : t('sqlForm.conversion.suggested')
+        : t('sqlForm.aiTitle');
 
     const slotRightSlot = conversionState ? (
         conversionState.error ? (
@@ -173,10 +175,10 @@ export const SqlForm: FC<Props> = ({
                     size="compact-xs"
                     onClick={conversionState.onDiscard}
                 >
-                    Dismiss
+                    {t('sqlForm.conversion.dismiss')}
                 </Button>
                 <Button size="compact-xs" onClick={conversionState.onRetry}>
-                    Try again
+                    {t('sqlForm.conversion.tryAgain')}
                 </Button>
             </>
         ) : (
@@ -188,7 +190,7 @@ export const SqlForm: FC<Props> = ({
                     onClick={conversionState.onDiscard}
                     disabled={conversionState.isLoading}
                 >
-                    Discard
+                    {t('sqlForm.conversion.discard')}
                 </Button>
                 <Button
                     size="compact-xs"
@@ -197,7 +199,7 @@ export const SqlForm: FC<Props> = ({
                         conversionState.isLoading || !conversionState.result
                     }
                 >
-                    Apply
+                    {t('sqlForm.conversion.apply')}
                 </Button>
             </>
         )
@@ -246,15 +248,20 @@ export const SqlForm: FC<Props> = ({
                         icon={<MantineIcon icon={IconSparkles} />}
                         title={
                             <Text fz="xs">
-                                Need inspiration?{' '}
-                                <Anchor
-                                    inherit
-                                    target="_blank"
-                                    href="https://docs.lightdash.com/guides/table-calculations/sql-templates"
-                                    rel="noreferrer"
-                                >
-                                    Check out our templates!
-                                </Anchor>
+                                <Trans
+                                    t={t}
+                                    i18nKey="sqlForm.needInspiration"
+                                    components={{
+                                        anchor: (
+                                            <Anchor
+                                                inherit
+                                                target="_blank"
+                                                href="https://docs.lightdash.com/guides/table-calculations/sql-templates"
+                                                rel="noreferrer"
+                                            />
+                                        ),
+                                    }}
+                                />
                             </Text>
                         }
                         color="violet"

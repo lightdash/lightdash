@@ -1,5 +1,6 @@
 import { type CatalogField } from '@lightdash/common';
 import { Button, Text, Tooltip } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import { type ContentTableRow } from '../../../components/common/ContentTable';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -14,6 +15,7 @@ export const MetricChartUsageButton = ({
 }: {
     row: ContentTableRow<CatalogField>;
 }) => {
+    const { t } = useTranslation('metricsCatalog');
     const hasChartsUsage = (row.original.chartUsage ?? 0) > 0;
     const { embedToken } = useEmbed();
     const canViewChartUsage = hasChartsUsage && !embedToken;
@@ -54,9 +56,11 @@ export const MetricChartUsageButton = ({
             fz="xs"
             label={
                 <Text>
-                    Used by {row.original.chartUsage} charts.
+                    {t('chartUsage.usedBy', {
+                        count: row.original.chartUsage ?? 0,
+                    })}
                     <br />
-                    Click to view the full list.
+                    {t('chartUsage.clickToView')}
                 </Text>
             }
         >

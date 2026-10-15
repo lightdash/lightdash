@@ -7,8 +7,8 @@ import {
     DEVELOPER,
     DOCS_LESSON_SCOPE,
     gateFor,
-    GROUP_DESCRIPTIONS,
-    GROUP_LABELS,
+    getGroupDescription,
+    getGroupLabel,
     GROUP_ORDER,
     holds,
     sortForLearner,
@@ -252,8 +252,8 @@ describe('docs modules', () => {
 
     it('names the Developer group', () => {
         expect(GROUP_ORDER).toContain(DEVELOPER);
-        expect(GROUP_LABELS[DEVELOPER]).toBe('Developer');
-        expect(GROUP_DESCRIPTIONS[DEVELOPER]).toBe(
+        expect(getGroupLabel(DEVELOPER)).toBe('Developer');
+        expect(getGroupDescription(DEVELOPER)).toBe(
             'Model the semantic layer and manage content as code with the CLI',
         );
     });

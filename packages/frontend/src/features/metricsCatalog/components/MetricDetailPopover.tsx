@@ -23,6 +23,7 @@ import {
 } from '@mantine/core';
 import { IconCode, IconTable } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import CodeBlock from '../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useCanViewEmbedCompiledSql from '../../../ee/providers/Embed/useCanViewEmbedCompiledSql';
@@ -58,6 +59,7 @@ const CompiledQuerySection: FC<{
     config: CompiledQueryConfig;
     isOpen: boolean;
 }> = ({ projectUuid, exploreName, metricName, config, isOpen }) => {
+    const { t } = useTranslation('metricsCatalog');
     const [showSql, setShowSql] = useState(false);
 
     const { data, isLoading } = useCompileMetricTotalQuery({
@@ -80,7 +82,7 @@ const CompiledQuerySection: FC<{
             <Box>
                 <Group gap="xs" mb={4} justify="space-between">
                     <Text size="xs" c="dimmed" fw={500}>
-                        How's total calculated?
+                        {t('detailPopover.howCalculated')}
                     </Text>
                     <UnstyledButton
                         type="button"
@@ -98,7 +100,9 @@ const CompiledQuerySection: FC<{
                             c={showSql ? 'indigo.6' : 'dimmed'}
                             fw={500}
                         >
-                            {showSql ? 'Hide SQL' : 'Show SQL'}
+                            {showSql
+                                ? t('detailPopover.hideSql')
+                                : t('detailPopover.showSql')}
                         </Text>
                     </UnstyledButton>
                 </Group>
@@ -112,12 +116,12 @@ const CompiledQuerySection: FC<{
                             code={data.query}
                             language="sql"
                             className={classes.codeBlock}
-                            copyLabel="Copy SQL"
-                            copiedLabel="Copied!"
+                            copyLabel={t('detailPopover.copySql')}
+                            copiedLabel={t('detailPopover.copied')}
                         />
                     ) : (
                         <Text size="xs" c="dimmed">
-                            Unable to load SQL
+                            {t('detailPopover.unableToLoadSql')}
                         </Text>
                     ))}
             </Box>
@@ -146,6 +150,7 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
     isOpen,
     onExplore,
 }) => {
+    const { t } = useTranslation('metricsCatalog');
     const exploreMetric = useExploreMetric();
     const [showCompiled, setShowCompiled] = useState(false);
     const sqlToShow = showCompiled ? metric.compiledSql : metric.sql;
@@ -172,9 +177,11 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
                     <Box>
                         <Group gap="xs" mb={4} justify="space-between">
                             <Text size="xs" c="dimmed" fw={500}>
-                                {compiledQueryConfig ? 'Metric SQL' : 'SQL'}
+                                {compiledQueryConfig
+                                    ? t('detailPopover.metricSql')
+                                    : t('detailPopover.sql')}
                             </Text>
-                            <Tooltip label="Show compiled SQL">
+                            <Tooltip label={t('detailPopover.showCompiledSql')}>
                                 <UnstyledButton
                                     type="button"
                                     aria-pressed={showCompiled}
@@ -195,7 +202,7 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
                                         c={showCompiled ? 'indigo.6' : 'dimmed'}
                                         fw={500}
                                     >
-                                        Compiled SQL
+                                        {t('detailPopover.compiledSql')}
                                     </Text>
                                 </UnstyledButton>
                             </Tooltip>
@@ -215,7 +222,7 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
                     <Divider />
                     <Group justify="space-between" gap="xs">
                         <Text size="xs" c="dimmed" fw={500} mb={4}>
-                            Time dimension
+                            {t('detailPopover.timeDimension')}
                         </Text>
                         <Tooltip
                             label={`${metric.timeDimension.table}.${metric.timeDimension.field}`}
@@ -252,7 +259,7 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
                         exploreMetric({ tableName, metricName });
                     }}
                 >
-                    Explore
+                    {t('detailPopover.explore')}
                 </Button>
             )}
         </Stack>

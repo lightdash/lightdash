@@ -10,6 +10,7 @@ import { Badge, List, Tooltip } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type InfiniteQueryResults } from '../../../hooks/useQueryResults';
 import MantineIcon from '../../common/MantineIcon';
 
@@ -34,6 +35,7 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
     isLoading,
     maxColumnLimit,
 }) => {
+    const { t } = useTranslation('explorer');
     const dirtyPivotDimensions = useMemo(
         () =>
             (dirtyPivotConfiguration?.groupByColumns ?? []).map(
@@ -101,17 +103,21 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
         const _messages: string[] = [];
         if (unusedDimensionLabels.length > 0) {
             _messages.push(
-                `Your query includes dimensions that are not used in the chart configuration (x-axis, y-axis, or group by): ${unusedDimensionLabels.map((label) => `"${label}"`).join(', ')}. Remove them from the query to avoid incorrect results.`,
+                t('visualizationWarning.unusedDimensions', {
+                    dimensions: unusedDimensionLabels
+                        .map((label) => `"${label}"`)
+                        .join(', '),
+                }),
             );
         }
         if (shouldShowPivotMismatch) {
-            _messages.push(
-                'Please re-run the query to fetch the latest data with correct group by settings.',
-            );
+            _messages.push(t('visualizationWarning.pivotMismatch'));
         }
         if (shouldShowPivotColumnLimit && maxColumnLimit) {
             _messages.push(
-                `This query exceeds the maximum number of columns (${maxColumnLimit}). Showing the first ${maxColumnLimit} columns.`,
+                t('visualizationWarning.columnLimit', {
+                    limit: maxColumnLimit,
+                }),
             );
         }
         return _messages;
@@ -122,6 +128,7 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
         unusedDimensionLabels,
         shouldShowPivotColumnLimit,
         maxColumnLimit,
+        t,
     ]);
 
     if (messages.length === 0) return null;
@@ -146,7 +153,7 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
                 color="yellow"
                 variant="outline"
             >
-                Results may be incorrect
+                {t('visualizationWarning.badge')}
             </Badge>
         </Tooltip>
     );

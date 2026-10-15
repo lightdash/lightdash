@@ -10,6 +10,7 @@ import {
 } from '@mantine/core';
 import { IconLock, IconPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
@@ -25,6 +26,7 @@ const TreeListSidebar: FC<{
     opened: boolean;
     onClose: () => void;
 }> = ({ compact, opened, onClose }) => {
+    const { t } = useTranslation('metricsCatalog');
     const getUiString = useUiStrings();
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
@@ -75,7 +77,7 @@ const TreeListSidebar: FC<{
                         wrap="nowrap"
                     >
                         <Text visibleFrom="sm" fz="sm" fw={600} c="ldGray.7">
-                            Saved Trees
+                            {t('treeList.title')}
                         </Text>
                         {canManageMetricsTree && (
                             <Button
@@ -89,7 +91,7 @@ const TreeListSidebar: FC<{
                                 data-tour-docs="explore/metrics-catalog/build-saved-trees.mdx#creating-a-saved-tree:li1"
                                 onClick={handleNewTree}
                             >
-                                New
+                                {t('treeList.new')}
                             </Button>
                         )}
                     </Group>
@@ -97,7 +99,7 @@ const TreeListSidebar: FC<{
                     <ScrollArea flex={1} offsetScrollbars>
                         {isLoading ? (
                             <Text fz="xs" c="dimmed" ta="center" mt="md">
-                                Loading trees…
+                                {t('treeList.loading')}
                             </Text>
                         ) : trees.length > 0 ? (
                             <Stack gap="xs">
@@ -147,7 +149,13 @@ const TreeListSidebar: FC<{
                                                 </Text>
                                                 {tree.lock && (
                                                     <Tooltip
-                                                        label={`Editing by ${tree.lock.lockedByUserName}`}
+                                                        label={t(
+                                                            'treeList.editingBy',
+                                                            {
+                                                                name: tree.lock
+                                                                    .lockedByUserName,
+                                                            },
+                                                        )}
                                                     >
                                                         <MantineIcon
                                                             icon={IconLock}
@@ -176,7 +184,7 @@ const TreeListSidebar: FC<{
                             </Stack>
                         ) : (
                             <Text fz="xs" c="dimmed" ta="center" mt="md">
-                                No saved trees yet
+                                {t('treeList.empty')}
                             </Text>
                         )}
                     </ScrollArea>

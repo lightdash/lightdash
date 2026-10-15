@@ -1,6 +1,7 @@
 import { type EmbedDashboard as EmbedDashboardType } from '@lightdash/common';
 import { IconUnlink } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import DashboardProvider from '../../providers/Dashboard/DashboardProvider';
@@ -13,6 +14,7 @@ const EmbedDashboardPage: FC<{
     isEditMode?: boolean;
     onEditModeChange?: (isEditMode: boolean) => void;
 }> = ({ containerStyles, initialDashboard, isEditMode, onEditModeChange }) => {
+    const { t } = useTranslation('embed');
     const projectUuidFromParams = useProjectUuid();
 
     const {
@@ -28,7 +30,7 @@ const EmbedDashboardPage: FC<{
             <div style={{ marginTop: '20px' }}>
                 <SuboptimalState
                     icon={IconUnlink}
-                    title="This embed link is not valid"
+                    title={t('page.invalidLink')}
                 />
             </div>
         );

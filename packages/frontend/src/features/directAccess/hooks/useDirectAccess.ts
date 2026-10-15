@@ -13,6 +13,7 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { invalidateContent } from '../../../hooks/useContent';
 import useApp from '../../../providers/App/useApp';
@@ -138,6 +139,7 @@ export const useUpsertDirectAccessAssignment = (
     projectUuid: string,
     ref: DirectAccessResourceRef,
 ) => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const invalidate = useInvalidateAfterDirectAccessMutation(projectUuid, ref);
     return useMutation<unknown, ApiError, UpsertDirectAccessArgs>({
@@ -151,11 +153,11 @@ export const useUpsertDirectAccessAssignment = (
             ),
         onSuccess: async () => {
             await invalidate();
-            showToastSuccess({ title: 'Access updated' });
+            showToastSuccess({ title: t('directAccess.toast.updated') });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to update access',
+                title: t('directAccess.toast.updateFailed'),
                 apiError: error,
             });
         },
@@ -171,6 +173,7 @@ export const useRevokeDirectAccessAssignment = (
     projectUuid: string,
     ref: DirectAccessResourceRef,
 ) => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const invalidate = useInvalidateAfterDirectAccessMutation(projectUuid, ref);
     return useMutation<unknown, ApiError, RevokeDirectAccessArgs>({
@@ -183,11 +186,11 @@ export const useRevokeDirectAccessAssignment = (
             ),
         onSuccess: async () => {
             await invalidate();
-            showToastSuccess({ title: 'Access removed' });
+            showToastSuccess({ title: t('directAccess.toast.removed') });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to remove access',
+                title: t('directAccess.toast.removeFailed'),
                 apiError: error,
             });
         },
@@ -198,17 +201,18 @@ export const useResetDirectAccess = (
     projectUuid: string,
     ref: DirectAccessResourceRef,
 ) => {
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     const invalidate = useInvalidateAfterDirectAccessMutation(projectUuid, ref);
     return useMutation<unknown, ApiError, void>({
         mutationFn: () => resetDirectAccess(projectUuid, ref),
         onSuccess: async () => {
             await invalidate();
-            showToastSuccess({ title: 'All access removed' });
+            showToastSuccess({ title: t('directAccess.toast.allRemoved') });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to remove access',
+                title: t('directAccess.toast.removeFailed'),
                 apiError: error,
             });
         },

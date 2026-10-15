@@ -12,11 +12,13 @@ import {
     TextInput,
 } from '@mantine/core';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 
 export const Display: React.FC = () => {
+    const { t } = useTranslation('vizConfig');
     const { visualizationConfig } = useVisualizationContext();
 
     if (!isPieVisualizationConfig(visualizationConfig)) return null;
@@ -34,7 +36,9 @@ export const Display: React.FC = () => {
         <Stack>
             <Config>
                 <Group>
-                    <Config.Heading>Show legend</Config.Heading>
+                    <Config.Heading>
+                        {t('pie.display.showLegend')}
+                    </Config.Heading>
                     <Switch
                         size="xs"
                         checked={showLegend}
@@ -46,7 +50,9 @@ export const Display: React.FC = () => {
             <Collapse expanded={showLegend}>
                 <Stack gap="xs">
                     <Group gap="xs">
-                        <Config.Label>Orientation</Config.Label>
+                        <Config.Label>
+                            {t('pie.display.orientation')}
+                        </Config.Label>
                         <SegmentedControl
                             name="orient"
                             value={legendPosition}
@@ -55,16 +61,20 @@ export const Display: React.FC = () => {
                                     val as PieChartLegendPosition,
                                 )
                             }
-                            data={Object.entries(PieChartLegendPositions).map(
-                                ([position, label]) => ({
-                                    label,
+                            data={Object.keys(PieChartLegendPositions).map(
+                                (position) => ({
+                                    label: t(
+                                        `pie.display.legendPositions.${position}`,
+                                    ),
                                     value: position,
                                 }),
                             )}
                         />
                     </Group>
                     <Group>
-                        <Config.Label>Label max length</Config.Label>
+                        <Config.Label>
+                            {t('pie.display.labelMaxLength')}
+                        </Config.Label>
                         <TextInput
                             size="xs"
                             type="number"

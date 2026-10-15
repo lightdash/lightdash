@@ -1,9 +1,10 @@
 import { Button, Divider, Group, Paper, Text } from '@mantine/core';
 import { useLayoutEffect, useMemo, useRef, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
+import { Trans, useTranslation } from 'react-i18next';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
-import { joinLabels, pluralizeTiles } from './fieldLabels';
+import { joinLabels } from './fieldLabels';
 import classes from './FieldTilesBar.module.css';
 import { getFilterFields } from './peers';
 import { useControlsSidebarSelector } from './useControlsSidebar';
@@ -65,6 +66,7 @@ const useBarHost = (
 };
 
 const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
+    const { t } = useTranslation('dashboardFilters');
     const {
         field,
         label,
@@ -82,7 +84,7 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
     const { applied, possible, unfiltered, replaced } =
         thisTabScope ?? everyTabScope;
     // Ends the count and each `aria-label`
-    const scopeSuffix = hasTabs ? ' on this tab' : '';
+    const scopeContext = hasTabs ? 'tab' : undefined;
     const replacedNames = joinLabels(replacedLabels);
     const regionRef = useRef<HTMLDivElement>(null);
     const wasPressedRef = useRef(false);
@@ -101,22 +103,30 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
         action();
     };
     // Beside a "Replace" button the count alone would be unclear
-    const mainLabel =
+    const mainKey =
         replaced > 0
-            ? `Filter ${unfiltered} unfiltered ${pluralizeTiles(unfiltered)}`
+            ? 'filterUnfiltered'
             : applied > 0
-              ? `Filter the other ${unfiltered}`
-              : `Filter all ${unfiltered}`;
+              ? 'filterOther'
+              : 'filterAll';
+    const mainLabel = t(`controls.bar.${mainKey}`, { count: unfiltered });
     // Starts with the words on the button
-    const mainName = `${mainLabel}${replaced > 0 ? '' : ` ${pluralizeTiles(unfiltered)}`}${scopeSuffix} by ${label}`;
-    const replaceLabel = `Replace ${replacedNames} on ${replaced} ${pluralizeTiles(replaced)}`;
+    const mainName = t(`controls.bar.${mainKey}Name`, {
+        count: unfiltered,
+        label,
+        context: scopeContext,
+    });
+    const replaceLabel = t('controls.bar.replace', {
+        names: replacedNames,
+        count: replaced,
+    });
 
     return (
         <Paper
             ref={regionRef}
             role="region"
             tabIndex={-1}
-            aria-label={`Tiles filtered by ${label}`}
+            aria-label={t('controls.bar.regionLabel', { label })}
             shadow="xl"
             withBorder={false}
             radius="md"
@@ -136,16 +146,27 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
                     {possible === 0 ? (
                         <Text fz="sm" c="dimmed" aria-live="polite">
                             {hasTabs
-                                ? 'No tile on this tab has this field'
-                                : 'No tile has this field'}
+                                ? t('controls.bar.noTileOnTab')
+                                : t('controls.bar.noTile')}
                         </Text>
                     ) : (
                         <Text fz="sm" aria-live="polite">
-                            {'on '}
-                            <Text span fw={600} className={classes.count}>
-                                {`${applied} of ${possible}`}
-                            </Text>
-                            {` ${pluralizeTiles(possible)}${scopeSuffix}`}
+                            <Trans
+                                t={t}
+                                i18nKey="controls.bar.onTiles"
+                                count={possible}
+                                context={scopeContext}
+                                values={{ applied, count: possible }}
+                                components={{
+                                    count: (
+                                        <Text
+                                            span
+                                            fw={600}
+                                            className={classes.count}
+                                        />
+                                    ),
+                                }}
+                            />
                         </Text>
                     )}
                     {unfiltered > 0 && (
@@ -162,7 +183,12 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
                         <Button
                             size="xs"
                             variant="default"
-                            aria-label={`${replaceLabel} with ${label}${scopeSuffix}`}
+                            aria-label={t('controls.bar.replaceName', {
+                                names: replacedNames,
+                                count: replaced,
+                                label,
+                                context: scopeContext,
+                            })}
                             onClick={press(() => switchFromOthers(tileScope))}
                         >
                             {replaceLabel}
@@ -175,12 +201,14 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
                             color="gray"
                             aria-label={
                                 hasTabs
-                                    ? `Clear ${label} from this tab`
-                                    : `Clear ${label} from tiles`
+                                    ? t('controls.bar.clearFromTab', { label })
+                                    : t('controls.bar.clearFromTiles', {
+                                          label,
+                                      })
                             }
                             onClick={press(() => clear(tileScope))}
                         >
-                            Clear
+                            {t('controls.bar.clear')}
                         </Button>
                     )}
                 </Group>
@@ -190,10 +218,15 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
                         <Button
                             size="xs"
                             variant="subtle"
-                            aria-label={`Filter ${otherTabsUnfiltered} on other tabs by ${label}`}
+                            aria-label={t('controls.bar.filterOtherTabsName', {
+                                count: otherTabsUnfiltered,
+                                label,
+                            })}
                             onClick={press(() => addToUnfiltered('other-tabs'))}
                         >
-                            {`Filter ${otherTabsUnfiltered} on other tabs`}
+                            {t('controls.bar.filterOtherTabs', {
+                                count: otherTabsUnfiltered,
+                            })}
                         </Button>
                     </>
                 )}

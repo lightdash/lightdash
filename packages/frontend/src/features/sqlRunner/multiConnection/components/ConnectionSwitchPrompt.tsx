@@ -1,6 +1,7 @@
 import { type PartitionColumn } from '@lightdash/common';
 import { Button, Group, Paper, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type TableIdentity } from '../utils/warehouseTreeRows';
 
 export type PendingConnectionSwitch = {
@@ -16,27 +17,34 @@ export const ConnectionSwitchPrompt: FC<{
     activeConnectionName: string | undefined;
     onConfirm: () => void;
     onCancel: () => void;
-}> = ({ pendingSwitch, activeConnectionName, onConfirm, onCancel }) => (
-    <Paper withBorder p="xs" mb="xs">
-        <Stack gap="xs">
-            <Text fz="sm" fw={600}>
-                Switch to {pendingSwitch.connectionName}?
-            </Text>
-            <Text fz="xs" c="dimmed">
-                {pendingSwitch.qualifiedName} is on another connection. Your
-                editor has SQL that did not come from a table click, so nothing
-                has changed yet.
-            </Text>
-            <Group gap="xs">
-                <Button size="xs" onClick={onConfirm}>
-                    Switch and replace SQL
-                </Button>
-                <Button size="xs" variant="default" onClick={onCancel}>
-                    {activeConnectionName
-                        ? `Keep ${activeConnectionName}`
-                        : 'Keep this connection'}
-                </Button>
-            </Group>
-        </Stack>
-    </Paper>
-);
+}> = ({ pendingSwitch, activeConnectionName, onConfirm, onCancel }) => {
+    const { t } = useTranslation('sqlRunner');
+    return (
+        <Paper withBorder p="xs" mb="xs">
+            <Stack gap="xs">
+                <Text fz="sm" fw={600}>
+                    {t('connectionSwitch.title', {
+                        name: pendingSwitch.connectionName,
+                    })}
+                </Text>
+                <Text fz="xs" c="dimmed">
+                    {t('connectionSwitch.description', {
+                        table: pendingSwitch.qualifiedName,
+                    })}
+                </Text>
+                <Group gap="xs">
+                    <Button size="xs" onClick={onConfirm}>
+                        {t('connectionSwitch.confirm')}
+                    </Button>
+                    <Button size="xs" variant="default" onClick={onCancel}>
+                        {activeConnectionName
+                            ? t('connectionSwitch.keepNamed', {
+                                  name: activeConnectionName,
+                              })
+                            : t('connectionSwitch.keepThis')}
+                    </Button>
+                </Group>
+            </Stack>
+        </Paper>
+    );
+};

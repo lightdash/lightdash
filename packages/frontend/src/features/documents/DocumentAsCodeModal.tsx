@@ -1,4 +1,5 @@
 import { type Document } from '@lightdash/common';
+import { useTranslation } from 'react-i18next';
 import ContentAsCodeModal from '../contentAsCode/components/ContentAsCodeModal';
 import { useDocumentAsCode } from './useDocumentAsCode';
 
@@ -13,6 +14,7 @@ const DocumentAsCodeModal = ({
     opened,
     onClose,
 }: DocumentAsCodeModalProps) => {
+    const { t } = useTranslation('documents');
     const contentAsCode = useDocumentAsCode(
         document.projectUuid,
         document.documentUuid,
@@ -23,7 +25,7 @@ const DocumentAsCodeModal = ({
         <ContentAsCodeModal
             opened={opened}
             onClose={onClose}
-            resourceLabel="document"
+            resourceLabel={t('asCode.resourceLabel')}
             contentAsCode={contentAsCode}
             contentJson={
                 contentAsCode.data

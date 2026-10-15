@@ -8,6 +8,7 @@ import { Button, Group, Select } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconUserPlus } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useCreateInviteLinkMutation } from '../../hooks/useInviteLink';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import { useUpsertProjectUserRoleAssignmentMutation } from '../../hooks/useProjectRoles';
@@ -35,6 +36,7 @@ const CreateProjectAccessModal: FC<Props> = ({
     roles,
     onClose,
 }) => {
+    const { t } = useTranslation('roles');
     const { track } = useTracking();
     const { user } = useApp();
 
@@ -137,7 +139,7 @@ const CreateProjectAccessModal: FC<Props> = ({
         <MantineModal
             opened
             onClose={onClose}
-            title="Add user access"
+            title={t('projectAccess.createModal.title')}
             icon={IconUserPlus}
             size="lg"
             actions={
@@ -147,7 +149,7 @@ const CreateProjectAccessModal: FC<Props> = ({
                     disabled={isSubmitting}
                     loading={isSubmitting}
                 >
-                    Give access
+                    {t('projectAccess.createModal.giveAccess')}
                 </Button>
             }
         >
@@ -168,13 +170,17 @@ const CreateProjectAccessModal: FC<Props> = ({
                             allowDeselect={false}
                             name="email"
                             comboboxProps={{ withinPortal: true }}
-                            label="Enter user email address"
-                            placeholder="example@gmail.com"
+                            label={t('projectAccess.createModal.emailLabel')}
+                            placeholder={t(
+                                'projectAccess.createModal.emailPlaceholder',
+                            )}
                             nothingFoundMessage={
                                 validateEmail(searchedEmail) &&
                                 !userCanInviteUsersToOrganization
-                                    ? 'You need to be an organization admin to add new users.'
-                                    : 'Nothing found'
+                                    ? t('projectAccess.createModal.needAdmin')
+                                    : t(
+                                          'projectAccess.createModal.nothingFound',
+                                      )
                             }
                             searchable
                             required
@@ -188,8 +194,9 @@ const CreateProjectAccessModal: FC<Props> = ({
                                     option.isCreateOption;
                                 return isCreateOption ? (
                                     <span style={{ wordBreak: 'keep-all' }}>
-                                        This user is not a member of your
-                                        organization. Select to invite them.
+                                        {t(
+                                            'projectAccess.createModal.inviteOption',
+                                        )}
                                     </span>
                                 ) : (
                                     option.label
@@ -204,7 +211,9 @@ const CreateProjectAccessModal: FC<Props> = ({
                             data={groupComboboxItems(roles)}
                             disabled={isSubmitting}
                             required
-                            placeholder="Select role"
+                            placeholder={t(
+                                'projectAccess.createModal.selectRolePlaceholder',
+                            )}
                             comboboxProps={{
                                 withinPortal: true,
                                 position: 'bottom',

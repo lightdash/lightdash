@@ -1,6 +1,7 @@
 import { type DocumentSqlChart } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { IconCode } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useCanManageSqlRunner } from './useCanManageSqlRunner';
@@ -13,6 +14,7 @@ const DocumentSqlChartOpenButton = ({
     projectUuid: string;
     chart: DocumentSqlChart;
 }) => {
+    const { t } = useTranslation('documents');
     const navigate = useNavigate();
     const canManageSqlRunner = useCanManageSqlRunner(undefined, projectUuid);
     if (!canManageSqlRunner) {
@@ -34,7 +36,7 @@ const DocumentSqlChartOpenButton = ({
                 })
             }
         >
-            Open in SQL Runner
+            {t('chart.openInSqlRunner')}
         </Button>
     );
 };

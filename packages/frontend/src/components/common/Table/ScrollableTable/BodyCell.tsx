@@ -24,6 +24,7 @@ import {
     type CSSProperties,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { JsonCellModal } from '../../JsonViewer/JsonCellViewer';
 import { type JsonCellValue } from '../../JsonViewer/utils';
@@ -70,6 +71,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
 }) => {
     const isMerged = !!rowSpan && rowSpan > 1;
     const elementRef = useRef<HTMLTableCellElement>(null);
+    const { t } = useTranslation('common');
     const { showToastSuccess } = useToaster();
     const { copy } = useClipboard();
 
@@ -127,7 +129,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
         if (!isMenuOpen) return;
 
         copy(displayValue);
-        showToastSuccess({ title: 'Copied to clipboard!' });
+        showToastSuccess({ title: t('feedback.copiedToClipboard') });
 
         setCopying((copyingState) => {
             if (!copyingState) {
@@ -135,7 +137,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
             }
             return true;
         });
-    }, [isMenuOpen, displayValue, copy, showToastSuccess]);
+    }, [isMenuOpen, displayValue, copy, showToastSuccess, t]);
 
     useEffect(() => {
         const handleKeyDown = getHotkeyHandler([['mod+C', handleCopy]]);

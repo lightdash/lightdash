@@ -1,0 +1,348 @@
+{
+    "queryTimezone": {
+        "title": "Comportamiento de la zona horaria",
+        "description": {
+            "timezoneSupport": "La zona horaria usada para los filtros de fecha, la agrupación temporal y cómo se muestran las fechas en gráficos y tablas. No cambia la zona horaria de sesión de tu base de datos.",
+            "legacy": "Controla qué significan \"hoy\", \"esta semana\" y otros filtros de fecha \"en el actual\". Por ejemplo, si se establece en US/Eastern, \"hoy\" significa de medianoche a medianoche en hora de Nueva York en lugar de UTC. No cambia la zona horaria de sesión de tu base de datos."
+        },
+        "form": {
+            "timezoneLabel": "Zona horaria predeterminada",
+            "timezonePlaceholder": "Predeterminada del servidor (UTC)",
+            "filterInputs": {
+                "label": "Zona horaria del proyecto en los campos de filtro",
+                "description": "Interpreta las fechas absolutas en la zona horaria del proyecto en lugar de la del navegador del usuario."
+            }
+        },
+        "toast": {
+            "updateSuccess": "Configuración de zona horaria del proyecto actualizada correctamente",
+            "updateFailed": "No se pudo actualizar la configuración de zona horaria del proyecto"
+        }
+    },
+    "agentDataScope": {
+        "title": "Acceso al almacén de datos",
+        "description": "Controla qué esquemas y catálogos del almacén de datos pueden consultar con SQL los agentes de IA.",
+        "callout": {
+            "title": "Cómo funciona el alcance de datos del agente",
+            "emptyFields": "Deja todos los campos vacíos para que los agentes de IA puedan consultar toda la conexión del almacén de datos.",
+            "exclusions": "Usa exclusiones para bloquear esquemas o catálogos conocidos. Usa listas de permitidos cuando los agentes solo deban consultar un conjunto aprobado; los esquemas nuevos no se incluyen automáticamente.",
+            "semanticLayer": "Los agentes consultan la capa semántica por defecto; el SQL directo requiere aprobación para cada consulta y solo está disponible para usuarios con acceso a SQL Runner. Estas reglas se aplican solo a los agentes de IA. No cambian los permisos del almacén de datos ni restringen a los usuarios de SQL Runner. Usa permisos del almacén de datos para garantizar la seguridad."
+        },
+        "form": {
+            "allowedSchemas": {
+                "label": "Esquemas permitidos",
+                "description": "El agente solo puede leer de estos. Vacío significa sin restricción.",
+                "placeholder": "Todos los esquemas (sin restricción)"
+            },
+            "allowedCatalogs": {
+                "label": "Catálogos permitidos",
+                "description": "Opcional. Restringe desde qué catálogos/bases de datos se pueden leer los esquemas anteriores.",
+                "placeholder": "Cualquier catálogo"
+            },
+            "excludedSchemas": {
+                "label": "Esquemas excluidos",
+                "description": "El agente nunca puede leer estos, aunque la lista de permitidos anterior lo permita."
+            },
+            "excludedCatalogs": {
+                "label": "Catálogos excluidos",
+                "description": "Opcional. El agente nunca puede leer estos catálogos/bases de datos."
+            },
+            "nothingExcluded": "Nada excluido",
+            "saveChanges": "Guardar cambios"
+        },
+        "toast": {
+            "updateSuccess": "Alcance de datos del agente actualizado correctamente",
+            "updateFailed": "No se pudo actualizar el alcance de datos del agente"
+        }
+    },
+    "appearance": {
+        "colorPalette": "Paleta de colores",
+        "description": "Elige qué paleta de colores de la organización deben usar los gráficos de este proyecto, o hereda la paleta activa de la organización.",
+        "managedAt": "Las paletas se gestionan a <link>nivel de organización</link>.",
+        "overrideActive": "Hay una anulación de la paleta de colores en la configuración de tu instancia. La selección a nivel de proyecto está desactivada mientras la anulación esté activa.",
+        "manageOrgPalettes": "Gestionar paletas de la organización"
+    },
+    "parameters": {
+        "title": "Parámetros definidos",
+        "searchPlaceholder": "Buscar parámetros por nombre, etiqueta, descripción o modelo",
+        "loadFailed": "No se pudieron cargar los parámetros",
+        "viewConfiguration": "Ver configuración",
+        "configModal": {
+            "title": "Configuración del parámetro: {{parameterName}}"
+        },
+        "source": {
+            "config": "Configuración de Lightdash",
+            "model": "Modelo {{modelName}}"
+        },
+        "table": {
+            "parameter": "Parámetro",
+            "source": "Origen"
+        },
+        "empty": {
+            "noSearchResults": "No se encontraron parámetros que coincidan con tu búsqueda",
+            "noParameters": "No hay parámetros configurados para este proyecto"
+        }
+    },
+    "tablesConfiguration": {
+        "title": "Selección de tablas",
+        "selectedModels_one": "Has seleccionado <b>{{count}}</b> modelo",
+        "selectedModels_other": "Has seleccionado <b>{{count}}</b> modelos",
+        "showList": "(mostrar lista)",
+        "hideList": "(ocultar lista)",
+        "all": {
+            "label": "Mostrar todo el proyecto",
+            "description": "Muestra todos los modelos de tu proyecto dbt en Lightdash."
+        },
+        "withTags": {
+            "label": "Mostrar modelos con cualquiera de estas etiquetas",
+            "description": "Escribe una lista de etiquetas que quieras incluir, separadas por comas. Las vistas virtuales se incluyen por defecto.",
+            "tags": "Etiquetas",
+            "placeholder": "p. ej. lightdash, prod",
+            "noTags": "Tu proyecto dbt no tiene etiquetas disponibles"
+        },
+        "withNames": {
+            "label": "Mostrar modelos de esta lista",
+            "description": "Escribe una lista de modelos que quieras incluir, separados por comas. Las vistas virtuales se incluyen por defecto.",
+            "names": "Nombres",
+            "placeholder": "p. ej. users, orders"
+        },
+        "loading": "Cargando...",
+        "noResults": "No se encontraron resultados",
+        "saveChanges": "Guardar cambios"
+    },
+    "resultsCache": {
+        "title": "Duración de la caché",
+        "description": "Cuánto tiempo se conservan los resultados en caché antes de que Lightdash vuelva a consultar el almacén de datos.",
+        "duration": {
+            "days_one": "{{count}} día",
+            "days_other": "{{count}} días",
+            "hours_one": "{{count}} hora",
+            "hours_other": "{{count}} horas",
+            "minutes_one": "{{count}} minuto",
+            "minutes_other": "{{count}} minutos",
+            "hint": "= {{duration}}"
+        },
+        "form": {
+            "useDefault": {
+                "label": "Usar la duración de caché predeterminada",
+                "description": "Los resultados en caché caducan después de {{duration}}."
+            },
+            "ttlLabel": "Duración de la caché (minutos)",
+            "ttlInvalid": "Introduce un número entero de minutos entre {{min}} y {{max}} (30 días)"
+        }
+    },
+    "previewExpiration": {
+        "title": "Proyectos de vista previa",
+        "description": "Controla cuánto tiempo se conservan los proyectos de vista previa creados a partir de este proyecto antes de eliminarse automáticamente. Los usuarios pueden cambiar la duración con <code>--expires-in</code>, pero los valores por encima del máximo se limitan sin aviso.",
+        "approxDays_one": "≈ {{count}} día",
+        "approxDays_other": "≈ {{count}} días",
+        "approxDaysDecimal": "≈ {{days}} días",
+        "form": {
+            "defaultLabel": "Caducidad predeterminada de la vista previa (horas)",
+            "maxLabel": "Caducidad máxima de la vista previa (horas)",
+            "minHoursError": "Debe ser un número entero de horas, como mínimo 1",
+            "exceedsMaxError": "Debe ser menor o igual que el máximo"
+        }
+    },
+    "scheduler": {
+        "toast": {
+            "fieldUpdated": {
+                "schedulerTimezone": "Zona horaria predeterminada actualizada",
+                "schedulerFailureNotifyRecipients": "Opción de notificar a los destinatarios si falla un envío actualizada",
+                "schedulerFailureIncludeContact": "Opción de incluir un contacto en los mensajes de error actualizada",
+                "schedulerFailureContactOverride": "Frase de contacto personalizada actualizada"
+            },
+            "settingsUpdated": "Configuración de envíos programados actualizada",
+            "updateFailed": "No se pudo actualizar la configuración de envíos programados del proyecto"
+        },
+        "deliveryDefaults": {
+            "title": "Valores predeterminados de envío",
+            "description": "Configuración predeterminada aplicada a todos los envíos programados de este proyecto. Los propietarios pueden anularla en cada envío al crear o editar un programador."
+        },
+        "form": {
+            "timezone": {
+                "label": "Zona horaria predeterminada",
+                "tooltip": "Zona horaria predeterminada para los envíos programados del proyecto"
+            },
+            "errorHandling": "Gestión de errores",
+            "notifyRecipients": {
+                "label": "Notificar a los destinatarios si falla un envío",
+                "description": "Cuando falla un envío programado, se envía un mensaje de error breve a cada destinatario (además del correo existente al propietario del envío)."
+            },
+            "includeContact": {
+                "label": "Incluir un contacto en los mensajes de error",
+                "description": "Añade una línea indicando a los destinatarios a quién contactar sobre el error."
+            },
+            "contactOverride": {
+                "label": "Frase de contacto personalizada (opcional)",
+                "description": "Reemplaza la línea predeterminada \"También puedes contactar con <propietario del envío> para más detalles.\" que se añade al mensaje de error.",
+                "placeholder": "También puedes contactar con data-support@example.com para más detalles."
+            }
+        }
+    },
+    "usageAnalytics": {
+        "userActivity": "Actividad de usuarios"
+    },
+    "validator": {
+        "page": {
+            "title": "Validador",
+            "description": "Encuentra errores y problemas de contenido en este proyecto.",
+            "runValidation": "Ejecutar validación"
+        },
+        "noErrors": "No se encontraron errores de validación",
+        "listSeparator": ", ",
+        "andSeparator": " y ",
+        "errorTypes": {
+            "chart": "Gráfico",
+            "sorting": "Ordenación",
+            "filter": "Filtro",
+            "metric": "Métrica",
+            "model": "Modelo",
+            "dimension": "Dimensión",
+            "customMetric": "Métrica personalizada",
+            "chartConfiguration": "Configuración del gráfico",
+            "exploreSplit": "División de exploración"
+        },
+        "sourceTypes": {
+            "chart": "Gráfico",
+            "dashboard": "Panel",
+            "dataApp": "App de datos",
+            "table": "Tabla"
+        },
+        "counts": {
+            "charts_one": "{{count}} gráfico",
+            "charts_other": "{{count}} gráficos",
+            "dashboards_one": "{{count}} panel",
+            "dashboards_other": "{{count}} paneles",
+            "tables_one": "{{count}} tabla",
+            "tables_other": "{{count}} tablas",
+            "dataApps_one": "{{count}} app de datos",
+            "dataApps_other": "{{count}} apps de datos",
+            "errors_one": "{{count}} error",
+            "errors_other": "{{count}} errores",
+            "items_one": "{{count}} elemento",
+            "items_other": "{{count}} elementos",
+            "views_one": "{{count}} visualización",
+            "views_other": "{{count}} visualizaciones"
+        },
+        "summary": {
+            "header": "{{errors}} en {{items}}, agrupados por causa",
+            "modelFailedToCompile": "El modelo {{tableName}} no se pudo compilar",
+            "modelNoLongerExists": "El modelo {{tableName}} ya no existe",
+            "typeWithName": "{{errorType}}: {{name}}",
+            "typeErrors": "Errores de {{errorType}}",
+            "deleteGroupTooltip": "Eliminar todo el contenido que hace referencia a este modelo"
+        },
+        "bulkDelete": {
+            "title": "Eliminar contenido roto",
+            "confirm_one": "Eliminar {{count}} elemento",
+            "confirm_other": "Eliminar {{count}} elementos",
+            "warning": "Se eliminarán {{content}} de este proyecto.",
+            "softDeleteNote": "El contenido eliminado se puede restaurar desde Eliminados recientemente.",
+            "cannotUndo": "Esta acción no se puede deshacer.",
+            "itemMeta": "({{contentType}}, {{views}})"
+        },
+        "errorMessage": {
+            "typeError": "Error de {{errorType}}",
+            "typeWarning": "Advertencia de {{errorType}}",
+            "modelFailedToCompile": "El modelo <mark>{{tableName}}</mark> no se pudo compilar",
+            "modelNoLongerExists": "El modelo <mark>{{tableName}}</mark> ya no existe",
+            "fieldNoLongerExists": "<mark>{{fieldName}}</mark> ya no existe",
+            "tableNotUsedByAnyChart": "<mark>{{fieldName}}</mark> hace referencia a la tabla <mark>{{tableName}}</mark>, que no usa ningún gráfico de este panel",
+            "tableNoLongerExists": "La tabla <mark>{{tableName}}</mark> ya no existe",
+            "fieldTableMismatch": "<mark>{{fieldName}}</mark> no coincide con la tabla <mark>{{tableName}}</mark>",
+            "chartBroken": "<mark>{{chartName}}</mark> está roto"
+        },
+        "chartConfigModal": {
+            "title": "Problema de configuración del gráfico",
+            "editChart": "Editar gráfico",
+            "chart": "Gráfico: <link>{{name}}</link>",
+            "unusedDimension": "Dimensión no utilizada en la consulta",
+            "unusedDimensionDescription": "La dimensión <b>{{fieldName}}</b> está incluida en la consulta de este gráfico, pero no se usa en la configuración del gráfico (eje X, eje Y o agrupar por).",
+            "unmappedWarning": "Las dimensiones que no están asignadas en la configuración del gráfico pueden provocar resultados incorrectos o inesperados.",
+            "toFix": "Para solucionar este problema, puedes:",
+            "fixRemove": "1. Quitar la dimensión no utilizada de la consulta",
+            "fixAdd": "2. Añadir la dimensión a la configuración del eje X, eje Y o agrupar por"
+        },
+        "toolbar": {
+            "searchPlaceholder": "Buscar por nombre o error...",
+            "filterBySourceType": "Filtrar por tipo de origen",
+            "source": "Origen",
+            "filterBySource": "Filtrar por origen:",
+            "includeWarnings": "Incluir advertencias de configuración de gráficos",
+            "warnings": "Advertencias",
+            "resetFilters": "Restablecer filtros",
+            "deleteContent": "Eliminar contenido ({{count}})",
+            "clear": "Borrar",
+            "lastValidated": "Última validación: {{time}}"
+        },
+        "table": {
+            "name": "Nombre",
+            "error": "Error",
+            "lastEditedBy": "Última edición por <b>{{name}}</b>",
+            "dismissError": "Descartar error",
+            "fix": "Corregir"
+        }
+    },
+    "validatorFix": {
+        "common": {
+            "rename": "Renombrar",
+            "field": "Campo",
+            "model": "Modelo",
+            "oldField": "Campo anterior",
+            "newField": "Campo nuevo",
+            "oldModel": "Modelo anterior",
+            "newModel": "Modelo nuevo",
+            "selectFieldPlaceholder": "Selecciona el campo al que renombrar",
+            "selectModelPlaceholder": "Selecciona el modelo al que renombrar",
+            "noFieldsOnExplore": "No se encontraron campos en el explore {{table}}. ¿Quizás quieres reemplazar el modelo?",
+            "fixAllTooltip": "Marca esta opción para renombrar todas las apariciones de este campo en otros gráficos y dashboards.",
+            "fixAllOccurrences": "Corregir todas las apariciones ({{count}})"
+        },
+        "chartModal": {
+            "title": "Corregir error de validación",
+            "confirmRename": "Confirmar renombrado",
+            "previewChanges": "Previsualizar cambios",
+            "fixError": "Corregir error del gráfico: <link>{{name}}</link>",
+            "previewWarning_one": "Esto renombrará \"{{from}}\" a \"{{to}}\" en {{count}} recurso del proyecto.",
+            "previewWarning_other": "Esto renombrará \"{{from}}\" a \"{{to}}\" en {{count}} recursos del proyecto.",
+            "chartsCount": "Gráficos ({{count}})",
+            "dashboardsCount": "Dashboards ({{count}})",
+            "alertsCount_one": "+ {{count}} alerta",
+            "alertsCount_other": "+ {{count}} alertas",
+            "schedulersCount_one": "+ {{count}} entrega programada",
+            "schedulersCount_other": "+ {{count}} entregas programadas",
+            "noOtherResources": "No se verán afectados otros recursos. El renombrado solo se aplicará al gráfico actual.",
+            "info": "Puedes corregir la dimensión faltante renombrando el campo o modelo afectado con el desplegable de abajo.",
+            "oldModelPlaceholder": "Introduce el nombre de la tabla (p. ej., customers)",
+            "fieldNotInBaseModel": "El campo <code>{{field}}</code> no pertenece al modelo base del gráfico: <code>{{model}}</code>. Verifica que el nombre del modelo anterior sea correcto antes de renombrar.",
+            "notUsedElsewhere_field": "Este campo no se usa en ningún otro gráfico.",
+            "notUsedElsewhere_model": "Este modelo no se usa en ningún otro gráfico."
+        },
+        "dashboardModal": {
+            "title": "Corregir error de filtro del dashboard",
+            "fixError": "Corregir error de filtro del dashboard: <link>{{name}}</link>",
+            "info": "Puedes corregir el filtro roto renombrando el campo o modelo afectado con el desplegable de abajo.",
+            "notUsedElsewhere_field": "Este campo no se usa en ningún otro dashboard ni gráfico.",
+            "notUsedElsewhere_model": "Este modelo no se usa en ningún otro dashboard ni gráfico."
+        },
+        "toasts": {
+            "open": "Abrir",
+            "renamedOnChart_field": "¡Listo! Se renombró el campo \"{{from}}\" en el gráfico.",
+            "renamedOnChart_model": "¡Listo! Se renombró el modelo \"{{from}}\" en el gráfico.",
+            "updatingInCharts_field": "Actualizando el campo \"{{from}}\" en otros gráficos...",
+            "updatingInCharts_model": "Actualizando el modelo \"{{from}}\" en otros gráficos...",
+            "renamedOnCharts_field": "¡Listo! Se renombró el campo \"{{from}}\" en {{chartCount}} gráficos",
+            "renamedOnCharts_model": "¡Listo! Se renombró el modelo \"{{from}}\" en {{chartCount}} gráficos",
+            "renameOthersFailed_field": "No se pudieron renombrar los demás campos",
+            "renameOthersFailed_model": "No se pudieron renombrar los demás modelos",
+            "renameChartFailed": "No se pudo renombrar el gráfico",
+            "renamedOnDashboard_field": "¡Listo! Se renombró el campo \"{{from}}\" en el dashboard.",
+            "renamedOnDashboard_model": "¡Listo! Se renombró el modelo \"{{from}}\" en el dashboard.",
+            "updatingInChartsAndDashboards_field": "Actualizando el campo \"{{from}}\" en otros gráficos y dashboards...",
+            "updatingInChartsAndDashboards_model": "Actualizando el modelo \"{{from}}\" en otros gráficos y dashboards...",
+            "renamedOnChartsAndDashboards_field": "¡Listo! Se renombró el campo \"{{from}}\" en {{chartCount}} gráficos y {{dashboardCount}} dashboards",
+            "renamedOnChartsAndDashboards_model": "¡Listo! Se renombró el modelo \"{{from}}\" en {{chartCount}} gráficos y {{dashboardCount}} dashboards",
+            "renameDashboardFilterFailed": "No se pudo renombrar el filtro del dashboard"
+        }
+    }
+}

@@ -7,6 +7,7 @@ import {
     Text,
     Title,
 } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import { SlackChannelSelect } from '../../../../../../components/common/SlackChannelSelect';
 import { useGetSlack } from '../../../../../../hooks/slack/useSlack';
 import useApp from '../../../../../../providers/App/useApp';
@@ -19,6 +20,7 @@ import { LinearReviewSettings } from './LinearReviewSettings';
 
 /** Notification and issue destinations shown only while AI agent reviews run. */
 export const ReviewNotificationsSettings = () => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const { user } = useApp();
     const canEdit = user.data?.ability?.can('manage', 'Organization') ?? false;
     const { data: slackInstallation } = useGetSlack();
@@ -41,13 +43,12 @@ export const ReviewNotificationsSettings = () => {
                     >
                         <Box maw={620}>
                             <Title order={6} mb={4}>
-                                Slack notifications
+                                {t('settings.reviewNotifications.slackTitle')}
                             </Title>
                             <Text c="dimmed" fz="xs">
-                                Post to a Slack channel when a review run
-                                surfaces findings that need review. Assignment
-                                notifications are always sent as a direct
-                                message and in the in-app bell.
+                                {t(
+                                    'settings.reviewNotifications.slackDescription',
+                                )}
                             </Text>
                         </Box>
                         {isInitialLoading || !settings ? (
@@ -55,7 +56,9 @@ export const ReviewNotificationsSettings = () => {
                         ) : (
                             <Switch
                                 size="md"
-                                aria-label="Post AI review findings to Slack"
+                                aria-label={t(
+                                    'settings.reviewNotifications.slackAria',
+                                )}
                                 checked={settings.enabled}
                                 disabled={!canEdit || isUpdating}
                                 onChange={(event) =>
@@ -70,11 +73,15 @@ export const ReviewNotificationsSettings = () => {
 
                     {settings?.enabled && (
                         <SlackChannelSelect
-                            label="Slack channel"
+                            label={t(
+                                'settings.reviewNotifications.slackChannel',
+                            )}
                             value={settings.slackChannelId}
                             disabled={!canEdit || isUpdating}
                             withRefresh
-                            placeholder="Select a channel"
+                            placeholder={t(
+                                'settings.reviewNotifications.selectChannel',
+                            )}
                             onChange={(slackChannelId) =>
                                 updateSettings({
                                     enabled: true,

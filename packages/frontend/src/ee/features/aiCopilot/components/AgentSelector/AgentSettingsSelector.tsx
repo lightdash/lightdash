@@ -9,6 +9,7 @@ import {
 } from '@mantine/core';
 import { IconChevronDown, IconSettings } from '@tabler/icons-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -36,6 +37,7 @@ export const AgentSettingsSelector = ({
     askAiSettingsHref,
     className,
 }: Props) => {
+    const { t } = useTranslation('aiAgent');
     const navigate = useNavigate();
     const [opened, setOpened] = useState(false);
     const combobox = useCombobox({
@@ -80,7 +82,7 @@ export const AgentSettingsSelector = ({
                             color="dimmed"
                         />
                         <Text size="xs" truncate="end" className={styles.label}>
-                            Settings
+                            {t('header.settings')}
                         </Text>
                         <MantineIcon
                             icon={IconChevronDown}
@@ -102,10 +104,12 @@ export const AgentSettingsSelector = ({
                             </Avatar>
                             <Stack gap={0} flex={1} miw={0}>
                                 <Text size="xs" fw={600}>
-                                    Ask AI settings
+                                    {t('agentSelector.askAiSettings')}
                                 </Text>
                                 <Text size="xs" c="dimmed" truncate="end">
-                                    General settings for all agents
+                                    {t(
+                                        'agentSelector.askAiSettingsDescription',
+                                    )}
                                 </Text>
                             </Stack>
                         </Group>
@@ -113,7 +117,9 @@ export const AgentSettingsSelector = ({
                 </Combobox.Header>
                 {agentOptions.length > 0 && (
                     <Combobox.Options className={styles.settingsOptions}>
-                        <Combobox.Group label="Agent settings">
+                        <Combobox.Group
+                            label={t('agentSelector.agentSettings')}
+                        >
                             {agentOptions.map((item) => (
                                 <Combobox.Option
                                     value={item.value}

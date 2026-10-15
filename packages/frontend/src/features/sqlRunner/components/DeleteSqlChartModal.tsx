@@ -1,4 +1,5 @@
 import { useEffect, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal, {
     type MantineModalProps,
 } from '../../../components/common/MantineModal';
@@ -21,6 +22,7 @@ export const DeleteSqlChartModal: FC<Props> = ({
     onClose,
     onSuccess,
 }) => {
+    const { t } = useTranslation('sqlRunner');
     const { health } = useApp();
     const softDeleteEnabled = health.data?.softDelete.enabled;
     const retentionDays = health.data?.softDelete.retentionDays;
@@ -37,14 +39,14 @@ export const DeleteSqlChartModal: FC<Props> = ({
     }, [isSuccess, onClose, onSuccess]);
 
     const description = softDeleteEnabled
-        ? `This chart will be moved to Recently deleted and permanently removed after ${retentionDays} days.`
+        ? t('deleteModal.softDeleteDescription', { count: retentionDays })
         : undefined;
 
     return (
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Delete chart"
+            title={t('deleteModal.title')}
             variant="delete"
             resourceType="chart"
             resourceLabel={name}

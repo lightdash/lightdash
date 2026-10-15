@@ -16,6 +16,7 @@ import {
 import { useForm } from '@mantine/form';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
@@ -39,6 +40,7 @@ const QueryTimezoneForm: FC<{
     showFilterInputsToggle: boolean;
     onSubmit: (data: QueryTimezoneFormValues) => void;
 }> = ({ isLoading, project, showFilterInputsToggle, onSubmit }) => {
+    const { t } = useTranslation('projectSettings');
     const form = useForm<QueryTimezoneFormValues>({
         validate: zodResolver(queryTimezoneSchema),
         initialValues: {
@@ -66,18 +68,20 @@ const QueryTimezoneForm: FC<{
         <form onSubmit={form.onSubmit(onSubmit)}>
             <Stack gap="md">
                 <TimeZonePicker
-                    label="Default time zone"
+                    label={t('queryTimezone.form.timezoneLabel')}
                     variant="default"
                     maw="100%"
                     searchable
                     clearable
-                    placeholder="Server default (UTC)"
+                    placeholder={t('queryTimezone.form.timezonePlaceholder')}
                     {...form.getInputProps('timezone')}
                 />
                 {showFilterInputsToggle && (
                     <Switch
-                        label="Project time zone in filter inputs"
-                        description="Interpret absolute dates in the project's time zone instead of the user's browser."
+                        label={t('queryTimezone.form.filterInputs.label')}
+                        description={t(
+                            'queryTimezone.form.filterInputs.description',
+                        )}
                         disabled={filterToggleDisabled}
                         {...form.getInputProps('useProjectTimezoneInFilters', {
                             type: 'checkbox',
@@ -91,7 +95,7 @@ const QueryTimezoneForm: FC<{
                     disabled={!form.isValid() || !hasChanged}
                     loading={isLoading}
                 >
-                    Update
+                    {t('actions.update', { ns: 'common' })}
                 </Button>
             </Flex>
         </form>
@@ -105,6 +109,7 @@ type SettingsQueryTimezoneProps = {
 const SettingsQueryTimezone: FC<SettingsQueryTimezoneProps> = ({
     projectUuid,
 }) => {
+    const { t } = useTranslation('projectSettings');
     const { showToastError, showToastSuccess } = useToaster();
     const { data: timezoneSupportFlag } = useServerFeatureFlag(
         FeatureFlags.EnableTimezoneSupport,
@@ -125,19 +130,19 @@ const SettingsQueryTimezone: FC<SettingsQueryTimezoneProps> = ({
                         values.useProjectTimezoneInFilters,
                 });
                 showToastSuccess({
-                    title: `Successfully updated project's time zone settings`,
+                    title: t('queryTimezone.toast.updateSuccess'),
                 });
             } catch (e) {
                 const errorMessage = isApiError(e)
                     ? e.error.message
                     : getErrorMessage(e);
                 showToastError({
-                    title: `Failed to update project's time zone settings`,
+                    title: t('queryTimezone.toast.updateFailed'),
                     subtitle: errorMessage,
                 });
             }
         },
-        [projectMutation, showToastError, showToastSuccess],
+        [projectMutation, showToastError, showToastSuccess, t],
     );
 
     return (
@@ -145,26 +150,11 @@ const SettingsQueryTimezone: FC<SettingsQueryTimezoneProps> = ({
             <LoadingOverlay visible={isLoadingProject} />
             <SettingsGridCard>
                 <Stack gap="xs">
-                    <Title order={5}>Time zone behavior</Title>
+                    <Title order={5}>{t('queryTimezone.title')}</Title>
                     <Text c="dimmed" fz="sm">
-                        {timezoneSupportEnabled ? (
-                            <>
-                                The time zone used for date filters, time
-                                grouping, and how dates appear in charts and
-                                tables. This does not change your
-                                database&apos;s session time zone.
-                            </>
-                        ) : (
-                            <>
-                                Controls what &quot;today&quot;, &quot;this
-                                week&quot;, and other &quot;in the current&quot;
-                                date filters mean. For example, if set to
-                                US/Eastern, &quot;today&quot; means
-                                midnight-to-midnight New York time instead of
-                                UTC. This does not change your database&apos;s
-                                session time zone.
-                            </>
-                        )}
+                        {timezoneSupportEnabled
+                            ? t('queryTimezone.description.timezoneSupport')
+                            : t('queryTimezone.description.legacy')}
                     </Text>
                 </Stack>
                 <div>

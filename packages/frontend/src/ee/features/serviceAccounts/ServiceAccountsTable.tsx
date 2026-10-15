@@ -42,7 +42,9 @@ import {
     IconUser,
     IconX,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import {
     ContentTable,
@@ -63,17 +65,22 @@ import { isServiceAccountStale, STALE_THRESHOLD_DAYS } from './staleness';
 // aliases and the legacy `org:*` shorthands map to a single human-readable
 // role name (per the codebase convention that "role" is the named bundle
 // the SA is bound to; "scope" is an individual permission inside it).
-const SCOPE_LABEL: Partial<Record<ServiceAccountScope, string>> = {
-    [ServiceAccountScope.SYSTEM_ADMIN]: 'Admin',
-    [ServiceAccountScope.SYSTEM_DEVELOPER]: 'Developer',
-    [ServiceAccountScope.SYSTEM_EDITOR]: 'Editor',
-    [ServiceAccountScope.SYSTEM_INTERACTIVE_VIEWER]: 'Interactive viewer',
-    [ServiceAccountScope.SYSTEM_VIEWER]: 'Viewer',
-    [ServiceAccountScope.SYSTEM_MEMBER]: 'Member',
-    [ServiceAccountScope.ORG_ADMIN]: 'Admin',
-    [ServiceAccountScope.ORG_EDIT]: 'Editor',
-    [ServiceAccountScope.ORG_READ]: 'Viewer',
-    [ServiceAccountScope.SCIM_MANAGE]: 'SCIM',
+const SCOPE_LABEL_KEY: Partial<Record<ServiceAccountScope, string>> = {
+    [ServiceAccountScope.SYSTEM_ADMIN]: 'admin',
+    [ServiceAccountScope.SYSTEM_DEVELOPER]: 'developer',
+    [ServiceAccountScope.SYSTEM_EDITOR]: 'editor',
+    [ServiceAccountScope.SYSTEM_INTERACTIVE_VIEWER]: 'interactiveViewer',
+    [ServiceAccountScope.SYSTEM_VIEWER]: 'viewer',
+    [ServiceAccountScope.SYSTEM_MEMBER]: 'member',
+    [ServiceAccountScope.ORG_ADMIN]: 'admin',
+    [ServiceAccountScope.ORG_EDIT]: 'editor',
+    [ServiceAccountScope.ORG_READ]: 'viewer',
+    [ServiceAccountScope.SCIM_MANAGE]: 'scim',
+};
+
+const getScopeLabel = (scope: ServiceAccountScope, t: TFunction) => {
+    const key = SCOPE_LABEL_KEY[scope];
+    return key ? t(`roles.${key}`) : scope;
 };
 
 // An SA is "project-scoped" when its only scope is `SYSTEM_MEMBER` — the
@@ -99,23 +106,7 @@ const getScope = (sa: ServiceAccount): 'organization' | 'project' => {
 // `STALE_THRESHOLD_DAYS` so the badge in the row stays in lockstep.
 type StatusFilter = 'all' | 'active' | 'stale';
 
-const STATUS_FILTER_OPTIONS: {
-    value: StatusFilter;
-    label: string;
-    tooltip: string;
-}[] = [
-    { value: 'all', label: 'All', tooltip: 'Show all service accounts' },
-    {
-        value: 'active',
-        label: 'Active',
-        tooltip: `Show accounts used in the last ${STALE_THRESHOLD_DAYS} days`,
-    },
-    {
-        value: 'stale',
-        label: 'Stale',
-        tooltip: `Show accounts not used in the last ${STALE_THRESHOLD_DAYS} days`,
-    },
-];
+const STATUS_FILTER_OPTIONS: StatusFilter[] = ['all', 'active', 'stale'];
 
 const formatCreatedBy = (sa: ServiceAccount): string => {
     if (!sa.createdBy) return '';
@@ -129,16 +120,17 @@ const formatCreatedBy = (sa: ServiceAccount): string => {
 const formatRoleLabel = (
     sa: ServiceAccount,
     rolesByUuid: Map<string, RoleWithScopes>,
+    t: TFunction,
 ): string => {
     if (sa.roleUuid) {
-        return rolesByUuid.get(sa.roleUuid)?.name ?? 'Custom role';
+        return rolesByUuid.get(sa.roleUuid)?.name ?? t('table.customRole');
     }
     const scopes = sa.scopes ?? [];
     if (scopes.length === 1) {
-        return SCOPE_LABEL[scopes[0]] ?? scopes[0];
+        return getScopeLabel(scopes[0], t);
     }
     if (scopes.length === 0) return '';
-    return `${scopes.length} permissions`;
+    return t('table.permissionCount', { count: scopes.length });
 };
 
 type Props = {
@@ -154,6 +146,7 @@ export const ServiceAccountsTable: FC<Props> = ({
     onDelete,
     isDeleting,
 }) => {
+    const { t } = useTranslation('serviceAccounts');
     const [opened, { open, close }] = useDisclosure(false);
     const [rotateOpened, { open: openRotate, close: closeRotate }] =
         useDisclosure(false);
@@ -273,10 +266,10 @@ export const ServiceAccountsTable: FC<Props> = ({
         (userUuid: string) => {
             clipboard.copy(userUuid);
             showToastSuccess({
-                title: 'Service account user UUID copied to clipboard',
+                title: t('table.uuidCopied'),
             });
         },
-        [clipboard, showToastSuccess],
+        [clipboard, showToastSuccess, t],
     );
 
     const columns: ContentTableColumnDef<ServiceAccountWithProjectAccessCount>[] =
@@ -284,7 +277,7 @@ export const ServiceAccountsTable: FC<Props> = ({
             () => [
                 {
                     accessorKey: 'description',
-                    header: 'Description',
+                    header: t('table.headers.description'),
                     enableSorting: true,
                     size: 240,
                     Header: ({ column }) => (
@@ -307,14 +300,16 @@ export const ServiceAccountsTable: FC<Props> = ({
                                 {stale && (
                                     <Tooltip
                                         position="top"
-                                        label={`Not used in the last ${STALE_THRESHOLD_DAYS} days`}
+                                        label={t('table.staleTooltip', {
+                                            count: STALE_THRESHOLD_DAYS,
+                                        })}
                                     >
                                         <Badge
                                             color="red"
                                             size="xs"
                                             radius="md"
                                         >
-                                            Stale
+                                            {t('table.stale')}
                                         </Badge>
                                     </Tooltip>
                                 )}
@@ -324,12 +319,14 @@ export const ServiceAccountsTable: FC<Props> = ({
                 },
                 {
                     id: 'access',
-                    header: 'Access',
+                    header: t('table.headers.access'),
                     enableSorting: true,
                     accessorFn: (sa) =>
                         getScope(sa) === 'project'
-                            ? `${sa.projectAccessCount} project(s)`
-                            : formatRoleLabel(sa, rolesByUuid),
+                            ? t('table.projectCount', {
+                                  count: sa.projectAccessCount,
+                              })
+                            : formatRoleLabel(sa, rolesByUuid, t),
                     size: 180,
                     Header: ({ column }) => (
                         <Group gap="two" wrap="nowrap">
@@ -349,8 +346,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                             // project-scoped.
                             const badge = (
                                 <Badge color="teal" radius="xs" size="sm">
-                                    {count}{' '}
-                                    {count === 1 ? 'project' : 'projects'}
+                                    {t('table.projectCount', { count })}
                                 </Badge>
                             );
                             // No grants → no list to hover; render the
@@ -375,7 +371,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                             // didn't invert and looked washed-out on dark.
                             return (
                                 <Badge color="indigo" radius="xs" size="sm">
-                                    {role?.name ?? 'Custom role'}
+                                    {role?.name ?? t('table.customRole')}
                                 </Badge>
                             );
                         }
@@ -385,21 +381,24 @@ export const ServiceAccountsTable: FC<Props> = ({
                                     <HoverCard.Target>
                                         <Group>
                                             <Text fz="sm">
-                                                {`${scopes.length} permissions`}
+                                                {t('table.permissionCount', {
+                                                    count: scopes.length,
+                                                })}
                                             </Text>
                                         </Group>
                                     </HoverCard.Target>
                                     <HoverCard.Dropdown>
                                         <Stack>
-                                            <Text fw={600}>Permissions</Text>
+                                            <Text fw={600}>
+                                                {t('table.permissions')}
+                                            </Text>
                                             {scopes.map((scope) => (
                                                 <Badge
                                                     key={scope}
                                                     radius="xs"
                                                     size="sm"
                                                 >
-                                                    {SCOPE_LABEL[scope] ??
-                                                        scope}
+                                                    {getScopeLabel(scope, t)}
                                                 </Badge>
                                             ))}
                                         </Stack>
@@ -411,7 +410,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                             <Group gap="xs">
                                 {scopes.map((scope) => (
                                     <Badge key={scope} radius="xs" size="sm">
-                                        {SCOPE_LABEL[scope] ?? scope}
+                                        {getScopeLabel(scope, t)}
                                     </Badge>
                                 ))}
                             </Group>
@@ -420,7 +419,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                 },
                 {
                     id: 'createdBy',
-                    header: 'Created by',
+                    header: t('table.headers.createdBy'),
                     enableSorting: true,
                     accessorFn: (sa) => formatCreatedBy(sa),
                     size: 150,
@@ -441,7 +440,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                 },
                 {
                     accessorKey: 'createdAt',
-                    header: 'Created',
+                    header: t('table.headers.created'),
                     enableSorting: true,
                     size: 120,
                     Header: ({ column }) => (
@@ -463,7 +462,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                 },
                 {
                     accessorKey: 'expiresAt',
-                    header: 'Expires at',
+                    header: t('table.headers.expiresAt'),
                     enableSorting: true,
                     size: 140,
                     Header: ({ column }) => (
@@ -491,15 +490,15 @@ export const ServiceAccountsTable: FC<Props> = ({
                                 <Text fz="sm" c="ldGray.7">
                                     {expiresAt
                                         ? formatDate(expiresAt)
-                                        : 'No expiration'}
+                                        : t('expiration.none')}
                                 </Text>
                                 {rotatedAt && (
                                     <Tooltip
                                         position="top"
                                         maw={350}
-                                        label={`Last rotated at ${formatTimestamp(
-                                            rotatedAt,
-                                        )}`}
+                                        label={t('table.lastRotatedAt', {
+                                            date: formatTimestamp(rotatedAt),
+                                        })}
                                     >
                                         <MantineIcon
                                             icon={IconInfoCircle}
@@ -514,7 +513,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                 },
                 {
                     accessorKey: 'lastUsedAt',
-                    header: 'Last used at',
+                    header: t('table.headers.lastUsedAt'),
                     enableSorting: true,
                     size: 140,
                     Header: ({ column }) => (
@@ -540,7 +539,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                         if (!lastUsedAt) {
                             return (
                                 <Text fz="sm" c="ldGray.5">
-                                    Never
+                                    {t('table.never')}
                                 </Text>
                             );
                         }
@@ -583,7 +582,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                                         }
                                         onClick={() => handleOpenEdit(sa)}
                                     >
-                                        Edit
+                                        {t('actions.edit', { ns: 'common' })}
                                     </Menu.Item>
                                     <Menu.Item
                                         leftSection={
@@ -593,7 +592,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                                             handleCopyUserUuid(sa.userUuid)
                                         }
                                     >
-                                        Copy user UUID
+                                        {t('table.copyUserUuid')}
                                     </Menu.Item>
                                     {sa.roleUuid && (
                                         <Menu.Item
@@ -605,7 +604,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                                                 />
                                             }
                                         >
-                                            View custom role
+                                            {t('table.viewCustomRole')}
                                         </Menu.Item>
                                     )}
                                     {sa.expiresAt && (
@@ -617,7 +616,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                                             }
                                             onClick={() => handleOpenRotate(sa)}
                                         >
-                                            Rotate token
+                                            {t('rotateModal.title')}
                                         </Menu.Item>
                                     )}
                                     <Menu.Divider />
@@ -628,7 +627,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                                         }
                                         onClick={() => handleOpenDelete(sa)}
                                     >
-                                        Delete
+                                        {t('actions.delete', { ns: 'common' })}
                                     </Menu.Item>
                                 </Menu.Dropdown>
                             </Menu>
@@ -637,6 +636,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                 },
             ],
             [
+                t,
                 rolesByUuid,
                 handleOpenEdit,
                 handleCopyUserUuid,
@@ -676,8 +676,8 @@ export const ServiceAccountsTable: FC<Props> = ({
                 />
                 <Text fz="sm" fw={500} c="dimmed">
                     {search
-                        ? `No service accounts matching "${search}"`
-                        : 'No service accounts match the current filters'}
+                        ? t('table.noMatchSearch', { search })
+                        : t('table.noMatchFilters')}
                 </Text>
                 {hasActiveFilters && (
                     <Button
@@ -689,7 +689,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                             setSelectedCreators([]);
                         }}
                     >
-                        Clear all filters
+                        {t('table.clearAllFilters')}
                     </Button>
                 )}
             </Center>
@@ -703,12 +703,12 @@ export const ServiceAccountsTable: FC<Props> = ({
                 className={classes.toolbar}
             >
                 <Group gap="xs" wrap="nowrap" flex={1} miw={0}>
-                    <Tooltip label="Search by description">
+                    <Tooltip label={t('table.searchTooltip')}>
                         <TextInput
                             size="xs"
                             type="search"
                             variant="default"
-                            placeholder="Search service accounts..."
+                            placeholder={t('table.searchPlaceholder')}
                             value={search}
                             classNames={{
                                 input: search
@@ -755,12 +755,17 @@ export const ServiceAccountsTable: FC<Props> = ({
                             label: classes.segmentedLabel,
                         }}
                         data={STATUS_FILTER_OPTIONS.map((option) => ({
-                            value: option.value,
+                            value: option,
                             label: (
-                                <Tooltip label={option.tooltip}>
+                                <Tooltip
+                                    label={t(
+                                        `table.statusFilter.${option}Tooltip`,
+                                        { count: STALE_THRESHOLD_DAYS },
+                                    )}
+                                >
                                     <Box>
                                         <Text fz="xs" fw={500}>
-                                            {option.label}
+                                            {t(`table.statusFilter.${option}`)}
                                         </Text>
                                     </Box>
                                 </Tooltip>
@@ -778,7 +783,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                             />
                             <Popover width={250} position="bottom-start">
                                 <Popover.Target>
-                                    <Tooltip label="Filter by creator">
+                                    <Tooltip label={t('table.filterByCreator')}>
                                         <Button
                                             h={32}
                                             c="foreground"
@@ -811,14 +816,14 @@ export const ServiceAccountsTable: FC<Props> = ({
                                                 ) : null
                                             }
                                         >
-                                            Created by
+                                            {t('table.headers.createdBy')}
                                         </Button>
                                     </Tooltip>
                                 </Popover.Target>
                                 <Popover.Dropdown p="sm">
                                     <Stack gap={4}>
                                         <Text fz="xs" fw={600}>
-                                            Filter by creator:
+                                            {t('table.filterByCreatorLabel')}
                                         </Text>
                                         <ScrollArea.Autosize
                                             mah={200}
@@ -870,7 +875,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                 </Group>
 
                 {hasActiveFilters && (
-                    <Tooltip label="Clear all filters">
+                    <Tooltip label={t('table.clearAllFilters')}>
                         <ActionIcon
                             size="sm"
                             onClick={() => {

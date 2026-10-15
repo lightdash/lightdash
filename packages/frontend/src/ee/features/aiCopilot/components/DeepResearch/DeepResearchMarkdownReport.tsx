@@ -7,6 +7,7 @@ import {
     type FC,
     type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type StreamdownProps } from 'streamdown';
 import Callout from '../../../../../components/common/Callout';
 import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
@@ -29,6 +30,7 @@ export const QueryBackedChart: FC<{
     queryUuid: string;
     withExploreLink?: boolean;
 }> = ({ projectUuid, runUuid, queryUuid, withExploreLink = true }) => {
+    const { t } = useTranslation('aiAgent');
     const chartQuery = useDeepResearchChartQuery({
         projectUuid,
         runUuid,
@@ -37,15 +39,20 @@ export const QueryBackedChart: FC<{
     if (chartQuery.isLoading) {
         return (
             <ReportChartFrame>
-                <EmptyStateLoader title="Loading report chart" />
+                <EmptyStateLoader
+                    title={t('deepResearch.loadingReportChart')}
+                />
             </ReportChartFrame>
         );
     }
     if (!chartQuery.data) {
         return (
             <ReportChartFrame>
-                <Callout variant="warning" title="Chart unavailable">
-                    This chart could not be displayed.
+                <Callout
+                    variant="warning"
+                    title={t('deepResearch.chartUnavailable')}
+                >
+                    {t('deepResearch.chartCouldNotDisplay')}
                 </Callout>
             </ReportChartFrame>
         );
@@ -70,6 +77,7 @@ const ReportLink: FC<AnchorHTMLAttributes<HTMLAnchorElement>> = ({
     href,
     children,
 }) => {
+    const { t } = useTranslation('aiAgent');
     const context = useContext(DeepResearchReportContext);
     const linkHref = typeof href === 'string' ? href : undefined;
 
@@ -77,8 +85,11 @@ const ReportLink: FC<AnchorHTMLAttributes<HTMLAnchorElement>> = ({
         const chartKey = linkHref.slice(CHART_HREF_PREFIX.length);
         if (!context) {
             return (
-                <Callout variant="warning" title="Chart unavailable">
-                    This chart could not be displayed.
+                <Callout
+                    variant="warning"
+                    title={t('deepResearch.chartUnavailable')}
+                >
+                    {t('deepResearch.chartCouldNotDisplay')}
                 </Callout>
             );
         }

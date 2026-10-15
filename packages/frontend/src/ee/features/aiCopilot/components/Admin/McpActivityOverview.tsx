@@ -11,6 +11,7 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import { type FC, type PropsWithChildren, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import InlineErrorState from '../../../../../components/common/InlineErrorState';
 import {
     formatToolCallTime,
@@ -58,13 +59,29 @@ export const McpActivityStatTiles: FC<{
     stats: McpActivityStats | undefined;
     isError: boolean;
 }> = ({ stats, isError }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     if (!stats) {
         if (isError) {
             return (
                 <>
-                    <StatTile label="Calls" value="—" tone="neutral" dotted />
-                    <StatTile label="Success" value="—" tone="neutral" dotted />
-                    <StatTile label="Errors" value="—" tone="neutral" dotted />
+                    <StatTile
+                        label={t('mcp.overview.calls')}
+                        value="—"
+                        tone="neutral"
+                        dotted
+                    />
+                    <StatTile
+                        label={t('mcp.overview.success')}
+                        value="—"
+                        tone="neutral"
+                        dotted
+                    />
+                    <StatTile
+                        label={t('mcp.overview.errors')}
+                        value="—"
+                        tone="neutral"
+                        dotted
+                    />
                 </>
             );
         }
@@ -85,12 +102,12 @@ export const McpActivityStatTiles: FC<{
     return (
         <>
             <StatTile
-                label="Calls"
+                label={t('mcp.overview.calls')}
                 value={countFormat.format(stats.totalCalls)}
                 tone="neutral"
             />
             <StatTile
-                label="Success"
+                label={t('mcp.overview.success')}
                 value={
                     successRate === null
                         ? '—'
@@ -99,7 +116,7 @@ export const McpActivityStatTiles: FC<{
                 tone={successRate === null ? 'neutral' : 'success'}
             />
             <StatTile
-                label="Errors"
+                label={t('mcp.overview.errors')}
                 value={countFormat.format(stats.errorCalls)}
                 tone={stats.errorCalls > 0 ? 'error' : 'neutral'}
             />
@@ -124,9 +141,10 @@ const OverviewCard: FC<
 const TopToolsCard: FC<{ tools: McpActivityStats['topTools'] }> = ({
     tools,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const maxCount = Math.max(...tools.map((tool) => tool.count), 1);
     return (
-        <OverviewCard title="Top tools">
+        <OverviewCard title={t('mcp.overview.topTools')}>
             <Stack gap="sm">
                 {tools.map((tool) => (
                     <Box key={tool.toolName}>
@@ -160,113 +178,130 @@ const TopToolsCard: FC<{ tools: McpActivityStats['topTools'] }> = ({
     );
 };
 
-const AgentsCard: FC<{ agents: McpActivityStats['agents'] }> = ({ agents }) => (
-    <OverviewCard title="Active agents">
-        <Stack gap={6}>
-            {agents.map(({ agent, count }) => (
-                <Group
-                    key={agent?.uuid ?? 'no-agent'}
-                    justify="space-between"
-                    wrap="nowrap"
-                    gap="xs"
-                >
+const AgentsCard: FC<{ agents: McpActivityStats['agents'] }> = ({ agents }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
+    return (
+        <OverviewCard title={t('mcp.overview.activeAgents')}>
+            <Stack gap={6}>
+                {agents.map(({ agent, count }) => (
                     <Group
-                        gap={6}
+                        key={agent?.uuid ?? 'no-agent'}
+                        justify="space-between"
                         wrap="nowrap"
-                        className={styles.truncatingGroup}
+                        gap="xs"
                     >
-                        <Box className={styles.agentDot} />
-                        <Text
-                            fz="sm"
-                            c={agent ? 'ldGray.9' : 'ldGray.6'}
-                            truncate
+                        <Group
+                            gap={6}
+                            wrap="nowrap"
+                            className={styles.truncatingGroup}
                         >
-                            {agent?.name ?? 'No agent'}
+                            <Box className={styles.agentDot} />
+                            <Text
+                                fz="sm"
+                                c={agent ? 'ldGray.9' : 'ldGray.6'}
+                                truncate
+                            >
+                                {agent?.name ?? t('mcp.overview.noAgent')}
+                            </Text>
+                        </Group>
+                        <Text fz="xs" c="ldGray.7" className={styles.num}>
+                            {t('mcp.overview.callCount', {
+                                count,
+                                formatted: countFormat.format(count),
+                            })}
                         </Text>
                     </Group>
-                    <Text fz="xs" c="ldGray.7" className={styles.num}>
-                        {countFormat.format(count)}{' '}
-                        {count === 1 ? 'call' : 'calls'}
-                    </Text>
-                </Group>
-            ))}
-        </Stack>
-    </OverviewCard>
-);
+                ))}
+            </Stack>
+        </OverviewCard>
+    );
+};
 
 const RecentErrorsCard: FC<{
     errorCalls: number;
     recentErrors: McpActivityItem[];
     onErrorSelect: (toolCall: McpActivityItem) => void;
-}> = ({ errorCalls, recentErrors, onErrorSelect }) => (
-    <Paper className={styles.card}>
-        <Group justify="space-between" align="center" gap="xs" p="md" pb="sm">
-            <Text fz="sm" fw={600}>
-                Recent errors
-            </Text>
-            {errorCalls > 0 && (
-                <Badge color="red" size="sm">
-                    {countFormat.format(errorCalls)}
-                </Badge>
-            )}
-        </Group>
-        {recentErrors.length === 0 ? (
-            <Group gap={6} px="md" pb="md">
-                <Box className={styles.okDot} />
-                <Text fz="xs" c="dimmed">
-                    No errors in this period
+}> = ({ errorCalls, recentErrors, onErrorSelect }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
+    return (
+        <Paper className={styles.card}>
+            <Group
+                justify="space-between"
+                align="center"
+                gap="xs"
+                p="md"
+                pb="sm"
+            >
+                <Text fz="sm" fw={600}>
+                    {t('mcp.overview.recentErrors')}
                 </Text>
+                {errorCalls > 0 && (
+                    <Badge color="red" size="sm">
+                        {countFormat.format(errorCalls)}
+                    </Badge>
+                )}
             </Group>
-        ) : (
-            <Box pb={6}>
-                {recentErrors.map((item) => (
-                    <UnstyledButton
-                        key={item.uuid}
-                        className={styles.errorRow}
-                        onClick={() => onErrorSelect(item)}
-                    >
-                        <Group
-                            justify="space-between"
-                            wrap="nowrap"
-                            gap="xs"
-                            mb={2}
+            {recentErrors.length === 0 ? (
+                <Group gap={6} px="md" pb="md">
+                    <Box className={styles.okDot} />
+                    <Text fz="xs" c="dimmed">
+                        {t('mcp.overview.noErrors')}
+                    </Text>
+                </Group>
+            ) : (
+                <Box pb={6}>
+                    {recentErrors.map((item) => (
+                        <UnstyledButton
+                            key={item.uuid}
+                            className={styles.errorRow}
+                            onClick={() => onErrorSelect(item)}
                         >
                             <Group
-                                gap={6}
+                                justify="space-between"
                                 wrap="nowrap"
-                                className={styles.truncatingGroup}
+                                gap="xs"
+                                mb={2}
                             >
-                                <Box className={styles.errorDot} />
-                                <Text
-                                    fz="xs"
-                                    ff="monospace"
-                                    c="ldGray.8"
-                                    truncate
+                                <Group
+                                    gap={6}
+                                    wrap="nowrap"
+                                    className={styles.truncatingGroup}
                                 >
-                                    {item.toolName}
-                                </Text>
+                                    <Box className={styles.errorDot} />
+                                    <Text
+                                        fz="xs"
+                                        ff="monospace"
+                                        c="ldGray.8"
+                                        truncate
+                                    >
+                                        {item.toolName}
+                                    </Text>
+                                </Group>
+                                <Tooltip
+                                    label={formatToolCallTimeFull(
+                                        item.createdAt,
+                                    )}
+                                >
+                                    <Text
+                                        fz="xs"
+                                        c="ldGray.5"
+                                        className={styles.noShrink}
+                                    >
+                                        {formatToolCallTime(item.createdAt)}
+                                    </Text>
+                                </Tooltip>
                             </Group>
-                            <Tooltip
-                                label={formatToolCallTimeFull(item.createdAt)}
-                            >
-                                <Text
-                                    fz="xs"
-                                    c="ldGray.5"
-                                    className={styles.noShrink}
-                                >
-                                    {formatToolCallTime(item.createdAt)}
-                                </Text>
-                            </Tooltip>
-                        </Group>
-                        <Text fz="xs" c="ldGray.7" lineClamp={2}>
-                            {item.errorMessage ?? 'Unknown error'}
-                        </Text>
-                    </UnstyledButton>
-                ))}
-            </Box>
-        )}
-    </Paper>
-);
+                            <Text fz="xs" c="ldGray.7" lineClamp={2}>
+                                {item.errorMessage ??
+                                    t('mcp.overview.unknownError')}
+                            </Text>
+                        </UnstyledButton>
+                    ))}
+                </Box>
+            )}
+        </Paper>
+    );
+};
 
 type McpActivityOverviewProps = {
     stats: McpActivityStats | undefined;
@@ -283,6 +318,7 @@ export const McpActivityOverview: FC<McpActivityOverviewProps> = ({
     hasActiveFilters,
     onErrorSelect,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     if (!stats) {
         return (
             <>
@@ -292,7 +328,7 @@ export const McpActivityOverview: FC<McpActivityOverviewProps> = ({
                 {isError ? (
                     <InlineErrorState
                         className={styles.dottedCard}
-                        message="Couldn't load activity stats."
+                        message={t('mcp.overview.loadError')}
                         onRetry={onRetry}
                     />
                 ) : (
@@ -315,8 +351,8 @@ export const McpActivityOverview: FC<McpActivityOverviewProps> = ({
                 <Paper className={styles.card} p="md">
                     <Text fz="sm" c="dimmed">
                         {hasActiveFilters
-                            ? 'No tool calls match the current filters.'
-                            : 'No MCP tool calls in the last 90 days.'}
+                            ? t('mcp.overview.noMatches')
+                            : t('mcp.overview.noCalls')}
                     </Text>
                 </Paper>
             ) : (

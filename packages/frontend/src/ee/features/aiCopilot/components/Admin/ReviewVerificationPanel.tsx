@@ -26,9 +26,11 @@ import {
     IconRefresh,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useProjectValidation } from '../../../../../hooks/validation/useValidation';
+import i18n from '../../../../../i18n/i18n';
 import {
     useAiAgentReviewItemPrDiff,
     useProjectUpstreamDiff,
@@ -63,9 +65,24 @@ const summariseChecks = (
         checks.filter((c) => c.state === state).length;
     const failed = count(CiCheckState.FAILURE);
     const pending = count(CiCheckState.PENDING);
-    if (failed > 0) return { color: 'red.8', label: `${failed} failing` };
-    if (pending > 0) return { color: 'yellow.8', label: `${pending} running` };
-    return { color: 'green.8', label: `${checks.length} passed` };
+    const ns = 'aiCopilotAdmin';
+    if (failed > 0)
+        return {
+            color: 'red.8',
+            label: i18n.t('verification.checksFailing', { ns, count: failed }),
+        };
+    if (pending > 0)
+        return {
+            color: 'yellow.8',
+            label: i18n.t('verification.checksRunning', { ns, count: pending }),
+        };
+    return {
+        color: 'green.8',
+        label: i18n.t('verification.checksPassed', {
+            ns,
+            count: checks.length,
+        }),
+    };
 };
 
 const Row: FC<{
@@ -90,6 +107,7 @@ export const ReviewVerificationPanel: FC<Props> = ({
     onRetry,
     onMarkDone,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const [diffOpened, setDiffOpened] = useState(false);
     const [fieldsOpened, setFieldsOpened] = useState(false);
     const [validationOpened, setValidationOpened] = useState(false);
@@ -158,12 +176,12 @@ export const ReviewVerificationPanel: FC<Props> = ({
                             size="lg"
                         />
                         <Text fz="sm" fw={600}>
-                            Verified
+                            {t('verification.verified')}
                         </Text>
                     </Group>
                 ) : (
                     <Text fz="sm" fw={600} c="dimmed">
-                        Verification
+                        {t('verification.title')}
                     </Text>
                 )}
 
@@ -184,8 +202,10 @@ export const ReviewVerificationPanel: FC<Props> = ({
                                 icon={IconGitPullRequest}
                                 label={
                                     prNumber
-                                        ? `Pull request #${prNumber}`
-                                        : 'Pull request'
+                                        ? t('verification.pullRequestNumber', {
+                                              number: prNumber,
+                                          })
+                                        : t('verification.pullRequest')
                                 }
                                 trailing={
                                     <MantineIcon
@@ -205,7 +225,7 @@ export const ReviewVerificationPanel: FC<Props> = ({
                         >
                             <Row
                                 icon={IconFileDiff}
-                                label="Changes"
+                                label={t('verification.changes')}
                                 trailing={
                                     isLoadingPrDiff ? (
                                         <Loader size={12} color="gray" />
@@ -244,7 +264,7 @@ export const ReviewVerificationPanel: FC<Props> = ({
                         >
                             <Row
                                 icon={IconChecks}
-                                label="Checks"
+                                label={t('verification.checks')}
                                 trailing={
                                     <Text
                                         fz="sm"
@@ -265,7 +285,7 @@ export const ReviewVerificationPanel: FC<Props> = ({
                         >
                             <Row
                                 icon={IconColumns}
-                                label="Fields"
+                                label={t('verification.fields')}
                                 trailing={
                                     isLoadingFields ? (
                                         <Loader size={12} color="gray" />
@@ -313,7 +333,7 @@ export const ReviewVerificationPanel: FC<Props> = ({
                         >
                             <Row
                                 icon={IconListCheck}
-                                label="Validator"
+                                label={t('verification.validator')}
                                 trailing={
                                     isLoadingValidation ? (
                                         <Loader size={12} color="gray" />
@@ -345,7 +365,7 @@ export const ReviewVerificationPanel: FC<Props> = ({
                         >
                             <Row
                                 icon={IconMessages}
-                                label="Where it was flagged"
+                                label={t('verification.whereFlagged')}
                                 trailing={
                                     <MantineIcon
                                         icon={IconArrowUpRight}
@@ -363,7 +383,10 @@ export const ReviewVerificationPanel: FC<Props> = ({
                             disabled={isBusy}
                             onClick={onRetry}
                         >
-                            <Row icon={IconRefresh} label="Retry question" />
+                            <Row
+                                icon={IconRefresh}
+                                label={t('verification.retryQuestion')}
+                            />
                         </UnstyledButton>
                     )}
                 </Stack>
@@ -377,7 +400,7 @@ export const ReviewVerificationPanel: FC<Props> = ({
                         fz="sm"
                         fw={500}
                     >
-                        Back to issues
+                        {t('verification.backToIssues')}
                     </Anchor>
                 ) : (
                     <Button
@@ -390,7 +413,7 @@ export const ReviewVerificationPanel: FC<Props> = ({
                             <MantineIcon icon={IconCircleCheck} size="sm" />
                         }
                     >
-                        Mark as done
+                        {t('verification.markDone')}
                     </Button>
                 )}
             </Stack>

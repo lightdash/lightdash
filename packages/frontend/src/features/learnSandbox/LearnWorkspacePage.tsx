@@ -21,6 +21,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, Navigate } from 'react-router';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import ResizableSplitter from '../../components/common/ResizableSplitter';
@@ -67,6 +68,7 @@ const Workspace: FC<WorkspaceProps> = ({
     projectUuid,
     trainingProjectUuid,
 }) => {
+    const { t } = useTranslation('learn');
     const { showToastApiError } = useToaster();
     const route = useOptionalProjectRoute();
     const queryClient = useQueryClient();
@@ -225,7 +227,7 @@ const Workspace: FC<WorkspaceProps> = ({
                 return true;
             } catch (e) {
                 showToastApiError({
-                    title: 'Could not save the file',
+                    title: t('workspace.saveFailed'),
                     apiError: (e as ApiError).error,
                 });
                 return false;
@@ -245,6 +247,7 @@ const Workspace: FC<WorkspaceProps> = ({
         saveFile,
         selectedPath,
         showToastApiError,
+        t,
     ]);
 
     const handleRun = useCallback(async () => {
@@ -257,8 +260,10 @@ const Workspace: FC<WorkspaceProps> = ({
             if (!(await saveIfDirty())) {
                 setTerminalError(
                     invalid !== null
-                        ? `${invalid.replace(/ to continue$/, '')}, then run the command again`
-                        : 'The file could not be saved, so nothing ran',
+                        ? t('workspace.fixThenRun', {
+                              problem: invalid.replace(/ to continue$/, ''),
+                          })
+                        : t('workspace.saveFailedNothingRan'),
                 );
                 return;
             }
@@ -276,8 +281,7 @@ const Workspace: FC<WorkspaceProps> = ({
                 setActiveCommandUuid(commandUuid);
             } catch (e) {
                 const message =
-                    (e as ApiError).error?.message ??
-                    'Could not run that command';
+                    (e as ApiError).error?.message ?? t('workspace.runFailed');
                 // The workspace runs one command at a time: when the server
                 // says another is already in flight it names it, and the pane
                 // attaches to that command's output instead of reporting a
@@ -292,7 +296,7 @@ const Workspace: FC<WorkspaceProps> = ({
         } finally {
             setIsRunPending(false);
         }
-    }, [commandInput, runCommand, saveIfDirty, invalid]);
+    }, [commandInput, runCommand, saveIfDirty, invalid, t]);
 
     return (
         <Box className={styles.shell} data-learn-workspace>
@@ -304,7 +308,7 @@ const Workspace: FC<WorkspaceProps> = ({
             >
                 <Group gap="xs" wrap="nowrap">
                     <Text fz="sm" fw={600} c="ldGray.9">
-                        Workspace
+                        {t('workspace.title')}
                     </Text>
                     {route?.project.name ? (
                         <Text fz="sm" c="ldGray.6" truncate>
@@ -318,13 +322,13 @@ const Workspace: FC<WorkspaceProps> = ({
                     fz="sm"
                     data-learn-back-to-library
                 >
-                    Back to library
+                    {t('done.backToLibrary')}
                 </Anchor>
             </Group>
             <ResizableSplitter
                 className={styles.panels}
                 orientation="horizontal"
-                handleLabel="Resize the file tree"
+                handleLabel={t('workspace.resizeFileTree')}
             >
                 <ResizableSplitter.Pane
                     className={styles.panel}
@@ -338,7 +342,7 @@ const Workspace: FC<WorkspaceProps> = ({
                                 m="xs"
                                 message={
                                     filesError?.error?.message ??
-                                    'Could not load the file tree'
+                                    t('workspace.fileTreeLoadFailed')
                                 }
                             />
                         ) : (
@@ -358,7 +362,7 @@ const Workspace: FC<WorkspaceProps> = ({
                 >
                     <ResizableSplitter
                         orientation="vertical"
-                        handleLabel="Resize the terminal"
+                        handleLabel={t('workspace.resizeTerminal')}
                     >
                         <ResizableSplitter.Pane
                             className={styles.panel}
@@ -371,7 +375,7 @@ const Workspace: FC<WorkspaceProps> = ({
                                     <InlineErrorState
                                         message={
                                             fileError?.error?.message ??
-                                            'Could not load the file'
+                                            t('workspace.fileLoadFailed')
                                         }
                                     />
                                 </Center>
@@ -395,14 +399,14 @@ const Workspace: FC<WorkspaceProps> = ({
                                     <Group gap="xs">
                                         <Loader size="sm" />
                                         <Text fz="sm" c="ldGray.6">
-                                            Loading file…
+                                            {t('workspace.loadingFile')}
                                         </Text>
                                     </Group>
                                 </Center>
                             ) : (
                                 <Center className={styles.editorEmpty}>
                                     <Text fz="sm" c="ldGray.6">
-                                        Pick a file to start
+                                        {t('workspace.pickFile')}
                                     </Text>
                                 </Center>
                             )}

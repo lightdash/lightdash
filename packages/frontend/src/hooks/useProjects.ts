@@ -5,6 +5,7 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 
@@ -32,18 +33,19 @@ const deleteProjectQuery = async (id: string) =>
 
 export const useDeleteProjectMutation = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(deleteProjectQuery, {
         mutationKey: ['organization_project_delete'],
         onSuccess: async () => {
             await queryClient.invalidateQueries(['projects']);
             showToastSuccess({
-                title: `Deleted! Project was deleted.`,
+                title: t('useProjects.deletedProjectWasDeleted'),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to delete project`,
+                title: t('useProjects.failedToDeleteProject'),
                 apiError: error,
             });
         },

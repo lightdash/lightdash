@@ -20,6 +20,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
 import {
     useDeleteOktaSsoConfig,
@@ -49,6 +50,7 @@ type FormValues = {
 };
 
 const OktaSsoPanel: FC = () => {
+    const { t } = useTranslation('userSettings');
     const { data: existing, isLoading } = useOktaSsoConfig();
     const upsert = useUpsertOktaSsoConfig();
     const deleteConfig = useDeleteOktaSsoConfig();
@@ -72,18 +74,26 @@ const OktaSsoPanel: FC = () => {
         },
         validate: {
             oauth2Issuer: (value) =>
-                value.trim().length === 0 ? 'Issuer is required' : null,
+                value.trim().length === 0
+                    ? t('organizationSso.ssoPanel.validation.issuerRequired')
+                    : null,
             oktaDomain: (value) =>
-                value.trim().length === 0 ? 'Okta domain is required' : null,
+                value.trim().length === 0
+                    ? t('organizationSso.okta.domainRequired')
+                    : null,
             oauth2ClientId: (value) =>
-                value.trim().length === 0 ? 'Client ID is required' : null,
+                value.trim().length === 0
+                    ? t('organizationSso.ssoPanel.validation.clientIdRequired')
+                    : null,
             oauth2ClientSecret: (value) =>
                 !existing && value.trim().length === 0
-                    ? 'Client secret is required'
+                    ? t(
+                          'organizationSso.ssoPanel.validation.clientSecretRequired',
+                      )
                     : null,
             emailDomains: (value, values) =>
                 values.overrideEmailDomains && value.length === 0
-                    ? 'Add at least one domain when override is enabled'
+                    ? t('organizationSso.ssoPanel.validation.domainsRequired')
                     : null,
         },
     });
@@ -173,21 +183,20 @@ const OktaSsoPanel: FC = () => {
                                 w={28}
                                 h={28}
                                 mt={2}
-                                alt="Okta logo"
+                                alt={t('organizationSso.ssoPanel.logoAlt', {
+                                    provider: 'Okta',
+                                })}
                             />
                             <Stack gap={2}>
                                 <Title order={5}>Okta</Title>
                                 <Text c="dimmed" size="sm" maw={460}>
-                                    Single sign-on via Okta. Users whose email
-                                    matches the discovery whitelist see a "Sign
-                                    in with Okta" button; instance-level SSO is
-                                    suppressed for matched users.
+                                    {t('organizationSso.okta.description')}
                                 </Text>
                             </Stack>
                         </Group>
                         {isConfigured ? (
                             <Switch
-                                label="Enabled"
+                                label={t('organizationSso.ssoPanel.enabled')}
                                 labelPosition="left"
                                 checked={form.values.enabled}
                                 disabled={upsert.isLoading}
@@ -199,7 +208,7 @@ const OktaSsoPanel: FC = () => {
                             />
                         ) : (
                             <Badge variant="outline" size="lg">
-                                Not configured
+                                {t('organizationSso.ssoPanel.notConfigured')}
                             </Badge>
                         )}
                     </Group>
@@ -218,8 +227,12 @@ const OktaSsoPanel: FC = () => {
                             onClick={() => toggleOpen()}
                         >
                             {isOpen
-                                ? 'Hide configuration'
-                                : 'Edit configuration'}
+                                ? t(
+                                      'organizationSso.ssoPanel.hideConfiguration',
+                                  )
+                                : t(
+                                      'organizationSso.ssoPanel.editConfiguration',
+                                  )}
                         </Button>
                     ) : (
                         !isOpen && (
@@ -228,7 +241,9 @@ const OktaSsoPanel: FC = () => {
                                 w="fit-content"
                                 onClick={() => toggleOpen()}
                             >
-                                Set up Okta
+                                {t('organizationSso.ssoPanel.setUp', {
+                                    provider: 'Okta',
+                                })}
                             </Button>
                         )
                     )}
@@ -243,39 +258,60 @@ const OktaSsoPanel: FC = () => {
                             <form onSubmit={handleSubmit}>
                                 <Stack>
                                     <Title order={6}>
-                                        Application credentials
+                                        {t(
+                                            'organizationSso.ssoPanel.applicationCredentials',
+                                        )}
                                     </Title>
                                     <TextInput
-                                        label="Okta domain"
+                                        label={t('organizationSso.okta.domain')}
                                         placeholder="your-org.okta.com"
-                                        description="Your Okta organization domain (without https://)."
+                                        description={t(
+                                            'organizationSso.okta.domainDescription',
+                                        )}
                                         required
                                         {...form.getInputProps('oktaDomain')}
                                     />
                                     <TextInput
-                                        label="Issuer URL"
+                                        label={t(
+                                            'organizationSso.ssoPanel.issuerUrl',
+                                        )}
                                         placeholder="https://your-org.okta.com"
-                                        description="The OAuth issuer URL from your Okta application."
+                                        description={t(
+                                            'organizationSso.okta.issuerDescription',
+                                        )}
                                         required
                                         {...form.getInputProps('oauth2Issuer')}
                                     />
                                     <TextInput
-                                        label="Client ID"
+                                        label={t(
+                                            'organizationSso.ssoPanel.clientId',
+                                        )}
                                         placeholder="0oa1b2c3d4e5f6g7h8i9"
-                                        description="From the Okta application's General settings."
+                                        description={t(
+                                            'organizationSso.okta.clientIdDescription',
+                                        )}
                                         required
                                         {...form.getInputProps(
                                             'oauth2ClientId',
                                         )}
                                     />
                                     <PasswordInput
-                                        label="Client secret"
+                                        label={t(
+                                            'organizationSso.ssoPanel.clientSecret',
+                                        )}
                                         placeholder={
                                             existing
-                                                ? 'Leave blank to keep the existing secret'
-                                                : 'Okta client secret value'
+                                                ? t(
+                                                      'organizationSso.ssoPanel.keepExistingSecret',
+                                                  )
+                                                : t(
+                                                      'organizationSso.ssoPanel.clientSecretPlaceholder',
+                                                      { provider: 'Okta' },
+                                                  )
                                         }
-                                        description="The client secret from the Okta application."
+                                        description={t(
+                                            'organizationSso.okta.clientSecretDescription',
+                                        )}
                                         required={!existing}
                                         {...form.getInputProps(
                                             'oauth2ClientSecret',
@@ -283,25 +319,39 @@ const OktaSsoPanel: FC = () => {
                                     />
 
                                     <Title order={6} mt="md">
-                                        Advanced
+                                        {t('organizationSso.ssoPanel.advanced')}
                                     </Title>
                                     <TextInput
-                                        label="Authorization server ID"
-                                        placeholder="Optional — for custom authorization servers"
-                                        description="Set this only if you use a custom Okta authorization server (API Access Management)."
+                                        label={t(
+                                            'organizationSso.okta.authorizationServerId',
+                                        )}
+                                        placeholder={t(
+                                            'organizationSso.okta.authorizationServerIdPlaceholder',
+                                        )}
+                                        description={t(
+                                            'organizationSso.okta.authorizationServerIdDescription',
+                                        )}
                                         {...form.getInputProps(
                                             'authorizationServerId',
                                         )}
                                     />
                                     <TextInput
-                                        label="Extra scopes"
-                                        placeholder="Optional — space-separated, e.g. groups"
-                                        description="Additional OAuth scopes requested alongside openid, profile and email."
+                                        label={t(
+                                            'organizationSso.okta.extraScopes',
+                                        )}
+                                        placeholder={t(
+                                            'organizationSso.okta.extraScopesPlaceholder',
+                                        )}
+                                        description={t(
+                                            'organizationSso.okta.extraScopesDescription',
+                                        )}
                                         {...form.getInputProps('extraScopes')}
                                     />
 
                                     <Title order={6} mt="md">
-                                        Discovery
+                                        {t(
+                                            'organizationSso.ssoPanel.discovery',
+                                        )}
                                     </Title>
                                     <SsoMethodDomainsField
                                         providerLabel="Okta"
@@ -325,11 +375,18 @@ const OktaSsoPanel: FC = () => {
                                     />
 
                                     <Title order={6} mt="md">
-                                        Password sign-in
+                                        {t(
+                                            'organizationSso.ssoPanel.passwordSignIn',
+                                        )}
                                     </Title>
                                     <Checkbox
-                                        label="Allow password sign-in for users matching this method"
-                                        description="When unchecked, users whose email domain matches Okta discovery will not see the password input. Lenient rule: if any matching method allows password, it is shown."
+                                        label={t(
+                                            'organizationSso.ssoPanel.allowPassword',
+                                        )}
+                                        description={t(
+                                            'organizationSso.ssoPanel.allowPasswordDescription',
+                                            { provider: 'Okta' },
+                                        )}
                                         checked={form.values.allowPassword}
                                         onChange={(event) =>
                                             form.setFieldValue(
@@ -353,7 +410,9 @@ const OktaSsoPanel: FC = () => {
                                                     setDeleteOpen(true)
                                                 }
                                             >
-                                                Remove configuration
+                                                {t(
+                                                    'organizationSso.ssoPanel.removeConfiguration',
+                                                )}
                                             </Button>
                                         ) : (
                                             <div />
@@ -364,8 +423,13 @@ const OktaSsoPanel: FC = () => {
                                             disabled={upsert.isLoading}
                                         >
                                             {existing
-                                                ? 'Save changes'
-                                                : 'Enable Okta'}
+                                                ? t(
+                                                      'organizationSso.ssoPanel.saveChanges',
+                                                  )
+                                                : t(
+                                                      'organizationSso.ssoPanel.enable',
+                                                      { provider: 'Okta' },
+                                                  )}
                                         </Button>
                                     </Group>
                                 </Stack>
@@ -380,9 +444,11 @@ const OktaSsoPanel: FC = () => {
                     opened
                     onClose={() => setDeleteOpen(false)}
                     role="alertdialog"
-                    title="Remove Okta configuration"
+                    title={t('organizationSso.ssoPanel.removeModalTitle', {
+                        provider: 'Okta',
+                    })}
                     icon={IconShieldCheck}
-                    cancelLabel="Cancel"
+                    cancelLabel={t('actions.cancel', { ns: 'common' })}
                     actions={
                         <Button
                             color="red"
@@ -392,14 +458,14 @@ const OktaSsoPanel: FC = () => {
                                 setDeleteOpen(false);
                             }}
                         >
-                            Remove
+                            {t('actions.remove', { ns: 'common' })}
                         </Button>
                     }
                 >
                     <Text>
-                        After removing this configuration, users in this
-                        organization will no longer be able to sign in with Okta
-                        via the per-organization configuration.
+                        {t('organizationSso.ssoPanel.removeModalBody', {
+                            provider: 'Okta',
+                        })}
                     </Text>
                 </MantineModal>
             )}

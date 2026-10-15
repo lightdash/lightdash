@@ -24,6 +24,7 @@ import {
 } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import { memo, useState, type FC, type ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
 import useHealth from '../../hooks/health/useHealth';
@@ -92,6 +93,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
         forceShowLimitSelection = false,
         renderDialogActions,
     }) => {
+        const { t } = useTranslation('export');
         const { showToastError, showToastInfo, showToastWarning } =
             useToaster();
 
@@ -157,8 +159,8 @@ const ExportResults: FC<ExportResultsProps> = memo(
                     onMutate: () => {
                         setHasExported(false);
                         showToastInfo({
-                            title: 'Exporting results',
-                            subtitle: 'This may take a few minutes...',
+                            title: t('exportResults.toast.exporting'),
+                            subtitle: t('exportResults.toast.mayTakeMinutes'),
                             loading: true,
                             key: TOAST_KEY,
                             autoClose: false,
@@ -172,7 +174,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                             .then(async (details) => {
                                 if (!details?.fileUrl) {
                                     throw new Error(
-                                        'The export did not return a download URL.',
+                                        t('exportResults.errors.noDownloadUrl'),
                                     );
                                 }
                                 const link = document.createElement('a');
@@ -191,16 +193,21 @@ const ExportResults: FC<ExportResultsProps> = memo(
 
                                 if (details?.truncated) {
                                     showToastWarning({
-                                        title: 'The results in this export have been limited.',
-                                        subtitle:
-                                            'The export was truncated due to size constraints.',
+                                        title: t(
+                                            'exportResults.toast.truncatedTitle',
+                                        ),
+                                        subtitle: t(
+                                            'exportResults.toast.truncatedSubtitle',
+                                        ),
                                     });
                                 }
                             })
                             .catch((error: Error) => {
                                 notifications.hide(TOAST_KEY);
                                 showToastError({
-                                    title: 'Unable to download results',
+                                    title: t(
+                                        'exportResults.toast.downloadFailed',
+                                    ),
                                     subtitle: error.message,
                                 });
                             });
@@ -209,7 +216,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                         notifications.hide(TOAST_KEY);
 
                         showToastError({
-                            title: 'Unable to download results',
+                            title: t('exportResults.toast.downloadFailed'),
                             subtitle: error?.error?.message,
                         });
                     },
@@ -217,7 +224,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
             );
 
         if (!totalResults || totalResults <= 0) {
-            return <Alert color="gray">No data to export</Alert>;
+            return <Alert color="gray">{t('exportResults.noData')}</Alert>;
         }
 
         const csvCellsLimit = health.data?.query?.csvCellsLimit || 100000;
@@ -239,7 +246,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                     onChange={(value) => setLimit(value as Limit)}
                     data={[
                         {
-                            label: 'Table rows',
+                            label: t('exportResults.limit.tableRows'),
                             value: Limit.TABLE,
                         },
                         {
@@ -255,20 +262,20 @@ const ExportResults: FC<ExportResultsProps> = memo(
                                     data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"] >> [data-tour-anchor="results-heading"] >> [data-tour-anchor="export-results"] >> [data-tour-anchor="export-choose-download"]?'
                                     data-tour-then='[data-tour-anchor="export-download"]'
                                 >
-                                    All results
+                                    {t('exportResults.limit.allResults')}
                                 </span>
                             ),
                             value: Limit.ALL,
                         },
                         {
-                            label: 'Custom',
+                            label: t('exportResults.limit.custom'),
                             value: Limit.CUSTOM,
                         },
                     ]}
                 />
                 {limit === Limit.CUSTOM && (
                     <NumberInput
-                        label="Rows to export"
+                        label={t('exportResults.limit.rowsToExport')}
                         size="sm"
                         min={1}
                         allowDecimal={false}
@@ -286,11 +293,11 @@ const ExportResults: FC<ExportResultsProps> = memo(
                 <Stack gap={4}>
                     <Group gap={4}>
                         <Text fw={600} fz="sm">
-                            Layout
+                            {t('exportResults.layout.title')}
                         </Text>
                         <Tooltip
                             maw={300}
-                            label="Grouped keeps the chart's pivoted columns. Flat exports the raw rows behind the chart."
+                            label={t('exportResults.layout.tooltip')}
                             position="top"
                         >
                             <div>
@@ -303,8 +310,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                         </Tooltip>
                     </Group>
                     <Text fz="xs" c="dimmed">
-                        Choose whether to export the chart&apos;s grouped layout
-                        or the underlying flat rows.
+                        {t('exportResults.layout.description')}
                     </Text>
                 </Stack>
                 <SegmentedControl
@@ -322,11 +328,11 @@ const ExportResults: FC<ExportResultsProps> = memo(
                     }
                     data={[
                         {
-                            label: 'Grouped',
+                            label: t('exportResults.layout.grouped'),
                             value: EXPORT_DATA_LAYOUT.PIVOTED,
                         },
                         {
-                            label: 'Flat',
+                            label: t('exportResults.layout.flat'),
                             value: EXPORT_DATA_LAYOUT.UNPIVOTED,
                         },
                     ]}
@@ -355,11 +361,10 @@ const ExportResults: FC<ExportResultsProps> = memo(
                 {isDialog && (
                     <Stack gap="xs">
                         <Text fz="xs" fw={600} tt="uppercase" c="dimmed">
-                            Export configuration
+                            {t('exportResults.dialog.title')}
                         </Text>
                         <Text fz="sm" c="dimmed">
-                            Choose the file type, value format, and result scope
-                            for this export.
+                            {t('exportResults.dialog.description')}
                         </Text>
                     </Stack>
                 )}
@@ -384,11 +389,10 @@ const ExportResults: FC<ExportResultsProps> = memo(
                         <Stack gap="sm">
                             <Stack gap={4}>
                                 <Text fw={600} fz="sm">
-                                    File format
+                                    {t('exportResults.fileFormat.title')}
                                 </Text>
                                 <Text fz="xs" c="dimmed">
-                                    CSV is best for pipelines. XLSX is ready for
-                                    spreadsheet tools.
+                                    {t('exportResults.fileFormat.description')}
                                 </Text>
                             </Stack>
                             <SegmentedControl
@@ -414,11 +418,10 @@ const ExportResults: FC<ExportResultsProps> = memo(
                         <Stack gap="sm">
                             <Stack gap={4}>
                                 <Text fw={600} fz="sm">
-                                    Values
+                                    {t('exportResults.values.title')}
                                 </Text>
                                 <Text fz="xs" c="dimmed">
-                                    Formatted keeps table presentation. Raw uses
-                                    the underlying values.
+                                    {t('exportResults.values.description')}
                                 </Text>
                             </Stack>
                             <SegmentedControl
@@ -428,10 +431,15 @@ const ExportResults: FC<ExportResultsProps> = memo(
                                 onChange={(value) => setFormat(value)}
                                 data={[
                                     {
-                                        label: 'Formatted',
+                                        label: t(
+                                            'exportResults.values.formatted',
+                                        ),
                                         value: Values.FORMATTED,
                                     },
-                                    { label: 'Raw', value: Values.RAW },
+                                    {
+                                        label: t('exportResults.values.raw'),
+                                        value: Values.RAW,
+                                    },
                                 ]}
                             />
                         </Stack>
@@ -443,11 +451,14 @@ const ExportResults: FC<ExportResultsProps> = memo(
                                 <Stack gap="sm">
                                     <Stack gap={4}>
                                         <Text fw={600} fz="sm">
-                                            Result scope
+                                            {t(
+                                                'exportResults.resultScope.title',
+                                            )}
                                         </Text>
                                         <Text fz="xs" c="dimmed">
-                                            Export only the visible table rows
-                                            or expand the result set.
+                                            {t(
+                                                'exportResults.resultScope.description',
+                                            )}
                                         </Text>
                                     </Stack>
                                     {limitSelection}
@@ -464,11 +475,14 @@ const ExportResults: FC<ExportResultsProps> = memo(
                                     <Stack gap="sm">
                                         <Stack gap={4}>
                                             <Text fw={600} fz="sm">
-                                                Result scope
+                                                {t(
+                                                    'exportResults.resultScope.title',
+                                                )}
                                             </Text>
                                             <Text fz="xs" c="dimmed">
-                                                Export only the visible table
-                                                rows or expand the result set.
+                                                {t(
+                                                    'exportResults.resultScope.description',
+                                                )}
                                             </Text>
                                         </Stack>
                                         {limitSelection}
@@ -488,12 +502,23 @@ const ExportResults: FC<ExportResultsProps> = memo(
                                     color="dimmed"
                                 />
                                 <Text size="xs" c="dimmed">
-                                    <Text span fw={500} c="foreground">
-                                        Pivot export limit.
-                                    </Text>{' '}
-                                    Pivot exports are limited to{' '}
-                                    {csvCellsLimit.toLocaleString()} cells and{' '}
-                                    {maxColumnLimit} columns.
+                                    <Trans
+                                        t={t}
+                                        i18nKey="exportResults.pivotLimitNote"
+                                        values={{
+                                            cells: csvCellsLimit.toLocaleString(),
+                                            columns: maxColumnLimit,
+                                        }}
+                                        components={{
+                                            strong: (
+                                                <Text
+                                                    span
+                                                    fw={500}
+                                                    c="foreground"
+                                                />
+                                            ),
+                                        }}
+                                    />
                                 </Text>
                             </Group>
                         )}
@@ -512,11 +537,19 @@ const ExportResults: FC<ExportResultsProps> = memo(
                                         color="dimmed"
                                     />
                                     <Text size="xs" c="dimmed">
-                                        <Text span fw={500} c="foreground">
-                                            Excel row limit.
-                                        </Text>{' '}
-                                        Excel exports are limited to 1,000,000
-                                        rows.
+                                        <Trans
+                                            t={t}
+                                            i18nKey="exportResults.excelLimitNote"
+                                            components={{
+                                                strong: (
+                                                    <Text
+                                                        span
+                                                        fw={500}
+                                                        c="foreground"
+                                                    />
+                                                ),
+                                            }}
+                                        />
                                     </Text>
                                 </Group>
                             )}
@@ -547,7 +580,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                         data-tour-hint="Click Download"
                         ml="auto"
                     >
-                        Download
+                        {t('actions.download', { ns: 'common' })}
                     </Button>
                 ) : (
                     <Stack gap="sm">

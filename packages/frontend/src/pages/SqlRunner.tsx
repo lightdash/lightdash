@@ -1,6 +1,7 @@
 import { getFieldQuoteChar } from '@lightdash/common';
 import { Stack } from '@mantine/core';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Provider } from 'react-redux';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useMount, useUnmount } from 'react-use';
@@ -59,6 +60,7 @@ const SqlRunner = ({
     isEditMode?: boolean;
     virtualViewState?: VirtualViewState;
 }) => {
+    const { t } = useTranslation('pages');
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const mode = useAppSelector((state) => state.sqlRunner.mode);
@@ -106,7 +108,7 @@ const SqlRunner = ({
                 });
             }
             showToastError({
-                title: `Unable to load shared SQL runner state`,
+                title: t('sqlRunner.sharedStateError'),
                 subtitle: shareState.error.message,
             });
             return;
@@ -167,6 +169,7 @@ const SqlRunner = ({
         shareConnectionsError,
         dispatch,
         showToastError,
+        t,
         track,
         fallbackOrganizationUuid,
         projectUuid,
@@ -256,11 +259,11 @@ const SqlRunner = ({
             sharedConnectionUuid={shareState.warehouseConnectionUuid}
         >
             <Page
-                title="SQL Runner"
+                title={t('sqlRunner.title')}
                 noContentPadding
                 flexContent
                 sidebar={<SqlRunnerSidebar />}
-                sidebarTitle="Tables"
+                sidebarTitle={t('explorer.tables')}
             >
                 <Stack gap={0} flex={1} miw={0}>
                     {mode === 'virtualView' && virtualViewState ? (
@@ -291,17 +294,18 @@ const SqlRunnerNewPage = ({
     isEditMode?: boolean;
     virtualViewState?: VirtualViewState;
 }) => {
+    const { t } = useTranslation('pages');
     const projectUuid = useProjectUuid();
     const { data: project, isInitialLoading, error } = useProject(projectUuid);
 
     if (error) return <ErrorState error={error.error} />;
     if (isInitialLoading || !project) {
-        return <SuboptimalState title="Loading project" loading />;
+        return (
+            <SuboptimalState title={t('sqlRunner.loadingProject')} loading />
+        );
     }
     if (project.provisioningSource === 'analytics') {
-        return (
-            <SuboptimalState title="SQL Runner is unavailable for managed analytics projects" />
-        );
+        return <SuboptimalState title={t('sqlRunner.unavailableManaged')} />;
     }
 
     return (

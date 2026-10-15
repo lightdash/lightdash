@@ -15,9 +15,11 @@ import { IconInfoCircle, IconPlayerPause } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import InlineErrorState from '../../../components/common/InlineErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { SettingsPage } from '../../../components/common/Settings/SettingsPage';
+import i18n from '../../../i18n/i18n';
 import { findBlockingAiCreditHold } from './aiCreditHolds';
 import classes from './AiCreditsSettingsPage.module.css';
 import { AiCreditsUsageBar } from './AiCreditsUsageBar';
@@ -41,10 +43,12 @@ const formatLastDay = (periodEnd: Date) =>
     dayjs.utc(periodEnd).subtract(1, 'millisecond').format('D MMM YYYY');
 
 const describePeriodLength = (months: number): string => {
-    if (months === 1) return 'Monthly';
-    if (months === 3) return 'Quarterly';
-    if (months === 12) return 'Yearly';
-    return `Every ${months} months`;
+    const tr = (key: string, options?: Record<string, unknown>) =>
+        i18n.t(`aiCredits.period.${key}`, { ns: 'eeMisc', ...options });
+    if (months === 1) return tr('monthly');
+    if (months === 3) return tr('quarterly');
+    if (months === 12) return tr('yearly');
+    return tr('everyMonths', { count: months });
 };
 
 // When the contract ends with this period, the allowance doesn't reset.
@@ -88,8 +92,14 @@ const getUsageNotice = (usage: AiCreditUsageSummary): UsageNotice | null => {
         keepsWorking: usage.contract?.allowanceMode === 'warn',
         overageCredits: overage > 0 ? formatCredits(overage) : null,
         endsOrResets: isContractEndingThisPeriod(usage)
-            ? `Your contract ends on ${formatDate(usage.period.periodEnd)}.`
-            : `It resets on ${formatDate(usage.period.periodEnd)}.`,
+            ? i18n.t('aiCredits.contractEndsOn', {
+                  ns: 'eeMisc',
+                  date: formatDate(usage.period.periodEnd),
+              })
+            : i18n.t('aiCredits.resetsOn', {
+                  ns: 'eeMisc',
+                  date: formatDate(usage.period.periodEnd),
+              }),
     });
 };
 
@@ -100,6 +110,7 @@ const NOTICE_STYLE = {
 } as const satisfies Record<UsageNoticeSeverity, unknown>;
 
 const UsageSummary: FC<{ usage: AiCreditUsageSummary }> = ({ usage }) => {
+    const { t } = useTranslation('eeMisc');
     const { period, contract, billable } = usage;
     const allowance = contract?.allowanceCredits ?? null;
     const notice = getUsageNotice(usage);
@@ -136,9 +147,11 @@ const UsageSummary: FC<{ usage: AiCreditUsageSummary }> = ({ usage }) => {
                     <Text fz="xl" fw={600}>
                         {formatCredits(billable.credits)}{' '}
                         <Text span inherit fw={400} c="dimmed">
-                            {allowance !== null &&
-                                `of ${formatAllowance(allowance)} `}
-                            credits used
+                            {allowance !== null
+                                ? t('aiCredits.ofAllowanceUsed', {
+                                      allowance: formatAllowance(allowance),
+                                  })
+                                : t('aiCredits.creditsUsed')}
                         </Text>
                     </Text>
                 </Group>
@@ -150,8 +163,7 @@ const UsageSummary: FC<{ usage: AiCreditUsageSummary }> = ({ usage }) => {
                 )}
                 {contract !== null && allowance === null && (
                     <Text fz="sm" c="dimmed">
-                        No allowance is set for this contract yet, so usage
-                        isn&apos;t measured against one.
+                        {t('aiCredits.noAllowance')}
                     </Text>
                 )}
                 {notice !== null && noticeStyle !== null ? (
@@ -166,7 +178,9 @@ const UsageSummary: FC<{ usage: AiCreditUsageSummary }> = ({ usage }) => {
                 ) : (
                     isContractEndingThisPeriod(usage) && (
                         <Text fz="sm" c="dimmed">
-                            Your contract ends on {formatDate(period.periodEnd)}
+                            {t('aiCredits.contractEndsOnNoPeriod', {
+                                date: formatDate(period.periodEnd),
+                            })}
                         </Text>
                     )
                 )}
@@ -175,25 +189,29 @@ const UsageSummary: FC<{ usage: AiCreditUsageSummary }> = ({ usage }) => {
     );
 };
 
-const AiCreditsPageSkeleton: FC = () => (
-    <Stack gap="lg" aria-busy="true" aria-label="Loading AI credit usage">
-        <Paper p="md">
-            <Stack gap="sm">
-                <Skeleton h={16} w="30%" />
-                <Skeleton h={24} w="45%" />
-                <Skeleton h={8} radius="xl" />
-            </Stack>
-        </Paper>
-        <Paper p="md">
-            <Stack gap="md">
-                <Skeleton h={16} w="25%" />
-                <Skeleton h={200} />
-            </Stack>
-        </Paper>
-    </Stack>
-);
+const AiCreditsPageSkeleton: FC = () => {
+    const { t } = useTranslation('eeMisc');
+    return (
+        <Stack gap="lg" aria-busy="true" aria-label={t('aiCredits.loading')}>
+            <Paper p="md">
+                <Stack gap="sm">
+                    <Skeleton h={16} w="30%" />
+                    <Skeleton h={24} w="45%" />
+                    <Skeleton h={8} radius="xl" />
+                </Stack>
+            </Paper>
+            <Paper p="md">
+                <Stack gap="md">
+                    <Skeleton h={16} w="25%" />
+                    <Skeleton h={200} />
+                </Stack>
+            </Paper>
+        </Stack>
+    );
+};
 
 export const AiCreditsSettingsPage: FC = () => {
+    const { t } = useTranslation('eeMisc');
     const {
         data: usage,
         isInitialLoading,
@@ -203,14 +221,14 @@ export const AiCreditsSettingsPage: FC = () => {
 
     return (
         <SettingsPage
-            title="AI credits"
-            description="Credits your organization has used on AI features in the current period."
+            title={t('aiCredits.title')}
+            description={t('aiCredits.description')}
         >
             {isInitialLoading ? (
                 <AiCreditsPageSkeleton />
             ) : isError || usage === undefined ? (
                 <InlineErrorState
-                    message="AI credit usage could not be loaded."
+                    message={t('aiCredits.loadError')}
                     onRetry={() => void refetch()}
                 />
             ) : (

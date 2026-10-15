@@ -80,5 +80,175 @@
         "invite": "Invitar usuario",
         "queryHistory": "Mi historial de consultas",
         "logout": "Cerrar sesión"
+    },
+    "whatsNew": "¿Qué hay de nuevo?",
+    "askAi": {
+        "label": "Preguntar a la IA",
+        "noOpenIssues": "Aún no hay incidencias abiertas. Registra una carencia de datos, una corrección o una solicitud desde un gráfico, un dashboard o el tablero.",
+        "goToIssuesBoard": "Ir al tablero de incidencias"
+    },
+    "autopilot": {
+        "label": "Autopilot",
+        "setUp": "Configurar Autopilot",
+        "resume": "Reanudar Autopilot",
+        "resuming": "Reanudando…",
+        "tagline": "Tu proyecto, siempre pulido y actualizado.",
+        "capabilities": {
+            "fixesBroken": "Corrige gráficos rotos",
+            "flagsStale": "Señala contenido obsoleto",
+            "createsVisualizations": "Crea visualizaciones nuevas"
+        },
+        "working": "Trabajando…",
+        "lastRunFailed": "La última ejecución falló",
+        "actionsStatus_one": "{{count}} acción · {{time}}",
+        "actionsStatus_other": "{{count}} acciones · {{time}}",
+        "monitoring": "Supervisando tu proyecto",
+        "viewActivity": "Ver actividad",
+        "relative": {
+            "justNow": "justo ahora",
+            "minutesAgo_one": "hace {{count}} min",
+            "minutesAgo_other": "hace {{count}} min",
+            "hoursAgo_one": "hace {{count}} h",
+            "hoursAgo_other": "hace {{count}} h",
+            "daysAgo_one": "hace {{count}} d",
+            "daysAgo_other": "hace {{count}} d"
+        },
+        "summary": {
+            "fixed_one": "{{count}} corregido",
+            "fixed_other": "{{count}} corregidos",
+            "created_one": "{{count}} creado",
+            "created_other": "{{count}} creados",
+            "flagged_one": "{{count}} señalado",
+            "flagged_other": "{{count}} señalados",
+            "deleted_one": "{{count}} eliminado",
+            "deleted_other": "{{count}} eliminados"
+        }
+    },
+    "notifications": {
+        "label": "Notificaciones",
+        "empty": "No hay notificaciones",
+        "validation": {
+            "title": "Errores de validación",
+            "description_one": "Nueva validación completada {{timeAgo}} con {{count}} error",
+            "description_other": "Nueva validación completada {{timeAgo}} con {{count}} errores"
+        }
+    },
+    "theme": {
+        "lightMode": "Modo claro",
+        "darkMode": "Modo oscuro"
+    },
+    "impersonation": {
+        "message": "Estás suplantando a otro usuario",
+        "stop": "Dejar de suplantar"
+    },
+    "trialBanner": {
+        "expired": "Tu prueba de Lightdash ha expirado. Contacta con sales@lightdash.com",
+        "expiredQueriesDisabled": "Tu prueba de Lightdash ha expirado y las consultas están deshabilitadas. Contacta con sales@lightdash.com para reactivarla."
+    },
+    "previewBanner": {
+        "message": "Este es un entorno de vista previa. Los cambios que hagas aquí no afectarán a producción.",
+        "expiresToday": "Expira hoy ({{date}}).",
+        "expiresIn_one": "Expira en {{count}} día ({{date}}).",
+        "expiresIn_other": "Expira en {{count}} días ({{date}}).",
+        "backTo": "volver a {{name}}"
+    },
+    "dashboardExplorer": {
+        "returnToDashboard": "Volver al dashboard",
+        "cancelCreationTooltip": "Cancelar la creación del gráfico y volver al dashboard",
+        "cancelEditingTooltip": "Cancelar la edición del gráfico y volver al dashboard",
+        "cancelling": "Cancelando...",
+        "creating": "Estás creando este gráfico desde un dashboard",
+        "creatingInNamed": "Estás creando este gráfico desde \"{{name}}\"",
+        "editing": "Estás editando este gráfico desde un dashboard",
+        "editingInNamed": "Estás editando este gráfico desde \"{{name}}\"",
+        "viewing": "Estás viendo este gráfico desde un dashboard",
+        "viewingInNamed": "Estás viendo este gráfico desde \"{{name}}\""
+    },
+    "sharedSignIn": {
+        "reconnect": "Reconectar"
+    },
+    "credentials": {
+        "label": "Credenciales del warehouse",
+        "createNew": "Crear nuevas",
+        "loadConnectionsFailed": "No se pudieron cargar las conexiones del warehouse: {{message}}",
+        "loginTo": "Iniciar sesión en {{warehouse}}",
+        "loginRequired": "El administrador de tu organización \"{{organization}}\" requiere que inicies sesión en {{warehouse}} para continuar.",
+        "defaultName": "Predeterminadas"
+    },
+    "projectSwitcher": {
+        "current": "actual",
+        "playground": "Playground",
+        "expiresToday": "Expira hoy",
+        "expiresInDays_one": "Expira en {{count}} d",
+        "expiresInDays_other": "Expira en {{count}} d",
+        "previewCount_one": "{{count}} vista previa",
+        "previewCount_other": "{{count}} vistas previas",
+        "nowViewing": "Ahora estás viendo {{name}}",
+        "goToProjectHome": "Ir al inicio del proyecto",
+        "ariaLabel": "Cambiar de proyecto, actual: {{name}}",
+        "none": "ninguno",
+        "selectProject": "Selecciona un proyecto",
+        "loading": "Cargando proyectos...",
+        "searchPreviewsIn": "Buscar vistas previas en {{name}}...",
+        "searchProjects": "Buscar proyectos...",
+        "projects": "Proyectos",
+        "noPreviewsMatch": "Ninguna vista previa coincide con \"{{query}}\"",
+        "noPreviews": "No hay vistas previas disponibles",
+        "createPreviewIn": "Crear vista previa en {{name}}",
+        "createPreview": "Crear vista previa",
+        "matchingPreviews_one": "Vistas previas coincidentes · {{count}}",
+        "matchingPreviews_other": "Vistas previas coincidentes · {{count}}",
+        "noProjectsMatch": "Ningún proyecto ni vista previa coincide con \"{{query}}\"",
+        "noProjects": "No hay proyectos disponibles"
+    },
+    "createPreview": {
+        "title": "Crear un proyecto de vista previa",
+        "create": "Crear vista previa",
+        "creating": "Creando vista previa",
+        "learnMore": "Más información sobre los proyectos de vista previa",
+        "requiresDeveloperAccess": "Requiere acceso de desarrollador",
+        "upstreamProject": {
+            "label": "Proyecto de origen",
+            "description": "El proyecto que se usará para crear el proyecto de vista previa",
+            "placeholder": "Selecciona un proyecto"
+        },
+        "name": {
+            "label": "Nombre del proyecto de vista previa",
+            "placeholder": "Introduce el nombre de la vista previa",
+            "generate": "Generar un nombre único"
+        },
+        "branch": {
+            "label": "Rama",
+            "loading": "Cargando ramas...",
+            "loadFailed": "No se pudieron cargar las ramas",
+            "placeholder": "Selecciona una rama",
+            "useDefault": "El proyecto usará la rama predeterminada.",
+            "fetchFailed": "No se pudieron obtener las ramas"
+        },
+        "schema": {
+            "label": "Esquema/Dataset",
+            "placeholder": "Cámbialo si quieres sobrescribir el esquema predeterminado"
+        },
+        "asyncCopy": {
+            "label": "Copiar contenido en segundo plano",
+            "description": "Evita tiempos de espera agotados al copiar proyectos grandes."
+        },
+        "envVars": {
+            "label": "Variables de entorno",
+            "keyPlaceholder": "Clave",
+            "valuePlaceholder": "Valor",
+            "addVariable": "Añadir variable",
+            "invalidKeys": "Las claves de las variables de entorno no pueden cambiar cómo se ejecuta dbt o sus procesos hijos. Claves no válidas: {{keys}}"
+        },
+        "manifest": {
+            "label": "manifest.json personalizado (opcional)",
+            "placeholder": "Pega aquí el contenido de tu manifest.json...",
+            "description": "Sube un manifest.json personalizado en lugar de generarlo a partir del proyecto dbt. Esto te permite usar modelos dbt precompilados.",
+            "missingFields": "manifest.json no válido: faltan campos obligatorios (nodes, metadata)",
+            "invalidJson": "Formato JSON no válido"
+        },
+        "advancedOptions": "Opciones de configuración avanzadas",
+        "unknownType": "desconocido",
+        "noGitIntegration": "Este proyecto <type>{{type}}</type> copiará los mismos detalles de conexión que su proyecto de origen. Para cambiar la rama del código fuente, cambia a una conexión de Github o GitLab en la <anchor>configuración del proyecto</anchor>."
     }
 }

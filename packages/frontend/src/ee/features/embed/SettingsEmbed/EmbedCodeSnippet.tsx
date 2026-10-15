@@ -15,6 +15,7 @@ import {
     IconBrandPython,
 } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import CodeBlock from '../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
@@ -1697,40 +1698,47 @@ const EmbedCodeSnippet: FC<{
     siteUrl: string;
     data: CreateEmbedJwt;
 }> = ({ mode, projectUuid, siteUrl, data }) => {
+    const { t } = useTranslation('embed');
     const { showToastSuccess } = useToaster();
 
     const handleCopySnippet = useCallback(() => {
-        showToastSuccess({ title: 'Code snippet copied to clipboard!' });
-    }, [showToastSuccess]);
+        showToastSuccess({ title: t('codeSnippet.copied') });
+    }, [showToastSuccess, t]);
 
     return (
         <Stack gap="md">
             <Stack gap="xs">
                 <Title order={6}>
                     {mode === 'iframe'
-                        ? 'Backend: generate JWT and embed URL'
-                        : 'Backend: generate JWT'}
+                        ? t('codeSnippet.backendIframeTitle')
+                        : t('codeSnippet.backendSdkTitle')}
                 </Title>
                 <Text c="dimmed" fz="sm">
                     {mode === 'iframe'
-                        ? 'Use this for iframe or direct embedding with a full embed URL.'
-                        : 'Generate the embed JWT on your backend, then pass it to the React SDK from your frontend.'}
+                        ? t('preview.iframeDescription')
+                        : t('codeSnippet.backendSdkDescription')}
                 </Text>
                 <Text c="dimmed" fz="sm">
-                    See the{' '}
-                    <Anchor
-                        href={
+                    <Trans
+                        t={t}
+                        i18nKey={
                             mode === 'iframe'
-                                ? 'https://docs.lightdash.com/references/iframe-embedding'
-                                : 'https://docs.lightdash.com/references/react-sdk#embedding-with-react-sdk'
+                                ? 'codeSnippet.seeIframeDocs'
+                                : 'codeSnippet.seeSdkDocs'
                         }
-                        target="_blank"
-                    >
-                        {mode === 'iframe'
-                            ? 'iframe embed docs'
-                            : 'React SDK docs'}
-                    </Anchor>
-                    .
+                        components={{
+                            anchor: (
+                                <Anchor
+                                    href={
+                                        mode === 'iframe'
+                                            ? 'https://docs.lightdash.com/references/iframe-embedding'
+                                            : 'https://docs.lightdash.com/references/react-sdk#embedding-with-react-sdk'
+                                    }
+                                    target="_blank"
+                                />
+                            ),
+                        }}
+                    />
                 </Text>
             </Stack>
 
@@ -1745,11 +1753,15 @@ const EmbedCodeSnippet: FC<{
             {mode === 'sdk' && (
                 <Stack gap="xs">
                     <Stack gap="xs">
-                        <Title order={6}>Frontend: mount React SDK</Title>
+                        <Title order={6}>
+                            {t('codeSnippet.frontendTitle')}
+                        </Title>
                         <Text c="dimmed" fz="sm">
-                            Use <code>instanceUrl</code> for your Lightdash
-                            domain and <code>token</code> for the JWT from your
-                            backend.
+                            <Trans
+                                t={t}
+                                i18nKey="codeSnippet.frontendDescription"
+                                components={{ code: <code /> }}
+                            />
                         </Text>
                     </Stack>
                     <CodeBlock

@@ -1,6 +1,7 @@
 import { type AiAgentEvidenceExcerpt } from '@lightdash/common';
 import { Box, Text } from '@mantine/core';
 import { Fragment, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import {
     cleanExcerptText,
@@ -8,14 +9,14 @@ import {
 } from './evidenceExcerptHelpers';
 import styles from './EvidenceExcerpts.module.css';
 
-const SOURCE_LABELS: Record<AiAgentEvidenceExcerpt['source'], string> = {
-    user_prompt: 'User',
-    assistant_answer: 'Assistant',
-    next_user_prompt: 'User reply',
-    conversation_context: 'Context',
-    tool_call: 'Tool call',
-    tool_result: 'Tool result',
-    agent_config: 'Config',
+const SOURCE_LABEL_KEYS: Record<AiAgentEvidenceExcerpt['source'], string> = {
+    user_prompt: 'evidence.sources.userPrompt',
+    assistant_answer: 'evidence.sources.assistantAnswer',
+    next_user_prompt: 'evidence.sources.nextUserPrompt',
+    conversation_context: 'evidence.sources.conversationContext',
+    tool_call: 'evidence.sources.toolCall',
+    tool_result: 'evidence.sources.toolResult',
+    agent_config: 'evidence.sources.agentConfig',
 };
 
 const PRIMARY_SOURCES = new Set<AiAgentEvidenceExcerpt['source']>([
@@ -40,6 +41,7 @@ type Props = {
  * one label so the exchange reads as a conversation, not a list of blocks.
  */
 export const EvidenceExcerpts: FC<Props> = ({ excerpts }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const renderable = getRenderableExcerpts(excerpts);
 
     // A `next_user_prompt` that repeats an earlier turn verbatim is the user
@@ -62,10 +64,10 @@ export const EvidenceExcerpts: FC<Props> = ({ excerpts }) => {
     return (
         <Box data-testid="evidence-excerpts" className={styles.transcript}>
             {deduped.map((excerpt, index) => {
-                const label = SOURCE_LABELS[excerpt.source];
+                const labelKey = SOURCE_LABEL_KEYS[excerpt.source];
                 const repeated =
                     index > 0 &&
-                    SOURCE_LABELS[deduped[index - 1].source] === label;
+                    SOURCE_LABEL_KEYS[deduped[index - 1].source] === labelKey;
                 const muted = !PRIMARY_SOURCES.has(excerpt.source);
                 const mono = MONO_SOURCES.has(excerpt.source);
                 return (
@@ -76,7 +78,7 @@ export const EvidenceExcerpts: FC<Props> = ({ excerpts }) => {
                             className={styles.speaker}
                             data-muted={muted || undefined}
                         >
-                            {repeated ? '' : label}
+                            {repeated ? '' : t(labelKey)}
                         </Text>
                         <Box
                             className={styles.text}

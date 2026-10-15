@@ -27,6 +27,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { type FC, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -106,6 +107,7 @@ const ExpandableReviewText = ({
     collapsedLines: number;
     size?: 'xs' | 'sm';
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const [expanded, setExpanded] = useState(false);
     const canExpand = text.length > 180;
 
@@ -125,7 +127,9 @@ const ExpandableReviewText = ({
                     className={styles.sectionToggle}
                     onClick={() => setExpanded((open) => !open)}
                 >
-                    {expanded ? 'Show less' : 'Show more'}
+                    {expanded
+                        ? t('threadPreview.showLess')
+                        : t('threadPreview.showMore')}
                 </UnstyledButton>
             )}
         </Stack>
@@ -143,6 +147,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
     evalUuid,
     runUuid,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const theme = useMantineTheme();
     const navigate = useNavigate();
     const addComment = useAddAiAgentReviewItemComment();
@@ -197,14 +202,22 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
         ? formatReviewDate(selectedReviewItem.firstSeenAt) ===
           formatReviewDate(selectedReviewItem.lastSeenAt)
             ? formatReviewDate(selectedReviewItem.lastSeenAt)
-            : `${formatReviewDate(selectedReviewItem.firstSeenAt)} - ${formatReviewDate(selectedReviewItem.lastSeenAt)}`
+            : t('threadPreview.seenRange', {
+                  first: formatReviewDate(selectedReviewItem.firstSeenAt),
+                  last: formatReviewDate(selectedReviewItem.lastSeenAt),
+              })
         : null;
     const seenTooltip = selectedReviewItem
-        ? `First seen ${formatReviewDate(selectedReviewItem.firstSeenAt)}. Last seen ${formatReviewDate(selectedReviewItem.lastSeenAt)}.`
+        ? t('threadPreview.seenTooltip', {
+              first: formatReviewDate(selectedReviewItem.firstSeenAt),
+              last: formatReviewDate(selectedReviewItem.lastSeenAt),
+          })
         : null;
     const recurrenceValue =
         selectedReviewItem && selectedReviewItem.findingCount > 1
-            ? `${selectedReviewItem.findingCount} times`
+            ? t('threadPreview.recurrence', {
+                  count: selectedReviewItem.findingCount,
+              })
             : null;
     const [showDetails, setShowDetails] = useState(false);
     const [showWhy, setShowWhy] = useState(false);
@@ -232,12 +245,15 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                 <Group gap="xs">
                     <Title order={5}>
                         {selectedReviewItem
-                            ? 'Review details'
-                            : 'Thread preview'}
+                            ? t('threadPreview.reviewDetails')
+                            : t('threadPreview.threadPreview')}
                     </Title>
-                    <Tooltip label="Open Thread" position="right">
+                    <Tooltip
+                        label={t('threadPreview.openThread')}
+                        position="right"
+                    >
                         <ActionIcon
-                            aria-label="Open full thread"
+                            aria-label={t('threadPreview.openFullThread')}
                             component={Link}
                             target="_blank"
                             to={`/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${threadUuid}`}
@@ -254,9 +270,14 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                             variant="pill"
                         />
                     )}
-                    <Tooltip label="Open Agent Settings" position="right">
+                    <Tooltip
+                        label={t('threadPreview.openAgentSettings')}
+                        position="right"
+                    >
                         <ActionIcon
-                            aria-label="Open agent settings"
+                            aria-label={t(
+                                'threadPreview.openAgentSettingsAria',
+                            )}
                             component={Link}
                             target="_blank"
                             to={`/projects/${projectUuid}/ai-agents/${agentUuid}/edit`}
@@ -270,7 +291,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                         p={4}
                         onClick={onClose}
                         color="gray"
-                        aria-label="Close thread preview"
+                        aria-label={t('threadPreview.close')}
                     >
                         <MantineIcon icon={IconX} size="sm" />
                     </Button>
@@ -360,7 +381,9 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                             }
                                             aria-expanded={showDetails}
                                         >
-                                            <span>Details</span>
+                                            <span>
+                                                {t('threadPreview.details')}
+                                            </span>
                                             <MantineIcon
                                                 icon={
                                                     showDetails
@@ -378,7 +401,9 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                             }
                                             aria-expanded={showWhy}
                                         >
-                                            <span>Why flagged</span>
+                                            <span>
+                                                {t('threadPreview.whyFlagged')}
+                                            </span>
                                             <MantineIcon
                                                 icon={
                                                     showWhy
@@ -401,7 +426,11 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                 }
                                                 aria-expanded={showValidation}
                                             >
-                                                <span>Validation</span>
+                                                <span>
+                                                    {t(
+                                                        'threadPreview.validation',
+                                                    )}
+                                                </span>
                                                 <MantineIcon
                                                     icon={
                                                         showValidation
@@ -422,15 +451,21 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                 className={styles.metaGrid}
                                             >
                                                 <ReviewMetadataField
-                                                    label="Project"
+                                                    label={t(
+                                                        'threadPreview.project',
+                                                    )}
                                                     value={
                                                         selectedProject?.name ??
-                                                        'Unknown project'
+                                                        t(
+                                                            'threadPreview.unknownProject',
+                                                        )
                                                     }
                                                 />
                                                 {seenValue && (
                                                     <ReviewMetadataField
-                                                        label="Seen"
+                                                        label={t(
+                                                            'threadPreview.seen',
+                                                        )}
                                                         value={seenValue}
                                                         tooltip={
                                                             seenTooltip ??
@@ -440,14 +475,20 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                 )}
                                                 {recurrenceValue && (
                                                     <ReviewMetadataField
-                                                        label="Recurrence"
+                                                        label={t(
+                                                            'threadPreview.recurrenceLabel',
+                                                        )}
                                                         value={recurrenceValue}
-                                                        tooltip="Findings grouped into this item across threads"
+                                                        tooltip={t(
+                                                            'threadPreview.recurrenceTooltip',
+                                                        )}
                                                     />
                                                 )}
                                                 {selectedDetail && (
                                                     <ReviewMetadataField
-                                                        label="Detail"
+                                                        label={t(
+                                                            'threadPreview.detail',
+                                                        )}
                                                         value={selectedDetail}
                                                     />
                                                 )}
@@ -464,7 +505,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                 lts={0.4}
                                                 c="ldGray.7"
                                             >
-                                                Why flagged
+                                                {t('threadPreview.whyFlagged')}
                                             </Text>
                                             {reasoningText && (
                                                 <ExpandableReviewText
@@ -494,7 +535,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                             lts={0.4}
                                             c="ldGray.7"
                                         >
-                                            Activity
+                                            {t('threadPreview.activity')}
                                         </Text>
                                         <RemediationActivityTimeline
                                             reviewItem={selectedReviewItem}
@@ -507,7 +548,9 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                 )
                                             }
                                             minRows={2}
-                                            placeholder="Add a comment"
+                                            placeholder={t(
+                                                'threadPreview.commentPlaceholder',
+                                            )}
                                         />
                                         <Group justify="flex-end">
                                             <Button
@@ -538,7 +581,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                     );
                                                 }}
                                             >
-                                                Comment
+                                                {t('threadPreview.comment')}
                                             </Button>
                                         </Group>
                                     </Stack>
@@ -555,7 +598,9 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                         justify="space-between"
                                         align="center"
                                     >
-                                        <Title order={6}>Issues</Title>
+                                        <Title order={6}>
+                                            {t('threadPreview.issues')}
+                                        </Title>
                                         <Badge color="violet">
                                             {reviewSummary.findingCount}
                                         </Badge>
@@ -619,9 +664,8 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                             ]
                                                         }
                                                     >
-                                                        {reviewItem.status.replaceAll(
-                                                            '_',
-                                                            ' ',
+                                                        {t(
+                                                            `threadsTable.reviewStatus.${reviewItem.status}`,
                                                         )}
                                                     </Badge>
                                                 </Group>
@@ -689,7 +733,9 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                             );
                                                         }}
                                                     >
-                                                        View issue
+                                                        {t(
+                                                            'threadPreview.viewIssue',
+                                                        )}
                                                     </Button>
 
                                                     {reviewItem.linkedIssueUrl && (
@@ -717,7 +763,10 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                         >
                                                             {getLinearIssueIdentifier(
                                                                 reviewItem.linkedIssueUrl,
-                                                            ) ?? 'Linear'}
+                                                            ) ??
+                                                                t(
+                                                                    'threadPreview.linear',
+                                                                )}
                                                         </Button>
                                                     )}
 
@@ -744,7 +793,9 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                                 event.stopPropagation()
                                                             }
                                                         >
-                                                            View PR
+                                                            {t(
+                                                                'threadPreview.viewPr',
+                                                            )}
                                                         </Button>
                                                     )}
                                                 </Group>
@@ -780,7 +831,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                 lts={0.4}
                                 c="ldGray.7"
                             >
-                                Evidence
+                                {t('threadPreview.evidence')}
                             </Text>
                             <MantineIcon
                                 icon={

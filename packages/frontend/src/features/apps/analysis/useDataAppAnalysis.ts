@@ -5,6 +5,7 @@ import {
     type DataAppInvestigation,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import i18n from '../../../i18n/i18n';
 import { type QueryEvent } from '../hooks/useAppSdkBridge';
 import {
     detectDataAppAnomalies,
@@ -32,7 +33,9 @@ export type DataAppAnalysisState =
 
 const errorMessage = (e: unknown): string =>
     (e as ApiError)?.error?.message ??
-    (e instanceof Error ? e.message : 'Something went wrong');
+    (e instanceof Error
+        ? e.message
+        : i18n.t('common.somethingWentWrong', { ns: 'apps' }));
 
 const errorCode = (e: unknown): string | undefined =>
     ((e as ApiError)?.error?.data as { code?: string } | undefined)?.code;
@@ -47,8 +50,8 @@ const isLimited = (e: unknown): boolean =>
 const isSourcesExpired = (e: unknown): boolean =>
     errorCode(e) === 'sources_expired';
 
-const EXPIRED_TWICE_MESSAGE =
-    'The data behind this view expired. Refresh the app and analyse again.';
+const expiredTwiceMessage = () =>
+    i18n.t('analysis.expiredTwice', { ns: 'apps' });
 
 const LOOKUP_QUIET_MS = 400;
 
@@ -196,7 +199,7 @@ export const useDataAppAnalysis = ({
                         ...prev,
                         state: {
                             status: 'error',
-                            message: EXPIRED_TWICE_MESSAGE,
+                            message: expiredTwiceMessage(),
                         },
                     }));
                     return;
@@ -296,7 +299,7 @@ export const useDataAppAnalysis = ({
                             ...prev,
                             state: {
                                 status: 'error',
-                                message: EXPIRED_TWICE_MESSAGE,
+                                message: expiredTwiceMessage(),
                             },
                         }));
                     }

@@ -1,4 +1,5 @@
 import { Box, Flex } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
 import ChartHistoryPanel from '../components/ChartHistory/ChartHistoryPanel';
 import { DocumentTitle } from '../components/common/DocumentTitle';
@@ -10,6 +11,7 @@ import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 
 const ChartHistory = () => {
+    const { t } = useTranslation('pages');
     const navigate = useNavigate();
     const projectUuid = useProjectUuid();
     const projectUrlIdentifier = useProjectUrlIdentifier();
@@ -25,7 +27,7 @@ const ChartHistory = () => {
     if (chartQuery.isInitialLoading || !projectUuid) {
         return (
             <Box mt="md">
-                <SuboptimalState title="Loading..." loading />
+                <SuboptimalState title={t('common.loading')} loading />
             </Box>
         );
     }
@@ -35,7 +37,7 @@ const ChartHistory = () => {
 
     return (
         <>
-            <DocumentTitle title="Chart version history" />
+            <DocumentTitle title={t('chartHistory.documentTitle')} />
             <ChartHistoryPanel
                 chart={chartQuery.data}
                 projectUuid={projectUuid}
@@ -47,10 +49,13 @@ const ChartHistory = () => {
                         <PageBreadcrumbs
                             items={[
                                 {
-                                    title: 'Chart',
+                                    title: t('chartHistory.chart'),
                                     to: `/projects/${projectUrlIdentifier}/saved/${chartSlug}/view`,
                                 },
-                                { title: 'Version history', active: true },
+                                {
+                                    title: t('common.versionHistory'),
+                                    active: true,
+                                },
                             ]}
                         />
                     </Flex>

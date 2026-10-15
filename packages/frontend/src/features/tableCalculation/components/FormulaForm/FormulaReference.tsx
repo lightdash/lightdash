@@ -23,6 +23,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import FieldIcon from '../../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { type FieldSuggestionItem } from '../../../../components/common/SuggestionList';
@@ -30,8 +31,8 @@ import TruncatedText from '../../../../components/common/TruncatedText';
 import useIsEmbedded from '../../../../ee/providers/Embed/useIsEmbedded';
 import classes from './FormulaReference.module.css';
 import {
-    CATEGORY_LABELS,
     CATEGORY_ORDER,
+    getCategoryLabels,
     type FunctionCategory,
 } from './functionCategories';
 
@@ -64,6 +65,8 @@ export const FormulaReferencePanel: FC<PanelProps> = ({
     onToggle,
     onInsert,
 }) => {
+    const { t } = useTranslation('tableCalculation');
+    const categoryLabels = getCategoryLabels();
     const [query, setQuery] = useState('');
     const [expandedCategories, setExpandedCategories] = useState<
         Set<FunctionCategory>
@@ -127,16 +130,20 @@ export const FormulaReferencePanel: FC<PanelProps> = ({
                             onToggle(false);
                         }
                     }}
-                    placeholder="Search functions"
+                    placeholder={t('formula.reference.searchFunctions')}
                     leftSection={<MantineIcon icon={IconSearch} size="xs" />}
                     autoFocus={opened}
                     flex={1}
                 />
-                <Tooltip label="Close (Esc)" position="top" openDelay={300}>
+                <Tooltip
+                    label={t('formula.reference.closeEsc')}
+                    position="top"
+                    openDelay={300}
+                >
                     <ActionIcon
                         size="sm"
                         onClick={() => onToggle(false)}
-                        aria-label="Close function reference"
+                        aria-label={t('formula.reference.close')}
                     >
                         <MantineIcon icon={IconX} size="sm" />
                     </ActionIcon>
@@ -150,7 +157,7 @@ export const FormulaReferencePanel: FC<PanelProps> = ({
             >
                 {grouped.length === 0 ? (
                     <Text size="xs" className={classes.empty}>
-                        No functions match &ldquo;{query}&rdquo;
+                        {t('formula.reference.noMatch', { query })}
                     </Text>
                 ) : (
                     grouped.map(({ category, functions }) => {
@@ -181,7 +188,7 @@ export const FormulaReferencePanel: FC<PanelProps> = ({
                                         className={classes.categoryLabel}
                                         span
                                     >
-                                        {CATEGORY_LABELS[category]}
+                                        {categoryLabels[category]}
                                     </Text>
                                     <Text
                                         size="xs"
@@ -247,6 +254,7 @@ const AvailableFieldsHint: FC<AvailableFieldsHintProps> = ({
     fields,
     onInsertField,
 }) => {
+    const { t } = useTranslation('tableCalculation');
     return (
         <HoverCard
             width={280}
@@ -257,23 +265,28 @@ const AvailableFieldsHint: FC<AvailableFieldsHintProps> = ({
             <HoverCard.Target>
                 <UnstyledButton
                     className={classes.availableFieldsTarget}
-                    aria-label="Show available fields"
+                    aria-label={t('formula.availableFields.show')}
                 >
                     <Text fz="xs" fw={500} ff="inherit">
-                        {fields.length === 1
-                            ? '1 field available'
-                            : `${fields.length} fields available`}
+                        {t('formula.availableFields.count', {
+                            count: fields.length,
+                        })}
                     </Text>
                 </UnstyledButton>
             </HoverCard.Target>
             <HoverCard.Dropdown p={0}>
                 <Box className={classes.availableFieldsHeader}>
                     <Text size="xs" fw={600}>
-                        Available fields
+                        {t('formula.availableFields.title')}
                     </Text>
                     <Text size="xs" c="dimmed">
-                        Click to insert, or type{' '}
-                        <kbd className={classes.kbd}>@</kbd> in the formula.
+                        <Trans
+                            t={t}
+                            i18nKey="formula.availableFields.hint"
+                            components={{
+                                kbd: <kbd className={classes.kbd} />,
+                            }}
+                        />
                     </Text>
                 </Box>
                 <ScrollArea.Autosize
@@ -285,8 +298,7 @@ const AvailableFieldsHint: FC<AvailableFieldsHintProps> = ({
                 >
                     {fields.length === 0 ? (
                         <Text size="xs" c="dimmed" p="xs">
-                            No fields selected yet — add dimensions or metrics
-                            to your query first.
+                            {t('formula.availableFields.empty')}
                         </Text>
                     ) : (
                         fields.map((field) => (
@@ -321,6 +333,7 @@ export const FormulaReferenceBar: FC<BarProps> = ({
     fields,
     onInsertField,
 }) => {
+    const { t } = useTranslation('tableCalculation');
     const toggle = () => onToggle(!opened);
     const isEmbedded = useIsEmbedded();
 
@@ -329,13 +342,13 @@ export const FormulaReferenceBar: FC<BarProps> = ({
             <Group gap={6} wrap="nowrap">
                 <kbd className={classes.kbd}>@</kbd>
                 <Text size="xs" inherit>
-                    field
+                    {t('formula.reference.fieldHint')}
                 </Text>
             </Group>
             <Group gap={6} wrap="nowrap">
                 <kbd className={classes.kbd}>#</kbd>
                 <Text size="xs" inherit>
-                    function
+                    {t('formula.reference.functionHint')}
                 </Text>
             </Group>
         </Group>
@@ -370,7 +383,7 @@ export const FormulaReferenceBar: FC<BarProps> = ({
                         className={classes.helperButton}
                         aria-expanded={opened}
                     >
-                        Need help?
+                        {t('formula.reference.needHelp')}
                     </Button>
                     {fieldsHint}
                 </Group>
@@ -389,7 +402,7 @@ export const FormulaReferenceBar: FC<BarProps> = ({
                               className={classes.docsLink}
                           >
                               <Group gap={2} wrap="nowrap">
-                                  Docs
+                                  {t('formula.reference.docs')}
                                   <MantineIcon
                                       icon={IconArrowUpRight}
                                       size="xs"

@@ -5,6 +5,7 @@ import {
     type UpdateEmailWhitelabel,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 import { useOrganization } from './useOrganization';
@@ -69,6 +70,7 @@ export const useEmailWhitelabel = () => {
 export const useSetupEmailWhitelabel = () => {
     const organizationUuid = useOrganizationUuid();
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<
         OrganizationEmailWhitelabel,
@@ -79,12 +81,12 @@ export const useSetupEmailWhitelabel = () => {
         onSuccess: async (data) => {
             queryClient.setQueryData([...QUERY_KEY, organizationUuid], data);
             showToastSuccess({
-                title: 'Sending domain set up — add the DNS records to verify',
+                title: t('useEmailWhitelabel.sendingDomainSetUpAddThe'),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to set up sending domain',
+                title: t('useEmailWhitelabel.failedToSetUpSendingDomain'),
                 apiError: error,
             });
         },
@@ -94,6 +96,7 @@ export const useSetupEmailWhitelabel = () => {
 export const useVerifyEmailWhitelabel = () => {
     const organizationUuid = useOrganizationUuid();
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess, showToastInfo } = useToaster();
     return useMutation<OrganizationEmailWhitelabel, ApiError, void>(
         () => verifyEmailWhitelabel(organizationUuid!),
@@ -105,18 +108,21 @@ export const useVerifyEmailWhitelabel = () => {
                     data,
                 );
                 if (data.isVerified) {
-                    showToastSuccess({ title: `${data.domain} verified` });
+                    showToastSuccess({
+                        title: t('useEmailWhitelabel.verified', {
+                            domain: data.domain,
+                        }),
+                    });
                 } else {
                     showToastInfo({
-                        title: 'Still waiting on DNS',
-                        subtitle:
-                            'DNS changes can take up to 24 hours to propagate. We’ll keep checking and email you when it’s verified.',
+                        title: t('useEmailWhitelabel.stillWaitingOnDns'),
+                        subtitle: t('useEmailWhitelabel.dnsChangesCanTakeUpTo'),
                     });
                 }
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to verify sending domain',
+                    title: t('useEmailWhitelabel.failedToVerifySendingDomain'),
                     apiError: error,
                 });
             },
@@ -127,6 +133,7 @@ export const useVerifyEmailWhitelabel = () => {
 export const useUpdateEmailWhitelabel = () => {
     const organizationUuid = useOrganizationUuid();
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<
         OrganizationEmailWhitelabel,
@@ -138,13 +145,13 @@ export const useUpdateEmailWhitelabel = () => {
             queryClient.setQueryData([...QUERY_KEY, organizationUuid], data);
             showToastSuccess({
                 title: data.isEnabled
-                    ? 'Sending from your domain is now enabled'
-                    : 'Sending from your domain is now disabled',
+                    ? t('useEmailWhitelabel.sendingEnabled')
+                    : t('useEmailWhitelabel.sendingDisabled'),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to update sending domain',
+                title: t('useEmailWhitelabel.failedToUpdateSendingDomain'),
                 apiError: error,
             });
         },
@@ -154,6 +161,7 @@ export const useUpdateEmailWhitelabel = () => {
 export const useDeleteEmailWhitelabel = () => {
     const organizationUuid = useOrganizationUuid();
     const queryClient = useQueryClient();
+    const { t } = useTranslation('app');
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<undefined, ApiError, void>(
         () => deleteEmailWhitelabel(organizationUuid!),
@@ -165,11 +173,13 @@ export const useDeleteEmailWhitelabel = () => {
                     null,
                 );
                 await queryClient.invalidateQueries(QUERY_KEY);
-                showToastSuccess({ title: 'Sending domain removed' });
+                showToastSuccess({
+                    title: t('useEmailWhitelabel.sendingDomainRemoved'),
+                });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to remove sending domain',
+                    title: t('useEmailWhitelabel.failedToRemoveSendingDomain'),
                     apiError: error,
                 });
             },

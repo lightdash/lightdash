@@ -1,9 +1,10 @@
 import { Select, Stack, useMatches } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { AiAgentIcon } from '../../../../../ee/features/aiCopilot/components/AiAgentIcon';
 import {
-    NAV_GROUP_LABELS,
+    NAV_GROUP_LABEL_KEYS,
     SCHEDULER_SECTIONS,
     type SchedulerNavGroup,
     type SchedulerSectionId,
@@ -23,6 +24,7 @@ export const SchedulerDeliveryNav: FC<Props> = ({
     active,
     onSelect,
 }) => {
+    const { t } = useTranslation('scheduler');
     const compact = useMatches(
         { base: true, sm: false },
         { getInitialValueInEffect: false },
@@ -31,12 +33,12 @@ export const SchedulerDeliveryNav: FC<Props> = ({
         return (
             <Select
                 m="md"
-                aria-label="Delivery section"
+                aria-label={t('sections.navAriaLabel')}
                 value={active}
                 allowDeselect={false}
                 data={sections.map((id) => ({
                     value: id,
-                    label: SCHEDULER_SECTIONS[id].label,
+                    label: t(SCHEDULER_SECTIONS[id].labelKey),
                 }))}
                 onChange={(value) => {
                     const section = sections.find((id) => id === value);
@@ -56,7 +58,7 @@ export const SchedulerDeliveryNav: FC<Props> = ({
                     return (
                         <Stack key={group} gap={4}>
                             <div className={classes.navGroupLabel}>
-                                {NAV_GROUP_LABELS[group]}
+                                {t(NAV_GROUP_LABEL_KEYS[group])}
                             </div>
                             {groupSections.map((id) => {
                                 const section = SCHEDULER_SECTIONS[id];
@@ -80,7 +82,7 @@ export const SchedulerDeliveryNav: FC<Props> = ({
                                             />
                                         )}
                                         <span className={classes.navItemLabel}>
-                                            {section.label}
+                                            {t(section.labelKey)}
                                         </span>
                                     </button>
                                 );

@@ -1,7 +1,6 @@
 import {
     ChartKind,
     getComposerVizKind,
-    getComposerVizKindLabel,
     summarizeComposerVizConfig,
     type AllVizChartConfig,
     type ComposerVizKind,
@@ -20,12 +19,14 @@ import {
 import { IconChevronRight } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import barStyles from '../composerPipeline/AiComposerPipelinePanel.module.css';
 import styles from './AiComposerVizConfigPanel.module.css';
 import { AiComposerVizFieldRows } from './AiComposerVizFieldRows';
 import { AiComposerVizKindSwitcher } from './AiComposerVizKindSwitcher';
 import { getComposerVizKindIcon } from './composerVizKindIcon';
+import { getComposerVizKindLabelT } from './composerVizKindLabel';
 
 /**
  * `expandable`: the bar opens onto the kind and field controls (terminal node).
@@ -53,8 +54,9 @@ const Summary: FC<{ value: AllVizChartConfig; columns: ResultColumn[] }> = ({
     value,
     columns,
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const kind = getComposerVizKind(value);
-    const label = getComposerVizKindLabel(kind);
+    const label = getComposerVizKindLabelT(kind, t);
     const text =
         value.type === ChartKind.TABLE
             ? label
@@ -87,11 +89,12 @@ export const AiComposerVizConfigPanel: FC<Props> = ({
     fieldsDisabledReason,
     children,
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const kind = getComposerVizKind(value);
     const isOpen = mode === 'expandable' && expanded;
     const heading = (
         <Text component="span" className={barStyles.heading}>
-            Chart
+            {t('vizConfig.chart')}
         </Text>
     );
 
@@ -152,7 +155,7 @@ export const AiComposerVizConfigPanel: FC<Props> = ({
                             />
                             {value.type === ChartKind.TABLE ? (
                                 <Text size="xs" c="dimmed">
-                                    Tables show every column of the result.
+                                    {t('vizConfig.tableNotice')}
                                 </Text>
                             ) : (
                                 <Tooltip

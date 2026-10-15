@@ -8,6 +8,7 @@ import {
     type CustomDimension,
     type Explore,
 } from '@lightdash/common';
+import i18n from '../../../../../i18n/i18n';
 import { LD_FIELD_COLORS } from '../../../../../theme';
 import { sortNodes } from '../Tree/sortNodes';
 import {
@@ -32,6 +33,9 @@ import {
     type TableHeaderItem,
     type TreeNodeItem,
 } from './types';
+
+const tTree = (key: string): string =>
+    i18n.t(`exploreTree.sections.${key}`, { ns: 'explorer' });
 
 /**
  * Recursively flatten a node and its children.
@@ -266,7 +270,7 @@ function flattenTable(
             data: {
                 tableName,
                 treeSection: TreeSection.MissingFields, // Arbitrary, missing fields aren't tied to a section
-                label: 'Missing fields',
+                label: tTree('missingFields'),
                 color: 'ldGray.6',
                 depth: baseDepth,
             },
@@ -310,7 +314,7 @@ function flattenTable(
             data: {
                 tableName,
                 treeSection: TreeSection.Dimensions,
-                label: 'Dimensions',
+                label: tTree('dimensions'),
                 color: LD_FIELD_COLORS.dimension.color,
                 depth: baseDepth,
             },
@@ -321,7 +325,7 @@ function flattenTable(
         const dimensionItems = flattenSection(
             {
                 type: TreeSection.Dimensions,
-                label: 'Dimensions',
+                label: tTree('dimensions'),
                 color: LD_FIELD_COLORS.dimension.color,
                 itemsMap: dimensionsMap,
                 orderFieldsBy: table.orderFieldsBy,
@@ -346,7 +350,7 @@ function flattenTable(
             data: {
                 tableName,
                 treeSection: TreeSection.Dimensions,
-                message: 'No dimensions defined in your dbt project',
+                message: tTree('noDimensions'),
             },
         } satisfies EmptyStateItem);
     }
@@ -370,14 +374,13 @@ function flattenTable(
             data: {
                 tableName,
                 treeSection: TreeSection.Metrics,
-                label: 'Metrics',
+                label: tTree('metrics'),
                 color: LD_FIELD_COLORS.metric.color,
                 depth: baseDepth,
                 helpButton: !hasMetrics
                     ? {
                           href: 'https://docs.lightdash.com/guides/how-to-create-metrics',
-                          tooltipText:
-                              'No metrics defined in your dbt project. Click to view docs and learn how to add a metric to your project.',
+                          tooltipText: tTree('noMetrics'),
                       }
                     : undefined,
             },
@@ -388,7 +391,7 @@ function flattenTable(
         const metricItems = flattenSection(
             {
                 type: TreeSection.Metrics,
-                label: 'Metrics',
+                label: tTree('metrics'),
                 color: LD_FIELD_COLORS.metric.color,
                 itemsMap: metricsMap,
                 orderFieldsBy: table.orderFieldsBy,
@@ -424,13 +427,12 @@ function flattenTable(
             data: {
                 tableName,
                 treeSection: TreeSection.CustomMetrics,
-                label: 'Custom metrics',
+                label: tTree('customMetrics'),
                 color: LD_FIELD_COLORS.metric.color,
                 depth: baseDepth,
                 helpButton: {
                     href: 'https://docs.lightdash.com/guides/how-to-create-metrics#-adding-custom-metrics-in-the-explore-view',
-                    tooltipText:
-                        'Add custom metrics by hovering over the dimension of your choice & selecting the three-dot Action Menu. Click to view docs.',
+                    tooltipText: tTree('customMetricsHelp'),
                 },
             },
         } satisfies SectionHeaderItem);
@@ -447,8 +449,7 @@ function flattenTable(
                         errors: foundDuplicateId
                             ? [
                                   {
-                                      message:
-                                          'A metric with this ID already exists in the table. Rename your custom metric to prevent conflicts.',
+                                      message: tTree('duplicateMetricId'),
                                   },
                               ]
                             : undefined,
@@ -461,7 +462,7 @@ function flattenTable(
         const customMetricItems = flattenSection(
             {
                 type: TreeSection.CustomMetrics,
-                label: 'Custom metrics',
+                label: tTree('customMetrics'),
                 color: LD_FIELD_COLORS.metric.color,
                 itemsMap: customMetricsMap,
                 missingItems: options.missingCustomMetrics.filter(
@@ -499,7 +500,7 @@ function flattenTable(
             data: {
                 tableName,
                 treeSection: TreeSection.CustomDimensions,
-                label: 'Custom dimensions',
+                label: tTree('customDimensions'),
                 color: LD_FIELD_COLORS.dimension.color,
                 depth: baseDepth,
             },
@@ -508,7 +509,7 @@ function flattenTable(
         const customDimensionItems = flattenSection(
             {
                 type: TreeSection.CustomDimensions,
-                label: 'Custom dimensions',
+                label: tTree('customDimensions'),
                 color: LD_FIELD_COLORS.dimension.color,
                 itemsMap: customDimensionsMap,
                 missingItems: options.missingCustomDimensions.filter(

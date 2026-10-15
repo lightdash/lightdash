@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import { Group, Select, Stack, TextInput, Accordion } from '@mantine/core';
 import { useCallback, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import FilterInputComponent from '../../common/Filters/FilterInputs';
 import {
@@ -39,6 +40,7 @@ const BigNumberConditionalFormattingRule: FC<Props> = ({
     onRemoveRule,
     hasRemove,
 }) => {
+    const { t } = useTranslation('vizConfig');
     const projectUuid = useProjectUuid();
 
     const filterType: FilterType.NUMBER | FilterType.STRING | undefined =
@@ -85,7 +87,9 @@ const BigNumberConditionalFormattingRule: FC<Props> = ({
     return (
         <Accordion.Item value={accordionValue}>
             <AccordionControl
-                label={`Condition ${ruleIndex + 1}`}
+                label={t('bigNumber.conditionalFormatting.conditionNumber', {
+                    number: ruleIndex + 1,
+                })}
                 onRemove={hasRemove ? onRemoveRule : undefined}
             />
 
@@ -100,14 +104,18 @@ const BigNumberConditionalFormattingRule: FC<Props> = ({
                                 if (!value) return;
                                 onChangeRuleOperator(value as FilterOperator);
                             }}
-                            placeholder="Condition"
+                            placeholder={t(
+                                'bigNumber.conditionalFormatting.condition',
+                            )}
                             disabled={!field || !filterType}
                         />
 
                         <Select
                             size="xs"
                             display={field && filterType ? 'none' : 'block'}
-                            placeholder="Value(s)"
+                            placeholder={t(
+                                'bigNumber.conditionalFormatting.valuesPlaceholder',
+                            )}
                             data={[]}
                             disabled={!field || !filterType}
                         />
@@ -127,7 +135,9 @@ const BigNumberConditionalFormattingRule: FC<Props> = ({
                                         <TextInput
                                             size="xs"
                                             disabled={true}
-                                            placeholder="Values"
+                                            placeholder={t(
+                                                'bigNumber.conditionalFormatting.values',
+                                            )}
                                         />
                                     )}
                                 </FiltersProvider>

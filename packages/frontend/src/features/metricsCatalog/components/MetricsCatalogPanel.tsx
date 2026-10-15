@@ -15,6 +15,7 @@ import {
 import { useClickOutside, useDisclosure } from '@mantine/hooks';
 import { IconRefresh, IconSparkles, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import RefreshDbtButton from '../../../components/RefreshDbtButton';
@@ -52,6 +53,7 @@ const LOCAL_STORAGE_KEY = 'metrics-catalog-learn-more-popover-closed';
 const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
     buttonStyles,
 }) => {
+    const { t } = useTranslation('metricsCatalog');
     const [opened, { close, open }] = useDisclosure(false);
     const buttonRef = useRef<HTMLButtonElement>(null);
     const ref = useClickOutside(close, null, [buttonRef.current]);
@@ -95,7 +97,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                     style={buttonStyles}
                     onClick={opened ? handleClose : open}
                 >
-                    Learn more
+                    {t('panel.learnMore')}
                 </Button>
             </Popover.Target>
             <Popover.Dropdown
@@ -107,7 +109,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                 <Stack gap="sm" w="100%" ref={ref}>
                     <Group justify="space-between">
                         <Text fw={600} fz="sm">
-                            ✨ Spotlight is here!
+                            {t('panel.spotlightIsHere')}
                         </Text>
                         <ActionIcon
                             variant="transparent"
@@ -119,15 +121,13 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                     </Group>
                     <LearnMoreContent width="100%" height="100%" />
                     <Text fz="sm" c="ldGray.3">
-                        Explore and curate your key Metrics in the{' '}
-                        <Text span fw={600} inherit>
-                            Catalog
-                        </Text>{' '}
-                        and click to visualize them over time in the{' '}
-                        <Text span fw={600} inherit>
-                            Explorer
-                        </Text>
-                        .
+                        <Trans
+                            t={t}
+                            i18nKey="panel.spotlightDescription"
+                            components={{
+                                bold: <Text span fw={600} inherit />,
+                            }}
+                        />
                     </Text>
                     <Group gap="xs">
                         <Button
@@ -142,7 +142,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                                 flexGrow: 1,
                             }}
                         >
-                            View Demo
+                            {t('panel.viewDemo')}
                         </Button>
                         <Button
                             component="a"
@@ -151,7 +151,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                             target="_blank"
                             style={{ border: 'none', flexGrow: 1 }}
                         >
-                            Learn more
+                            {t('panel.learnMore')}
                         </Button>
                     </Group>
                 </Stack>
@@ -169,6 +169,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
     metricCatalogView,
     hiddenFilters,
 }) => {
+    const { t } = useTranslation('metricsCatalog');
     const dispatch = useAppDispatch();
     const theme = useMantineTheme();
     const colorScheme = useComputedColorScheme();
@@ -478,10 +479,10 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
             >
                 <Box>
                     <Text c="ldGray.8" fw={600} size="xl">
-                        Metrics Catalog
+                        {t('panel.title')}
                     </Text>
                     <Text c="dimmed" size="sm" fw={400}>
-                        Browse all Metrics & KPIs across this project
+                        {t('panel.subtitle')}
                     </Text>
                 </Box>
                 <Group gap="xs">
@@ -499,7 +500,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
                             loading={true}
                             style={headerButtonStyles}
                         >
-                            Refreshing catalog
+                            {t('panel.refreshingCatalog')}
                         </Button>
                     ) : (
                         <RefreshDbtButton
@@ -514,10 +515,12 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
                             buttonStyles={headerButtonStyles}
                             defaultTextOverride={
                                 lastDbtRefreshAt
-                                    ? `Last refreshed ${timeAgo}`
-                                    : 'Refresh catalog'
+                                    ? t('panel.lastRefreshed', { timeAgo })
+                                    : t('panel.refreshCatalog')
                             }
-                            refreshingTextOverride="Refreshing catalog"
+                            refreshingTextOverride={t(
+                                'panel.refreshingCatalog',
+                            )}
                         />
                     )}
                     <LearnMorePopover buttonStyles={headerButtonStyles} />

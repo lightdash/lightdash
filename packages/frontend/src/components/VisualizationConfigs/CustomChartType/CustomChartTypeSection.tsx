@@ -1,6 +1,7 @@
 import { type DataAppViz } from '@lightdash/common';
 import { Text } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Config } from '../common/Config';
 import { type CustomChartTypeOption } from './customChartTypeOption';
 import CustomChartTypePicker from './CustomChartTypePicker';
@@ -38,28 +39,31 @@ const CustomChartTypeSection: FC<Props> = ({
     onClear,
     onCreateNew,
     onBrowseGallery,
-}) => (
-    <Config>
-        <Config.Section>
-            <Config.Heading>Custom chart type</Config.Heading>
-            <CustomChartTypePicker
-                projectUuid={projectUuid}
-                selected={selected}
-                selectedDataAppViz={selectedDataAppViz}
-                disabled={!hasColumns}
-                onSelectVega={onSelectVega}
-                onSelectProjectType={onSelectProjectType}
-                onClear={onClear}
-                onCreateNew={onCreateNew}
-                onBrowseGallery={onBrowseGallery}
-            />
-            {!hasColumns && (
-                <Text c="dimmed" size="xs">
-                    Run your query to pick a custom chart type.
-                </Text>
-            )}
-        </Config.Section>
-    </Config>
-);
+}) => {
+    const { t } = useTranslation('vizConfig');
+    return (
+        <Config>
+            <Config.Section>
+                <Config.Heading>{t('customChartType.heading')}</Config.Heading>
+                <CustomChartTypePicker
+                    projectUuid={projectUuid}
+                    selected={selected}
+                    selectedDataAppViz={selectedDataAppViz}
+                    disabled={!hasColumns}
+                    onSelectVega={onSelectVega}
+                    onSelectProjectType={onSelectProjectType}
+                    onClear={onClear}
+                    onCreateNew={onCreateNew}
+                    onBrowseGallery={onBrowseGallery}
+                />
+                {!hasColumns && (
+                    <Text c="dimmed" size="xs">
+                        {t('customChartType.runQueryHint')}
+                    </Text>
+                )}
+            </Config.Section>
+        </Config>
+    );
+};
 
 export default CustomChartTypeSection;

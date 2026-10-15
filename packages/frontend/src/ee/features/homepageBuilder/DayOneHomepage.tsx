@@ -2,6 +2,7 @@ import { type PinnedItems } from '@lightdash/common';
 import { Box, Stack } from '@mantine/core';
 import { IconClock, IconFlame, IconPin } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AskAiHero } from './blocks/AskAiHeroBlock';
 import { BlockHeader } from './blocks/BlockShell';
 import { ContentCard } from './blocks/ContentCard';
@@ -12,7 +13,7 @@ import { getDefaultQuickActions } from './blocks/quickActionDefaults';
 import { QuickActionCards } from './blocks/QuickActionsBlock';
 import { RecentList } from './blocks/RecentBlock';
 import classes from './DayOneHomepage.module.css';
-import { DEFAULT_GREETING_SUBTITLE } from './greeting';
+import { getDefaultGreetingSubtitle } from './greeting';
 import layout from './homepageLayout.module.css';
 import { useCollectionContent } from './hooks/useCollectionContent';
 import { useCollectionSourceContent } from './hooks/useCollectionSourceContent';
@@ -32,6 +33,7 @@ const PinnedCollection: FC<{
     projectUuid: string;
     pinnedItems: PinnedItems;
 }> = ({ projectUuid, pinnedItems }) => {
+    const { t } = useTranslation('homepageBuilder');
     const uuids = pinnedItems.map((item) => item.data.uuid);
     const { data: contents } = useCollectionContent(projectUuid, uuids);
 
@@ -60,7 +62,7 @@ const PinnedCollection: FC<{
                 data-tour-return='[data-tour-nav="home"]'
                 data-tour-resultdocs="explore/homepage.mdx#pin-content:1"
             >
-                <BlockHeader icon={IconPin} title="Pinned" />
+                <BlockHeader icon={IconPin} title={t('starter.pinned')} />
                 <Stack gap={8}>
                     {contents.map((content) => (
                         <ContentCard
@@ -79,9 +81,10 @@ const PinnedCollection: FC<{
 /** The project's most viewed content, resolved through the same live source
  * the Collection block offers — day-0 shows what the org actually uses. */
 const MostPopularSection: FC<{ projectUuid: string }> = ({ projectUuid }) => {
+    const { t } = useTranslation('homepageBuilder');
     const starFor = useHomepageFavorites(projectUuid);
     const { items } = useCollectionSourceContent(projectUuid, {
-        title: 'Most popular',
+        title: t('starter.mostPopular'),
         source: 'most-viewed',
         items: [],
         limit: 4,
@@ -91,7 +94,7 @@ const MostPopularSection: FC<{ projectUuid: string }> = ({ projectUuid }) => {
 
     return (
         <Box>
-            <BlockHeader icon={IconFlame} title="Most popular" />
+            <BlockHeader icon={IconFlame} title={t('starter.mostPopular')} />
             <Stack gap={8}>
                 {items.map((content) => (
                     <ContentCard
@@ -111,6 +114,7 @@ const MostPopularSection: FC<{ projectUuid: string }> = ({ projectUuid }) => {
 const MAX_KEY_SPACES = 4;
 
 export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
+    const { t } = useTranslation('homepageBuilder');
     const { opening } = useHomepageOpening(projectUuid);
     const { spaces: keySpaces } = useKeySpaces(projectUuid, MAX_KEY_SPACES);
     const recent = useRecentContents(projectUuid);
@@ -143,7 +147,7 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
                     // Same hero shell and type scale as the Ask AI variant, so
                     // both day-0 openings sit identically in the fold
                     <div className={layout.hero}>
-                        <GreetingHero subtitle={DEFAULT_GREETING_SUBTITLE}>
+                        <GreetingHero subtitle={getDefaultGreetingSubtitle()}>
                             <QuickActionCards
                                 actions={getDefaultQuickActions()}
                                 projectUuid={projectUuid}
@@ -163,13 +167,13 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
                     <KeySpaces
                         spaces={keySpaces}
                         projectUuid={projectUuid}
-                        title="Start here"
+                        title={t('starter.startHere')}
                     />
                     {hasRecentlyViewed && (
                         <Box>
                             <BlockHeader
                                 icon={IconClock}
-                                title="Recently viewed"
+                                title={t('blockDefaults.recentTitle')}
                             />
                             <RecentList projectUuid={projectUuid} />
                         </Box>

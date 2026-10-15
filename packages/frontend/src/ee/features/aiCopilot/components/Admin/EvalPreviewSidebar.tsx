@@ -12,6 +12,7 @@ import {
 } from '@mantine/core';
 import { IconExternalLink, IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useAiAgentAdminEvalPrompts } from '../../hooks/useAiAgentAdmin';
@@ -42,6 +43,7 @@ export const EvalPreviewSidebar: FC<EvalPreviewSidebarProps> = ({
     evalSummary,
     onClose,
 }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const { data, isInitialLoading } = useAiAgentAdminEvalPrompts(
         evalSummary.evalUuid,
     );
@@ -73,12 +75,12 @@ export const EvalPreviewSidebar: FC<EvalPreviewSidebarProps> = ({
                                 />
                             }
                         >
-                            Open eval
+                            {t('evalPreview.openEval')}
                         </Button>
                         <ActionIcon
                             color="ldGray.7"
                             onClick={onClose}
-                            aria-label="Close eval preview"
+                            aria-label={t('evalPreview.close')}
                         >
                             <MantineIcon icon={IconX} />
                         </ActionIcon>
@@ -88,18 +90,18 @@ export const EvalPreviewSidebar: FC<EvalPreviewSidebarProps> = ({
             <Divider color="ldGray.2" />
 
             <Group p="lg" gap="xl" align="flex-start">
-                <MetaField label="Agent">
+                <MetaField label={t('evalPreview.agent')}>
                     <AgentNamePill
                         name={evalSummary.agent.name}
                         imageUrl={evalSummary.agent.imageUrl}
                     />
                 </MetaField>
-                <MetaField label="Project">
+                <MetaField label={t('evalPreview.project')}>
                     <Text fz="sm" fw={500}>
                         {evalSummary.project.name}
                     </Text>
                 </MetaField>
-                <MetaField label="Latest run">
+                <MetaField label={t('evalPreview.latestRun')}>
                     {latestRun ? (
                         <Group gap="xs" wrap="nowrap">
                             <RunStatusIndicator status={latestRun.status} />
@@ -113,7 +115,7 @@ export const EvalPreviewSidebar: FC<EvalPreviewSidebarProps> = ({
                         </Group>
                     ) : (
                         <Text fz="sm" fw={500} c="ldGray.5">
-                            Never run
+                            {t('evalPreview.neverRun')}
                         </Text>
                     )}
                 </MetaField>
@@ -122,7 +124,9 @@ export const EvalPreviewSidebar: FC<EvalPreviewSidebarProps> = ({
 
             <Box p="lg" flex={1} style={{ overflowY: 'auto', minHeight: 0 }}>
                 <Text fz="xs" fw={600} c="dimmed" tt="uppercase" lts={0.4}>
-                    Prompts ({evalSummary.promptCount})
+                    {t('evalPreview.prompts', {
+                        count: evalSummary.promptCount,
+                    })}
                 </Text>
                 {isInitialLoading ? (
                     <Stack gap="sm" mt="sm">
@@ -161,11 +165,14 @@ export const EvalPreviewSidebar: FC<EvalPreviewSidebarProps> = ({
                                 <Stack gap={2} miw={0}>
                                     <Text fz="sm" lh={1.5}>
                                         {prompt.prompt ??
-                                            'Prompt no longer available'}
+                                            t('evalPreview.promptUnavailable')}
                                     </Text>
                                     {prompt.expectedResponse && (
                                         <Text fz="xs" c="dimmed" lh={1.5}>
-                                            Expected: {prompt.expectedResponse}
+                                            {t('evalPreview.expected', {
+                                                response:
+                                                    prompt.expectedResponse,
+                                            })}
                                         </Text>
                                     )}
                                 </Stack>

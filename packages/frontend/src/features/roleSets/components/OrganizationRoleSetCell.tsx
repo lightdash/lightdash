@@ -6,6 +6,7 @@ import {
     type Role,
 } from '@lightdash/common';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useOrganizationUserRoleSet,
     useResolvedRoleSet,
@@ -36,6 +37,7 @@ export const OrganizationRoleSetCell: FC<Props> = ({
     disabled,
     onChange,
 }) => {
+    const { t } = useTranslation('roles');
     // Only users flagged with extra roles need the full set fetched
     const hasMultipleRoles = user.hasMultipleRoles === true;
     const roleSetQuery = useOrganizationUserRoleSet(user.userUuid, {
@@ -76,7 +78,7 @@ export const OrganizationRoleSetCell: FC<Props> = ({
             value={value}
             onChange={onChange}
             disabled={disabled || isPending}
-            ariaLabel={`Roles for ${user.email}`}
+            ariaLabel={t('roleSets.rolesFor', { name: user.email })}
             w={280}
         />
     );

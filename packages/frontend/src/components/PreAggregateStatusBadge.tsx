@@ -2,6 +2,7 @@ import { PreAggregateMissReason } from '@lightdash/common';
 import { ThemeIcon, Tooltip } from '@mantine/core';
 import { IconBolt, IconBoltOff } from '@tabler/icons-react';
 import { memo, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     selectPreAggVisible,
     selectPreAggregateCheck,
@@ -12,6 +13,7 @@ import { usePreAggregateCacheEnabled } from '../hooks/usePreAggregateCacheEnable
 import { formatTileMissReason } from './common/Dashboard/PreAggregateAuditIndicator.utils';
 
 const PreAggregateStatusBadge: FC = memo(() => {
+    const { t } = useTranslation('app');
     const preAggregateCheck = useExplorerSelector(selectPreAggregateCheck);
     const preAggVisible = useExplorerSelector(selectPreAggVisible);
     const [preAggCacheEnabled] = usePreAggregateCacheEnabled();
@@ -45,13 +47,17 @@ const PreAggregateStatusBadge: FC = memo(() => {
             if (resultsPreAggregate?.fallbackReason != null) {
                 return {
                     color: 'orange',
-                    tooltip: `Pre-aggregate matched (${result.preAggregateName}) but failed to serve. Results came from the warehouse`,
+                    tooltip: t('preAggregateStatusBadge.fallback', {
+                        name: result.preAggregateName,
+                    }),
                     icon: 'bolt-off',
                 };
             }
             return {
                 color: 'green',
-                tooltip: `Pre-aggregate cache active: ${result.preAggregateName}`,
+                tooltip: t('preAggregateStatusBadge.active', {
+                    name: result.preAggregateName,
+                }),
                 icon: 'bolt',
             };
         }
@@ -62,7 +68,7 @@ const PreAggregateStatusBadge: FC = memo(() => {
         ) {
             return {
                 color: 'yellow',
-                tooltip: 'Pre-aggregate bypassed by user',
+                tooltip: t('preAggregateStatusBadge.bypassed'),
                 icon: 'bolt-off',
             };
         }
@@ -73,7 +79,9 @@ const PreAggregateStatusBadge: FC = memo(() => {
 
         return {
             color: 'gray',
-            tooltip: `Cache miss: ${formatTileMissReason(result.reason)}`,
+            tooltip: t('preAggregateStatusBadge.miss', {
+                reason: formatTileMissReason(result.reason),
+            }),
             icon: 'bolt',
         };
     }, [
@@ -81,6 +89,7 @@ const PreAggregateStatusBadge: FC = memo(() => {
         preAggregateCheck,
         preAggCacheEnabled,
         resultsPreAggregate,
+        t,
     ]);
 
     if (!status) return null;

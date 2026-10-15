@@ -14,6 +14,7 @@ import {
 } from '@mantine/core';
 import { IconChartHistogram, IconTable } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
 import { validate as isValidUuid } from 'uuid';
@@ -53,6 +54,7 @@ enum TabOption {
 }
 
 const ViewSqlChart = () => {
+    const { t } = useTranslation('pages');
     const params = useParams<{ slug?: string }>();
     const projectUuid = useProjectUuid();
     const dispatch = useAppDispatch();
@@ -120,7 +122,7 @@ const ViewSqlChart = () => {
 
     if (chartError) {
         return (
-            <Page title="SQL chart">
+            <Page title={t('viewSqlChart.title')}>
                 <ErrorState error={chartError.error} />
             </Page>
         );
@@ -128,7 +130,7 @@ const ViewSqlChart = () => {
 
     return (
         <Page
-            title="SQL chart"
+            title={t('viewSqlChart.title')}
             noContentPadding
             withFullHeight
             header={<Header mode="view" />}
@@ -149,7 +151,7 @@ const ViewSqlChart = () => {
                                                     icon={IconChartHistogram}
                                                 />
                                                 <Text fz="sm" fw={500}>
-                                                    Chart
+                                                    {t('viewSqlChart.chart')}
                                                 </Text>
                                             </Group>
                                         ),
@@ -160,7 +162,7 @@ const ViewSqlChart = () => {
                                             <Group gap="xs" wrap="nowrap">
                                                 <MantineIcon icon={IconTable} />
                                                 <Text fz="sm" fw={500}>
-                                                    Results
+                                                    {t('viewSqlChart.results')}
                                                 </Text>
                                             </Group>
                                         ),

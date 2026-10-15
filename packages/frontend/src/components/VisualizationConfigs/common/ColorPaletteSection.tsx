@@ -1,5 +1,6 @@
 import { isDimension } from '@lightdash/common';
 import { useMemo, type ComponentProps, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     selectSavedChart,
     selectUnsavedColorPaletteUuid,
@@ -19,6 +20,7 @@ type Props = {
 };
 
 export const ColorPaletteSection: FC<Props> = ({ size = 'sm' }) => {
+    const { t } = useTranslation('vizConfig');
     const dispatch = useExplorerDispatch();
     const savedChart = useExplorerSelector(selectSavedChart);
     const value = useExplorerSelector(selectUnsavedColorPaletteUuid);
@@ -50,27 +52,31 @@ export const ColorPaletteSection: FC<Props> = ({ size = 'sm' }) => {
         savedChart?.resolvedColorPalette.source.type === 'chart' ||
         savedChart?.resolvedColorPalette.source.type === 'config' ||
         savedChart?.resolvedColorPalette.source.type === 'default'
-            ? (savedChart.spaceName ?? 'Org default')
-            : (savedChart?.resolvedColorPalette.source.name ?? 'Org default');
+            ? (savedChart.spaceName ?? t('common.colorPalette.orgDefault'))
+            : (savedChart?.resolvedColorPalette.source.name ??
+              t('common.colorPalette.orgDefault'));
 
     return (
         <Config>
             <Config.Section>
-                <Config.Heading>Color palette</Config.Heading>
+                <Config.Heading>
+                    {t('common.colorPalette.heading')}
+                </Config.Heading>
                 {overrideActive && (
                     <Callout variant="info">
-                        A color palette override is set in your instance
-                        configuration. Chart-level selection is disabled while
-                        the override is active.
+                        {t('common.colorPalette.overrideActive')}
                     </Callout>
                 )}
                 {!overrideActive && pivotDimsWithFixedColors.length > 0 && (
                     <Callout variant="info">
                         {pivotDimsWithFixedColors.length === 1
-                            ? `"${pivotDimsWithFixedColors[0].label}" has fixed colors defined in the data model.`
-                            : `${pivotDimsWithFixedColors.length} pivoted dimensions have fixed colors defined in the data model.`}{' '}
-                        Those values will keep their assigned colors regardless
-                        of the palette selected here.
+                            ? t('common.colorPalette.fixedColorsOne', {
+                                  label: pivotDimsWithFixedColors[0].label,
+                              })
+                            : t('common.colorPalette.fixedColorsMany', {
+                                  count: pivotDimsWithFixedColors.length,
+                              })}{' '}
+                        {t('common.colorPalette.fixedColorsKept')}
                     </Callout>
                 )}
                 <PalettePicker

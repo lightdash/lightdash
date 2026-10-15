@@ -6,12 +6,14 @@ import {
 } from '@lightdash/common';
 import { Select } from '@mantine/core';
 import React, { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useFormContext } from '../formContext';
 import { useProjectFormContext } from '../useProjectFormContext';
 
 const DbtVersionSelect: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
+    const { t } = useTranslation('projectConnection');
     const form = useFormContext();
     const { isDbtSource } = useProjectFormContext();
     const field = form.getInputProps('dbtVersion');
@@ -24,13 +26,15 @@ const DbtVersionSelect: FC<{
     return (
         <Select
             allowDeselect={false}
-            label="dbt version"
+            label={t('inputs.dbtVersion')}
             name="dbtVersion"
             defaultValue={DefaultSupportedDbtVersion}
             data={[
                 {
                     value: DbtVersionOptionLatest.LATEST,
-                    label: `latest (${getLatestSupportDbtVersion()})`,
+                    label: t('inputs.dbtVersionLatest', {
+                        version: getLatestSupportDbtVersion(),
+                    }),
                 },
                 ...Object.values(SupportedDbtVersions)
                     .reverse()

@@ -5,6 +5,7 @@ import {
     type DashboardTab,
     type DashboardTile,
 } from '@lightdash/common';
+import i18n from '../../../i18n/i18n';
 
 export type TileCommentGroup = {
     tileUuid: string;
@@ -15,7 +16,8 @@ export type TileCommentGroup = {
     threads: Comment[];
 };
 
-export const REMOVED_TILE_TITLE = 'Tile no longer on this dashboard';
+export const getRemovedTileTitle = (): string =>
+    i18n.t('panel.removedTileTitle', { ns: 'comments' });
 
 export const getTileTitle = (tile: DashboardTile): string => {
     switch (tile.type) {
@@ -23,22 +25,34 @@ export const getTileTitle = (tile: DashboardTile): string => {
             return (
                 tile.properties.title ||
                 tile.properties.chartName ||
-                'Untitled chart'
+                i18n.t('tileFallbackTitle.chart', { ns: 'comments' })
             );
         case DashboardTileTypes.SQL_CHART:
             return (
                 tile.properties.title ||
                 tile.properties.chartName ||
-                'Untitled chart'
+                i18n.t('tileFallbackTitle.chart', { ns: 'comments' })
             );
         case DashboardTileTypes.MARKDOWN:
-            return tile.properties.title || 'Markdown';
+            return (
+                tile.properties.title ||
+                i18n.t('tileFallbackTitle.markdown', { ns: 'comments' })
+            );
         case DashboardTileTypes.LOOM:
-            return tile.properties.title || 'Loom video';
+            return (
+                tile.properties.title ||
+                i18n.t('tileFallbackTitle.loom', { ns: 'comments' })
+            );
         case DashboardTileTypes.HEADING:
-            return tile.properties.text || 'Heading';
+            return (
+                tile.properties.text ||
+                i18n.t('tileFallbackTitle.heading', { ns: 'comments' })
+            );
         case DashboardTileTypes.DATA_APP:
-            return tile.properties.title || 'Data app';
+            return (
+                tile.properties.title ||
+                i18n.t('tileFallbackTitle.dataApp', { ns: 'comments' })
+            );
         default:
             return assertUnreachable(tile, 'Unknown dashboard tile type');
     }
@@ -92,7 +106,7 @@ export const groupCommentsByTile = ({
         if (seen.has(tileUuid) || threads.length === 0) continue;
         groups.push({
             tileUuid,
-            title: REMOVED_TILE_TITLE,
+            title: getRemovedTileTitle(),
             tileType: null,
             tabUuid: null,
             threads,
@@ -113,7 +127,8 @@ export type TileCommentSection = {
     groups: TileCommentGroup[];
 };
 
-export const REMOVED_TILES_SECTION_LABEL = 'No longer on this dashboard';
+export const getRemovedTilesSectionLabel = (): string =>
+    i18n.t('panel.removedTilesSection', { ns: 'comments' });
 
 /**
  * Splits ordered tile groups into one section per dashboard tab, keeping the
@@ -140,9 +155,9 @@ export const sectionGroupsByTab = (
             isRemoved,
             tabUuid: group.tabUuid,
             label: isRemoved
-                ? REMOVED_TILES_SECTION_LABEL
+                ? getRemovedTilesSectionLabel()
                 : group.tabUuid === null
-                  ? 'Dashboard'
+                  ? i18n.t('panel.dashboardSection', { ns: 'comments' })
                   : (tabNames.get(group.tabUuid) ?? ''),
             groups: [group],
         });

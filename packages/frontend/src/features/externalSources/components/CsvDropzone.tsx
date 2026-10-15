@@ -2,6 +2,7 @@ import { MAX_EXTERNAL_SOURCE_FILE_BYTES } from '@lightdash/common';
 import { Box, Loader, Stack, Text } from '@mantine/core';
 import { IconCloudUpload } from '@tabler/icons-react';
 import { useId, useState, type ChangeEvent, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useToaster from '../../../hooks/toaster/useToaster';
 import classes from './CsvDropzone.module.css';
@@ -23,6 +24,7 @@ type Props = {
  * never hits the wire.
  */
 export const CsvDropzone: FC<Props> = ({ isUploading, onFile }) => {
+    const { t } = useTranslation('sync');
     const { showToastError } = useToaster();
     const [isDragging, setIsDragging] = useState(false);
     const inputId = useId();
@@ -31,24 +33,30 @@ export const CsvDropzone: FC<Props> = ({ isUploading, onFile }) => {
         const lower = file.name.toLowerCase();
         if (!lower.endsWith('.csv') && !lower.endsWith('.tsv')) {
             showToastError({
-                title: `Unsupported file: ${file.name}`,
-                subtitle: 'Upload a .csv or .tsv file.',
+                title: t('externalSources.dropzone.unsupportedTitle', {
+                    file: file.name,
+                }),
+                subtitle: t('externalSources.dropzone.unsupportedSubtitle'),
             });
             return;
         }
         if (file.size > MAX_EXTERNAL_SOURCE_FILE_BYTES) {
             showToastError({
-                title: `${file.name} is too large`,
-                subtitle: `Files must be under ${formatMb(
-                    MAX_EXTERNAL_SOURCE_FILE_BYTES,
-                )}.`,
+                title: t('externalSources.dropzone.tooLargeTitle', {
+                    file: file.name,
+                }),
+                subtitle: t('externalSources.dropzone.tooLargeSubtitle', {
+                    size: formatMb(MAX_EXTERNAL_SOURCE_FILE_BYTES),
+                }),
             });
             return;
         }
         if (file.size === 0) {
             showToastError({
-                title: `${file.name} is empty`,
-                subtitle: 'Upload a file with at least a header row.',
+                title: t('externalSources.dropzone.emptyTitle', {
+                    file: file.name,
+                }),
+                subtitle: t('externalSources.dropzone.emptySubtitle'),
             });
             return;
         }
@@ -107,12 +115,13 @@ export const CsvDropzone: FC<Props> = ({ isUploading, onFile }) => {
                     )}
                     <Text fz="sm" fw={500} ta="center">
                         {isUploading
-                            ? 'Uploading and analyzing…'
-                            : 'Drop a CSV here or click to browse'}
+                            ? t('externalSources.dropzone.uploading')
+                            : t('externalSources.dropzone.prompt')}
                     </Text>
                     <Text fz="xs" c="dimmed" ta="center">
-                        .csv or .tsv, up to{' '}
-                        {formatMb(MAX_EXTERNAL_SOURCE_FILE_BYTES)}
+                        {t('externalSources.dropzone.hint', {
+                            size: formatMb(MAX_EXTERNAL_SOURCE_FILE_BYTES),
+                        })}
                     </Text>
                 </Stack>
             </Box>
@@ -121,7 +130,7 @@ export const CsvDropzone: FC<Props> = ({ isUploading, onFile }) => {
                 type="file"
                 accept={ACCEPT}
                 disabled={isUploading}
-                aria-label="Upload a CSV file"
+                aria-label={t('externalSources.dropzone.ariaLabel')}
                 className={classes.hiddenInput}
                 onChange={handleInputChange}
             />

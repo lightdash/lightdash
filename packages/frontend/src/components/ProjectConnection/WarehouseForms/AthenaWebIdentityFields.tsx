@@ -22,6 +22,7 @@ import {
 } from '@tabler/icons-react';
 import { type UseMutationResult } from '@tanstack/react-query';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CopyActionIcon } from '../../common/CopyActionIcon';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
@@ -64,6 +65,7 @@ const AthenaWebIdentityFields: FC<{
     >;
     onGenerateAudience: () => void;
 }> = ({ disabled, savedAudience, createAudience, onGenerateAudience }) => {
+    const { t } = useTranslation('projectConnection');
     const form = useFormContext();
     const { warehouse } = form.values;
     const audience =
@@ -107,30 +109,34 @@ const AthenaWebIdentityFields: FC<{
                 </Alert>
             )}
             <TextInput
-                label="Subject"
-                description="This Lightdash instance's identity. Use it as accounts.google.com:sub and accounts.google.com:aud."
+                label={t('warehouseFields.subject')}
+                description={t('warehouseFields.subjectDescription')}
                 value={subject ?? ''}
-                placeholder={identity.isLoading ? 'Loading…' : 'Unavailable'}
+                placeholder={
+                    identity.isLoading
+                        ? t('warehouseFields.loading')
+                        : t('warehouseFields.unavailable')
+                }
                 readOnly
                 rightSection={
                     subject ? (
                         <CopyActionIcon
                             value={subject}
-                            copyLabel="Copy subject"
+                            copyLabel={t('warehouseFields.copySubject')}
                         />
                     ) : null
                 }
             />
             <Stack gap={4}>
                 <TextInput
-                    label="Audience"
-                    description="Paste this into the role's trust policy as accounts.google.com:oaud."
+                    label={t('warehouseFields.audience')}
+                    description={t('warehouseFields.audienceDescription')}
                     value={audience ?? ''}
                     placeholder={
                         isGenerating
-                            ? 'Generating…'
+                            ? t('warehouseFields.generating')
                             : createAudience.isError
-                              ? "Couldn't generate. Select Generate new audience."
+                              ? t('warehouseFields.audienceGenerateFailed')
                               : undefined
                     }
                     readOnly
@@ -143,7 +149,7 @@ const AthenaWebIdentityFields: FC<{
                         audience ? (
                             <CopyActionIcon
                                 value={audience}
-                                copyLabel="Copy audience"
+                                copyLabel={t('warehouseFields.copyAudience')}
                             />
                         ) : null
                     }
@@ -156,13 +162,13 @@ const AthenaWebIdentityFields: FC<{
                         disabled={disabled}
                         onClick={onGenerateClick}
                     >
-                        Generate new audience
+                        {t('warehouseFields.generateNewAudience')}
                     </Button>
                 </Group>
             </Stack>
             <Input.Wrapper
-                label="Trust policy"
-                description="Give this to whoever manages IAM in your AWS account. Paste it in the role's trust policy JSON editor. Don't use the Audience box in the IAM console's role wizard."
+                label={t('warehouseFields.trustPolicy')}
+                description={t('warehouseFields.trustPolicyDescription')}
             >
                 <Group gap="xs" mt={4}>
                     <Button
@@ -181,12 +187,12 @@ const AthenaWebIdentityFields: FC<{
                         aria-expanded={isPolicyOpen}
                     >
                         {isPolicyOpen
-                            ? 'Hide trust policy'
-                            : 'Show trust policy'}
+                            ? t('warehouseFields.hideTrustPolicy')
+                            : t('warehouseFields.showTrustPolicy')}
                     </Button>
                     <CopyActionIcon
                         value={trustPolicy}
-                        copyLabel="Copy trust policy"
+                        copyLabel={t('warehouseFields.copyTrustPolicy')}
                     />
                 </Group>
                 <Collapse expanded={isPolicyOpen}>
@@ -197,8 +203,8 @@ const AthenaWebIdentityFields: FC<{
             </Input.Wrapper>
             <TextInput
                 name="warehouse.assumeRoleArn"
-                label="IAM Role ARN"
-                description="The IAM role Lightdash assumes in your AWS account. Update its trust policy before you test the connection."
+                label={t('warehouseFields.iamRoleArn')}
+                description={t('warehouseFields.webIdentityRoleArnDescription')}
                 required
                 {...form.getInputProps('warehouse.assumeRoleArn')}
                 placeholder="arn:aws:iam::123456789012:role/lightdash-athena"
@@ -207,16 +213,15 @@ const AthenaWebIdentityFields: FC<{
             <MantineModal
                 opened={isConfirmOpen}
                 onClose={() => setIsConfirmOpen(false)}
-                title="Generate a new audience?"
-                confirmLabel="Generate"
+                title={t('warehouseFields.regenerateAudienceTitle')}
+                confirmLabel={t('warehouseFields.generate')}
                 onConfirm={() => {
                     setIsConfirmOpen(false);
                     onGenerateAudience();
                 }}
             >
                 <Text fz="sm">
-                    This connection stops working when you save, until the
-                    role&apos;s trust policy uses the new audience.
+                    {t('warehouseFields.audienceRegenerateWarning')}
                 </Text>
             </MantineModal>
         </>

@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { memo, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     explorerActions,
     selectIsEditMode,
@@ -22,6 +23,7 @@ import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 
 const ParametersCard = memo(
     ({ parameterReferences }: { parameterReferences?: string[] }) => {
+        const { t } = useTranslation('explorer');
         const projectUuid = useProjectUuid();
 
         const paramsIsOpen = useExplorerSelector(selectIsParametersExpanded);
@@ -84,9 +86,9 @@ const ParametersCard = memo(
         return (
             <CollapsableCard
                 isOpen={paramsIsOpen}
-                title="Parameters"
+                title={t('parametersCard.title')}
                 disabled={!tableName}
-                toggleTooltip={!tableName ? 'No model selected' : ''}
+                toggleTooltip={!tableName ? t('parametersCard.noModel') : ''}
                 onToggle={() =>
                     toggleExpandedSection(ExplorerSection.PARAMETERS)
                 }

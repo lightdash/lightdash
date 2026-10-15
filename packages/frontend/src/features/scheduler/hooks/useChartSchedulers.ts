@@ -11,6 +11,7 @@ import {
     useMutation,
     useQueryClient,
 } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -104,6 +105,7 @@ const createChartScheduler = async (
 export const useChartSchedulerCreateMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
+    const { t } = useTranslation('scheduler');
     return useMutation<
         ApiCreateSavedChartSchedulerResponse['results'],
         ApiError,
@@ -116,12 +118,12 @@ export const useChartSchedulerCreateMutation = () => {
                 variables.resourceUuid,
             ]);
             showToastSuccess({
-                title: `Success! Scheduled delivery was created.`,
+                title: t('toasts.created'),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to create scheduled delivery`,
+                title: t('toasts.createFailed'),
                 apiError: error,
             });
         },

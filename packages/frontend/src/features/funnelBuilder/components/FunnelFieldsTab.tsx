@@ -6,8 +6,10 @@ import {
 } from '@lightdash/common';
 import { Select, Stack } from '@mantine/core';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplores } from '../../../hooks/useExplores';
+import i18n from '../../../i18n/i18n';
 import { useAppDispatch, useAppSelector } from '../store';
 import {
     selectBreakdownDimensionId,
@@ -55,8 +57,18 @@ function buildGroupedSelectData(
     }
 
     return [
-        { group: 'Suggested', items: toSortedSelectItems(suggested) },
-        { group: 'All Fields', items: toSortedSelectItems(others) },
+        {
+            group: i18n.t('funnelBuilder.fields.suggested', {
+                ns: 'metricsCatalog',
+            }),
+            items: toSortedSelectItems(suggested),
+        },
+        {
+            group: i18n.t('funnelBuilder.fields.allFields', {
+                ns: 'metricsCatalog',
+            }),
+            items: toSortedSelectItems(others),
+        },
     ];
 }
 
@@ -65,6 +77,7 @@ type Props = {
 };
 
 export const FunnelFieldsTab: FC<Props> = ({ projectUuid }) => {
+    const { t } = useTranslation('metricsCatalog');
     const dispatch = useAppDispatch();
 
     // Redux state
@@ -138,8 +151,8 @@ export const FunnelFieldsTab: FC<Props> = ({ projectUuid }) => {
     return (
         <Stack gap="md">
             <Select
-                label="Explore"
-                placeholder="Select an explore"
+                label={t('funnelBuilder.fields.explore')}
+                placeholder={t('funnelBuilder.fields.selectExplore')}
                 searchable
                 selectFirstOptionOnChange
                 data={exploreSelectData}
@@ -151,8 +164,8 @@ export const FunnelFieldsTab: FC<Props> = ({ projectUuid }) => {
             {exploreName && (
                 <>
                     <Select
-                        label="Timestamp Field"
-                        placeholder="Select timestamp"
+                        label={t('funnelBuilder.fields.timestampField')}
+                        placeholder={t('funnelBuilder.fields.selectTimestamp')}
                         searchable
                         selectFirstOptionOnChange
                         data={timestampSelectData}
@@ -164,8 +177,8 @@ export const FunnelFieldsTab: FC<Props> = ({ projectUuid }) => {
                     />
 
                     <Select
-                        label="User ID Field"
-                        placeholder="Select user identifier"
+                        label={t('funnelBuilder.fields.userIdField')}
+                        placeholder={t('funnelBuilder.fields.selectUserId')}
                         searchable
                         selectFirstOptionOnChange
                         data={userIdSelectData}
@@ -175,8 +188,8 @@ export const FunnelFieldsTab: FC<Props> = ({ projectUuid }) => {
                     />
 
                     <Select
-                        label="Event Name Field"
-                        placeholder="Select event name"
+                        label={t('funnelBuilder.fields.eventNameField')}
+                        placeholder={t('funnelBuilder.fields.selectEventName')}
                         searchable
                         selectFirstOptionOnChange
                         data={eventNameSelectData}
@@ -188,8 +201,8 @@ export const FunnelFieldsTab: FC<Props> = ({ projectUuid }) => {
                     />
 
                     <Select
-                        label="Breakdown (Optional)"
-                        placeholder="Select breakdown"
+                        label={t('funnelBuilder.fields.breakdown')}
+                        placeholder={t('funnelBuilder.fields.selectBreakdown')}
                         searchable
                         selectFirstOptionOnChange
                         clearable

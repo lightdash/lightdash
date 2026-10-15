@@ -2,6 +2,7 @@ import { type SchedulerRun } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { IconChevronLeft, IconHistory } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import LogsTable from '../../../components/SchedulersView/LogsTable';
@@ -33,6 +34,7 @@ const SchedulerRunsHistoryModal: FC<Props> = ({
     schedulerName,
     projectUuid,
 }) => {
+    const { t } = useTranslation('scheduler');
     const { getSlackChannelName } = useGetSlackChannelName();
 
     const resourceScope = useMemo(
@@ -45,7 +47,7 @@ const SchedulerRunsHistoryModal: FC<Props> = ({
             opened
             onClose={onClose}
             size="xl"
-            title={`Run history – ${schedulerName}`}
+            title={t('runsHistoryModal.title', { name: schedulerName })}
             icon={IconHistory}
             cancelLabel={false}
             modalBodyProps={{ bg: 'background' }}
@@ -55,7 +57,7 @@ const SchedulerRunsHistoryModal: FC<Props> = ({
                     variant="subtle"
                     leftSection={<MantineIcon icon={IconChevronLeft} />}
                 >
-                    Back
+                    {t('actions.back', { ns: 'common' })}
                 </Button>
             }
             bodyScrollAreaMaxHeight="80vh"

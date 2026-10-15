@@ -1,5 +1,6 @@
 import { Anchor, Box, Group, Text, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { PillTagsInput } from '../../../../components/common/TagsInput/PillTagsInput';
 import { TagPill } from '../../../../components/common/TagsInput/TagPill';
 import GoogleChatSvg from '../../../../svgs/googlechat.svg?react';
@@ -41,6 +42,7 @@ export const SchedulerFormGoogleChatInput: FC<GoogleChatDestinationProps> = ({
     googleChatTargets,
     hideIcon,
 }) => {
+    const { t } = useTranslation('scheduler');
     return (
         <Group wrap="nowrap" mb={hideIcon ? 0 : 'sm'} align="flex-start">
             {!hideIcon && (
@@ -58,7 +60,7 @@ export const SchedulerFormGoogleChatInput: FC<GoogleChatDestinationProps> = ({
                 <PillTagsInput
                     radius="md"
                     clearable
-                    placeholder="Enter Google Chat webhook URLs"
+                    placeholder={t('googleChatInput.placeholder')}
                     value={googleChatTargets}
                     allowDuplicates={false}
                     splitChars={[',', ' ']}
@@ -67,14 +69,19 @@ export const SchedulerFormGoogleChatInput: FC<GoogleChatDestinationProps> = ({
                     renderPill={renderWebhookPill}
                 />
                 <Text size="xs" c="dimmed" mt={4}>
-                    <Anchor
-                        size="xs"
-                        href="https://developers.google.com/workspace/chat/create-webhook"
-                        target="_blank"
-                    >
-                        Create a webhook
-                    </Anchor>{' '}
-                    in Google Chat to get a URL.
+                    <Trans
+                        t={t}
+                        i18nKey="googleChatInput.help"
+                        components={{
+                            anchor: (
+                                <Anchor
+                                    size="xs"
+                                    href="https://developers.google.com/workspace/chat/create-webhook"
+                                    target="_blank"
+                                />
+                            ),
+                        }}
+                    />
                 </Text>
             </Box>
         </Group>

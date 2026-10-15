@@ -18,6 +18,7 @@ import {
     IconFolder,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import AppThumbnailHoverCard from '../../../features/apps/components/AppThumbnailHoverCard';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -55,6 +56,7 @@ const ResourceValidationErrorIndicator = ({
     children,
     validationUuid,
 }: ResourceValidationErrorIndicatorProps) => {
+    const { t } = useTranslation('resourceView');
     if (!validationUuid) {
         return children;
     }
@@ -74,28 +76,28 @@ const ResourceValidationErrorIndicator = ({
             }}
             tooltipLabel={
                 canUserManageValidation ? (
-                    <>
-                        This content is broken. Learn more about the validation
-                        error(s){' '}
-                        <Anchor
-                            component={Link}
-                            fw={600}
-                            to={{
-                                pathname: `/generalSettings/projectManagement/${projectUuid}/validator`,
-                                search: `?validationUuid=${validationUuid}`,
-                            }}
-                            color="blue.4"
-                            fz="xs"
-                        >
-                            here
-                        </Anchor>
-                        .
-                    </>
+                    <Trans
+                        t={t}
+                        i18nKey="validation.brokenContent"
+                        components={{
+                            link: (
+                                <Anchor
+                                    component={Link}
+                                    fw={600}
+                                    to={{
+                                        pathname: `/generalSettings/projectManagement/${projectUuid}/validator`,
+                                        search: `?validationUuid=${validationUuid}`,
+                                    }}
+                                    color="blue.4"
+                                    fz="xs"
+                                />
+                            ),
+                        }}
+                    />
+                ) : isResourceViewItemChart(item) ? (
+                    t('validation.chartError')
                 ) : (
-                    <>
-                        There's an error with this{' '}
-                        {isResourceViewItemChart(item) ? 'chart' : 'dashboard'}.
-                    </>
+                    t('validation.dashboardError')
                 )
             }
         >
@@ -115,6 +117,7 @@ type ResourceVerifiedInlineBadgeProps = {
 const ResourceVerifiedInlineBadge = ({
     verification,
 }: ResourceVerifiedInlineBadgeProps) => {
+    const { t } = useTranslation('resourceView');
     if (!verification) {
         return null;
     }
@@ -125,12 +128,11 @@ const ResourceVerifiedInlineBadge = ({
         <Tooltip
             maw={300}
             position="bottom"
-            label={
-                <>
-                    Verified by {verification.verifiedBy.firstName}{' '}
-                    {verification.verifiedBy.lastName} on {verifiedDate}
-                </>
-            }
+            label={t('verification.verifiedByOn', {
+                firstName: verification.verifiedBy.firstName,
+                lastName: verification.verifiedBy.lastName,
+                date: verifiedDate,
+            })}
         >
             <Box component="span" lh={0} c="green.6">
                 <MantineIcon icon={IconCircleCheckFilled} size={16} />
@@ -154,6 +156,7 @@ const InfiniteResourceTableColumnName = ({
     canUserManageValidation,
     showDataAppVersionStatus,
 }: InfiniteResourceTableColumnNameProps) => {
+    const { t } = useTranslation('resourceView');
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
     const isSpace = isResourceViewSpaceItem(item);
@@ -245,7 +248,7 @@ const InfiniteResourceTableColumnName = ({
                     </Group>
                     {isResourceViewDocumentItem(item) && (
                         <Text fz="xs" c="dimmed">
-                            Document
+                            {t('resourceType.document')}
                         </Text>
                     )}
                     {showTypeAndViews && (
@@ -263,7 +266,9 @@ const InfiniteResourceTableColumnName = ({
                                         item,
                                     )}
                                 >
-                                    {item.data.views || '0'} views
+                                    {t('views.count', {
+                                        count: item.data.views || 0,
+                                    })}
                                 </ViewsCountPopover>
                             </Text>
                             {showDataAppVersionStatus &&
@@ -288,24 +293,24 @@ const InfiniteResourceTableColumnName = ({
                                 <AttributeCount
                                     Icon={IconLayoutDashboard}
                                     count={item.data.dashboardCount}
-                                    name="Dashboards"
+                                    name={t('attributeCount.dashboards')}
                                 />
                                 <AttributeCount
                                     Icon={IconChartBar}
                                     count={item.data.chartCount}
-                                    name="Charts"
+                                    name={t('attributeCount.charts')}
                                 />
                                 {dataAppsEnabled && (
                                     <AttributeCount
                                         Icon={IconAppWindow}
                                         count={item.data.appCount}
-                                        name="Data apps"
+                                        name={t('attributeCount.dataApps')}
                                     />
                                 )}
                                 <AttributeCount
                                     Icon={IconFolder}
                                     count={item.data.childSpaceCount}
-                                    name="Spaces"
+                                    name={t('attributeCount.spaces')}
                                 />
                             </Group>
                         </Group>

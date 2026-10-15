@@ -1,6 +1,7 @@
 import { getDocumentUrl, type DocumentSavedChartKind } from '@lightdash/common';
 import { Anchor, List, ScrollArea } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import Callout from '../../components/common/Callout';
 import { useDocumentsLinkingChart } from './useDocumentsLinkingChart';
@@ -19,6 +20,7 @@ const DocumentsLinkingChartCallout: FC<Props> = ({
     chartUuid,
     softDeleteEnabled,
 }) => {
+    const { t } = useTranslation('documents');
     const { data: documents } = useDocumentsLinkingChart(
         projectUuid,
         kind,
@@ -27,14 +29,17 @@ const DocumentsLinkingChartCallout: FC<Props> = ({
     if (!projectUuid || !documents || documents.length === 0) {
         return null;
     }
-    const count = `${documents.length} document${documents.length > 1 ? 's' : ''}`;
     return (
         <Callout
             variant="warning"
             title={
                 softDeleteEnabled
-                    ? `This chart is linked from ${count}. They'll show it as unavailable until it's restored:`
-                    : `This chart is linked from ${count}. They'll show it as unavailable:`
+                    ? t('linkingChartCallout.softDelete', {
+                          count: documents.length,
+                      })
+                    : t('linkingChartCallout.hardDelete', {
+                          count: documents.length,
+                      })
             }
         >
             <ScrollArea.Autosize mah="200px">

@@ -16,6 +16,7 @@ import {
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import i18n from '../../../../i18n/i18n';
 
 const AI_AGENT_DOCUMENTS_KEY = 'aiAgentDocuments';
 
@@ -126,7 +127,9 @@ export const useCreateAiAgentDocument = (
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to upload document',
+                title: i18n.t('toasts.documents.uploadFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },
@@ -191,7 +194,9 @@ export const useUpdateAiAgentDocumentContent = (
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to update document content',
+                title: i18n.t('toasts.documents.updateContentFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },
@@ -218,7 +223,9 @@ export const useUpdateAiAgentDocument = (
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to update document',
+                title: i18n.t('toasts.documents.updateFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },
@@ -242,7 +249,9 @@ export const useDeleteAiAgentDocument = (
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to delete document',
+                title: i18n.t('toasts.documents.deleteFailed', {
+                    ns: 'aiAgent',
+                }),
                 apiError: error,
             });
         },

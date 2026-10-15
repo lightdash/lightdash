@@ -1,5 +1,6 @@
 import { ContentType } from '@lightdash/common';
 import { type ModalProps } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import { useContentAction } from '../../../hooks/useContent';
 import useApp from '../../../providers/App/useApp';
 import MantineModal from '../MantineModal';
@@ -19,6 +20,7 @@ const DocumentDeleteModal = ({
     name,
     onConfirm,
 }: Props) => {
+    const { t } = useTranslation('modals');
     const { health } = useApp();
     const softDeleteEnabled = health.data?.softDelete.enabled ?? false;
     const { mutate: deleteDocument, isLoading } = useContentAction(
@@ -32,14 +34,14 @@ const DocumentDeleteModal = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Delete document"
+            title={t('documentDelete.title')}
             variant="delete"
-            resourceType="document"
+            resourceType={t('resourceTypes.document')}
             resourceLabel={name}
             description={
                 softDeleteEnabled
-                    ? 'This document will be moved to Recently deleted, where it can be restored or permanently deleted.'
-                    : 'This document and all of its versions will be permanently deleted.'
+                    ? t('documentDelete.softDeleteDescription')
+                    : t('documentDelete.permanentDescription')
             }
             onConfirm={() =>
                 deleteDocument({

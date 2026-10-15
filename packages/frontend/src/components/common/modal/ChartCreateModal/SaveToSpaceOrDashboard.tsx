@@ -27,6 +27,7 @@ import { useForm } from '@mantine/form';
 import { IconPlus } from '@tabler/icons-react';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { z } from 'zod';
@@ -49,6 +50,7 @@ import {
     useCreateMutation as useCreateSpaceMutation,
     useSpaceSummaries,
 } from '../../../../hooks/useSpaces';
+import i18n from '../../../../i18n/i18n';
 import useApp from '../../../../providers/App/useApp';
 import Callout from '../../Callout';
 import MantineIcon from '../../MantineIcon';
@@ -66,7 +68,9 @@ import {
 
 const saveToSpaceOrDashboardSchema = z
     .object({
-        name: z.string().min(1, 'Name is required'),
+        name: z.string().min(1, {
+            error: () => i18n.t('validation.nameRequired', { ns: 'modals' }),
+        }),
         description: z.string().nullable(),
     })
     // for saving to the dashboard
@@ -120,6 +124,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     redirectOnSuccess = true,
     showViewChartAction = true,
 }) => {
+    const { t } = useTranslation('modals');
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
         projectRoute?.projectUrlIdentifier ?? projectUuid;
@@ -303,12 +308,14 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         if (selectedDashboardError) {
             setFieldError(
                 'dashboardUuid',
-                `Failed to load dashboard. ${selectedDashboardError.error.message}`,
+                t('saveToSpaceOrDashboard.failedToLoadDashboard', {
+                    message: selectedDashboardError.error.message,
+                }),
             );
         } else {
             clearFieldError('dashboardUuid');
         }
-    }, [selectedDashboardError, setFieldError, clearFieldError]);
+    }, [selectedDashboardError, setFieldError, clearFieldError, t]);
 
     const isFormReadyToSave = useMemo(() => {
         // OriginatingDashboard skips step 2 — it submits straight from
@@ -429,7 +436,10 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                         : `/projects/${projectUrlIdentifier}/dashboards/${originatingDashboardData?.slug ?? originatingDashboard.dashboardUuid}/edit`,
                 );
                 showToastSuccess({
-                    title: `Success! ${values.name} was added to ${originatingDashboard.dashboardName}`,
+                    title: t('saveToDashboard.addedToast', {
+                        chartName: values.name,
+                        dashboardName: originatingDashboard.dashboardName,
+                    }),
                 });
             }
 
@@ -454,7 +464,9 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
 
                     if (!newDashboardSpaceUuid || !values.newDashboardName) {
                         throw new Error(
-                            'A name and space are required to create a new dashboard.',
+                            t(
+                                'saveToSpaceOrDashboard.newDashboardRequirements',
+                            ),
                         );
                     }
 
@@ -469,7 +481,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
 
                 if (!destinationDashboard) {
                     throw new Error(
-                        'Dashboard not found or failed to load. Please try selecting a different dashboard.',
+                        t('saveToSpaceOrDashboard.dashboardNotFound'),
                     );
                 }
 
@@ -585,6 +597,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             createDashboard,
             createSpace,
             forcedSpaceUuid,
+            t,
         ],
     );
 
@@ -642,16 +655,16 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                 {currentStep === ModalStep.InitialInfo && (
                     <>
                         <TextInput
-                            label="Chart name"
-                            placeholder="eg. How many weekly active users do we have?"
+                            label={t('chartForm.nameLabel')}
+                            placeholder={t('chartForm.namePlaceholder')}
                             required
                             {...form.getInputProps('name')}
                             value={form.values.name ?? ''}
                             data-testid="ChartCreateModal/NameInput"
                         />
                         <Textarea
-                            label="Chart description"
-                            placeholder="A few words to give your team some context"
+                            label={t('chartForm.descriptionLabel')}
+                            placeholder={t('descriptionPlaceholder')}
                             autosize
                             maxRows={3}
                             {...form.getInputProps('description')}
@@ -660,7 +673,9 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
 
                         {!forcedSpaceUuid && (
                             <Stack gap="sm" mt="sm">
-                                <Text fw={500}>Save to</Text>
+                                <Text fw={500}>
+                                    {t('saveToSpaceOrDashboard.saveTo')}
+                                </Text>
 
                                 <Radio.Group
                                     value={saveDestination}
@@ -673,7 +688,9 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                                     <Stack gap="xs">
                                         <Radio
                                             value={SaveDestination.Space}
-                                            label="Space"
+                                            label={t(
+                                                'saveToSpaceOrDashboard.destination.space',
+                                            )}
                                             // Anchor for scope walkthroughs
                                             data-tour-anchor="chart-save-to-space"
                                             data-tour-hint="Choose to save it in a space"
@@ -686,15 +703,25 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                                                 value={
                                                     SaveDestination.OriginatingDashboard
                                                 }
-                                                label={`"${originatingDashboard.dashboardName}" dashboard`}
+                                                label={t(
+                                                    'saveToSpaceOrDashboard.destination.originatingDashboard',
+                                                    {
+                                                        dashboardName:
+                                                            originatingDashboard.dashboardName,
+                                                    },
+                                                )}
                                             />
                                         )}
                                         <Radio
                                             value={SaveDestination.Dashboard}
                                             label={
                                                 originatingDashboard
-                                                    ? 'Different dashboard'
-                                                    : 'Dashboard'
+                                                    ? t(
+                                                          'saveToSpaceOrDashboard.destination.differentDashboard',
+                                                      )
+                                                    : t(
+                                                          'saveToSpaceOrDashboard.destination.dashboard',
+                                                      )
                                             }
                                         />
                                     </Stack>
@@ -705,12 +732,13 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                         {showUnusedDimensionsWarning && (
                             <Callout
                                 variant="warning"
-                                title="Chart configuration warning"
+                                title={t(
+                                    'saveToSpaceOrDashboard.unusedDimensions.title',
+                                )}
                             >
-                                This chart has dimensions in the query that are
-                                not used in the chart configuration (x-axis,
-                                y-axis, or group by). This may cause incorrect
-                                results.
+                                {t(
+                                    'saveToSpaceOrDashboard.unusedDimensions.description',
+                                )}
                             </Callout>
                         )}
                     </>
@@ -813,7 +841,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                         leftSection={<MantineIcon icon={IconPlus} />}
                         onClick={openCreateSpaceForm}
                     >
-                        New Space
+                        {t('newSpace')}
                     </Button>
                 )}
 
@@ -821,7 +849,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                     {currentStep === ModalStep.InitialInfo ? (
                         <>
                             <Button onClick={onClose} variant="default">
-                                Cancel
+                                {t('actions.cancel', { ns: 'common' })}
                             </Button>
                             {skipDestinationStep ? (
                                 <Button
@@ -829,7 +857,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                                     loading={isSavingChart}
                                     disabled={!isFormReadyToSave}
                                 >
-                                    Save
+                                    {t('actions.save', { ns: 'common' })}
                                 </Button>
                             ) : (
                                 <Button
@@ -844,14 +872,14 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                                     data-tour-anchor="chart-save-next"
                                     data-tour-hint="Click Next to accept the suggested name"
                                 >
-                                    Next
+                                    {t('actions.next', { ns: 'common' })}
                                 </Button>
                             )}
                         </>
                     ) : (
                         <>
                             <Button onClick={handleBack} variant="default">
-                                Back
+                                {t('actions.back', { ns: 'common' })}
                             </Button>
                             <Button
                                 data-tour-anchor="chart-save-submit"
@@ -869,7 +897,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                                 }
                                 disabled={!isFormReadyToSave}
                             >
-                                Save
+                                {t('actions.save', { ns: 'common' })}
                             </Button>
                         </>
                     )}

@@ -13,6 +13,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { useEditor, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect, useMemo, useRef, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     generateFieldSuggestion,
     type FieldSuggestionItem,
@@ -56,8 +57,10 @@ export const AiPromptEditor: FC<Props> = ({
     onCleared,
     disabled,
     fieldSuggestionScope = 'selected',
-    placeholder = 'Describe your calculation (type @ to reference fields)...',
+    placeholder: placeholderProp,
 }) => {
+    const { t } = useTranslation('ambientAi');
+    const placeholder = placeholderProp ?? t('tableCalculation.placeholder');
     // Refs so handleKeyDown (configured once at editor mount) always reaches the live values.
     const onSubmitRef = useRef(onSubmit);
     onSubmitRef.current = onSubmit;

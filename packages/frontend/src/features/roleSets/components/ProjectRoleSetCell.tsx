@@ -5,6 +5,7 @@ import {
     type Role,
 } from '@lightdash/common';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useProjectGroupRoleSet,
     useProjectUserRoleSet,
@@ -43,6 +44,7 @@ export const ProjectRoleSetCell: FC<Props> = ({
     placeholder,
     onChange,
 }) => {
+    const { t } = useTranslation('roles');
     const userSetQuery = useProjectUserRoleSet(projectUuid, assignee.uuid, {
         enabled: hasMultipleRoles && assignee.type === 'user',
     });
@@ -82,7 +84,7 @@ export const ProjectRoleSetCell: FC<Props> = ({
             onChange={onChange}
             disabled={disabled || isPending}
             placeholder={placeholder}
-            ariaLabel={`Roles for ${assignee.label}`}
+            ariaLabel={t('roleSets.rolesFor', { name: assignee.label })}
             w={300}
         />
     );

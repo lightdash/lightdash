@@ -86,7 +86,7 @@ export const MetricsLink: FC<Props> = ({ projectUuid, asMenu }) => {
             data-tour-nav="metrics"
             data-tour-hint="Open Metrics"
         >
-            Metrics
+            {t('metrics')}
         </Button>
     );
 };

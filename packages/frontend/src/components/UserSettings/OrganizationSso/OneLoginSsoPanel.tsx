@@ -20,6 +20,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
 import {
     useDeleteOneLoginSsoConfig,
@@ -46,6 +47,7 @@ type FormValues = {
 };
 
 const OneLoginSsoPanel: FC = () => {
+    const { t } = useTranslation('userSettings');
     const { data: existing, isLoading } = useOneLoginSsoConfig();
     const upsert = useUpsertOneLoginSsoConfig();
     const deleteConfig = useDeleteOneLoginSsoConfig();
@@ -66,16 +68,22 @@ const OneLoginSsoPanel: FC = () => {
         },
         validate: {
             oauth2Issuer: (value) =>
-                value.trim().length === 0 ? 'Issuer is required' : null,
+                value.trim().length === 0
+                    ? t('organizationSso.ssoPanel.validation.issuerRequired')
+                    : null,
             oauth2ClientId: (value) =>
-                value.trim().length === 0 ? 'Client ID is required' : null,
+                value.trim().length === 0
+                    ? t('organizationSso.ssoPanel.validation.clientIdRequired')
+                    : null,
             oauth2ClientSecret: (value) =>
                 !existing && value.trim().length === 0
-                    ? 'Client secret is required'
+                    ? t(
+                          'organizationSso.ssoPanel.validation.clientSecretRequired',
+                      )
                     : null,
             emailDomains: (value, values) =>
                 values.overrideEmailDomains && value.length === 0
-                    ? 'Add at least one domain when override is enabled'
+                    ? t('organizationSso.ssoPanel.validation.domainsRequired')
                     : null,
         },
     });
@@ -152,22 +160,20 @@ const OneLoginSsoPanel: FC = () => {
                                 w={28}
                                 h={28}
                                 mt={2}
-                                alt="OneLogin logo"
+                                alt={t('organizationSso.ssoPanel.logoAlt', {
+                                    provider: 'OneLogin',
+                                })}
                             />
                             <Stack gap={2}>
                                 <Title order={5}>OneLogin</Title>
                                 <Text c="dimmed" size="sm" maw={460}>
-                                    Single sign-on via OneLogin. Users whose
-                                    email matches the discovery whitelist see a
-                                    "Sign in with OneLogin" button;
-                                    instance-level SSO is suppressed for matched
-                                    users.
+                                    {t('organizationSso.oneLogin.description')}
                                 </Text>
                             </Stack>
                         </Group>
                         {isConfigured ? (
                             <Switch
-                                label="Enabled"
+                                label={t('organizationSso.ssoPanel.enabled')}
                                 labelPosition="left"
                                 checked={form.values.enabled}
                                 disabled={upsert.isLoading}
@@ -179,7 +185,7 @@ const OneLoginSsoPanel: FC = () => {
                             />
                         ) : (
                             <Badge variant="outline" size="lg">
-                                Not configured
+                                {t('organizationSso.ssoPanel.notConfigured')}
                             </Badge>
                         )}
                     </Group>
@@ -198,8 +204,12 @@ const OneLoginSsoPanel: FC = () => {
                             onClick={() => toggleOpen()}
                         >
                             {isOpen
-                                ? 'Hide configuration'
-                                : 'Edit configuration'}
+                                ? t(
+                                      'organizationSso.ssoPanel.hideConfiguration',
+                                  )
+                                : t(
+                                      'organizationSso.ssoPanel.editConfiguration',
+                                  )}
                         </Button>
                     ) : (
                         !isOpen && (
@@ -208,7 +218,9 @@ const OneLoginSsoPanel: FC = () => {
                                 w="fit-content"
                                 onClick={() => toggleOpen()}
                             >
-                                Set up OneLogin
+                                {t('organizationSso.ssoPanel.setUp', {
+                                    provider: 'OneLogin',
+                                })}
                             </Button>
                         )
                     )}
@@ -223,32 +235,51 @@ const OneLoginSsoPanel: FC = () => {
                             <form onSubmit={handleSubmit}>
                                 <Stack>
                                     <Title order={6}>
-                                        Application credentials
+                                        {t(
+                                            'organizationSso.ssoPanel.applicationCredentials',
+                                        )}
                                     </Title>
                                     <TextInput
-                                        label="Issuer URL"
+                                        label={t(
+                                            'organizationSso.ssoPanel.issuerUrl',
+                                        )}
                                         placeholder="https://your-org.onelogin.com"
-                                        description="Your OneLogin OIDC issuer URL."
+                                        description={t(
+                                            'organizationSso.oneLogin.issuerDescription',
+                                        )}
                                         required
                                         {...form.getInputProps('oauth2Issuer')}
                                     />
                                     <TextInput
-                                        label="Client ID"
+                                        label={t(
+                                            'organizationSso.ssoPanel.clientId',
+                                        )}
                                         placeholder="your-onelogin-client-id"
-                                        description="From the OneLogin application's SSO settings."
+                                        description={t(
+                                            'organizationSso.oneLogin.clientIdDescription',
+                                        )}
                                         required
                                         {...form.getInputProps(
                                             'oauth2ClientId',
                                         )}
                                     />
                                     <PasswordInput
-                                        label="Client secret"
+                                        label={t(
+                                            'organizationSso.ssoPanel.clientSecret',
+                                        )}
                                         placeholder={
                                             existing
-                                                ? 'Leave blank to keep the existing secret'
-                                                : 'OneLogin client secret value'
+                                                ? t(
+                                                      'organizationSso.ssoPanel.keepExistingSecret',
+                                                  )
+                                                : t(
+                                                      'organizationSso.ssoPanel.clientSecretPlaceholder',
+                                                      { provider: 'OneLogin' },
+                                                  )
                                         }
-                                        description="The client secret from the OneLogin application."
+                                        description={t(
+                                            'organizationSso.oneLogin.clientSecretDescription',
+                                        )}
                                         required={!existing}
                                         {...form.getInputProps(
                                             'oauth2ClientSecret',
@@ -256,7 +287,9 @@ const OneLoginSsoPanel: FC = () => {
                                     />
 
                                     <Title order={6} mt="md">
-                                        Discovery
+                                        {t(
+                                            'organizationSso.ssoPanel.discovery',
+                                        )}
                                     </Title>
                                     <SsoMethodDomainsField
                                         providerLabel="OneLogin"
@@ -280,11 +313,18 @@ const OneLoginSsoPanel: FC = () => {
                                     />
 
                                     <Title order={6} mt="md">
-                                        Password sign-in
+                                        {t(
+                                            'organizationSso.ssoPanel.passwordSignIn',
+                                        )}
                                     </Title>
                                     <Checkbox
-                                        label="Allow password sign-in for users matching this method"
-                                        description="When unchecked, users whose email domain matches OneLogin discovery will not see the password input. Lenient rule: if any matching method allows password, it is shown."
+                                        label={t(
+                                            'organizationSso.ssoPanel.allowPassword',
+                                        )}
+                                        description={t(
+                                            'organizationSso.ssoPanel.allowPasswordDescription',
+                                            { provider: 'OneLogin' },
+                                        )}
                                         checked={form.values.allowPassword}
                                         onChange={(event) =>
                                             form.setFieldValue(
@@ -308,7 +348,9 @@ const OneLoginSsoPanel: FC = () => {
                                                     setDeleteOpen(true)
                                                 }
                                             >
-                                                Remove configuration
+                                                {t(
+                                                    'organizationSso.ssoPanel.removeConfiguration',
+                                                )}
                                             </Button>
                                         ) : (
                                             <div />
@@ -319,8 +361,13 @@ const OneLoginSsoPanel: FC = () => {
                                             disabled={upsert.isLoading}
                                         >
                                             {existing
-                                                ? 'Save changes'
-                                                : 'Enable OneLogin'}
+                                                ? t(
+                                                      'organizationSso.ssoPanel.saveChanges',
+                                                  )
+                                                : t(
+                                                      'organizationSso.ssoPanel.enable',
+                                                      { provider: 'OneLogin' },
+                                                  )}
                                         </Button>
                                     </Group>
                                 </Stack>
@@ -335,9 +382,11 @@ const OneLoginSsoPanel: FC = () => {
                     opened
                     onClose={() => setDeleteOpen(false)}
                     role="alertdialog"
-                    title="Remove OneLogin configuration"
+                    title={t('organizationSso.ssoPanel.removeModalTitle', {
+                        provider: 'OneLogin',
+                    })}
                     icon={IconShieldCheck}
-                    cancelLabel="Cancel"
+                    cancelLabel={t('actions.cancel', { ns: 'common' })}
                     actions={
                         <Button
                             color="red"
@@ -347,14 +396,14 @@ const OneLoginSsoPanel: FC = () => {
                                 setDeleteOpen(false);
                             }}
                         >
-                            Remove
+                            {t('actions.remove', { ns: 'common' })}
                         </Button>
                     }
                 >
                     <Text>
-                        After removing this configuration, users in this
-                        organization will no longer be able to sign in with
-                        OneLogin via the per-organization configuration.
+                        {t('organizationSso.ssoPanel.removeModalBody', {
+                            provider: 'OneLogin',
+                        })}
                     </Text>
                 </MantineModal>
             )}

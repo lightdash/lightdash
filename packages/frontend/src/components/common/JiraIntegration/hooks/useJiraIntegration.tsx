@@ -10,6 +10,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api'; // pragma: allowlist secret
 import useToaster from '../../../../hooks/toaster/useToaster';
+import i18n from '../../../../i18n/i18n';
 
 const INSTALLATION_KEY = ['jira_installation'];
 const SITES_KEY = ['jira_sites'];
@@ -37,7 +38,11 @@ export const useJiraInstallation = (options?: { enabled?: boolean }) => {
             }),
         retry: false,
         enabled: options?.enabled ?? true,
-        onError: queryError('Failed to get Jira installation'),
+        onError: queryError(
+            i18n.t('jiraIntegration.fetchInstallationFailed', {
+                ns: 'commonUi',
+            }),
+        ),
     });
 };
 
@@ -55,7 +60,9 @@ export const useInstallJira = () => {
         },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Failed to connect Jira',
+                title: i18n.t('jiraIntegration.connectFailed', {
+                    ns: 'commonUi',
+                }),
                 apiError: error,
             }),
     });
@@ -73,7 +80,9 @@ export const useJiraSites = (options?: { enabled?: boolean }) => {
             }),
         retry: false,
         enabled: options?.enabled ?? true,
-        onError: queryError('Failed to get Jira sites'),
+        onError: queryError(
+            i18n.t('jiraIntegration.fetchSitesFailed', { ns: 'commonUi' }),
+        ),
     });
 };
 
@@ -90,11 +99,17 @@ export const useSelectJiraSite = () => {
         onSuccess: async (installation) => {
             queryClient.setQueryData(INSTALLATION_KEY, installation);
             await queryClient.invalidateQueries(PROJECTS_KEY);
-            showToastSuccess({ title: 'Jira site selected' });
+            showToastSuccess({
+                title: i18n.t('jiraIntegration.siteSelected', {
+                    ns: 'commonUi',
+                }),
+            });
         },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Failed to select Jira site',
+                title: i18n.t('jiraIntegration.selectSiteFailed', {
+                    ns: 'commonUi',
+                }),
                 apiError: error,
             }),
     });
@@ -112,7 +127,9 @@ export const useJiraProjects = (options?: { enabled?: boolean }) => {
             }),
         retry: false,
         enabled: options?.enabled ?? true,
-        onError: queryError('Failed to get Jira projects'),
+        onError: queryError(
+            i18n.t('jiraIntegration.fetchProjectsFailed', { ns: 'commonUi' }),
+        ),
     });
 };
 
@@ -133,7 +150,9 @@ export const useJiraIssueTypes = (options: {
             }),
         retry: false,
         enabled: !!options.projectId && (options.enabled ?? true),
-        onError: queryError('Failed to get Jira issue types'),
+        onError: queryError(
+            i18n.t('jiraIntegration.fetchIssueTypesFailed', { ns: 'commonUi' }),
+        ),
     });
 };
 
@@ -155,12 +174,14 @@ export const useDeleteJiraInstallation = () => {
                 queryClient.invalidateQueries(ISSUE_TYPES_KEY),
             ]);
             showToastSuccess({
-                title: 'Success! Jira integration was deleted.',
+                title: i18n.t('jiraIntegration.deleted', { ns: 'commonUi' }),
             });
         },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Failed to delete Jira integration',
+                title: i18n.t('jiraIntegration.deleteFailed', {
+                    ns: 'commonUi',
+                }),
                 apiError: error,
             }),
     });

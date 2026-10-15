@@ -19,6 +19,7 @@ import {
 import { useDebouncedValue, useDisclosure } from '@mantine/hooks';
 import { IconEye, IconSearch, IconVariable, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import tableStyles from '../../hooks/styles/tableStyles.module.css';
 import { useProjectParametersList } from '../../hooks/useProjectParameters';
 import MantineIcon from '../common/MantineIcon';
@@ -43,26 +44,30 @@ const ConfigModal: FC<ConfigModalProps> = ({
     config,
     opened,
     onClose,
-}) => (
-    <MantineModal
-        opened={opened}
-        onClose={onClose}
-        title={`Parameter configuration: ${parameterName}`}
-        icon={IconVariable}
-        size="lg"
-        cancelLabel={false}
-    >
-        <JsonInput
-            value={JSON.stringify(config, null, 2)}
-            minRows={10}
-            maxRows={25}
-            readOnly
-            autosize
-        />
-    </MantineModal>
-);
+}) => {
+    const { t } = useTranslation('projectSettings');
+    return (
+        <MantineModal
+            opened={opened}
+            onClose={onClose}
+            title={t('parameters.configModal.title', { parameterName })}
+            icon={IconVariable}
+            size="lg"
+            cancelLabel={false}
+        >
+            <JsonInput
+                value={JSON.stringify(config, null, 2)}
+                minRows={10}
+                maxRows={25}
+                readOnly
+                autosize
+            />
+        </MantineModal>
+    );
+};
 
 const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
+    const { t } = useTranslation('projectSettings');
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const [page, setPage] = useState(1);
@@ -140,12 +145,14 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                             }
                         >
                             {parameter.source === 'config'
-                                ? 'Lightdash Config'
-                                : `${parameter.modelName} Model`}
+                                ? t('parameters.source.config')
+                                : t('parameters.source.model', {
+                                      modelName: parameter.modelName,
+                                  })}
                         </Badge>
                     </Table.Td>
                     <Table.Td>
-                        <Tooltip label="View configuration">
+                        <Tooltip label={t('parameters.viewConfiguration')}>
                             <ActionIcon
                                 onClick={() =>
                                     handleViewConfig(
@@ -160,13 +167,13 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                     </Table.Td>
                 </Table.Tr>
             )),
-        [parameters, handleViewConfig],
+        [parameters, handleViewConfig, t],
     );
 
     if (isError) {
         return (
             <SettingsCard>
-                <Text c="red">Failed to load parameters</Text>
+                <Text c="red">{t('parameters.loadFailed')}</Text>
             </SettingsCard>
         );
     }
@@ -176,13 +183,13 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
             <SettingsCard shadow="none" p={0}>
                 <Paper p="sm" bd={0}>
                     <Group gap="md" align="center">
-                        <Title order={5}>Defined parameters</Title>
+                        <Title order={5}>{t('parameters.title')}</Title>
                     </Group>
 
                     <Box mt="sm">
                         <TextInput
                             size="xs"
-                            placeholder="Search parameters by name, label, description, or model"
+                            placeholder={t('parameters.searchPlaceholder')}
                             onChange={(e) => setSearch(e.target.value)}
                             value={search}
                             w={380}
@@ -209,12 +216,16 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                                 onClick={() => handleSort('name')}
                             >
                                 <Group gap="xs">
-                                    <Text>Parameter</Text>
+                                    <Text>
+                                        {t('parameters.table.parameter')}
+                                    </Text>
                                     <Text>{getSortIcon('name')}</Text>
                                 </Group>
                             </Table.Th>
                             <Table.Th>
-                                <Text ta="left">Source</Text>
+                                <Text ta="left">
+                                    {t('parameters.table.source')}
+                                </Text>
                             </Table.Th>
                             <Table.Th></Table.Th>
                         </Table.Tr>
@@ -235,8 +246,12 @@ const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {
                                 <Table.Td colSpan={3}>
                                     <Text c="dimmed" fs="italic" ta="center">
                                         {debouncedSearch
-                                            ? 'No parameters found matching your search'
-                                            : 'No parameters configured for this project'}
+                                            ? t(
+                                                  'parameters.empty.noSearchResults',
+                                              )
+                                            : t(
+                                                  'parameters.empty.noParameters',
+                                              )}
                                     </Text>
                                 </Table.Td>
                             </Table.Tr>

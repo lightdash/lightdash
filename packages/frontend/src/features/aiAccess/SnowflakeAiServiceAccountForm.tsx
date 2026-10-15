@@ -19,6 +19,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useEffect, useId, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../components/common/Callout';
 import MantineModal from '../../components/common/MantineModal';
 import { useSaveAiServiceAccount, useTestAiServiceAccount } from './api';
@@ -31,6 +32,7 @@ const SnowflakeAiServiceAccountFeedback = ({
     result: AiServiceAccountTestResult | null;
     error: ApiError | null;
 }) => {
+    const { t } = useTranslation('aiAccess');
     const principal = getSnowflakeAiPrincipal(result);
     return (
         <>
@@ -38,7 +40,9 @@ const SnowflakeAiServiceAccountFeedback = ({
                 (result.ok ? (
                     <Text size="sm" role="status">
                         {principal
-                            ? `Signs in as ${principal}`
+                            ? t('serviceAccountDetails.signsInAs', {
+                                  principal,
+                              })
                             : result.message}
                     </Text>
                 ) : (
@@ -68,6 +72,7 @@ export const SnowflakeAiServiceAccountForm = ({
         verification: AiServiceAccountTestResult | null,
     ) => void;
 }) => {
+    const { t } = useTranslation('aiAccess');
     const privateKeyId = useId();
     const save = useSaveAiServiceAccount(projectUuid);
     const test = useTestAiServiceAccount(projectUuid);
@@ -89,15 +94,18 @@ export const SnowflakeAiServiceAccountForm = ({
             save.reset();
         },
         validate: {
-            user: (value) => (value.trim() ? null : 'Enter a user.'),
-            role: (value) => (value.trim() ? null : 'Enter a role.'),
-            warehouse: (value) => (value.trim() ? null : 'Enter a warehouse.'),
+            user: (value) =>
+                value.trim() ? null : t('snowflakeForm.enterUser'),
+            role: (value) =>
+                value.trim() ? null : t('snowflakeForm.enterRole'),
+            warehouse: (value) =>
+                value.trim() ? null : t('snowflakeForm.enterWarehouse'),
             privateKey: (value) =>
                 /^-----BEGIN (PRIVATE KEY|ENCRYPTED PRIVATE KEY|RSA PRIVATE KEY)-----\s+\S[\s\S]*?\s+-----END \1-----$/.test(
                     value.trim(),
                 )
                     ? null
-                    : 'Enter a PEM private key.',
+                    : t('snowflakeForm.enterPem'),
         },
     });
     useEffect(
@@ -134,7 +142,7 @@ export const SnowflakeAiServiceAccountForm = ({
         form.setFieldValue('privateKey', '');
         if (!next) return;
         if (!/\.(p8|pem)$/i.test(next.name)) {
-            setFileError('Choose a .p8 or .pem file.');
+            setFileError(t('snowflakeForm.chooseFile'));
             return;
         }
         const current = new FileReader();
@@ -146,25 +154,27 @@ export const SnowflakeAiServiceAccountForm = ({
             setReading(false);
             if (typeof current.result === 'string')
                 form.setFieldValue('privateKey', current.result);
-            else setFileError('Could not read the private key file.');
+            else setFileError(t('snowflakeForm.readError'));
         };
         current.onerror = () => {
             if (reader.current !== current) return;
             reader.current = null;
             setReading(false);
-            setFileError('Could not read the private key file.');
+            setFileError(t('snowflakeForm.readError'));
         };
         current.readAsText(next);
     };
     return (
         <MantineModal
             opened
-            title="Shared agent account"
+            title={t('serviceAccountForm.title')}
             onClose={close}
             withCloseButton={!busy}
             cancelDisabled={busy}
             confirmLabel={
-                save.isLoading ? 'Checking and saving…' : 'Test and save'
+                save.isLoading
+                    ? t('snowflakeForm.checkingAndSaving')
+                    : t('serviceAccountForm.testAndSave')
             }
             confirmLoading={save.isLoading}
             confirmDisabled={busy || reading || !form.isValid()}
@@ -195,26 +205,36 @@ export const SnowflakeAiServiceAccountForm = ({
                             test.mutate({ credentials: credentials() });
                     }}
                 >
-                    Test
+                    {t('serviceAccountCard.test')}
                 </Button>
             }
         >
             <Stack gap="sm">
                 <TextInput
-                    label="User"
+                    label={t('userPasswordForm.user')}
                     required
                     disabled={busy}
                     {...form.getInputProps('user')}
                 />
-                <Input.Wrapper label="Private key" id={privateKeyId} required>
+                <Input.Wrapper
+                    label={t('snowflakeForm.privateKey')}
+                    id={privateKeyId}
+                    required
+                >
                     <Stack gap="xs">
                         <SegmentedControl
-                            aria-label="Private key input"
+                            aria-label={t('snowflakeForm.privateKeyInput')}
                             value={mode}
                             disabled={busy}
                             data={[
-                                { value: 'file', label: 'Upload file' },
-                                { value: 'paste', label: 'Paste key' },
+                                {
+                                    value: 'file',
+                                    label: t('snowflakeForm.uploadFile'),
+                                },
+                                {
+                                    value: 'paste',
+                                    label: t('snowflakeForm.pasteKey'),
+                                },
                             ]}
                             onChange={(next) => {
                                 readFile(null);
@@ -249,19 +269,19 @@ export const SnowflakeAiServiceAccountForm = ({
                     </Callout>
                 )}
                 <PasswordInput
-                    label="Passphrase (optional)"
+                    label={t('snowflakeForm.passphrase')}
                     autoComplete="new-password"
                     disabled={busy}
                     {...form.getInputProps('privateKeyPass')}
                 />
                 <TextInput
-                    label="Role"
+                    label={t('snowflakeForm.role')}
                     required
                     disabled={busy}
                     {...form.getInputProps('role')}
                 />
                 <TextInput
-                    label="Warehouse"
+                    label={t('snowflakeForm.warehouse')}
                     required
                     disabled={busy}
                     {...form.getInputProps('warehouse')}

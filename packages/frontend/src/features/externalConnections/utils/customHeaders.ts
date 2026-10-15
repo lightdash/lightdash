@@ -2,6 +2,13 @@ import {
     CUSTOM_HEADER_LIMITS,
     FORBIDDEN_CUSTOM_HEADER_NAMES,
 } from '@lightdash/common';
+import i18n from '../../../i18n/i18n';
+
+const tHeaders = (key: string, options?: Record<string, unknown>) =>
+    i18n.t(`externalConnections.customHeaders.errors.${key}`, {
+        ns: 'sync',
+        ...options,
+    });
 
 /** One editable row in the custom headers form field. */
 export type CustomHeaderRow = { name: string; value: string };
@@ -43,28 +50,31 @@ export const validateCustomHeaderRows = (
             !HTTP_HEADER_TOKEN.test(name) ||
             name.length > CUSTOM_HEADER_LIMITS.maxNameChars
         ) {
-            return `"${row.name}" is not a valid header name`;
+            return tHeaders('invalidName', { name: row.name });
         }
         if (FORBIDDEN_NAMES.has(name.toLowerCase())) {
-            return `Header "${name}" is reserved by the proxy or used for credentials`;
+            return tHeaders('reserved', { name });
         }
         if (!value) {
-            return `Header "${name}" needs a value`;
+            return tHeaders('missingValue', { name });
         }
         if (value.length > CUSTOM_HEADER_LIMITS.maxValueChars) {
-            return `The value of "${name}" is too long (max ${CUSTOM_HEADER_LIMITS.maxValueChars} characters)`;
+            return tHeaders('valueTooLong', {
+                name,
+                max: CUSTOM_HEADER_LIMITS.maxValueChars,
+            });
         }
         if (!HTTP_HEADER_VALUE.test(value)) {
-            return `The value of "${name}" contains unsupported characters`;
+            return tHeaders('unsupportedCharacters', { name });
         }
         const lower = name.toLowerCase();
         if (seen.has(lower)) {
-            return `Duplicate header "${name}"`;
+            return tHeaders('duplicate', { name });
         }
         seen.add(lower);
     }
     if (seen.size > CUSTOM_HEADER_LIMITS.maxCount) {
-        return `At most ${CUSTOM_HEADER_LIMITS.maxCount} custom headers are allowed`;
+        return tHeaders('tooMany', { max: CUSTOM_HEADER_LIMITS.maxCount });
     }
     return null;
 };

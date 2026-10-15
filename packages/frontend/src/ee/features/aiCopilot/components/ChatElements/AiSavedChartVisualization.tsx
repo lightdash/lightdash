@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { Box, Center, Loader } from '@mantine/core';
 import { useEffect, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Provider } from 'react-redux';
 import { SeriesContextMenu } from '../../../../../components/Explorer/VisualizationCard/SeriesContextMenu';
 import LightdashVisualization from '../../../../../components/LightdashVisualization';
@@ -125,6 +126,7 @@ export const AiSavedChartVisualization: FC<Props> = ({
     projectUuid,
     savedChart,
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const [store] = useState(() => createExplorerStore());
 
     useEffect(() => {
@@ -143,7 +145,7 @@ export const AiSavedChartVisualization: FC<Props> = ({
                 <Loader
                     type="dots"
                     color="gray"
-                    delayedMessage="Loading chart..."
+                    delayedMessage={t('savedChartPreview.loading')}
                 />
             </Center>
         );

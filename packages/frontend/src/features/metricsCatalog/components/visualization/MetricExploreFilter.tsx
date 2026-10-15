@@ -7,6 +7,7 @@ import {
 import { Button, Group, Select, Stack, Text } from '@mantine/core';
 import { IconFilter, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { groupComboboxItems } from '../../../../components/common/Select/utils';
 import filterStyles from '../../styles/filterStyles.module.css';
@@ -44,6 +45,7 @@ export const MetricExploreFilter: FC<Props> = ({
     onFilterApply,
     initialFilterRule,
 }) => {
+    const { t } = useTranslation('metricsCatalog');
     // Seed from the metric's default filter on mount. The parent remounts this
     // component (via key) per metric, so this initializer re-runs on switch.
     const [filterState, setFilterState] = useState<FilterState>(() =>
@@ -187,7 +189,7 @@ export const MetricExploreFilter: FC<Props> = ({
             <Group justify="space-between">
                 <Group gap="xs" align="normal">
                     <Text fw={500} c="ldGray.7">
-                        Filter
+                        {t('filter.title')}
                     </Text>
                 </Group>
 
@@ -213,7 +215,7 @@ export const MetricExploreFilter: FC<Props> = ({
                         }}
                         onClick={handleClearFilter}
                     >
-                        Clear
+                        {t('filter.clear')}
                     </Button>
                 </Group>
             </Group>
@@ -222,7 +224,7 @@ export const MetricExploreFilter: FC<Props> = ({
                 <Group gap={0} wrap="nowrap">
                     <Select
                         allowDeselect={false}
-                        placeholder="Filter by"
+                        placeholder={t('filter.filterBy')}
                         leftSection={<MantineIcon icon={IconFilter} />}
                         searchable
                         comboboxProps={{ withinPortal: true }}
@@ -259,7 +261,7 @@ export const MetricExploreFilter: FC<Props> = ({
                     {filterState.fieldId && (
                         <Select
                             allowDeselect={false}
-                            placeholder="Condition"
+                            placeholder={t('filter.condition')}
                             comboboxProps={{ withinPortal: true }}
                             data={operatorOptions}
                             value={filterState.operator}
@@ -293,7 +295,9 @@ export const MetricExploreFilter: FC<Props> = ({
                         values={filterState.values}
                         onChange={handleTagInputChange}
                         placeholder={
-                            filterState.operator ? 'Type values...' : undefined
+                            filterState.operator
+                                ? t('filter.typeValues')
+                                : undefined
                         }
                         disabled={!filterState.operator}
                     />
@@ -306,7 +310,7 @@ export const MetricExploreFilter: FC<Props> = ({
                     className={filterStyles.applyButton}
                     onClick={handleApplyFilter}
                 >
-                    Apply
+                    {t('filter.apply')}
                 </Button>
             )}
         </Stack>

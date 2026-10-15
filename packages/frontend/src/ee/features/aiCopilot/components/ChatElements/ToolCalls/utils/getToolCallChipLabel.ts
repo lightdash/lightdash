@@ -22,6 +22,7 @@ import type {
     ToolSearchFieldValuesArgs,
     ToolSearchSemanticLayerArgs,
 } from '@lightdash/common';
+import i18n from '../../../../../../../i18n/i18n';
 import { type ToolCallSummary } from './types';
 
 type ToolReadContentArgs = {
@@ -116,14 +117,20 @@ export const getToolCallChipLabel = (
         }
         case 'searchSemanticLayer': {
             const args = toolArgs as ToolSearchSemanticLayerArgs;
-            const fieldType =
+            const fieldType = i18n.t(
                 args.type === 'metric'
-                    ? 'metrics'
+                    ? 'chipLabel.metrics'
                     : args.type === 'dimension'
-                      ? 'dimensions'
-                      : 'fields';
+                      ? 'chipLabel.dimensions'
+                      : 'chipLabel.fields',
+                { ns: 'aiCopilotChat' },
+            );
             return args.searchQuery
-                ? `${fieldType}: ${args.searchQuery}`
+                ? i18n.t('chipLabel.fieldSearch', {
+                      ns: 'aiCopilotChat',
+                      fieldType,
+                      query: args.searchQuery,
+                  })
                 : fieldType;
         }
         case 'getDashboardCharts': {
@@ -141,7 +148,10 @@ export const getToolCallChipLabel = (
         }
         case 'listContent': {
             const args = toolArgs as ToolListContentArgs;
-            return args.spaceSlug ?? 'root';
+            return (
+                args.spaceSlug ??
+                i18n.t('chipLabel.root', { ns: 'aiCopilotChat' })
+            );
         }
         case 'readContent': {
             const args = toolArgs as ToolReadContentArgs;
@@ -198,10 +208,17 @@ export const getToolCallChipLabel = (
                 resourceName?: string;
             };
             if (args.resourceName && args.name) {
-                return `${args.resourceName} from ${args.name}`;
+                return i18n.t('chipLabel.skillResource', {
+                    ns: 'aiCopilotChat',
+                    resource: args.resourceName,
+                    skill: args.name,
+                });
             }
             if (args.name) {
-                return `skill: ${args.name}`;
+                return i18n.t('chipLabel.skill', {
+                    ns: 'aiCopilotChat',
+                    skill: args.name,
+                });
             }
             return args.resourceName ?? null;
         }

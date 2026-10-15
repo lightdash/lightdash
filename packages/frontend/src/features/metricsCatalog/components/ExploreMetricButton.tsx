@@ -1,6 +1,7 @@
 import { type CatalogField } from '@lightdash/common';
 import { Button, Tooltip } from '@mantine/core';
 import { useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router';
 import { type ContentTableRow } from '../../../components/common/ContentTable';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
@@ -13,6 +14,7 @@ type Props = {
 };
 
 export const ExploreMetricButton = ({ row }: Props) => {
+    const { t } = useTranslation('metricsCatalog');
     const navigate = useNavigate();
     const location = useLocation();
     const exploreMetric = useExploreMetric();
@@ -55,7 +57,7 @@ export const ExploreMetricButton = ({ row }: Props) => {
 
     return (
         <Tooltip
-            label="Click to view this in the Metrics Explorer"
+            label={t('exploreButton.tooltip')}
             openDelay={200}
             maw={250}
             fz="xs"
@@ -68,7 +70,7 @@ export const ExploreMetricButton = ({ row }: Props) => {
                 h={32}
                 fz="sm"
             >
-                Explore
+                {t('exploreButton.label')}
             </Button>
         </Tooltip>
     );

@@ -1,5 +1,6 @@
 import { type ApiError, type ApiGetAppResponse } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { invalidateAppQueries } from './useRestoreAppVersion';
@@ -16,6 +17,7 @@ const clearAgentContext = (projectUuid: string, appUuid: string) =>
 /** Starts a fresh thread: the next prompt runs with no agent memory. */
 export const useClearAgentContext = (projectUuid: string, appUuid: string) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation('apps');
     const { showToastApiError } = useToaster();
     return useMutation<ClearAgentContextResult, ApiError, void>({
         mutationFn: () => clearAgentContext(projectUuid, appUuid),
@@ -24,7 +26,7 @@ export const useClearAgentContext = (projectUuid: string, appUuid: string) => {
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to clear agent context',
+                title: t('toasts.clearContextFailed'),
                 apiError: error,
             });
         },

@@ -1,6 +1,7 @@
 import { Anchor, Avatar, Button } from '@mantine/core';
 import { IconChevronLeft, IconExclamationCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { EmptyState } from '../../common/EmptyState';
@@ -13,6 +14,7 @@ interface UnsupportedWarehouseProps {
 }
 
 const UnsupportedWarehouse: FC<UnsupportedWarehouseProps> = ({ onBack }) => {
+    const { t } = useTranslation('projectConnection');
     const { track } = useTracking();
 
     return (
@@ -25,7 +27,7 @@ const UnsupportedWarehouse: FC<UnsupportedWarehouseProps> = ({ onBack }) => {
                 leftSection={<MantineIcon icon={IconChevronLeft} />}
                 onClick={onBack}
             >
-                Back
+                {t('actions.back', { ns: 'common' })}
             </Button>
 
             <ProjectCreationCard>
@@ -43,28 +45,36 @@ const UnsupportedWarehouse: FC<UnsupportedWarehouseProps> = ({ onBack }) => {
                     }
                     title={
                         <>
-                            We only support warehouses that have{' '}
-                            <Anchor
-                                href="https://docs.getdbt.com/docs/supported-data-platforms#verified-adapters"
-                                target="_blank"
-                                rel="noreferrer noopener"
-                            >
-                                verified dbt adapters
-                            </Anchor>{' '}
-                            for now
+                            <Trans
+                                t={t}
+                                i18nKey="connectFlow.unsupported.title"
+                                components={{
+                                    adaptersLink: (
+                                        <Anchor
+                                            href="https://docs.getdbt.com/docs/supported-data-platforms#verified-adapters"
+                                            target="_blank"
+                                            rel="noreferrer noopener"
+                                        />
+                                    ),
+                                }}
+                            />
                         </>
                     }
                     description={
                         <>
-                            You can vote on your warehouse in our{' '}
-                            <Anchor
-                                href="https://github.com/lightdash/lightdash/issues"
-                                target="_blank"
-                                rel="noreferrer noopener"
-                            >
-                                GitHub issues
-                            </Anchor>{' '}
-                            or create a new issue if you can't see yours there.
+                            <Trans
+                                t={t}
+                                i18nKey="connectFlow.unsupported.description"
+                                components={{
+                                    issuesLink: (
+                                        <Anchor
+                                            href="https://github.com/lightdash/lightdash/issues"
+                                            target="_blank"
+                                            rel="noreferrer noopener"
+                                        />
+                                    ),
+                                }}
+                            />
                         </>
                     }
                 >
@@ -77,7 +87,7 @@ const UnsupportedWarehouse: FC<UnsupportedWarehouseProps> = ({ onBack }) => {
                             track({ name: EventName.TRY_DEMO_CLICKED });
                         }}
                     >
-                        Try our demo project
+                        {t('connectFlow.unsupported.tryDemo')}
                     </Button>
                 </EmptyState>
             </ProjectCreationCard>

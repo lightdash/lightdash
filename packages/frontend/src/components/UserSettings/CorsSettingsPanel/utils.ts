@@ -5,6 +5,7 @@ import {
     validateCorsAllowedDomain,
 } from '@lightdash/common';
 import { type FormErrors } from '@mantine/form';
+import i18n from '../../../i18n/i18n';
 
 export type CorsAllowedDomainInputType = 'origin' | 'regex';
 
@@ -86,8 +87,12 @@ export const validateCorsAllowedDomainsInput = (
 
         const fieldPath = `corsAllowedDomains.${index}.value`;
         if (input.type === 'regex' && isExactOrigin(input.value.trim())) {
-            errors[fieldPath] =
-                'Use origin mode for exact origins, or escape regex dots like https:\\/\\/lightdash\\.com.';
+            errors[fieldPath] = i18n.t(
+                'corsSettingsPanel.validation.useOriginMode',
+                {
+                    ns: 'userSettings',
+                },
+            );
             return;
         }
 
@@ -98,7 +103,9 @@ export const validateCorsAllowedDomainsInput = (
         }
 
         if (seen.has(serializedValue)) {
-            errors[fieldPath] = 'CORS allowed origins must be unique.';
+            errors[fieldPath] = i18n.t('corsSettingsPanel.validation.unique', {
+                ns: 'userSettings',
+            });
             return;
         }
 

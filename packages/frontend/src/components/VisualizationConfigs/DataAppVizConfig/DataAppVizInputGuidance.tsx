@@ -1,10 +1,12 @@
 import { Box, Collapse, Group, Text, UnstyledButton } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useId, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../common/MantineIcon';
 import styles from './DataAppVizInputGuidance.module.css';
 
 const DataAppVizInputGuidance: FC<{ guidance?: string }> = ({ guidance }) => {
+    const { t } = useTranslation('vizConfig');
     const [opened, setOpened] = useState(false);
     const titleId = useId();
     const contentId = useId();
@@ -21,7 +23,7 @@ const DataAppVizInputGuidance: FC<{ guidance?: string }> = ({ guidance }) => {
             >
                 <Group gap="xxs">
                     <Text size="xs" fw={500}>
-                        How to use this chart type
+                        {t('dataAppViz.inputGuidance.title')}
                     </Text>
                     <MantineIcon
                         icon={opened ? IconChevronDown : IconChevronRight}

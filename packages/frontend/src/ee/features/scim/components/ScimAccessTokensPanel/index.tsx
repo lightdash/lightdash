@@ -11,6 +11,7 @@ import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconKey, IconRefresh } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SettingsGridCard } from '../../../../../components/common/Settings/SettingsCard';
 import { SettingsEmptyState } from '../../../../../components/common/Settings/SettingsEmptyState';
@@ -24,6 +25,7 @@ import { RequestLogTable } from './RequestLogTable';
 import { TokensTable } from './TokensTable';
 
 const ScimAccessTokensPanel: FC = () => {
+    const { t } = useTranslation('serviceAccounts');
     const { data } = useScimTokenList();
     const [isCreatingToken, setIsCreatingToken] = useState(false);
     const [activeTab, setActiveTab] = useState<'tokens' | 'request-log'>(
@@ -39,8 +41,10 @@ const ScimAccessTokensPanel: FC = () => {
 
     const handleCopyToClipboard = useCallback(() => {
         clipboard.copy(scimURL);
-        showToastSuccess({ title: 'Copied to clipboard!' });
-    }, [scimURL, clipboard, showToastSuccess]);
+        showToastSuccess({
+            title: t('feedback.copiedToClipboard', { ns: 'common' }),
+        });
+    }, [scimURL, clipboard, showToastSuccess, t]);
 
     const handleRefreshLogs = useCallback(() => {
         void queryClient.invalidateQueries([SCIM_REQUEST_LOGS_QUERY_KEY]);
@@ -48,12 +52,12 @@ const ScimAccessTokensPanel: FC = () => {
 
     return (
         <SettingsPage
-            title="SCIM access tokens"
-            description="Connect your identity provider and manage tokens used for user provisioning."
+            title={t('scim.panel.title')}
+            description={t('scim.panel.description')}
             actions={
                 activeTab === 'tokens' ? (
                     <Button size="xs" onClick={() => setIsCreatingToken(true)}>
-                        Generate new token
+                        {t('scim.panel.generate')}
                     </Button>
                 ) : (
                     <Button
@@ -62,7 +66,7 @@ const ScimAccessTokensPanel: FC = () => {
                         leftSection={<MantineIcon icon={IconRefresh} />}
                         onClick={handleRefreshLogs}
                     >
-                        Refresh
+                        {t('scim.panel.refresh')}
                     </Button>
                 )
             }
@@ -77,25 +81,26 @@ const ScimAccessTokensPanel: FC = () => {
                 keepMounted={false}
             >
                 <Tabs.List>
-                    <Tabs.Tab value="tokens">Tokens</Tabs.Tab>
-                    <Tabs.Tab value="request-log">Request log</Tabs.Tab>
+                    <Tabs.Tab value="tokens">{t('scim.panel.tokens')}</Tabs.Tab>
+                    <Tabs.Tab value="request-log">
+                        {t('scim.panel.requestLog')}
+                    </Tabs.Tab>
                 </Tabs.List>
 
                 <Tabs.Panel value="tokens" pt="lg">
                     <Stack gap="lg">
                         <SettingsGridCard>
                             <Stack gap="sm">
-                                <Title order={5}>SCIM URL</Title>
+                                <Title order={5}>{t('scim.panel.url')}</Title>
                                 <Text c="dimmed">
-                                    Use the URL to connect your identity
-                                    provider to Lightdash via SCIM.
+                                    {t('scim.panel.urlDescription')}
                                 </Text>
                                 <Anchor
                                     inherit
                                     href="https://docs.lightdash.com/references/scim-integration/"
                                     target="_blank"
                                 >
-                                    Learn more
+                                    {t('scim.learnMore')}
                                 </Anchor>
                             </Stack>
                             <TextInput
@@ -104,7 +109,7 @@ const ScimAccessTokensPanel: FC = () => {
                                 rightSectionPointerEvents="all"
                                 rightSection={
                                     <Button
-                                        aria-label="Copy access token"
+                                        aria-label={t('scim.panel.copyUrl')}
                                         onMouseDown={(event) =>
                                             event.preventDefault()
                                         }
@@ -123,8 +128,8 @@ const ScimAccessTokensPanel: FC = () => {
                         ) : (
                             <SettingsEmptyState
                                 icon={IconKey}
-                                title="No SCIM tokens"
-                                description="Generate a token to connect your identity provider."
+                                title={t('scim.panel.emptyTitle')}
+                                description={t('scim.panel.emptyDescription')}
                             />
                         )}
                     </Stack>

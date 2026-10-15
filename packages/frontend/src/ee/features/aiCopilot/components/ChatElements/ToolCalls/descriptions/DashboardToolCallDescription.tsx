@@ -2,6 +2,7 @@ import { type ToolDashboardV2ArgsTransformed } from '@lightdash/common';
 import { Group, rem, Stack, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import type { FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
 import { ToolCallChip } from '../ToolCallChip';
 
@@ -13,11 +14,13 @@ type DashboardToolCallDescriptionProps = Pick<
 export const DashboardToolCallDescription: FC<
     DashboardToolCallDescriptionProps
 > = ({ title, description }) => {
+    const { t } = useTranslation('aiCopilotChat');
     return (
         <Stack gap="xs">
             <Group gap="two">
                 <Text c="dimmed" size="xs">
-                    Built <ToolCallChip mx={rem(2)}>{title}</ToolCallChip>
+                    {t('toolDescriptions.built')}{' '}
+                    <ToolCallChip mx={rem(2)}>{title}</ToolCallChip>
                 </Text>
                 {description && (
                     <Tooltip label={description}>

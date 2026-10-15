@@ -1,5 +1,6 @@
 import { Box, Button, Stack, Text } from '@mantine/core';
 import { type PropsWithChildren } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, matchPath, useLocation } from 'react-router';
 import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
 
@@ -12,6 +13,7 @@ const EDITOR_PATHS = [
 ];
 
 export const ContentAuthoringRoute = ({ children }: PropsWithChildren) => {
+    const { t } = useTranslation('commonUi');
     const { pathname } = useLocation();
     const authoringEnabled = useContentAuthoringEnabled();
     const editorRoute = EDITOR_PATHS.some((path) => matchPath(path, pathname));
@@ -20,13 +22,14 @@ export const ContentAuthoringRoute = ({ children }: PropsWithChildren) => {
         return (
             <Box p="lg">
                 <Stack align="flex-start">
-                    <Text fw={600}>Editing isn’t available on phones</Text>
+                    <Text fw={600}>
+                        {t('projectLayout.editingUnavailableTitle')}
+                    </Text>
                     <Text c="dimmed">
-                        Open Lightdash on a desktop or tablet to create or edit
-                        charts and dashboards.
+                        {t('projectLayout.editingUnavailableDescription')}
                     </Text>
                     <Button component={Link} to="/" variant="default">
-                        Back to home
+                        {t('projectLayout.backToHome')}
                     </Button>
                 </Stack>
             </Box>

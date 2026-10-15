@@ -48,6 +48,7 @@ import { type UseInfiniteQueryResult } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import ErrorState from '../../../../../components/common/ErrorState';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
@@ -76,20 +77,20 @@ import { SchedulerDetailConditions } from './SchedulerDetailConditions';
 
 dayjs.extend(relativeTime);
 
-const FREQUENCY_LABEL: Record<Frequency, string> = {
-    [Frequency.HOURLY]: 'Hourly',
-    [Frequency.DAILY]: 'Daily',
-    [Frequency.WEEKDAYS]: 'Weekdays',
-    [Frequency.WEEKLY]: 'Weekly',
-    [Frequency.MONTHLY]: 'Monthly',
-    [Frequency.CUSTOM]: 'Custom',
+const FREQUENCY_LABEL_KEY: Record<Frequency, string> = {
+    [Frequency.HOURLY]: 'cronInput.frequency.hourly',
+    [Frequency.DAILY]: 'cronInput.frequency.daily',
+    [Frequency.WEEKDAYS]: 'cronInput.frequency.weekdays',
+    [Frequency.WEEKLY]: 'cronInput.frequency.weekly',
+    [Frequency.MONTHLY]: 'cronInput.frequency.monthly',
+    [Frequency.CUSTOM]: 'cronInput.frequency.custom',
 };
 
-const FORMAT_LABEL: Partial<Record<SchedulerFormat, string>> = {
-    [SchedulerFormat.CSV]: '.csv',
-    [SchedulerFormat.XLSX]: '.xlsx',
-    [SchedulerFormat.IMAGE]: 'Image',
-    [SchedulerFormat.PDF]: 'PDF',
+const FORMAT_LABEL_KEY: Partial<Record<SchedulerFormat, string>> = {
+    [SchedulerFormat.CSV]: 'formats.csv',
+    [SchedulerFormat.XLSX]: 'formats.xlsx',
+    [SchedulerFormat.IMAGE]: 'formats.image',
+    [SchedulerFormat.PDF]: 'formats.pdf',
 };
 
 const DetailPill: FC<{
@@ -123,6 +124,7 @@ const SchedulerDetail: FC<{
     onDelete: (schedulerUuid: string) => void;
     onViewHistory: (scheduler: SchedulerAndTargets) => void;
 }> = ({ scheduler, isThresholdAlert, onEdit, onDelete, onViewHistory }) => {
+    const { t } = useTranslation('scheduler');
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: project } = useProject(activeProjectUuid);
     const { user } = useApp();
@@ -194,12 +196,17 @@ const SchedulerDetail: FC<{
         ],
     );
 
-    const frequency =
-        FREQUENCY_LABEL[mapCronExpressionToFrequency(scheduler.cron)];
-    const formatLabel = FORMAT_LABEL[scheduler.format];
+    const frequency = t(
+        FREQUENCY_LABEL_KEY[mapCronExpressionToFrequency(scheduler.cron)],
+    );
+    const formatLabelKey = FORMAT_LABEL_KEY[scheduler.format];
+    const formatLabel = formatLabelKey ? t(formatLabelKey) : undefined;
 
     const slackChannelIds = useMemo(
-        () => scheduler.targets.filter(isSlackTarget).map((t) => t.channel),
+        () =>
+            scheduler.targets
+                .filter(isSlackTarget)
+                .map((target) => target.channel),
         [scheduler.targets],
     );
     const { getSlackChannelName } = useGetSlackChannelName({
@@ -229,19 +236,19 @@ const SchedulerDetail: FC<{
                     return {
                         key: target.schedulerMsTeamsTargetUuid,
                         icon: IconBrandTeams,
-                        label: 'Microsoft Teams',
+                        label: t('destinations.microsoftTeams'),
                     };
                 }
                 if (isGoogleChatTarget(target)) {
                     return {
                         key: target.schedulerGoogleChatTargetUuid,
                         icon: IconBrandGoogle,
-                        label: 'Google Chat',
+                        label: t('destinations.googleChat'),
                     };
                 }
                 return null;
             }),
-        [scheduler.targets, getSlackChannelName],
+        [scheduler.targets, getSlackChannelName, t],
     );
     const runStatus = scheduler.latestRun
         ? getRunStatusConfig(scheduler.latestRun.runStatus)
@@ -284,13 +291,13 @@ const SchedulerDetail: FC<{
                             <Tooltip
                                 label={
                                     scheduler.enabled
-                                        ? 'Pause this delivery'
-                                        : 'Paused. Toggle to resume'
+                                        ? t('list.pauseTooltip')
+                                        : t('list.resumeTooltip')
                                 }
                             >
                                 <Switch
                                     size="md"
-                                    aria-label="Enable scheduled delivery"
+                                    aria-label={t('list.enableAriaLabel')}
                                     checked={scheduler.enabled}
                                     onChange={() => {
                                         if (scheduler.enabled) {
@@ -309,10 +316,17 @@ const SchedulerDetail: FC<{
                         {formatLabel && <DetailPill label={formatLabel} />}
                         <DetailPill
                             dot={scheduler.enabled ? 'active' : 'paused'}
-                            label={scheduler.enabled ? 'Active' : 'Paused'}
+                            label={
+                                scheduler.enabled
+                                    ? t('list.active')
+                                    : t('list.paused')
+                            }
                         />
                         {isThresholdAlert && (
-                            <DetailPill icon={IconBell} label="Alert" />
+                            <DetailPill
+                                icon={IconBell}
+                                label={t('detail.alert')}
+                            />
                         )}
                     </Group>
                 </Stack>
@@ -328,7 +342,7 @@ const SchedulerDetail: FC<{
                         />
                         <Stack gap={4}>
                             <span className={classes.detailMetaLabel}>
-                                Runs
+                                {t('list.runs')}
                             </span>
                             <Text size="sm">
                                 {getHumanReadableCronExpression(
@@ -349,7 +363,7 @@ const SchedulerDetail: FC<{
                             />
                             <Stack gap={4}>
                                 <span className={classes.detailMetaLabel}>
-                                    Next runs
+                                    {t('nextRuns.title')}
                                 </span>
                                 <Stack gap={2}>
                                     {nextRuns.map((run) => (
@@ -373,7 +387,7 @@ const SchedulerDetail: FC<{
                         />
                         <Stack gap={4}>
                             <span className={classes.detailMetaLabel}>
-                                Last run
+                                {t('list.lastRun')}
                             </span>
                             {scheduler.latestRun && runStatus ? (
                                 <Group gap="xs">
@@ -397,7 +411,7 @@ const SchedulerDetail: FC<{
                                 </Group>
                             ) : (
                                 <Text size="sm" c="dimmed" fs="italic">
-                                    Not run yet
+                                    {t('list.notRunYet')}
                                 </Text>
                             )}
                         </Stack>
@@ -411,8 +425,9 @@ const SchedulerDetail: FC<{
                         />
                         <Stack gap={4}>
                             <span className={classes.detailMetaLabel}>
-                                {scheduler.targets.length} recipient
-                                {scheduler.targets.length === 1 ? '' : 's'}
+                                {t('list.recipientCount', {
+                                    count: scheduler.targets.length,
+                                })}
                             </span>
                             <Group gap={6}>
                                 {recipientChips
@@ -437,7 +452,7 @@ const SchedulerDetail: FC<{
                             />
                             <Stack gap={4}>
                                 <span className={classes.detailMetaLabel}>
-                                    AI summary
+                                    {t('preview.aiSummary')}
                                 </span>
                                 <Text size="sm" lineClamp={2}>
                                     {aiAugmentation.prompt}
@@ -457,7 +472,7 @@ const SchedulerDetail: FC<{
                             }
                             onClick={() => onViewHistory(scheduler)}
                         >
-                            View run history
+                            {t('list.viewRunHistory')}
                         </Button>
                     )}
                 </Stack>
@@ -466,11 +481,11 @@ const SchedulerDetail: FC<{
             {(canManage || canCreate) && (
                 <div className={classes.listDetailFooter}>
                     {canManage ? (
-                        <Tooltip label="Delete">
+                        <Tooltip label={t('actions.delete', { ns: 'common' })}>
                             <ActionIcon
                                 variant="default"
                                 size="lg"
-                                aria-label="Delete scheduled delivery"
+                                aria-label={t('deleteModal.title')}
                                 onClick={() =>
                                     onDelete(scheduler.schedulerUuid)
                                 }
@@ -488,7 +503,7 @@ const SchedulerDetail: FC<{
                                 leftSection={<MantineIcon icon={IconCode} />}
                                 onClick={asCodeModalHandlers.open}
                             >
-                                View as code
+                                {t('actionMenu.viewAsCode')}
                             </Button>
                         )}
                         {canManage && (
@@ -497,7 +512,7 @@ const SchedulerDetail: FC<{
                                 leftSection={<MantineIcon icon={IconPencil} />}
                                 onClick={() => onEdit(scheduler.schedulerUuid)}
                             >
-                                Edit
+                                {t('actions.edit', { ns: 'common' })}
                             </Button>
                         )}
                         <Button
@@ -505,7 +520,7 @@ const SchedulerDetail: FC<{
                             onClick={() => setIsConfirmSendNowOpen(true)}
                             loading={sendNowMutation.isLoading}
                         >
-                            Send now
+                            {t('actionMenu.sendNow')}
                         </Button>
                     </Group>
                 </div>
@@ -539,7 +554,7 @@ const SchedulerDetail: FC<{
                     mutateSchedulerEnabled(false);
                     setIsConfirmPauseOpen(false);
                 }}
-                description="This will pause the scheduled delivery. It will not run until it is enabled again."
+                description={t('list.pauseDescription')}
             />
         </div>
     );
@@ -567,6 +582,7 @@ export const SchedulerList: FC<Props> = ({
     onEdit,
     onViewHistory,
 }) => {
+    const { t } = useTranslation('scheduler');
     const {
         data,
         isInitialLoading,
@@ -597,7 +613,6 @@ export const SchedulerList: FC<Props> = ({
         hasMore: hasNextPage ?? false,
     });
 
-    const noun = isThresholdAlert ? 'alert' : 'delivery';
     const isSearching = Boolean(searchQuery);
     const isEmpty = schedulers.length === 0;
 
@@ -642,20 +657,22 @@ export const SchedulerList: FC<Props> = ({
                     />
                     <Text fw={600} fz="lg">
                         {isThresholdAlert
-                            ? 'Get notified when your data crosses a threshold'
-                            : 'Deliver this on a schedule'}
+                            ? t('list.emptyTitleAlert')
+                            : t('list.emptyTitleDelivery')}
                     </Text>
                     <Text size="sm" c="dimmed" ta="center" maw={380}>
                         {isThresholdAlert
-                            ? 'Alerts check your data on a schedule and ping you by email or Slack when the condition is met.'
-                            : 'Send it by email or Slack as a spreadsheet, image, or PDF, with an optional AI-written summary.'}
+                            ? t('list.emptyDescriptionAlert')
+                            : t('list.emptyDescriptionDelivery')}
                     </Text>
                     <Button
                         mt="sm"
                         leftSection={<MantineIcon icon={IconPlus} />}
                         onClick={onCreate}
                     >
-                        New {noun}
+                        {isThresholdAlert
+                            ? t('list.newAlert')
+                            : t('list.newDelivery')}
                     </Button>
                 </Stack>
             </div>
@@ -668,7 +685,7 @@ export const SchedulerList: FC<Props> = ({
                 {onSearchQueryChange && (
                     <TextInput
                         size="xs"
-                        placeholder="Search..."
+                        placeholder={t('list.searchPlaceholder')}
                         leftSection={<MantineIcon icon={IconSearch} />}
                         rightSection={
                             isFetching && !isInitialLoading ? (
@@ -727,21 +744,30 @@ export const SchedulerList: FC<Props> = ({
                                     {scheduler.name}
                                 </span>
                                 <span className={classes.listItemMeta}>
-                                    {
-                                        FREQUENCY_LABEL[
-                                            mapCronExpressionToFrequency(
-                                                scheduler.cron,
-                                            )
-                                        ]
-                                    }
-                                    {!scheduler.enabled && ' · Paused'}
+                                    {scheduler.enabled
+                                        ? t(
+                                              FREQUENCY_LABEL_KEY[
+                                                  mapCronExpressionToFrequency(
+                                                      scheduler.cron,
+                                                  )
+                                              ],
+                                          )
+                                        : t('list.frequencyPaused', {
+                                              frequency: t(
+                                                  FREQUENCY_LABEL_KEY[
+                                                      mapCronExpressionToFrequency(
+                                                          scheduler.cron,
+                                                      )
+                                                  ],
+                                              ),
+                                          })}
                                 </span>
                             </Stack>
                         </button>
                     ))}
                     {isEmpty && isSearching && (
                         <Text size="sm" c="dimmed" ta="center" mt="md">
-                            No results
+                            {t('list.noResults')}
                         </Text>
                     )}
                     {isFetchingNextPage && (
@@ -761,7 +787,9 @@ export const SchedulerList: FC<Props> = ({
                         display="inline"
                         style={{ marginRight: 6, marginBottom: -2 }}
                     />
-                    New {noun}
+                    {isThresholdAlert
+                        ? t('list.newAlert')
+                        : t('list.newDelivery')}
                 </button>
             </div>
 
@@ -777,7 +805,9 @@ export const SchedulerList: FC<Props> = ({
             ) : (
                 <Stack align="center" justify="center">
                     <Text size="sm" c="dimmed">
-                        Select a {noun} to see its details
+                        {isThresholdAlert
+                            ? t('list.selectAlert')
+                            : t('list.selectDelivery')}
                     </Text>
                 </Stack>
             )}

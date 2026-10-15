@@ -17,6 +17,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     DirectAccessModal,
     useCanManageDirectAccess,
@@ -47,6 +48,7 @@ const DocumentResourceActionMenu = ({
     onAction,
     allowDelete = true,
 }: Props) => {
+    const { t } = useTranslation('resourceView');
     const { projectUuid, organizationUuid, spaceUuid, directAccessRoles } =
         item.data;
     const { user } = useApp();
@@ -120,10 +122,10 @@ const DocumentResourceActionMenu = ({
                 returnFocus={!isShareOpen && !isDuplicateOpen}
             >
                 <Menu.Target>
-                    <Tooltip label="Document actions">
+                    <Tooltip label={t('actionMenu.documentActions')}>
                         <ActionIcon
                             disabled={disabled}
-                            aria-label="Document actions"
+                            aria-label={t('actionMenu.documentActions')}
                         >
                             <MantineIcon icon={IconDots} />
                         </ActionIcon>
@@ -145,8 +147,8 @@ const DocumentResourceActionMenu = ({
                             }
                         >
                             {isPinned
-                                ? 'Unpin from homepage'
-                                : 'Pin to homepage'}
+                                ? t('actionMenu.unpinFromHomepage')
+                                : t('actionMenu.pinToHomepage')}
                         </Menu.Item>
                     )}
                     {favorites && (
@@ -167,8 +169,8 @@ const DocumentResourceActionMenu = ({
                             }
                         >
                             {isFavorite
-                                ? 'Remove from favorites'
-                                : 'Add to favorites'}
+                                ? t('actionMenu.removeFromFavorites')
+                                : t('actionMenu.addToFavorites')}
                         </Menu.Item>
                     )}
                     {canDuplicate && (
@@ -176,7 +178,7 @@ const DocumentResourceActionMenu = ({
                             leftSection={<MantineIcon icon={IconCopy} />}
                             onClick={() => setIsDuplicateOpen(true)}
                         >
-                            Duplicate
+                            {t('actionMenu.duplicate')}
                         </Menu.Item>
                     )}
                     {canMove && (
@@ -191,7 +193,9 @@ const DocumentResourceActionMenu = ({
                                 })
                             }
                         >
-                            {isPersonal ? 'Save to space' : 'Move'}
+                            {isPersonal
+                                ? t('actionMenu.saveToSpace')
+                                : t('actionMenu.move')}
                         </Menu.Item>
                     )}
                     {canShare && (
@@ -199,7 +203,7 @@ const DocumentResourceActionMenu = ({
                             leftSection={<MantineIcon icon={IconUsers} />}
                             onClick={() => setIsShareOpen(true)}
                         >
-                            Share
+                            {t('actionMenu.share')}
                         </Menu.Item>
                     )}
                     {canDelete && (
@@ -213,7 +217,7 @@ const DocumentResourceActionMenu = ({
                                 })
                             }
                         >
-                            Delete
+                            {t('actions.delete', { ns: 'common' })}
                         </Menu.Item>
                     )}
                 </Menu.Dropdown>

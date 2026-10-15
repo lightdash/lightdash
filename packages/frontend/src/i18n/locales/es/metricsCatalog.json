@@ -1,0 +1,381 @@
+{
+    "funnelBuilder": {
+        "title": "Constructor de embudos",
+        "experimental": "Experimental",
+        "toasts": {
+            "runFailed": "No se pudo ejecutar la consulta del embudo",
+            "loadEventNamesFailed": "No se pudieron cargar los nombres de eventos",
+            "unexpectedError": "Se produjo un error inesperado"
+        },
+        "fields": {
+            "suggested": "Sugeridos",
+            "allFields": "Todos los campos",
+            "explore": "Explore",
+            "selectExplore": "Selecciona un explore",
+            "timestampField": "Campo de marca de tiempo",
+            "selectTimestamp": "Selecciona la marca de tiempo",
+            "userIdField": "Campo de ID de usuario",
+            "selectUserId": "Selecciona el identificador de usuario",
+            "eventNameField": "Campo de nombre de evento",
+            "selectEventName": "Selecciona el nombre del evento",
+            "breakdown": "Desglose (opcional)",
+            "selectBreakdown": "Selecciona el desglose"
+        },
+        "datePresets": {
+            "last_7_days": "Últimos 7 días",
+            "last_14_days": "Últimos 14 días",
+            "last_30_days": "Últimos 30 días",
+            "last_90_days": "Últimos 90 días",
+            "last_6_months": "Últimos 6 meses",
+            "last_12_months": "Últimos 12 meses",
+            "custom": "Rango personalizado"
+        },
+        "customDateRange": "Rango de fechas personalizado",
+        "emptyState": {
+            "configure": "Configura tu embudo en la barra lateral",
+            "selectFields": "Selecciona campos y añade al menos 2 pasos para ver resultados"
+        },
+        "viewSql": "Ver SQL generado",
+        "tabs": {
+            "fields": "Campos",
+            "steps": "Pasos"
+        },
+        "table": {
+            "breakdown": "Desglose",
+            "users": "Usuarios",
+            "conversion": "Conv. %",
+            "time": "Tiempo"
+        },
+        "steps": {
+            "title": "Pasos del embudo",
+            "step": "Paso {{number}}",
+            "selectEvent": "Selecciona un evento",
+            "addStep": "Añadir paso",
+            "conversionWindow": "Ventana de conversión",
+            "hours": "Horas",
+            "days": "Días",
+            "weeks": "Semanas"
+        },
+        "tooltip": {
+            "users": "Usuarios",
+            "conversion": "Conversión",
+            "overall": "Global"
+        },
+        "chart": {
+            "conversion": "Conversión",
+            "dropOff": "Abandono"
+        }
+    },
+    "category": {
+        "yamlCannotRemove": "Esta categoría no se puede quitar de esta métrica porque se definió en el archivo .yml."
+    },
+    "exploreButton": {
+        "tooltip": "Haz clic para verlo en el Explorador de métricas",
+        "label": "Explorar"
+    },
+    "chartUsage": {
+        "usedBy_one": "Usada en {{count}} gráfico.",
+        "usedBy_other": "Usada en {{count}} gráficos.",
+        "clickToView": "Haz clic para ver la lista completa."
+    },
+    "owner": {
+        "unassigned": "Sin asignar"
+    },
+    "visualizationEmptyState": {
+        "title": "No hay datos para el rango seleccionado",
+        "description": "Nos encantaría mostrarte más, pero no hay datos disponibles para este rango. ¡Prueba con otro rango para seguir explorando!"
+    },
+    "exploreFromHere": {
+        "tooltip": "Sigue explorando esta métrica en profundidad",
+        "label": "Explorar desde aquí"
+    },
+    "saveChart": {
+        "tooltip": "Guarda este gráfico en un espacio o dashboard",
+        "label": "Guardar gráfico"
+    },
+    "chartUsageModal": {
+        "title": "Uso de la métrica",
+        "loading": "Cargando...",
+        "empty": "No se encontraron gráficos que usen esta métrica"
+    },
+    "detailPopover": {
+        "howCalculated": "¿Cómo se calcula el total?",
+        "hideSql": "Ocultar SQL",
+        "showSql": "Mostrar SQL",
+        "copySql": "Copiar SQL",
+        "copied": "¡Copiado!",
+        "unableToLoadSql": "No se pudo cargar el SQL",
+        "metricSql": "SQL de la métrica",
+        "sql": "SQL",
+        "showCompiledSql": "Mostrar SQL compilado",
+        "compiledSql": "SQL compilado",
+        "timeDimension": "Dimensión temporal",
+        "explore": "Explorar"
+    },
+    "categoryForm": {
+        "addErrorTitle": "Error al añadir la categoría",
+        "addErrorSubtitle": "No se pudo añadir la categoría a la métrica.",
+        "removeErrorTitle": "Error al quitar la categoría",
+        "removeErrorSubtitle": "No se pudo quitar la categoría de la métrica.",
+        "editAriaLabel": "Editar categorías de la métrica",
+        "searchPlaceholder": "Buscar",
+        "selectOrCreate": "Selecciona una categoría o crea una nueva",
+        "create": "Crear"
+    },
+    "categoryFormItem": {
+        "editCategory": "Editar categoría",
+        "namePlaceholder": "Nombre de la categoría",
+        "deleteTooltip": "Eliminar esta etiqueta de forma permanente",
+        "save": "Guardar",
+        "yamlNotEditable": "Esta categoría se creó en la configuración .yml y sus propiedades no se pueden editar"
+    },
+    "columns": {
+        "metric": "Métrica",
+        "table": "Tabla",
+        "tableTooltip": "Tabla",
+        "description": "Descripción",
+        "descriptionTooltip": "Definida en el archivo .yml de la métrica",
+        "category": "Categoría",
+        "categoryTooltip": "Las categorías te ayudan a organizar tus métricas y KPI. Haz clic en la celda para añadir o editar una categoría, si tienes los permisos necesarios.",
+        "popularity": "Popularidad",
+        "popularityTooltip": "Muestra cuántos gráficos usan esta métrica",
+        "owner": "Propietario",
+        "ownerTooltip": "Propietario de la métrica definido en el archivo YAML"
+    },
+    "table": {
+        "loadingMore": "Cargando más...",
+        "scrollForMore": "Desplázate para ver más métricas",
+        "allLoaded": "Todas las métricas cargadas",
+        "loadedCount": "({{count}} cargadas)",
+        "totalCount": "({{count}})",
+        "noMetricsTitle": "No hay métricas definidas en este proyecto",
+        "noMetricsDocs": "Para aprender a definir métricas, consulta nuestra <anchor>documentación</anchor>",
+        "noResults": "No se encontraron resultados"
+    },
+    "panel": {
+        "learnMore": "Más información",
+        "spotlightIsHere": "✨ ¡Llega Spotlight!",
+        "spotlightDescription": "Explora y organiza tus métricas clave en el <bold>Catálogo</bold> y haz clic para visualizarlas a lo largo del tiempo en el <bold>Explorador</bold>.",
+        "viewDemo": "Ver demo",
+        "title": "Catálogo de métricas",
+        "subtitle": "Consulta todas las métricas y KPI de este proyecto",
+        "refreshingCatalog": "Actualizando catálogo",
+        "lastRefreshed": "Última actualización {{timeAgo}}",
+        "refreshCatalog": "Actualizar catálogo"
+    },
+    "filters": {
+        "owners": {
+            "label": "Propietarios",
+            "tooltip": "Filtrar métricas por propietario",
+            "noMatch": "Ningún propietario coincide con tu búsqueda.",
+            "empty": "Todavía no hay propietarios configurados. Añade spotlight.owner en el YAML de tu métrica o modelo para asignar propietarios.",
+            "searchPlaceholder": "Buscar propietarios...",
+            "unassigned": "Sin asignar"
+        },
+        "tables": {
+            "label": "Tablas",
+            "tooltip": "Filtrar métricas por tabla",
+            "noMatch": "Ninguna tabla coincide con tu búsqueda.",
+            "empty": "No hay tablas disponibles.",
+            "searchPlaceholder": "Buscar tablas..."
+        },
+        "categories": {
+            "label": "Categorías",
+            "tooltip": "Filtrar métricas por categoría",
+            "noMatch": "Ninguna categoría coincide con tu búsqueda.",
+            "empty": "Todavía no hay categorías. Haz clic en las celdas de categoría para asignar categorías a tus métricas.",
+            "searchPlaceholder": "Buscar categorías...",
+            "uncategorized": "Sin categoría",
+            "match": "Coincidir",
+            "any": "Cualquiera",
+            "all": "Todas"
+        }
+    },
+    "toolbar": {
+        "columnPinned": "La columna {{column}} está fijada para facilitar el uso",
+        "reorderColumn": "Reordenar la columna {{column}}",
+        "toggleColumn": "Mostrar u ocultar la columna {{column}}",
+        "searchPlaceholder": "Buscar por nombre o descripción",
+        "clearSearch": "Limpiar búsqueda",
+        "manageColumns": "Gestionar visibilidad de columnas",
+        "discardChanges": "Descartar cambios sin guardar",
+        "resetForEveryone": "Restablecer la configuración para todos",
+        "discard": "Descartar",
+        "reset": "Restablecer",
+        "saveForEveryone": "Guardar para todos",
+        "listView": "Vista de lista",
+        "canvas": "Lienzo",
+        "metricsCount_one": "{{count}} métrica",
+        "metricsCount_other": "{{count}} métricas"
+    },
+    "treeList": {
+        "title": "Árboles guardados",
+        "new": "Nuevo",
+        "loading": "Cargando árboles…",
+        "editingBy": "En edición por {{name}}",
+        "empty": "Todavía no hay árboles guardados"
+    },
+    "savedTree": {
+        "noTreeSelected": "Ningún árbol seleccionado",
+        "noTreeSelectedDescription": "Selecciona un árbol en la barra lateral o crea uno nuevo",
+        "treeName": "Nombre del árbol",
+        "cancel": "Cancelar",
+        "save": "Guardar",
+        "discardTitle": "Descartar cambios",
+        "discardDescription": "¿Seguro que quieres descartar los cambios sin guardar?",
+        "discard": "Descartar",
+        "keepEditing": "Seguir editando",
+        "unsavedTitle": "Cambios sin guardar",
+        "unsavedDescription": "Tienes cambios sin guardar. ¿Seguro que quieres salir?",
+        "leave": "Salir",
+        "stay": "Quedarse",
+        "editingBy": "En edición por {{name}}",
+        "close": "Cerrar",
+        "copyLink": "Copiar enlace al árbol",
+        "beingEditedBy": "Lo está editando {{name}}",
+        "edit": "Editar",
+        "cannotDeleteWhileEdited": "No se puede eliminar mientras se está editando",
+        "cannotDeleteWhileEditedBy": "No se puede eliminar mientras lo edita {{name}}",
+        "delete": "Eliminar",
+        "deleteTitle": "Eliminar árbol de métricas",
+        "resourceType": "árbol de métricas"
+    },
+    "metricsSidebar": {
+        "addToCanvas": "Añadir {{title}} al lienzo",
+        "yamlDrivers": "Impulsores definidos en YAML",
+        "table": "Tabla: <value>{{table}}</value>",
+        "notOnCanvas_one": "{{count}} métrica fuera del lienzo",
+        "notOnCanvas_other": "{{count}} métricas fuera del lienzo",
+        "documentation": "Documentación",
+        "allOnCanvas": "Todas las métricas están en el lienzo",
+        "loadMore": "Cargar más"
+    },
+    "canvas": {
+        "cleanUp": "Ordenar",
+        "cannotDeleteYamlEdgeTitle": "No se puede eliminar una conexión definida en YAML",
+        "cannotDeleteYamlEdgeSubtitle": "Esta conexión está definida en tus archivos YAML de dbt. Actualiza el YAML para eliminarla."
+    },
+    "expandedNode": {
+        "comparison": {
+            "rolling": "Últimos {{days}} días frente a los {{days}} días anteriores",
+            "day": "Día actual frente al día anterior hasta la fecha",
+            "week": "Semana actual frente a la semana anterior hasta la fecha",
+            "month": "Mes actual frente al mes anterior hasta la fecha",
+            "year": "Año actual frente al año anterior hasta la fecha",
+            "default": "Periodo actual frente al anterior"
+        },
+        "addYamlDrivers": "Añadir impulsores desde YAML",
+        "addYamlDriversAriaLabel": "Añadir impulsores de YAML al lienzo"
+    },
+    "canvasTimeFrame": {
+        "currentWeekToDate": "Semana actual hasta la fecha",
+        "currentMonthToDate": "Mes actual hasta la fecha",
+        "currentYearToDate": "Año actual hasta la fecha",
+        "currentPeriodToDate": "Periodo actual hasta la fecha",
+        "lastDays_one": "Último día",
+        "lastDays_other": "Últimos {{count}} días",
+        "comparedTo": "comparado con"
+    },
+    "intervals": {
+        "daily": "Diario",
+        "weekly": "Semanal",
+        "monthly": "Mensual",
+        "yearly": "Anual"
+    },
+    "segmentation": {
+        "title": "Segmento",
+        "clear": "Limpiar",
+        "noFields": "No hay campos disponibles para segmentar esta métrica",
+        "placeholder": "Segmentar por",
+        "limited": "Solo se muestran las primeras {{count}} series para mantener el gráfico claro y legible."
+    },
+    "comparison": {
+        "previousYearTooltip": "Mostrar datos del mismo periodo del año anterior",
+        "selectMetric": "Selecciona una métrica",
+        "timeDimensionRequired": "Solo se pueden comparar métricas con una dimensión temporal definida en el .yml.",
+        "learnMore": "Más información"
+    },
+    "datePicker": {
+        "custom": "Personalizado",
+        "customWithRange": "Personalizado: <range>{{range}}</range>",
+        "presetRange": "{{from}} a {{to}}",
+        "changeGranularity": "Cambiar granularidad",
+        "cancel": "Cancelar",
+        "apply": "Aplicar"
+    },
+    "filter": {
+        "title": "Filtro",
+        "clear": "Limpiar",
+        "filterBy": "Filtrar por",
+        "condition": "Condición",
+        "typeValues": "Escribe valores...",
+        "apply": "Aplicar",
+        "operators": {
+            "is": "es",
+            "isNot": "no es",
+            "isTrue": "es verdadero",
+            "isFalse": "es falso"
+        }
+    },
+    "autocomplete": {
+        "addValue": "Añadir \"{{value}}\"",
+        "loading": "Cargando...",
+        "noResults": "No se encontraron resultados",
+        "showingFirstContinue": "Mostrando los primeros {{count}} resultados. Sigue escribiendo...",
+        "showingFirstStart": "Mostrando los primeros {{count}} resultados. Empieza a escribir...",
+        "refreshCache": "Haz clic aquí para actualizar los valores de filtro en caché",
+        "loadedAt": "Resultados cargados el {{date}}"
+    },
+    "exploreModal": {
+        "comparison": "Comparación",
+        "clear": "Limpiar"
+    },
+    "toasts": {
+        "refreshCatalogFailed": "No se pudo actualizar el catálogo",
+        "treeSaved": "Árbol de métricas guardado correctamente",
+        "treeSaveFailed": "No se pudo guardar el árbol de métricas",
+        "lockFailed": "No se pudo obtener el bloqueo de edición",
+        "treeDeleted": "Árbol de métricas eliminado correctamente",
+        "treeDeleteFailed": "No se pudo eliminar el árbol de métricas",
+        "treeUpdated": "Árbol de métricas actualizado correctamente",
+        "treeUpdateFailed": "No se pudo actualizar el árbol de métricas",
+        "spotlightConfigSaved": "Configuración de la tabla de Spotlight guardada para todos en este proyecto",
+        "spotlightConfigSaveFailed": "Error al guardar la configuración de la tabla de Spotlight"
+    },
+    "visualization": {
+        "comparisonSeries": "Comparación"
+    },
+    "dateRangePicker": {
+        "selectDateRange": "Selecciona un rango de fechas"
+    },
+    "datePresets": {
+        "labels": {
+            "today": "Hoy",
+            "past7Days": "Últimos 7 días",
+            "past30Days": "Últimos 30 días",
+            "past3Months": "Últimos 3 meses",
+            "past12Months": "Últimos 12 meses",
+            "past5Years": "Últimos 5 años",
+            "thisWeek": "Esta semana",
+            "past1Week": "Última semana",
+            "past4Weeks": "Últimas 4 semanas",
+            "thisMonth": "Este mes",
+            "past6Months": "Últimos 6 meses",
+            "thisYear": "Este año",
+            "past1Year": "Último año",
+            "past3Years": "Últimos 3 años"
+        },
+        "controls": {
+            "d7": "7D",
+            "d30": "30D",
+            "m3": "3M",
+            "m12": "12M",
+            "y5": "5A",
+            "w1": "1S",
+            "w4": "4S",
+            "m6": "6M",
+            "y1": "1A",
+            "y3": "3A"
+        }
+    }
+}

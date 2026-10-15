@@ -2,6 +2,7 @@ import { ChartSourceType, ContentType } from '@lightdash/common';
 import { Button, type ModalProps } from '@mantine/core';
 import { IconFolders } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useContentAction } from '../../../hooks/useContent';
 import Callout from '../Callout';
 import MantineModal from '../MantineModal';
@@ -25,6 +26,7 @@ const MoveChartThatBelongsToDashboardModal: FC<Props> = ({
     onConfirm,
     projectUuid,
 }) => {
+    const { t } = useTranslation('modals');
     const { mutate: contentAction } = useContentAction(projectUuid, {
         onSuccess: async () => {
             onConfirm();
@@ -36,7 +38,7 @@ const MoveChartThatBelongsToDashboardModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title={`Move "${name}"`}
+            title={t('moveChartFromDashboard.title', { name })}
             icon={IconFolders}
             size="lg"
             actions={
@@ -55,15 +57,16 @@ const MoveChartThatBelongsToDashboardModal: FC<Props> = ({
                         });
                     }}
                 >
-                    Move
+                    {t('moveChartFromDashboard.move')}
                 </Button>
             }
-            description={`Are you sure you want to move the chart "${name}" to the space "${spaceName}"?`}
+            description={t('moveChartFromDashboard.description', {
+                name,
+                spaceName,
+            })}
         >
-            <Callout variant="warning" title="This change cannot be undone.">
-                This chart was created from within the dashboard, moving the
-                chart to the space will make it available in chart lists across
-                the app.
+            <Callout variant="warning" title={t('cannotBeUndone')}>
+                {t('moveChartFromDashboard.warning')}
             </Callout>
         </MantineModal>
     );

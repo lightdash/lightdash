@@ -26,6 +26,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     useDeleteJiraInstallation,
     useInstallJira,
@@ -60,15 +61,19 @@ const withCurrent = (
 // Matches MAX_CREDENTIAL_LENGTH in JiraAppService
 const MAX_CREDENTIAL_LENGTH = 255;
 
-const JiraLogo = ({ compact = false }: { compact?: boolean }) => (
-    <img
-        src={jiraSvg}
-        alt="Jira"
-        className={compact ? styles.logoSm : styles.logo}
-    />
-);
+const JiraLogo = ({ compact = false }: { compact?: boolean }) => {
+    const { t } = useTranslation('aiCopilotAdmin');
+    return (
+        <img
+            src={jiraSvg}
+            alt={t('settings.jira.logoAlt')}
+            className={compact ? styles.logoSm : styles.logo}
+        />
+    );
+};
 
 export const JiraReviewSettings = () => {
+    const { t } = useTranslation('aiCopilotAdmin');
     const { health, user } = useApp();
     const canEdit = user.data?.ability?.can('manage', 'Organization') ?? false;
     const siteUrl = health.data?.siteUrl ?? window.location.origin;
@@ -173,25 +178,27 @@ export const JiraReviewSettings = () => {
                 <Box maw={620}>
                     <Group gap="xs" mb={4}>
                         <JiraLogo compact={hasJira} />
-                        <Title order={6}>Jira issues</Title>
+                        <Title order={6}>{t('settings.jira.title')}</Title>
                         {hasJira && (
                             <Badge
                                 size="sm"
                                 color={needsSite ? 'yellow' : 'green'}
                             >
-                                {needsSite ? 'Select site' : 'Connected'}
+                                {needsSite
+                                    ? t('settings.jira.selectSite')
+                                    : t('settings.jira.connected')}
                             </Badge>
                         )}
                     </Group>
                     <Text c="dimmed" fz="xs">
-                        Send review findings to Jira automatically. Existing
-                        open findings can be exported below; status is not
-                        synced.
+                        {t('settings.jira.description')}
                     </Text>
                     {connected && (
                         <Text c="dimmed" fz="xs" mt={4}>
-                            Connected to {installation.siteName} (
-                            {installation.siteUrl}).
+                            {t('settings.jira.connectedTo', {
+                                name: installation.siteName,
+                                url: installation.siteUrl,
+                            })}
                         </Text>
                     )}
                 </Box>
@@ -199,7 +206,7 @@ export const JiraReviewSettings = () => {
                 {connected && routing && (
                     <Switch
                         size="md"
-                        aria-label="Create Jira issues for AI review findings"
+                        aria-label={t('settings.jira.toggleAria')}
                         checked={routing.enabled}
                         disabled={!canEdit || isUpdating || !canEnable}
                         onChange={(event) =>
@@ -218,14 +225,10 @@ export const JiraReviewSettings = () => {
                             <Text className={styles.stepIndex}>1</Text>
                             <Stack gap={6} flex={1}>
                                 <Text fw={600} fz="sm">
-                                    Create an Atlassian OAuth 2.0 app
+                                    {t('settings.jira.step1Title')}
                                 </Text>
                                 <Text c="dimmed" fz="xs">
-                                    In the developer console create an OAuth 2.0
-                                    integration. Under Permissions add the Jira
-                                    API and tick the classic scopes
-                                    read:jira-work and write:jira-work. Under
-                                    Authorization set this callback URL.
+                                    {t('settings.jira.step1Description')}
                                 </Text>
                                 <Group gap="xs" wrap="nowrap">
                                     <Code>{callbackUrl}</Code>
@@ -234,7 +237,9 @@ export const JiraReviewSettings = () => {
                                             <ActionIcon
                                                 variant="subtle"
                                                 size="sm"
-                                                aria-label="Copy callback URL"
+                                                aria-label={t(
+                                                    'settings.jira.copyCallback',
+                                                )}
                                                 onClick={copy}
                                             >
                                                 <MantineIcon
@@ -264,7 +269,7 @@ export const JiraReviewSettings = () => {
                                         />
                                     }
                                 >
-                                    Open Atlassian developer console
+                                    {t('settings.jira.openConsole')}
                                 </Button>
                             </Stack>
                         </Group>
@@ -273,15 +278,10 @@ export const JiraReviewSettings = () => {
                             <Text className={styles.stepIndex}>2</Text>
                             <Stack gap={6} flex={1}>
                                 <Text fw={600} fz="sm">
-                                    Paste the client ID and secret
+                                    {t('settings.jira.step2Title')}
                                 </Text>
                                 <Text c="dimmed" fz="xs">
-                                    Both are on the app's Settings page. The
-                                    secret is stored encrypted and only used for
-                                    this organization. Connecting opens
-                                    Atlassian: sign in there with an account
-                                    that has Jira on the site you want to use,
-                                    or Atlassian shows Access denied.
+                                    {t('settings.jira.step2Description')}
                                 </Text>
                                 <form onSubmit={submitCredentials}>
                                     <Group
@@ -292,7 +292,7 @@ export const JiraReviewSettings = () => {
                                         <TextInput
                                             className={styles.credentialInput}
                                             size="xs"
-                                            label="Client ID"
+                                            label={t('settings.jira.clientId')}
                                             value={clientId}
                                             maxLength={MAX_CREDENTIAL_LENGTH}
                                             disabled={!canEdit || isUpdating}
@@ -305,7 +305,9 @@ export const JiraReviewSettings = () => {
                                         <PasswordInput
                                             className={styles.credentialInput}
                                             size="xs"
-                                            label="Client secret"
+                                            label={t(
+                                                'settings.jira.clientSecret',
+                                            )}
                                             value={clientSecret}
                                             maxLength={MAX_CREDENTIAL_LENGTH}
                                             disabled={!canEdit || isUpdating}
@@ -325,7 +327,7 @@ export const JiraReviewSettings = () => {
                                             }
                                             loading={installJira.isLoading}
                                         >
-                                            Connect Jira
+                                            {t('settings.jira.connectJira')}
                                         </Button>
                                     </Group>
                                 </form>
@@ -337,12 +339,12 @@ export const JiraReviewSettings = () => {
 
             {needsSite && (
                 <Select
-                    label="Jira site"
-                    description="Choose the site that will receive review issues."
+                    label={t('settings.jira.site')}
+                    description={t('settings.jira.siteDescription')}
                     placeholder={
                         sitesQuery.isInitialLoading
-                            ? 'Loading sites'
-                            : 'Select site'
+                            ? t('settings.jira.loadingSites')
+                            : t('settings.jira.selectSite')
                     }
                     data={(sitesQuery.data ?? []).map((site) => ({
                         value: site.id,
@@ -358,8 +360,8 @@ export const JiraReviewSettings = () => {
             {connected && routing && (
                 <Stack gap="sm">
                     <Checkbox
-                        label="All projects"
-                        description="Findings from every Lightdash project, including ones created later."
+                        label={t('settings.jira.allProjects')}
+                        description={t('settings.jira.allProjectsDescription')}
                         checked={routing.applyToAllProjects}
                         disabled={!canEdit || isUpdating || projectsLoading}
                         onChange={(event) => {
@@ -378,11 +380,11 @@ export const JiraReviewSettings = () => {
                     />
                     {!routing.applyToAllProjects && (
                         <MultiSelect
-                            label="Lightdash projects"
+                            label={t('settings.jira.lightdashProjects')}
                             placeholder={
                                 projectsLoading
-                                    ? 'Loading projects'
-                                    : 'Select projects'
+                                    ? t('settings.jira.loadingProjects')
+                                    : t('settings.jira.selectProjects')
                             }
                             data={projects.map((project) => ({
                                 value: project.projectUuid,
@@ -402,11 +404,11 @@ export const JiraReviewSettings = () => {
                         />
                     )}
                     <Select
-                        label="Jira project"
+                        label={t('settings.jira.project')}
                         placeholder={
                             jiraProjectsQuery.isInitialLoading
-                                ? 'Loading projects'
-                                : 'Select a project'
+                                ? t('settings.jira.loadingProjects')
+                                : t('settings.jira.selectProject')
                         }
                         data={jiraProjectOptions}
                         value={routing.jiraProjectId}
@@ -425,11 +427,11 @@ export const JiraReviewSettings = () => {
                         }
                     />
                     <Select
-                        label="Jira issue type"
+                        label={t('settings.jira.issueType')}
                         placeholder={
                             issueTypesQuery.isInitialLoading
-                                ? 'Loading issue types'
-                                : 'Select an issue type'
+                                ? t('settings.jira.loadingIssueTypes')
+                                : t('settings.jira.selectIssueType')
                         }
                         data={issueTypeOptions}
                         value={routing.jiraIssueTypeId}
@@ -458,7 +460,7 @@ export const JiraReviewSettings = () => {
                                 loading={backfill.isLoading}
                                 onClick={() => backfill.mutate()}
                             >
-                                Create issues for existing findings
+                                {t('settings.jira.backfill')}
                             </Button>
                         )}
                         <Button
@@ -468,7 +470,7 @@ export const JiraReviewSettings = () => {
                             href="/api/v1/jira/install"
                             disabled={!canEdit || isUpdating}
                         >
-                            Reconnect
+                            {t('settings.jira.reconnect')}
                         </Button>
                         <Button
                             size="xs"
@@ -480,7 +482,7 @@ export const JiraReviewSettings = () => {
                             }
                             onClick={() => deleteJira.mutate()}
                         >
-                            Remove
+                            {t('actions.remove', { ns: 'common' })}
                         </Button>
                     </Group>
                 </Stack>

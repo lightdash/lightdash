@@ -11,6 +11,7 @@ import {
 import { IconClock, IconRefresh, IconSend } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 import { useGetSlackChannelName } from '../../hooks/slack/useGetSlackChannelName';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -25,6 +26,7 @@ const SchedulersView: FC<{ projectUuid?: string; isUserScope?: boolean }> = ({
     projectUuid,
     isUserScope = false,
 }) => {
+    const { t } = useTranslation('scheduler');
     const [searchParams, setSearchParams] = useSearchParams();
     const queryClient = useQueryClient();
     const { showToastSuccess } = useToaster();
@@ -61,15 +63,17 @@ const SchedulersView: FC<{ projectUuid?: string; isUserScope?: boolean }> = ({
         await Promise.all(invalidateQueries);
 
         showToastSuccess({
-            title: 'Scheduled deliveries refreshed successfully',
+            title: t('schedulersView.refreshSuccess'),
         });
     };
 
     if (isUserScope) {
         return (
             <SettingsPage
-                title="My scheduled deliveries"
-                description="Review and manage deliveries scheduled across your projects."
+                title={t('schedulersView.myScheduledDeliveries')}
+                description={t(
+                    'schedulersView.myScheduledDeliveriesDescription',
+                )}
                 actions={
                     <Button
                         size="xs"
@@ -77,7 +81,7 @@ const SchedulersView: FC<{ projectUuid?: string; isUserScope?: boolean }> = ({
                         leftSection={<MantineIcon icon={IconRefresh} />}
                         onClick={handleRefresh}
                     >
-                        Refresh
+                        {t('schedulersView.refresh')}
                     </Button>
                 }
             >
@@ -105,8 +109,8 @@ const SchedulersView: FC<{ projectUuid?: string; isUserScope?: boolean }> = ({
                         justify="space-between"
                         className={classes.header}
                     >
-                        <Title order={5}>Scheduled Deliveries</Title>
-                        <Tooltip label="Click to refresh the status of the scheduled deliveries">
+                        <Title order={5}>{t('schedulersView.title')}</Title>
+                        <Tooltip label={t('schedulersView.refreshTooltip')}>
                             <ActionIcon onClick={handleRefresh} size="xs">
                                 <MantineIcon
                                     icon={IconRefresh}
@@ -121,13 +125,13 @@ const SchedulersView: FC<{ projectUuid?: string; isUserScope?: boolean }> = ({
                             value={SchedulersViewTab.ALL_SCHEDULERS}
                             leftSection={<MantineIcon icon={IconSend} />}
                         >
-                            All schedulers
+                            {t('schedulersView.tabs.allSchedulers')}
                         </Tabs.Tab>
                         <Tabs.Tab
                             value={SchedulersViewTab.RUN_HISTORY}
                             leftSection={<MantineIcon icon={IconClock} />}
                         >
-                            Run history
+                            {t('schedulersView.tabs.runHistory')}
                         </Tabs.Tab>
                     </Tabs.List>
 

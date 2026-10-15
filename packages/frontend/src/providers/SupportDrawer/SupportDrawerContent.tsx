@@ -13,6 +13,7 @@ import { modals } from '@mantine/modals';
 import { IconIdOff } from '@tabler/icons-react';
 import html2canvas from 'html2canvas-pro';
 import { useCallback, useEffect, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi, networkHistory } from '../../api';
 import MantineIcon from '../../components/common/MantineIcon';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -67,6 +68,7 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
 
     const [screenshot, setScreenshot] = useState<string | null>(null);
     const [screenshotError, setScreenshotError] = useState(false);
+    const { t } = useTranslation('app');
     const { showToastSuccess } = useToaster();
     useEffect(() => {
         const element = document.querySelector('body');
@@ -101,17 +103,24 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
             body,
         }).then(() => {
             showToastSuccess({
-                title: 'Success',
-                subtitle: 'Support request sent successfully',
+                title: t('supportDrawer.success'),
+                subtitle: t('supportDrawer.sent'),
             });
         });
         modals.closeAll();
-    }, [includeImage, screenshot, allowAccess, moreDetails, showToastSuccess]);
+    }, [
+        includeImage,
+        screenshot,
+        allowAccess,
+        moreDetails,
+        showToastSuccess,
+        t,
+    ]);
 
     return (
         <Stack gap="xs">
             <Checkbox
-                label="Include this image"
+                label={t('supportDrawer.includeImage')}
                 checked={screenshotError ? false : includeImage}
                 onChange={(event) => setIncludeImage(event.target.checked)}
                 mt="xs"
@@ -122,7 +131,7 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
                 <Image
                     height={200}
                     src={screenshot}
-                    alt="Screenshot"
+                    alt={t('supportDrawer.screenshot')}
                     fit="contain"
                 />
             ) : (
@@ -132,9 +141,7 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
                             <>
                                 <MantineIcon icon={IconIdOff} color="ldGray" />
                                 <Text c="dimmed" ta="center">
-                                    Screenshot could not be captured. You can
-                                    still submit your report with the details
-                                    below
+                                    {t('supportDrawer.screenshotFailed')}
                                 </Text>
                             </>
                         ) : (
@@ -143,36 +150,32 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
                     </Stack>
                 </Paper>
             )}
-            <Text mt="sm">
-                Do you have and other details you'd like to share?
-            </Text>
+            <Text mt="sm">{t('supportDrawer.moreDetails')}</Text>
             <Textarea
-                placeholder="Enter more details"
+                placeholder={t('supportDrawer.moreDetailsPlaceholder')}
                 value={moreDetails}
                 onChange={(event) => setMoreDetails(event.target.value)}
                 minRows={4}
             />
             <Checkbox
-                label="Allow Lightdash support access to your instance"
+                label={t('supportDrawer.allowAccess')}
                 checked={allowAccess}
                 onChange={(event) => setAllowAccess(event.target.checked)}
                 mt="xs"
             />
             <Text size="xs" c="dimmed">
-                By ticking this box, you agree to give Lightdash Support access
-                to your organization for 12 hours to investigate this issue.
+                {t('supportDrawer.accessAgreement')}
             </Text>
 
             <Text size="xs" c="dimmed">
-                We will also share your Lightdash logs and your recent network
-                requests to help us investigate this issue.
+                {t('supportDrawer.logsNote')}
             </Text>
             <Button
                 mt="xs"
                 className={classes.submitButton}
                 onClick={handleShare}
             >
-                Share
+                {t('supportDrawer.share')}
             </Button>
         </Stack>
     );

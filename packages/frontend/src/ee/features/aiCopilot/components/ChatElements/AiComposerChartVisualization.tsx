@@ -20,6 +20,7 @@ import {
     useComputedColorScheme,
 } from '@mantine/core';
 import { useEffect, useMemo, useState, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import BigNumberView from '../../../../../components/DataViz/visualizations/BigNumberView';
 import ChartView from '../../../../../components/DataViz/visualizations/ChartView';
 import { useProjectColorPalette } from '../../../../../hooks/appearance/useProjectColorPalette';
@@ -163,6 +164,7 @@ export const AiComposerChartVisualization: FC<Props> = ({
     headerContent,
     loadingMessage,
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const { columns, rows, isLoading } = useArtifactResultRows(results);
     const colors = useChartColors(projectUuid);
     const kind = getComposerChartKind(vizConfig);
@@ -223,7 +225,7 @@ export const AiComposerChartVisualization: FC<Props> = ({
             <Frame headerContent={headerContent}>
                 <Center h="100%">
                     <Text size="xs" c="dimmed">
-                        This chart uses columns that are not in the result
+                        {t('composerChart.missingColumns')}
                     </Text>
                 </Center>
             </Frame>

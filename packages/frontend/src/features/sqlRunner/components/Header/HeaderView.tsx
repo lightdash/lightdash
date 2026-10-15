@@ -24,6 +24,7 @@ import {
     IconUsers,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import PageHeader from '../../../../components/common/Page/PageHeader';
@@ -74,6 +75,7 @@ const savedChartTourProps = {
 };
 
 export const HeaderView: FC = () => {
+    const { t } = useTranslation('sqlRunner');
     const authoringEnabled = useContentAuthoringEnabled();
     const navigate = useNavigate();
     const { search, pathname } = useLocation();
@@ -271,7 +273,7 @@ export const HeaderView: FC = () => {
                                     )
                                 }
                             >
-                                Edit chart
+                                {t('header.editChart')}
                             </Button>
                         )}
 
@@ -292,7 +294,9 @@ export const HeaderView: FC = () => {
                                 <Menu.Dropdown>
                                     {canManageChart && (
                                         <>
-                                            <Menu.Label>Manage</Menu.Label>
+                                            <Menu.Label>
+                                                {t('header.manage')}
+                                            </Menu.Label>
                                             <Menu.Item
                                                 leftSection={
                                                     <MantineIcon
@@ -307,7 +311,7 @@ export const HeaderView: FC = () => {
                                                     )
                                                 }
                                             >
-                                                Add to dashboard
+                                                {t('header.addToDashboard')}
                                             </Menu.Item>
                                         </>
                                     )}
@@ -320,7 +324,7 @@ export const HeaderView: FC = () => {
                                                 requestReviewModalHandlers.open
                                             }
                                         >
-                                            Request review
+                                            {t('header.requestReview')}
                                         </Menu.Item>
                                     )}
                                     {canSyncWithGoogleSheets && (
@@ -332,12 +336,14 @@ export const HeaderView: FC = () => {
                                             }
                                             onClick={syncModalHandlers.open}
                                         >
-                                            Google Sheets Sync
+                                            {t('header.googleSheetsSync')}
                                         </Menu.Item>
                                     )}
                                     {canManageChart && canPromoteChart && (
                                         <Tooltip
-                                            label="You must enable first an upstream project in settings > Data ops"
+                                            label={t(
+                                                'header.promoteRequiresUpstream',
+                                            )}
                                             disabled={
                                                 project?.upstreamProjectUuid !==
                                                 undefined
@@ -362,7 +368,7 @@ export const HeaderView: FC = () => {
                                                         )
                                                     }
                                                 >
-                                                    Promote chart
+                                                    {t('header.promoteChart')}
                                                 </Menu.Item>
                                             </div>
                                         </Tooltip>
@@ -379,7 +385,7 @@ export const HeaderView: FC = () => {
                                                     directAccessModalHandlers.open
                                                 }
                                             >
-                                                Share
+                                                {t('header.share')}
                                             </Menu.Item>
                                         )}
                                     {canManageChart && (
@@ -400,7 +406,9 @@ export const HeaderView: FC = () => {
                                                 )
                                             }
                                         >
-                                            Delete
+                                            {t('actions.delete', {
+                                                ns: 'common',
+                                            })}
                                         </Menu.Item>
                                     )}
                                 </Menu.Dropdown>

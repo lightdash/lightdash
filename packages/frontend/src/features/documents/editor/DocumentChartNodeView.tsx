@@ -2,6 +2,7 @@ import { ActionIcon, Group, Tooltip } from '@mantine/core';
 import { IconGripVertical, IconPencil, IconTrash } from '@tabler/icons-react';
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import { type KeyboardEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import ErrorBoundary from '../../errorBoundary/ErrorBoundary';
 import DocumentChart from '../DocumentChart';
@@ -29,6 +30,7 @@ const DocumentChartNodeView = ({
     deleteNode,
     selected,
 }: NodeViewProps) => {
+    const { t } = useTranslation('documents');
     const { content, chartId, isSaved } = node.attrs as DocumentChartAttributes;
     const { onEditChart } = extension.options as DocumentChartNodeOptions;
     const target = useDocumentEditorTarget();
@@ -58,14 +60,16 @@ const DocumentChartNodeView = ({
     };
     const actions = editing ? (
         <Group gap="xs" wrap="nowrap">
-            <Tooltip label="Drag, or press ↑ ↓, to move">
+            <Tooltip label={t('chartNode.dragHint')}>
                 {/* A div, not a button: Firefox never starts a drag from a
                     <button>, so role, tabIndex and keys are added by hand */}
                 <ActionIcon
                     component="div"
                     role="button"
                     tabIndex={0}
-                    aria-label={`Drag chart ${content.chart.name}`}
+                    aria-label={t('chartNode.drag', {
+                        name: content.chart.name,
+                    })}
                     aria-keyshortcuts="ArrowUp ArrowDown"
                     className={styles.chartDragHandle}
                     draggable
@@ -79,12 +83,14 @@ const DocumentChartNodeView = ({
                 <Tooltip
                     label={
                         isEditableChart(content)
-                            ? 'Edit chart'
-                            : 'This chart type is read-only'
+                            ? t('chartNode.edit')
+                            : t('chartNode.readOnly')
                     }
                 >
                     <ActionIcon
-                        aria-label={`Edit chart ${content.chart.name}`}
+                        aria-label={t('chartNode.editNamed', {
+                            name: content.chart.name,
+                        })}
                         disabled={!isEditableChart(content)}
                         onClick={() => {
                             const position = getPos();
@@ -97,9 +103,11 @@ const DocumentChartNodeView = ({
                     </ActionIcon>
                 </Tooltip>
             )}
-            <Tooltip label="Remove chart">
+            <Tooltip label={t('chartNode.remove')}>
                 <ActionIcon
-                    aria-label={`Remove chart ${content.chart.name}`}
+                    aria-label={t('chartNode.removeNamed', {
+                        name: content.chart.name,
+                    })}
                     onClick={deleteNode}
                 >
                     <MantineIcon icon={IconTrash} />

@@ -16,6 +16,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { Editor } from '../../../components/MonacoEditor';
 import { useEditorTheme } from '../../../hooks/useEditorTheme';
@@ -31,6 +32,7 @@ type Props = {
 };
 
 const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
+    const { t } = useTranslation('sqlRunner');
     const { monaco: monacoTheme } = useEditorTheme();
     const dispatch = useAppDispatch();
 
@@ -66,7 +68,7 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
                                 }
                             >
                                 {hovered
-                                    ? 'Open in query editor'
+                                    ? t('history.openInEditor')
                                     : formattedDate}
                             </Text>
                         </Group>
@@ -114,6 +116,7 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
 };
 
 export const SqlQueryHistory: FC = () => {
+    const { t } = useTranslation('sqlRunner');
     const sqlPastHistory = useAppSelector((state) =>
         state.sqlRunner.successfulSqlQueries.past.filter(
             (item) => !!item.value,
@@ -125,9 +128,9 @@ export const SqlQueryHistory: FC = () => {
     return (
         <Popover disabled={!hasHistory}>
             <Popover.Target>
-                <Tooltip label="SQL query history" position="bottom">
+                <Tooltip label={t('history.title')} position="bottom">
                     <ActionIcon
-                        aria-label="SQL query history"
+                        aria-label={t('history.title')}
                         disabled={!hasHistory}
                         data-testid="sql-query-history-button"
                     >

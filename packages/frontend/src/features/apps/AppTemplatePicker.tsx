@@ -59,8 +59,8 @@ const AppTemplatePicker: FC<Props> = ({ selected, onSelectedChange }) => (
                     // [data-tour-anchor="app-template"][data-tour-value="Dashboard"]
                     // data-tour-hint="Choose the {value} template"
                     data-tour-anchor="app-template"
-                    data-tour-value={template.title}
-                    {...(template.title === 'Dashboard'
+                    data-tour-value={template.tourName}
+                    {...(template.id === 'dashboard'
                         ? createAppTourAction
                         : {})}
                 >

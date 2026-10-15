@@ -2,6 +2,7 @@ import { type DashboardChartTile, type SavedChart } from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { IconFilePencil } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useChartPermissions } from '../../hooks/useChartPermissions';
@@ -24,6 +25,7 @@ type Props = LinkMenuItemProps & {
 };
 
 const EditChartMenuItem: FC<Props> = ({ tile, chartSlug, chart, ...props }) => {
+    const { t } = useTranslation('dashboard');
     const { mode } = useParams<{ mode?: string }>();
     const navigate = useNavigate();
     const authoringEnabled = useContentAuthoringEnabled();
@@ -59,7 +61,7 @@ const EditChartMenuItem: FC<Props> = ({ tile, chartSlug, chart, ...props }) => {
                 onClick={() => onEditChart(chart)}
                 disabled={props.disabled}
             >
-                Edit chart
+                {t('tile.editChart')}
             </Menu.Item>
         );
     }
@@ -77,7 +79,7 @@ const EditChartMenuItem: FC<Props> = ({ tile, chartSlug, chart, ...props }) => {
                     });
                 }}
             >
-                Edit chart
+                {t('tile.editChart')}
             </Menu.Item>
         );
     }
@@ -103,7 +105,7 @@ const EditChartMenuItem: FC<Props> = ({ tile, chartSlug, chart, ...props }) => {
             href={href}
             {...props}
         >
-            Edit chart
+            {t('tile.editChart')}
         </LinkMenuItem>
     );
 };

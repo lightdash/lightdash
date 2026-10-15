@@ -8,6 +8,7 @@ import { ActionIcon, Badge, Group, Text, Tooltip } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { lightdashApi } from '../../api';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -47,20 +48,21 @@ const LinkedChartActions = ({
     href: string | null;
     actions?: ReactNode;
 }) => {
+    const { t } = useTranslation('documents');
     const isEmbedded = useIsEmbedded();
     return (
         <Group gap="xs" wrap="nowrap">
-            <Tooltip label="Shows the saved chart live">
-                <Badge variant="light">Linked</Badge>
+            <Tooltip label={t('linkedChart.badgeTooltip')}>
+                <Badge variant="light">{t('linkedChart.badge')}</Badge>
             </Tooltip>
             {href && !isEmbedded && (
-                <Tooltip label="Open chart">
+                <Tooltip label={t('linkedChart.open')}>
                     <ActionIcon
                         component="a"
                         href={href}
                         target="_blank"
                         rel="noreferrer"
-                        aria-label="Open linked chart"
+                        aria-label={t('linkedChart.openAriaLabel')}
                     >
                         <MantineIcon icon={IconExternalLink} />
                     </ActionIcon>
@@ -79,23 +81,26 @@ const LinkedChartMessage = ({
     title: string | undefined;
     error: ApiError | null;
     actions?: ReactNode;
-}) => (
-    <ReportChartFrame
-        title={title ?? 'Linked chart'}
-        actions={actions}
-        fit="content"
-    >
-        {error === null ? (
-            <EmptyStateLoader title="Loading linked chart" />
-        ) : (
-            <Text c="dimmed" size="sm" p="md">
-                {error.error.statusCode === 403
-                    ? "You don't have access to this chart."
-                    : 'This chart is no longer available.'}
-            </Text>
-        )}
-    </ReportChartFrame>
-);
+}) => {
+    const { t } = useTranslation('documents');
+    return (
+        <ReportChartFrame
+            title={title ?? t('linkedChart.defaultTitle')}
+            actions={actions}
+            fit="content"
+        >
+            {error === null ? (
+                <EmptyStateLoader title={t('linkedChart.loading')} />
+            ) : (
+                <Text c="dimmed" size="sm" p="md">
+                    {error.error.statusCode === 403
+                        ? t('linkedChart.noAccess')
+                        : t('linkedChart.unavailable')}
+                </Text>
+            )}
+        </ReportChartFrame>
+    );
+};
 
 const LinkedSavedChart = ({
     projectUuid,

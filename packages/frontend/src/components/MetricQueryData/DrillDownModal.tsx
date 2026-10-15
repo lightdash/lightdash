@@ -17,6 +17,7 @@ import {
 import { Button } from '@mantine/core';
 import { IconArrowBarToDown, IconExternalLink } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useEmbedDrillDownExplore from '../../ee/providers/Embed/useEmbedDrillDownExplore';
 import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import { useExplore } from '../../hooks/useExplore';
@@ -108,6 +109,7 @@ export const DrillDownModal: FC<DrillDownModalProps> = ({
     onExplore: onExploreOverride,
     customSqlProvenanceChartUuid,
 }) => {
+    const { t } = useTranslation('app');
     const projectUuid = useProjectUuid();
     const isEmbedded = useIsEmbedded();
     const onEmbedExplore = useEmbedDrillDownExplore(
@@ -191,7 +193,7 @@ export const DrillDownModal: FC<DrillDownModalProps> = ({
         <MantineModal
             opened={isDrillDownModalOpen}
             onClose={onClose}
-            title={`Drill into "${value}"`}
+            title={t('metricQueryData.drillInto', { value })}
             size="md"
             icon={IconArrowBarToDown}
             actions={
@@ -206,7 +208,7 @@ export const DrillDownModal: FC<DrillDownModalProps> = ({
                             }
                         }}
                     >
-                        Drill down
+                        {t('metricQueryData.drillDown')}
                     </Button>
                 ) : isEmbedded ? undefined : (
                     <Button
@@ -217,7 +219,7 @@ export const DrillDownModal: FC<DrillDownModalProps> = ({
                         disabled={!drillDownExplore}
                         onClick={() => setTimeout(onClose, 500)}
                     >
-                        Open in new tab
+                        {t('metricQueryData.openInNewTab')}
                     </Button>
                 )
             }

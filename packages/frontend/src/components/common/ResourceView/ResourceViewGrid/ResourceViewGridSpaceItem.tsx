@@ -9,6 +9,7 @@ import {
     IconFileText,
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import { ResourceIcon } from '../../ResourceIcon';
 import ResourceViewActionMenu, {
@@ -32,6 +33,7 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
     dragIcon,
     allowDelete,
 }) => {
+    const { t } = useTranslation('resourceView');
     const { hovered, ref } = useHover();
     const [opened, handlers] = useDisclosure(false);
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
@@ -67,7 +69,7 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                                 <AttributeCount
                                     Icon={IconFileText}
                                     count={item.data.documentCount}
-                                    name="Documents"
+                                    name={t('attributeCount.documents')}
                                 />
                             )}
                         <AttributeCount

@@ -13,8 +13,9 @@ export type SchedulerNavGroup = 'delivery' | 'content';
 
 export type SchedulerSectionMeta = {
     id: SchedulerSectionId;
-    label: string;
-    description?: string;
+    /** i18n key in the `scheduler` namespace */
+    labelKey: string;
+    descriptionKey?: string;
     icon: Icon;
     group: SchedulerNavGroup;
 };
@@ -25,42 +26,41 @@ export const SCHEDULER_SECTIONS: Record<
 > = {
     alert: {
         id: 'alert',
-        label: 'Alert conditions',
-        description: 'Fire only when your data crosses a threshold.',
+        labelKey: 'sections.alert.label',
+        descriptionKey: 'sections.alert.description',
         icon: IconBell,
         group: 'delivery',
     },
     setup: {
         id: 'setup',
-        label: 'Setup',
+        labelKey: 'sections.setup.label',
         icon: IconCalendarClock,
         group: 'delivery',
     },
     data: {
         id: 'data',
-        label: 'Data & format',
+        labelKey: 'sections.data.label',
         icon: IconTable,
         group: 'content',
     },
     message: {
         id: 'message',
-        label: 'Message',
+        labelKey: 'sections.message.label',
         icon: IconMessage,
         group: 'content',
     },
     ai: {
         id: 'ai',
-        label: 'AI agent',
-        description:
-            'An agent reads this and writes a short summary, delivered at the top of every email and Slack message.',
+        labelKey: 'sections.ai.label',
+        descriptionKey: 'sections.ai.description',
         icon: IconSparkles,
         group: 'content',
     },
 };
 
-export const NAV_GROUP_LABELS: Record<SchedulerNavGroup, string> = {
-    delivery: 'Delivery',
-    content: 'Content',
+export const NAV_GROUP_LABEL_KEYS: Record<SchedulerNavGroup, string> = {
+    delivery: 'sections.groups.delivery',
+    content: 'sections.groups.content',
 };
 
 /**

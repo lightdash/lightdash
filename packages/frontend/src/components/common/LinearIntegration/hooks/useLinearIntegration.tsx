@@ -7,6 +7,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api'; // pragma: allowlist secret
 import useToaster from '../../../../hooks/toaster/useToaster';
+import i18n from '../../../../i18n/i18n';
 
 const LINEAR_INSTALLATION_QUERY_KEY = ['linear_installation'];
 const LINEAR_TEAMS_QUERY_KEY = ['linear_teams'];
@@ -32,7 +33,9 @@ export const useLinearInstallation = (options?: { enabled?: boolean }) => {
             if (error.statusCode === 404 || error.statusCode === 401) return;
 
             showToastApiError({
-                title: 'Failed to get Linear installation',
+                title: i18n.t('linearIntegration.fetchInstallationFailed', {
+                    ns: 'commonUi',
+                }),
                 apiError: error,
             });
         },
@@ -59,7 +62,9 @@ export const useLinearTeams = (options?: { enabled?: boolean }) => {
             if (error.statusCode === 404 || error.statusCode === 401) return;
 
             showToastApiError({
-                title: 'Failed to get Linear teams',
+                title: i18n.t('linearIntegration.fetchTeamsFailed', {
+                    ns: 'commonUi',
+                }),
                 apiError: error,
             });
         },
@@ -90,7 +95,9 @@ export const useLinearProjects = (options: {
             if (error.statusCode === 404 || error.statusCode === 401) return;
 
             showToastApiError({
-                title: 'Failed to get Linear projects',
+                title: i18n.t('linearIntegration.fetchProjectsFailed', {
+                    ns: 'commonUi',
+                }),
                 apiError: error,
             });
         },
@@ -116,12 +123,14 @@ export const useDeleteLinearInstallationMutation = () => {
             await queryClient.invalidateQueries(LINEAR_TEAMS_QUERY_KEY);
             await queryClient.invalidateQueries(LINEAR_PROJECTS_QUERY_KEY);
             showToastSuccess({
-                title: 'Success! Linear integration was deleted.',
+                title: i18n.t('linearIntegration.deleted', { ns: 'commonUi' }),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to delete Linear integration',
+                title: i18n.t('linearIntegration.deleteFailed', {
+                    ns: 'commonUi',
+                }),
                 apiError: error,
             });
         },

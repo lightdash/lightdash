@@ -1,4 +1,4 @@
-import { type AiWritebackStep } from '@lightdash/common';
+import { assertUnreachable, type AiWritebackStep } from '@lightdash/common';
 import { Box, Group, Stack, Text } from '@mantine/core';
 import {
     IconFileText,
@@ -7,7 +7,9 @@ import {
     IconTerminal2,
     type TablerIconsProps,
 } from '@tabler/icons-react';
+import { type TFunction } from 'i18next';
 import { type FC, type JSX } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { ToolCallChip } from './ToolCallChip';
 import styles from './ToolCallRow.module.css';
@@ -22,21 +24,33 @@ const KIND_DISPLAY: Record<
     StepKind,
     {
         icon: (props: TablerIconsProps) => JSX.Element;
-        verb: string;
-        noun: string;
         chips: boolean;
     }
 > = {
-    read: { icon: IconFileText, verb: 'Read', noun: 'file', chips: true },
-    edit: { icon: IconPencil, verb: 'Edited', noun: 'file', chips: true },
-    search: { icon: IconSearch, verb: 'Searched', noun: 'search', chips: true },
-    compile: {
-        icon: IconTerminal2,
-        verb: 'Compiling project',
-        noun: '',
-        chips: false,
-    },
-    stage: { icon: IconTerminal2, verb: '', noun: '', chips: false },
+    read: { icon: IconFileText, chips: true },
+    edit: { icon: IconPencil, chips: true },
+    search: { icon: IconSearch, chips: true },
+    compile: { icon: IconTerminal2, chips: false },
+    stage: { icon: IconTerminal2, chips: false },
+};
+
+const stepGroupLabel = (group: StepGroup, t: TFunction): string => {
+    const count = group.labels.length;
+    switch (group.kind) {
+        case 'read':
+            return t('agentSteps.read', { count });
+        case 'edit':
+            return t('agentSteps.edited', { count });
+        case 'search':
+            return t('agentSteps.searched', { count });
+        case 'compile':
+            return t('agentSteps.compilingProject');
+        case 'stage':
+            // Stages carry their full label as the line ("Cloning project").
+            return group.labels[0];
+        default:
+            return assertUnreachable(group.kind, 'Unknown agent step kind');
+    }
 };
 
 type StepGroup = { kind: StepKind; labels: string[] };
@@ -57,17 +71,10 @@ const groupSteps = (steps: AiWritebackStep[]): StepGroup[] =>
 const MAX_CHIPS = 4;
 
 const StepGroupRow: FC<{ group: StepGroup }> = ({ group }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const display = KIND_DISPLAY[group.kind];
     const count = group.labels.length;
-
-    // Stages carry their full label as the line ("Cloning project"); file
-    // actions show a verb (+ count) and a chip per file.
-    const label =
-        group.kind === 'stage'
-            ? group.labels[0]
-            : display.noun
-              ? `${display.verb} ${count} ${display.noun}${count === 1 ? '' : 's'}`
-              : display.verb;
+    const label = stepGroupLabel(group, t);
 
     const shownChips = group.labels.slice(0, MAX_CHIPS);
     const overflow = count - shownChips.length;

@@ -12,17 +12,11 @@ import {
 import { useUncontrolled } from '@mantine/hooks';
 import { IconBrush, IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useOrganizationDesigns } from '../hooks/useOrganizationDesigns';
 import { ManageThemesMenuItem } from './ManageThemesMenuItem';
 import classes from './ThemePicker.module.css';
-
-const LIGHTDASH_DEFAULT_LABEL = 'No theme';
-// The compact trigger is a call to action when nothing is picked yet, so it
-// reads as an invitation rather than a status.
-const COMPACT_EMPTY_LABEL = 'Apply theme';
-const LIGHTDASH_DEFAULT_DESCRIPTION =
-    'No shared design assets - prompt any style you want';
 
 type Props = {
     /**
@@ -57,6 +51,13 @@ export const ThemePicker: FC<Props> = ({
     fallbackLabel,
     selectionHint,
 }) => {
+    const { t } = useTranslation('settings');
+    const LIGHTDASH_DEFAULT_LABEL = t('designs.picker.noTheme');
+    // Compact trigger is a call to action when nothing is picked yet.
+    const COMPACT_EMPTY_LABEL = t('designs.picker.applyTheme');
+    const LIGHTDASH_DEFAULT_DESCRIPTION = t(
+        'designs.picker.noThemeDescription',
+    );
     const [opened, setOpened] = useUncontrolled({
         value: openedProp,
         defaultValue: false,
@@ -64,7 +65,9 @@ export const ThemePicker: FC<Props> = ({
     });
     const { data: themes = [] } = useOrganizationDesigns();
 
-    const selected = value ? themes.find((t) => t.designUuid === value) : null;
+    const selected = value
+        ? themes.find((theme) => theme.designUuid === value)
+        : null;
     const label = selected?.name ?? fallbackLabel ?? LIGHTDASH_DEFAULT_LABEL;
     const hasSelection = value !== null;
     const description = selected
@@ -89,12 +92,12 @@ export const ThemePicker: FC<Props> = ({
                 disabled={disabled || lockedAfterCreation}
                 aria-label={
                     hasSelection || fallbackLabel
-                        ? `Theme: ${label}`
+                        ? t('designs.picker.themeLabel', { label })
                         : COMPACT_EMPTY_LABEL
                 }
                 title={
                     hasSelection || fallbackLabel
-                        ? `Theme: ${label}`
+                        ? t('designs.picker.themeLabel', { label })
                         : COMPACT_EMPTY_LABEL
                 }
             >
@@ -116,7 +119,7 @@ export const ThemePicker: FC<Props> = ({
                 rightSection={<MantineIcon icon={IconChevronDown} size={12} />}
                 aria-label={
                     hasSelection || fallbackLabel
-                        ? `Theme: ${label}`
+                        ? t('designs.picker.themeLabel', { label })
                         : COMPACT_EMPTY_LABEL
                 }
             >
@@ -129,7 +132,7 @@ export const ThemePicker: FC<Props> = ({
                             lh={1.2}
                             className={classes.compactPrefix}
                         >
-                            Theme:
+                            {t('designs.picker.themePrefix')}
                         </Text>
                     )}
                     <Text span size="xs" fw={600} lh={1.2} lineClamp={1}>
@@ -149,7 +152,7 @@ export const ThemePicker: FC<Props> = ({
                 onClick={() => setOpened(!opened)}
                 disabled={disabled || lockedAfterCreation}
                 rightSection={<MantineIcon icon={IconChevronDown} size={12} />}
-                aria-label={`Theme: ${label}`}
+                aria-label={t('designs.picker.themeLabel', { label })}
                 classNames={{ label: classes.triggerWrap }}
             >
                 <Stack gap={2} align="flex-start" w="100%">
@@ -222,7 +225,7 @@ export const ThemePicker: FC<Props> = ({
             <Menu.Target>
                 {lockedAfterCreation ? (
                     <Tooltip
-                        label="Theme can't be changed after creation"
+                        label={t('designs.picker.lockedTooltip')}
                         position="top"
                     >
                         {/* Tooltip needs a non-disabled wrapper to listen for
@@ -250,7 +253,9 @@ export const ThemePicker: FC<Props> = ({
                             theme.description || null,
                             theme.designUuid === value,
                             () => onChange(theme.designUuid),
-                            theme.isDefault ? 'Default' : undefined,
+                            theme.isDefault
+                                ? t('designs.picker.default')
+                                : undefined,
                         ),
                     )}
                 </ScrollArea.Autosize>

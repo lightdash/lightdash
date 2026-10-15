@@ -14,6 +14,7 @@ import {
 } from '@lightdash/common';
 import { Button, Flex, Text } from '@mantine/core';
 import { useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getConditionalRuleLabel } from '../../../../../components/common/Filters/FilterInputs/utils';
 import classes from './AgentVisualizationFilters.module.css';
 
@@ -77,6 +78,7 @@ const FilterGroupDisplay: FC<{
     showTablePrefix: boolean;
     compact?: boolean;
 }> = ({ group, fieldsMap, showTablePrefix, compact = false }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const rules = getFilterRulesFromGroup(group);
     const combinator = getFilterGroupItemsPropertyName(group);
 
@@ -94,7 +96,7 @@ const FilterGroupDisplay: FC<{
                     />
                     {combinator === 'or' && index !== rules.length - 1 && (
                         <Text fz="xs" c="dimmed" fw={500}>
-                            OR
+                            {t('filters.or')}
                         </Text>
                     )}
                 </Flex>

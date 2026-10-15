@@ -1,16 +1,20 @@
 import { ScimRequestAction } from '@lightdash/common';
+import i18n from '../../../../../i18n/i18n';
 
-export const SCIM_ACTION_LABELS: Record<ScimRequestAction, string> = {
-    [ScimRequestAction.CREATE_USER]: 'Create user',
-    [ScimRequestAction.UPDATE_USER]: 'Update user',
-    [ScimRequestAction.DEACTIVATE_USER]: 'Deactivate user',
-    [ScimRequestAction.DELETE_USER]: 'Delete user',
-    [ScimRequestAction.ROLE_CHANGE]: 'Role change',
-    [ScimRequestAction.MEMBERSHIP_CHANGE]: 'Membership change',
-    [ScimRequestAction.CREATE_GROUP]: 'Create group',
-    [ScimRequestAction.UPDATE_GROUP]: 'Update group',
-    [ScimRequestAction.DELETE_GROUP]: 'Delete group',
-    [ScimRequestAction.LOOKUP]: 'Lookup',
-    [ScimRequestAction.LIST]: 'List',
-    [ScimRequestAction.UNKNOWN]: 'Unknown',
+const ACTION_KEYS: Record<ScimRequestAction, string> = {
+    [ScimRequestAction.CREATE_USER]: 'createUser',
+    [ScimRequestAction.UPDATE_USER]: 'updateUser',
+    [ScimRequestAction.DEACTIVATE_USER]: 'deactivateUser',
+    [ScimRequestAction.DELETE_USER]: 'deleteUser',
+    [ScimRequestAction.ROLE_CHANGE]: 'roleChange',
+    [ScimRequestAction.MEMBERSHIP_CHANGE]: 'membershipChange',
+    [ScimRequestAction.CREATE_GROUP]: 'createGroup',
+    [ScimRequestAction.UPDATE_GROUP]: 'updateGroup',
+    [ScimRequestAction.DELETE_GROUP]: 'deleteGroup',
+    [ScimRequestAction.LOOKUP]: 'lookup',
+    [ScimRequestAction.LIST]: 'list',
+    [ScimRequestAction.UNKNOWN]: 'unknown',
 };
+
+export const getScimActionLabel = (action: ScimRequestAction) =>
+    i18n.t(`scim.actions.${ACTION_KEYS[action]}`, { ns: 'serviceAccounts' });

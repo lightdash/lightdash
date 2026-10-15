@@ -20,6 +20,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { memo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FieldSelect from '../../common/FieldSelect';
 import { isFunnelVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -29,6 +30,7 @@ import { VisualizationConfigTabs } from '../common/VisualizationConfigTabs';
 import { StepConfig } from './StepConfig';
 
 export const ConfigTabs: FC = memo(() => {
+    const { t } = useTranslation('vizConfig');
     const { visualizationConfig, itemsMap } = useVisualizationContext();
 
     if (!isFunnelVisualizationConfig(visualizationConfig)) return null;
@@ -70,27 +72,29 @@ export const ConfigTabs: FC = memo(() => {
             tabs={[
                 {
                     value: 'general',
-                    label: 'General',
+                    label: t('funnel.tabs.general'),
                     panel: (
                         <Stack>
                             <Config>
                                 <Config.Section>
                                     <Config.Heading>
-                                        Data orientation
+                                        {t('funnel.dataOrientation')}
                                     </Config.Heading>
                                     <Group gap="xs">
-                                        <Config.Label>Steps are</Config.Label>
+                                        <Config.Label>
+                                            {t('funnel.stepsAre')}
+                                        </Config.Label>
                                         <SegmentedControl
                                             size="xs"
                                             value={dataInput}
                                             data={[
                                                 {
                                                     value: FunnelChartDataInput.COLUMN,
-                                                    label: 'Rows',
+                                                    label: t('funnel.rows'),
                                                 },
                                                 {
                                                     value: FunnelChartDataInput.ROW,
-                                                    label: 'Columns',
+                                                    label: t('funnel.columns'),
                                                 },
                                             ]}
                                             onChange={(value) =>
@@ -109,7 +113,7 @@ export const ConfigTabs: FC = memo(() => {
                                 {dataInput === FunnelChartDataInput.COLUMN && (
                                     <Config.Section>
                                         <Config.Heading>
-                                            Data field
+                                            {t('funnel.dataField')}
                                         </Config.Heading>
 
                                         <Tooltip
@@ -117,13 +121,15 @@ export const ConfigTabs: FC = memo(() => {
                                                 numericFields &&
                                                 numericFields.length > 0
                                             }
-                                            label="You must select at least one numeric metric to create a pie chart"
+                                            label={t('funnel.needMetric')}
                                         >
                                             <Box>
                                                 <FieldSelect<
                                                     Metric | TableCalculation
                                                 >
-                                                    placeholder="Select metric"
+                                                    placeholder={t(
+                                                        'funnel.selectMetric',
+                                                    )}
                                                     disabled={
                                                         numericFields.length ===
                                                         0
@@ -164,36 +170,40 @@ export const ConfigTabs: FC = memo(() => {
                 },
                 {
                     value: 'steps',
-                    label: 'Steps',
+                    label: t('funnel.tabs.steps'),
                     panel: (
                         <Stack>
                             <ColorPaletteSection />
                             <Config>
                                 <Config.Section>
-                                    <Config.Heading>Labels</Config.Heading>
+                                    <Config.Heading>
+                                        {t('funnel.labels')}
+                                    </Config.Heading>
 
                                     <Group gap="xs" wrap="nowrap">
-                                        <Config.Label>Position</Config.Label>
+                                        <Config.Label>
+                                            {t('funnel.position')}
+                                        </Config.Label>
                                         <SegmentedControl
                                             size="xs"
                                             value={labels?.position}
                                             data={[
                                                 {
                                                     value: FunnelChartLabelPosition.LEFT,
-                                                    label: 'Left',
+                                                    label: t('funnel.left'),
                                                 },
 
                                                 {
                                                     value: FunnelChartLabelPosition.INSIDE,
-                                                    label: 'Inside',
+                                                    label: t('funnel.inside'),
                                                 },
                                                 {
                                                     value: FunnelChartLabelPosition.RIGHT,
-                                                    label: 'Right',
+                                                    label: t('funnel.right'),
                                                 },
                                                 {
                                                     value: FunnelChartLabelPosition.HIDDEN,
-                                                    label: 'Hidden',
+                                                    label: t('funnel.hidden'),
                                                 },
                                             ]}
                                             onChange={(newPosition) =>
@@ -216,7 +226,7 @@ export const ConfigTabs: FC = memo(() => {
                                                             .checked,
                                                 })
                                             }
-                                            label="Show value"
+                                            label={t('funnel.showValue')}
                                         />
 
                                         <Checkbox
@@ -229,14 +239,16 @@ export const ConfigTabs: FC = memo(() => {
                                                             .checked,
                                                 })
                                             }
-                                            label="Show percentage"
+                                            label={t('funnel.showPercentage')}
                                         />
                                     </Group>
                                 </Config.Section>
                             </Config>
                             <Config>
                                 <Config.Section>
-                                    <Config.Heading>Steps</Config.Heading>
+                                    <Config.Heading>
+                                        {t('funnel.steps')}
+                                    </Config.Heading>
                                     {orderedSteps.map((step) => {
                                         return (
                                             <StepConfig
@@ -268,12 +280,14 @@ export const ConfigTabs: FC = memo(() => {
                 },
                 {
                     value: 'display',
-                    label: 'Display',
+                    label: t('funnel.tabs.display'),
                     panel: (
                         <Stack>
                             <Config>
                                 <Group>
-                                    <Config.Heading>Show legend</Config.Heading>
+                                    <Config.Heading>
+                                        {t('funnel.showLegend')}
+                                    </Config.Heading>
                                     <Switch
                                         size="xs"
                                         checked={showLegend}
@@ -284,7 +298,9 @@ export const ConfigTabs: FC = memo(() => {
 
                             <Collapse expanded={showLegend}>
                                 <Group gap="xs">
-                                    <Config.Label>Orientation</Config.Label>
+                                    <Config.Label>
+                                        {t('funnel.orientation')}
+                                    </Config.Label>
                                     <SegmentedControl
                                         size="xs"
                                         name="orient"
@@ -297,11 +313,11 @@ export const ConfigTabs: FC = memo(() => {
                                         data={[
                                             {
                                                 value: FunnelChartLegendPosition.HORIZONTAL,
-                                                label: 'Horizontal',
+                                                label: t('funnel.horizontal'),
                                             },
                                             {
                                                 value: FunnelChartLegendPosition.VERTICAL,
-                                                label: 'Vertical',
+                                                label: t('funnel.vertical'),
                                             },
                                         ]}
                                     />

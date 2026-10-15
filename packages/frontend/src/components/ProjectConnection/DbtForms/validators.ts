@@ -4,6 +4,7 @@ import {
     validateDbtSelector,
     type DbtProjectEnvironmentVariable,
 } from '@lightdash/common';
+import i18n from '../../../i18n/i18n';
 import {
     everyValidator,
     hasNoWhiteSpaces,
@@ -12,8 +13,8 @@ import {
 } from '../../../utils/fieldValidators';
 import type { ProjectConnectionForm } from '../types';
 
-const GITHUB_APP_NOT_CONNECTED_MESSAGE =
-    'The GitHub App is not connected to your organization. Sign in with GitHub above or install the app from Settings > Integrations, or choose Personal Access Token.';
+const tDbt = (key: string, options?: Record<string, unknown>) =>
+    i18n.t(`dbtValidators.${key}`, { ns: 'projectConnection', ...options });
 
 // Saving "OAuth" without an installation used to persist an empty
 // installation id, which the backend then served from a stale PAT
@@ -26,14 +27,14 @@ const installationIdValidator = (
     if (!dbt || dbt.type !== DbtProjectType.GITHUB) return undefined;
     if (dbt.authorization_method !== 'installation_id') return undefined;
     if (value) return undefined;
-    return GITHUB_APP_NOT_CONNECTED_MESSAGE;
+    return tDbt('githubAppNotConnected');
 };
 
 const selectorValidator = (value?: string) => {
     if (!value) return;
     if (value === '' || validateDbtSelector(value)) return;
 
-    return 'dbt selector is invalid';
+    return tDbt('selectorInvalid');
 };
 
 const environmentValidator = (
@@ -42,15 +43,13 @@ const environmentValidator = (
     const invalidKeys = getInvalidDbtEnvironmentVariableKeys(value);
     if (invalidKeys.length === 0) return undefined;
 
-    return `Environment variable keys cannot change how dbt or its child processes execute. Invalid keys: ${invalidKeys.join(
-        ', ',
-    )}`;
+    return tDbt('environmentInvalid', { keys: invalidKeys.join(', ') });
 };
 
 const discoveryApiEndpointValidator = (value?: string): string | undefined => {
     if (!value) return undefined;
     if (value.includes('semantic-layer')) {
-        return 'This looks like the Semantic Layer endpoint. Use the Discovery API endpoint instead (e.g. https://metadata.cloud.getdbt.com/graphql).';
+        return tDbt('discoveryEndpointInvalid');
     }
     return undefined;
 };

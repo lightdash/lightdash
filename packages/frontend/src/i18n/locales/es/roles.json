@@ -1,0 +1,100 @@
+{
+    "roleSets": {
+        "rolesFor": "Roles de {{name}}",
+        "systemRoleGroup": "Rol del sistema",
+        "customRolesGroup": "Roles personalizados (aditivos)",
+        "unionTooltip": "Los permisos son la unión de todos los roles seleccionados. Como máximo un rol del sistema; los roles personalizados se suman.",
+        "organizationNotLoaded": "La organización aún no se ha cargado",
+        "toasts": {
+            "userRolesUpdated": "¡Listo! Roles del usuario actualizados.",
+            "userRolesUpdateFailed": "No se pudieron actualizar los roles del usuario",
+            "userProjectRolesUpdated": "¡Listo! Roles de proyecto del usuario actualizados.",
+            "userProjectRolesUpdateFailed": "No se pudieron actualizar los roles de proyecto del usuario",
+            "groupProjectRolesUpdated": "¡Listo! Roles de proyecto del grupo actualizados.",
+            "groupProjectRolesUpdateFailed": "No se pudieron actualizar los roles de proyecto del grupo"
+        }
+    },
+    "projectGroupAccess": {
+        "removeGroupAccess": "Quitar acceso del grupo",
+        "addGroupAccess": "Añadir acceso de grupo",
+        "groupAccessAdded": "Acceso de grupo añadido",
+        "systemRoleGroup": "Rol del sistema",
+        "customRoleGroup": "Rol personalizado",
+        "columns": {
+            "groupName": "Nombre del grupo",
+            "groupRole": "Rol del grupo"
+        },
+        "memberCount_one": "{{count}} miembro",
+        "memberCount_other": "{{count}} miembros",
+        "empty": {
+            "title": "Ningún grupo tiene acceso a este proyecto",
+            "description": "Haz clic en \"Añadir acceso de grupo\" para añadir un grupo a este proyecto"
+        },
+        "revokeModal": {
+            "title": "Revocar acceso del grupo al proyecto",
+            "description": "¿Seguro que quieres revocar el acceso al proyecto del grupo \"{{name}}\"?",
+            "revoke": "Revocar"
+        },
+        "addModal": {
+            "title": "Añadir acceso de grupo",
+            "giveAccess": "Dar acceso",
+            "groupRequired": "El grupo es obligatorio",
+            "roleRequired": "El rol es obligatorio",
+            "noGroupsTitle": "No hay grupos disponibles",
+            "allGroupsHaveAccess": "Ya has dado acceso a todos los grupos",
+            "noGroupsYet": "Tu organización aún no tiene grupos. Ve a <bold>\"Configuración de la organización\" > \"Usuarios y grupos\"</bold> para crear un grupo",
+            "selectGroupLabel": "Seleccionar grupo",
+            "selectGroupPlaceholder": "Haz clic aquí para seleccionar un grupo",
+            "roleLabel": "Rol",
+            "selectRolePlaceholder": "Seleccionar rol"
+        }
+    },
+    "projectAccess": {
+        "tabs": {
+            "users": "Usuarios",
+            "groups": "Grupos"
+        },
+        "revokeProjectAccess": "Revocar acceso al proyecto",
+        "cannotRevokeInherited": "No se puede revocar el acceso heredado de la organización",
+        "systemRoleGroup": "Rol del sistema",
+        "customRoleGroup": "Rol personalizado",
+        "sourceOrganization": "Organización",
+        "sourceGroup": "Grupo {{name}}",
+        "columns": {
+            "user": "Usuario",
+            "role": "Rol"
+        },
+        "roleSummary": {
+            "organizationRole": "Rol de organización: <bold>{{role}}</bold>",
+            "groupRole": "Grupo <bold>{{group}}</bold>: <bold>{{role}}</bold>",
+            "projectRole": "Rol de proyecto: <bold>{{role}}</bold>"
+        },
+        "membersNoAccessTitle": "Los miembros no tienen acceso a este proyecto.",
+        "membersNoAccessHint": "Asigna un rol de proyecto para darles visibilidad.",
+        "inheritsFrom": "El usuario hereda este rol de <bold>{{source}}</bold>",
+        "noProjectAccess": "Sin acceso al proyecto",
+        "inheritsRole": "Hereda {{role}}",
+        "organizationRoleGroup": "Rol de organización",
+        "memberNoProjectAccess": "miembro (sin acceso al proyecto)",
+        "searchTooltip": "Buscar por nombre, correo o rol",
+        "searchPlaceholder": "Buscar usuarios por nombre, correo o rol",
+        "addUserAccess": "Añadir acceso de usuario",
+        "viewOptions": "Opciones de vista",
+        "showMembers": "Mostrar miembros ({{hidden}})",
+        "membersInfo": "Los miembros no tienen acceso al proyecto por defecto. Solo ven contenido si se les asigna un rol a nivel de proyecto o grupo.",
+        "removeModal": {
+            "title": "Revocar acceso al proyecto",
+            "description": "¿Seguro que quieres revocar el acceso al proyecto de \"{{name}}\"?"
+        },
+        "createModal": {
+            "title": "Añadir acceso de usuario",
+            "giveAccess": "Dar acceso",
+            "emailLabel": "Introduce el correo del usuario",
+            "emailPlaceholder": "ejemplo@gmail.com",
+            "needAdmin": "Debes ser administrador de la organización para añadir usuarios nuevos.",
+            "nothingFound": "No se encontraron resultados",
+            "inviteOption": "Este usuario no es miembro de tu organización. Selecciónalo para invitarlo.",
+            "selectRolePlaceholder": "Seleccionar rol"
+        }
+    }
+}

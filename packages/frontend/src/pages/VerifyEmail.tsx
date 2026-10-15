@@ -13,6 +13,7 @@ import {
     IconMail,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import { useIntercom } from 'react-use-intercom';
 import AuthLayout from '../components/common/AuthLayout';
@@ -33,16 +34,19 @@ const VerificationSuccess: FC<{
     onClose: () => void;
     onContinue: () => void;
 }> = ({ isOpen, onClose, onContinue }) => {
+    const { t } = useTranslation('auth');
     const theme = useMantineTheme();
     return (
         <MantineModal
             size="sm"
             opened={isOpen}
             onClose={onClose}
-            title="You are all set!"
+            title={t('verifyEmailPage.allSet')}
             icon={IconConfetti}
             cancelLabel={false}
-            actions={<Button onClick={onContinue}>Continue</Button>}
+            actions={
+                <Button onClick={onContinue}>{t('login.continue')}</Button>
+            }
         >
             <Stack align="center">
                 <MantineIcon
@@ -55,10 +59,10 @@ const VerificationSuccess: FC<{
                 />
                 <Stack gap="two">
                     <Text ta="center" fz="md" fw={500}>
-                        Your email has been verified successfully.
+                        {t('verifyEmailPage.verified')}
                     </Text>
                     <Text ta="center" fz="sm" c="dimmed">
-                        You can now start exploring your data.
+                        {t('verifyEmailPage.startExploring')}
                     </Text>
                 </Stack>
             </Stack>
@@ -67,6 +71,7 @@ const VerificationSuccess: FC<{
 };
 
 const VerifyEmailPage: FC = () => {
+    const { t } = useTranslation('auth');
     const { health } = useApp();
     const { data, isInitialLoading: statusLoading } = useEmailStatus(
         !!health.data?.isAuthenticated,
@@ -121,11 +126,13 @@ const VerifyEmailPage: FC = () => {
 
     return (
         <AuthLayout
-            pageTitle="Verify your email"
-            title="Check your inbox"
+            pageTitle={t('verifyEmailPage.pageTitle')}
+            title={t('verifyEmailPage.title')}
             subtitle={
                 <>
-                    We sent a 6-digit code to {data?.email ?? 'your email'}.{' '}
+                    {t('verifyEmailPage.sentCode', {
+                        email: data?.email ?? t('verifyEmail.yourEmail'),
+                    })}{' '}
                     <Anchor
                         component="button"
                         type="button"
@@ -133,7 +140,7 @@ const VerifyEmailPage: FC = () => {
                         disabled={isLoggingOut}
                         onClick={() => logout()}
                     >
-                        Wrong email?
+                        {t('verifyEmailPage.wrongEmail')}
                     </Anchor>
                 </>
             }
@@ -142,23 +149,31 @@ const VerifyEmailPage: FC = () => {
             footer={
                 isNewLayout ? (
                     <Text c="dimmed" ta="center" fz="xs">
-                        Need a hand?{' '}
+                        {t('verifyEmailPage.needHand')}{' '}
                         <Anchor
                             component="button"
                             type="button"
                             inherit
                             onClick={() => showIntercom()}
                         >
-                            Chat to support
+                            {t('verifyEmailPage.chatToSupport')}
                         </Anchor>
                     </Text>
                 ) : (
                     <Text c="dimmed" ta="center" px="xs" fz="sm" fw={500}>
-                        You need to verify your email to get access to
-                        Lightdash. If you need help, you can{' '}
-                        <Anchor onClick={() => showIntercom()} fz="sm" fw={500}>
-                            chat to support here.
-                        </Anchor>
+                        <Trans
+                            t={t}
+                            i18nKey="verifyEmailPage.legacyFooter"
+                            components={{
+                                link: (
+                                    <Anchor
+                                        onClick={() => showIntercom()}
+                                        fz="sm"
+                                        fw={500}
+                                    />
+                                ),
+                            }}
+                        />
                     </Text>
                 )
             }
@@ -193,11 +208,12 @@ export const VerifyEmailModal: FC<{
     onClose: () => void;
     isLoading: boolean;
 }> = ({ opened, onClose, isLoading }) => {
+    const { t } = useTranslation('auth');
     return (
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Verify your email"
+            title={t('verifyEmailPage.pageTitle')}
             cancelLabel={false}
             icon={IconMail}
         >

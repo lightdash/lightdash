@@ -1,0 +1,75 @@
+{
+    "map": {
+        "hexbin": {
+            "count": "Recuento: {{count}}",
+            "valueLine": "{{label}} ({{aggregation}}): {{value}}",
+            "value": "Valor"
+        },
+        "noData": "Sin datos",
+        "coordinates": "Lat: {{lat}}, Lon: {{lon}}",
+        "location": "Ubicación",
+        "emptyAreaDescription": "Consulta métricas y dimensiones con datos de región.",
+        "emptyScatterDescription": "Consulta métricas y dimensiones con datos de latitud/longitud.",
+        "noDataTitle": "No hay datos disponibles",
+        "hexbinTruncated": "Mostrando hexágonos para los primeros {{shown}} puntos de {{total}}. Reduce el conjunto de resultados para un agrupamiento preciso.",
+        "copyValues": "Copiar valores"
+    },
+    "dataAppViz": {
+        "noAccess": "No tienes acceso a este tipo de gráfico personalizado.",
+        "chartTypeRemoved": "El tipo de gráfico en el que se basaba este gráfico ha sido eliminado.",
+        "drillFailed": "No se pudo profundizar en este punto de datos",
+        "underlyingDataFailed": "No se pudieron abrir los datos subyacentes",
+        "pickChartType": "Elige un tipo de gráfico personalizado para renderizar.",
+        "recoveryEditMode": "Abre Configurar y elige otro tipo de gráfico",
+        "recoveryViewMode": "Edita el gráfico para elegir otro tipo de gráfico",
+        "recoveryHintWithRestore": "{{action}}, o restaura el tipo de gráfico desde Eliminados recientemente.",
+        "recoveryHint": "{{action}}.",
+        "editChart": "Editar gráfico",
+        "couldNotLoad": "No se pudo cargar el tipo de gráfico personalizado.",
+        "stillGenerating": "El tipo de gráfico personalizado aún se está generando…",
+        "versionUnavailable": "La versión {{version}} del tipo de gráfico personalizado no está disponible.",
+        "savedVersionUnavailable": "La versión guardada del tipo de gráfico personalizado no está disponible.",
+        "previewUnavailable": "La vista previa del tipo de gráfico personalizado no está disponible.",
+        "regenerateHint": "Vuelve a generar el gráfico para usar una versión renderizable.",
+        "failedToGenerate": "No se pudo generar el tipo de gráfico personalizado."
+    },
+    "emptyState": {
+        "noDataTitle": "No hay datos disponibles",
+        "noDataDescription": "Consulta métricas y dimensiones que devuelvan resultados.",
+        "sankeyDescription": "Selecciona una dimensión de origen, una dimensión de destino y una métrica de peso para crear un diagrama de Sankey. Se admiten flujos de varios niveles cuando los nodos aparecen como origen y destino."
+    },
+    "lightdashVisualization": {
+        "unableToLoad": "No se pudo cargar la visualización",
+        "learnHowToResolve": "Aprende a resolverlo en nuestra documentación →",
+        "loadingMap": "Cargando mapa..."
+    },
+    "table": {
+        "noResults": "Sin resultados",
+        "noResultsDescription": "La consulta se ejecutó correctamente pero no devolvió resultados",
+        "updateRequired": "Se requiere actualizar la aplicación",
+        "refreshToLoad": "Actualiza tu navegador para cargar la última versión y mostrar esta visualización correctamente.",
+        "contactSupportIfPersists": "Si el problema persiste tras actualizar, contacta con soporte.",
+        "refreshPage": "Actualizar página",
+        "resultsNotAvailable": "Resultados no disponibles",
+        "pivotRerun": {
+            "title": "Ejecuta la consulta para ver tu tabla dinámica",
+            "description": "Has cambiado la configuración del pivote. Vuelve a ejecutar la consulta para cargar los resultados pivotados.",
+            "runQuery": "Ejecutar consulta"
+        }
+    },
+    "contextMenu": {
+        "removeSort": "Quitar ordenación",
+        "contextMenu": "Menú contextual",
+        "copiedToClipboard": "¡Copiado al portapapeles!",
+        "copyValue": "Copiar valor",
+        "viewUnderlyingData": "Ver datos subyacentes",
+        "hideColumn": "Ocultar columna",
+        "sortTargetMissing": "El objetivo de ordenación no está en el gráfico",
+        "sort": "Ordenar",
+        "drillIntoPrefix": "Profundizar en"
+    },
+    "customVis": {
+        "noVisualization": "No hay ninguna visualización cargada",
+        "startHint": "Empieza introduciendo tu código <link>JSON de Vega-Lite</link> o elige una de nuestras plantillas para crear tu gráfico."
+    }
+}

@@ -7,6 +7,7 @@ import {
     type Icon as IconType,
 } from '@tabler/icons-react';
 import { useMemo, type FC, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import CodeBlock from '../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
@@ -54,12 +55,14 @@ export const AiSqlModal: FC<Props> = ({
     sql,
     opened,
     onClose,
-    title = 'SQL',
+    title: titleProp,
     icon = IconEye,
     subtitle,
     footer,
     copyPlacement = 'header',
 }) => {
+    const { t } = useTranslation('aiCopilotChat');
+    const title = titleProp ?? t('assistant.sql');
     return (
         <MantineModal
             opened={opened}
@@ -83,7 +86,11 @@ export const AiSqlModal: FC<Props> = ({
                                 }
                                 onClick={copy}
                             >
-                                {copied ? 'Copied' : 'Copy SQL'}
+                                {copied
+                                    ? t('feedback.copiedShort', {
+                                          ns: 'common',
+                                      })
+                                    : t('sqlModal.copySql')}
                             </Button>
                         )}
                     </CopyButton>

@@ -1,6 +1,7 @@
 import { type DashboardTile } from '@lightdash/common';
 import { useClipboard } from '@mantine/hooks';
 import { useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router';
 import { scrollToDashboardTile } from '../../components/common/Dashboard/scrollToDashboardTile';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -47,6 +48,7 @@ export const useCopyTileLink = (tile: DashboardTile) => {
     const projectRoute = useOptionalProjectRoute();
     const dashboardSlug = useDashboardContext((c) => c.dashboard?.slug);
     const clipboard = useClipboard({ timeout: 500 });
+    const { t } = useTranslation('app');
     const { showToastSuccess } = useToaster();
 
     const projectUrlIdentifier = projectRoute?.projectUrlIdentifier;
@@ -65,7 +67,9 @@ export const useCopyTileLink = (tile: DashboardTile) => {
                     search: window.location.search,
                 }),
             );
-            showToastSuccess({ title: 'Link to tile copied to clipboard!' });
+            showToastSuccess({
+                title: t('useTileLink.linkToTileCopiedToClipboard'),
+            });
         };
     }, [
         projectUrlIdentifier,
@@ -74,6 +78,7 @@ export const useCopyTileLink = (tile: DashboardTile) => {
         showToastSuccess,
         tile.uuid,
         tileTabUuid,
+        t,
     ]);
 };
 

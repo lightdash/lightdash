@@ -6,6 +6,7 @@ import {
 import { Menu, Text } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import {
     getSortDirectionOrder,
     getSortLabel,
@@ -27,9 +28,10 @@ const ColumnHeaderSortMenuOptions: FC<Props> = ({
     onSelect,
     onRemove,
 }) => {
+    const { t } = useTranslation('explorer');
     return (
         <>
-            <Menu.Label>Sorting</Menu.Label>
+            <Menu.Label>{t('columnHeaderMenu.sort.title')}</Menu.Label>
             {getSortDirectionOrder(item).map((direction) => {
                 const isActive = selectedDirection === direction;
                 return (
@@ -43,10 +45,12 @@ const ColumnHeaderSortMenuOptions: FC<Props> = ({
                         disabled={isActive}
                         onClick={() => onSelect(direction)}
                     >
-                        Sort{' '}
-                        <Text span fw="bold">
-                            {getSortLabel(item, direction)}
-                        </Text>
+                        <Trans
+                            t={t}
+                            i18nKey="columnHeaderMenu.sort.direction"
+                            values={{ label: getSortLabel(item, direction) }}
+                            components={{ bold: <Text span fw="bold" /> }}
+                        />
                     </Menu.Item>
                 );
             })}
@@ -54,7 +58,7 @@ const ColumnHeaderSortMenuOptions: FC<Props> = ({
                 <>
                     <Menu.Divider />
                     <Menu.Item color="red" onClick={onRemove}>
-                        Remove sort
+                        {t('columnHeaderMenu.sort.remove')}
                     </Menu.Item>
                 </>
             )}

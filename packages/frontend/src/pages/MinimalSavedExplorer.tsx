@@ -18,6 +18,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
 import { validate as isUuidString } from 'uuid';
@@ -55,6 +56,7 @@ type Props = {
 };
 
 const MinimalExplorerContent = memo(() => {
+    const { t } = useTranslation('pages');
     // Run the query effects hook - orchestrates all query effects
     useExplorerQueryEffects({ minimal: true });
 
@@ -143,7 +145,7 @@ const MinimalExplorerContent = memo(() => {
             <>
                 <SuboptimalState
                     icon={IconAlertCircle}
-                    title="Error loading chart"
+                    title={t('minimalSavedExplorer.loadError')}
                     description={exploreError.error.message}
                 />
                 <ScreenshotReadyIndicator
@@ -222,6 +224,7 @@ const MinimalExplorerContent = memo(() => {
 const MinimalSavedExplorer: FC<Props> = ({
     savedQueryUuid: queryUuidProps,
 }) => {
+    const { t } = useTranslation('pages');
     const params = useParams<{
         savedQueryUuid: string;
         projectUuid: string;
@@ -341,7 +344,9 @@ const MinimalSavedExplorer: FC<Props> = ({
                     {projectsQuery.error?.error.message ??
                         projectQuery.error?.error.message ??
                         error?.error.message ??
-                        `Cannot find project: ${projectIdentifier}`}
+                        t('minimalSavedExplorer.projectNotFound', {
+                            project: projectIdentifier,
+                        })}
                 </span>
                 <ScreenshotReadyIndicator
                     tilesTotal={1}

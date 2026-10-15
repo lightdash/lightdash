@@ -3,6 +3,7 @@ import { Button, Select, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconKey } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import Callout from '../../../../../components/common/Callout';
 import { CopyActionIcon } from '../../../../../components/common/CopyActionIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
@@ -11,6 +12,7 @@ import { useCreateScimToken } from '../../hooks/useScimAccessToken';
 export const CreateTokenModal: FC<{
     onBackClick: () => void;
 }> = ({ onBackClick }) => {
+    const { t } = useTranslation('serviceAccounts');
     const {
         data,
         mutate: createScimToken,
@@ -26,34 +28,13 @@ export const CreateTokenModal: FC<{
     });
 
     const expireOptions = [
-        {
-            label: 'No expiration',
-            value: '',
-        },
-        {
-            label: '7 days',
-            value: '7',
-        },
-        {
-            label: '30 days',
-            value: '30',
-        },
-        {
-            label: '60 days',
-            value: '60',
-        },
-        {
-            label: '90 days',
-            value: '90',
-        },
-        {
-            label: '6 months',
-            value: '180',
-        },
-        {
-            label: '1 year',
-            value: '365',
-        },
+        { label: t('expiration.none'), value: '' },
+        { label: t('expiration.days', { count: 7 }), value: '7' },
+        { label: t('expiration.days', { count: 30 }), value: '30' },
+        { label: t('expiration.days', { count: 60 }), value: '60' },
+        { label: t('expiration.days', { count: 90 }), value: '90' },
+        { label: t('expiration.months', { count: 6 }), value: '180' },
+        { label: t('expiration.years', { count: 1 }), value: '365' },
     ];
 
     const handleOnSubmit = form.onSubmit(({ description, expiresAt }) => {
@@ -77,10 +58,16 @@ export const CreateTokenModal: FC<{
             opened
             onClose={onBackClick}
             role="alertdialog"
-            title={isSuccess ? 'Your token has been generated' : 'New token'}
+            title={
+                isSuccess
+                    ? t('scim.createModal.generatedTitle')
+                    : t('scim.createModal.title')
+            }
             icon={IconKey}
             size="lg"
-            cancelLabel={isSuccess ? false : 'Cancel'}
+            cancelLabel={
+                isSuccess ? false : t('actions.cancel', { ns: 'common' })
+            }
             cancelDisabled={isLoading}
             actions={
                 !isSuccess ? (
@@ -89,10 +76,12 @@ export const CreateTokenModal: FC<{
                         form="create-scim-token-form"
                         loading={isLoading}
                     >
-                        Generate token
+                        {t('scim.createModal.generate')}
                     </Button>
                 ) : (
-                    <Button onClick={onBackClick}>Done</Button>
+                    <Button onClick={onBackClick}>
+                        {t('createModal.done')}
+                    </Button>
                 )
             }
         >
@@ -100,16 +89,16 @@ export const CreateTokenModal: FC<{
                 <form id="create-scim-token-form" onSubmit={handleOnSubmit}>
                     <Stack gap="md">
                         <TextInput
-                            label="What's this token for?"
+                            label={t('scim.createModal.descriptionLabel')}
                             disabled={isLoading}
-                            placeholder="Description"
+                            placeholder={t('form.description')}
                             required
                             {...form.getInputProps('description')}
                         />
 
                         <Select
                             defaultValue={expireOptions[0].value}
-                            label="Expiration"
+                            label={t('form.expiration')}
                             data={expireOptions}
                             required
                             disabled={isLoading}
@@ -121,7 +110,7 @@ export const CreateTokenModal: FC<{
                 <Stack gap="md">
                     <TextInput
                         id="invite-link-input"
-                        label="Token"
+                        label={t('createModal.token')}
                         readOnly
                         className="sentry-block ph-no-capture"
                         value={data.token}
@@ -134,12 +123,12 @@ export const CreateTokenModal: FC<{
                     />
                     <Callout
                         variant="info"
-                        title="Make sure to copy your access token now. You won't be able to see it again!"
+                        title={t('createModal.copyTokenWarning')}
                     >
                         {data.expiresAt &&
-                            `This token will expire on ${formatTimestamp(
-                                data.expiresAt,
-                            )} `}
+                            t('scim.createModal.expiresOn', {
+                                date: formatTimestamp(data.expiresAt),
+                            })}
                     </Callout>
                 </Stack>
             )}

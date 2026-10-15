@@ -2,6 +2,7 @@ import { Button, Stack, TextInput, type ModalProps } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineModal from '../../components/common/MantineModal';
 
 type AddProps = Pick<ModalProps, 'opened' | 'onClose'> & {
@@ -9,6 +10,7 @@ type AddProps = Pick<ModalProps, 'opened' | 'onClose'> & {
 };
 
 export const AddTabModal: FC<AddProps> = ({ opened, onClose, onConfirm }) => {
+    const { t } = useTranslation('dashboard');
     const form = useForm<{ tabName: string }>();
 
     const handleConfirm = form.onSubmit(({ tabName }) => {
@@ -25,7 +27,7 @@ export const AddTabModal: FC<AddProps> = ({ opened, onClose, onConfirm }) => {
         <MantineModal
             opened={opened}
             onClose={handleClose}
-            title="Add new tab"
+            title={t('tabs.addModal.title')}
             icon={IconPlus}
             size="sm"
             actions={
@@ -34,15 +36,15 @@ export const AddTabModal: FC<AddProps> = ({ opened, onClose, onConfirm }) => {
                     form="add-tab-form"
                     disabled={!form.isValid()}
                 >
-                    Add
+                    {t('actions.add', { ns: 'common' })}
                 </Button>
             }
         >
             <form id="add-tab-form" onSubmit={handleConfirm}>
                 <Stack gap="md">
                     <TextInput
-                        label="Tab name"
-                        placeholder="Name your tab"
+                        label={t('tabs.tabName')}
+                        placeholder={t('tabs.tabNamePlaceholder')}
                         data-autofocus
                         required
                         {...form.getInputProps('tabName')}

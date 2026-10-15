@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import i18n from '../../../i18n/i18n';
 
 const CACHE_KEY = 'service-accounts';
 type CreateServiceAccountResult = ServiceAccount & { token: string };
@@ -42,12 +43,12 @@ export const useServiceAccounts = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries([CACHE_KEY]);
             showToastSuccess({
-                title: `Service account created`,
+                title: i18n.t('toasts.created', { ns: 'serviceAccounts' }),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to create service account`,
+                title: i18n.t('toasts.createFailed', { ns: 'serviceAccounts' }),
                 apiError: error,
             });
         },
@@ -63,12 +64,12 @@ export const useServiceAccounts = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries([CACHE_KEY]);
             showToastSuccess({
-                title: `Service account deleted`,
+                title: i18n.t('toasts.deleted', { ns: 'serviceAccounts' }),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to delete service account`,
+                title: i18n.t('toasts.deleteFailed', { ns: 'serviceAccounts' }),
                 apiError: error,
             });
         },
@@ -93,12 +94,12 @@ export const useServiceAccounts = () => {
                 'service-account-project-grants',
             ]);
             showToastSuccess({
-                title: `Service account updated`,
+                title: i18n.t('toasts.updated', { ns: 'serviceAccounts' }),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to update service account`,
+                title: i18n.t('toasts.updateFailed', { ns: 'serviceAccounts' }),
                 apiError: error,
             });
         },
@@ -120,12 +121,12 @@ export const useServiceAccounts = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries([CACHE_KEY]);
             showToastSuccess({
-                title: `Success! Your token was rotated.`,
+                title: i18n.t('toasts.rotated', { ns: 'serviceAccounts' }),
             });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to rotate token`,
+                title: i18n.t('toasts.rotateFailed', { ns: 'serviceAccounts' }),
                 apiError: error,
             });
         },

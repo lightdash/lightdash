@@ -2,6 +2,7 @@ import { type DataAppVizContext } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     ContentTable,
     useContentTable,
@@ -39,6 +40,7 @@ export const ChartTypeRowsModal: FC<ModalProps> = ({
     title,
     subtitle,
 }) => {
+    const { t } = useTranslation('chartTypes');
     const availableColumns = useMemo(
         () => (data ? getChartTypeRowColumns(data) : []),
         [data],
@@ -75,10 +77,10 @@ export const ChartTypeRowsModal: FC<ModalProps> = ({
             className: classes.tableContainer,
             role: 'region',
             tabIndex: 0,
-            'aria-label': 'Generated sample data rows',
+            'aria-label': t('sampleData.rowsAria'),
         },
         mantineTableProps: {
-            'aria-label': 'Generated sample data',
+            'aria-label': t('sampleData.tableAria'),
             highlightOnHover: true,
         },
     });
@@ -107,6 +109,7 @@ export const ChartTypeSampleData: FC<Props> = ({
     context,
     dataSource = SAMPLE_SOURCE,
 }) => {
+    const { t } = useTranslation('chartTypes');
     const [opened, setOpened] = useState(false);
     const rows = useMemo(
         () => (context ? rowsFromVizContext(context) : null),
@@ -115,10 +118,9 @@ export const ChartTypeSampleData: FC<Props> = ({
     if (!rows || getChartTypeRowColumns(rows).length === 0) return null;
 
     const isLive = dataSource.kind === 'live';
-    const rowLabel = rows.rows.length === 1 ? 'row' : 'rows';
-    const launcherLabel = `${
-        isLive ? 'View data' : 'View sample data'
-    } · ${rows.rows.length} ${rowLabel}`;
+    const launcherLabel = isLive
+        ? t('sampleData.viewData', { count: rows.rows.length })
+        : t('sampleData.viewSampleData', { count: rows.rows.length });
 
     return (
         <>
@@ -135,11 +137,15 @@ export const ChartTypeSampleData: FC<Props> = ({
                 data={rows}
                 opened={opened}
                 onClose={() => setOpened(false)}
-                title={isLive ? 'Query results' : 'Sample data'}
+                title={
+                    isLive
+                        ? t('rowsPeek.queryResults')
+                        : t('rowsPeek.sampleData')
+                }
                 subtitle={
                     isLive
-                        ? 'Rows returned by the saved chart this chart runs on.'
-                        : 'Generated example values used in this preview.'
+                        ? t('sampleData.liveSubtitle')
+                        : t('sampleData.sampleSubtitle')
                 }
             />
         </>

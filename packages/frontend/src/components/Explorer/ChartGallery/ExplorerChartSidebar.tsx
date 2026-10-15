@@ -20,6 +20,7 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import { useEffect, useRef, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useCanEditDataAppChecker } from '../../../features/apps/hooks/useCanEditDataApp';
 import OfficialChartTypeBadge from '../../../features/chartTypes/components/OfficialChartTypeBadge';
 import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
@@ -54,6 +55,7 @@ type Props = {
 };
 
 const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
+    const { t } = useTranslation('explorer');
     // The step lives in the store so authoring can hand back to it.
     const step = useExplorerSelector(selectChartSidebarStep);
     // While a type is being authored the sidebar configures it and stays.
@@ -118,15 +120,15 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
     // A type being authored has no name until its first version lands.
     const selectedLabel =
         isAuthoring && !selectedProjectType
-            ? 'New chart type'
+            ? t('chartSidebar.newChartType')
             : selectedItem.label;
     const showEdit = !isAuthoring && canEditSelectedType;
     const closeButton = !isAuthoring && (
-        <Tooltip label="Close visualization config" position="bottom">
+        <Tooltip label={t('chartSidebar.close')} position="bottom">
             <ActionIcon
                 variant="default"
                 size="sm"
-                aria-label="Close visualization config"
+                aria-label={t('chartSidebar.close')}
                 onClick={handleClose}
             >
                 <MantineIcon icon={IconLayoutSidebarRightCollapse} />
@@ -149,7 +151,7 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                 {/* While authoring, the panel holds the type's
                                     generated options, titled as the gallery
                                     builder titles them. */}
-                                Generated options
+                                {t('chartSidebar.generatedOptions')}
                             </Text>
                         </Group>
                     </Group>
@@ -164,10 +166,14 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                         <>
                             <Group justify="space-between" wrap="nowrap">
                                 <Group gap="xs" wrap="nowrap">
-                                    <Tooltip label="Back to configuration">
+                                    <Tooltip
+                                        label={t('chartSidebar.backToConfig')}
+                                    >
                                         <ActionIcon
                                             size="sm"
-                                            aria-label="Back to configuration"
+                                            aria-label={t(
+                                                'chartSidebar.backToConfig',
+                                            )}
                                             onClick={showConfigure}
                                         >
                                             <MantineIcon
@@ -186,7 +192,7 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                         fz="sm"
                                         tabIndex={-1}
                                     >
-                                        Choose chart type
+                                        {t('chartSidebar.chooseChartType')}
                                     </Text>
                                 </Group>
                                 <Group gap="xs" wrap="nowrap">
@@ -220,7 +226,9 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                     <UnstyledButton
                                         ref={thumbnailRef}
                                         type="button"
-                                        aria-label="Choose chart type"
+                                        aria-label={t(
+                                            'chartSidebar.chooseChartType',
+                                        )}
                                         className={classes.thumbnailButton}
                                         onClick={() => {
                                             openedFromThumbnail.current = true;
@@ -265,7 +273,9 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                                     size="xs"
                                                     flex="0 0 auto"
                                                 >
-                                                    Custom
+                                                    {t(
+                                                        'chartSidebar.customBadge',
+                                                    )}
                                                 </Badge>
                                             ))}
                                     </Group>
@@ -275,7 +285,9 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                                 ref={changeRef}
                                                 component="button"
                                                 type="button"
-                                                aria-label="Change chart type"
+                                                aria-label={t(
+                                                    'chartSidebar.changeChartType',
+                                                )}
                                                 data-chart-type-gallery-change
                                                 className={classes.buttonAnchor}
                                                 fz="xs"
@@ -285,7 +297,7 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                                     showChoose();
                                                 }}
                                             >
-                                                Change
+                                                {t('chartSidebar.change')}
                                             </Anchor>
                                             {showEdit && (
                                                 <>
@@ -299,7 +311,9 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                                     <Anchor
                                                         component="button"
                                                         type="button"
-                                                        aria-label="Edit chart type"
+                                                        aria-label={t(
+                                                            'chartSidebar.editChartType',
+                                                        )}
                                                         className={
                                                             classes.buttonAnchor
                                                         }
@@ -317,7 +331,9 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                                             )
                                                         }
                                                     >
-                                                        Edit
+                                                        {t('actions.edit', {
+                                                            ns: 'common',
+                                                        })}
                                                     </Anchor>
                                                 </>
                                             )}

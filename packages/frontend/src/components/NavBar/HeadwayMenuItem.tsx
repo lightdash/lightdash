@@ -1,6 +1,7 @@
 import { Box, Button, Tooltip } from '@mantine/core';
 import { IconNews } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import useHeadway from '../../hooks/thirdPartyServices/useHeadway';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
@@ -14,6 +15,7 @@ type Props = {
 };
 
 const HeadwayMenuItem: FC<Props> = ({ projectUuid, withLabel = false }) => {
+    const { t } = useTranslation('navigation');
     const { track } = useTracking();
     const { user } = useApp();
     const isHeadwayloaded = useHeadway();
@@ -66,16 +68,16 @@ const HeadwayMenuItem: FC<Props> = ({ projectUuid, withLabel = false }) => {
     if (!isHeadwayloaded || !projectUuid) return null;
 
     return (
-        <Tooltip label="What's new?">
+        <Tooltip label={t('whatsNew')}>
             <Button
                 variant="default"
                 size="xs"
                 pos="relative"
                 id="headway-trigger"
-                aria-label="What's new?"
+                aria-label={t('whatsNew')}
             >
                 <MantineIcon icon={IconNews} />
-                {withLabel && "What's new?"}
+                {withLabel && t('whatsNew')}
                 <Box
                     id="headway-badge"
                     pos="absolute"

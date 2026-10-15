@@ -15,6 +15,7 @@ import {
     IconCopy,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../components/common/MantineIcon';
 import classes from './AppInspector.module.css';
 import type { ExternalRequestEvent } from './hooks/useAppSdkBridge';
@@ -44,6 +45,7 @@ const toJson = (value: unknown): string =>
 const ExternalRequestRow: FC<{ request: ExternalRequestEvent }> = ({
     request,
 }) => {
+    const { t } = useTranslation('apps');
     const [expanded, setExpanded] = useState(false);
     const [jsonExpanded, setJsonExpanded] = useState(false);
 
@@ -74,7 +76,7 @@ const ExternalRequestRow: FC<{ request: ExternalRequestEvent }> = ({
                 <Box ml="auto" />
                 {request.truncated && (
                     <Badge size="xs" color="yellow">
-                        truncated
+                        {t('requestInspector.truncatedBadge')}
                     </Badge>
                 )}
                 {request.durationMs !== null && (
@@ -93,13 +95,13 @@ const ExternalRequestRow: FC<{ request: ExternalRequestEvent }> = ({
                     <Box className={classes.queryDetails}>
                         <Box>
                             <Text size="xs" fw={600} c="dimmed">
-                                Connection
+                                {t('requestInspector.connection')}
                             </Text>
                             <Text size="xs">{request.alias}</Text>
                         </Box>
                         <Box>
                             <Text size="xs" fw={600} c="dimmed">
-                                Request
+                                {t('requestInspector.request')}
                             </Text>
                             <Text size="xs" ff="monospace">
                                 {request.method} {request.path}
@@ -108,7 +110,7 @@ const ExternalRequestRow: FC<{ request: ExternalRequestEvent }> = ({
                         {queryEntries.length > 0 && (
                             <Box>
                                 <Text size="xs" fw={600} c="dimmed">
-                                    Query params
+                                    {t('requestInspector.queryParams')}
                                 </Text>
                                 <Text size="xs" ff="monospace">
                                     {queryEntries
@@ -120,7 +122,7 @@ const ExternalRequestRow: FC<{ request: ExternalRequestEvent }> = ({
                         {request.requestBody !== null && (
                             <Box>
                                 <Text size="xs" fw={600} c="dimmed">
-                                    Request body
+                                    {t('requestInspector.requestBody')}
                                 </Text>
                                 <Code block fz="xs">
                                     {toJson(request.requestBody)}
@@ -130,7 +132,7 @@ const ExternalRequestRow: FC<{ request: ExternalRequestEvent }> = ({
                         {request.httpStatus !== null && (
                             <Box>
                                 <Text size="xs" fw={600} c="dimmed">
-                                    Response status
+                                    {t('requestInspector.responseStatus')}
                                 </Text>
                                 <Text size="xs">{request.httpStatus}</Text>
                             </Box>
@@ -138,7 +140,7 @@ const ExternalRequestRow: FC<{ request: ExternalRequestEvent }> = ({
                         {request.contentType && (
                             <Box>
                                 <Text size="xs" fw={600} c="dimmed">
-                                    Content type
+                                    {t('requestInspector.contentType')}
                                 </Text>
                                 <Text size="xs">{request.contentType}</Text>
                             </Box>
@@ -146,18 +148,17 @@ const ExternalRequestRow: FC<{ request: ExternalRequestEvent }> = ({
                         {request.truncated && (
                             <Box>
                                 <Text size="xs" fw={600} c="yellow">
-                                    Response truncated
+                                    {t('requestInspector.truncatedTitle')}
                                 </Text>
                                 <Text size="xs" c="dimmed">
-                                    The upstream response exceeded the
-                                    connection's size cap and was truncated.
+                                    {t('requestInspector.truncatedBody')}
                                 </Text>
                             </Box>
                         )}
                         {request.error && (
                             <Box>
                                 <Text size="xs" fw={600} c="red">
-                                    Error
+                                    {t('queryInspector.error')}
                                 </Text>
                                 <Text size="xs" c="red">
                                     {request.error}
@@ -167,7 +168,7 @@ const ExternalRequestRow: FC<{ request: ExternalRequestEvent }> = ({
                         {request.durationMs !== null && (
                             <Box>
                                 <Text size="xs" fw={600} c="dimmed">
-                                    Duration
+                                    {t('requestInspector.duration')}
                                 </Text>
                                 <Text size="xs">{request.durationMs}ms</Text>
                             </Box>
@@ -194,7 +195,7 @@ const ExternalRequestRow: FC<{ request: ExternalRequestEvent }> = ({
                                     )}
                                 </ActionIcon>
                                 <Text size="xs" fw={600} c="dimmed">
-                                    Response body
+                                    {t('requestInspector.responseBody')}
                                 </Text>
                                 <CopyButton
                                     value={toJson(request.responseBody)}
@@ -238,16 +239,21 @@ const ExternalRequestRow: FC<{ request: ExternalRequestEvent }> = ({
  */
 export const ExternalRequestInspectorContent: FC<{
     requests: ExternalRequestEvent[];
-}> = ({ requests }) => (
-    <Box className={classes.queryList}>
-        {requests.length === 0 ? (
-            <Box className={classes.emptyState}>
-                <Text size="xs" c="dimmed">
-                    No external requests yet
-                </Text>
-            </Box>
-        ) : (
-            requests.map((r) => <ExternalRequestRow key={r.id} request={r} />)
-        )}
-    </Box>
-);
+}> = ({ requests }) => {
+    const { t } = useTranslation('apps');
+    return (
+        <Box className={classes.queryList}>
+            {requests.length === 0 ? (
+                <Box className={classes.emptyState}>
+                    <Text size="xs" c="dimmed">
+                        {t('requestInspector.empty')}
+                    </Text>
+                </Box>
+            ) : (
+                requests.map((r) => (
+                    <ExternalRequestRow key={r.id} request={r} />
+                ))
+            )}
+        </Box>
+    );
+};

@@ -2,6 +2,7 @@ import { formatEstimatedBytes } from '@lightdash/common';
 import { Text } from '@mantine/core';
 import { IconDatabase } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import Callout from '../common/Callout';
 import MantineModal from '../common/MantineModal';
 
@@ -19,27 +20,32 @@ export const QueryCostConfirmModal: FC<Props> = ({
     confirmEstimatedBytesAbove,
     onConfirm,
     onClose,
-}) => (
-    <MantineModal
-        opened={opened}
-        onClose={onClose}
-        title="Run a large query?"
-        icon={IconDatabase}
-        role="alertdialog"
-        confirmLabel="Run query"
-        onConfirm={onConfirm}
-    >
-        <Text fz="sm">
-            A dry run estimates this query will process{' '}
-            <Text span fw={600} fz="sm">
-                {formatEstimatedBytes(totalBytesProcessed)}
+}) => {
+    const { t } = useTranslation('explorer');
+    return (
+        <MantineModal
+            opened={opened}
+            onClose={onClose}
+            title={t('queryCostConfirmModal.title')}
+            icon={IconDatabase}
+            role="alertdialog"
+            confirmLabel={t('queryCostConfirmModal.confirm')}
+            onConfirm={onConfirm}
+        >
+            <Text fz="sm">
+                <Trans
+                    t={t}
+                    i18nKey="queryCostConfirmModal.body"
+                    values={{
+                        bytes: formatEstimatedBytes(totalBytesProcessed),
+                        threshold: formatEstimatedBytes(
+                            confirmEstimatedBytesAbove,
+                        ),
+                    }}
+                    components={{ bytes: <Text span fw={600} fz="sm" /> }}
+                />
             </Text>
-            , above the {formatEstimatedBytes(confirmEstimatedBytesAbove)}{' '}
-            confirmation threshold for this connection.
-        </Text>
-        <Callout variant="info">
-            To scan less, filter on a partitioned date, shorten the date range
-            or select fewer fields.
-        </Callout>
-    </MantineModal>
-);
+            <Callout variant="info">{t('queryCostConfirmModal.hint')}</Callout>
+        </MantineModal>
+    );
+};

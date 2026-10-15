@@ -15,6 +15,7 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -70,6 +71,7 @@ export const AgentSelector = ({
     compact = false,
     settingsHref,
 }: Props) => {
+    const { t } = useTranslation('aiAgent');
     const navigate = useNavigate();
     const { search } = useLocation();
     const [opened, setOpened] = useState(false);
@@ -153,7 +155,9 @@ export const AgentSelector = ({
                             />
                         )}
                         <Text size="xs" truncate="end" className={styles.label}>
-                            {isAuto ? 'Auto' : selectedAgent.name}
+                            {isAuto
+                                ? t('agentSelector.auto')
+                                : selectedAgent.name}
                         </Text>
                         <MantineIcon
                             icon={IconChevronDown}
@@ -176,10 +180,10 @@ export const AgentSelector = ({
                                 </Avatar>
                                 <Stack gap={0} flex={1} miw={0}>
                                     <Text size="xs" fw={600}>
-                                        Auto
+                                        {t('agentSelector.auto')}
                                     </Text>
                                     <Text size="xs" c="dimmed" truncate="end">
-                                        We'll route to the best-fit agent
+                                        {t('agentSelector.autoDescription')}
                                     </Text>
                                 </Stack>
                                 {isAuto && (
@@ -250,7 +254,7 @@ export const AgentSelector = ({
                                 </Center>
 
                                 <Text size="xs" truncate="end" flex={1}>
-                                    Create new agent
+                                    {t('agentSelector.createNew')}
                                 </Text>
                             </Group>
                         </Combobox.Option>
@@ -268,7 +272,7 @@ export const AgentSelector = ({
                                         />
                                     </Center>
                                     <Text size="xs" truncate="end" flex={1}>
-                                        Agent settings
+                                        {t('agentSelector.agentSettings')}
                                     </Text>
                                 </Group>
                             </Combobox.Option>

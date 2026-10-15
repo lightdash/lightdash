@@ -15,6 +15,7 @@ import {
     type SortField,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
+import i18n from '../../../i18n/i18n';
 import { pollForResults } from '../../queryRunner/executeQuery';
 import { type SavedChartPreviewQueryResult } from './savedChartPreviewQuery';
 
@@ -80,7 +81,9 @@ export const executeExplorePreviewQuery = async ({
         if (results.status !== QueryHistoryStatus.READY) {
             throw new Error(
                 ('error' in results ? results.error : null) ??
-                    'The explore query did not finish',
+                    i18n.t('errors.exploreQueryDidNotFinish', {
+                        ns: 'chartTypes',
+                    }),
             );
         }
 

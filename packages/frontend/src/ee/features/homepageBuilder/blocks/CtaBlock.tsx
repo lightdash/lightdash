@@ -19,6 +19,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { type CSSProperties, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useProjectColorPalette } from '../../../../hooks/appearance/useProjectColorPalette';
 import { useOrganizationBrand } from '../../../../hooks/organization/useOrganizationBrand';
@@ -248,14 +249,11 @@ export const CtaBlockView: FC<BlockComponentProps> = ({
     );
 };
 
-const THEME_OPTIONS: {
-    value: Exclude<HomepageCtaTheme, 'custom'>;
-    label: string;
-}[] = [
-    { value: 'brand', label: 'Brand' },
-    { value: 'accent', label: 'Accent' },
-    { value: 'dark', label: 'Dark' },
-    { value: 'neutral', label: 'Neutral' },
+const THEME_OPTIONS: Exclude<HomepageCtaTheme, 'custom'>[] = [
+    'brand',
+    'accent',
+    'dark',
+    'neutral',
 ];
 
 const ThemeSwatches: FC<{
@@ -264,30 +262,24 @@ const ThemeSwatches: FC<{
     paletteSwatches: string[];
     onChange: (theme: HomepageCtaTheme, customColor?: string) => void;
 }> = ({ value, customColor, paletteSwatches, onChange }) => {
+    const { t } = useTranslation('homepageBuilder');
     const { data: brand } = useOrganizationBrand();
     return (
         <Group gap={6} wrap="nowrap">
             {THEME_OPTIONS.map((option) => {
-                const paint = resolveCtaPaint(
-                    option.value,
-                    brand?.colors,
-                    undefined,
-                );
+                const label = t(`cta.themes.${option}`);
+                const paint = resolveCtaPaint(option, brand?.colors, undefined);
                 const style = paintStyle(paint, 'cta');
                 return (
-                    <Tooltip
-                        key={option.value}
-                        label={option.label}
-                        openDelay={200}
-                    >
+                    <Tooltip key={option} label={label} openDelay={200}>
                         <button
                             type="button"
-                            aria-label={`${option.label} theme`}
+                            aria-label={t('cta.themeAria', { theme: label })}
                             className={classes.ctaSwatch}
-                            data-selected={value === option.value}
+                            data-selected={value === option}
                             data-neutral={paint.kind === 'neutral'}
                             style={style}
-                            onClick={() => onChange(option.value)}
+                            onClick={() => onChange(option)}
                         />
                     </Tooltip>
                 );
@@ -295,7 +287,7 @@ const ThemeSwatches: FC<{
             <ColorInput
                 size="xs"
                 w={130}
-                placeholder="Custom"
+                placeholder={t('cta.customColor')}
                 value={value === 'custom' ? (customColor ?? '') : ''}
                 swatches={paletteSwatches}
                 swatchesPerRow={paletteSwatches.length > 0 ? 10 : undefined}
@@ -312,12 +304,18 @@ type TargetChoice =
     | 'browse-spaces'
     | 'link';
 
-const TARGET_OPTIONS: { value: TargetChoice; label: string }[] = [
-    { value: 'run-query', label: 'Run a query' },
-    { value: 'ask-ai', label: 'Ask AI' },
-    { value: 'browse-dashboards', label: 'Browse dashboards' },
-    { value: 'browse-spaces', label: 'Browse spaces' },
-    { value: 'link', label: 'Custom link' },
+const TARGET_OPTION_KEYS: { value: TargetChoice; labelKey: string }[] = [
+    { value: 'run-query', labelKey: 'quickActions.static.runQuery.title' },
+    { value: 'ask-ai', labelKey: 'quickActions.static.askAi.title' },
+    {
+        value: 'browse-dashboards',
+        labelKey: 'quickActions.static.browseDashboards.title',
+    },
+    {
+        value: 'browse-spaces',
+        labelKey: 'quickActions.static.browseSpaces.title',
+    },
+    { value: 'link', labelKey: 'cta.customLink' },
 ];
 
 export const CtaBlockBuild: FC<BuildComponentProps> = ({
@@ -325,6 +323,7 @@ export const CtaBlockBuild: FC<BuildComponentProps> = ({
     projectUuid,
     onChange,
 }) => {
+    const { t } = useTranslation('homepageBuilder');
     // Custom-color swatches come from the project's resolved chart palette,
     // which already falls back to the org's active palette.
     const { data: palette } = useProjectColorPalette(projectUuid);
@@ -350,8 +349,8 @@ export const CtaBlockBuild: FC<BuildComponentProps> = ({
             <Group gap="xs" align="flex-end" wrap="nowrap">
                 <TextInput
                     size="xs"
-                    label="Title"
-                    placeholder="Optional — leave empty for a button-only banner"
+                    label={t('blockBuild.title')}
+                    placeholder={t('cta.titlePlaceholder')}
                     fw={600}
                     flex={1}
                     value={config.title ?? ''}
@@ -362,8 +361,8 @@ export const CtaBlockBuild: FC<BuildComponentProps> = ({
             </Group>
             <TextInput
                 size="xs"
-                label="Supporting line"
-                placeholder="Optional"
+                label={t('cta.supportingLine')}
+                placeholder={t('cta.optional')}
                 value={config.description ?? ''}
                 onChange={(e) =>
                     patch({ description: e.currentTarget.value || undefined })
@@ -372,7 +371,7 @@ export const CtaBlockBuild: FC<BuildComponentProps> = ({
             <Group gap="xs" align="flex-end" wrap="nowrap">
                 <TextInput
                     size="xs"
-                    label="Button label"
+                    label={t('cta.buttonLabel')}
                     w={180}
                     value={config.buttonLabel}
                     onChange={(e) =>
@@ -381,9 +380,12 @@ export const CtaBlockBuild: FC<BuildComponentProps> = ({
                 />
                 <Select
                     size="xs"
-                    label="Button leads to"
+                    label={t('cta.buttonLeadsTo')}
                     flex={1}
-                    data={TARGET_OPTIONS}
+                    data={TARGET_OPTION_KEYS.map((option) => ({
+                        value: option.value,
+                        label: t(option.labelKey),
+                    }))}
                     value={targetChoice}
                     allowDeselect={false}
                     onChange={(next) => {
@@ -405,7 +407,7 @@ export const CtaBlockBuild: FC<BuildComponentProps> = ({
             {config.target.type === 'link' && (
                 <TextInput
                     size="xs"
-                    label="URL"
+                    label={t('cta.url')}
                     placeholder="https://…"
                     value={config.target.url}
                     onChange={(e) =>
@@ -421,7 +423,7 @@ export const CtaBlockBuild: FC<BuildComponentProps> = ({
             <Group gap="lg" align="flex-end">
                 <Stack gap={4}>
                     <Text size="xs" fw={500}>
-                        Theme
+                        {t('cta.theme')}
                     </Text>
                     <ThemeSwatches
                         value={config.theme ?? 'brand'}
@@ -438,7 +440,7 @@ export const CtaBlockBuild: FC<BuildComponentProps> = ({
                 </Stack>
                 <Stack gap={4}>
                     <Text size="xs" fw={500}>
-                        Background
+                        {t('cta.background')}
                     </Text>
                     <SegmentedControl
                         size="xs"
@@ -449,16 +451,25 @@ export const CtaBlockBuild: FC<BuildComponentProps> = ({
                             })
                         }
                         data={[
-                            { value: 'none', label: 'None' },
-                            { value: 'card', label: 'Card' },
-                            { value: 'theme', label: 'Themed' },
+                            {
+                                value: 'none',
+                                label: t('cta.backgrounds.none'),
+                            },
+                            {
+                                value: 'card',
+                                label: t('cta.backgrounds.card'),
+                            },
+                            {
+                                value: 'theme',
+                                label: t('cta.backgrounds.themed'),
+                            },
                         ]}
                     />
                 </Stack>
                 {(config.title ?? '').trim() === '' && (
                     <Stack gap={4}>
                         <Text size="xs" fw={500}>
-                            Align
+                            {t('cta.align')}
                         </Text>
                         <SegmentedControl
                             size="xs"
@@ -467,17 +478,25 @@ export const CtaBlockBuild: FC<BuildComponentProps> = ({
                                 patch({ align: next as HomepageCtaAlign })
                             }
                             data={[
-                                { value: 'left', label: 'Left' },
-                                { value: 'center', label: 'Middle' },
-                                { value: 'right', label: 'Right' },
+                                {
+                                    value: 'left',
+                                    label: t('cta.alignments.left'),
+                                },
+                                {
+                                    value: 'center',
+                                    label: t('cta.alignments.middle'),
+                                },
+                                {
+                                    value: 'right',
+                                    label: t('cta.alignments.right'),
+                                },
                             ]}
                         />
                     </Stack>
                 )}
             </Group>
             <Text size="xs" c="dimmed">
-                Brand, Accent, and the gradients use your organization's brand
-                colors from Settings → Appearance.
+                {t('cta.brandHint')}
             </Text>
         </Stack>
     );

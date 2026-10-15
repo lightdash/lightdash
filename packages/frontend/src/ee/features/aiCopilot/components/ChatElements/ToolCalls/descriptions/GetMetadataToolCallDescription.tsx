@@ -1,6 +1,7 @@
 import type { ToolGetMetadataArgs } from '@lightdash/common';
 import { Group, rem, Text } from '@mantine/core';
 import type { FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ToolCallChip } from '../ToolCallChip';
 
 type GetMetadataToolCallDescriptionProps = {
@@ -10,6 +11,7 @@ type GetMetadataToolCallDescriptionProps = {
 export const GetMetadataToolCallDescription: FC<
     GetMetadataToolCallDescriptionProps
 > = ({ requests }) => {
+    const { t } = useTranslation('aiCopilotChat');
     const names = (requests ?? []).flatMap((request) =>
         request.type === 'explore'
             ? request.exploreIds
@@ -23,7 +25,7 @@ export const GetMetadataToolCallDescription: FC<
                 wrap="wrap"
                 display="inline-flex"
             >
-                Read metadata for
+                {t('toolDescriptions.readMetadataFor')}
                 {names.map((name, i) => (
                     <ToolCallChip key={`${name}-${i}`} ff="monospace">
                         {name}

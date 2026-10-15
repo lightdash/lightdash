@@ -1,5 +1,6 @@
 import { useDebouncedValue } from '@mantine/hooks';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import FilterFacet, {
     type FilterFacetOption,
 } from '../../../components/common/FilterFacet';
@@ -27,6 +28,7 @@ export const DeletedByFilter: FC<DeletedByFilterProps> = ({
     selectedUserUuids,
     onSelectionChange,
 }) => {
+    const { t } = useTranslation('settings');
     const [searchValue, setSearchValue] = useState('');
     const [debouncedSearchValue] = useDebouncedValue(searchValue, 300);
 
@@ -72,18 +74,18 @@ export const DeletedByFilter: FC<DeletedByFilterProps> = ({
 
     return (
         <FilterFacet
-            label="Deleted by"
+            label={t('recentlyDeleted.filters.deletedBy')}
             options={options}
             selected={selectedUserUuids}
             onChange={onSelectionChange}
-            tooltipLabel="Filter by user who deleted the item"
+            tooltipLabel={t('recentlyDeleted.filters.deletedByTooltip')}
             searchValue={searchValue}
             onSearchChange={setSearchValue}
-            searchPlaceholder="Search users…"
+            searchPlaceholder={t('recentlyDeleted.filters.searchUsers')}
             loading={isLoading}
             loadingMore={isFetching && !isLoading}
             onScrollEnd={handleScrollEnd}
-            emptyLabel="No users found"
+            emptyLabel={t('recentlyDeleted.filters.noUsers')}
         />
     );
 };

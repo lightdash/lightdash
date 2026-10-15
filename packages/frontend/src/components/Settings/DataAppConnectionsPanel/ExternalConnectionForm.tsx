@@ -16,6 +16,7 @@ import {
 } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { type FC, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { BuilderLinkingField } from '../../../features/externalConnections/components/BuilderLinkingField';
 import { CustomHeadersField } from '../../../features/externalConnections/components/CustomHeadersField';
 import { ForwardUserIdentityField } from '../../../features/externalConnections/components/ForwardUserIdentityField';
@@ -83,48 +84,62 @@ export const ExternalConnectionForm: FC<Props> = ({
     disabled,
     hasSecret,
 }) => {
+    const { t } = useTranslation('settings');
     const { type, allowedMethods } = form.values;
     const allowsPost = allowedMethods.includes('POST');
     const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
     const secretPlaceholder =
         hasSecret && type !== 'none'
-            ? '•••• set (leave blank to keep current)'
+            ? t('dataAppConnections.fields.secretPlaceholderKeep')
             : undefined;
 
     return (
         <Stack gap="sm">
             <TextInput
                 required
-                label="Name"
-                placeholder="My API"
+                label={t('dataAppConnections.fields.name')}
+                placeholder={t('dataAppConnections.fields.namePlaceholder')}
                 disabled={disabled}
                 {...form.getInputProps('name')}
             />
 
             <TextInput
                 required
-                label="Origin"
-                description="The remote base URL apps may call (must start with https://)"
+                label={t('dataAppConnections.fields.origin')}
+                description={t('dataAppConnections.fields.originDescription')}
                 placeholder="https://api.example.com"
                 disabled={disabled}
                 {...form.getInputProps('origin')}
             />
 
             <Select
-                label="Authentication"
+                label={t('dataAppConnections.fields.authentication')}
                 disabled={disabled}
                 allowDeselect={false}
                 data={[
-                    { value: 'none', label: 'None' },
-                    { value: 'api_key', label: 'API key' },
-                    { value: 'bearer_token', label: 'Bearer token' },
+                    {
+                        value: 'none',
+                        label: t('dataAppConnections.authTypes.none'),
+                    },
+                    {
+                        value: 'api_key',
+                        label: t('dataAppConnections.authTypes.apiKey'),
+                    },
+                    {
+                        value: 'bearer_token',
+                        label: t('dataAppConnections.authTypes.bearerToken'),
+                    },
                     {
                         value: 'google_service_account',
-                        label: 'Google service account',
+                        label: t(
+                            'dataAppConnections.authTypes.googleServiceAccount',
+                        ),
                     },
                     {
                         value: 'oauth_client_credentials',
-                        label: 'OAuth 2.0 client credentials',
+                        label: t(
+                            'dataAppConnections.authTypes.oauthClientCredentials',
+                        ),
                     },
                 ]}
                 {...form.getInputProps('type')}
@@ -132,7 +147,11 @@ export const ExternalConnectionForm: FC<Props> = ({
 
             {(type === 'api_key' || type === 'bearer_token') && (
                 <PasswordInput
-                    label={type === 'api_key' ? 'API key' : 'Bearer token'}
+                    label={
+                        type === 'api_key'
+                            ? t('dataAppConnections.authTypes.apiKey')
+                            : t('dataAppConnections.authTypes.bearerToken')
+                    }
                     placeholder={secretPlaceholder}
                     disabled={disabled}
                     {...form.getInputProps('secret')}
@@ -143,21 +162,25 @@ export const ExternalConnectionForm: FC<Props> = ({
                 <>
                     <TextInput
                         required
-                        label="Token URL"
-                        description="The OAuth server endpoint used to obtain access tokens"
+                        label={t('dataAppConnections.fields.tokenUrl')}
+                        description={t(
+                            'dataAppConnections.fields.tokenUrlDescription',
+                        )}
                         placeholder="https://api.example.com/oauth/token"
                         disabled={disabled}
                         {...form.getInputProps('oauthTokenUrl')}
                     />
                     <TextInput
                         required
-                        label="Client ID"
-                        placeholder="Your OAuth client ID"
+                        label={t('dataAppConnections.fields.clientId')}
+                        placeholder={t(
+                            'dataAppConnections.fields.clientIdPlaceholder',
+                        )}
                         disabled={disabled}
                         {...form.getInputProps('oauthClientId')}
                     />
                     <PasswordInput
-                        label="Client secret"
+                        label={t('dataAppConnections.fields.clientSecret')}
                         placeholder={secretPlaceholder}
                         disabled={disabled}
                         {...form.getInputProps('secret')}
@@ -165,18 +188,34 @@ export const ExternalConnectionForm: FC<Props> = ({
                     <Select
                         required
                         allowDeselect={false}
-                        label="Send client credentials as"
+                        label={t(
+                            'dataAppConnections.fields.sendClientCredentialsAs',
+                        )}
                         data={[
-                            { value: 'basic', label: 'Authorization header' },
-                            { value: 'body', label: 'Request body' },
+                            {
+                                value: 'basic',
+                                label: t(
+                                    'dataAppConnections.fields.authorizationHeader',
+                                ),
+                            },
+                            {
+                                value: 'body',
+                                label: t(
+                                    'dataAppConnections.fields.requestBody',
+                                ),
+                            },
                         ]}
                         disabled={disabled}
                         {...form.getInputProps('oauthClientAuthMethod')}
                     />
                     <TagsInput
-                        label="OAuth scopes (optional)"
-                        description="Sent as a space-separated token request parameter"
-                        placeholder="Add a scope"
+                        label={t(
+                            'dataAppConnections.fields.oauthScopesOptional',
+                        )}
+                        description={t(
+                            'dataAppConnections.fields.oauthScopesDescription',
+                        )}
+                        placeholder={t('dataAppConnections.fields.addScope')}
                         disabled={disabled}
                         {...form.getInputProps('oauthScopes')}
                     />
@@ -186,8 +225,12 @@ export const ExternalConnectionForm: FC<Props> = ({
             {type === 'google_service_account' && (
                 <>
                     <JsonInput
-                        label="Service account JSON"
-                        description="Paste the full service account key file"
+                        label={t(
+                            'dataAppConnections.fields.serviceAccountJson',
+                        )}
+                        description={t(
+                            'dataAppConnections.fields.serviceAccountJsonDescription',
+                        )}
                         placeholder={
                             secretPlaceholder ??
                             '{ "type": "service_account", ... }'
@@ -199,8 +242,10 @@ export const ExternalConnectionForm: FC<Props> = ({
                         {...form.getInputProps('secret')}
                     />
                     <TagsInput
-                        label="OAuth scopes"
-                        description="e.g. https://www.googleapis.com/auth/bigquery"
+                        label={t('dataAppConnections.fields.oauthScopes')}
+                        description={t(
+                            'dataAppConnections.fields.googleScopesDescription',
+                        )}
                         data={SUGGESTED_GOOGLE_SCOPES}
                         disabled={disabled}
                         {...form.getInputProps('oauthScopes')}
@@ -212,17 +257,25 @@ export const ExternalConnectionForm: FC<Props> = ({
                 <Group grow align="flex-start">
                     <TextInput
                         required
-                        label="API key name"
+                        label={t('dataAppConnections.fields.apiKeyName')}
                         placeholder="X-Api-Key"
                         disabled={disabled}
                         {...form.getInputProps('apiKeyName')}
                     />
                     <Select
-                        label="API key location"
+                        label={t('dataAppConnections.fields.apiKeyLocation')}
                         disabled={disabled}
                         data={[
-                            { value: 'header', label: 'Header' },
-                            { value: 'query', label: 'Query parameter' },
+                            {
+                                value: 'header',
+                                label: t('dataAppConnections.fields.header'),
+                            },
+                            {
+                                value: 'query',
+                                label: t(
+                                    'dataAppConnections.fields.queryParameter',
+                                ),
+                            },
                         ]}
                         {...form.getInputProps('apiKeyLocation')}
                     />
@@ -230,7 +283,7 @@ export const ExternalConnectionForm: FC<Props> = ({
             )}
 
             <CustomHeadersField
-                label="Custom headers"
+                label={t('dataAppConnections.fields.customHeaders')}
                 value={form.values.customHeaders}
                 onChange={(value) => form.setFieldValue('customHeaders', value)}
                 error={form.errors.customHeaders}
@@ -244,10 +297,13 @@ export const ExternalConnectionForm: FC<Props> = ({
                 disabled={disabled}
             />
 
-            <Divider label="Request policy" labelPosition="left" />
+            <Divider
+                label={t('dataAppConnections.fields.requestPolicy')}
+                labelPosition="left"
+            />
 
             <MethodsField
-                label="Allowed methods"
+                label={t('dataAppConnections.fields.allowedMethods')}
                 value={allowedMethods}
                 onChange={(value) =>
                     form.setFieldValue('allowedMethods', value)
@@ -257,7 +313,7 @@ export const ExternalConnectionForm: FC<Props> = ({
             />
 
             <PathRulesField
-                label="Which paths can apps call?"
+                label={t('dataAppConnections.fields.pathsLabel')}
                 mode={form.values.pathMode}
                 onModeChange={(mode) => form.setFieldValue('pathMode', mode)}
                 prefixes={form.values.allowedPathPrefixes}
@@ -277,8 +333,10 @@ export const ExternalConnectionForm: FC<Props> = ({
             />
 
             <Switch
-                label="Allow public images in linked apps"
-                description="Linked apps and chart types can load public images from this origin. Enable only for trusted public image or tile hosts."
+                label={t('dataAppConnections.fields.publicImagesLabel')}
+                description={t(
+                    'dataAppConnections.fields.publicImagesDescription',
+                )}
                 disabled={
                     disabled ||
                     (type !== 'none' && !form.values.allowBrowserImages)
@@ -291,7 +349,9 @@ export const ExternalConnectionForm: FC<Props> = ({
             <FormSection name="advanced" isOpen={isAdvancedOpen}>
                 <Stack gap="sm" mt="xs">
                     <MultiSelect
-                        label="Allowed response content types"
+                        label={t(
+                            'dataAppConnections.fields.allowedContentTypes',
+                        )}
                         disabled={disabled}
                         data={CONTENT_TYPE_OPTIONS}
                         searchable
@@ -300,14 +360,18 @@ export const ExternalConnectionForm: FC<Props> = ({
 
                     <Group grow align="flex-start">
                         <NumberInput
-                            label="Response max bytes"
+                            label={t(
+                                'dataAppConnections.fields.responseMaxBytes',
+                            )}
                             min={0}
                             disabled={disabled}
                             {...form.getInputProps('responseMaxBytes')}
                         />
                         {allowsPost && (
                             <NumberInput
-                                label="Request max bytes"
+                                label={t(
+                                    'dataAppConnections.fields.requestMaxBytes',
+                                )}
                                 min={0}
                                 disabled={disabled}
                                 {...form.getInputProps('requestMaxBytes')}
@@ -317,14 +381,16 @@ export const ExternalConnectionForm: FC<Props> = ({
 
                     <Group grow align="flex-start">
                         <NumberInput
-                            label="Timeout (ms)"
+                            label={t('dataAppConnections.fields.timeoutMs')}
                             min={0}
                             disabled={disabled}
                             {...form.getInputProps('timeoutMs')}
                         />
                         {allowsPost && (
                             <NumberInput
-                                label="Rate limit (per minute)"
+                                label={t(
+                                    'dataAppConnections.fields.rateLimitPerMinute',
+                                )}
                                 min={0}
                                 disabled={disabled}
                                 {...form.getInputProps('rateLimitPerMinute')}
@@ -337,7 +403,7 @@ export const ExternalConnectionForm: FC<Props> = ({
                 isSectionOpen={isAdvancedOpen}
                 onClick={() => setIsAdvancedOpen((open) => !open)}
             >
-                Advanced settings
+                {t('dataAppConnections.fields.advancedSettings')}
             </FormCollapseButton>
         </Stack>
     );

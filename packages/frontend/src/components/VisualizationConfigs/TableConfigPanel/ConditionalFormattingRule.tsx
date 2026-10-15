@@ -24,6 +24,7 @@ import {
 } from '@mantine/core';
 import differenceBy from 'lodash/differenceBy';
 import { useCallback, useMemo, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import FieldSelect from '../../common/FieldSelect';
 import FilterInputComponent from '../../common/Filters/FilterInputs';
@@ -63,6 +64,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
     hasRemove,
     disabled,
 }) => {
+    const { t } = useTranslation('vizConfig');
     const projectUuid = useProjectUuid();
 
     const comparisonType = useMemo(() => {
@@ -237,9 +239,15 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
     return (
         <Accordion.Item value={accordionValue}>
             <AccordionControl
-                label={`Condition ${ruleIndex + 1}`}
+                label={t('tableConditionalFormatting.rule.conditionNumber', {
+                    number: ruleIndex + 1,
+                })}
                 disabled={disabled}
-                title={disabled ? 'Select a field first' : undefined}
+                title={
+                    disabled
+                        ? t('tableConditionalFormatting.selectFieldFirst')
+                        : undefined
+                }
                 onRemove={hasRemove ? onRemoveRule : undefined}
             />
 
@@ -247,7 +255,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                 <Stack gap="xs">
                     <Group wrap="nowrap" gap="xs">
                         <Text fw={500} fz="xs" c="dimmed">
-                            Compare:
+                            {t('tableConditionalFormatting.rule.compare')}
                         </Text>
                         <SegmentedControl
                             size="xs"
@@ -260,24 +268,48 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                             data={[
                                 {
                                     label: (
-                                        <Tooltip label="Compare selected field to values">
-                                            <Center>Values</Center>
+                                        <Tooltip
+                                            label={t(
+                                                'tableConditionalFormatting.rule.compareValuesTooltip',
+                                            )}
+                                        >
+                                            <Center>
+                                                {t(
+                                                    'tableConditionalFormatting.rule.compareValues',
+                                                )}
+                                            </Center>
                                         </Tooltip>
                                     ),
                                     value: ConditionalFormattingComparisonType.VALUES,
                                 },
                                 {
                                     label: (
-                                        <Tooltip label="Compare selected field to another field">
-                                            <Center>Field</Center>
+                                        <Tooltip
+                                            label={t(
+                                                'tableConditionalFormatting.rule.compareFieldTooltip',
+                                            )}
+                                        >
+                                            <Center>
+                                                {t(
+                                                    'tableConditionalFormatting.rule.compareField',
+                                                )}
+                                            </Center>
                                         </Tooltip>
                                     ),
                                     value: ConditionalFormattingComparisonType.TARGET_FIELD,
                                 },
                                 {
                                     label: (
-                                        <Tooltip label="Compare another field to values">
-                                            <Center>Field values</Center>
+                                        <Tooltip
+                                            label={t(
+                                                'tableConditionalFormatting.rule.compareFieldValuesTooltip',
+                                            )}
+                                        >
+                                            <Center>
+                                                {t(
+                                                    'tableConditionalFormatting.rule.compareFieldValues',
+                                                )}
+                                            </Center>
                                         </Tooltip>
                                     ),
                                     value: ConditionalFormattingComparisonType.TARGET_TO_VALUES,
@@ -294,7 +326,9 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                                 onChange={handleChangeCompareField}
                                 hasGrouping
                                 size="xs"
-                                placeholder="Compare field"
+                                placeholder={t(
+                                    'tableConditionalFormatting.rule.compareFieldPlaceholder',
+                                )}
                             />
                         )}
                     <Group wrap="nowrap" gap="xs">
@@ -307,14 +341,18 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                                 if (!value) return;
                                 onChangeRuleOperator(value as FilterOperator);
                             }}
-                            placeholder="Condition"
+                            placeholder={t(
+                                'tableConditionalFormatting.rule.condition',
+                            )}
                             disabled={!field || !filterType}
                         />
 
                         <Select
                             allowDeselect={false}
                             display={field && filterType ? 'none' : 'block'}
-                            placeholder="Value(s)"
+                            placeholder={t(
+                                'tableConditionalFormatting.rule.valuesPlaceholder',
+                            )}
                             data={[]}
                             size="xs"
                             disabled={!field || !filterType}
@@ -334,7 +372,9 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                                     ) : (
                                         <TextInput
                                             disabled={true}
-                                            placeholder="Values"
+                                            placeholder={t(
+                                                'tableConditionalFormatting.rule.values',
+                                            )}
                                             size="xs"
                                         />
                                     )}
@@ -349,7 +389,9 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                                     items={availableCompareFields}
                                     onChange={handleChangeCompareField}
                                     hasGrouping
-                                    placeholder="Compare field"
+                                    placeholder={t(
+                                        'tableConditionalFormatting.rule.compareFieldPlaceholder',
+                                    )}
                                 />
                             )}
                     </Group>

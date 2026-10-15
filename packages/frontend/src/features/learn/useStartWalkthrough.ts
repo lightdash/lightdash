@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import useToaster from '../../hooks/toaster/useToaster';
 import useApp from '../../providers/App/useApp';
@@ -27,6 +28,7 @@ import { useLearnProgress, useLearnProgressActions } from './progress';
 export const useStartWalkthrough = (
     trainingProjectUuid: string | undefined,
 ) => {
+    const { t } = useTranslation('learn');
     const navigate = useNavigate();
     const { showToastApiError } = useToaster();
     const queryClient = useQueryClient();
@@ -46,7 +48,7 @@ export const useStartWalkthrough = (
             // A refused copy (cooldown, the organization's in-flight limit)
             // must tell the learner why nothing opened.
             showToastApiError({
-                title: 'Could not start the walkthrough',
+                title: t('walkthrough.startFailed'),
                 apiError: error,
             });
         },

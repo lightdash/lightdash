@@ -17,6 +17,7 @@ import {
     type FC,
     type KeyboardEvent,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../common/MantineIcon';
 import classes from './ColorSelector.module.css';
 
@@ -49,12 +50,13 @@ const ColorSelector: FC<Props> = ({
     swatches,
     onColorChange,
     onColorReset,
-    resetLabel = 'Reset color',
-    ariaLabel = 'Select color',
+    resetLabel,
+    ariaLabel,
     readOnly = false,
     colorSwatchProps,
     withAlpha = false,
 }) => {
+    const { t } = useTranslation('vizConfig');
     const [isOpen, setIsOpen] = useState(false);
     const [draftColor, setDraftColor] = useState<string>();
 
@@ -123,7 +125,7 @@ const ColorSelector: FC<Props> = ({
                     {...colorSwatchProps}
                     role="button"
                     tabIndex={0}
-                    aria-label={ariaLabel}
+                    aria-label={ariaLabel ?? t('colorSelector.selectColor')}
                     onClick={handleSwatchClick}
                     onKeyDown={handleSwatchKeyDown}
                     className={clsx(
@@ -152,12 +154,14 @@ const ColorSelector: FC<Props> = ({
                     <TextInput
                         size="xs"
                         leftSection={<MantineIcon icon={IconHash} />}
-                        placeholder={`Type in a custom ${
-                            withAlpha ? 'HEXA' : 'HEX'
-                        }  color`}
+                        placeholder={t('colorSelector.customColorPlaceholder', {
+                            format: withAlpha ? 'HEXA' : 'HEX',
+                        })}
                         error={
                             currentInputColor && !isValidInputColor
-                                ? `Invalid ${withAlpha ? 'HEXA' : 'HEX'} color`
+                                ? t('colorSelector.invalidColor', {
+                                      format: withAlpha ? 'HEXA' : 'HEX',
+                                  })
                                 : undefined
                         }
                         value={currentInputColor.replace('#', '')}
@@ -183,7 +187,7 @@ const ColorSelector: FC<Props> = ({
                                 setIsOpen(false);
                             }}
                         >
-                            {resetLabel}
+                            {resetLabel ?? t('colorSelector.resetColor')}
                         </Button>
                     )}
                 </Stack>

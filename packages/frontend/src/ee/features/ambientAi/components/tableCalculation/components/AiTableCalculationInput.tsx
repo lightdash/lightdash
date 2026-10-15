@@ -4,6 +4,7 @@ import { useHotkeys } from '@mantine/hooks';
 import { IconArrowUp } from '@tabler/icons-react';
 import { type Editor } from '@tiptap/react';
 import { useCallback, useRef, useState, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import {
     selectMetricQuery,
@@ -30,6 +31,7 @@ export const AiTableCalculationInputBody: FC<Props> = ({
     currentSql,
     onApply,
 }) => {
+    const { t } = useTranslation('ambientAi');
     const projectUuid = useProjectUuid();
     const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
@@ -106,7 +108,7 @@ export const AiTableCalculationInputBody: FC<Props> = ({
 
             {error && (
                 <Text size="xs" c="red" mt="xs">
-                    Failed to generate. Please try again.
+                    {t('generateFailed')}
                 </Text>
             )}
         </>
