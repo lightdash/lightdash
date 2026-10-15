@@ -85,6 +85,11 @@ const snowflakeCredentials: CreateSnowflakeCredentials = {
     authenticationType: SnowflakeAuthenticationType.PASSWORD,
 };
 
+const redshiftCredentials = {
+    ...postgresCredentials,
+    type: WarehouseTypes.REDSHIFT,
+} as CreateWarehouseCredentials;
+
 const switchRequest = (
     overrides: Partial<ApiWarehouseConnectionSwitchRequest> = {},
 ): ApiWarehouseConnectionSwitchRequest => ({
@@ -491,6 +496,39 @@ describe('Enable multiple connections on the real schema', () => {
             ).toEqual(financeCredentials);
         });
 
+        test('a Snowflake project switches with an extra connection on another warehouse', async () => {
+            const fixture = await createProject({
+                credentials: snowflakeCredentials,
+            });
+            const reportingCredentials: CreateSnowflakeCredentials = {
+                ...snowflakeCredentials,
+                warehouse: 'reporting',
+            };
+
+            const { result } = await switchProject(
+                fixture,
+                switchRequest({
+                    original: {
+                        name: 'Main warehouse',
+                        listAllDatabases: false,
+                        additionalDatabases: [],
+                    },
+                    connection: {
+                        name: 'Reporting',
+                        warehouseConnection: reportingCredentials,
+                    },
+                }),
+            );
+
+            expect(await route(fixture.projectUuid)).toBe('multi');
+            expect(
+                await connectionModel.getCredentials(
+                    await connectionModel.getProject(fixture.projectUuid),
+                    result.warehouseConnectionUuid,
+                ),
+            ).toEqual(reportingCredentials);
+        });
+
         test('the switch never writes the original warehouse credentials', async () => {
             const fixture = await createProject();
             const before = await database('warehouse_credentials')
@@ -895,21 +933,21 @@ describe('Enable multiple connections on the real schema', () => {
                 buildService(false),
             );
 
-            const snowflake = await createProject({
-                credentials: snowflakeCredentials,
+            const redshift = await createProject({
+                credentials: redshiftCredentials,
             });
             await refusesBoth(
-                snowflake,
+                redshift,
                 new ForbiddenError(WAREHOUSE_TYPE_REASON),
-                snowflake.admin,
+                redshift.admin,
                 switchRequest({
                     connection: {
                         name: 'Finance',
-                        warehouseConnection: snowflakeCredentials,
+                        warehouseConnection: redshiftCredentials,
                     },
                 }),
             );
-            for (const fixture of [flagged, unlicensed, snowflake]) {
+            for (const fixture of [flagged, unlicensed, redshift]) {
                 // eslint-disable-next-line no-await-in-loop
                 expect(await state(fixture.projectUuid)).toEqual(singleState);
             }
