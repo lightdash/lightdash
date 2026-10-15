@@ -2413,6 +2413,33 @@ describe('ProjectModel', () => {
             expect(promotionIndex).toBeGreaterThan(liveDeleteIndex);
         });
 
+        test('keeps the uuid of explores that survive a compile', async () => {
+            oneRowChunks();
+            mockStagedCacheQueries();
+
+            await model.saveExploreStreamToCache(
+                projectUuid,
+                stream([exploreWithMetricFilters]),
+            );
+
+            const transactionQueries = tracker.history.transactions[0].queries;
+            const liveDelete = transactionQueries.find(({ sql }) =>
+                sql.startsWith('delete from "cached_explore"'),
+            );
+            const promotion = transactionQueries.find(
+                ({ sql }) =>
+                    sql.startsWith('INSERT INTO "cached_explore"') &&
+                    sql.includes('SELECT cached_explore_uuid'),
+            );
+            // Only explores missing from the staged set are deleted
+            expect(liveDelete?.sql).toContain('not exists');
+            expect(liveDelete?.sql).toContain('"cached_explore_staging"');
+            // Survivors are upserted by name so rows referencing them persist
+            expect(promotion?.sql).toContain(
+                'ON CONFLICT (name, project_uuid) DO UPDATE',
+            );
+        });
+
         test('keeps managed overrides, late managed writes, and result order', async () => {
             oneRowChunks();
             const managedOverride = {
