@@ -1,0 +1,179 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# version control
+.git
+.local/
+.worktrees/
+
+# Conductor workspace context
+/.context/
+
+# dependencies
+node_modules/
+**/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+/packages/**/coverage
+/packages/e2e/cypress/screenshots/**/*
+/packages/e2e/cypress/videos/**/*
+/packages/e2e/cypress/downloads/**/*
+/packages/e2e/cypress/artifacts/**/*
+# Content as code e2e tests
+packages/e2e/lightdash
+
+# eval reports
+/packages/backend/eval-reports/**/*
+
+# logs
+/packages/backend/logs
+/packages/backend/src/database/logs
+/packages/cli/logs
+/packages/warehouses/logs
+*.log
+
+# development
+lightdash_dev.yml
+/.dev-chart-registry/
+
+# production
+/packages/frontend/build
+/packages/frontend/sdk/dist
+/packages/common/dist
+/packages/backend/dist
+/packages/formula/dist
+/packages/cli/dist
+/packages/warehouses/dist
+/packages/sdk/dist
+/packages/sdk-test-app/dist
+/packages/backend/src/ee/services/McpService/mcp-chart-app/dist
+
+# CLI binary build artifacts
+/packages/cli/bundle/
+/packages/cli/bin/
+
+# misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+.idea
+node_modules
+package-lock.json
+
+# typescript
+*.tsbuildinfo
+
+# examples
+/examples/full-jaffle-shop-demo/dbt/target
+/examples/full-jaffle-shop-demo/dbt/dbt_packages
+/examples/full-jaffle-shop-demo/dbt/dbt_internal_packages/
+/dbt
+/profile*
+
+
+# credentials
+credentials.json
+
+# dbt
+/target
+packages/backend/target/
+venv
+.venv/
+.venvs/
+dbt_modules/
+logs/
+
+# direnv
+/.envrc
+.direnv/
+
+# nix flakes
+flake.nix
+flake.lock
+
+
+# Charts as code
+/examples/full-jaffle-shop-demo/dbt/lightdash
+/examples/lightdash
+/lightdash
+/packages/cli/lightdash/
+
+*storybook.log
+
+# Prometheus
+prometheus.yml
+data/
+
+# environment
+.env*
+
+.local/*
+
+CLAUDE.local.md
+AGENTS.override.md
+.playwright-mcp 
+
+http-client.private.env.json
+
+# turbo
+.turbo
+
+# janix
+.janix
+
+# rodney
+.rodney
+
+# HAR replay
+scripts/har-replay-server.ts
+*.har
+agent-harness/cloud/credentials.env
+
+# AI
+.agents
+!.agents/
+.agents/*
+!.agents/plugins/
+.agents/plugins/*
+!.agents/plugins/marketplace.json
+.codex
+.claude/*.lock
+AGENTS.md
+
+# octarine
+.octarine/properties.json
+
+# editor swap files
+*.swp
+
+
+# Superpowers brainstorm scratch
+.superpowers/
+docs/superpowers/
+
+# Playground bundle builder venv and staging
+scripts/playground-bundle/.venv/
+packages/backend/assets/playground/.staging-*/
+
+# Local pnpm store
+.pnpm-store/
+
+# Heavy local development paths
+scripts/k8s-dev/terraform/.terraform/
+examples/metricflow-demo/.fusion/
+.claude/worktrees/
+
+# Impeccable design-skill artifacts
+.impeccable/
+
+# humanlayer task scratch
+.humanlayer/

@@ -1,0 +1,21 @@
+steps:
+- name: gcr.io/cloud-builders/docker
+  env: ['DOCKER_BUILDKIT=1']
+  args:
+  - build
+  - --target=prod
+  - --build-arg=BUILDKIT_INLINE_CACHE=1
+  - --cache-from=europe-west1-docker.pkg.dev/lightdash-oliver-dev2/ld/lightdash:cache
+  - -t=europe-west1-docker.pkg.dev/lightdash-oliver-dev2/ld/lightdash:$_TAG
+  - -t=europe-west1-docker.pkg.dev/lightdash-oliver-dev2/ld/lightdash:cache
+  - -f=dockerfile
+  - .
+images:
+- europe-west1-docker.pkg.dev/lightdash-oliver-dev2/ld/lightdash:$_TAG
+- europe-west1-docker.pkg.dev/lightdash-oliver-dev2/ld/lightdash:cache
+options:
+  machineType: E2_HIGHCPU_32
+  diskSizeGb: 200
+timeout: 7200s
+substitutions:
+  _TAG: dev
