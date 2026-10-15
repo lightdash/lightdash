@@ -1,3 +1,10 @@
+## [2.589.1](https://github.com/lightdash/lightdash/compare/2.589.0...2.589.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* **sql-runner:** restore the saved chart's height in view mode ([#31039](https://github.com/lightdash/lightdash/issues/31039)) ([d43966c](https://github.com/lightdash/lightdash/commit/d43966c7a64e9990471afa9cf9e5ad4bbb76ffc9)), closes [#30686](https://github.com/lightdash/lightdash/issues/30686) [#30932](https://github.com/lightdash/lightdash/issues/30932)
+
 # [2.589.0](https://github.com/lightdash/lightdash/compare/2.588.1...2.589.0) (2026-10-15)
 
 
