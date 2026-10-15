@@ -134,8 +134,8 @@ const ViewSqlChart = () => {
             header={<Header mode="view" />}
         >
             <Stack p="lg" flex={1} miw={0} className={styles.root}>
-                <Paper className={styles.card}>
-                    <Box className={styles.cardHeader}>
+                <Paper className={styles.pane}>
+                    <Box className={styles.paneHeader}>
                         <Group justify="space-between">
                             <SegmentedControl
                                 size="sm"
@@ -245,7 +245,7 @@ const ViewSqlChart = () => {
 
                     {chartData && !isChartLoading && (
                         <Box
-                            className={styles.cardBody}
+                            className={styles.paneBody}
                             data-padded={
                                 activeTab === TabOption.CHART &&
                                 !isVizTableConfig(chartData.config)
