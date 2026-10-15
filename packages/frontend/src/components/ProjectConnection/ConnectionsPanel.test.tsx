@@ -64,6 +64,7 @@ const projectRule = (action: 'manage' | 'update') => ({
 const renderPanel = (
     type: ProjectType = ProjectType.DEFAULT,
     abilityRules = [projectRule('manage')],
+    primaryRequiresUserCredentials = false,
 ) => {
     renderWithProviders(
         <ConnectionsPanel
@@ -72,6 +73,10 @@ const renderPanel = (
                     projectUuid: 'project-uuid',
                     organizationUuid,
                     type,
+                    warehouseConnection: {
+                        type: WarehouseTypes.SNOWFLAKE,
+                        requireUserCredentials: primaryRequiresUserCredentials,
+                    },
                 } as Project
             }
         />,
@@ -205,6 +210,97 @@ describe('ConnectionsPanel', () => {
         ).toBeInTheDocument();
     });
 
+    it('offers SQL runner database settings only for supported warehouse types', async () => {
+        mockApi.mockResolvedValue({
+            connections: [
+                { ...original, warehouseType: WarehouseTypes.SNOWFLAKE },
+                { ...extra, warehouseType: WarehouseTypes.SNOWFLAKE },
+            ],
+            capabilities: { canAddConnection: true, reason: null },
+        });
+        const user = renderPanel();
+        await user.click(
+            await screen.findByRole('button', {
+                name: 'Actions for Warehouse',
+            }),
+        );
+        expect(
+            within(await screen.findByRole('menu')).queryByRole('menuitem', {
+                name: 'SQL runner databases',
+            }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('renders Snowflake fields and saves a selected organisation credential', async () => {
+        mockApi.mockImplementation(
+            async ({ url, method }: { url: string; method: string }) => {
+                if (url === listUrl && method === 'GET')
+                    return {
+                        connections: [
+                            {
+                                ...original,
+                                warehouseType: WarehouseTypes.SNOWFLAKE,
+                            },
+                        ],
+                        capabilities: { canAddConnection: true, reason: null },
+                    };
+                if (url === '/org/warehouse-credentials' && method === 'GET')
+                    return [
+                        {
+                            organizationWarehouseCredentialsUuid:
+                                'org-credential-uuid',
+                            warehouseType: WarehouseTypes.SNOWFLAKE,
+                            name: 'Saved Snowflake',
+                        },
+                    ];
+                if (url === listUrl && method === 'POST') return extra;
+                return undefined;
+            },
+        );
+        const user = renderPanel();
+        await user.click(
+            await screen.findByRole('button', { name: 'Add connection' }),
+        );
+        expect(
+            await screen.findByRole('textbox', { name: 'Account' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('textbox', { name: 'Warehouse' }),
+        ).toBeInTheDocument();
+        expect(screen.getAllByRole('textbox', { name: 'Schema' })).toHaveLength(
+            1,
+        );
+        await user.type(
+            screen.getByRole('textbox', { name: 'Name' }),
+            'Reporting',
+        );
+        await user.click(
+            screen.getByRole('radio', { name: 'Use organization credentials' }),
+        );
+        expect(
+            screen.getByRole('combobox', { name: 'Organization credentials' }),
+        ).toBeInTheDocument();
+        const dialog = screen
+            .getByText('Add a connection')
+            .closest<HTMLElement>('[role="alertdialog"], [role="dialog"]')!;
+        await user.click(
+            within(dialog).getByRole('button', { name: 'Add connection' }),
+        );
+        await waitFor(() =>
+            expect(mockApi).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    url: listUrl,
+                    method: 'POST',
+                    body: JSON.stringify({
+                        name: 'Reporting',
+                        organizationWarehouseCredentialsUuid:
+                            'org-credential-uuid',
+                    }),
+                }),
+            ),
+        );
+    });
+
     it('disables adding a connection when the project cannot hold another', async () => {
         mockApi.mockResolvedValue({
             connections: [original],
@@ -242,6 +338,108 @@ describe('ConnectionsPanel', () => {
             ),
         ).not.toBeInTheDocument();
     });
+
+    it.each([true, false])(
+        'offers None in the Snowflake add form only when the primary requires personal credentials: %s',
+        async (required) => {
+            mockApi.mockImplementation(({ url }: { url: string }) =>
+                Promise.resolve(
+                    url === '/org/warehouse-credentials'
+                        ? []
+                        : {
+                              connections: [
+                                  {
+                                      ...original,
+                                      warehouseType: WarehouseTypes.SNOWFLAKE,
+                                  },
+                              ],
+                              capabilities: {
+                                  canAddConnection: true,
+                                  reason: null,
+                              },
+                          },
+                ),
+            );
+            const user = renderPanel(
+                ProjectType.DEFAULT,
+                [projectRule('manage')],
+                required,
+            );
+            await user.click(
+                await screen.findByRole('button', { name: 'Add connection' }),
+            );
+            await user.click(
+                await screen.findByRole('combobox', {
+                    name: /Authentication Type/,
+                }),
+            );
+            expect(
+                screen.queryByRole('option', { name: 'None' }) !== null,
+            ).toBe(required);
+            if (required) {
+                await user.click(screen.getByRole('option', { name: 'None' }));
+                expect(
+                    screen.getByText(
+                        /No project-level credentials will be used/,
+                    ),
+                ).toBeInTheDocument();
+            }
+        },
+    );
+
+    it.each([true, false])(
+        'offers None in the Snowflake switch form only when the primary requires personal credentials: %s',
+        async (required) => {
+            mockApi.mockImplementation(({ url }: { url: string }) => {
+                if (url === listUrl)
+                    return Promise.reject({
+                        status: 'error',
+                        error: {
+                            name: 'SingleConnectionProjectError',
+                            message:
+                                'This project uses a single warehouse connection.',
+                            statusCode: 409,
+                            data: {},
+                        },
+                    });
+                if (url === '/projects/project-uuid/warehouse-connection-mode')
+                    return Promise.resolve({
+                        canSwitch: true,
+                        reason: null,
+                        originalWarehouseType: WarehouseTypes.SNOWFLAKE,
+                    });
+                if (url === '/org/warehouse-credentials')
+                    return Promise.resolve([]);
+                return Promise.resolve(undefined);
+            });
+            const user = renderPanel(
+                ProjectType.DEFAULT,
+                [projectRule('manage')],
+                required,
+            );
+            await user.click(
+                await screen.findByRole('button', {
+                    name: 'Enable multiple connections',
+                }),
+            );
+            await user.click(
+                await screen.findByRole('combobox', {
+                    name: /Authentication Type/,
+                }),
+            );
+            expect(
+                screen.queryByRole('option', { name: 'None' }) !== null,
+            ).toBe(required);
+            if (required) {
+                await user.click(screen.getByRole('option', { name: 'None' }));
+                expect(
+                    screen.getByText(
+                        /No project-level credentials will be used/,
+                    ),
+                ).toBeInTheDocument();
+            }
+        },
+    );
 
     it('hides the ineffective toggle when editing an organisation credential extra', async () => {
         const shared = {

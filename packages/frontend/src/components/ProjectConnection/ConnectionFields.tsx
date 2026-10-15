@@ -18,6 +18,7 @@ export const ConnectionFields: FC<{
     warehouseType: WarehouseTypes;
     nameRef?: React.Ref<HTMLInputElement>;
     savedProject?: Project;
+    primaryRequiresUserCredentials?: boolean;
     showName: boolean;
 }> = ({
     form,
@@ -27,6 +28,7 @@ export const ConnectionFields: FC<{
     warehouseType,
     nameRef,
     savedProject,
+    primaryRequiresUserCredentials,
     showName,
 }) => (
     <FormProvider form={form}>
@@ -35,6 +37,7 @@ export const ConnectionFields: FC<{
             warehouseConnectionUuid={warehouseConnectionUuid}
             savedProject={savedProject}
             isProjectExtraConnection
+            primaryRequiresUserCredentials={primaryRequiresUserCredentials}
         >
             <Stack gap="md">
                 <Text size="sm" c="dimmed">

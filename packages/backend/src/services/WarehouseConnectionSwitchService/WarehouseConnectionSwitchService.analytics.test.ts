@@ -144,10 +144,17 @@ const buildService = () => {
         } as unknown as Pick<LicenseService, 'canHoldMultipleConnections'>,
         credentialPolicy: {
             assertCanWriteWarehouseConnection: vi.fn(),
-            testWarehouseConnectionCredentials: vi.fn().mockResolvedValue({
-                ok: true,
-                hops: [{ stage: 'database', status: 'ok', message: null }],
-            }),
+            testWarehouseConnectionCredentialsForSave: vi
+                .fn()
+                .mockResolvedValue({
+                    credentials: request.connection.warehouseConnection,
+                    result: {
+                        ok: true,
+                        hops: [
+                            { stage: 'database', status: 'ok', message: null },
+                        ],
+                    },
+                }),
         },
         analytics,
     });
