@@ -133,6 +133,13 @@ export type AiAgentIntegration = {
     channelId: string;
 };
 
+const aiAgentUserAccessDetailSchema = z.object({
+    userUuid: z.string(),
+    firstName: z.string(),
+    lastName: z.string(),
+    email: z.string(),
+});
+
 export const baseAgentSchema = z.object({
     uuid: z.string(),
     projectUuid: z.string(),
@@ -166,6 +173,9 @@ export const baseAgentSchema = z.object({
     model: z.string(),
     groupAccess: z.array(z.string()),
     userAccess: z.array(z.string()),
+    // The users in `userAccess`, with the name and email the settings form
+    // shows on each pill. Resolved by the server; not accepted on writes.
+    userAccessDetails: z.array(aiAgentUserAccessDetailSchema),
     spaceAccess: z.array(z.string()),
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
@@ -188,6 +198,10 @@ export const baseAgentSchema = z.object({
 
 export type BaseAiAgent = z.infer<typeof baseAgentSchema>;
 
+export type AiAgentUserAccessDetail = z.infer<
+    typeof aiAgentUserAccessDetailSchema
+>;
+
 export type AiAgent = Pick<
     BaseAiAgent,
     | 'uuid'
@@ -204,6 +218,7 @@ export type AiAgent = Pick<
     | 'imageUrlSource'
     | 'groupAccess'
     | 'userAccess'
+    | 'userAccessDetails'
     | 'spaceAccess'
     | 'enableDataAccess'
     | 'enableSelfImprovement'
@@ -233,6 +248,7 @@ export type AiAgentSummary = Pick<
     | 'imageUrlSource'
     | 'groupAccess'
     | 'userAccess'
+    | 'userAccessDetails'
     | 'spaceAccess'
     | 'enableDataAccess'
     | 'enableSelfImprovement'

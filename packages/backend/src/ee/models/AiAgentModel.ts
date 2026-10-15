@@ -718,6 +718,11 @@ export class AiAgentModel {
             .select('ai_agent_uuid', 'user_uuid')
             .where(`${AiAgentUserAccessTableName}.ai_agent_uuid`, agentUuid);
 
+        const userAccessDetails = this.userAccessDetailsQuery().where(
+            `${AiAgentUserAccessTableName}.ai_agent_uuid`,
+            agentUuid,
+        );
+
         const spaceAccess = this.database
             .from(AiAgentSpaceAccessTableName)
             .select('ai_agent_uuid', 'space_uuid')
@@ -738,6 +743,7 @@ export class AiAgentModel {
             .with('latest_instruction', latestInstruction)
             .with('group_access', groupAccess)
             .with('user_access', userAccess)
+            .with('user_access_details', userAccessDetails)
             .with('space_access', spaceAccess)
             .from(AiAgentTableName)
             .select({
@@ -789,6 +795,21 @@ export class AiAgentModel {
                     COALESCE(
                         (SELECT json_agg(user_uuid)
                          FROM user_access
+                         WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid),
+                        '[]'::json
+                    )
+                `),
+                userAccessDetails: this.database.raw(`
+                    COALESCE(
+                        (SELECT json_agg(
+                            json_build_object(
+                                'userUuid', user_uuid,
+                                'firstName', first_name,
+                                'lastName', last_name,
+                                'email', email
+                            )
+                            ORDER BY first_name, last_name, user_uuid
+                        ) FROM user_access_details
                          WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid),
                         '[]'::json
                     )
@@ -855,6 +876,8 @@ export class AiAgentModel {
             .from(AiAgentUserAccessTableName)
             .select('ai_agent_uuid', 'user_uuid');
 
+        const userAccessDetails = this.userAccessDetailsQuery();
+
         const spaceAccess = this.database
             .from(AiAgentSpaceAccessTableName)
             .select('ai_agent_uuid', 'space_uuid');
@@ -874,6 +897,7 @@ export class AiAgentModel {
             .with('latest_instruction', latestInstruction)
             .with('group_access', groupAccess)
             .with('user_access', userAccess)
+            .with('user_access_details', userAccessDetails)
             .with('space_access', spaceAccess)
             .from(AiAgentTableName)
             .innerJoin(
@@ -930,6 +954,21 @@ export class AiAgentModel {
                     COALESCE(
                         (SELECT json_agg(user_uuid)
                          FROM user_access
+                         WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid),
+                        '[]'::json
+                    )
+                `),
+                userAccessDetails: this.database.raw(`
+                    COALESCE(
+                        (SELECT json_agg(
+                            json_build_object(
+                                'userUuid', user_uuid,
+                                'firstName', first_name,
+                                'lastName', last_name,
+                                'email', email
+                            )
+                            ORDER BY first_name, last_name, user_uuid
+                        ) FROM user_access_details
                          WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid),
                         '[]'::json
                     )
@@ -2351,6 +2390,10 @@ export class AiAgentModel {
                 args.userAccess ?? undefined,
                 { trx },
             );
+            const userAccessDetails = await this.getUserAccessDetails(
+                agent.ai_agent_uuid,
+                { trx },
+            );
 
             const spaceAccess = await this.setAndGetSpaceAccess(
                 agent.ai_agent_uuid,
@@ -2380,6 +2423,7 @@ export class AiAgentModel {
                 imageUrlSource: agent.image_url_source,
                 groupAccess,
                 userAccess,
+                userAccessDetails,
                 spaceAccess,
                 enableDataAccess: agent.enable_data_access,
                 enableSelfImprovement: agent.enable_self_improvement,
@@ -2677,6 +2721,10 @@ export class AiAgentModel {
                 args.userAccess ?? undefined,
                 { trx },
             );
+            const userAccessDetails = await this.getUserAccessDetails(
+                agent.ai_agent_uuid,
+                { trx },
+            );
 
             const spaceAccess = await this.setAndGetSpaceAccess(
                 agent.ai_agent_uuid,
@@ -2706,6 +2754,7 @@ export class AiAgentModel {
                 imageUrlSource: agent.image_url_source,
                 groupAccess,
                 userAccess,
+                userAccessDetails,
                 spaceAccess,
                 enableDataAccess: agent.enable_data_access,
                 enableSelfImprovement: agent.enable_self_improvement,
@@ -2797,6 +2846,63 @@ export class AiAgentModel {
             await this.setGroupAccess(agentUuid, groupAccess, { trx });
         }
         return this.getGroupAccess(agentUuid, { trx });
+    }
+
+    /**
+     * One row per user with access to an agent, with the name and email the
+     * settings form labels their pill with. Keyed by `ai_agent_uuid` so it
+     * can serve as a CTE across many agents.
+     */
+    private userAccessDetailsQuery({
+        trx = this.database,
+    }: { trx?: Knex } = {}) {
+        return trx(AiAgentUserAccessTableName)
+            .innerJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${AiAgentUserAccessTableName}.user_uuid`,
+            )
+            .innerJoin(EmailTableName, function joinPrimaryEmail() {
+                this.on(
+                    `${EmailTableName}.user_id`,
+                    `${UserTableName}.user_id`,
+                ).andOn(`${EmailTableName}.is_primary`, trx.raw('true'));
+            })
+            .select<
+                {
+                    ai_agent_uuid: string;
+                    user_uuid: string;
+                    first_name: string;
+                    last_name: string;
+                    email: string;
+                }[]
+            >(
+                `${AiAgentUserAccessTableName}.ai_agent_uuid`,
+                `${UserTableName}.user_uuid`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+                `${EmailTableName}.email`,
+            );
+    }
+
+    private async getUserAccessDetails(
+        agentUuid: AiAgent['uuid'],
+        { trx = this.database }: { trx?: Knex } = {},
+    ): Promise<AiAgent['userAccessDetails']> {
+        const rows = await this.userAccessDetailsQuery({ trx })
+            .where(`${AiAgentUserAccessTableName}.ai_agent_uuid`, agentUuid)
+            .orderBy([
+                { column: `${UserTableName}.first_name` },
+                { column: `${UserTableName}.last_name` },
+                { column: `${UserTableName}.user_uuid` },
+            ]);
+
+        return rows.map((row) => ({
+            userUuid: row.user_uuid,
+            firstName: row.first_name,
+            lastName: row.last_name,
+            email: row.email,
+        }));
     }
 
     private async getUserAccess(

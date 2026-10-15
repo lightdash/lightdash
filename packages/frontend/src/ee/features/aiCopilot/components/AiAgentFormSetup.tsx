@@ -4,6 +4,7 @@ import {
     MAX_RETENTION_WINDOW_HOURS,
     MIN_RETENTION_WINDOW_HOURS,
     type AiAgentModelConfig,
+    type AiAgentUserAccessDetail,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -180,6 +181,7 @@ export const AiAgentFormSetup = ({
     isSavingAgent,
     onSubmit,
     persistedMcpServerUuids,
+    userAccessDetails,
     avatarMode,
     avatarFileName,
     onAvatarFileChange,
@@ -194,6 +196,9 @@ export const AiAgentFormSetup = ({
     isSavingAgent?: boolean;
     onSubmit: () => void;
     persistedMcpServerUuids?: string[];
+    // Names for the saved user access, so pills are labelled before the
+    // org user search has loaded them.
+    userAccessDetails?: AiAgentUserAccessDetail[];
     avatarMode: 'upload' | 'link';
     avatarFileName: string | null;
     onAvatarFileChange: (file: File | null) => void;
@@ -1076,6 +1081,9 @@ export const AiAgentFormSetup = ({
                                         <UserAccessMultiSelect
                                             projectUuid={projectUuid!}
                                             isGroupsEnabled={isGroupsEnabled}
+                                            selectedUserDetails={
+                                                userAccessDetails
+                                            }
                                             value={form.values.userAccess}
                                             onChange={(value) => {
                                                 form.setFieldValue(
