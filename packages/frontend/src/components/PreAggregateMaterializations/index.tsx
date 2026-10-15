@@ -1,6 +1,7 @@
 import {
     type PreAggregateMaterializationStatus,
     type PreAggregateMaterializationSummary,
+    type PreAggregateMaterializationTrigger,
     type PreAggregateMaterializationWarning,
 } from '@lightdash/common';
 import {
@@ -107,6 +108,58 @@ const getStatusType = (
 ): StatusType => {
     if (summary.externalTable) return 'external';
     return summary.materialization?.status ?? 'never_materialized';
+};
+
+const TRIGGER_LABELS: Record<PreAggregateMaterializationTrigger, string> = {
+    compile: 'compile',
+    cron: 'schedule',
+    manual: 'manual',
+    webhook: 'webhook',
+};
+
+const TriggerChip: FC<{
+    label: string;
+    tooltip: string;
+    disabled?: boolean;
+}> = ({ label, tooltip, disabled = false }) => (
+    <Tooltip label={tooltip} maw={280} multiline>
+        <Badge
+            size="xs"
+            variant="light"
+            color="gray"
+            className={disabled ? classes.triggerChipDisabled : undefined}
+        >
+            {label}
+        </Badge>
+    </Tooltip>
+);
+
+const TriggerChips: FC<{ summary: PreAggregateMaterializationSummary }> = ({
+    summary,
+}) => {
+    const { materializeOnCompile, refreshCron } = summary;
+    return (
+        <Group gap={4} wrap="nowrap">
+            <TriggerChip
+                label="compile"
+                disabled={!materializeOnCompile}
+                tooltip={
+                    materializeOnCompile
+                        ? 'Rebuilt every time the project compiles'
+                        : 'Skipped on project compile (refresh.on_compile: false). Built once if nothing is active yet.'
+                }
+            />
+            {refreshCron && (
+                <TriggerChip
+                    label={refreshCron}
+                    tooltip={cronstrue.toString(refreshCron, {
+                        throwExceptionOnParseError: false,
+                    })}
+                />
+            )}
+            <TriggerChip label="manual" tooltip="Refresh from this page" />
+        </Group>
+    );
 };
 
 const StatusFilter: FC<{
@@ -502,20 +555,27 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     }
 
                     return (
-                        <Tooltip
-                            label={new Date(materializedAt).toLocaleString()}
-                        >
-                            <TimeAgoText date={materializedAt} />
-                        </Tooltip>
+                        <Group gap="xs" wrap="nowrap">
+                            <Tooltip
+                                label={new Date(
+                                    materializedAt,
+                                ).toLocaleString()}
+                            >
+                                <TimeAgoText date={materializedAt} />
+                            </Tooltip>
+                            <Text size="xs" c="ldGray.5">
+                                via {TRIGGER_LABELS[materialization.trigger]}
+                            </Text>
+                        </Group>
                     );
                 },
                 sortingFn: 'datetime',
             },
             {
-                accessorKey: 'refreshCron',
-                header: 'Refresh schedule',
+                id: 'triggers',
+                header: 'Triggers',
                 enableSorting: false,
-                size: 130,
+                size: 200,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start" wrap="nowrap">
                         <MantineIcon icon={IconCalendarTime} color="dimmed" />
@@ -523,39 +583,17 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     </Group>
                 ),
                 Cell: ({ row }) => {
-                    const { externalTable, refreshCron } = row.original;
+                    const { externalTable } = row.original;
                     if (externalTable) {
                         return (
-                            <Tooltip label="Refreshes are managed outside Lightdash">
+                            <Tooltip label="Refreshes are managed outside the app">
                                 <Text size="xs" c="ldGray.7" fw={500}>
                                     Customer managed
                                 </Text>
                             </Tooltip>
                         );
                     }
-                    if (!refreshCron) {
-                        return (
-                            <Text size="xs" c="dimmed">
-                                Manual
-                            </Text>
-                        );
-                    }
-                    return (
-                        <Tooltip
-                            label={cronstrue.toString(refreshCron, {
-                                throwExceptionOnParseError: false,
-                            })}
-                        >
-                            <Text
-                                size="xs"
-                                c="dimmed"
-                                ff="monospace"
-                                style={{ cursor: 'help' }}
-                            >
-                                {refreshCron}
-                            </Text>
-                        </Tooltip>
-                    );
+                    return <TriggerChips summary={row.original} />;
                 },
             },
             {

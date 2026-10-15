@@ -389,19 +389,64 @@ const MaterializationDetailDrawer: FC<Props> = ({
                     </Group>
                 )}
 
-                {!summary.externalTable && summary.refreshCron && (
+                {!summary.externalTable && (
                     <Box>
-                        <DetailLabel>Refresh schedule</DetailLabel>
-                        <DetailValue mono>
-                            {summary.refreshCron}{' '}
-                            <Text fz="xs" c="ldGray.5">
-                                (
-                                {cronstrue.toString(summary.refreshCron, {
-                                    throwExceptionOnParseError: false,
-                                })}
-                                )
-                            </Text>
-                        </DetailValue>
+                        <DetailLabel>Triggers</DetailLabel>
+                        <Stack gap={4} mt={4}>
+                            <Group gap="xs" wrap="nowrap">
+                                <Badge
+                                    size="xs"
+                                    variant="light"
+                                    color={
+                                        summary.materializeOnCompile
+                                            ? 'gray'
+                                            : 'yellow'
+                                    }
+                                >
+                                    {summary.materializeOnCompile
+                                        ? 'Project compile'
+                                        : 'Skipped on compile'}
+                                </Badge>
+                                {summary.refreshCron && (
+                                    <Badge
+                                        size="xs"
+                                        variant="light"
+                                        color="gray"
+                                    >
+                                        Schedule
+                                    </Badge>
+                                )}
+                                <Badge size="xs" variant="light" color="gray">
+                                    Manual
+                                </Badge>
+                            </Group>
+                            {summary.refreshCron && (
+                                <DetailValue mono>
+                                    {summary.refreshCron}{' '}
+                                    <Text fz="xs" c="ldGray.5" span>
+                                        (
+                                        {cronstrue.toString(
+                                            summary.refreshCron,
+                                            {
+                                                throwExceptionOnParseError: false,
+                                            },
+                                        )}
+                                        )
+                                    </Text>
+                                </DetailValue>
+                            )}
+                            {!summary.materializeOnCompile && (
+                                <Text fz="xs" c="ldGray.6">
+                                    Not rebuilt when the project compiles
+                                    (refresh.on_compile is false). Rebuilds
+                                    {summary.refreshCron
+                                        ? ' on schedule or '
+                                        : ' only '}
+                                    when refreshed from this page. The
+                                    definition still syncs on every compile.
+                                </Text>
+                            )}
+                        </Stack>
                     </Box>
                 )}
 

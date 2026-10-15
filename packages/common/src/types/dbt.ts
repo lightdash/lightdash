@@ -165,6 +165,7 @@ export type DbtPreAggregateDef = {
     max_rows?: number;
     refresh?: {
         cron?: string;
+        on_compile?: boolean;
     };
     materialization_role?: {
         email: string;

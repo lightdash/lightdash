@@ -3955,6 +3955,9 @@ export class ProjectService
                                 ? null
                                 : (preAggregateDefinition.refresh?.cron ??
                                   null),
+                            materialize_on_compile:
+                                preAggregateDefinition.refresh?.onCompile !==
+                                false,
                         });
                     },
                 );
@@ -4010,9 +4013,36 @@ export class ProjectService
                 (definition) => definition.materializationMetricQuery !== null,
             );
 
+            // Definitions that opted out of compile-triggered materialization
+            // are still built once when nothing is active yet, so a new
+            // pre-aggregate is never dead until its first cron run.
+            const optedOut = materializableDefinitions.filter(
+                (definition) => !definition.materializeOnCompile,
+            );
+            const activeDefinitionUuids =
+                optedOut.length > 0
+                    ? await this.preAggregateModel.getDefinitionUuidsWithActiveMaterialization(
+                          args.projectUuid,
+                      )
+                    : new Set<string>();
+            const compileDefinitions = materializableDefinitions.filter(
+                (definition) =>
+                    definition.materializeOnCompile ||
+                    !activeDefinitionUuids.has(
+                        definition.preAggregateDefinitionUuid,
+                    ),
+            );
+            const skippedCount =
+                materializableDefinitions.length - compileDefinitions.length;
+            if (skippedCount > 0) {
+                this.logger.info(
+                    `Skipping compile-triggered materialization for ${skippedCount} pre-aggregate definition(s) in project ${args.projectUuid} (refresh.on_compile is false)`,
+                );
+            }
+
             if (materializableDefinitions.length > 0) {
                 await Promise.all(
-                    materializableDefinitions.map((definition) => {
+                    compileDefinitions.map((definition) => {
                         const enqueue = () =>
                             this.schedulerClient.materializePreAggregate({
                                 ...captureAgentConnectionTask(
