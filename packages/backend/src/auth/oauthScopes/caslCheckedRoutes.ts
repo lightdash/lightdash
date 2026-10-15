@@ -465,6 +465,8 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'ProjectSavedChartControllerV2.delete',
     'ProjectSavedChartControllerV2.get',
     'PullRequestsController.listPullRequests',
+    'QueryController.estimateAsyncMetricQuery',
+    'QueryController.estimateAsyncSqlQuery',
     'QueryController.executeAsyncCalculateTotal',
     'QueryController.executeAsyncComposeSqlQuery',
     'QueryController.executeAsyncPythonQuery',

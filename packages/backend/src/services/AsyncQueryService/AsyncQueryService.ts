@@ -71,6 +71,7 @@ import {
     getMetrics,
     getMetricsWithValidParameters,
     getPivotValueColumnName,
+    getQueryCostEstimateSettings,
     getUserAttributeQueryTags,
     hasReservedParameterReference,
     isAiAccessQueryContext,
@@ -125,6 +126,7 @@ import {
     UnexpectedServerError,
     UserAccessControls,
     WarehouseClient,
+    WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseTypes,
     withAgentMarkerTag,
@@ -168,6 +170,7 @@ import {
     type PivotValuesColumn,
     type PreAggregateFallbackReason,
     type Project,
+    type QueryCostEstimate,
     type QueryHistory,
     type QueryResultProducer,
     type QueryResultReader,
@@ -411,9 +414,15 @@ import {
     PythonSandboxRunner,
     type PythonSandboxInput,
 } from './python/PythonSandboxRunner';
+import {
+    assertAgentQueryWithinEstimateLimit,
+    QueryEstimateCache,
+} from './queryCostEstimate';
 import { canReuseQueryResult } from './queryResultReuse';
 import { queryUsageProperties } from './queryUsage';
 import {
+    EstimateAsyncMetricQueryArgs,
+    EstimateAsyncSqlQueryArgs,
     ExecuteAsyncSqlQueryArgs,
     isExecuteAsyncDashboardSqlChartByUuid,
     isExecuteAsyncSqlChartByUuid,
@@ -612,6 +621,8 @@ type PreparedAsyncQueryArgs = Omit<
 };
 
 export class AsyncQueryService extends ProjectService {
+    private readonly queryEstimateCache = new QueryEstimateCache();
+
     private readonly mergeSubmissionQueries = new AsyncLocalStorage<
         Map<string, Promise<QueryHistory>>
     >();
@@ -4999,6 +5010,36 @@ export class AsyncQueryService extends ProjectService {
                 `Running query ${queryUuid} source=${executionSource}`,
             );
 
+            const executionQueryTags = {
+                ...queryTags,
+                ...aiQueryTags,
+                query_uuid: queryUuid,
+            };
+            const warehouseQueryTags = identityEnabled
+                ? trustedAgentQueryTags(
+                      executionQueryTags,
+                      executionAgentIdentity,
+                  )
+                : withAgentMarkerTag(
+                      executionQueryTags,
+                      executionAgentIdentity,
+                  );
+
+            if (
+                isAiAccessQueryContext(queryTags.query_context) ||
+                executionAgentIdentity !== null
+            ) {
+                await assertAgentQueryWithinEstimateLimit(
+                    this.queryEstimateCache,
+                    warehouseClient,
+                    {
+                        sql: query,
+                        tags: warehouseQueryTags,
+                        timezone: resolvedDataTimezone,
+                    },
+                );
+            }
+
             // Create upload stream for storing results
             const isParquetMaterialization =
                 this.lightdashConfig.preAggregates.parquetEnabled &&
@@ -5065,11 +5106,6 @@ export class AsyncQueryService extends ProjectService {
             queryStartTime = Date.now();
             const resultsStream = stream;
             let hasWrittenRows = false;
-            const executionQueryTags = {
-                ...queryTags,
-                ...aiQueryTags,
-                query_uuid: queryUuid,
-            };
             const runWarehouseQuery = (client: WarehouseClient) =>
                 traceSpan(
                     {
@@ -5087,15 +5123,7 @@ export class AsyncQueryService extends ProjectService {
                         AsyncQueryService.runQueryAndTransformRows({
                             warehouseClient: client,
                             query,
-                            queryTags: identityEnabled
-                                ? trustedAgentQueryTags(
-                                      executionQueryTags,
-                                      executionAgentIdentity,
-                                  )
-                                : withAgentMarkerTag(
-                                      executionQueryTags,
-                                      executionAgentIdentity,
-                                  ),
+                            queryTags: warehouseQueryTags,
                             write: resultsStream
                                 ? (rows) => {
                                       hasWrittenRows = true;
@@ -10103,6 +10131,262 @@ export class AsyncQueryService extends ProjectService {
             usedParametersValues: usedParameters,
             resolvedTimezone: null,
         };
+    }
+
+    private async estimateQueryCostWithCredentials({
+        account,
+        organizationUuid,
+        projectUuid,
+        context,
+        sql,
+        warehouseCredentials,
+        aiPlan,
+        warehouseConnectionUuid,
+        connectionRoute,
+    }: {
+        account: Account;
+        organizationUuid: string;
+        projectUuid: string;
+        context: QueryExecutionContext;
+        sql: string;
+        warehouseCredentials: ResolvedWarehouseCredentials;
+        aiPlan: AiExecutionPlan | null;
+        warehouseConnectionUuid: string | null;
+        connectionRoute: ConnectionRouteWithOriginal | null;
+    }): Promise<QueryCostEstimate> {
+        const settings = getQueryCostEstimateSettings(warehouseCredentials);
+        if (!settings?.estimateQueryBytes) return { status: 'unavailable' };
+        try {
+            const estimate =
+                await this.warehouseClientFactory.withWarehouseClient(
+                    {
+                        kind: 'resolved',
+                        projectUuid,
+                        credentials: warehouseCredentials,
+                        aiPlan,
+                        warehouseConnectionUuid,
+                        connectionRoute,
+                    },
+                    connectionContextFromAccount(account, {
+                        organizationUuid,
+                        queryContext: context,
+                    }),
+                    ({ warehouseClient }) =>
+                        this.queryEstimateCache.estimate(warehouseClient, {
+                            sql,
+                            tags: withAgentMarkerTag({
+                                user_uuid: account.user.id,
+                                organization_uuid: organizationUuid,
+                                project_uuid: projectUuid,
+                                query_context: context,
+                            }),
+                        }),
+                );
+            if (estimate === null) return { status: 'unavailable' };
+            const { confirmEstimatedBytesAbove } = settings;
+            return {
+                status: 'estimated',
+                totalBytesProcessed: estimate.totalBytesProcessed,
+                confirmEstimatedBytesAbove,
+                requiresConfirmation:
+                    confirmEstimatedBytesAbove !== null &&
+                    estimate.totalBytesProcessed > confirmEstimatedBytesAbove,
+            };
+        } catch (e) {
+            if (
+                e instanceof WarehouseQueryError ||
+                e instanceof WarehouseConnectionError
+            ) {
+                return { status: 'error', message: getErrorMessage(e) };
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Dry-run estimate of the SQL a metric query would run, for the explorer.
+     * Mirrors executeAsyncMetricQuery's authorization and compilation.
+     */
+    async estimateAsyncMetricQuery({
+        account,
+        projectUuid,
+        metricQuery,
+        parameters,
+        pivotConfiguration,
+        dateZoom,
+        usePreAggregateCache,
+    }: EstimateAsyncMetricQueryArgs): Promise<QueryCostEstimate> {
+        assertIsAccountWithOrg(account);
+        const context = QueryExecutionContext.EXPLORE;
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            this.createAuditedAbility(account).cannot(
+                'view',
+                subject('Explore', {
+                    organizationUuid,
+                    projectUuid,
+                    exploreNames: [metricQuery.exploreName],
+                    metadata: { exploreName: metricQuery.exploreName },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        await this.assertCustomSqlAuthorizedForQuery({
+            account,
+            projectUuid,
+            organizationUuid,
+            exploreName: metricQuery.exploreName,
+            metricQuery,
+        });
+
+        const [
+            { explore, userAccessControls },
+            {
+                warehouseCredentials,
+                warehouseConnectionUuid,
+                connectionRoute,
+                aiPlan,
+            },
+        ] = await Promise.all([
+            this.getExploreForMetricQueryExecution({
+                account,
+                projectUuid,
+                exploreName: metricQuery.exploreName,
+                organizationUuid,
+            }),
+            this.getWarehouseCredentialsWithConnection({
+                context,
+                projectUuid,
+                binding: {
+                    kind: 'explore',
+                    exploreName: metricQuery.exploreName,
+                },
+                userId: account.user.id,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
+                ...getAccountAgentIdentityFacts(account),
+            }),
+        ]);
+        if (getQueryCostEstimateSettings(warehouseCredentials) === null) {
+            return { status: 'unavailable' };
+        }
+
+        const routingDecision = await this.getPreAggregationRoutingDecision({
+            account,
+            aiPlan,
+            warehouseCredentials,
+            metricQuery,
+            explore,
+            context,
+            forceWarehouse: usePreAggregateCache === false,
+        });
+        // Pre-aggregate hits are served without scanning the warehouse.
+        if (routingDecision.target !== 'warehouse') {
+            return { status: 'unavailable' };
+        }
+
+        const queryComposer = await this.prepareMetricQueryAsyncQueryArgs({
+            account,
+            metricQuery,
+            dateZoom,
+            explore,
+            warehouseSqlBuilder: getSqlBuilderForExplore(
+                explore,
+                warehouseCredentials,
+            ),
+            parameters: await this.combineParameters(
+                projectUuid,
+                explore,
+                parameters,
+            ),
+            projectUuid,
+            pivotConfiguration,
+            context,
+            columnTimezone: getColumnTimezone(warehouseCredentials),
+            dataTimezone: warehouseCredentials.dataTimezone,
+            preloadedUserAccessControls: userAccessControls,
+        });
+
+        return this.estimateQueryCostWithCredentials({
+            account,
+            organizationUuid,
+            projectUuid,
+            context,
+            sql: queryComposer.getSql({
+                columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
+            }),
+            warehouseCredentials,
+            aiPlan,
+            warehouseConnectionUuid,
+            connectionRoute,
+        });
+    }
+
+    /**
+     * Dry-run estimate of a SQL runner query. Mirrors executeAsyncSqlQuery's
+     * authorization and SQL wrapping.
+     */
+    async estimateAsyncSqlQuery({
+        account,
+        projectUuid,
+        sql,
+        limit,
+        parameters,
+        warehouseConnectionUuid: requestedConnectionUuid,
+    }: EstimateAsyncSqlQueryArgs): Promise<QueryCostEstimate> {
+        const context = QueryExecutionContext.SQL_RUNNER;
+        const { organizationUuid, provisioningSource } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('SqlRunner', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        if (provisioningSource === 'analytics') {
+            throw new ForbiddenError(
+                'SQL Runner is unavailable for managed analytics projects',
+            );
+        }
+
+        const {
+            warehouseCredentials,
+            warehouseConnectionUuid,
+            connectionRoute,
+            aiPlan,
+            queryComposer,
+        } = await this.prepareSqlChartAsyncQueryArgs({
+            account,
+            context,
+            projectUuid,
+            organizationUuid,
+            sql,
+            limit,
+            parameters: await this.combineParameters(
+                projectUuid,
+                undefined,
+                parameters,
+            ),
+            requestedConnectionUuid,
+        });
+
+        return this.estimateQueryCostWithCredentials({
+            account,
+            organizationUuid,
+            projectUuid,
+            context,
+            sql: queryComposer.getSql({
+                columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
+            }),
+            warehouseCredentials,
+            aiPlan: aiPlan ?? null,
+            warehouseConnectionUuid,
+            connectionRoute,
+        });
     }
 
     /**

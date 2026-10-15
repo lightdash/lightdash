@@ -1,3 +1,10 @@
+# [2.585.0](https://github.com/lightdash/lightdash/compare/2.584.0...2.585.0) (2026-10-15)
+
+
+### Features
+
+* **bigquery:** dry-run cost estimates and an enforced agent limit ([#31014](https://github.com/lightdash/lightdash/issues/31014)) ([2bcb9d6](https://github.com/lightdash/lightdash/commit/2bcb9d65af6c6a7c528af548bf7cb4d9719829ad)), closes [#30791](https://github.com/lightdash/lightdash/issues/30791)
+
 # [2.584.0](https://github.com/lightdash/lightdash/compare/2.583.0...2.584.0) (2026-10-15)
 
 
