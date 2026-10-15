@@ -28,6 +28,7 @@ import {
     DATA_APP_CODEX_MODELS,
     DATA_APP_VIZ_TEMPLATE,
     DATA_REFERENCE_EXTRACTOR_VERSION,
+    dataAppManifestRegistryProvenanceSchema,
     dataAppVizGenerationSchema,
     dataAppVizJsonSchema,
     dataAppVizSchema,
@@ -763,6 +764,14 @@ const CANCELLED_PROMPT_NOTICE =
 // Maximum number of in-progress app builds allowed per project at one time.
 // Prevents trivial sandbox exhaustion via repeated POST /code calls.
 const MAX_CONCURRENT_APP_BUILDS_PER_PROJECT = 5;
+
+type ImportAppCodeResult = {
+    appUuid: string;
+    version: number;
+    action: 'create' | 'append' | 'unchanged';
+    slug: string;
+    warnings: string[];
+};
 
 export class AppGenerateService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
@@ -10291,6 +10300,198 @@ export class AppGenerateService extends BaseService {
         );
     }
 
+    /** Digest mismatches keep their own error; transport failures get a library-facing one. */
+    private static registryUnreachableError(
+        entry: Pick<ChartRegistryEntry, 'slug' | 'version'>,
+        e: unknown,
+    ): Error {
+        if (e instanceof ParameterError) return e;
+        return new ParameterError(
+            `Could not reach the chart type library to download "${entry.slug}@${entry.version}": ${getErrorMessage(e)}`,
+        );
+    }
+
+    private static normalizeRegistryUrl(url: string): string {
+        return url.trim().replace(/\/+$/, '');
+    }
+
+    /** Same `src/` path set with identical bytes; non-src entries are ignored. */
+    private static srcFilesMatch(
+        registryFiles: DataAppCodeFile[],
+        uploadedSrcFiles: DataAppCodeFile[],
+    ): boolean {
+        const registrySrc = registryFiles.filter((f) =>
+            f.path.startsWith('src/'),
+        );
+        if (registrySrc.length !== uploadedSrcFiles.length) return false;
+        const uploaded = new Map(
+            uploadedSrcFiles.map((f) => [f.path, f.contentBase64]),
+        );
+        return registrySrc.every(
+            (f) => uploaded.get(f.path) === f.contentBase64,
+        );
+    }
+
+    /**
+     * Upload of a bundle downloaded from a registry install. An unmodified
+     * bundle re-installs that exact registry version (prebuilt dist, no
+     * build, no dependency gates); anything else falls back to the custom
+     * chart type path with a warning explaining why.
+     */
+    private async tryImportRegistryChartType(
+        user: SessionUser,
+        projectUuid: string,
+        rawProvenance: DataAppManifestRegistryProvenance,
+        manifestSlug: string | undefined,
+        sourceFiles: DataAppCodeFile[],
+        body: ImportAppCodeRequestBody,
+    ): Promise<
+        | { kind: 'installed'; result: ImportAppCodeResult }
+        | { kind: 'fallthrough'; warning: string }
+    > {
+        // The block is user-editable YAML: validate it, never trust the type.
+        const parsedProvenance =
+            dataAppManifestRegistryProvenanceSchema.safeParse(rawProvenance);
+        if (!parsedProvenance.success) {
+            throw new ParameterError(
+                'Invalid registry block in the app manifest. Re-download the chart type, or remove the block from lightdash-app.yml to upload it as a custom chart type.',
+            );
+        }
+        const provenance = parsedProvenance.data;
+        const { slug, version } = provenance;
+        await this.assertChartTypeLibraryEnabled(user);
+        const { organizationUuid } = await this.assertDataAppAbility(
+            user,
+            'create',
+            projectUuid,
+            'Insufficient permissions to install chart types',
+        );
+        const baseUrl = this.chartRegistryClient.getBaseUrl();
+        if (
+            baseUrl === null ||
+            AppGenerateService.normalizeRegistryUrl(baseUrl) !==
+                AppGenerateService.normalizeRegistryUrl(provenance.url)
+        ) {
+            throw new ParameterError(
+                `Chart type "${slug}" was downloaded from a different chart registry (${provenance.url}). Remove the registry block from lightdash-app.yml to upload it as a custom chart type.`,
+            );
+        }
+        if (body.createNew) {
+            return {
+                kind: 'fallthrough',
+                warning: `createNew ignores library provenance; uploading "${slug}" as a custom chart type.`,
+            };
+        }
+        // A renamed slug is the documented way to fork: honour it even when
+        // src/ is untouched, instead of silently re-installing the original.
+        if (manifestSlug !== undefined && manifestSlug !== slug) {
+            return {
+                kind: 'fallthrough',
+                warning: `Manifest slug "${manifestSlug}" differs from the library slug "${slug}"; uploading as a custom chart type.`,
+            };
+        }
+        let entry: ChartRegistryEntry | undefined;
+        try {
+            entry = await this.chartRegistryClient.getVersionEntry(
+                slug,
+                version,
+            );
+        } catch (e) {
+            if (e instanceof ParameterError) throw e;
+            throw new ParameterError(
+                `Could not reach the chart type library to verify "${slug}@${version}": ${getErrorMessage(e)}`,
+            );
+        }
+        if (!entry) {
+            throw new ParameterError(
+                `Chart type "${slug}" version ${version} was not found in the chart type library. Re-download it, or remove the registry block from lightdash-app.yml to upload it as a custom chart type.`,
+            );
+        }
+        const existing = await this.appModel.findAppBySlug(projectUuid, slug);
+        if (existing !== undefined && existing.registry_slug === null) {
+            return {
+                kind: 'fallthrough',
+                warning: `"${slug}" already exists in this project as a custom chart type; uploading as a custom chart type.`,
+            };
+        }
+        let sourceTar: Buffer;
+        try {
+            sourceTar = await this.chartRegistryClient.downloadArtifact(
+                entry,
+                'source',
+            );
+        } catch (e) {
+            throw AppGenerateService.registryUnreachableError(entry, e);
+        }
+        const registryFiles =
+            await AppGenerateService.extractTarFiles(sourceTar);
+        if (!AppGenerateService.srcFilesMatch(registryFiles, sourceFiles)) {
+            return {
+                kind: 'fallthrough',
+                warning: `src/ differs from "${slug}@${version}" in the chart type library; uploading as a custom chart type.`,
+            };
+        }
+        const installed = await this.installRegistryEntry(
+            user,
+            projectUuid,
+            organizationUuid,
+            entry,
+            {},
+            { sourceTar },
+        );
+        let action: ImportAppCodeResult['action'];
+        switch (installed.action) {
+            case 'unchanged':
+                action = 'unchanged';
+                break;
+            case 'upgraded':
+                action = 'append';
+                break;
+            case 'installed':
+                action = 'create';
+                break;
+            default:
+                action = assertUnreachable(
+                    installed.action,
+                    'Unknown registry install action',
+                );
+        }
+        this.analytics.track({
+            event: 'data_app.uploaded',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                appUuid: installed.appUuid,
+                version: installed.version,
+                action,
+                identitySource: 'slug',
+                template: DATA_APP_VIZ_TEMPLATE,
+                sourceFileCount: sourceFiles.length,
+                sourceBytes: sourceFiles.reduce(
+                    (total, file) =>
+                        total + Buffer.byteLength(file.contentBase64, 'base64'),
+                    0,
+                ),
+                hasCustomDependencies: false,
+                customDependencyCount: 0,
+                customDependencies: [],
+                registrySlug: slug,
+                registryVersion: version,
+            },
+        });
+        return {
+            kind: 'installed',
+            result: {
+                appUuid: installed.appUuid,
+                version: installed.version,
+                action,
+                slug: installed.slug,
+                warnings: [],
+            },
+        };
+    }
+
     /**
      * Installs (or appends) one resolved registry version into a project.
      * Shared by the library install (latest index entry) and content-as-code
@@ -10402,11 +10603,17 @@ export class AppGenerateService extends BaseService {
             };
         }
 
-        const [sourceTar, distTar] = await Promise.all([
-            preloaded?.sourceTar ??
-                this.chartRegistryClient.downloadArtifact(entry, 'source'),
-            this.chartRegistryClient.downloadArtifact(entry, 'dist'),
-        ]);
+        let sourceTar: Buffer;
+        let distTar: Buffer;
+        try {
+            [sourceTar, distTar] = await Promise.all([
+                preloaded?.sourceTar ??
+                    this.chartRegistryClient.downloadArtifact(entry, 'source'),
+                this.chartRegistryClient.downloadArtifact(entry, 'dist'),
+            ]);
+        } catch (e) {
+            throw AppGenerateService.registryUnreachableError(entry, e);
+        }
         // The registry is an external input — validate the dist bundle's
         // shape before any S3 write, so a malicious/malformed dist.tar (e.g.
         // an entry that would overwrite source.tar at this version prefix)
@@ -13487,15 +13694,7 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         body: ImportAppCodeRequestBody,
-    ): Promise<{
-        appUuid: string;
-        version: number;
-        action: 'create' | 'append' | 'unchanged';
-        slug: string;
-        warnings: string[];
-    }> {
-        await this.assertDataAppsEnabled(user);
-
+    ): Promise<ImportAppCodeResult> {
         const code = validateDataAppCode(body.code);
         const sourceFiles = code.files.filter((f) => f.path.startsWith('src/'));
         if (sourceFiles.length === 0) {
@@ -13503,6 +13702,22 @@ export class AppGenerateService extends BaseService {
                 'Uploaded bundle has no src/ files to build',
             );
         }
+        const warnings: string[] = [];
+        // A bundle downloaded from a library install re-installs that version
+        // instead of building; the library flag alone gates that path.
+        if (code.manifest.registry !== undefined) {
+            const outcome = await this.tryImportRegistryChartType(
+                user,
+                projectUuid,
+                code.manifest.registry,
+                code.manifest.slug,
+                sourceFiles,
+                body,
+            );
+            if (outcome.kind === 'installed') return outcome.result;
+            warnings.push(outcome.warning);
+        }
+        await this.assertDataAppsEnabled(user);
 
         const { organizationUuid } =
             await this.getDataAppProjectContext(projectUuid);
@@ -13517,7 +13732,7 @@ export class AppGenerateService extends BaseService {
                 organizationUuid,
                 manifestLinks,
             );
-        const warnings = [...linkWarnings];
+        warnings.push(...linkWarnings);
 
         // Access block preflight also runs up front: unresolvable or
         // ambiguous principals reject the bundle before anything is written.
@@ -13756,10 +13971,9 @@ export class AppGenerateService extends BaseService {
         }
         // Registry-managed apps never receive uploads, including the
         // identical-bundle short-circuit below that only patches metadata.
-        if (existingApp) {
-            AppGenerateService.assertNotRegistryManaged(
-                existingApp,
-                'updated by upload',
+        if (existingApp && existingApp.registry_slug !== null) {
+            throw new ForbiddenError(
+                `"${existingApp.slug}" is an official chart type and cannot be updated by upload. Change the slug in lightdash-app.yml to upload a modified copy as a new chart type, or fork it in the app.`,
             );
         }
         const action: 'create' | 'append' =

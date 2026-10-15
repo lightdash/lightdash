@@ -2521,6 +2521,9 @@ export type DataAppUploadedEvent = BaseTrack & {
         customDependencyCount: number;
         customDependencies: AppVersionDependencyEntry[];
         lockfileHash?: string;
+        // Set when the upload re-installed a library chart type instead of building.
+        registrySlug?: string;
+        registryVersion?: string;
     };
 };
 
