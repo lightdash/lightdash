@@ -34,10 +34,11 @@ models:
         type: simple
         agg: sum
         expr: amount
-        # group_label from config.meta carries over to the Lightdash metric.
+        # group_label and format from config.meta carry over to the Lightdash metric.
         config:
           meta:
             group_label: Order Metrics
+            format: '$,.2f'
       - name: order_count
         label: Order count
         type: simple
