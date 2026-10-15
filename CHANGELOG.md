@@ -1,3 +1,10 @@
+# [2.586.0](https://github.com/lightdash/lightdash/compare/2.585.0...2.586.0) (2026-10-15)
+
+
+### Features
+
+* **bigquery:** per-role and AI agent maximum bytes billed ([#31013](https://github.com/lightdash/lightdash/issues/31013)) ([c339bae](https://github.com/lightdash/lightdash/commit/c339bae95c387525ea913df7f06f88e2ec069fc2)), closes [#31003](https://github.com/lightdash/lightdash/issues/31003)
+
 # [2.585.0](https://github.com/lightdash/lightdash/compare/2.584.0...2.585.0) (2026-10-15)
 
 
