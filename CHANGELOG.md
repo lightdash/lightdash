@@ -1,3 +1,10 @@
+## [2.589.3](https://github.com/lightdash/lightdash/compare/2.589.2...2.589.3) (2026-10-15)
+
+
+### Bug Fixes
+
+* allow formatting metrics based on custom dimensions ([#31046](https://github.com/lightdash/lightdash/issues/31046)) ([1c8b6ae](https://github.com/lightdash/lightdash/commit/1c8b6aed4dcdee78416bc459e9a57811993e6f5e))
+
 ## [2.589.2](https://github.com/lightdash/lightdash/compare/2.589.1...2.589.2) (2026-10-15)
 
 
