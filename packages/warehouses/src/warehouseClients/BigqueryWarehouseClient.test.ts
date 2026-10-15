@@ -1084,6 +1084,43 @@ describe('BigQuery agent job options', () => {
     );
 });
 
+describe('BigQuery per-query maximum bytes billed', () => {
+    const limitJobResponse = [{ id: 'job-id', location: 'US' }];
+    const stream = async (
+        connectionLimit: number | undefined,
+        queryLimit: number | undefined,
+    ) => {
+        const warehouse = new BigqueryWarehouseClient({
+            ...credentials,
+            maximumBytesBilled: connectionLimit,
+        });
+        const createQueryJob = vi.fn(
+            (_options: { maximumBytesBilled?: string }) => limitJobResponse,
+        );
+        warehouse.client.createQueryJob =
+            createQueryJob as unknown as BigQuery['createQueryJob'];
+        await warehouse
+            .streamQuery('SELECT 1', vi.fn(), {
+                tags: {},
+                maximumBytesBilled: queryLimit,
+            })
+            .catch(() => undefined);
+        return createQueryJob.mock.calls[0][0].maximumBytesBilled;
+    };
+
+    test('uses the connection limit when the query has none', async () => {
+        expect(await stream(1000, undefined)).toBe('1000');
+    });
+
+    test('prefers the query limit over the connection limit', async () => {
+        expect(await stream(1000, 5000)).toBe('5000');
+    });
+
+    test('a query limit of 0 removes the connection limit', async () => {
+        expect(await stream(1000, 0)).toBeUndefined();
+    });
+});
+
 describe('BigQuery execution stats', () => {
     const completedJob = (statistics: Record<string, unknown> | undefined) => ({
         id: 'job-123',

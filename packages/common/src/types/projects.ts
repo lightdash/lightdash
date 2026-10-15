@@ -2,6 +2,7 @@ import assertUnreachable from '../utils/assertUnreachable';
 import { type WeekDay } from '../utils/timeFrames';
 import { type ProjectDefaults } from './lightdashProjectConfig';
 import { type ProjectGroupAccess } from './projectGroupAccess';
+import { type ProjectMemberRole } from './projectMemberRole';
 
 export enum ProjectType {
     DEFAULT = 'DEFAULT',
@@ -81,6 +82,10 @@ export enum BigqueryAuthenticationType {
     PRIVATE_KEY = 'private_key',
     ADC = 'adc', // Application Default Credentials
 }
+export type BigqueryMaximumBytesBilledByRole = {
+    [role in ProjectMemberRole]?: number;
+};
+
 export type CreateBigqueryCredentials = {
     type: WarehouseTypes.BIGQUERY;
     project: string;
@@ -97,6 +102,9 @@ export type CreateBigqueryCredentials = {
     retries: number | undefined;
     location: string | undefined;
     maximumBytesBilled: number | undefined;
+    // Per-role and AI agent overrides of maximumBytesBilled; 0 means no limit.
+    maximumBytesBilledByRole?: BigqueryMaximumBytesBilledByRole;
+    agentMaximumBytesBilled?: number;
     /** Show a dry-run bytes estimate in the explorer and SQL runner. */
     estimateQueryBytes?: boolean;
     /** Ask users to confirm before running a query estimated above this. */

@@ -253,8 +253,6 @@ import { ProjectAnnouncementsController } from './../ee/controllers/projectAnnou
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ProjectHomepageController } from './../ee/controllers/projectHomepageController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-import { ReleaseHighlightsController } from './../ee/controllers/releaseHighlightsController';
-// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { SchedulerAiAugmentationController } from './../ee/controllers/schedulerAiAugmentationController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ScimGroupController } from './../ee/controllers/scimGroupController';
@@ -12486,106 +12484,6 @@ const models: TsoaRoute.Models = {
                     value: '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}',
                 },
             },
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ReleaseHighlight: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                requestedByYourOrganization: {
-                    dataType: 'boolean',
-                    required: true,
-                },
-                version: { dataType: 'string', required: true },
-                url: { dataType: 'string', required: true },
-                benefit: { dataType: 'string', required: true },
-                title: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ReleaseHighlightsResult: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        generatedAt: { dataType: 'datetime', required: true },
-                        highlights: {
-                            dataType: 'array',
-                            array: {
-                                dataType: 'refAlias',
-                                ref: 'ReleaseHighlight',
-                            },
-                            required: true,
-                        },
-                        toVersion: { dataType: 'string', required: true },
-                        fromVersion: { dataType: 'string', required: true },
-                        status: {
-                            dataType: 'enum',
-                            enums: ['ready'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        reason: {
-                            dataType: 'union',
-                            subSchemas: [
-                                {
-                                    dataType: 'enum',
-                                    enums: ['not_self_hosted'],
-                                },
-                                {
-                                    dataType: 'enum',
-                                    enums: ['update_check_disabled'],
-                                },
-                                { dataType: 'enum', enums: ['up_to_date'] },
-                                {
-                                    dataType: 'enum',
-                                    enums: ['ai_not_configured'],
-                                },
-                                {
-                                    dataType: 'enum',
-                                    enums: ['source_unavailable'],
-                                },
-                                { dataType: 'enum', enums: ['no_features'] },
-                                {
-                                    dataType: 'enum',
-                                    enums: ['generation_failed'],
-                                },
-                                { dataType: 'enum', enums: ['rate_limited'] },
-                            ],
-                            required: true,
-                        },
-                        status: {
-                            dataType: 'enum',
-                            enums: ['unavailable'],
-                            required: true,
-                        },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiReleaseHighlights: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: { ref: 'ReleaseHighlightsResult', required: true },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -26970,93 +26868,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    QueryCostEstimate: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        status: {
-                            dataType: 'enum',
-                            enums: ['unavailable'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        message: { dataType: 'string', required: true },
-                        status: {
-                            dataType: 'enum',
-                            enums: ['error'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        requiresConfirmation: {
-                            dataType: 'boolean',
-                            required: true,
-                        },
-                        confirmEstimatedBytesAbove: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { dataType: 'double' },
-                                { dataType: 'enum', enums: [null] },
-                            ],
-                            required: true,
-                        },
-                        totalBytesProcessed: {
-                            dataType: 'double',
-                            required: true,
-                        },
-                        status: {
-                            dataType: 'enum',
-                            enums: ['estimated'],
-                            required: true,
-                        },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiQueryCostEstimateResponse: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: { ref: 'QueryCostEstimate', required: true },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    EstimateAsyncMetricQueryRequestParams: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                usePreAggregateCache: { dataType: 'boolean' },
-                parameters: { ref: 'ParametersValuesMap' },
-                pivotConfiguration: { ref: 'PivotConfiguration' },
-                dateZoom: { ref: 'DateZoom' },
-                query: {
-                    ref: 'Omit_MetricQueryRequest.csvLimit_',
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiExecuteAsyncFieldValueSearchResults: {
         dataType: 'refAlias',
         type: {
@@ -27130,26 +26941,6 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    EstimateAsyncSqlQueryRequestParams: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                warehouseConnectionUuid: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                },
-                parameters: { ref: 'ParametersValuesMap' },
-                limit: { dataType: 'double' },
-                sql: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -43427,27 +43218,6 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
-                    estimateQueryBytes: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'boolean' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    confirmEstimatedBytesAbove: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'double' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    agentMaximumEstimatedBytes: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'double' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
                     executionProject: {
                         dataType: 'union',
                         subSchemas: [
@@ -44568,9 +44338,6 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: [null] },
                     ],
                 },
-                agentMaximumEstimatedBytes: { dataType: 'double' },
-                confirmEstimatedBytesAbove: { dataType: 'double' },
-                estimateQueryBytes: { dataType: 'boolean' },
                 maximumBytesBilled: {
                     dataType: 'union',
                     subSchemas: [
@@ -84092,61 +83859,6 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsReleaseHighlightsController_getReleaseHighlights: Record<
-        string,
-        TsoaRoute.ParameterSchema
-    > = {
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-    };
-    app.get(
-        '/api/v1/ai/release-highlights',
-        ...fetchMiddlewares<RequestHandler>(ReleaseHighlightsController),
-        ...fetchMiddlewares<RequestHandler>(
-            ReleaseHighlightsController.prototype.getReleaseHighlights,
-        ),
-
-        async function ReleaseHighlightsController_getReleaseHighlights(
-            request: ExRequest,
-            response: ExResponse,
-            next: any,
-        ) {
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({
-                    args: argsReleaseHighlightsController_getReleaseHighlights,
-                    request,
-                    response,
-                });
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<ReleaseHighlightsController>(
-                        ReleaseHighlightsController,
-                    );
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                await templateService.apiHandler({
-                    methodName: 'getReleaseHighlights',
-                    controller,
-                    response,
-                    next,
-                    validatedArgs,
-                    successStatus: 200,
-                });
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsProjectHomepageController_getResolved: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -96666,71 +96378,6 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsQueryController_estimateAsyncMetricQuery: Record<
-        string,
-        TsoaRoute.ParameterSchema
-    > = {
-        body: {
-            in: 'body',
-            name: 'body',
-            required: true,
-            ref: 'EstimateAsyncMetricQueryRequestParams',
-        },
-        projectUuid: {
-            in: 'path',
-            name: 'projectUuid',
-            required: true,
-            dataType: 'string',
-        },
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-    };
-    app.post(
-        '/api/v2/projects/:projectUuid/query/metric-query/estimate',
-        ...fetchMiddlewares<RequestHandler>(QueryController),
-        ...fetchMiddlewares<RequestHandler>(
-            QueryController.prototype.estimateAsyncMetricQuery,
-        ),
-
-        async function QueryController_estimateAsyncMetricQuery(
-            request: ExRequest,
-            response: ExResponse,
-            next: any,
-        ) {
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({
-                    args: argsQueryController_estimateAsyncMetricQuery,
-                    request,
-                    response,
-                });
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<QueryController>(QueryController);
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                await templateService.apiHandler({
-                    methodName: 'estimateAsyncMetricQuery',
-                    controller,
-                    response,
-                    next,
-                    validatedArgs,
-                    successStatus: 200,
-                });
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsQueryController_executeAsyncFieldValueSearch: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -97044,71 +96691,6 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'executeAsyncSqlQuery',
-                    controller,
-                    response,
-                    next,
-                    validatedArgs,
-                    successStatus: 200,
-                });
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsQueryController_estimateAsyncSqlQuery: Record<
-        string,
-        TsoaRoute.ParameterSchema
-    > = {
-        body: {
-            in: 'body',
-            name: 'body',
-            required: true,
-            ref: 'EstimateAsyncSqlQueryRequestParams',
-        },
-        projectUuid: {
-            in: 'path',
-            name: 'projectUuid',
-            required: true,
-            dataType: 'string',
-        },
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-    };
-    app.post(
-        '/api/v2/projects/:projectUuid/query/sql/estimate',
-        ...fetchMiddlewares<RequestHandler>(QueryController),
-        ...fetchMiddlewares<RequestHandler>(
-            QueryController.prototype.estimateAsyncSqlQuery,
-        ),
-
-        async function QueryController_estimateAsyncSqlQuery(
-            request: ExRequest,
-            response: ExResponse,
-            next: any,
-        ) {
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({
-                    args: argsQueryController_estimateAsyncSqlQuery,
-                    request,
-                    response,
-                });
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<QueryController>(QueryController);
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                await templateService.apiHandler({
-                    methodName: 'estimateAsyncSqlQuery',
                     controller,
                     response,
                     next,

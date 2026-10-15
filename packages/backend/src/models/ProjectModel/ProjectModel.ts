@@ -7,6 +7,7 @@ import {
     BigqueryAuthenticationType,
     CompiledTable,
     ConflictError,
+    convertOrganizationRoleToProjectRole,
     CreateProject,
     CreateProjectOptionalCredentials,
     CreateSnowflakeCredentials,
@@ -27,6 +28,7 @@ import {
     generateSlug,
     getErrorMessage,
     getExploreSplitCandidates,
+    getHighestProjectRole,
     getLtreePathFromSlug,
     getPersonSignIn,
     GroupType,
@@ -4307,6 +4309,86 @@ export class ProjectModel {
             .returning('*');
 
         return cachedWarehouse;
+    }
+
+    /**
+     * The person's highest system role on the project, from their organization
+     * role, direct membership and group access. Custom roles are ignored.
+     */
+    async getHighestSystemProjectRole(
+        projectUuid: string,
+        userUuid: string,
+    ): Promise<ProjectMemberRole | null> {
+        const [organizationRows, projectRows, groupRows] = await Promise.all([
+            this.database(OrganizationMembershipsTableName)
+                .innerJoin(
+                    UserTableName,
+                    `${UserTableName}.user_id`,
+                    `${OrganizationMembershipsTableName}.user_id`,
+                )
+                .innerJoin(
+                    ProjectTableName,
+                    `${ProjectTableName}.organization_id`,
+                    `${OrganizationMembershipsTableName}.organization_id`,
+                )
+                .where(`${UserTableName}.user_uuid`, userUuid)
+                .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                .select<{ role: OrganizationMemberRole }[]>(
+                    `${OrganizationMembershipsTableName}.role`,
+                ),
+            this.database(ProjectMembershipsTableName)
+                .innerJoin(
+                    UserTableName,
+                    `${UserTableName}.user_id`,
+                    `${ProjectMembershipsTableName}.user_id`,
+                )
+                .innerJoin(
+                    ProjectTableName,
+                    `${ProjectTableName}.project_id`,
+                    `${ProjectMembershipsTableName}.project_id`,
+                )
+                .where(`${UserTableName}.user_uuid`, userUuid)
+                .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                .whereNull(`${ProjectMembershipsTableName}.role_uuid`)
+                .select<{ role: ProjectMemberRole | null }[]>(
+                    `${ProjectMembershipsTableName}.role`,
+                ),
+            this.database(ProjectGroupAccessTableName)
+                .innerJoin(
+                    GroupMembershipTableName,
+                    `${GroupMembershipTableName}.group_uuid`,
+                    `${ProjectGroupAccessTableName}.group_uuid`,
+                )
+                .innerJoin(
+                    UserTableName,
+                    `${UserTableName}.user_id`,
+                    `${GroupMembershipTableName}.user_id`,
+                )
+                .where(`${UserTableName}.user_uuid`, userUuid)
+                .where(
+                    `${ProjectGroupAccessTableName}.project_uuid`,
+                    projectUuid,
+                )
+                .whereNull(`${ProjectGroupAccessTableName}.role_uuid`)
+                .select<{ role: ProjectMemberRole }[]>(
+                    `${ProjectGroupAccessTableName}.role`,
+                ),
+        ]);
+        const highest = getHighestProjectRole([
+            ...organizationRows.map(({ role }) => ({
+                type: 'organization' as const,
+                role: convertOrganizationRoleToProjectRole(role),
+            })),
+            ...projectRows.map(({ role }) => ({
+                type: 'project' as const,
+                role: role ?? undefined,
+            })),
+            ...groupRows.map(({ role }) => ({
+                type: 'group' as const,
+                role,
+            })),
+        ]);
+        return highest?.role ?? null;
     }
 
     async getProjectMemberAccess(

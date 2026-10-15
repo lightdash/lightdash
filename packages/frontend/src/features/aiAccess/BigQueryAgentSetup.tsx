@@ -47,6 +47,13 @@ export const BigQueryAgentSetup = ({
                     <Text size="sm" c="dimmed">
                         Grant only the data every agent user may see.
                     </Text>
+                    <Text size="sm" c="dimmed">
+                        {connection.agentMaximumBytesBilled === undefined
+                            ? 'Agent queries use the connection maximum bytes billed. Set an agent limit in the project connection settings.'
+                            : connection.agentMaximumBytesBilled === 0
+                              ? 'Agent queries have no maximum bytes billed. Change this in the project connection settings.'
+                              : `Agent queries are limited to ${connection.agentMaximumBytesBilled.toLocaleString()} bytes billed. Change this in the project connection settings.`}
+                    </Text>
                 </Stack>
             }
             addHelp="Create a JSON key for the account, upload it here, then select Test."

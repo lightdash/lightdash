@@ -451,6 +451,8 @@ export type WarehouseResults = {
 
 export type WarehouseExecuteAsyncQueryArgs = {
     tags: Record<string, string>;
+    // BigQuery only: overrides the connection limit for this job; 0 means no limit.
+    maximumBytesBilled?: number;
     timezone?: string;
     values?: AnyType[]; // same as queryParams but in array form
     queryParams?: Record<string, AnyType>; // same as values but in object form
@@ -571,6 +573,7 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
             values?: AnyType[];
             tags: Record<string, string>;
             timezone?: string;
+            maximumBytesBilled?: number;
         },
     ): Promise<void>;
 
