@@ -56,3 +56,11 @@ typed keys would need a hand-maintained barrel of JSON imports in
 defeats the no-registration design and is the usual cause of multi-second
 typecheck regressions with large resource trees. Vitest renders English, so a
 wrong key shows up as the raw key in any component test.
+
+## Dates
+
+Relative and formatted dates go through `dateLocale.ts`: pass
+`{ locale: getDateFnsLocale() }` to date-fns calls and
+`dayjs(x).locale(getDayjsLocale())` for dayjs. Never set the global dayjs
+locale; filter week-start logic reads it. Adding a language means adding its
+date-fns and dayjs locale to the two maps there.

@@ -11,6 +11,7 @@ import { type TFunction } from 'i18next';
 import { useMemo, useState, type FC } from 'react';
 import { useTranslation } from 'react-i18next';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { getDateFnsLocale } from '../../../i18n/dateLocale';
 import { getChartTypeRowColumns, rowsFromVizContext } from './chartTypeRows';
 import { ChartTypeRowsModal } from './ChartTypeSampleData';
 import { type AttachedExplore } from './exploreSource';
@@ -242,6 +243,7 @@ const PreviewRowsPeek: FC<Props> = ({ source, fields, context }) => {
                   rows: rowsText,
                   ran: formatDistanceToNow(attached.ranAt, {
                       addSuffix: true,
+                      locale: getDateFnsLocale(),
                   }),
               })
             : rowsText;

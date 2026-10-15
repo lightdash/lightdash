@@ -14,6 +14,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../components/common/PolymorphicGroupButton';
 import { useSuggestedChartTypeExplore } from '../../../ee/features/ambientAi/hooks/useChartTypeSuggestions';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { getDateFnsLocale } from '../../../i18n/dateLocale';
 import DataSourcePicker from './DataSourcePicker';
 import classes from './DataSourceSection.module.css';
 import {
@@ -62,6 +63,7 @@ const savedChartTile = (
                           meta: readyMeta,
                           ran: formatDistanceToNow(attached.ranAt, {
                               addSuffix: true,
+                              locale: getDateFnsLocale(),
                           }),
                       })
                     : readyMeta,

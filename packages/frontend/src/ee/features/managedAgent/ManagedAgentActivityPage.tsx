@@ -103,6 +103,7 @@ import { useProject } from '../../../hooks/useProject';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useChartVersion, useSavedQuery } from '../../../hooks/useSavedQuery';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
+import { getDateFnsLocale } from '../../../i18n/dateLocale';
 import useApp from '../../../providers/App/useApp';
 import {
     useManagedAgentActions,
@@ -423,10 +424,13 @@ const TARGET_ICON: Record<
 };
 
 const formatTimestamp = (dateStr: string) =>
-    formatDistanceToNowStrict(new Date(dateStr), { addSuffix: true });
+    formatDistanceToNowStrict(new Date(dateStr), {
+        addSuffix: true,
+        locale: getDateFnsLocale(),
+    });
 
 const formatAbsoluteTimestamp = (dateStr: string) =>
-    format(new Date(dateStr), 'MMM d, HH:mm');
+    format(new Date(dateStr), 'MMM d, HH:mm', { locale: getDateFnsLocale() });
 
 // --- Detail Sidebar ---
 
@@ -803,13 +807,19 @@ const ContentContextDetails: FC<{
                                     ? t('details.modifiedBy', {
                                           time: formatDistanceToNowStrict(
                                               new Date(context.updatedAt),
-                                              { addSuffix: true },
+                                              {
+                                                  addSuffix: true,
+                                                  locale: getDateFnsLocale(),
+                                              },
                                           ),
                                           name: lastUpdatedBy,
                                       })
                                     : formatDistanceToNowStrict(
                                           new Date(context.updatedAt),
-                                          { addSuffix: true },
+                                          {
+                                              addSuffix: true,
+                                              locale: getDateFnsLocale(),
+                                          },
                                       )}
                             </span>
                         </Tooltip>
@@ -1058,11 +1068,15 @@ const DetailSidebar: FC<{
     const reversedLabel = action.reversedAt
         ? action.reversedByUser
             ? t(`details.reversed.${reversedPrefix}By`, {
-                  time: formatDistanceToNowStrict(new Date(action.reversedAt)),
+                  time: formatDistanceToNowStrict(new Date(action.reversedAt), {
+                      locale: getDateFnsLocale(),
+                  }),
                   name: `${action.reversedByUser.firstName} ${action.reversedByUser.lastName}`,
               })
             : t(`details.reversed.${reversedPrefix}`, {
-                  time: formatDistanceToNowStrict(new Date(action.reversedAt)),
+                  time: formatDistanceToNowStrict(new Date(action.reversedAt), {
+                      locale: getDateFnsLocale(),
+                  }),
               })
         : null;
 

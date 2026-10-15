@@ -22,6 +22,7 @@ import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useSettingsContext } from '../../hooks/settings/useSettingsContext';
+import { getDateFnsLocale } from '../../i18n/dateLocale';
 import { AgentSetupStep } from './AgentSetupStep';
 import { useSnowflakeAgentSetup, useSnowflakeAgentVerify } from './api';
 import { SnowflakeAgentClient } from './SnowflakeAgentClient';
@@ -173,7 +174,7 @@ const SnowflakeIntegrationStatus = ({
                         t('snowflakeSetup.checkedAgo', {
                             ago: formatDistanceToNow(
                                 new Date(verification.checkedAt),
-                                { addSuffix: true },
+                                { addSuffix: true, locale: getDateFnsLocale() },
                             ),
                         })}
                 </Text>

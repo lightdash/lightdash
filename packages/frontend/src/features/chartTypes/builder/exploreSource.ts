@@ -3,6 +3,7 @@ import {
     type SuggestChartTypeExploreRequest,
 } from '@lightdash/common';
 import { formatDistanceToNow } from 'date-fns';
+import { getDateFnsLocale } from '../../../i18n/dateLocale';
 import i18n from '../../../i18n/i18n';
 import { type PreviewSource } from './savedChartSource';
 
@@ -121,7 +122,10 @@ export const exploreQueryMeta = (attached: AttachedExplore): string => {
         ? tr('metaRan', {
               fields,
               state,
-              ran: formatDistanceToNow(attached.ranAt, { addSuffix: true }),
+              ran: formatDistanceToNow(attached.ranAt, {
+                  addSuffix: true,
+                  locale: getDateFnsLocale(),
+              }),
           })
         : tr('meta', { fields, state });
 };

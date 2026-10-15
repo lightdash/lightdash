@@ -42,6 +42,7 @@ import {
     threadReviewRootCauseLabels,
 } from '../../../ee/features/aiCopilot/components/Admin/threadReviewContext';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
+import { getDayjsLocale } from '../../../i18n/dateLocale';
 import { usePullRequestsTable } from '../hooks/usePullRequestsTable';
 import { type PullRequestRow } from '../types';
 import {
@@ -209,9 +210,11 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                                                 t={t}
                                                 i18nKey="pullRequests.openedBy"
                                                 values={{
-                                                    time: dayjs(
-                                                        pr.createdAt,
-                                                    ).fromNow(),
+                                                    time: dayjs(pr.createdAt)
+                                                        .locale(
+                                                            getDayjsLocale(),
+                                                        )
+                                                        .fromNow(),
                                                     name: pr.author.name,
                                                 }}
                                                 components={{
@@ -226,9 +229,9 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                                             />
                                         ) : (
                                             t('pullRequests.opened', {
-                                                time: dayjs(
-                                                    pr.createdAt,
-                                                ).fromNow(),
+                                                time: dayjs(pr.createdAt)
+                                                    .locale(getDayjsLocale())
+                                                    .fromNow(),
                                             })
                                         )}
                                     </Text>

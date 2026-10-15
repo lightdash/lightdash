@@ -1,6 +1,7 @@
 import { getSchedule, stringToArray } from 'cron-converter';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { getDayjsLocale } from '../../../../../i18n/dateLocale';
 
 dayjs.extend(relativeTime);
 
@@ -39,7 +40,7 @@ export const getNextRuns = (
             const timeZoneName = getShortTimeZoneName(jsDate, next.zoneName);
             return {
                 label: `${next.toFormat('ccc, LLL d · h:mm a')} ${timeZoneName}`,
-                relative: dayjs(jsDate).fromNow(),
+                relative: dayjs(jsDate).locale(getDayjsLocale()).fromNow(),
                 timeZoneName,
             };
         });

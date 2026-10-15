@@ -61,6 +61,7 @@ import { useGetSlackChannelName } from '../../../../../hooks/slack/useGetSlackCh
 import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
 import { useInfiniteScroll } from '../../../../../hooks/useInfiniteScroll';
 import { useProject } from '../../../../../hooks/useProject';
+import { getDayjsLocale } from '../../../../../i18n/dateLocale';
 import useApp from '../../../../../providers/App/useApp';
 import ScheduledDeliveryAsCodeModal from '../../../../contentAsCode/components/ScheduledDeliveryAsCodeModal';
 import { useSendNowSchedulerByUuid } from '../../../hooks/useScheduler';
@@ -394,7 +395,9 @@ const SchedulerDetail: FC<{
                                     <Text size="sm">
                                         {dayjs(
                                             scheduler.latestRun.scheduledTime,
-                                        ).fromNow()}
+                                        )
+                                            .locale(getDayjsLocale())
+                                            .fromNow()}
                                     </Text>
                                     <Badge
                                         size="sm"
