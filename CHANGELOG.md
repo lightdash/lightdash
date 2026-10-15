@@ -1,3 +1,10 @@
+# [2.589.0](https://github.com/lightdash/lightdash/compare/2.588.1...2.589.0) (2026-10-15)
+
+
+### Features
+
+* **connections:** allow multiple Snowflake warehouse connections in one project ([#31030](https://github.com/lightdash/lightdash/issues/31030)) ([448fca1](https://github.com/lightdash/lightdash/commit/448fca10b69b9422ef43169a85f54f5feaea66d7))
+
 ## [2.588.1](https://github.com/lightdash/lightdash/compare/2.588.0...2.588.1) (2026-10-15)
 
 
