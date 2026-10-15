@@ -98,6 +98,7 @@ const selectedAgent: AiAgentWithContext = {
     instruction: 'Prioritize revenue metrics.',
     groupAccess: [],
     userAccess: [],
+    userAccessDetails: [],
     spaceAccess: [allowedSpaceUuid],
     enableDataAccess: true,
     enableSelfImprovement: true,

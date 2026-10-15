@@ -2965,6 +2965,23 @@ export class AiAgentService extends BaseService {
         };
     }
 
+    /**
+     * Shapes an agent for an embedded viewer. They are external, so the
+     * names and emails of the org users with access are withheld; the uuid
+     * list stays so the shape matches what logged-in users receive.
+     */
+    private forEmbedViewer<
+        T extends Pick<
+            AiAgent,
+            'imageUrl' | 'imageUrlSource' | 'userAccessDetails'
+        >,
+    >(agent: T): T {
+        return this.withEmbedViewableAvatar({
+            ...agent,
+            userAccessDetails: [],
+        });
+    }
+
     async listEmbedAgents(account: AnonymousAccount, projectUuid: string) {
         const { user, spaceUuid, tokenAgentUuid } =
             AiAgentService.getEmbedAiAgentContext(account, projectUuid);
@@ -2975,7 +2992,7 @@ export class AiAgentService extends BaseService {
                     agent.uuid === tokenAgentUuid &&
                     hasAiAgentAccessToSpace(agent, spaceUuid),
             )
-            .map((agent) => this.withEmbedViewableAvatar(agent));
+            .map((agent) => this.forEmbedViewer(agent));
     }
 
     async getEmbedAgentDetails(
@@ -2988,7 +3005,7 @@ export class AiAgentService extends BaseService {
             projectUuid,
             agentUuid,
         );
-        return this.withEmbedViewableAvatar(agent);
+        return this.forEmbedViewer(agent);
     }
 
     async getAvailableExplores(
