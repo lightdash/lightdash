@@ -28620,6 +28620,98 @@
                 "type": "object",
                 "description": "Merge execution request for the compose endpoint, which accepts the full\nMergeQuerySource union (including references to existing query results).\nA separate endpoint keeps the original merge-query contract untouched for\nexisting clients while compose-only capabilities evolve on their own path."
             },
+            "QueryCostEstimate": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "status": {
+                                "type": "string",
+                                "enum": ["unavailable"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["status"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "message": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["error"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["message", "status"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "requiresConfirmation": {
+                                "type": "boolean"
+                            },
+                            "confirmEstimatedBytesAbove": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
+                            "totalBytesProcessed": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["estimated"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "requiresConfirmation",
+                            "confirmEstimatedBytesAbove",
+                            "totalBytesProcessed",
+                            "status"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiQueryCostEstimateResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/QueryCostEstimate"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "EstimateAsyncMetricQueryRequestParams": {
+                "properties": {
+                    "usePreAggregateCache": {
+                        "type": "boolean"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "pivotConfiguration": {
+                        "$ref": "#/components/schemas/PivotConfiguration"
+                    },
+                    "dateZoom": {
+                        "$ref": "#/components/schemas/DateZoom"
+                    },
+                    "query": {
+                        "$ref": "#/components/schemas/Omit_MetricQueryRequest.csvLimit_"
+                    }
+                },
+                "required": ["query"],
+                "type": "object"
+            },
             "ApiExecuteAsyncFieldValueSearchResults": {
                 "properties": {
                     "labelFieldId": {
@@ -28695,6 +28787,26 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "EstimateAsyncSqlQueryRequestParams": {
+                "properties": {
+                    "warehouseConnectionUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sql": {
+                        "type": "string"
+                    }
+                },
+                "required": ["sql"],
                 "type": "object"
             },
             "ExecuteAsyncSqlChartByUuidRequestParams": {
@@ -38387,6 +38499,20 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "estimateQueryBytes": {
+                        "type": "boolean",
+                        "description": "Show a dry-run bytes estimate in the explorer and SQL runner."
+                    },
+                    "confirmEstimatedBytesAbove": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Ask users to confirm before running a query estimated above this."
+                    },
+                    "agentMaximumEstimatedBytes": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Refuse AI agent queries whose dry-run estimate is above this."
+                    },
                     "executionProject": {
                         "type": "string"
                     }
@@ -39398,6 +39524,20 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "agentMaximumEstimatedBytes": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Refuse AI agent queries whose dry-run estimate is above this."
+                    },
+                    "confirmEstimatedBytesAbove": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Ask users to confirm before running a query estimated above this."
+                    },
+                    "estimateQueryBytes": {
+                        "type": "boolean",
+                        "description": "Show a dry-run bytes estimate in the explorer and SQL runner."
                     },
                     "maximumBytesBilled": {
                         "type": "number",
@@ -72964,7 +73104,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.584.0",
+        "version": "2.585.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -81044,6 +81184,57 @@
                 }
             }
         },
+        "/api/v2/projects/{projectUuid}/query/metric-query/estimate": {
+            "post": {
+                "operationId": "estimateAsyncMetricQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiQueryCostEstimateResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Estimates the bytes a metric query would process with a free warehouse dry run, without running it. Only BigQuery connections with query estimates enabled return an estimate.",
+                "summary": "Estimate metric query",
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EstimateAsyncMetricQueryRequestParams"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/projects/{projectUuid}/query/field-values": {
             "post": {
                 "operationId": "executeAsyncFieldValueSearch",
@@ -81293,6 +81484,57 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ExecuteAsyncSqlQueryRequestParams"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/sql/estimate": {
+            "post": {
+                "operationId": "estimateAsyncSqlQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiQueryCostEstimateResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Estimates the bytes a SQL runner query would process with a free warehouse dry run, without running it. Only BigQuery connections with query estimates enabled return an estimate.",
+                "summary": "Estimate SQL query",
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EstimateAsyncSqlQueryRequestParams"
                             }
                         }
                     }
