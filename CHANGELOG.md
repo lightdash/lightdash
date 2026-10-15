@@ -1,3 +1,10 @@
+## [2.588.1](https://github.com/lightdash/lightdash/compare/2.588.0...2.588.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* **s3:** stop leaking keep-alive sockets when a GetObject body is abandoned early ([#31027](https://github.com/lightdash/lightdash/issues/31027)) ([cb3a9f8](https://github.com/lightdash/lightdash/commit/cb3a9f8aaaf567b15d5fce16306deac500bf2b1f)), closes [#31026](https://github.com/lightdash/lightdash/issues/31026)
+
 # [2.588.0](https://github.com/lightdash/lightdash/compare/2.587.0...2.588.0) (2026-10-15)
 
 
