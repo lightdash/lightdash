@@ -20,6 +20,7 @@ export type DbPreAggregateDefinition = {
     materialization_metric_query: MaterializationMetricQueryPayload | null;
     materialization_query_error: string | null;
     refresh_cron: string | null;
+    materialize_on_compile: boolean;
     created_at: Date;
     updated_at: Date;
 };
@@ -38,6 +39,7 @@ export type DbPreAggregateDefinitionUpdate = Partial<
         | 'materialization_metric_query'
         | 'materialization_query_error'
         | 'refresh_cron'
+        | 'materialize_on_compile'
         | 'updated_at'
     >
 >;

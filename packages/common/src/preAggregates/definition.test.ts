@@ -245,6 +245,63 @@ describe('parseDbtPreAggregateDef', () => {
         });
     });
 
+    it('parses refresh.on_compile alongside cron', () => {
+        const result = parseDbtPreAggregateDef(
+            {
+                ...basePreAggregate,
+                refresh: { cron: '0 3 * * *', on_compile: false },
+            },
+            'orders',
+        );
+        expect(result.refresh).toEqual({ cron: '0 3 * * *', onCompile: false });
+    });
+
+    it('parses refresh.on_compile without a cron (manual-only)', () => {
+        const result = parseDbtPreAggregateDef(
+            { ...basePreAggregate, refresh: { on_compile: false } },
+            'orders',
+        );
+        expect(result.refresh).toEqual({ onCompile: false });
+    });
+
+    it('omits refresh when it is an empty object', () => {
+        const result = parseDbtPreAggregateDef(
+            { ...basePreAggregate, refresh: {} },
+            'orders',
+        );
+        expect(result.refresh).toBeUndefined();
+    });
+
+    it('ignores a null or empty refresh.cron', () => {
+        expect(
+            parseDbtPreAggregateDef(
+                {
+                    ...basePreAggregate,
+                    refresh: { cron: null },
+                } as unknown as Parameters<typeof parseDbtPreAggregateDef>[0],
+                'orders',
+            ).refresh,
+        ).toBeUndefined();
+        expect(
+            parseDbtPreAggregateDef(
+                { ...basePreAggregate, refresh: { cron: '' } },
+                'orders',
+            ).refresh,
+        ).toBeUndefined();
+    });
+
+    it('throws when refresh.on_compile is not a boolean', () => {
+        expect(() =>
+            parseDbtPreAggregateDef(
+                {
+                    ...basePreAggregate,
+                    refresh: { on_compile: 'no' },
+                } as unknown as Parameters<typeof parseDbtPreAggregateDef>[0],
+                'orders',
+            ),
+        ).toThrow('invalid "refresh.on_compile"');
+    });
+
     it('throws when materialization_role.email is missing', () => {
         expect(() =>
             parseDbtPreAggregateDef(

@@ -839,6 +839,7 @@ it('reads scheduled refresh from both real schema sources and narrows only the a
             materialization_metric_query: null,
             materialization_query_error: null,
             refresh_cron: index === 0 ? '0 * * * *' : null,
+            materialize_on_compile: true,
         })),
     );
     const answer = await approval.service.getReviewAnswer(

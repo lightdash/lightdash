@@ -40,6 +40,7 @@ const toPreAggregateDefinition = (
     materializationMetricQuery: row.materialization_metric_query,
     materializationQueryError: row.materialization_query_error,
     refreshCron: row.refresh_cron,
+    materializeOnCompile: row.materialize_on_compile,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
 });
@@ -93,6 +94,9 @@ export class PreAggregateModel {
                     'excluded.materialization_query_error',
                 ),
                 refresh_cron: this.database.raw('excluded.refresh_cron'),
+                materialize_on_compile: this.database.raw(
+                    'excluded.materialize_on_compile',
+                ),
                 updated_at: this.database.fn.now(),
             });
     }
@@ -105,6 +109,21 @@ export class PreAggregateModel {
             .select<DbPreAggregateDefinition[]>('*');
 
         return rows.map(toPreAggregateDefinition);
+    }
+
+    async getDefinitionUuidsWithActiveMaterialization(
+        projectUuid: string,
+    ): Promise<Set<string>> {
+        const rows = await this.database(PreAggregateMaterializationsTableName)
+            .where('project_uuid', projectUuid)
+            .andWhere('status', 'active')
+            .distinct<
+                Pick<
+                    DbPreAggregateMaterialization,
+                    'pre_aggregate_definition_uuid'
+                >[]
+            >('pre_aggregate_definition_uuid');
+        return new Set(rows.map((row) => row.pre_aggregate_definition_uuid));
     }
 
     async getPreAggregateDefinitionByUuid(args: {
@@ -502,6 +521,7 @@ export class PreAggregateModel {
             | 'pre_aggregate_definition'
             | 'materialization_metric_query'
             | 'refresh_cron'
+            | 'materialize_on_compile'
             | 'materialization_query_error'
         > & {
             source_explore_name: string;
@@ -557,6 +577,7 @@ export class PreAggregateModel {
                 `source_ce.name as source_explore_name`,
                 `preagg_ce.name as pre_agg_explore_name`,
                 `${PreAggregateDefinitionsTableName}.refresh_cron`,
+                `${PreAggregateDefinitionsTableName}.materialize_on_compile`,
                 `${PreAggregateDefinitionsTableName}.materialization_query_error`,
                 `latest_mat.pre_aggregate_materialization_uuid as mat_uuid`,
                 `latest_mat.status as mat_status`,
@@ -612,6 +633,7 @@ export class PreAggregateModel {
                     granularity:
                         row.pre_aggregate_definition.granularity ?? null,
                     refreshCron: row.refresh_cron,
+                    materializeOnCompile: row.materialize_on_compile,
                     definitionError: row.materialization_query_error,
                     resolvedMaxRows:
                         row.materialization_metric_query?.resolvedMaxRows ??

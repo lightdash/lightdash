@@ -964,7 +964,13 @@
                                 "type": "object",
                                 "properties": {
                                     "cron": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "description": "Cron expression for scheduled materialization"
+                                    },
+                                    "on_compile": {
+                                        "type": "boolean",
+                                        "description": "Set to false to skip materialization on project compile. Cron and manual refresh still run. Defaults to true.",
+                                        "default": true
                                     }
                                 }
                             },

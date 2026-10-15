@@ -509,6 +509,9 @@ const preAggregateModel = {
     getPreAggregateDefinitionsForProject: vi.fn(async () => []),
     getPreAggregateDefinitionByDefinitionName: vi.fn(async () => undefined),
     getActiveMaterialization: vi.fn(async () => undefined),
+    getDefinitionUuidsWithActiveMaterialization: vi.fn(
+        async () => new Set<string>(),
+    ),
 };
 projectModel.getPreAggregateRefreshSummary.mockImplementation(async () => {
     const definitions =
@@ -10638,6 +10641,159 @@ describe('ProjectService', () => {
             expect(
                 schedulerClient.schedulePreAggregateCronJobs,
             ).not.toHaveBeenCalled();
+        });
+
+        test('skips compile-triggered materialization when refresh.on_compile is false and a materialization is active', async () => {
+            const serviceWithPreAggregatesEnabled = getMockedProjectService({
+                ...lightdashConfigWithGoogleOAuthMock,
+                preAggregates: {
+                    ...lightdashConfigWithGoogleOAuthMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            preAggregateModel.getPreAggregateDefinitionsForProject.mockResolvedValueOnce(
+                [
+                    {
+                        preAggregateDefinitionUuid: 'def-cron-only',
+                        refreshCron: '0 3 * * *',
+                        materializeOnCompile: false,
+                        materializationMetricQuery: {},
+                    },
+                    {
+                        preAggregateDefinitionUuid: 'def-default',
+                        refreshCron: null,
+                        materializeOnCompile: true,
+                        materializationMetricQuery: {},
+                    },
+                ] as never,
+            );
+            preAggregateModel.getDefinitionUuidsWithActiveMaterialization.mockResolvedValueOnce(
+                new Set(['def-cron-only']),
+            );
+
+            await serviceWithPreAggregatesEnabled.saveExploresToCacheAndIndexCatalog(
+                {
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    explores: [validExplore],
+                    compilationSource: 'cli_deploy',
+                },
+            );
+
+            expect(
+                preAggregateModel.upsertPreAggregateDefinitions,
+            ).toHaveBeenCalledWith([
+                expect.objectContaining({ materialize_on_compile: true }),
+            ]);
+            expect(
+                schedulerClient.materializePreAggregate,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                schedulerClient.materializePreAggregate,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    preAggregateDefinitionUuid: 'def-default',
+                    trigger: 'compile',
+                }),
+            );
+            // Cron is still scheduled for the opted-out definition
+            expect(
+                schedulerClient.schedulePreAggregateCronJobs,
+            ).toHaveBeenCalledWith(
+                [
+                    expect.objectContaining({
+                        preAggregateDefinitionUuid: 'def-cron-only',
+                        refreshCron: '0 3 * * *',
+                    }),
+                ],
+                expect.any(Date),
+            );
+        });
+
+        test('materializes an opted-out definition once on compile when nothing is active yet', async () => {
+            const serviceWithPreAggregatesEnabled = getMockedProjectService({
+                ...lightdashConfigWithGoogleOAuthMock,
+                preAggregates: {
+                    ...lightdashConfigWithGoogleOAuthMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            preAggregateModel.getPreAggregateDefinitionsForProject.mockResolvedValueOnce(
+                [
+                    {
+                        preAggregateDefinitionUuid: 'def-cron-only',
+                        refreshCron: '0 3 * * *',
+                        materializeOnCompile: false,
+                        materializationMetricQuery: {},
+                    },
+                ] as never,
+            );
+            preAggregateModel.getDefinitionUuidsWithActiveMaterialization.mockResolvedValueOnce(
+                new Set<string>(),
+            );
+
+            await serviceWithPreAggregatesEnabled.saveExploresToCacheAndIndexCatalog(
+                {
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    explores: [validExplore],
+                    compilationSource: 'cli_deploy',
+                },
+            );
+
+            expect(
+                schedulerClient.materializePreAggregate,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    preAggregateDefinitionUuid: 'def-cron-only',
+                    trigger: 'compile',
+                }),
+            );
+        });
+
+        test('stores materialize_on_compile=false from refresh.on_compile', async () => {
+            const serviceWithPreAggregatesEnabled = getMockedProjectService({
+                ...lightdashConfigWithGoogleOAuthMock,
+                preAggregates: {
+                    ...lightdashConfigWithGoogleOAuthMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            const sourceExplore = {
+                ...validExplore,
+                preAggregates: [
+                    {
+                        name: 'rollup',
+                        dimensions: ['dim1'],
+                        metrics: ['met1'],
+                        refresh: { cron: '0 3 * * *', onCompile: false },
+                    },
+                ],
+            } as Explore;
+            (
+                projectModel.getAllExploresFromCache as import('vitest').Mock
+            ).mockResolvedValue({
+                'source-uuid': sourceExplore,
+                'preagg-uuid': preAggregateExplore,
+            });
+
+            await serviceWithPreAggregatesEnabled.saveExploresToCacheAndIndexCatalog(
+                {
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    explores: [sourceExplore],
+                    compilationSource: 'cli_deploy',
+                },
+            );
+
+            expect(
+                preAggregateModel.upsertPreAggregateDefinitions,
+            ).toHaveBeenCalledWith([
+                expect.objectContaining({
+                    refresh_cron: '0 3 * * *',
+                    materialize_on_compile: false,
+                }),
+            ]);
         });
 
         test('checkPreAggregateMatch returns a hit for external pre-aggregates without a materialization', async () => {

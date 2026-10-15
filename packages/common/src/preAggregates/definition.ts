@@ -200,6 +200,45 @@ const parseMaterializationRole = (
     };
 };
 
+const parsePreAggregateRefresh = (
+    refresh: unknown,
+    modelName: string,
+    preAggregateName: string,
+): PreAggregateDef['refresh'] | undefined => {
+    if (refresh === undefined) {
+        return undefined;
+    }
+    if (refresh === null || typeof refresh !== 'object') {
+        throw new ParseError(
+            `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "refresh". Expected an object with "cron" and/or "on_compile".`,
+        );
+    }
+    const { cron: rawCron, on_compile: rawOnCompile } = refresh as Record<
+        string,
+        unknown
+    >;
+    if (rawCron != null && typeof rawCron !== 'string') {
+        throw new ParseError(
+            `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "refresh.cron". Expected a cron expression string.`,
+        );
+    }
+    if (rawOnCompile != null && typeof rawOnCompile !== 'boolean') {
+        throw new ParseError(
+            `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "refresh.on_compile". Expected true or false.`,
+        );
+    }
+    // Empty/null cron is treated as unset, matching previous behaviour
+    const cron = rawCron?.trim() ? rawCron : undefined;
+    const onCompile = rawOnCompile ?? undefined;
+    if (cron === undefined && onCompile === undefined) {
+        return undefined;
+    }
+    return {
+        ...(cron !== undefined ? { cron } : {}),
+        ...(onCompile !== undefined ? { onCompile } : {}),
+    };
+};
+
 export const parseDbtPreAggregateDef = (
     preAggregate: DbtPreAggregateDef | unknown,
     modelName: string,
@@ -292,6 +331,12 @@ export const parseDbtPreAggregateDef = (
               )
             : undefined;
 
+    const refresh = parsePreAggregateRefresh(
+        safePreAggregate?.refresh,
+        modelName,
+        name,
+    );
+
     const sorts =
         safePreAggregate?.sorts !== undefined
             ? parsePreAggregateSorts(safePreAggregate.sorts, modelName, name)
@@ -311,9 +356,7 @@ export const parseDbtPreAggregateDef = (
         ...(timeDimension ? { timeDimension } : {}),
         ...(granularity ? { granularity } : {}),
         ...(maxRows !== undefined ? { maxRows } : {}),
-        ...(safePreAggregate.refresh?.cron
-            ? { refresh: { cron: safePreAggregate.refresh.cron } }
-            : {}),
+        ...(refresh ? { refresh } : {}),
         ...(materializationRole ? { materializationRole } : {}),
     };
 };

@@ -58,6 +58,8 @@ export type PreAggregateDef = {
     maxRows?: number;
     refresh?: {
         cron?: string;
+        // false skips the compile-triggered materialization; cron and manual still run
+        onCompile?: boolean;
     };
     materializationRole?: PreAggregateMaterializationRole;
 };
@@ -179,6 +181,7 @@ export type PreAggregateDefinition = {
     materializationMetricQuery: MaterializationMetricQueryPayload | null;
     materializationQueryError: string | null;
     refreshCron: string | null;
+    materializeOnCompile: boolean;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -308,6 +311,7 @@ export type PreAggregateMaterializationSummary = {
     timeDimension: string | null;
     granularity: TimeFrames | null;
     refreshCron: string | null;
+    materializeOnCompile: boolean;
     definitionError: string | null;
     resolvedMaxRows: number | null;
     warnings: PreAggregateMaterializationWarning[];
