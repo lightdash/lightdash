@@ -117,6 +117,7 @@ const createCandidate = (
     instruction: overrides.instruction ?? null,
     groupAccess: [],
     userAccess: [],
+    userAccessDetails: [],
     spaceAccess: overrides.spaceAccess ?? [],
     enableDataAccess: true,
     enableSelfImprovement: true,

@@ -26,6 +26,7 @@ const visibleAgent: AiAgent = {
     imageUrlSource: null,
     groupAccess: [],
     userAccess: [],
+    userAccessDetails: [],
     spaceAccess: [],
     enableDataAccess: true,
     enableSelfImprovement: false,
