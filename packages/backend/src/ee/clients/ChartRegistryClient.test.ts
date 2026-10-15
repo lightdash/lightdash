@@ -510,11 +510,18 @@ describe('ChartRegistryClient real network (defaultFetch)', () => {
             });
         });
 
-    const makeRealClient = (baseUrl: string) =>
+    const makeRealClient = (
+        baseUrl: string,
+        authorizationHeader: string | null = null,
+    ) =>
         new ChartRegistryClient({
             lightdashConfig: {
                 appRuntime: {
-                    chartRegistry: { url: baseUrl, allowInsecure: true },
+                    chartRegistry: {
+                        url: baseUrl,
+                        allowInsecure: true,
+                        authorizationHeader,
+                    },
                 },
             } as never,
         });
@@ -595,6 +602,42 @@ describe('ChartRegistryClient real network (defaultFetch)', () => {
         const asset = await client.getAsset('charts/sankey/1.2.0/thumb.png');
         expect(asset?.buffer.equals(imageBytes)).toBe(true);
         expect(asset?.contentType).toBe('image/png');
+    });
+
+    it('sends the configured Authorization header on index and asset requests', async () => {
+        const seen: Record<string, string | undefined> = {};
+        const baseUrl = await startServer((req, res) => {
+            seen[req.url ?? ''] = req.headers.authorization;
+            if (req.url === '/index.json') {
+                res.writeHead(200, { 'content-type': 'application/json' });
+                res.end(JSON.stringify(index));
+                return;
+            }
+            if (req.url === '/charts/sankey/1.2.0/thumb.png') {
+                res.writeHead(200, { 'content-type': 'image/png' });
+                res.end(Buffer.from([1, 2, 3]));
+                return;
+            }
+            res.writeHead(404);
+            res.end();
+        });
+        const client = makeRealClient(baseUrl, 'Bearer secret-token');
+        await client.getAsset('charts/sankey/1.2.0/thumb.png');
+        expect(seen['/index.json']).toBe('Bearer secret-token');
+        expect(seen['/charts/sankey/1.2.0/thumb.png']).toBe(
+            'Bearer secret-token',
+        );
+    });
+
+    it('sends no Authorization header when none is configured', async () => {
+        let authorization: string | undefined = 'unset';
+        const baseUrl = await startServer((req, res) => {
+            authorization = req.headers.authorization;
+            res.writeHead(200, { 'content-type': 'application/json' });
+            res.end(JSON.stringify(index));
+        });
+        await makeRealClient(baseUrl).getIndex();
+        expect(authorization).toBeUndefined();
     });
 
     // Proves the DNS-rebinding fix: createPinnedLookup is the lookup that

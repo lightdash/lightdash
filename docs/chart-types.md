@@ -94,6 +94,10 @@ pipeline, and authoring runbook are documented in
 - `LIGHTDASH_CHART_REGISTRY_ALLOW_INSECURE` — permits plain-http registries
   (local fixture servers, air-gapped mirrors). Logs a startup security
   warning; never set it against a registry you don't control.
+- `LIGHTDASH_CHART_REGISTRY_AUTHORIZATION_HEADER` — full `Authorization`
+  header value sent with every registry request, e.g. `Basic <base64>` or
+  `Bearer <token>`. Use it for registries behind authentication; `user:pass@`
+  in the URL is not supported. Unset sends no credentials.
 - The feature sits on top of data apps (enterprise + its config/flags) and
   is additionally gated by the `chart-type-registry` feature flag.
 

@@ -255,6 +255,8 @@ export class ChartRegistryClient {
 
     private readonly allowInsecure: boolean;
 
+    private readonly authorizationHeader: string | null;
+
     private readonly indexFileName: string;
 
     private readonly fetchImpl: ChartRegistryFetch;
@@ -273,6 +275,9 @@ export class ChartRegistryClient {
         this.baseUrl = args.lightdashConfig.appRuntime.chartRegistry.url;
         this.allowInsecure =
             args.lightdashConfig.appRuntime.chartRegistry.allowInsecure;
+        this.authorizationHeader =
+            args.lightdashConfig.appRuntime.chartRegistry.authorizationHeader ??
+            null;
         // The next channel's index additionally lists charts whose latest
         // version is a beta (entries carry `channel`); the stable index
         // only ever lists stable versions.
@@ -474,10 +479,16 @@ export class ChartRegistryClient {
         maxBytes: number,
         options?: ChartRegistryFetchOptions,
     ): Promise<ChartRegistryRawResponse> {
+        const headers = {
+            ...options?.headers,
+            ...(this.authorizationHeader
+                ? { authorization: this.authorizationHeader }
+                : {}),
+        };
         return chartRegistryFetch(url, {
             maxBytes,
             allowPrivateAddresses: this.allowInsecure,
-            ...(options?.headers ? { headers: options.headers } : {}),
+            ...(Object.keys(headers).length > 0 ? { headers } : {}),
         });
     }
 }

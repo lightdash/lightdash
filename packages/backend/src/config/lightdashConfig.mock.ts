@@ -581,7 +581,12 @@ export const lightdashConfigMock: LightdashConfig = {
         // Off in the test fixture (real default is `true`) so tests never make
         // a live OSV call.
         dependencyMalwareCheckEnabled: false,
-        chartRegistry: { url: null, allowInsecure: false, channel: 'stable' },
+        chartRegistry: {
+            url: null,
+            allowInsecure: false,
+            authorizationHeader: null,
+            channel: 'stable',
+        },
     },
     enabledFeatureFlags: new Set<string>(),
     disabledFeatureFlags: new Set<string>(),
