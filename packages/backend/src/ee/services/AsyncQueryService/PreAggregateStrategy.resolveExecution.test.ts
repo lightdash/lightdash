@@ -15,7 +15,6 @@ const makeStrategy = () => {
         resolve: vi.fn().mockResolvedValue({
             resolved: true,
             query: 'SELECT duckdb',
-            warehouseClient: {},
         }),
     };
     const externalResolver = {

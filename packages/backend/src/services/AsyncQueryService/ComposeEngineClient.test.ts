@@ -9,7 +9,7 @@ import {
     COMPOSE_ENGINE_MISSING_EXTERNAL_SOURCES_STORAGE_MESSAGE,
     COMPOSE_ENGINE_MISSING_RESULTS_STORAGE_MESSAGE,
     ComposeEngineClient,
-    PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY,
+    EXTERNAL_SOURCES_QUERY_INSTANCE_CACHE_KEY,
 } from './ComposeEngineClient';
 
 // An OSS instance: results storage only, no pre-aggregate bucket
@@ -197,7 +197,7 @@ describe('ComposeEngineClient', () => {
         expect(createDuckdbWarehouseClient).toHaveBeenNthCalledWith(1, {
             s3Config: preAggregateSession,
             sharedResourceLimits: undefined,
-            instanceCacheKey: PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY,
+            instanceCacheKey: EXTERNAL_SOURCES_QUERY_INSTANCE_CACHE_KEY,
         });
         expect(createDuckdbWarehouseClient).toHaveBeenNthCalledWith(
             2,

@@ -16,10 +16,11 @@ import { resolveCaCertFile } from '../../utils/duckdb/resolveCaCertFile';
 
 export const COMPOSE_ENGINE_INSTANCE_CACHE_KEY = 'compose-engine-instance';
 
-// External-source files share the pre-aggregates bucket, so they share its
-// warm instance with managed pre-aggregates too
-export const PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY =
-    'pre-aggregate-query-instance';
+// External-source files live in the pre-aggregates bucket, but managed
+// pre-aggregates are served from per-project instances scoped to their own
+// files, so external sources keep a warm instance of their own
+export const EXTERNAL_SOURCES_QUERY_INSTANCE_CACHE_KEY =
+    'external-sources-query-instance';
 
 export const COMPOSE_ENGINE_MISSING_RESULTS_STORAGE_MESSAGE =
     'The compose engine needs results storage to read referenced query results. Set S3_ENDPOINT, S3_BUCKET and S3_REGION, or the RESULTS_S3_* overrides.';
@@ -173,7 +174,7 @@ export class ComposeEngineClient {
             case 'results':
                 return COMPOSE_ENGINE_INSTANCE_CACHE_KEY;
             case 'externalSources':
-                return PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY;
+                return EXTERNAL_SOURCES_QUERY_INSTANCE_CACHE_KEY;
             default:
                 return assertUnreachable(
                     storage,
