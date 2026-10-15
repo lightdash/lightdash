@@ -2405,6 +2405,8 @@ export type AppRuntimeConfig = {
         url: string | null;
         /** dev-only: allow http/private addresses for a local fixture registry */
         allowInsecure: boolean;
+        /** Full Authorization header value (e.g. "Basic ..." or "Bearer ...") sent with every registry request; null sends none */
+        authorizationHeader: string | null;
         /** which index the client reads: stable (index.json) or next (index-next.json, includes beta charts) */
         channel: 'stable' | 'next';
     };
@@ -2965,6 +2967,9 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             // local dev fixtures and trusted internal registry mirrors —
             // never with a registry URL you do not fully control.
             allowInsecure: parseChartRegistryAllowInsecure(),
+            authorizationHeader:
+                process.env.LIGHTDASH_CHART_REGISTRY_AUTHORIZATION_HEADER?.trim() ||
+                null,
             channel: ((raw) => {
                 const normalized = raw?.trim().toLowerCase();
                 if (!normalized || normalized === 'stable')

@@ -94,6 +94,10 @@ pipeline, and authoring runbook are documented in
 - `LIGHTDASH_CHART_REGISTRY_ALLOW_INSECURE` — permits plain-http registries
   (local fixture servers, air-gapped mirrors). Logs a startup security
   warning; never set it against a registry you don't control.
+- `LIGHTDASH_CHART_REGISTRY_AUTHORIZATION_HEADER` — full `Authorization`
+  header value sent with every registry request, e.g. `Basic <base64>` or
+  `Bearer <token>`. Use it for registries behind authentication; `user:pass@`
+  in the URL is not supported. Unset sends no credentials.
 - The library is enterprise-only and gated by the `chart-type-registry`
   feature flag alone; it does not need data apps or Chart Studio.
 - Installed chart types are usable (picked, configured, rendered) wherever
