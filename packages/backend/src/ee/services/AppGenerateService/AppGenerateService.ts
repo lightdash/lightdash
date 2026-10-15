@@ -99,6 +99,7 @@ import {
     type AppVizBuildContext,
     type ChartConfig,
     type ChartReference,
+    type ChartRegistryEntry,
     type ChartSampleData,
     type ChartTypeIcon,
     type CompiledExploreJoin,
@@ -10281,6 +10282,35 @@ export class AppGenerateService extends BaseService {
                 `Chart type "${chartSlug}" not found in the registry`,
             );
         }
+        return this.installRegistryEntry(
+            user,
+            projectUuid,
+            organizationUuid,
+            entry,
+            options,
+        );
+    }
+
+    /**
+     * Installs (or appends) one resolved registry version into a project.
+     * Shared by the library install (latest index entry) and content-as-code
+     * upload (pinned version). `preloaded.sourceTar` skips a second download
+     * when the caller already fetched and digest-checked the source.
+     */
+    private async installRegistryEntry(
+        user: SessionUser,
+        projectUuid: string,
+        organizationUuid: string,
+        entry: ChartRegistryEntry,
+        options: InstallRegistryChartTypeBody,
+        preloaded?: { sourceTar: Buffer },
+    ): Promise<{
+        appUuid: string;
+        slug: string;
+        version: number;
+        action: 'installed' | 'upgraded' | 'unchanged';
+        upgradedChartCount: number;
+    }> {
         if (AppGenerateService.isRegistryEntryIncompatible(entry)) {
             throw new ParameterError(
                 `Chart type "${entry.slug}" requires a newer version (>= ${entry.minLightdashVersion}); this instance is on ${VERSION}`,
@@ -10297,7 +10327,9 @@ export class AppGenerateService extends BaseService {
 
         const installedApps =
             await this.appModel.listRegistryInstalledApps(projectUuid);
-        let existing = installedApps.find((a) => a.registry_slug === chartSlug);
+        let existing = installedApps.find(
+            (a) => a.registry_slug === entry.slug,
+        );
         // Reinstall after uninstall: revive the soft-deleted install in
         // place so charts built on it heal, instead of minting a new app
         // (whose slug the deleted row would force onto a "-1" suffix).
@@ -10305,7 +10337,7 @@ export class AppGenerateService extends BaseService {
         if (!existing) {
             const deleted = await this.appModel.findNewestDeletedRegistryApp(
                 projectUuid,
-                chartSlug,
+                entry.slug,
             );
             if (deleted) {
                 try {
@@ -10363,7 +10395,7 @@ export class AppGenerateService extends BaseService {
             }
             return {
                 appUuid: existing.app_id,
-                slug: chartSlug,
+                slug: entry.slug,
                 version: latest!.version,
                 action: revived ? 'installed' : 'unchanged',
                 upgradedChartCount,
@@ -10371,7 +10403,8 @@ export class AppGenerateService extends BaseService {
         }
 
         const [sourceTar, distTar] = await Promise.all([
-            this.chartRegistryClient.downloadArtifact(entry, 'source'),
+            preloaded?.sourceTar ??
+                this.chartRegistryClient.downloadArtifact(entry, 'source'),
             this.chartRegistryClient.downloadArtifact(entry, 'dist'),
         ]);
         // The registry is an external input — validate the dist bundle's
