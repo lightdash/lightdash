@@ -101,6 +101,7 @@ import {
 } from '../utils/populateCustomMetricsSQL';
 import {
     getContextTruncationNote,
+    getExecutionStatsNote,
     getQueryResultSummary,
 } from '../utils/queryResultSummary';
 import { serializeData } from '../utils/serializeData';
@@ -1171,6 +1172,7 @@ export const getRunQuery = ({
                             limit: mergeLimit,
                             parameters: null,
                             data: enableDataAccess ? shownMergeRows : null,
+                            executionStats: null,
                         },
                     };
                 }
@@ -1582,7 +1584,8 @@ export const getRunQuery = ({
                         explore,
                         projectParameterDefinitions,
                         queryTool.queryConfig.parameters,
-                    );
+                    ) +
+                    getExecutionStatsNote(queryResults.executionStats);
 
                 const queryReference = getQueryReference({
                     prompt,
@@ -1638,6 +1641,7 @@ export const getRunQuery = ({
                             },
                             parameters: appliedParameters,
                             data: null,
+                            executionStats: queryResults.executionStats,
                         },
                     };
                 }
@@ -1725,6 +1729,7 @@ export const getRunQuery = ({
                         },
                         parameters: appliedParameters,
                         data: shownRows,
+                        executionStats: queryResults.executionStats,
                     },
                 };
             } catch (e) {

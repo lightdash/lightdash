@@ -564,6 +564,27 @@ describe('BigqueryWarehouseClient.sanitizeLabelsWithValues', () => {
         );
         expect(Object.keys(result ?? {})).toHaveLength(64);
     });
+
+    it('keeps attribution labels when other labels exceed the BigQuery maximum', () => {
+        const result = BigqueryWarehouseClient.sanitizeLabelsWithValues({
+            ...Object.fromEntries(
+                Array.from({ length: 70 }, (_, index) => [
+                    `tag_${index}`,
+                    'value',
+                ]),
+            ),
+            user_uuid: 'user-uuid',
+            agent_uuid: 'agent-uuid',
+        });
+
+        expect(result).toEqual(
+            expect.objectContaining({
+                user_uuid: 'user-uuid',
+                agent_uuid: 'agent-uuid',
+            }),
+        );
+        expect(Object.keys(result ?? {})).toHaveLength(64);
+    });
 });
 
 describe('BigquerySqlBuilder escaping', () => {
@@ -913,6 +934,18 @@ describe('BigQuery agent job options', () => {
             agent_surface: 'mcp',
             agent_client: 'client-id',
         },
+        {
+            ...Object.fromEntries(
+                Array.from({ length: 80 }, (_, index) => [
+                    `tag_${index}`,
+                    'value',
+                ]),
+            ),
+            agent_surface: 'mcp',
+            agent_client: 'client-id',
+            agent_uuid: 'agent-uuid',
+            user_uuid: 'user-uuid',
+        },
     ];
     test.each(
         [false, true].flatMap((agentSession) =>
@@ -958,6 +991,12 @@ describe('BigQuery agent job options', () => {
                     expect(options.labels).toMatchObject({
                         agent_surface: 'mcp',
                         agent_client: 'client-id',
+                    });
+                }
+                if (tags?.agent_uuid) {
+                    expect(options.labels).toMatchObject({
+                        agent_uuid: 'agent-uuid',
+                        user_uuid: 'user-uuid',
                     });
                 }
                 expect(
@@ -1020,5 +1059,80 @@ describe('BigQuery per-query maximum bytes billed', () => {
 
     test('a query limit of 0 removes the connection limit', async () => {
         expect(await stream(1000, 0)).toBeUndefined();
+    });
+});
+
+describe('BigQuery execution stats', () => {
+    const completedJob = (statistics: Record<string, unknown> | undefined) => ({
+        id: 'job-123',
+        location: 'US',
+        metadata: { statistics },
+        on: vi.fn((event: string, callback: () => void) => {
+            if (event === 'complete') callback();
+        }),
+        getQueryResults: vi.fn(() => [
+            [],
+            undefined,
+            { totalRows: '2', schema: { fields: [] } },
+        ]),
+        getQueryResultsStream: vi.fn(),
+    });
+
+    const runWithJob = async (job: ReturnType<typeof completedJob>) => {
+        const warehouse = new BigqueryWarehouseClient(credentials);
+        warehouse.client.createQueryJob = vi.fn(async () => [
+            job,
+        ]) as unknown as BigQuery['createQueryJob'];
+        return warehouse.executeAsyncQuery({ sql: 'SELECT 1', tags: {} });
+    };
+
+    it('returns bytes, duration, cache hit and job id from the completed job', async () => {
+        const result = await runWithJob(
+            completedJob({
+                startTime: '1700000000000',
+                endTime: '1700000001250',
+                totalBytesProcessed: '2048',
+                query: {
+                    totalBytesProcessed: '1048576',
+                    totalBytesBilled: '10485760',
+                    cacheHit: false,
+                },
+            }),
+        );
+
+        expect(result.executionStats).toStrictEqual({
+            jobId: 'job-123',
+            bytesProcessed: 1048576,
+            bytesBilled: 10485760,
+            executionTimeMs: 1250,
+            cacheHit: false,
+        });
+    });
+
+    it('returns nulls for statistics the job did not report', async () => {
+        const result = await runWithJob(completedJob(undefined));
+
+        expect(result.executionStats).toStrictEqual({
+            jobId: 'job-123',
+            bytesProcessed: null,
+            bytesBilled: null,
+            executionTimeMs: null,
+            cacheHit: null,
+        });
+    });
+
+    it('falls back to the job-level bytes processed', () => {
+        expect(
+            BigqueryWarehouseClient.getExecutionStats('job-1', {
+                totalBytesProcessed: '512',
+                query: { cacheHit: true },
+            }),
+        ).toStrictEqual({
+            jobId: 'job-1',
+            bytesProcessed: 512,
+            bytesBilled: null,
+            executionTimeMs: null,
+            cacheHit: true,
+        });
     });
 });

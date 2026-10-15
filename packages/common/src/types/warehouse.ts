@@ -20,6 +20,7 @@ export type RunQueryTags = Record<UserAttributeQueryTag, string> & {
     user_uuid?: string;
     ai_principal?: string;
     agent?: 'true';
+    agent_uuid?: string;
     organization_uuid?: string;
     app_uuid?: string;
     chart_uuid?: string;
@@ -470,12 +471,25 @@ export type WarehousePhaseTimings = Partial<
     Record<WarehouseQueryPhase, number>
 >;
 
+/** Execution statistics reported by the warehouse for one query job. */
+export type WarehouseExecutionStats = {
+    jobId: string | null;
+    bytesProcessed: number | null;
+    bytesBilled: number | null;
+    /** Warehouse-reported job duration, from job start to job end. */
+    executionTimeMs: number | null;
+    /** Whether the warehouse served the job from its own result cache. */
+    cacheHit: boolean | null;
+};
+
 export type WarehouseExecuteAsyncQuery = {
     queryId: string | null;
     queryMetadata: WarehouseQueryMetadata | null;
     totalRows: number;
     durationMs: number;
     phaseTimings: WarehousePhaseTimings;
+    /** Omitted by warehouses that do not report execution statistics. */
+    executionStats?: WarehouseExecutionStats;
 };
 
 export enum TimeIntervalUnit {

@@ -8,6 +8,7 @@ import {
     ROADMAP_DEFAULT_PAGE_SIZE,
     RoadmapFollowProjectRequestSchema,
     RoadmapFollowProjectResponseSchema,
+    RoadmapItemStatus,
     RoadmapProjectQuerySchema,
     RoadmapProjectRequestsResponseSchema,
     RoadmapProjectResponseSchema,
@@ -96,7 +97,26 @@ type Dependencies = {
     lightdashConfig: LightdashConfig;
 };
 
+export type ShippedRequestedItemsResult =
+    | { status: 'ok'; items: { title: string; numbers: number[] }[] }
+    | { status: 'unavailable' };
+
+const SHIPPED_REQUESTS_CACHE_TTL_MS = 10 * 60 * 1000;
+
 export class RoadmapService extends BaseService {
+    private readonly shippedRequestsCache = new Map<
+        string,
+        {
+            result: ShippedRequestedItemsResult;
+            expiresAt: number;
+        }
+    >();
+
+    private readonly shippedRequestsInFlight = new Map<
+        string,
+        Promise<ShippedRequestedItemsResult>
+    >();
+
     private readonly analytics: LightdashAnalytics;
 
     private readonly lightdashConfig: LightdashConfig;
@@ -154,6 +174,123 @@ export class RoadmapService extends BaseService {
         }
 
         return { organizationUuid, licenseKey };
+    }
+
+    async getShippedRequestedItems(
+        account: Account,
+    ): Promise<ShippedRequestedItemsResult> {
+        try {
+            const { organizationUuid, licenseKey } =
+                await this.authorize(account);
+            const now = Date.now();
+            this.shippedRequestsCache.forEach((entry, key) => {
+                if (entry.expiresAt <= now)
+                    this.shippedRequestsCache.delete(key);
+            });
+            const cached = this.shippedRequestsCache.get(organizationUuid);
+            if (cached) return cached.result;
+            let operation = this.shippedRequestsInFlight.get(organizationUuid);
+            if (!operation) {
+                operation = this.fetchShippedRequestedItems(
+                    organizationUuid,
+                    licenseKey,
+                )
+                    .catch(
+                        (): ShippedRequestedItemsResult => ({
+                            status: 'unavailable',
+                        }),
+                    )
+                    .then((result) => {
+                        this.shippedRequestsCache.set(organizationUuid, {
+                            result,
+                            expiresAt:
+                                Date.now() + SHIPPED_REQUESTS_CACHE_TTL_MS,
+                        });
+                        return result;
+                    })
+                    .finally(() =>
+                        this.shippedRequestsInFlight.delete(organizationUuid),
+                    );
+                this.shippedRequestsInFlight.set(organizationUuid, operation);
+            }
+            return await operation;
+        } catch {
+            return { status: 'unavailable' };
+        }
+    }
+
+    private async fetchShippedRequestedItems(
+        organizationUuid: string,
+        licenseKey: string,
+    ): Promise<ShippedRequestedItemsResult> {
+        const projects = await this.request(
+            organizationUuid,
+            licenseKey,
+            '/projects',
+            {
+                onlyInterested: true,
+                pageSize: 100,
+                page: 1,
+            },
+            RoadmapProjectResponseSchema,
+        );
+        this.assertFresh(projects.results.expiresAt);
+        const groups = projects.results.projects
+            .filter((group) => group.ownRequestCount > 0 || group.hasDirectNeed)
+            .slice(0, 10);
+        const responses = await Promise.all([
+            this.request(
+                organizationUuid,
+                licenseKey,
+                '',
+                { pageSize: 100, page: 1 },
+                RoadmapResponseSchema,
+            ),
+            ...groups.map((group) =>
+                this.request(
+                    organizationUuid,
+                    licenseKey,
+                    '',
+                    {
+                        projectId: group.project.projectId,
+                        pageSize: 100,
+                        page: 1,
+                    },
+                    RoadmapProjectRequestsResponseSchema,
+                ),
+            ),
+        ]);
+        const seen = new Set<string>();
+        const items = responses.flatMap((response) => {
+            if (response.expiresAt !== undefined)
+                this.assertFresh(response.expiresAt);
+            return response.results.flatMap((item) => {
+                if (
+                    item.status !== RoadmapItemStatus.SHIPPED ||
+                    seen.has(item.ticketId)
+                )
+                    return [];
+                const numbers = [
+                    ...new Set(
+                        [item.issueUrl, item.pullRequestUrl].flatMap((url) => {
+                            const match = url?.match(
+                                /^https:\/\/github\.com\/lightdash\/lightdash\/(?:issues|pull)\/(\d+)\/?$/,
+                            );
+                            const number = match ? Number(match[1]) : null;
+                            return number !== null &&
+                                Number.isSafeInteger(number) &&
+                                number > 0
+                                ? [number]
+                                : [];
+                        }),
+                    ),
+                ];
+                if (numbers.length === 0) return [];
+                seen.add(item.ticketId);
+                return [{ title: item.title, numbers }];
+            });
+        });
+        return { status: 'ok', items };
     }
 
     async followProject(
