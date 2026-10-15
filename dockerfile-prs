@@ -67,7 +67,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-snowflake~=1.12.0" \
     "dbt-bigquery~=1.12.0" \
     "dbt-databricks~=1.12.3" \
-    "dbt-trino~=1.10.0"
+    "dbt-trino~=1.10.0" \
+    "dbt-loom==0.9.6"
 
 FROM base AS package-manifests
 
