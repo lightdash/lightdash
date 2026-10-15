@@ -1,3 +1,10 @@
+# [2.587.0](https://github.com/lightdash/lightdash/compare/2.586.0...2.587.0) (2026-10-15)
+
+
+### Features
+
+* **backend:** opt-in logging for rolled-back database transactions ([#31010](https://github.com/lightdash/lightdash/issues/31010)) ([1d5a12b](https://github.com/lightdash/lightdash/commit/1d5a12ba964fef9072e7564ccf68de0283eb5d8f)), closes [#30731](https://github.com/lightdash/lightdash/issues/30731) [#30731](https://github.com/lightdash/lightdash/issues/30731)
+
 # [2.586.0](https://github.com/lightdash/lightdash/compare/2.585.0...2.586.0) (2026-10-15)
 
 
