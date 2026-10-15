@@ -12965,6 +12965,108 @@
                 "description": "Stringified UUIDv4.\nSee [RFC 4112](https://tools.ietf.org/html/rfc4122)",
                 "pattern": "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}"
             },
+            "ReleaseHighlight": {
+                "properties": {
+                    "requestedByYourOrganization": {
+                        "type": "boolean"
+                    },
+                    "version": {
+                        "type": "string"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "benefit": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "requestedByYourOrganization",
+                    "version",
+                    "url",
+                    "benefit",
+                    "title"
+                ],
+                "type": "object"
+            },
+            "ReleaseHighlightsResult": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "generatedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "highlights": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ReleaseHighlight"
+                                },
+                                "type": "array"
+                            },
+                            "toVersion": {
+                                "type": "string"
+                            },
+                            "fromVersion": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["ready"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "generatedAt",
+                            "highlights",
+                            "toVersion",
+                            "fromVersion",
+                            "status"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "reason": {
+                                "type": "string",
+                                "enum": [
+                                    "not_self_hosted",
+                                    "update_check_disabled",
+                                    "up_to_date",
+                                    "ai_not_configured",
+                                    "source_unavailable",
+                                    "no_features",
+                                    "generation_failed",
+                                    "rate_limited"
+                                ]
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["unavailable"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["reason", "status"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiReleaseHighlights": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ReleaseHighlightsResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "HomepageCollectionItemRef": {
                 "properties": {
                     "uuid": {
@@ -72862,7 +72964,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.580.0",
+        "version": "2.584.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

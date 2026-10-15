@@ -196,7 +196,12 @@ export const withAgentMarkerTag = <
 >(
     tags: T,
     agentIdentity: AgentIdentityClaim | null = null,
-): T & { agent?: 'true'; agent_surface?: string; agent_client?: string } => {
+): T & {
+    agent?: 'true';
+    agent_surface?: string;
+    agent_client?: string;
+    agent_uuid?: string;
+} => {
     const marked = isAiAccessQueryContext(tags.query_context)
         ? { ...tags, [AI_AGENT_TAG]: 'true' as const }
         : tags;
@@ -205,6 +210,9 @@ export const withAgentMarkerTag = <
               ...marked,
               agent_surface: agentIdentity.act.surface,
               agent_client: getAgentClientLabel(agentIdentity.act.client_id),
+              ...(agentIdentity.act.agent_uuid
+                  ? { agent_uuid: agentIdentity.act.agent_uuid }
+                  : {}),
           }
         : marked;
 };

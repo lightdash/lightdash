@@ -13,6 +13,7 @@ import type {
     QueryHistory,
     QueryHistoryStatus,
     ResultColumns,
+    WarehouseExecutionStats,
     WarehouseQueryMetadata,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -32,6 +33,7 @@ export type DbQueryHistory = {
     compiled_sql: string;
     warehouse_query_id: string | null;
     warehouse_query_metadata: WarehouseQueryMetadata | null;
+    warehouse_execution_stats: WarehouseExecutionStats | null;
     metric_query: MetricQuery;
     fields: ItemsMap;
     request_parameters: QueryHistory['requestParameters'];
@@ -79,6 +81,7 @@ export type DbQueryHistoryUpdate = Partial<
         | 'total_row_count'
         | 'warehouse_query_id'
         | 'warehouse_query_metadata'
+        | 'warehouse_execution_stats'
         | 'default_page_size'
         | 'pivot_configuration'
         | 'pivot_values_columns'

@@ -74,6 +74,7 @@ function convertDbQueryHistoryToQueryHistory(
         usedParameters: queryHistory.used_parameters,
         warehouseQueryId: queryHistory.warehouse_query_id,
         warehouseQueryMetadata: queryHistory.warehouse_query_metadata,
+        warehouseExecutionStats: queryHistory.warehouse_execution_stats ?? null,
         status: queryHistory.status,
         totalRowCount: queryHistory.total_row_count,
         warehouseExecutionTimeMs: queryHistory.warehouse_execution_time_ms,
@@ -198,6 +199,7 @@ export class QueryHistoryModel {
             | 'totalRowCount'
             | 'warehouseQueryId'
             | 'warehouseQueryMetadata'
+            | 'warehouseExecutionStats'
             | 'warehouseExecutionTimeMs'
             | 'error'
             | 'erroredAt'
@@ -245,6 +247,7 @@ export class QueryHistoryModel {
                 warehouse_query_id: null,
                 warehouse_execution_time_ms: null,
                 warehouse_query_metadata: null,
+                warehouse_execution_stats: null,
                 error: null,
                 errored_at: null,
                 cache_key: queryHistory.cacheKey,

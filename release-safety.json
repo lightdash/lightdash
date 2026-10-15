@@ -1,24 +1,24 @@
 {
   "schemaVersion": "2",
-  "version": "2.582.0",
-  "previousVersion": "2.581.2",
-  "releaseDate": "2026-10-14T19:29:56.209Z",
+  "version": "2.584.0",
+  "previousVersion": "2.583.0",
+  "releaseDate": "2026-10-15T00:52:07.779Z",
   "migrations": {
     "present": true,
     "count": 1,
-    "coreCount": 0,
-    "eeCount": 1,
+    "coreCount": 1,
+    "eeCount": 0,
     "files": [
       {
-        "name": "20261014160000_create_release_highlights.ts",
-        "edition": "ee",
+        "name": "20261014120000_add_warehouse_execution_stats_to_query_history.ts",
+        "edition": "core",
         "tables": [
-          "release_highlights"
+          "query_history"
         ],
         "heaviness": {
           "locksTable": true,
           "rewritesTable": false,
-          "scansTable": true
+          "scansTable": false
         }
       }
     ]

@@ -604,6 +604,33 @@ describe('getRunQuery', () => {
         );
     });
 
+    it('states warehouse execution stats with the results', async () => {
+        const executionStats = {
+            jobId: 'job-123',
+            bytesProcessed: 1048576,
+            bytesBilled: 10485760,
+            executionTimeMs: 1250,
+            cacheHit: false,
+        };
+        const runAsyncQuery: RunAsyncQueryFn = vi.fn().mockResolvedValue({
+            queryUuid: '11111111-1111-4111-8111-111111111111',
+            rows: [{ a_dim1: 'one', a_met1: 1 }],
+            cacheMetadata: { cacheHit: false },
+            fields: {},
+            executionStats,
+        });
+
+        const output = await executeTool(runAsyncQuery);
+
+        expect(output.result).toContain(
+            "Warehouse execution stats: 1048576 bytes (1.0 MiB) processed, 10485760 bytes (10.0 MiB) billed, ran for 1250 ms, served from the warehouse's own result cache: no, warehouse job ID job-123.",
+        );
+        expect(output.structuredContent).toMatchObject({
+            outcome: 'results',
+            executionStats,
+        });
+    });
+
     it('keeps flag-off semantic artifact writes unchanged', async () => {
         const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
         const runAsyncQuery: RunAsyncQueryFn = vi.fn().mockResolvedValue({

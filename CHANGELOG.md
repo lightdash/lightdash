@@ -1,3 +1,17 @@
+# [2.584.0](https://github.com/lightdash/lightdash/compare/2.583.0...2.584.0) (2026-10-15)
+
+
+### Features
+
+* **ai-agent:** return warehouse execution stats from agent queries ([#31018](https://github.com/lightdash/lightdash/issues/31018)) ([ff822dc](https://github.com/lightdash/lightdash/commit/ff822dcac55fb2c21d9feef941959d82448dec6e)), closes [#31016](https://github.com/lightdash/lightdash/issues/31016)
+
+# [2.583.0](https://github.com/lightdash/lightdash/compare/2.582.0...2.583.0) (2026-10-15)
+
+
+### Features
+
+* **bigquery:** label agent queries with agent_uuid and keep user_uuid ([#31009](https://github.com/lightdash/lightdash/issues/31009)) ([576dcca](https://github.com/lightdash/lightdash/commit/576dccaf734bc7439318563fcae0fa2e8b7fb39b)), closes [#31002](https://github.com/lightdash/lightdash/issues/31002)
+
 # [2.582.0](https://github.com/lightdash/lightdash/compare/2.581.2...2.582.0) (2026-10-14)
 
 

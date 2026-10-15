@@ -44,6 +44,7 @@ import {
     WarehouseTypes,
     type ResultNumericKind,
     type TimestampDomain,
+    type WarehouseExecutionStats,
     type WarehouseNestedColumnShape,
     type WarehouseQueryEstimate,
 } from '@lightdash/common';
@@ -435,6 +436,19 @@ export const getGoogleOauthTokenError = (
 export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryCredentials> {
     private static readonly MAX_LABELS = 64;
 
+    private static readonly AGENT_IDENTITY_LABEL_KEYS = [
+        'agent_surface',
+        'agent_client',
+        'agent_uuid',
+        'user_uuid',
+    ];
+
+    // Kept ahead of other labels so attribution survives the label limit.
+    private static readonly PRIORITY_LABEL_KEYS = [
+        'agent',
+        ...BigqueryWarehouseClient.AGENT_IDENTITY_LABEL_KEYS,
+    ];
+
     client: BigQuery;
 
     private readonly agentJobControls: boolean;
@@ -535,8 +549,14 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     ): Record<string, string> | undefined {
         if (!labels) return undefined;
         const entries = Object.entries(labels);
+        const isPriority = (key: string) =>
+            BigqueryWarehouseClient.PRIORITY_LABEL_KEYS.includes(key);
         const orderedEntries = [
-            ...entries.filter(([key]) => !key.startsWith('user_attribute_')),
+            ...entries.filter(([key]) => isPriority(key)),
+            ...entries.filter(
+                ([key]) =>
+                    !isPriority(key) && !key.startsWith('user_attribute_'),
+            ),
             ...entries.filter(([key]) => key.startsWith('user_attribute_')),
         ];
         return Object.fromEntries(
@@ -587,9 +607,9 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             this.agentJobControls && tags
                 ? (BigqueryWarehouseClient.sanitizeLabelsWithValues(
                       Object.fromEntries(
-                          ['agent_surface', 'agent_client']
-                              .filter((key) => tags[key] !== undefined)
-                              .map((key) => [key, tags[key]]),
+                          BigqueryWarehouseClient.AGENT_IDENTITY_LABEL_KEYS.filter(
+                              (key) => tags[key] !== undefined,
+                          ).map((key) => [key, tags[key]]),
                       ),
                   ) ?? {})
                 : {};
@@ -646,6 +666,32 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 autoCreate: false,
             });
         return job;
+    }
+
+    static getExecutionStats(
+        jobId: string | null,
+        statistics: bigquery.IJobStatistics | undefined,
+    ): WarehouseExecutionStats {
+        const toNumber = (value: string | undefined): number | null => {
+            if (value === undefined) return null;
+            const parsed = Number(value);
+            return Number.isFinite(parsed) ? parsed : null;
+        };
+        const startTime = toNumber(statistics?.startTime);
+        const endTime = toNumber(statistics?.endTime);
+        return {
+            jobId,
+            bytesProcessed: toNumber(
+                statistics?.query?.totalBytesProcessed ??
+                    statistics?.totalBytesProcessed,
+            ),
+            bytesBilled: toNumber(statistics?.query?.totalBytesBilled),
+            executionTimeMs:
+                startTime !== null && endTime !== null
+                    ? endTime - startTime
+                    : null,
+            cacheHit: statistics?.query?.cacheHit ?? null,
+        };
     }
 
     private async getJobResultsMetadata(job: Job) {
@@ -1108,6 +1154,10 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 totalRows,
                 durationMs: startTime && endTime ? endTime - startTime : 0,
                 phaseTimings: { query: queryMs, fetch: fetchMs },
+                executionStats: BigqueryWarehouseClient.getExecutionStats(
+                    job.id,
+                    job.metadata?.statistics,
+                ),
             };
         } catch (e: unknown) {
             this.throwIfGoogleOauthTokenError(e);
