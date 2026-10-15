@@ -597,3 +597,44 @@ describe('buildComposerChartData', () => {
         expect(data.results.map((row) => row.rank)).toEqual([9, 10, 100]);
     });
 });
+
+describe('getComposerVizPlan seeded from a custom config', () => {
+    const columns = [
+        column('status', DimensionType.STRING),
+        column('n', DimensionType.NUMBER),
+    ];
+    const custom = (category: string) => ({
+        type: ChartKind.DATA_APP_VIZ as const,
+        metadata: { version: 1 as const },
+        dataAppVizUuid: 'viz-uuid',
+        dataAppVizVersion: 1,
+        fieldMapping: { category, value: 'n' },
+        optionValues: {},
+    });
+
+    test('opens on custom and offers it after the chart kinds', () => {
+        const seeded = getComposerVizPlan({
+            columns,
+            rows: twoRows,
+            node: null,
+            vizConfig: custom('status'),
+        });
+        expect(seeded.defaultKind).toBe('custom');
+        expect(seeded.availableKinds).toEqual([...CARTESIAN, 'pie', 'custom']);
+    });
+
+    test('falls back to column types when a bound column is gone', () => {
+        const seeded = getComposerVizPlan({
+            columns,
+            rows: twoRows,
+            node: null,
+            vizConfig: custom('country'),
+        });
+        expect(seeded.availableKinds).not.toContain('custom');
+        expect(seeded.defaultKind).toBe('bar');
+    });
+
+    test('column types alone never offer custom', () => {
+        expect(plan(columns).availableKinds).not.toContain('custom');
+    });
+});

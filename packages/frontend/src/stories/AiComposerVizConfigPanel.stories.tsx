@@ -1,13 +1,17 @@
 import {
     ChartKind,
+    COMPOSER_VIZ_NOTHING_REMEMBERED,
     DimensionType,
     getComposerVizPanelOptions,
     QuerySourceType,
+    rememberComposerVizConfig,
     switchComposerVizKind,
     VizAggregationOptions,
     VizIndexType,
     type AllVizChartConfig,
+    type ComposerVizConfig,
     type ComposerVizKind,
+    type ComposerVizRemembered,
     type RawResultRow,
     type ResultColumn,
     type SourceQuery,
@@ -74,7 +78,7 @@ const kindOf = (kind: ComposerVizKind) =>
         columns,
         rows,
         node: null,
-        remembered: null,
+        remembered: COMPOSER_VIZ_NOTHING_REMEMBERED,
     });
 
 const barWithTwoValues: AllVizChartConfig = {
@@ -92,7 +96,7 @@ const barWithTwoValues: AllVizChartConfig = {
 };
 
 type Args = {
-    initialValue: AllVizChartConfig;
+    initialValue: ComposerVizConfig;
     mode: AiComposerVizConfigPanelMode;
     defaultExpanded: boolean;
     fieldsDisabledReason: string | null;
@@ -108,8 +112,8 @@ const PanelStory = ({
     resultError,
 }: Args) => {
     const [value, setValue] = useState(initialValue);
-    const [remembered, setRemembered] = useState<AllVizChartConfig | null>(
-        null,
+    const [remembered, setRemembered] = useState<ComposerVizRemembered>(
+        COMPOSER_VIZ_NOTHING_REMEMBERED,
     );
     const [isChartOpen, setIsChartOpen] = useState(defaultExpanded);
     const [isPipelineOpen, setIsPipelineOpen] = useState(false);
@@ -144,17 +148,24 @@ const PanelStory = ({
                         }}
                     >
                         <AiComposerVizConfigPanel
+                            projectUuid="story"
+                            node={queries[1]}
                             value={value}
                             columns={columns}
                             options={getComposerVizPanelOptions(
                                 value,
                                 columns,
                                 rows,
+                                remembered,
                             )}
                             onChange={setValue}
                             onKindChange={(kind) => {
-                                if (value.type !== ChartKind.TABLE)
-                                    setRemembered(value);
+                                setRemembered(
+                                    rememberComposerVizConfig(
+                                        remembered,
+                                        value,
+                                    ),
+                                );
                                 setValue(
                                     switchComposerVizKind(value, kind, {
                                         columns,

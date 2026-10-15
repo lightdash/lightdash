@@ -36,7 +36,11 @@ export const poolKeyForSlot = (
 
 // Column ids of each type, in result order. Ids rather than items, because
 // every binding is compared and stored as an id.
-type Pools = Record<'dimension' | 'metric' | 'column', string[]>;
+export type DataAppVizColumnPools = Record<
+    'dimension' | 'metric' | 'column',
+    string[]
+>;
+type Pools = DataAppVizColumnPools;
 
 const poolsFor = (itemsMap: ItemsMap): Pools => {
     const { dimensions, metrics } = getDataAppVizFieldItems(itemsMap);
@@ -181,8 +185,19 @@ export const reconcileDataAppVizFieldMapping = (
     fields: DataAppVizField[],
     itemsMap: ItemsMap,
     persisted: DataAppVizFieldMapping,
+): DataAppVizFieldMapping =>
+    reconcileDataAppVizFieldMappingWithPools(
+        fields,
+        poolsFor(itemsMap),
+        persisted,
+    );
+
+/** `reconcileDataAppVizFieldMapping` over precomputed column pools, for results without an explore. */
+export const reconcileDataAppVizFieldMappingWithPools = (
+    fields: DataAppVizField[],
+    pools: DataAppVizColumnPools,
+    persisted: DataAppVizFieldMapping,
 ): DataAppVizFieldMapping => {
-    const pools = poolsFor(itemsMap);
     const mapping: DataAppVizFieldMapping = {};
     const taken = new Set<string>();
 

@@ -6,7 +6,7 @@ import {
     type SourceQuery,
 } from '../../types/querySources';
 import { stableJson } from '../../utils/stableJson';
-import { type AllVizChartConfig } from '../../visualizations/types';
+import { type ComposerVizConfig } from './composerCustomViz';
 
 /**
  * A composer artifact version: a declarative pipeline, its terminal node and
@@ -18,7 +18,7 @@ export type AiComposerChartArtifactConfig = {
     /** Self-contained pipeline: every node has a node id and reads only nodes of this pipeline. */
     queries: SourceQuery[];
     terminalNodeId: QueryNodeId;
-    vizConfig: AllVizChartConfig | null;
+    vizConfig: ComposerVizConfig | null;
 };
 
 export const isAiComposerChartArtifactConfig = (

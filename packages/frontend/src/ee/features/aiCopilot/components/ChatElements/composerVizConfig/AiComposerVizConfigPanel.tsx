@@ -2,11 +2,14 @@ import {
     ChartKind,
     getComposerVizKind,
     getComposerVizKindLabel,
+    isComposerCustomVizConfig,
     summarizeComposerVizConfig,
-    type AllVizChartConfig,
+    type ComposerCustomVizConfig,
+    type ComposerVizConfig,
     type ComposerVizKind,
     type ComposerVizPanelOptions,
     type ResultColumn,
+    type SourceQuery,
 } from '@lightdash/common';
 import {
     Box,
@@ -21,7 +24,9 @@ import { IconChevronRight } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { useDataAppVisualization } from '../../../../../../features/chartTypes/hooks/useDataAppVisualization';
 import barStyles from '../composerPipeline/AiComposerPipelinePanel.module.css';
+import { AiComposerCustomVizFieldRows } from './AiComposerCustomVizFieldRows';
 import styles from './AiComposerVizConfigPanel.module.css';
 import { AiComposerVizFieldRows } from './AiComposerVizFieldRows';
 import { AiComposerVizKindSwitcher } from './AiComposerVizKindSwitcher';
@@ -35,10 +40,13 @@ import { getComposerVizKindIcon } from './composerVizKindIcon';
 export type AiComposerVizConfigPanelMode = 'expandable' | 'switcher' | 'static';
 
 type Props = {
-    value: AllVizChartConfig;
+    projectUuid: string;
+    /** The displayed node; splits columns into dimensions and metrics for a custom chart type. */
+    node: SourceQuery | null;
+    value: ComposerVizConfig;
     columns: ResultColumn[];
     options: ComposerVizPanelOptions;
-    onChange: (value: AllVizChartConfig) => void;
+    onChange: (value: ComposerVizConfig) => void;
     onKindChange: (kind: ComposerVizKind) => void;
     mode: AiComposerVizConfigPanelMode;
     expanded: boolean;
@@ -49,16 +57,37 @@ type Props = {
     children: ReactNode;
 };
 
-const Summary: FC<{ value: AllVizChartConfig; columns: ResultColumn[] }> = ({
-    value,
-    columns,
-}) => {
+const useCustomVizName = (
+    projectUuid: string,
+    value: ComposerCustomVizConfig | null,
+): string | null => {
+    const { data } = useDataAppVisualization(
+        projectUuid,
+        value?.dataAppVizUuid ?? null,
+        value?.dataAppVizVersion ?? null,
+    );
+    return data?.name ?? null;
+};
+
+const Summary: FC<{
+    projectUuid: string;
+    value: ComposerVizConfig;
+    columns: ResultColumn[];
+}> = ({ projectUuid, value, columns }) => {
     const kind = getComposerVizKind(value);
     const label = getComposerVizKindLabel(kind);
-    const text =
-        value.type === ChartKind.TABLE
-            ? label
-            : `${label} · ${summarizeComposerVizConfig(value, columns)}`;
+    const customName = useCustomVizName(
+        projectUuid,
+        isComposerCustomVizConfig(value) ? value : null,
+    );
+    const text = (() => {
+        if (isComposerCustomVizConfig(value))
+            return customName
+                ? `${label} · ${customName}`
+                : summarizeComposerVizConfig(value, columns);
+        if (value.type === ChartKind.TABLE) return label;
+        return `${label} · ${summarizeComposerVizConfig(value, columns)}`;
+    })();
     return (
         <Box component="span" className={styles.summary}>
             <MantineIcon
@@ -76,6 +105,8 @@ const Summary: FC<{ value: AllVizChartConfig; columns: ResultColumn[] }> = ({
 
 /** The viz config panel: a "Chart" bar above the pipeline bar that shows and edits the displayed node's viz config. */
 export const AiComposerVizConfigPanel: FC<Props> = ({
+    projectUuid,
+    node,
     value,
     columns,
     options,
@@ -114,7 +145,11 @@ export const AiComposerVizConfigPanel: FC<Props> = ({
                     />
                     {heading}
                     <Box className={styles.spacer} />
-                    <Summary value={value} columns={columns} />
+                    <Summary
+                        projectUuid={projectUuid}
+                        value={value}
+                        columns={columns}
+                    />
                 </UnstyledButton>
             </Box>
         ) : (
@@ -128,7 +163,11 @@ export const AiComposerVizConfigPanel: FC<Props> = ({
                         onChange={onKindChange}
                     />
                 ) : (
-                    <Summary value={value} columns={columns} />
+                    <Summary
+                        projectUuid={projectUuid}
+                        value={value}
+                        columns={columns}
+                    />
                 )}
             </Box>
         );
@@ -150,7 +189,8 @@ export const AiComposerVizConfigPanel: FC<Props> = ({
                                 availableKinds={options.kinds}
                                 onChange={onKindChange}
                             />
-                            {value.type === ChartKind.TABLE ? (
+                            {!isComposerCustomVizConfig(value) &&
+                            value.type === ChartKind.TABLE ? (
                                 <Text size="xs" c="dimmed">
                                     Tables show every column of the result.
                                 </Text>
@@ -162,15 +202,30 @@ export const AiComposerVizConfigPanel: FC<Props> = ({
                                     withinPortal
                                 >
                                     <Box className={styles.fieldRows}>
-                                        <AiComposerVizFieldRows
-                                            value={value}
-                                            columns={columns}
-                                            options={options}
-                                            onChange={onChange}
-                                            disabled={
-                                                fieldsDisabledReason !== null
-                                            }
-                                        />
+                                        {isComposerCustomVizConfig(value) ? (
+                                            <AiComposerCustomVizFieldRows
+                                                projectUuid={projectUuid}
+                                                value={value}
+                                                columns={columns}
+                                                node={node}
+                                                onChange={onChange}
+                                                disabled={
+                                                    fieldsDisabledReason !==
+                                                    null
+                                                }
+                                            />
+                                        ) : (
+                                            <AiComposerVizFieldRows
+                                                value={value}
+                                                columns={columns}
+                                                options={options}
+                                                onChange={onChange}
+                                                disabled={
+                                                    fieldsDisabledReason !==
+                                                    null
+                                                }
+                                            />
+                                        )}
                                     </Box>
                                 </Tooltip>
                             )}

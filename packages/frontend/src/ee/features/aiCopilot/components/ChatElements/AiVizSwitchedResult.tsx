@@ -1,6 +1,5 @@
 import {
     buildComposerVizConfig,
-    ChartKind,
     getComposerFieldConfig,
     type ComposerVizKind,
     type ComposerVizPlan,
@@ -41,7 +40,8 @@ export const AiVizSwitchedResult: FC<Props> = ({
     flush = false,
 }) => {
     const vizConfig = useMemo(() => {
-        if (kind === 'table') return null;
+        // SQL results plan without a stored config, so never custom.
+        if (kind === 'table' || kind === 'custom') return null;
         const axes = plan.axes[kind];
         return axes
             ? buildComposerVizConfig({
@@ -60,7 +60,7 @@ export const AiVizSwitchedResult: FC<Props> = ({
                     showPill && styles.withPillClearance,
                 )}
             >
-                {vizConfig && vizConfig.type !== ChartKind.TABLE ? (
+                {vizConfig ? (
                     <AiComposerChartVisualization
                         projectUuid={projectUuid}
                         results={results}

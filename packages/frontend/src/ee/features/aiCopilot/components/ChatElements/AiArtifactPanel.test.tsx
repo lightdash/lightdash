@@ -100,6 +100,14 @@ vi.mock(
         default: () => <Box data-testid="chart-view-big_number" />,
     }),
 );
+vi.mock('../../../../../components/DataAppVizRenderer/DataAppVizFrame', () => ({
+    DataAppVizFrame: ({ context }: { context: unknown }) => (
+        <Box
+            data-testid="custom-chart"
+            data-context={JSON.stringify(context)}
+        />
+    ),
+}));
 vi.mock('../../../../../hooks/appearance/useProjectColorPalette', () => ({
     useProjectColorPalette: () => ({ data: undefined }),
 }));
@@ -662,6 +670,86 @@ describe('composer viz config panel', () => {
         await openChart();
         expect(screen.queryByText('Sources')).not.toBeInTheDocument();
     });
+
+    it('renders a custom chart type config and restores it after another kind', async () => {
+        vi.mocked(lightdashApi).mockImplementation((async ({
+            url,
+        }: {
+            url: string;
+        }) => {
+            if (url.includes('/render-metadata'))
+                return {
+                    state: 'ready',
+                    version: 2,
+                    latestBuildInProgress: false,
+                    preview: null,
+                    schema: {
+                        fields: [
+                            {
+                                name: 'category',
+                                label: 'Category',
+                                type: 'dimension',
+                                required: true,
+                            },
+                            {
+                                name: 'value',
+                                label: 'Value',
+                                type: 'metric',
+                                required: true,
+                            },
+                        ],
+                        configOptions: [],
+                        colorPalette: null,
+                    },
+                };
+            if (url.endsWith('/apps/visualizations/viz?version=2'))
+                return { name: 'Funnel' };
+            return undefined;
+        }) as unknown as typeof lightdashApi);
+        renderComposer(statusCounts, {
+            ...composerConfig,
+            vizConfig: {
+                type: ChartKind.DATA_APP_VIZ,
+                metadata: { version: 1 },
+                dataAppVizUuid: 'viz',
+                dataAppVizVersion: 2,
+                // An unbound required slot fills from its pool.
+                fieldMapping: { category: 'status' },
+                optionValues: {},
+            },
+        });
+        await waitFor(() =>
+            expect(chartBar()).toHaveTextContent('Custom · Funnel'),
+        );
+        const context = JSON.parse(
+            (await screen.findByTestId('custom-chart')).getAttribute(
+                'data-context',
+            )!,
+        );
+        expect(context).toMatchObject({
+            fieldMapping: { category: 'status', value: 'n' },
+            fields: { status: { label: 'status' }, n: { label: 'n' } },
+            drillDown: { enabled: false },
+        });
+        await openChart();
+        expect(offeredKinds()).toEqual([
+            'table',
+            'bar',
+            'line',
+            'pie',
+            'custom',
+        ]);
+        expect(
+            screen.getByRole('combobox', { name: 'Category' }),
+        ).toBeInTheDocument();
+        chooseKind('bar');
+        expect(
+            screen.getByTestId('chart-view-vertical_bar'),
+        ).toBeInTheDocument();
+        chooseKind('custom');
+        expect(selectedKind()).toBe('custom');
+        expect(screen.getByTestId('custom-chart')).toBeInTheDocument();
+    });
 });
 
 describe('composer displayed node', () => {
@@ -1087,6 +1175,7 @@ describe('alternate artifact visualization identity recovery', () => {
                 projectUuid="project"
                 queryUuid="query"
                 runError={null}
+                node={null}
                 results={{ ...mocks.rows(), error }}
                 vizConfig={
                     { type: ChartKind.TABLE } as ComponentProps<

@@ -1,7 +1,8 @@
 import { ChartKind, type ComposerVizKind } from '@lightdash/common';
+import { IconPuzzle } from '@tabler/icons-react';
 import { getChartIcon } from '../../../../../../components/common/ResourceIcon/utils';
 
-const CHART_KIND: Record<ComposerVizKind, ChartKind> = {
+const CHART_KIND: Record<Exclude<ComposerVizKind, 'custom'>, ChartKind> = {
     table: ChartKind.TABLE,
     bar: ChartKind.VERTICAL_BAR,
     line: ChartKind.LINE,
@@ -10,4 +11,4 @@ const CHART_KIND: Record<ComposerVizKind, ChartKind> = {
 };
 
 export const getComposerVizKindIcon = (kind: ComposerVizKind) =>
-    getChartIcon(CHART_KIND[kind]);
+    kind === 'custom' ? IconPuzzle : getChartIcon(CHART_KIND[kind]);

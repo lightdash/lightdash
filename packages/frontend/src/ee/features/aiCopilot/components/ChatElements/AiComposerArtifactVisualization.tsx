@@ -1,7 +1,9 @@
 import {
     ChartKind,
-    type AllVizChartConfig,
+    isComposerCustomVizConfig,
     type ApiError,
+    type ComposerVizConfig,
+    type SourceQuery,
 } from '@lightdash/common';
 import { type FC, type ReactNode } from 'react';
 import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
@@ -10,6 +12,7 @@ import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { AiAccessCallout } from './AiAccessCallout';
 import { AiArtifactTableVisualization } from './AiArtifactTableVisualization';
 import { AiComposerChartVisualization } from './AiComposerChartVisualization';
+import { AiComposerCustomVisualization } from './AiComposerCustomVisualization';
 import { AiComposerResultError } from './AiComposerResultError';
 
 type Props = {
@@ -19,17 +22,20 @@ type Props = {
     queryUuid: string | null;
     /** The run itself failed to start, so no node has a result. */
     runError: ApiError | null;
-    vizConfig: AllVizChartConfig;
+    /** The displayed node; splits columns into dimensions and metrics for a custom chart type. */
+    node: SourceQuery | null;
+    vizConfig: ComposerVizConfig;
     headerContent: ReactNode;
     flush?: boolean;
 };
 
-// A displayed node result drawn as its viz config says: the table or a chart.
+// A displayed node result drawn as its viz config says: the table, a chart or a custom chart type.
 export const AiComposerArtifactVisualization: FC<Props> = ({
     projectUuid,
     results,
     queryUuid,
     runError,
+    node,
     vizConfig,
     headerContent,
     flush = false,
@@ -56,6 +62,18 @@ export const AiComposerArtifactVisualization: FC<Props> = ({
         );
     }
     const loadingMessage = uiStrings('aiAgent.composer.loadingResult');
+    if (isComposerCustomVizConfig(vizConfig)) {
+        return (
+            <AiComposerCustomVisualization
+                projectUuid={projectUuid}
+                results={results}
+                node={node}
+                vizConfig={vizConfig}
+                headerContent={headerContent}
+                loadingMessage={loadingMessage}
+            />
+        );
+    }
     if (vizConfig.type === ChartKind.TABLE) {
         return (
             <AiArtifactTableVisualization

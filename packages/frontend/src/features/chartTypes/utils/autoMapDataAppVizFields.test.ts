@@ -17,6 +17,7 @@ import {
     autoMapDataAppVizFields,
     getUnboundRequiredDataAppVizFields,
     reconcileDataAppVizFieldMapping,
+    reconcileDataAppVizFieldMappingWithPools,
 } from './autoMapDataAppVizFields';
 
 const dimension = (name: string, hidden = false): CompiledDimension => ({
@@ -539,5 +540,52 @@ describe('representative funnel query shapes', () => {
             count: 'orders_count',
         });
         expect(funnelSchema.inputGuidance).toContain('one row per stage');
+    });
+});
+
+describe('reconcileDataAppVizFieldMappingWithPools', () => {
+    const slots: DataAppVizField[] = [
+        { name: 'x', label: 'X', type: 'dimension', required: true },
+        { name: 'y', label: 'Y', type: 'metric', required: true },
+        { name: 'color', label: 'Color', type: 'series', required: false },
+        {
+            name: 'extra',
+            label: 'Extra',
+            type: 'column',
+            required: false,
+            multiple: true,
+        },
+    ];
+    const pools = {
+        dimension: ['region', 'status'],
+        metric: ['revenue'],
+        column: ['revenue', 'region', 'status'],
+    };
+
+    it('keeps bindings that fit their slot pool', () => {
+        expect(
+            reconcileDataAppVizFieldMappingWithPools(slots, pools, {
+                x: 'status',
+                y: 'revenue',
+                color: 'region',
+                extra: ['region', 'revenue'],
+            }),
+        ).toEqual({
+            x: 'status',
+            y: 'revenue',
+            color: 'region',
+            extra: ['region', 'revenue'],
+        });
+    });
+
+    it('drops departed or mistyped columns and refills only required slots', () => {
+        expect(
+            reconcileDataAppVizFieldMappingWithPools(slots, pools, {
+                x: 'revenue',
+                y: 'gone',
+                color: 'gone',
+                extra: ['gone', 'status'],
+            }),
+        ).toEqual({ x: 'region', y: 'revenue', extra: ['status'] });
     });
 });

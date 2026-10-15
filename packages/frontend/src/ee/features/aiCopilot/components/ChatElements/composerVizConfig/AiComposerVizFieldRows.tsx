@@ -9,6 +9,7 @@ import {
     setComposerVizX,
     setComposerVizY,
     type AllVizChartConfig,
+    type ComposerVizConfig,
     SortByDirection,
     VizAggregationOptions,
     type ComposerVizPanelOptions,
@@ -77,11 +78,11 @@ const SideSelect: FC<{
     />
 );
 
-const Row: FC<{ title: string; action?: ReactNode; children: ReactNode }> = ({
-    title,
-    action,
-    children,
-}) => (
+export const AiComposerVizFieldRow: FC<{
+    title: string;
+    action?: ReactNode;
+    children: ReactNode;
+}> = ({ title, action, children }) => (
     <Stack gap="xs">
         <Group justify="space-between" wrap="nowrap">
             <Text fw={500} fz="sm" c="ldGray.7">
@@ -97,7 +98,7 @@ type Props = {
     value: ChartConfig;
     columns: ResultColumn[];
     options: ComposerVizPanelOptions;
-    onChange: (value: AllVizChartConfig) => void;
+    onChange: (value: ComposerVizConfig) => void;
     disabled: boolean;
 };
 
@@ -127,7 +128,7 @@ export const AiComposerVizFieldRows: FC<Props> = ({
     return (
         <Stack gap="md">
             {hasX && (
-                <Row title="X axis">
+                <AiComposerVizFieldRow title="X axis">
                     <Group gap="xs" wrap="nowrap">
                         <FieldReferenceSelect
                             flex={1}
@@ -161,9 +162,9 @@ export const AiComposerVizFieldRows: FC<Props> = ({
                             }
                         />
                     </Group>
-                </Row>
+                </AiComposerVizFieldRow>
             )}
-            <Row
+            <AiComposerVizFieldRow
                 title="Y-axis"
                 action={
                     isCartesian &&
@@ -249,9 +250,9 @@ export const AiComposerVizFieldRows: FC<Props> = ({
                         With a split, only the first Y axis value is charted.
                     </Text>
                 )}
-            </Row>
+            </AiComposerVizFieldRow>
             {isCartesian && (
-                <Row title="Split series by">
+                <AiComposerVizFieldRow title="Split series by">
                     <FieldReferenceSelect
                         flex={1}
                         aria-label="Split series by"
@@ -267,7 +268,7 @@ export const AiComposerVizFieldRows: FC<Props> = ({
                         fieldType={typeOf(groupBy ?? undefined)}
                         className={groupBy ? undefined : styles.emptySelect}
                     />
-                </Row>
+                </AiComposerVizFieldRow>
             )}
         </Stack>
     );

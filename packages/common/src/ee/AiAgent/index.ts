@@ -20,10 +20,10 @@ import {
 } from '../../types/dataRetention';
 import { type QueryNodeId } from '../../types/querySources';
 import assertUnreachable from '../../utils/assertUnreachable';
-import { type AllVizChartConfig } from '../../visualizations/types';
 import { type AiAgentReviewItemStatus } from './aiAgentReviewClassifierTypes';
 import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
 import { type AiComposerChartArtifactConfig } from './composerArtifact';
+import { type ComposerVizConfig } from './composerCustomViz';
 import { type AiProjectContextTypedObjectRef } from './projectContext';
 import {
     type AiAgentBattleProfile,
@@ -50,6 +50,7 @@ export * from './chartConfig/web';
 export * from './constants';
 export * from './coder';
 export * from './composerArtifact';
+export * from './composerCustomViz';
 export * from './composerViz';
 export * from './composerVizPanel';
 export * from './dashboardContext';
@@ -1249,7 +1250,7 @@ export type ApiAiAgentArtifactResponseTSOACompat =
 
 /** Body of the composer artifact version viz config update; the terminal node's config. */
 export type ApiUpdateComposerVizConfigRequest = {
-    vizConfig: AllVizChartConfig;
+    vizConfig: ComposerVizConfig;
 };
 
 export type AiAgentVerifiedArtifact = {

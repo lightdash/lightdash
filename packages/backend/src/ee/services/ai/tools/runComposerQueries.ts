@@ -19,7 +19,6 @@ import { stringify } from 'csv-stringify/sync';
 import { type QueryReviewer } from '../decisions/queryReview';
 import {
     getDefaultVizNote,
-    getVizConfigNote,
     type PlanComposerViz,
 } from '../decisions/vizPlanner';
 import type {
@@ -317,7 +316,7 @@ export const getRunComposerQueries = ({
                 let vizConfig: AiComposerChartArtifactConfig['vizConfig'] =
                     null;
                 if (!isSlack) {
-                    vizConfig =
+                    const planned =
                         (await planViz?.({
                             title: title ?? null,
                             description: description ?? null,
@@ -325,6 +324,7 @@ export const getRunComposerQueries = ({
                                 title: terminalNode?.title ?? null,
                                 description: terminalNode?.description ?? null,
                             },
+                            node: terminalNode ?? null,
                             columns: terminal.columns,
                             rows: terminal.rows,
                             rowCount: terminal.rowCount,
@@ -332,8 +332,9 @@ export const getRunComposerQueries = ({
                             previousVizConfig:
                                 earlierPipelines.at(-1)?.vizConfig ?? null,
                         })) ?? null;
-                    vizNote = vizConfig
-                        ? getVizConfigNote(vizConfig)
+                    vizConfig = planned?.vizConfig ?? null;
+                    vizNote = planned
+                        ? planned.note
                         : getDefaultVizNote(
                               getComposerVizPlan({
                                   columns: Object.values(terminal.columns),

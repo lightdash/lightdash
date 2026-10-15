@@ -1811,6 +1811,8 @@ export const getAgentTools = (
                   conversation: decisionContext,
                   usage: args.decisionUsage,
                   recordDecision: args.recordPromptDecision,
+                  customChartTypes: customChartTypeLibrary.types,
+                  resolveCustomChartType: dependencies.resolveCustomChartType,
               })
             : undefined;
 

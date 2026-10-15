@@ -1039,7 +1039,10 @@ describe('composer viz config', () => {
             },
             display: undefined,
         } as const;
-        const planViz = vi.fn().mockResolvedValue(vizConfig);
+        const planViz = vi.fn().mockResolvedValue({
+            vizConfig,
+            note: 'Visualization: bar chart, x = month, y = signups.',
+        });
         const { tool, dependencies } = makeTool({ planViz });
 
         const output = await executeTool(tool, makeArgs());
