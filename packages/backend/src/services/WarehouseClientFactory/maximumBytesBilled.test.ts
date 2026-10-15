@@ -160,7 +160,10 @@ describe('withMaximumBytesBilled', () => {
                 });
             },
         );
-        const executeAsyncQuery = vi.fn().mockResolvedValue({ totalRows: 0 });
+        const executeAsyncQuery = vi.fn().mockResolvedValue({
+            totalRows: 0,
+            executionStats: { jobId: 'job-1', bytesBilled: 10485760 },
+        });
         const client = {
             streamQuery,
             executeAsyncQuery,
@@ -180,7 +183,11 @@ describe('withMaximumBytesBilled', () => {
         const limited = withMaximumBytesBilled(client, 42);
         const results = await limited.runQuery('SELECT 1', { a: 'b' });
         await limited.streamQuery('SELECT 2', vi.fn(), { tags: {} });
-        await limited.executeAsyncQuery({ sql: 'SELECT 3', tags: {} });
+        const asyncResult = await limited.executeAsyncQuery({
+            sql: 'SELECT 3',
+            tags: {},
+        });
+        expect(asyncResult).toBe(await executeAsyncQuery.mock.results[0].value);
         expect(results.rows).toEqual([{ a: 1 }]);
         expect(streamQuery.mock.calls[0][2]).toMatchObject({
             tags: { a: 'b' },
