@@ -71,8 +71,10 @@ export interface PreAggregateStrategy {
         resolveArgs: ResolveExecutionArgs;
     }): Promise<PreAggregateExecutionResolution>;
 
-    // The DuckDB client that reads managed materializations
-    createPreAggregateWarehouseClient(): WarehouseClient;
+    // The DuckDB client that reads the project's managed materializations
+    createPreAggregateWarehouseClient(
+        projectUuid: string,
+    ): Promise<WarehouseClient>;
 
     recordStats(params: {
         projectUuid: string;
@@ -135,7 +137,7 @@ export class NoOpPreAggregateStrategy implements PreAggregateStrategy {
         return { resolved: false, reason: 'not_available', isFatal: false };
     }
 
-    createPreAggregateWarehouseClient(): never {
+    async createPreAggregateWarehouseClient(): Promise<never> {
         throw new NotImplementedError(
             'Managed pre-aggregate execution is not available in this edition',
         );

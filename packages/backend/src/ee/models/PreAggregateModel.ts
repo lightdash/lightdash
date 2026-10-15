@@ -492,6 +492,30 @@ export class PreAggregateModel {
         };
     }
 
+    /**
+     * Every materialization file the project owns, active or superseded. A
+     * serve session's storage credentials are scoped to exactly these URIs.
+     */
+    async findMaterializationUrisForProject(
+        projectUuid: string,
+    ): Promise<string[]> {
+        const rows = await this.database(PreAggregateMaterializationsTableName)
+            .where('project_uuid', projectUuid)
+            .whereNotNull('materialization_uri')
+            .select<
+                Pick<DbPreAggregateMaterialization, 'materialization_uri'>[]
+            >('materialization_uri');
+
+        // Sorted so callers can compare two reads of the same set
+        return [
+            ...new Set(
+                rows.flatMap((row) =>
+                    row.materialization_uri ? [row.materialization_uri] : [],
+                ),
+            ),
+        ].sort();
+    }
+
     async getDefinitionsWithLatestMaterialization(
         projectUuid: string,
         paginateArgs?: KnexPaginateArgs,

@@ -307,7 +307,7 @@ const makeMockStrategy = (
     getRoutingDecision: noOpStrategy.getRoutingDecision.bind(noOpStrategy),
     resolveExecution: vi.fn(async () => resolveResult),
     createPreAggregateWarehouseClient: vi.fn(
-        () => warehouseClientMock as unknown as WarehouseClient,
+        async () => warehouseClientMock as unknown as WarehouseClient,
     ),
     recordStats: vi.fn(),
     recordExecutionFallback: vi.fn(),
@@ -5146,7 +5146,8 @@ describe('AsyncQueryService', () => {
         const service = getMockedAsyncQueryService(lightdashConfigMock);
         Object.assign(service, {
             preAggregateStrategy: {
-                createPreAggregateWarehouseClient: () => warehouseClientMock,
+                createPreAggregateWarehouseClient: async () =>
+                    warehouseClientMock,
             },
         });
         const run = vi
@@ -8432,7 +8433,7 @@ describe('AsyncQueryService', () => {
             );
             vi.mocked(
                 strategy.createPreAggregateWarehouseClient,
-            ).mockReturnValue({
+            ).mockResolvedValue({
                 ...warehouseClientMock,
                 executeAsyncQuery: vi
                     .fn()
@@ -24778,7 +24779,7 @@ describe('fresh execution producer to result reader', () => {
                 });
                 vi.mocked(
                     strategy.createPreAggregateWarehouseClient,
-                ).mockReturnValue(client);
+                ).mockResolvedValue(client);
                 Object.assign(service, { preAggregateStrategy: strategy });
                 result = await runMetric();
                 expect(strategy.resolveExecution).toHaveBeenCalled();

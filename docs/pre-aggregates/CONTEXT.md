@@ -120,6 +120,22 @@ To answer a matched query from the pre-aggregate — the active materialization
 (via DuckDB) or an external table (on the project warehouse) — rather than
 from the source tables.
 
+**Serve instance**:
+The warm DuckDB instance that reads a project's managed materializations.
+User-authored SQL (custom SQL dimensions) is inlined into the served query, so
+whoever can run a query on the instance effectively holds its storage
+credentials. The instance is therefore never shared across projects (one per
+project, keyed `pre-aggregate-query-instance:{projectUuid}`), its S3 secret is
+scoped to exactly the project's materialization URIs (read from
+`pre_aggregate_materializations` when the serve client is built, widened in
+place as new materializations appear, never narrowed), and a custom SQL
+dimension that calls a file-reading function (`read_parquet`, `glob`, ...) is
+refused on the serve path with the `custom_sql_file_access` reason so it falls
+back to the warehouse. Within a project, user-attribute filters are applied to
+the shared materialization at serve time, so that refusal is what keeps a
+project member from reading rows the attributes would hide. See
+`PreAggregationDuckDbClient.createPreAggregateWarehouseClient`.
+
 **Additivity**:
 A metric's capacity to be re-aggregated from pre-computed results: additive
 (sum, count), decomposable (average — derivable from stored components), or

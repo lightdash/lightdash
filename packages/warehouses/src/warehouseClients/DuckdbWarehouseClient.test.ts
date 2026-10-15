@@ -1869,6 +1869,161 @@ describe('DuckdbWarehouseClient', () => {
         expect(runMock).not.toHaveBeenCalledWith('SET threads = 8;');
     });
 
+    it('widens a shared instance S3 secret in place when a session needs a file outside its scope', async () => {
+        const runMock = vi.fn();
+        const streamMock = vi.fn(async () =>
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(streamMock, runMock),
+        );
+        const s3Config = {
+            endpoint: 'localhost:9000',
+            region: 'us-east-1',
+            accessKey: 'key',
+            secretKey: 'secret',
+            forcePathStyle: true,
+            useSsl: false,
+        };
+        const makeClient = (scope: string[]) =>
+            DuckdbWarehouseClient.createForPreAggregate(
+                { type: 'duckdb_s3', s3Config: { ...s3Config, scope } },
+                { instanceCacheKey: 'pre-aggregate-query-instance:project-a' },
+            );
+        const secretScopes = () =>
+            runMock.mock.calls
+                .map(([sql]) => sql as string)
+                .filter((sql) =>
+                    sql.includes('CREATE OR REPLACE SECRET __lightdash_s3'),
+                )
+                .map((sql) => sql.match(/SCOPE \(([^)]*)\)/)?.[1]);
+
+        await makeClient(['s3://bucket/a.parquet']).runQuery('SELECT 1');
+        // Same files: the bootstrap secret is left alone
+        await makeClient(['s3://bucket/a.parquet']).runQuery('SELECT 1');
+        expect(secretScopes()).toEqual(["'s3://bucket/a.parquet'"]);
+
+        // A new file widens the secret once, keeping what other sessions read
+        await Promise.all(
+            Array.from({ length: 5 }, () =>
+                makeClient([
+                    's3://bucket/a.parquet',
+                    's3://bucket/b.parquet',
+                ]).runQuery('SELECT 1'),
+            ),
+        );
+        expect(secretScopes()).toEqual([
+            "'s3://bucket/a.parquet'",
+            "'s3://bucket/a.parquet', 's3://bucket/b.parquet'",
+        ]);
+
+        // A session that only needs the old file never narrows it back
+        await makeClient(['s3://bucket/a.parquet']).runQuery('SELECT 1');
+        expect(secretScopes()).toHaveLength(2);
+        expect(createInstanceMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps per-project serve instances apart', async () => {
+        const runMock = vi.fn();
+        const streamMock = vi.fn(async () =>
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+        createInstanceMock.mockImplementation(async () =>
+            createMockConnection(streamMock, runMock),
+        );
+        const makeClient = (projectUuid: string, scope: string[]) =>
+            DuckdbWarehouseClient.createForPreAggregate(
+                {
+                    type: 'duckdb_s3',
+                    s3Config: {
+                        endpoint: 'localhost:9000',
+                        region: 'us-east-1',
+                        accessKey: 'key',
+                        secretKey: 'secret',
+                        forcePathStyle: true,
+                        useSsl: false,
+                        scope,
+                    },
+                },
+                {
+                    instanceCacheKey: `pre-aggregate-query-instance:${projectUuid}`,
+                },
+            );
+
+        await makeClient('project-a', ['s3://bucket/a.parquet']).runQuery(
+            'SELECT 1',
+        );
+        await makeClient('project-b', ['s3://bucket/b.parquet']).runQuery(
+            'SELECT 1',
+        );
+
+        expect(createInstanceMock).toHaveBeenCalledTimes(2);
+        const secrets = runMock.mock.calls
+            .map(([sql]) => sql as string)
+            .filter((sql) =>
+                sql.includes('CREATE OR REPLACE SECRET __lightdash_s3'),
+            );
+        expect(secrets).toHaveLength(2);
+        expect(secrets[0]).toContain("SCOPE ('s3://bucket/a.parquet')");
+        expect(secrets[0]).not.toContain('b.parquet');
+        expect(secrets[1]).toContain("SCOPE ('s3://bucket/b.parquet')");
+        expect(secrets[1]).not.toContain('a.parquet');
+    });
+
+    it('widens a shared instance GCS secret with the token it currently holds', async () => {
+        const runMock = vi.fn();
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(
+                vi.fn(async () =>
+                    getMockStreamResult(
+                        [[{ val: 1 }]],
+                        [DUCKDB_TYPE_IDS.INTEGER],
+                    ),
+                ),
+                runMock,
+            ),
+        );
+        const getAccessToken = vi.fn(async () => 'token');
+        const makeClient = (scope: string[]) =>
+            DuckdbWarehouseClient.createForPreAggregate(
+                {
+                    type: 'duckdb_s3',
+                    s3Config: {
+                        endpoint: 'storage.googleapis.com',
+                        forcePathStyle: false,
+                        useSsl: true,
+                        authMode: 'gcp_oauth',
+                        getAccessToken,
+                        scope,
+                    },
+                },
+                { instanceCacheKey: 'pre-aggregate-query-instance:project-a' },
+            );
+        const secrets = () =>
+            runMock.mock.calls
+                .filter(([sql]) =>
+                    (sql as string).includes(
+                        'CREATE OR REPLACE SECRET __lightdash_s3',
+                    ),
+                )
+                .map(([sql, params]) => ({
+                    scope: (sql as string).match(/SCOPE \(([^)]*)\)/)?.[1],
+                    token: (params as string[])[0],
+                }));
+
+        await makeClient(['s3://bucket/a.parquet']).runQuery('SELECT 1');
+        const afterFirst = secrets().length;
+        await makeClient(['s3://bucket/a.parquet']).runQuery('SELECT 1');
+        expect(secrets()).toHaveLength(afterFirst);
+
+        await makeClient(['s3://bucket/b.parquet']).runQuery('SELECT 1');
+        expect(secrets()).toHaveLength(afterFirst + 1);
+        expect(secrets().at(-1)).toEqual({
+            scope: "'s3://bucket/a.parquet', 's3://bucket/b.parquet'",
+            token: 'token',
+        });
+    });
+
     it('hardens each query connection on a shared instance', async () => {
         const bootstrapRunMock = vi.fn();
         const queryRunMock = vi.fn();

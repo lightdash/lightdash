@@ -1,4 +1,10 @@
-import { DimensionType, type WarehouseClient } from '@lightdash/common';
+import {
+    CustomDimensionType,
+    DimensionType,
+    MissingConfigError,
+    type CustomSqlDimension,
+    type WarehouseClient,
+} from '@lightdash/common';
 import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import Logger from '../../../logging/logger';
@@ -11,6 +17,7 @@ import { warehouseClientMock } from '../../../utils/QueryBuilder/MetricQueryBuil
 import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
 import { type PreAggregateModel } from '../../models/PreAggregateModel';
 import {
+    getPreAggregateQueryInstanceCacheKey,
     PreAggregationDuckDbClient,
     PreAggregationDuckDbResolveReason,
 } from './PreAggregationDuckDbClient';
@@ -56,6 +63,13 @@ describe('PreAggregationDuckDbClient', () => {
             getActiveMaterialization: vi
                 .fn()
                 .mockResolvedValue(activeMaterialization),
+            findMaterializationUrisForProject: vi
+                .fn()
+                .mockResolvedValue(
+                    activeMaterialization
+                        ? [activeMaterialization.materializationUri]
+                        : [],
+                ),
         };
         const projectModel = {
             getExploreFromCache: vi.fn().mockResolvedValue(preAggregateExplore),
@@ -112,6 +126,15 @@ describe('PreAggregationDuckDbClient', () => {
         availableParameterDefinitions: {},
     };
 
+    const makeCustomSqlDimension = (sql: string): CustomSqlDimension => ({
+        id: 'custom_1',
+        name: 'Custom 1',
+        table: 'a',
+        type: CustomDimensionType.SQL,
+        sql,
+        dimensionType: DimensionType.STRING,
+    });
+
     beforeEach(() => {
         vi.clearAllMocks();
         QueryComposerMock.mockImplementation(function MockQueryComposer(this: {
@@ -166,7 +189,7 @@ describe('PreAggregationDuckDbClient', () => {
         ).not.toHaveBeenCalled();
     });
 
-    test('creates the pre-aggregate DuckDB client from the pre-aggregate S3 config', () => {
+    test('creates the pre-aggregate DuckDB client from the pre-aggregate S3 config, scoped to the project files on a per-project instance', async () => {
         const createForPreAggregateSpy = vi.spyOn(
             DuckdbWarehouseClient,
             'createForPreAggregate',
@@ -181,13 +204,20 @@ describe('PreAggregationDuckDbClient', () => {
             },
             preAggregateModel: {
                 getActiveMaterialization: vi.fn(),
+                findMaterializationUrisForProject: vi
+                    .fn()
+                    .mockResolvedValue([
+                        's3://mock_preagg_bucket/abc123.parquet',
+                        's3://mock_preagg_bucket/def456.parquet',
+                    ]),
             },
             projectModel: {
                 getExploreFromCache: vi.fn(),
             },
         });
 
-        const warehouseClient = client.createPreAggregateWarehouseClient();
+        const warehouseClient =
+            await client.createPreAggregateWarehouseClient('project-a');
 
         expect(warehouseClient).toBeInstanceOf(DuckdbWarehouseClient);
         expect(createForPreAggregateSpy).toHaveBeenCalledWith(
@@ -200,15 +230,142 @@ describe('PreAggregationDuckDbClient', () => {
                     secretKey: undefined,
                     forcePathStyle: false,
                     useSsl: true,
+                    scope: [
+                        's3://mock_preagg_bucket/abc123.parquet',
+                        's3://mock_preagg_bucket/def456.parquet',
+                    ],
                 },
             },
             expect.objectContaining({
-                instanceCacheKey: 'pre-aggregate-query-instance',
+                instanceCacheKey: 'pre-aggregate-query-instance:project-a',
             }),
         );
     });
 
-    test('returns resolved DuckDB query/client and patches pre-aggregate sqlTable', async () => {
+    test('never shares a serve instance across projects', async () => {
+        const { client, createDuckdbWarehouseClient } = getClient();
+
+        await client.createPreAggregateWarehouseClient('project-a');
+        await client.createPreAggregateWarehouseClient('project-b');
+
+        expect(getPreAggregateQueryInstanceCacheKey('project-a')).not.toBe(
+            getPreAggregateQueryInstanceCacheKey('project-b'),
+        );
+        expect(createDuckdbWarehouseClient).toHaveBeenCalledTimes(2);
+        expect(createDuckdbWarehouseClient).toHaveBeenNthCalledWith(
+            1,
+            expect.objectContaining({
+                instanceCacheKey: 'pre-aggregate-query-instance:project-a',
+            }),
+        );
+        expect(createDuckdbWarehouseClient).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({
+                instanceCacheKey: 'pre-aggregate-query-instance:project-b',
+            }),
+        );
+    });
+
+    test('reuses the project client while its files are unchanged and rebuilds it when they change', async () => {
+        const { client, preAggregateModel, createDuckdbWarehouseClient } =
+            getClient();
+
+        const first =
+            await client.createPreAggregateWarehouseClient('project-a');
+        const second =
+            await client.createPreAggregateWarehouseClient('project-a');
+        expect(second).toBe(first);
+        expect(createDuckdbWarehouseClient).toHaveBeenCalledTimes(1);
+
+        preAggregateModel.findMaterializationUrisForProject.mockResolvedValue([
+            's3://mock_preagg_bucket/new789.parquet',
+            's3://mock_preagg_bucket/abc123.jsonl',
+        ]);
+        await client.createPreAggregateWarehouseClient('project-a');
+
+        expect(createDuckdbWarehouseClient).toHaveBeenCalledTimes(2);
+        expect(createDuckdbWarehouseClient).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                s3Config: expect.objectContaining({
+                    scope: [
+                        's3://mock_preagg_bucket/new789.parquet',
+                        's3://mock_preagg_bucket/abc123.jsonl',
+                    ],
+                }),
+                instanceCacheKey: 'pre-aggregate-query-instance:project-a',
+            }),
+        );
+    });
+
+    test('refuses to build a serve client for a project with no materialization files', async () => {
+        const { client, preAggregateModel, createDuckdbWarehouseClient } =
+            getClient();
+        preAggregateModel.findMaterializationUrisForProject.mockResolvedValue(
+            [],
+        );
+
+        await expect(
+            client.createPreAggregateWarehouseClient('project-a'),
+        ).rejects.toThrow(MissingConfigError);
+        expect(createDuckdbWarehouseClient).not.toHaveBeenCalled();
+    });
+
+    test.each([
+        "read_parquet('s3://other-org-bucket/secret.parquet')",
+        "(SELECT count(*) FROM glob('s3://mock_preagg_bucket/*'))",
+        "(SELECT * FROM read_json_auto('s3://mock_preagg_bucket/abc123.jsonl'))",
+        "(SELECT 1 FROM 's3://mock_preagg_bucket/abc123.parquet')",
+    ])(
+        'refuses to serve a custom SQL dimension that reads files: %s',
+        async (sql) => {
+            const { client, createDuckdbWarehouseClient, preAggregateModel } =
+                getClient();
+
+            const result = await client.resolve({
+                ...baseResolveArgs,
+                metricQuery: {
+                    ...baseResolveArgs.metricQuery,
+                    dimensions: ['custom_1'],
+                    customDimensions: [makeCustomSqlDimension(sql)],
+                },
+            });
+
+            expect(result).toEqual({
+                resolved: false,
+                reason: PreAggregationDuckDbResolveReason.CUSTOM_SQL_FILE_ACCESS,
+            });
+            expect(QueryComposerMock).not.toHaveBeenCalled();
+            expect(
+                preAggregateModel.getActiveMaterialization,
+            ).not.toHaveBeenCalled();
+            expect(createDuckdbWarehouseClient).not.toHaveBeenCalled();
+        },
+    );
+
+    test('serves a custom SQL dimension that only references fields', async () => {
+        const { client } = getClient();
+
+        const result = await client.resolve({
+            ...baseResolveArgs,
+            metricQuery: {
+                ...baseResolveArgs.metricQuery,
+                dimensions: ['custom_1'],
+                customDimensions: [
+                    makeCustomSqlDimension(
+                        "CASE WHEN ${a.dim1} = 'x' THEN 'yes' ELSE 'no' END",
+                    ),
+                ],
+            },
+        });
+
+        expect(result).toEqual({
+            resolved: true,
+            query: 'SELECT * FROM test',
+        });
+        expect(QueryComposerMock).toHaveBeenCalledTimes(1);
+    });
+
+    test('returns resolved DuckDB query and patches pre-aggregate sqlTable', async () => {
         const { client, createDuckdbWarehouseClient } = getClient();
 
         const result = await client.resolve(baseResolveArgs);
@@ -216,7 +373,6 @@ describe('PreAggregationDuckDbClient', () => {
         expect(result).toEqual({
             resolved: true,
             query: 'SELECT * FROM test',
-            warehouseClient: warehouseClientMock,
         });
         expect(QueryComposerMock).toHaveBeenCalledWith(
             expect.anything(),
@@ -236,12 +392,8 @@ describe('PreAggregationDuckDbClient', () => {
                 }),
             }),
         );
-        expect(createDuckdbWarehouseClient).toHaveBeenCalledTimes(1);
-        expect(createDuckdbWarehouseClient).toHaveBeenCalledWith(
-            expect.objectContaining({
-                instanceCacheKey: 'pre-aggregate-query-instance',
-            }),
-        );
+        // The serve client is built at execution time, not at resolve time
+        expect(createDuckdbWarehouseClient).not.toHaveBeenCalled();
     });
 
     test('passes the configured shared DuckDB resource limits to the warehouse client', async () => {
@@ -256,14 +408,14 @@ describe('PreAggregationDuckDbClient', () => {
             },
         });
 
-        await client.resolve(baseResolveArgs);
+        await client.createPreAggregateWarehouseClient('projectUuid');
 
         expect(createDuckdbWarehouseClient).toHaveBeenCalledWith(
             expect.objectContaining({
                 sharedResourceLimits: {
                     memoryLimit: '3GB',
                 },
-                instanceCacheKey: 'pre-aggregate-query-instance',
+                instanceCacheKey: 'pre-aggregate-query-instance:projectUuid',
             }),
         );
     });
