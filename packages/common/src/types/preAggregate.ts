@@ -181,7 +181,9 @@ export type PreAggregateDefinition = {
     materializationMetricQuery: MaterializationMetricQueryPayload | null;
     materializationQueryError: string | null;
     refreshCron: string | null;
+    // Effective value: the page override when set, otherwise YAML
     materializeOnCompile: boolean;
+    materializeOnCompileOverride: boolean | null;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -311,7 +313,10 @@ export type PreAggregateMaterializationSummary = {
     timeDimension: string | null;
     granularity: TimeFrames | null;
     refreshCron: string | null;
+    // Effective value: the page override when set, otherwise YAML
     materializeOnCompile: boolean;
+    materializeOnCompileYaml: boolean;
+    materializeOnCompileOverride: boolean | null;
     definitionError: string | null;
     resolvedMaxRows: number | null;
     warnings: PreAggregateMaterializationWarning[];
@@ -326,6 +331,18 @@ export type PreAggregateMaterializationSummary = {
         errorMessage: string | null;
         trigger: PreAggregateMaterializationTrigger;
     } | null;
+};
+
+export type ApiSetPreAggregateCompileTriggerBody = {
+    // null clears the override so the YAML value applies again
+    materializeOnCompile: boolean | null;
+    // Omitted applies to every managed pre-aggregate in the project
+    preAggregateDefinitionNames?: string[];
+};
+
+export type ApiSetPreAggregateCompileTriggerResponse = {
+    status: 'ok';
+    results: { updatedCount: number };
 };
 
 export type ApiPreAggregateMaterializationsResults = {
