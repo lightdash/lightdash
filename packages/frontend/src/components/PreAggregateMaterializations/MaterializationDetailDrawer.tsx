@@ -8,6 +8,7 @@ import {
 import {
     ActionIcon,
     Badge,
+    Button,
     Box,
     Collapse,
     Drawer,
@@ -15,6 +16,7 @@ import {
     Group,
     List,
     Stack,
+    Switch,
     Text,
     Tooltip,
     UnstyledButton,
@@ -255,6 +257,9 @@ type Props = {
     onClose: () => void;
     onRefresh: (preAggregateName: string) => void;
     isRefreshing: boolean;
+    // null clears the page override so YAML applies again
+    onSetCompileTrigger: (materializeOnCompile: boolean | null) => void;
+    isSettingCompileTrigger: boolean;
 };
 
 const MaterializationDetailDrawer: FC<Props> = ({
@@ -263,6 +268,8 @@ const MaterializationDetailDrawer: FC<Props> = ({
     onClose,
     onRefresh,
     isRefreshing,
+    onSetCompileTrigger,
+    isSettingCompileTrigger,
 }) => {
     if (!summary) return null;
 
@@ -392,21 +399,55 @@ const MaterializationDetailDrawer: FC<Props> = ({
                 {!summary.externalTable && (
                     <Box>
                         <DetailLabel>Triggers</DetailLabel>
-                        <Stack gap={4} mt={4}>
+                        <Stack gap={6} mt={4}>
+                            <Switch
+                                size="xs"
+                                label="Rebuild on project compile"
+                                checked={summary.materializeOnCompile}
+                                disabled={isSettingCompileTrigger}
+                                onChange={(event) => {
+                                    const next = event.currentTarget.checked;
+                                    // Back to YAML when the choice matches it
+                                    onSetCompileTrigger(
+                                        next ===
+                                            summary.materializeOnCompileYaml
+                                            ? null
+                                            : next,
+                                    );
+                                }}
+                            />
                             <Group gap="xs" wrap="nowrap">
-                                <Badge
-                                    size="xs"
-                                    variant="light"
-                                    color={
-                                        summary.materializeOnCompile
-                                            ? 'gray'
-                                            : 'yellow'
-                                    }
-                                >
-                                    {summary.materializeOnCompile
-                                        ? 'Project compile'
-                                        : 'Skipped on compile'}
-                                </Badge>
+                                {summary.materializeOnCompileOverride !==
+                                    null && (
+                                    <Badge
+                                        size="xs"
+                                        variant="light"
+                                        color="yellow"
+                                    >
+                                        Overridden here
+                                    </Badge>
+                                )}
+                                <Text fz="xs" c="ldGray.5">
+                                    YAML:{' '}
+                                    {summary.materializeOnCompileYaml
+                                        ? 'rebuild on compile'
+                                        : 'skip on compile'}
+                                </Text>
+                                {summary.materializeOnCompileOverride !==
+                                    null && (
+                                    <Button
+                                        size="compact-xs"
+                                        variant="subtle"
+                                        disabled={isSettingCompileTrigger}
+                                        onClick={() =>
+                                            onSetCompileTrigger(null)
+                                        }
+                                    >
+                                        Use YAML
+                                    </Button>
+                                )}
+                            </Group>
+                            <Group gap="xs" wrap="nowrap">
                                 {summary.refreshCron && (
                                     <Badge
                                         size="xs"
@@ -437,13 +478,15 @@ const MaterializationDetailDrawer: FC<Props> = ({
                             )}
                             {!summary.materializeOnCompile && (
                                 <Text fz="xs" c="ldGray.6">
-                                    Not rebuilt when the project compiles
-                                    (refresh.on_compile is false). Rebuilds
+                                    Not rebuilt when the project compiles.
+                                    Rebuilds
                                     {summary.refreshCron
                                         ? ' on schedule or '
                                         : ' only '}
                                     when refreshed from this page. The
-                                    definition still syncs on every compile.
+                                    definition still syncs on every compile, and
+                                    a pre-aggregate with no active
+                                    materialization is built once.
                                 </Text>
                             )}
                         </Stack>

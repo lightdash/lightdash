@@ -285,6 +285,7 @@ import {
     type AgentConnectionTaskEffect,
     type AgentSqlScope,
     type ApiCreateProjectResults,
+    type ApiSetPreAggregateCompileTriggerBody,
     type ChartUsageIn,
     type DashboardTileParameterInputs,
     type DataTimezonePreviewRequest,
@@ -12992,6 +12993,27 @@ export class ProjectService
         return {
             jobIds: jobs.map((job) => job.jobId),
         };
+    }
+
+    async setPreAggregateCompileTrigger(
+        user: SessionUser,
+        projectUuid: string,
+        body: ApiSetPreAggregateCompileTriggerBody,
+    ): Promise<{ updatedCount: number }> {
+        await this.assertCanRefreshPreAggregates(user, projectUuid);
+        const updatedCount =
+            await this.preAggregateModel.setMaterializeOnCompileOverride({
+                projectUuid,
+                materializeOnCompile: body.materializeOnCompile,
+                preAggregateDefinitionNames: body.preAggregateDefinitionNames,
+            });
+        this.logger.info(
+            `Set pre-aggregate compile trigger override to ${String(
+                body.materializeOnCompile,
+            )} for ${updatedCount} definition(s) in project ${projectUuid}`,
+            { userUuid: user.userUuid },
+        );
+        return { updatedCount };
     }
 
     async refreshPreAggregateByDefinitionName(

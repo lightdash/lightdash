@@ -5,12 +5,15 @@ import {
     type ApiGetPreAggregateMaterializationsResponse,
     type ApiGetPreAggregateStatsResponse,
     type ApiRunDashboardPreAggregateAuditBody,
+    type ApiSetPreAggregateCompileTriggerBody,
+    type ApiSetPreAggregateCompileTriggerResponse,
 } from '@lightdash/common';
 import {
     Body,
     Get,
     Middlewares,
     OperationId,
+    Patch,
     Path,
     Post,
     Query,
@@ -26,6 +29,7 @@ import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
+    unauthorisedInDemo,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
 
@@ -170,5 +174,35 @@ export class PreAggregateController extends BaseController {
             status: 'ok',
             results,
         };
+    }
+
+    /**
+     * Sets whether managed pre-aggregates are rebuilt on project compile.
+     * Overrides the YAML `refresh.on_compile` value; null clears the override.
+     * @summary Set pre-aggregate compile trigger
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/compile-trigger')
+    @OperationId('setPreAggregateCompileTrigger')
+    async setPreAggregateCompileTrigger(
+        @Path() projectUuid: string,
+        @Body() body: ApiSetPreAggregateCompileTriggerBody,
+        @Request() req: express.Request,
+    ): Promise<ApiSetPreAggregateCompileTriggerResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.services
+            .getProjectService()
+            .setPreAggregateCompileTrigger(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+            );
+        return { status: 'ok', results };
     }
 }

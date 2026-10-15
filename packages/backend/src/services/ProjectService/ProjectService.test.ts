@@ -512,6 +512,7 @@ const preAggregateModel = {
     getDefinitionUuidsWithActiveMaterialization: vi.fn(
         async () => new Set<string>(),
     ),
+    setMaterializeOnCompileOverride: vi.fn(async () => 2),
 };
 projectModel.getPreAggregateRefreshSummary.mockImplementation(async () => {
     const definitions =
@@ -10641,6 +10642,30 @@ describe('ProjectService', () => {
             expect(
                 schedulerClient.schedulePreAggregateCronJobs,
             ).not.toHaveBeenCalled();
+        });
+
+        test('setPreAggregateCompileTrigger stores the override for managed definitions', async () => {
+            const serviceWithPreAggregatesEnabled = getMockedProjectService({
+                ...lightdashConfigWithGoogleOAuthMock,
+                preAggregates: {
+                    ...lightdashConfigWithGoogleOAuthMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            const result =
+                await serviceWithPreAggregatesEnabled.setPreAggregateCompileTrigger(
+                    adminUser,
+                    projectUuid,
+                    { materializeOnCompile: false },
+                );
+            expect(result).toEqual({ updatedCount: 2 });
+            expect(
+                preAggregateModel.setMaterializeOnCompileOverride,
+            ).toHaveBeenCalledWith({
+                projectUuid,
+                materializeOnCompile: false,
+                preAggregateDefinitionNames: undefined,
+            });
         });
 
         test('skips compile-triggered materialization when refresh.on_compile is false and a materialization is active', async () => {
