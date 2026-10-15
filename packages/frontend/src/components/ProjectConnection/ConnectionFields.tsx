@@ -1,7 +1,7 @@
 import {
     WAREHOUSE_CONNECTION_NAME_MAX_LENGTH,
-    WarehouseTypes,
     type Project,
+    type WarehouseTypes,
 } from '@lightdash/common';
 import { Stack, Text, TextInput } from '@mantine/core';
 import { type FC } from 'react';
@@ -52,13 +52,11 @@ export const ConnectionFields: FC<{
                     />
                 )}
                 <WarehouseSettingsForm disabled={false}>
-                    {warehouseType !== WarehouseTypes.SNOWFLAKE && (
-                        <WarehouseSchemaInput
-                            warehouseType={warehouseType}
-                            disabled={false}
-                            warehouseOnly
-                        />
-                    )}
+                    <WarehouseSchemaInput
+                        warehouseType={warehouseType}
+                        disabled={false}
+                        warehouseOnly
+                    />
                 </WarehouseSettingsForm>
             </Stack>
         </ProjectFormProvider>

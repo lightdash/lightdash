@@ -262,6 +262,9 @@ describe('ConnectionsPanel', () => {
         expect(
             screen.getByRole('textbox', { name: 'Warehouse' }),
         ).toBeInTheDocument();
+        expect(screen.getAllByRole('textbox', { name: 'Schema' })).toHaveLength(
+            1,
+        );
         await user.type(
             screen.getByRole('textbox', { name: 'Name' }),
             'Reporting',
