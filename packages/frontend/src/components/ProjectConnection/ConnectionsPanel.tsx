@@ -3,12 +3,13 @@ import {
     assertUnreachable,
     omitEmptySecrets,
     ProjectType,
+    supportsConnectionDatabaseListing,
     validateWarehouseConnectionName,
     WAREHOUSE_CONNECTION_NAME_MAX_LENGTH,
+    type WarehouseTypes,
     type CreateWarehouseCredentials,
     type Project,
     type WarehouseConnection,
-    type WarehouseTypes,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -119,12 +120,16 @@ const ConnectionRow: FC<{
                     <Menu.Item onClick={() => onRename(connection)}>
                         {t('connectionsPanel.rename')}
                     </Menu.Item>
-                    <Menu.Item
-                        leftSection={<MantineIcon icon={IconDatabase} />}
-                        onClick={() => onEditListing(connection)}
-                    >
-                        {t('connectionsPanel.sqlRunnerDatabases')}
-                    </Menu.Item>
+                    {supportsConnectionDatabaseListing(
+                        connection.warehouseType,
+                    ) && (
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconDatabase} />}
+                            onClick={() => onEditListing(connection)}
+                        >
+                            {t('connectionsPanel.sqlRunnerDatabases')}
+                        </Menu.Item>
+                    )}
                     {!connection.isOriginal && (
                         <Menu.Item
                             color="red"
@@ -143,8 +148,14 @@ const ConnectionRow: FC<{
 const AddConnectionModal: FC<{
     projectUuid: string;
     warehouseType: WarehouseTypes;
+    primaryRequiresUserCredentials: boolean;
     onClose: () => void;
-}> = ({ projectUuid, warehouseType, onClose }) => {
+}> = ({
+    projectUuid,
+    warehouseType,
+    primaryRequiresUserCredentials,
+    onClose,
+}) => {
     const { t } = useTranslation('projectConnection');
     const form = useForm({
         initialValues: {
@@ -152,6 +163,7 @@ const AddConnectionModal: FC<{
             warehouse: {
                 ...warehouseDefaultValues[warehouseType],
             } as CreateWarehouseCredentials,
+            organizationWarehouseCredentialsUuid: undefined,
             ...unusedDbtFormValues,
         },
         validate: {
@@ -170,11 +182,21 @@ const AddConnectionModal: FC<{
     });
 
     const handleSubmit = () => {
-        if (form.validate().hasErrors) return;
-        createMutation.mutate({
-            name: form.values.name.trim(),
-            warehouseConnection: form.values.warehouse,
-        });
+        const organizationWarehouseCredentialsUuid =
+            form.values.organizationWarehouseCredentialsUuid;
+        if (organizationWarehouseCredentialsUuid) {
+            if (form.validateField('name').hasError) return;
+            createMutation.mutate({
+                name: form.values.name.trim(),
+                organizationWarehouseCredentialsUuid,
+            });
+        } else {
+            if (form.validate().hasErrors) return;
+            createMutation.mutate({
+                name: form.values.name.trim(),
+                warehouseConnection: form.values.warehouse,
+            });
+        }
     };
 
     return (
@@ -193,6 +215,7 @@ const AddConnectionModal: FC<{
                 nameRef={nameRef}
                 projectUuid={projectUuid}
                 warehouseType={warehouseType}
+                primaryRequiresUserCredentials={primaryRequiresUserCredentials}
                 showName
                 intro={t('connectionsPanel.addIntro')}
             />
@@ -207,7 +230,11 @@ const EditConnectionForm: FC<{
     onClose: () => void;
 }> = ({ projectUuid, connection, credentials, onClose }) => {
     const { t } = useTranslation('projectConnection');
-    const savedProject = { warehouseConnection: credentials } as Project;
+    const savedProject = {
+        warehouseConnection: credentials,
+        organizationWarehouseCredentialsUuid:
+            connection.organizationWarehouseCredentialsUuid,
+    } as Project;
     const updateMutation = useUpdateWarehouseConnection(projectUuid, {
         onSuccess: onClose,
     });
@@ -215,6 +242,8 @@ const EditConnectionForm: FC<{
         initialValues: {
             name: connection.name,
             warehouse: credentials,
+            organizationWarehouseCredentialsUuid:
+                connection.organizationWarehouseCredentialsUuid ?? undefined,
             ...unusedDbtFormValues,
         },
         validate: {
@@ -224,12 +253,22 @@ const EditConnectionForm: FC<{
     });
 
     const handleSubmit = () => {
-        if (form.validate().hasErrors) return;
+        const organizationWarehouseCredentialsUuid =
+            form.values.organizationWarehouseCredentialsUuid;
+        if (!organizationWarehouseCredentialsUuid && form.validate().hasErrors)
+            return;
         updateMutation.mutate({
             warehouseConnectionUuid: connection.warehouseConnectionUuid,
-            data: {
-                warehouseConnection: omitEmptySecrets(form.values.warehouse),
-            },
+            data: organizationWarehouseCredentialsUuid
+                ? organizationWarehouseCredentialsUuid ===
+                  connection.organizationWarehouseCredentialsUuid
+                    ? {}
+                    : { organizationWarehouseCredentialsUuid }
+                : {
+                      warehouseConnection: omitEmptySecrets(
+                          form.values.warehouse,
+                      ),
+                  },
         });
     };
 
@@ -485,9 +524,10 @@ const ConnectionActionModal: FC<{
     }
 };
 
-const ConnectionsPanelContent: FC<{ projectUuid: string }> = ({
-    projectUuid,
-}) => {
+const ConnectionsPanelContent: FC<{
+    projectUuid: string;
+    primaryRequiresUserCredentials: boolean;
+}> = ({ projectUuid, primaryRequiresUserCredentials }) => {
     const { t } = useTranslation('projectConnection');
     const { data, error, isInitialLoading, isEnabled } =
         useWarehouseConnections(projectUuid);
@@ -495,7 +535,12 @@ const ConnectionsPanelContent: FC<{ projectUuid: string }> = ({
     const [isAddOpen, setIsAddOpen] = useState(false);
 
     if (isEnabled && isSingleConnectionProject(error)) {
-        return <EnableMultipleConnectionsCard projectUuid={projectUuid} />;
+        return (
+            <EnableMultipleConnectionsCard
+                projectUuid={projectUuid}
+                primaryRequiresUserCredentials={primaryRequiresUserCredentials}
+            />
+        );
     }
     if (!isEnabled || hidesConnectionsPanel(error)) {
         return null;
@@ -572,6 +617,9 @@ const ConnectionsPanelContent: FC<{ projectUuid: string }> = ({
                 <AddConnectionModal
                     projectUuid={projectUuid}
                     warehouseType={originalWarehouseType}
+                    primaryRequiresUserCredentials={
+                        primaryRequiresUserCredentials
+                    }
                     onClose={() => setIsAddOpen(false)}
                 />
             )}
@@ -602,7 +650,13 @@ const ConnectionsPanel: FC<{ savedProject: Project | undefined }> = ({
     return savedProject &&
         canManageProject &&
         savedProject.type !== ProjectType.PREVIEW ? (
-        <ConnectionsPanelContent projectUuid={savedProject.projectUuid} />
+        <ConnectionsPanelContent
+            projectUuid={savedProject.projectUuid}
+            primaryRequiresUserCredentials={
+                savedProject.warehouseConnection?.requireUserCredentials ===
+                true
+            }
+        />
     ) : null;
 };
 

@@ -248,6 +248,7 @@ import {
     SshTunnelError,
     SummaryExplore,
     SupportedDbtAdapter,
+    supportsConnectionDatabaseListing,
     TablesConfiguration,
     TableSelectionType,
     TooManyRequestsError,
@@ -553,7 +554,6 @@ import {
     findListedDatabase,
     getDatabaseListFailureReason,
     listConnectionDatabases,
-    supportsConnectionDatabaseListing,
 } from './connectionSqlRunner';
 import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { getAvailableParameterDefinitions } from './parameters';
@@ -7063,29 +7063,51 @@ export class ProjectService
         organizationUuid: string,
         warehouseConnection: CreateWarehouseCredentials,
     ): Promise<WarehouseConnectionTestResults> {
+        const { result } = await this.testWarehouseConnectionCredentialsForSave(
+            account,
+            organizationUuid,
+            warehouseConnection,
+        );
+        return result;
+    }
+
+    async testWarehouseConnectionCredentialsForSave(
+        account: RegisteredAccount,
+        organizationUuid: string,
+        warehouseConnection: CreateWarehouseCredentials,
+    ): Promise<{
+        credentials: CreateWarehouseCredentials;
+        result: WarehouseConnectionTestResults;
+    }> {
         if (isMissingBigqueryKeyfile(warehouseConnection)) {
-            return buildConnectionTestResults([
-                {
-                    stage: 'database',
-                    status: 'failed',
-                    message:
-                        'No service account key file. Paste the key file, or save the connection with one first.',
-                },
-            ]);
+            return {
+                credentials: warehouseConnection,
+                result: buildConnectionTestResults([
+                    {
+                        stage: 'database',
+                        status: 'failed',
+                        message:
+                            'No service account key file. Paste the key file, or save the connection with one first.',
+                    },
+                ]),
+            };
         }
         const resolved = await this._resolveWarehouseClientCredentials(
             { warehouseConnection },
             account.user.userUuid,
             organizationUuid,
         );
-        return this.runWarehouseConnectionHops(
-            resolved.warehouseConnection,
-            connectionContextFromAccount(account, {
-                organizationUuid,
-                queryContext: null,
-                purpose: 'query',
-            }),
-        );
+        return {
+            credentials: resolved.warehouseConnection,
+            result: await this.runWarehouseConnectionHops(
+                resolved.warehouseConnection,
+                connectionContextFromAccount(account, {
+                    organizationUuid,
+                    queryContext: null,
+                    purpose: 'query',
+                }),
+            ),
+        };
     }
 
     private async runWarehouseConnectionHops(
@@ -14575,6 +14597,7 @@ export class ProjectService
                 queryContext,
             ),
             databaseName,
+            credentials.type,
         );
         const queryTags: RunQueryTags = withAgentMarkerTag({
             organization_uuid: account.organization.organizationUuid,
@@ -14586,10 +14609,6 @@ export class ProjectService
             credentials,
             listedDatabase,
         );
-        const database =
-            credentials.type === WarehouseTypes.SNOWFLAKE
-                ? databaseName.toUpperCase()
-                : databaseName;
         try {
             const warehouseCatalog = await this.withConnectionWarehouseClient(
                 projectUuid,
@@ -14601,14 +14620,22 @@ export class ProjectService
                     warehouseClient.getFields(
                         tableName,
                         schemaName,
-                        database,
+                        databaseName,
                         queryTags,
                     ),
                 connectionContext,
                 queryContext,
             );
+            const catalogDatabase =
+                (credentials.type === WarehouseTypes.SNOWFLAKE &&
+                !Object.hasOwn(warehouseCatalog, databaseName)
+                    ? Object.keys(warehouseCatalog).find(
+                          (key) =>
+                              key.toLowerCase() === databaseName.toLowerCase(),
+                      )
+                    : undefined) ?? databaseName;
             const fields =
-                warehouseCatalog[database]?.[schemaName]?.[tableName];
+                warehouseCatalog[catalogDatabase]?.[schemaName]?.[tableName];
             if (!fields) throw new NotFoundError('Table not found');
             return fields;
         } catch (error) {

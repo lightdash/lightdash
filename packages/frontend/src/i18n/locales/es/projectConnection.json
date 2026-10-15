@@ -759,7 +759,8 @@
         "workgroup": "Grupo de trabajo",
         "workgroupDescription": "El grupo de trabajo de Athena que se usará para las consultas.",
         "workgroupName": "Nombre del grupo de trabajo",
-        "workgroupNameDescription": "El nombre de tu grupo de trabajo de Redshift Serverless."
+        "workgroupNameDescription": "El nombre de tu grupo de trabajo de Redshift Serverless.",
+        "requireUserCredentialsFollowsPrimary": "Exigir a los usuarios sus propias credenciales sigue la configuración de la conexión principal."
     },
     "refreshDbt": {
         "modes": {

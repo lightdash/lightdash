@@ -205,6 +205,7 @@ import {
 } from '../../analytics/LightdashAnalytics';
 import { getEmbedActorChartSpaceUuids } from '../../auth/account';
 import { fromServiceAccount, fromSession } from '../../auth/account/account';
+import { destroyS3Body } from '../../clients/Aws/s3Streams';
 import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import {
@@ -2707,7 +2708,8 @@ export class AsyncQueryService extends ProjectService {
                 if (!expiresAt) return;
                 const remaining = expiresAt.getTime() - Date.now();
                 if (remaining <= 0) {
-                    source.destroy(
+                    destroyS3Body(
+                        source,
                         new ForbiddenError(
                             'This agent connection has expired.',
                         ),
@@ -2731,13 +2733,13 @@ export class AsyncQueryService extends ProjectService {
                         await check();
                     } finally {
                         if (timeout) clearTimeout(timeout);
-                        source.destroy();
+                        destroyS3Body(source);
                     }
                 })(),
             );
             output.once('close', () => {
                 if (timeout) clearTimeout(timeout);
-                source.destroy();
+                destroyS3Body(source);
             });
             return output;
         })();

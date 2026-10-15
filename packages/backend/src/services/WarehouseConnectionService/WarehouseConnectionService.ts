@@ -8,6 +8,8 @@ import {
     ParameterError,
     sensitiveCredentialsFieldNames,
     SingleConnectionProjectError,
+    SnowflakeAuthenticationType,
+    supportsMultipleConnections,
     validateWarehouseConnectionName,
     WAREHOUSE_CONNECTION_NAME_CONFLICT_MESSAGE,
     WarehouseTypes,
@@ -39,6 +41,7 @@ import {
 import { BaseService } from '../BaseService';
 import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type LicenseService } from '../LicenseService/LicenseService';
+import { shouldTestExtraCredentials } from './extraConnectionAuthentication';
 import { getExtraConnectionRequireUserCredentials } from './extraConnectionUserCredentials';
 import {
     ENTITLEMENT_REASON,
@@ -58,11 +61,14 @@ export type WarehouseCredentialPolicy = {
             organizationWarehouseCredentialsUuid?: string;
         },
     ) => void;
-    testWarehouseConnectionCredentials: (
+    testWarehouseConnectionCredentialsForSave: (
         account: RegisteredAccount,
         organizationUuid: string,
         warehouseConnection: CreateWarehouseCredentials,
-    ) => Promise<WarehouseConnectionTestResults>;
+    ) => Promise<{
+        credentials: CreateWarehouseCredentials;
+        result: WarehouseConnectionTestResults;
+    }>;
 };
 
 type WarehouseConnectionServiceArguments = {
@@ -82,6 +88,23 @@ type WarehouseConnectionServiceArguments = {
 };
 
 const NAME_UNIQUE_CONSTRAINT = 'warehouse_connections_project_name_unique';
+
+type MultiConnectionCredentials = Extract<
+    CreateWarehouseCredentials,
+    {
+        type:
+            | WarehouseTypes.POSTGRES
+            | WarehouseTypes.ATHENA
+            | WarehouseTypes.SNOWFLAKE;
+    }
+>;
+
+const inheritsPrimaryCredentialRequirement = (
+    credentials: CreateWarehouseCredentials,
+): credentials is MultiConnectionCredentials =>
+    credentials.type === WarehouseTypes.POSTGRES ||
+    credentials.type === WarehouseTypes.ATHENA ||
+    credentials.type === WarehouseTypes.SNOWFLAKE;
 
 const BINDING_FOREIGN_KEYS = [
     'cached_explore_warehouse_connection_fkey',
@@ -313,15 +336,18 @@ export class WarehouseConnectionService extends BaseService {
         operation: 'add' | 'update',
         warehouseConnectionUuid: string | null,
         credentialSource: 'project' | 'organization',
-    ): Promise<void> {
+    ): Promise<CreateWarehouseCredentials> {
         let result: WarehouseConnectionTestResults;
+        let resolvedCredentials: CreateWarehouseCredentials;
         try {
-            result =
-                await this.credentialPolicy.testWarehouseConnectionCredentials(
+            const tested =
+                await this.credentialPolicy.testWarehouseConnectionCredentialsForSave(
                     account,
                     project.organizationUuid,
                     credentials,
                 );
+            result = tested.result;
+            resolvedCredentials = tested.credentials;
         } catch (error) {
             await this.trackWithCount(project, (connectionCount) => ({
                 event: 'warehouse_connection.test_completed',
@@ -367,6 +393,7 @@ export class WarehouseConnectionService extends BaseService {
                     : 'Warehouse connection test failed.',
             );
         }
+        return resolvedCredentials;
     }
 
     private async resolveCredentialSource(
@@ -387,8 +414,7 @@ export class WarehouseConnectionService extends BaseService {
     ): Promise<WarehouseConnectionCredentialSource> {
         if (
             source.kind === 'organization' ||
-            (source.credentials.type !== WarehouseTypes.POSTGRES &&
-                source.credentials.type !== WarehouseTypes.ATHENA)
+            !inheritsPrimaryCredentialRequirement(source.credentials)
         )
             return source;
         const originalCredentials =
@@ -465,10 +491,7 @@ export class WarehouseConnectionService extends BaseService {
         const warehouseConnection = toNonSensitiveCredentials(
             source.credentials,
         );
-        if (
-            warehouseConnection.type === WarehouseTypes.POSTGRES ||
-            warehouseConnection.type === WarehouseTypes.ATHENA
-        ) {
+        if (supportsMultipleConnections(warehouseConnection.type)) {
             warehouseConnection.requireUserCredentials =
                 getExtraConnectionRequireUserCredentials(
                     originalCredentials,
@@ -743,14 +766,23 @@ export class WarehouseConnectionService extends BaseService {
             project,
             credentials.type,
         );
-        await this.assertConnectionWorks(
-            account,
-            project,
-            credentials,
-            'add',
-            null,
-            source.kind,
-        );
+        let persistedSource = source;
+        if (shouldTestExtraCredentials(credentials)) {
+            const testedCredentials = await this.assertConnectionWorks(
+                account,
+                project,
+                credentials,
+                'add',
+                null,
+                source.kind,
+            );
+            if (source.kind === 'project') {
+                persistedSource = {
+                    kind: 'project',
+                    credentials: testedCredentials,
+                };
+            }
+        }
 
         try {
             const created = await this.warehouseConnectionModel.transaction(
@@ -767,7 +799,7 @@ export class WarehouseConnectionService extends BaseService {
                         {
                             name,
                             warehouseType: credentials.type,
-                            source,
+                            source: persistedSource,
                             listAllDatabases: request.listAllDatabases ?? false,
                             additionalDatabases:
                                 request.additionalDatabases ?? [],
@@ -936,7 +968,15 @@ export class WarehouseConnectionService extends BaseService {
             source === null
                 ? null
                 : await this.resolveCredentialSource(project, source);
+        if (
+            credentials?.type === WarehouseTypes.SNOWFLAKE &&
+            credentials.authenticationType ===
+                SnowflakeAuthenticationType.EXTERNAL_BROWSER
+        ) {
+            shouldTestExtraCredentials(credentials);
+        }
         this.assertCanWrite(account, summary, effectiveSource, credentials);
+        let persistedSource = source;
         if (credentials !== null && source !== null) {
             if (project.originalWarehouseType !== credentials.type) {
                 await this.trackRefusal(
@@ -954,14 +994,22 @@ export class WarehouseConnectionService extends BaseService {
                 project,
                 credentials.type,
             );
-            await this.assertConnectionWorks(
-                account,
-                project,
-                credentials,
-                'update',
-                warehouseConnectionUuid,
-                source.kind,
-            );
+            if (shouldTestExtraCredentials(credentials)) {
+                const testedCredentials = await this.assertConnectionWorks(
+                    account,
+                    project,
+                    credentials,
+                    'update',
+                    warehouseConnectionUuid,
+                    source.kind,
+                );
+                if (source.kind === 'project') {
+                    persistedSource = {
+                        kind: 'project',
+                        credentials: testedCredentials,
+                    };
+                }
+            }
         }
 
         const updated = await this.warehouseConnectionModel.transaction(
@@ -970,11 +1018,11 @@ export class WarehouseConnectionService extends BaseService {
                 const lockedProject = await model.getProject(projectUuid);
                 WarehouseConnectionService.assertMultiMode(lockedProject);
                 await model.get(lockedProject, warehouseConnectionUuid);
-                if (source !== null) {
+                if (persistedSource !== null) {
                     await model.updateExtraCredentials(
                         lockedProject,
                         warehouseConnectionUuid,
-                        source,
+                        persistedSource,
                     );
                 }
                 if (

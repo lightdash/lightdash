@@ -92,6 +92,9 @@ describe('WarehouseConnectionService on the real schema', () => {
     let projectService: ProjectService;
     const flag = { enabled: true };
     const testWarehouseConnectionCredentials = vi.fn();
+    const resolveTestedCredentials = vi.fn(
+        (credentials: CreateWarehouseCredentials) => credentials,
+    );
     const analytics = { track: vi.fn() };
 
     const buildService = (licensed = true) =>
@@ -122,7 +125,14 @@ describe('WarehouseConnectionService on the real schema', () => {
                         project,
                         data,
                     ),
-                testWarehouseConnectionCredentials,
+                testWarehouseConnectionCredentialsForSave: async (
+                    ...args: Parameters<
+                        ProjectService['testWarehouseConnectionCredentialsForSave']
+                    >
+                ) => ({
+                    credentials: resolveTestedCredentials(args[2]),
+                    result: await testWarehouseConnectionCredentials(...args),
+                }),
             },
             analytics,
         });
@@ -282,6 +292,10 @@ describe('WarehouseConnectionService on the real schema', () => {
         flag.enabled = true;
         analytics.track.mockReset();
         testWarehouseConnectionCredentials.mockReset();
+        resolveTestedCredentials.mockClear();
+        resolveTestedCredentials.mockImplementation(
+            (credentials) => credentials,
+        );
         testWarehouseConnectionCredentials.mockResolvedValue({
             ok: true,
             hops: [{ stage: 'database', status: 'ok', message: null }],
@@ -471,6 +485,293 @@ describe('WarehouseConnectionService on the real schema', () => {
                 created.warehouseConnectionUuid,
             );
             expect(stored).toMatchObject(postgresCredentials);
+        });
+
+        test('creates a Snowflake extra and redacts its secrets', async () => {
+            const fixture = await createProject({
+                mode: 'multi',
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+                credentials: {
+                    ...snowflakeCredentials,
+                    requireUserCredentials: true,
+                },
+            });
+            const extraCredentials = {
+                ...snowflakeCredentials,
+                account: 'example-account',
+                database: 'ANALYTICS',
+                warehouse: 'REPORTING_WH',
+                password: 'extra-password',
+                privateKey: 'extra-private-key',
+                privateKeyPass: 'extra-passphrase',
+                refreshToken: 'extra-refresh-token',
+                token: 'extra-access-token',
+                requireUserCredentials: false,
+            };
+
+            const service = buildService();
+            const created = await service.create(
+                fixture.credentialsAdmin,
+                fixture.projectUuid,
+                { name: 'Reporting', warehouseConnection: extraCredentials },
+            );
+            const stored = await model.getCredentials(
+                await model.getProject(fixture.projectUuid),
+                created.warehouseConnectionUuid,
+            );
+            expect(stored).toMatchObject({
+                account: 'example-account',
+                database: 'ANALYTICS',
+                warehouse: 'REPORTING_WH',
+                password: 'extra-password',
+                requireUserCredentials: true,
+            });
+            const got = await service.get(
+                fixture.admin,
+                fixture.projectUuid,
+                created.warehouseConnectionUuid,
+            );
+            expect(got.warehouseConnection).toMatchObject({
+                account: 'example-account',
+                warehouse: 'REPORTING_WH',
+                requireUserCredentials: true,
+            });
+            expect(got.warehouseConnection).not.toHaveProperty('user');
+            expect(got.warehouseConnection).not.toHaveProperty('password');
+            expect(got.warehouseConnection).not.toHaveProperty('privateKey');
+            expect(got.warehouseConnection).not.toHaveProperty(
+                'privateKeyPass',
+            );
+            expect(got.warehouseConnection).not.toHaveProperty('refreshToken');
+            expect(got.warehouseConnection).not.toHaveProperty('token');
+
+            flag.enabled = false;
+            await expect(
+                service.create(fixture.credentialsAdmin, fixture.projectUuid, {
+                    name: 'Another',
+                    warehouseConnection: extraCredentials,
+                }),
+            ).rejects.toEqual(new ForbiddenError(ROLLOUT_REASON));
+        });
+
+        test('accepts saved organisation Snowflake credentials as an extra source', async () => {
+            const fixture = await createProject({
+                mode: 'multi',
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+                credentials: snowflakeCredentials,
+            });
+            const organizationWarehouseCredentialsUuid =
+                await createOrganizationCredential(fixture.organizationUuid, {
+                    ...snowflakeCredentials,
+                    account: 'example-account',
+                    warehouse: 'ANALYTICS_WH',
+                });
+            const created = await buildService().create(
+                fixture.credentialsAdmin,
+                fixture.projectUuid,
+                { name: 'Analytics', organizationWarehouseCredentialsUuid },
+            );
+            expect(created).toMatchObject({
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+                organizationWarehouseCredentialsUuid,
+            });
+            const stored = await database('warehouse_connections')
+                .where(
+                    'warehouse_connection_uuid',
+                    created.warehouseConnectionUuid,
+                )
+                .first('encrypted_credentials');
+            expect(stored.encrypted_credentials).toBeNull();
+        });
+
+        test('requires personal credentials for an extra Snowflake connection without shared authentication', async () => {
+            const fixture = await createProject({
+                mode: 'multi',
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+                credentials: snowflakeCredentials,
+            });
+            const request = {
+                name: 'Personal',
+                warehouseConnection: {
+                    ...snowflakeCredentials,
+                    authenticationType: SnowflakeAuthenticationType.NONE,
+                },
+            };
+            await expect(
+                buildService().create(
+                    fixture.credentialsAdmin,
+                    fixture.projectUuid,
+                    request,
+                ),
+            ).rejects.toThrow(
+                'A Snowflake connection without shared credentials requires users to provide their own credentials on the original connection.',
+            );
+            expect(testWarehouseConnectionCredentials).not.toHaveBeenCalled();
+
+            const requiredFixture = await createProject({
+                mode: 'multi',
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+                credentials: {
+                    ...snowflakeCredentials,
+                    requireUserCredentials: true,
+                },
+            });
+            await expect(
+                buildService().create(
+                    requiredFixture.credentialsAdmin,
+                    requiredFixture.projectUuid,
+                    request,
+                ),
+            ).resolves.toMatchObject({
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+            });
+            expect(testWarehouseConnectionCredentials).not.toHaveBeenCalled();
+        });
+
+        test('rejects interactive browser authentication on an extra Snowflake connection', async () => {
+            const fixture = await createProject({
+                mode: 'multi',
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+                credentials: {
+                    ...snowflakeCredentials,
+                    requireUserCredentials: true,
+                },
+            });
+            await expect(
+                buildService().create(
+                    fixture.credentialsAdmin,
+                    fixture.projectUuid,
+                    {
+                        name: 'Browser',
+                        warehouseConnection: {
+                            ...snowflakeCredentials,
+                            requireUserCredentials: true,
+                            authenticationType:
+                                SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+                        },
+                    },
+                ),
+            ).rejects.toThrow(
+                'External browser authentication is not supported for an extra Snowflake connection.',
+            );
+            expect(testWarehouseConnectionCredentials).not.toHaveBeenCalled();
+        });
+
+        test('applies Snowflake authentication rules when editing an extra connection', async () => {
+            const fixture = await createProject({
+                mode: 'multi',
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+                credentials: snowflakeCredentials,
+            });
+            const service = buildService();
+            const created = await service.create(
+                fixture.credentialsAdmin,
+                fixture.projectUuid,
+                { name: 'Extra', warehouseConnection: snowflakeCredentials },
+            );
+            testWarehouseConnectionCredentials.mockClear();
+            await expect(
+                service.update(
+                    fixture.credentialsAdmin,
+                    fixture.projectUuid,
+                    created.warehouseConnectionUuid,
+                    {
+                        warehouseConnection: {
+                            ...snowflakeCredentials,
+                            authenticationType:
+                                SnowflakeAuthenticationType.NONE,
+                        },
+                    },
+                ),
+            ).rejects.toThrow(
+                'A Snowflake connection without shared credentials requires users to provide their own credentials on the original connection.',
+            );
+            await expect(
+                service.update(
+                    fixture.credentialsAdmin,
+                    fixture.projectUuid,
+                    created.warehouseConnectionUuid,
+                    {
+                        warehouseConnection: {
+                            ...snowflakeCredentials,
+                            authenticationType:
+                                SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+                        },
+                    },
+                ),
+            ).rejects.toThrow(
+                'External browser authentication is not supported for an extra Snowflake connection.',
+            );
+            expect(testWarehouseConnectionCredentials).not.toHaveBeenCalled();
+        });
+
+        test('saves a Snowflake SSO form payload with the resolved refresh token for later queries and updates', async () => {
+            const fixture = await createProject({
+                mode: 'multi',
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+                credentials: snowflakeCredentials,
+            });
+            const formCredentials: CreateSnowflakeCredentials = {
+                ...snowflakeCredentials,
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                password: '',
+            };
+            expect(formCredentials).not.toHaveProperty('refreshToken');
+            resolveTestedCredentials.mockImplementation((credentials) => ({
+                ...credentials,
+                refreshToken: 'resolved-refresh-token',
+            }));
+            const service = buildService();
+            const created = await service.create(
+                fixture.credentialsAdmin,
+                fixture.projectUuid,
+                { name: 'SSO', warehouseConnection: formCredentials },
+            );
+            const project = await model.getProject(fixture.projectUuid);
+            expect(
+                (
+                    await model.getExtraCredentialSource(
+                        project,
+                        created.warehouseConnectionUuid,
+                    )
+                ).credentials,
+            ).toMatchObject({ refreshToken: 'resolved-refresh-token' });
+            const stored = await database('warehouse_connections')
+                .where(
+                    'warehouse_connection_uuid',
+                    created.warehouseConnectionUuid,
+                )
+                .first('encrypted_credentials');
+            expect(String(stored.encrypted_credentials)).not.toContain(
+                'resolved-refresh-token',
+            );
+            const visible = await service.get(
+                fixture.admin,
+                fixture.projectUuid,
+                created.warehouseConnectionUuid,
+            );
+            expect(visible.warehouseConnection).not.toHaveProperty(
+                'refreshToken',
+            );
+
+            resolveTestedCredentials.mockImplementation((credentials) => ({
+                ...credentials,
+                refreshToken: 'updated-refresh-token',
+            }));
+            await service.update(
+                fixture.credentialsAdmin,
+                fixture.projectUuid,
+                created.warehouseConnectionUuid,
+                { warehouseConnection: formCredentials },
+            );
+            expect(
+                (
+                    await model.getExtraCredentialSource(
+                        project,
+                        created.warehouseConnectionUuid,
+                    )
+                ).credentials,
+            ).toMatchObject({ refreshToken: 'updated-refresh-token' });
         });
 
         test('refuses an extra connection of another warehouse type', async () => {
@@ -1350,6 +1651,70 @@ describe('WarehouseConnectionService on the real schema', () => {
             user: 'personal-user',
             password: 'personal-password',
         };
+
+        test('keeps Snowflake personal credential choices on their own connection', async () => {
+            const fixture = await createProject({
+                mode: 'multi',
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+                credentials: {
+                    ...snowflakeCredentials,
+                    requireUserCredentials: true,
+                },
+            });
+            const service = buildService();
+            const reporting = await service.create(
+                fixture.credentialsAdmin,
+                fixture.projectUuid,
+                {
+                    name: 'Reporting',
+                    warehouseConnection: {
+                        ...snowflakeCredentials,
+                        warehouse: 'REPORTING_WH',
+                    },
+                },
+            );
+            const analyticsConnection = await service.create(
+                fixture.credentialsAdmin,
+                fixture.projectUuid,
+                {
+                    name: 'Analytics',
+                    warehouseConnection: {
+                        ...snowflakeCredentials,
+                        warehouse: 'ANALYTICS_WH',
+                    },
+                },
+            );
+            const personal = await createPersonal(fixture.userUuid, {
+                type: WarehouseTypes.SNOWFLAKE,
+                user: 'analyst',
+                password: 'personal-password',
+            });
+
+            await service.upsertUserCredentialsPreference(
+                fixture.viewer,
+                fixture.projectUuid,
+                reporting.warehouseConnectionUuid,
+                personal,
+            );
+            expect(
+                (
+                    await service.getUserCredentials(
+                        fixture.viewer,
+                        fixture.projectUuid,
+                        reporting.warehouseConnectionUuid,
+                    )
+                ).userWarehouseCredentials?.uuid,
+            ).toBe(personal);
+            expect(
+                (
+                    await service.getUserCredentials(
+                        fixture.viewer,
+                        fixture.projectUuid,
+                        analyticsConnection.warehouseConnectionUuid,
+                    )
+                ).userWarehouseCredentials,
+            ).toBeNull();
+        });
 
         test('is refused on a single project', async () => {
             const fixture = await createProject({ mode: 'single' });

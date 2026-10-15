@@ -445,7 +445,7 @@
         "audienceGenerateFailed": "Couldn't generate. Select Generate new audience.",
         "audienceRegenerateWarning": "This connection stops working when you save, until the role's trust policy uses the new audience.",
         "authenticationDescription": "Choose how to authenticate with your data warehouse.",
-        "authenticationType": "Authentication type",
+        "authenticationType": "Authentication Type",
         "autoCreateUser": "Auto-create database user",
         "autoCreateUserDescription": "Create the database user automatically if it does not already exist (GetClusterCredentials AutoCreate).",
         "awsAccessKeyId": "AWS access key ID",
@@ -707,7 +707,8 @@
         "workgroup": "Workgroup",
         "workgroupDescription": "The Athena workgroup to use for queries.",
         "workgroupName": "Workgroup name",
-        "workgroupNameDescription": "The name of your Redshift Serverless workgroup."
+        "workgroupNameDescription": "The name of your Redshift Serverless workgroup.",
+        "requireUserCredentialsFollowsPrimary": "Require users to provide their own credentials follows the primary connection."
     },
     "warehouseAuth": {
         "privateKeyAuth": "Key Pair (private key file)",

@@ -836,6 +836,7 @@ export const MultiConnectionTables: FC<{
             connections,
             getUnitState,
             isExpanded: isRowExpanded,
+            getExpansionOverride: isRowExpandedByOverride,
             search: effectiveSearch,
             typeFilter,
         });
@@ -856,6 +857,7 @@ export const MultiConnectionTables: FC<{
         connections,
         getUnitState,
         isRowExpanded,
+        isRowExpandedByOverride,
         effectiveSearch,
         typeFilter,
         activeConnectionUuid,

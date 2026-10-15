@@ -106,6 +106,32 @@ const SnowflakeSSOInput: FC<{
     );
 };
 
+const RequireUserCredentialsField: FC<{ disabled: boolean }> = ({
+    disabled,
+}) => {
+    const { t } = useTranslation('projectConnection');
+    const { isProjectExtraConnection } = useProjectFormContext();
+    const form = useFormContext();
+    if (isProjectExtraConnection) {
+        return (
+            <Text size="sm" c="dimmed">
+                {t('warehouseFields.requireUserCredentialsFollowsPrimary')}
+            </Text>
+        );
+    }
+    return (
+        <BooleanSwitch
+            name="warehouse.requireUserCredentials"
+            label={t('warehouseFields.requireUserCredentials')}
+            defaultChecked={SnowflakeDefaultValues.requireUserCredentials}
+            disabled={disabled}
+            {...form.getInputProps('warehouse.requireUserCredentials', {
+                type: 'checkbox',
+            })}
+        />
+    );
+};
+
 const SnowflakeForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
@@ -116,6 +142,7 @@ const SnowflakeForm: FC<{
         projectUuid,
         warehouseConnectionUuid,
         isProjectExtraConnection,
+        primaryRequiresUserCredentials,
         isDbtSource,
     } = useProjectFormContext();
     const { track } = useTracking();
@@ -162,7 +189,9 @@ const SnowflakeForm: FC<{
         FeatureFlags.NewOnboarding,
     );
     const isCliSsoEnabled =
-        !savedProject && (warehouseConnectFlag.data?.enabled ?? false);
+        !savedProject &&
+        !isProjectExtraConnection &&
+        (warehouseConnectFlag.data?.enabled ?? false);
     const isCliSsoMode = useSnowflakeCliSsoMode();
     const setIsCliSsoMode = useSetSnowflakeCliSsoMode();
     const userSelectedAuthType = useRef(false);
@@ -252,7 +281,13 @@ const SnowflakeForm: FC<{
                   },
               ]
             : []),
-        ...(showSaveCredentials && isEditMode
+        ...((
+            isProjectExtraConnection
+                ? (primaryRequiresUserCredentials ??
+                      savedProject?.warehouseConnection
+                          ?.requireUserCredentials) === true
+                : showSaveCredentials && isEditMode
+        )
             ? [
                   {
                       value: SnowflakeAuthenticationType.NONE,
@@ -507,21 +542,8 @@ const SnowflakeForm: FC<{
                                                 'warehouseFields.noProjectCredentials',
                                             )}
                                         </Text>
-                                        <BooleanSwitch
-                                            name="warehouse.requireUserCredentials"
-                                            label={t(
-                                                'warehouseFields.requireUserCredentials',
-                                            )}
-                                            defaultChecked={
-                                                SnowflakeDefaultValues.requireUserCredentials
-                                            }
+                                        <RequireUserCredentialsField
                                             disabled={disabled}
-                                            {...form.getInputProps(
-                                                'warehouse.requireUserCredentials',
-                                                {
-                                                    type: 'checkbox',
-                                                },
-                                            )}
                                         />
                                     </>
                                 ) : authenticationType ===
@@ -710,21 +732,8 @@ const SnowflakeForm: FC<{
                                 <FormSection isOpen={isOpen} name="advanced">
                                     <Stack mt="xs">
                                         {!isNoneAuth && (
-                                            <BooleanSwitch
-                                                name="warehouse.requireUserCredentials"
-                                                label={t(
-                                                    'warehouseFields.requireUserCredentials',
-                                                )}
-                                                defaultChecked={
-                                                    SnowflakeDefaultValues.requireUserCredentials
-                                                }
+                                            <RequireUserCredentialsField
                                                 disabled={disabled}
-                                                {...form.getInputProps(
-                                                    'warehouse.requireUserCredentials',
-                                                    {
-                                                        type: 'checkbox',
-                                                    },
-                                                )}
                                             />
                                         )}
 

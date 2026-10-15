@@ -1,3 +1,38 @@
+## [2.589.2](https://github.com/lightdash/lightdash/compare/2.589.1...2.589.2) (2026-10-15)
+
+
+### Bug Fixes
+
+* **ai-agents:** label selected users in the agent access picker from the agent ([#31033](https://github.com/lightdash/lightdash/issues/31033)) ([a96300f](https://github.com/lightdash/lightdash/commit/a96300ffc22b5d2fa9f5d38187b3bbdf3a22f083))
+
+## [2.589.1](https://github.com/lightdash/lightdash/compare/2.589.0...2.589.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* **sql-runner:** restore the saved chart's height in view mode ([#31039](https://github.com/lightdash/lightdash/issues/31039)) ([d43966c](https://github.com/lightdash/lightdash/commit/d43966c7a64e9990471afa9cf9e5ad4bbb76ffc9)), closes [#30686](https://github.com/lightdash/lightdash/issues/30686) [#30932](https://github.com/lightdash/lightdash/issues/30932)
+
+# [2.589.0](https://github.com/lightdash/lightdash/compare/2.588.1...2.589.0) (2026-10-15)
+
+
+### Features
+
+* **connections:** allow multiple Snowflake warehouse connections in one project ([#31030](https://github.com/lightdash/lightdash/issues/31030)) ([448fca1](https://github.com/lightdash/lightdash/commit/448fca10b69b9422ef43169a85f54f5feaea66d7))
+
+## [2.588.1](https://github.com/lightdash/lightdash/compare/2.588.0...2.588.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* **s3:** stop leaking keep-alive sockets when a GetObject body is abandoned early ([#31027](https://github.com/lightdash/lightdash/issues/31027)) ([cb3a9f8](https://github.com/lightdash/lightdash/commit/cb3a9f8aaaf567b15d5fce16306deac500bf2b1f)), closes [#31026](https://github.com/lightdash/lightdash/issues/31026)
+
+# [2.588.0](https://github.com/lightdash/lightdash/compare/2.587.0...2.588.0) (2026-10-15)
+
+
+### Features
+
+* **backend:** opt-in slow transaction warning and transaction metrics ([#31011](https://github.com/lightdash/lightdash/issues/31011)) ([e17399b](https://github.com/lightdash/lightdash/commit/e17399bf2315badcd36ad5639d8dc40b952661ab)), closes [#30731](https://github.com/lightdash/lightdash/issues/30731) [#30731](https://github.com/lightdash/lightdash/issues/30731)
+
 # [2.587.0](https://github.com/lightdash/lightdash/compare/2.586.0...2.587.0) (2026-10-15)
 
 

@@ -1,3 +1,4 @@
+import { type AiAgentUserAccessDetail } from '@lightdash/common';
 import {
     Badge,
     Group,
@@ -20,8 +21,11 @@ import MantineIcon from '../../components/common/MantineIcon';
 import { useProjectUsersWithRoles } from '../../hooks/useProjectUsersWithRoles';
 import {
     getAgentUserAccessOption,
+    getAgentUserLabel,
     type AgentUserAccessOption,
 } from './agentUserAccessOption';
+
+const NO_SELECTED_USER_DETAILS: AiAgentUserAccessDetail[] = [];
 
 interface UserAccessMultiSelectProps extends Omit<
     MultiSelectProps,
@@ -29,11 +33,18 @@ interface UserAccessMultiSelectProps extends Omit<
 > {
     projectUuid: string;
     isGroupsEnabled?: boolean;
+    /**
+     * The selected users as the agent reports them. The org user search is
+     * paginated, so a selected user is often not among the results the
+     * picker has loaded; this is what labels their pill instead of the uuid.
+     */
+    selectedUserDetails?: AiAgentUserAccessDetail[];
 }
 
 export const UserAccessMultiSelect: FC<UserAccessMultiSelectProps> = ({
     projectUuid,
     isGroupsEnabled = false,
+    selectedUserDetails = NO_SELECTED_USER_DETAILS,
     value = [],
     onChange,
     ...props
@@ -80,19 +91,30 @@ export const UserAccessMultiSelect: FC<UserAccessMultiSelectProps> = ({
         });
 
         value.forEach((selectedUuid) => {
-            if (!dataMap.has(selectedUuid)) {
-                const user = allUsersRef.current.get(selectedUuid);
-                if (user) {
-                    dataMap.set(selectedUuid, {
-                        value: user.userUuid,
-                        label: user.label,
-                    });
-                }
+            if (dataMap.has(selectedUuid)) return;
+
+            const user = allUsersRef.current.get(selectedUuid);
+            if (user) {
+                dataMap.set(selectedUuid, {
+                    value: user.userUuid,
+                    label: user.label,
+                });
+                return;
+            }
+
+            const detail = selectedUserDetails.find(
+                (d) => d.userUuid === selectedUuid,
+            );
+            if (detail) {
+                dataMap.set(selectedUuid, {
+                    value: detail.userUuid,
+                    label: getAgentUserLabel(detail),
+                });
             }
         });
 
         return Array.from(dataMap.values());
-    }, [currentSearchResults, value]);
+    }, [currentSearchResults, value, selectedUserDetails]);
 
     const renderMultiSelectOption: (
         item: ComboboxLikeRenderOptionInput<ComboboxItem>,

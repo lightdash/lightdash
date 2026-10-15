@@ -9,6 +9,7 @@ import {
     SupportedDbtVersions,
     WarehouseTypes,
     type CreateDuckdbDucklakeCredentials,
+    type CreateSnowflakeCredentials,
     type CreateWarehouseCredentials,
     type DbtLog,
     type DbtManifest,
@@ -384,6 +385,124 @@ describe('extra connection scope cleanup', () => {
             await lease.release();
         },
     );
+});
+
+describe('Snowflake extra compile credentials', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it('fetches the bound dbt source and catalog with the extra connection', async () => {
+        const credentials: CreateSnowflakeCredentials = {
+            type: WarehouseTypes.SNOWFLAKE,
+            account: 'example-account',
+            user: 'user',
+            password: 'password',
+            database: 'ANALYTICS',
+            warehouse: 'REPORTING_WH',
+            schema: 'PUBLIC',
+        };
+        const projectModel = {
+            getWarehouseClientFromCredentials: vi.fn(
+                (saved: CreateWarehouseCredentials) => ({
+                    ...warehouseClientMock,
+                    credentials: saved,
+                }),
+            ),
+        };
+        const factory = new WarehouseClientFactory({
+            credentialResolvers: createCredentialResolverRegistry({
+                databricksOAuthCredentialResolver:
+                    new DatabricksOAuthCredentialResolver({} as never),
+                snowflakeOAuthCredentialResolver:
+                    new SnowflakeOAuthCredentialResolver({} as never),
+                lightdashConfig: lightdashConfigMock,
+                userOAuthGrantsModel: { getRefreshToken: vi.fn() },
+                sshKeyPairModel: { find: vi.fn().mockResolvedValue(null) },
+            }),
+            lightdashConfig: lightdashConfigMock,
+            projectModel,
+            featureFlagModel: {},
+            aiAccessService: {},
+            credentialSource: {},
+            logger: Logger,
+        } as unknown as ConstructorParameters<
+            typeof WarehouseClientFactory
+        >[0]);
+        const getCatalogCache = vi.fn(async () => undefined);
+        const compiler = new MultiConnectionCompiler({
+            projectModel,
+            warehouseClientFactory: factory,
+            projectDbtSourcesModel: {},
+            warehouseConnectionCompileModel: { getCatalogCache },
+        } as unknown as ConstructorParameters<
+            typeof MultiConnectionCompiler
+        >[0]);
+        vi.spyOn(
+            DbtManifestProjectAdapter.prototype,
+            'compileAllExplores',
+        ).mockResolvedValue([]);
+        const fetchSourceManifest = vi.fn<FetchSourceManifest>(
+            async (_source, sourceCredentials, connection) => {
+                expect(sourceCredentials).toMatchObject(credentials);
+                expect(connection.warehouseClient.credentials).toMatchObject(
+                    credentials,
+                );
+                return { manifest };
+            },
+        );
+        const loadExtraCredentials = vi.fn(async () => credentials);
+        const internals = compiler as unknown as {
+            compileExtraGroup: (args: {
+                projectUuid: string;
+                context: ReturnType<typeof connectionContextFromUser>;
+                plan: CompileGroupPlan & { warehouseConnectionUuid: string };
+                dbtVersion: SupportedDbtVersions;
+                fetchSourceManifest: FetchSourceManifest;
+                loadExtraCredentials: typeof loadExtraCredentials;
+                trackingParams: undefined;
+                warnings: string[];
+            }) => Promise<unknown>;
+        };
+        await internals.compileExtraGroup({
+            projectUuid: 'project-uuid',
+            context: connectionContextFromUser(
+                { userUuid: 'user' },
+                {
+                    organizationUuid: 'org',
+                    queryContext: null,
+                    purpose: 'compile',
+                },
+            ),
+            plan: {
+                warehouseConnectionUuid: 'extra-uuid',
+                connectionName: 'Reporting',
+                listedDatabases: {
+                    listAllDatabases: false,
+                    additionalDatabases: [],
+                },
+                sources: [
+                    {
+                        name: 'source',
+                        precedence: 1,
+                        projectDbtSourceUuid: 'source-uuid',
+                        dbtConnection: { type: DbtProjectType.NONE },
+                    },
+                ],
+            } as unknown as CompileGroupPlan & {
+                warehouseConnectionUuid: string;
+            },
+            dbtVersion: SupportedDbtVersions.V1_7,
+            fetchSourceManifest,
+            loadExtraCredentials,
+            trackingParams: undefined,
+            warnings: [],
+        });
+        expect(loadExtraCredentials).toHaveBeenCalledWith('extra-uuid');
+        expect(getCatalogCache).toHaveBeenCalledWith(
+            'project-uuid',
+            'extra-uuid',
+        );
+        expect(fetchSourceManifest).toHaveBeenCalledOnce();
+    });
 });
 
 describe('DuckLake extra compile credentials', () => {

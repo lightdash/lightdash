@@ -576,6 +576,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                     persistedMcpServerUuids={agentMcpServers?.map(
                                         (mcpServer) => mcpServer.uuid,
                                     )}
+                                    userAccessDetails={agent?.userAccessDetails}
                                     avatarMode={avatarMode}
                                     avatarFileName={avatarFile?.name ?? null}
                                     onAvatarFileChange={(file) => {
