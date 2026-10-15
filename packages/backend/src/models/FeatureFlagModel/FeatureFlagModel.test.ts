@@ -531,14 +531,8 @@ describe('FeatureFlagModel', () => {
     describe('preview environment defaults', () => {
         const previewConfig = { previewFeatureFlags: { enabled: true } };
 
-        it('enables flags in the preview set ahead of config handlers', async () => {
-            const model = buildModel({
-                ...previewConfig,
-                appRuntime: {
-                    ...lightdashConfigMock.appRuntime,
-                    enabled: false,
-                },
-            });
+        it('enables flags in the preview set', async () => {
+            const model = buildModel(previewConfig);
 
             const result = await model.get({
                 featureFlagId: FeatureFlags.EnableDataApps,

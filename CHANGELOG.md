@@ -1,3 +1,31 @@
+# [2.582.0](https://github.com/lightdash/lightdash/compare/2.581.2...2.582.0) (2026-10-14)
+
+
+### Features
+
+* release highlights in a What's new drawer from the footer badge ([#31008](https://github.com/lightdash/lightdash/issues/31008)) ([73cb5a4](https://github.com/lightdash/lightdash/commit/73cb5a47e364db1282c9b05d2c91742ad41df34e))
+
+## [2.581.2](https://github.com/lightdash/lightdash/compare/2.581.1...2.581.2) (2026-10-14)
+
+
+### Bug Fixes
+
+* search organization users by complete role names ([#31017](https://github.com/lightdash/lightdash/issues/31017)) ([e03ccdd](https://github.com/lightdash/lightdash/commit/e03ccdd1af59d181867f3ca12f8edd607059994c))
+
+## [2.581.1](https://github.com/lightdash/lightdash/compare/2.581.0...2.581.1) (2026-10-14)
+
+
+### Bug Fixes
+
+* split pasted spreadsheet cells in number filters ([#31012](https://github.com/lightdash/lightdash/issues/31012)) ([fb21f6e](https://github.com/lightdash/lightdash/commit/fb21f6ee65704717f72f0093f531433c5cefa86c))
+
+# [2.581.0](https://github.com/lightdash/lightdash/compare/2.580.0...2.581.0) (2026-10-14)
+
+
+### Features
+
+* add LIGHTDASH_DISABLE_UPDATE_CHECK to opt out of the Docker Hub version poll ([#31006](https://github.com/lightdash/lightdash/issues/31006)) ([5333af4](https://github.com/lightdash/lightdash/commit/5333af4a9ac8bfc86b6bc9e2e5c9b7623fcdd7f1)), closes [#31005](https://github.com/lightdash/lightdash/issues/31005)
+
 # [2.580.0](https://github.com/lightdash/lightdash/compare/2.579.0...2.580.0) (2026-10-14)
 
 

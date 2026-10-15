@@ -405,6 +405,7 @@ import {
     type ApiListQuerySourcesResults,
     type ApiScanQuerySourceSchemaResults,
 } from './querySources';
+import { type ReleaseHighlightsResult } from './releaseHighlights';
 import { type ApiRenameFieldsResponse, type ApiRenameResponse } from './rename';
 import { type MostPopularAndRecentlyUpdated } from './resourceViewItem';
 import { type ResultColumns, type ResultRow } from './results';
@@ -1373,6 +1374,7 @@ export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
     | ApiQueryCostEstimateResponse['results']
+    | ReleaseHighlightsResult
     | AgentConnectionApprovalReviewResponse['results']
     | AgentConnectionApprovalDecisionResponse['results']
     | AgentCapabilityPolicy

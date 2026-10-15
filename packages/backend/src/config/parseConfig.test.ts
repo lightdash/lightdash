@@ -2838,6 +2838,7 @@ describe('legacy feature-flag env vars (compat repair for trivial-batch)', () =>
             'organization-warehouse-credentials',
         ],
         ['METRIC_DASHBOARD_FILTERS_ENABLED', 'metric-dashboard-filters'],
+        ['APPS_RUNTIME_ENABLED', 'enable-data-apps'],
     ])('legacy %s=true translates to enabledFeatureFlags', (envVar, flagId) => {
         process.env[envVar] = 'true';
         const config = parseConfig();
@@ -3100,5 +3101,15 @@ describe('usage capture infrastructure', () => {
         delete process.env.LIGHTDASH_LICENSE_KEY;
         delete process.env.LIGHTDASH_LICENSE_CERTIFICATE;
         expect(parseConfig().usageEvents.enabled).toBe(false);
+    });
+});
+
+describe('Docker Hub update check', () => {
+    it('is enabled by default', () => {
+        expect(parseConfig().updateCheck.enabled).toBe(true);
+    });
+    it('is disabled with LIGHTDASH_DISABLE_UPDATE_CHECK=true', () => {
+        process.env.LIGHTDASH_DISABLE_UPDATE_CHECK = 'true';
+        expect(parseConfig().updateCheck.enabled).toBe(false);
     });
 });
