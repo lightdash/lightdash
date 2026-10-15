@@ -299,6 +299,7 @@ export async function seed(knex: Knex): Promise<void> {
                     }),
                 policy: { explicitCredentials: false },
             },
+            false,
         );
         const explores = await adapter.compileAllExplores({
             userUuid: user.user_uuid,

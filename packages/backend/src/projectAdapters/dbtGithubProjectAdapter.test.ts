@@ -16,6 +16,7 @@ describe('DbtGithubProjectAdapter', () => {
             githubBranch: 'main',
             projectDirectorySubPath: '/',
             explicitCredentials: false,
+            dbtLoomEnabled: false,
             dbtTarget: toDbtTarget(
                 {
                     type: WarehouseTypes.POSTGRES,

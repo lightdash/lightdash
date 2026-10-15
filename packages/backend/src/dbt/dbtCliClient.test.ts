@@ -19,6 +19,7 @@ vi.mock('fs/promises', () => ({
     readFile: vi.fn(),
     writeFile: vi.fn(),
     mkdtemp: vi.fn(),
+    access: vi.fn(),
     rm: vi.fn(),
 }));
 vi.mock('execa');
@@ -238,6 +239,35 @@ describe('DbtCliClient environment', () => {
         ).rejects.toThrow(
             'Ensure the package is in the same GitHub App installation.',
         );
+    });
+
+    it('overrides a project-set loom config path when the flag is off', async () => {
+        await new DbtCliClient({
+            ...cliArgs,
+            environment: { DBT_LOOM_CONFIG: '/tmp/project-selected.yml' },
+        }).installDeps();
+        const [, , options] = execaMock.mock.calls[0];
+        expect(
+            (options as { env: Record<string, string> }).env.DBT_LOOM_CONFIG,
+        ).toBe('/tmp/dbt_target_test/dbt-loom-disabled.yml');
+    });
+
+    it('hints at the disabled plugin for a missing cross-project node', async () => {
+        execaMock.mockRejectedValueOnce({
+            all: 'depends on a node which was not found',
+        });
+        vi.mocked(fs.access).mockResolvedValueOnce(undefined);
+        await expect(new DbtCliClient(cliArgs).installDeps()).rejects.toThrow(
+            'dbt-loom for cross-project references, which is not enabled',
+        );
+    });
+
+    it('does not add the loom hint for unrelated dbt failures', async () => {
+        execaMock.mockRejectedValueOnce({ all: 'a different dbt failure' });
+        await expect(
+            new DbtCliClient(cliArgs).installDeps(),
+        ).rejects.not.toThrow('dbt-loom for cross-project references');
+        expect(fs.access).not.toHaveBeenCalled();
     });
 
     it('cannot be pointed at another target directory by a project', async () => {

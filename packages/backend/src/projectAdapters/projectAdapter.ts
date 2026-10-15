@@ -42,6 +42,7 @@ export const projectAdapterFromConfig = async (
         resolve: () => DbtTargetResult;
         policy: DbtTargetPolicy;
     } | null,
+    dbtLoomEnabled: boolean,
     analytics?: LightdashAnalytics,
     // MANIFEST-only: project dir for Lightdash config and selected model ids.
     // Ignored by every other adapter type.
@@ -70,6 +71,7 @@ export const projectAdapterFromConfig = async (
                 warehouseClient,
                 projectDir: config.project_dir || '/usr/app/dbt',
                 ...resolveTarget(),
+                dbtLoomEnabled,
                 targetName: config.target,
                 environment: config.environment,
                 environmentVariableAllowlist,
@@ -147,6 +149,7 @@ export const projectAdapterFromConfig = async (
                 projectDirectorySubPath: config.project_sub_path,
                 hostDomain: config.host_domain,
                 ...resolveTarget(),
+                dbtLoomEnabled,
                 targetName: config.target,
                 environment: config.environment,
                 environmentVariableAllowlist,
@@ -166,6 +169,7 @@ export const projectAdapterFromConfig = async (
                 projectDirectorySubPath: config.project_sub_path,
                 hostDomain: config.host_domain,
                 ...resolveTarget(),
+                dbtLoomEnabled,
                 targetName: config.target,
                 environment: config.environment,
                 environmentVariableAllowlist,
@@ -198,6 +202,7 @@ export const projectAdapterFromConfig = async (
                 projectDirectorySubPath: config.project_sub_path,
                 hostDomain: config.host_domain,
                 ...resolveTarget(),
+                dbtLoomEnabled,
                 targetName: config.target,
                 environment: config.environment,
                 environmentVariableAllowlist,
@@ -218,6 +223,7 @@ export const projectAdapterFromConfig = async (
                 branch: config.branch,
                 projectDirectorySubPath: config.project_sub_path,
                 ...resolveTarget(),
+                dbtLoomEnabled,
                 targetName: config.target,
                 environment: config.environment,
                 environmentVariableAllowlist,

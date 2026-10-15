@@ -414,6 +414,8 @@ export enum FeatureFlags {
      * on any mismatch. Off by default.
      */
     DbtPartialParse = 'dbt-partial-parse',
+    /** Organization-scoped: enable dbt-loom during server-side dbt compile. Off by default. */
+    DbtLoom = 'dbt-loom',
     /**
      * Organization-scoped: Athena connections can authenticate with this
      * instance's Google workload identity instead of AWS keys. Only enable on

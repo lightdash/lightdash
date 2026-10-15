@@ -71,6 +71,7 @@ describe('native GitHub server compilation', () => {
                     ),
                 policy: { explicitCredentials: false },
             },
+            false,
         );
     const adapters: Awaited<ReturnType<typeof createAdapter>>[] = [];
 

@@ -12,6 +12,7 @@ const args = {
         reason: 'This credential mode cannot run dbt. Use an explicit key.',
     },
     explicitCredentials: true,
+    dbtLoomEnabled: false,
     targetName: undefined,
     environment: undefined,
     environmentVariableAllowlist: [],

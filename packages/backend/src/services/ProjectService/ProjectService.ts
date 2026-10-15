@@ -6467,6 +6467,7 @@ export class ProjectService
                 dbtVersionOption,
                 dbtPartialParse,
                 dbtTargetPolicy,
+                dbtLoomEnabled,
             } = await this.jobModel.tryJobStep(
                 job.jobUuid,
                 JobStepType.TESTING_ADAPTOR,
@@ -6521,6 +6522,7 @@ export class ProjectService
                                 dbtVersionOption,
                                 dbtPartialParse,
                                 dbtTargetPolicy,
+                                dbtLoomEnabled,
                             };
                             if (
                                 (await this.projectModel.getConnectionRoute(
@@ -6813,6 +6815,7 @@ export class ProjectService
         dbtVersionOption: DbtVersionOption;
         dbtPartialParse: boolean;
         dbtTargetPolicy: DbtTargetPolicy;
+        dbtLoomEnabled: boolean;
     }> {
         const onboardingFlow = await this.getOnboardingFlow(user);
         let lease: WarehouseConnectionLease | null = null;
@@ -6902,6 +6905,9 @@ export class ProjectService
             const dbtTargetPolicy = await this.getDbtTargetPolicy(
                 projectOrganizationUuid ?? user.organizationUuid,
             );
+            const dbtLoomEnabled = await this.isDbtLoomEnabled(
+                projectOrganizationUuid ?? user.organizationUuid,
+            );
             const resolvedLease = lease;
             adapter = await projectAdapterFromConfig(
                 dbtConnection,
@@ -6924,6 +6930,7 @@ export class ProjectService
                         ),
                     policy: dbtTargetPolicy,
                 },
+                dbtLoomEnabled,
                 this.analytics,
             );
             await adapter.test();
@@ -6963,6 +6970,7 @@ export class ProjectService
                 dbtVersionOption,
                 dbtPartialParse,
                 dbtTargetPolicy,
+                dbtLoomEnabled,
             };
         } catch (error) {
             const errorType =
@@ -7705,6 +7713,7 @@ export class ProjectService
             dbtVersionOption: DbtVersionOption;
             dbtPartialParse: boolean;
             dbtTargetPolicy: DbtTargetPolicy;
+            dbtLoomEnabled: boolean;
         }) => Promise<T>,
         manifestFetchAdapters: ProjectAdapter[],
     ): Promise<T> {
@@ -7717,6 +7726,9 @@ export class ProjectService
             dbtPartialParse,
         } = await this.prepareCompileAdapter(projectUuid, user);
         const dbtTargetPolicy = await this.getDbtTargetPolicy(
+            project.organizationUuid,
+        );
+        const dbtLoomEnabled = await this.isDbtLoomEnabled(
             project.organizationUuid,
         );
         if (agentExecutionContext.getStore()?.agentConnectionExecution)
@@ -7756,6 +7768,7 @@ export class ProjectService
                             ),
                         policy: dbtTargetPolicy,
                     },
+                    dbtLoomEnabled,
                     this.analytics,
                 );
                 try {
@@ -7767,6 +7780,7 @@ export class ProjectService
                         dbtVersionOption,
                         dbtPartialParse,
                         dbtTargetPolicy,
+                        dbtLoomEnabled,
                     });
                 } finally {
                     await this.destroyPrimaryCompileAdapter(
@@ -7813,6 +7827,7 @@ export class ProjectService
         },
         partialParseBaselinePath: string | null,
         dbtTargetPolicy: DbtTargetPolicy,
+        dbtLoomEnabled: boolean,
     ): Promise<ProjectAdapter> {
         const resolvedConnection =
             await this.resolveDbtConnectionInstallationId(
@@ -7839,6 +7854,7 @@ export class ProjectService
                     ),
                 policy: dbtTargetPolicy,
             },
+            dbtLoomEnabled,
             this.analytics,
         );
     }
@@ -7855,6 +7871,20 @@ export class ProjectService
             featureFlagId: FeatureFlags.DbtExplicitCredentials,
         });
         return { explicitCredentials: enabled };
+    }
+
+    private async isDbtLoomEnabled(
+        organizationUuid: string | undefined,
+    ): Promise<boolean> {
+        if (organizationUuid === undefined)
+            throw new ForbiddenError(
+                'Project organization is required to run dbt.',
+            );
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.DbtLoom,
+        });
+        return enabled;
     }
 
     private async isDbtPartialParseEnabled(
@@ -8068,6 +8098,7 @@ export class ProjectService
             dbtVersionOption: DbtVersionOption;
             dbtPartialParse: boolean;
             dbtTargetPolicy: DbtTargetPolicy;
+            dbtLoomEnabled: boolean;
         };
         sources: ProjectDbtSource[];
         manifestFetchAdapters: ProjectAdapter[];
@@ -8214,6 +8245,7 @@ export class ProjectService
                           })
                         : null,
                     primary.dbtTargetPolicy,
+                    primary.dbtLoomEnabled,
                 );
             } catch (e) {
                 throw new DbtSourceError(
@@ -8436,6 +8468,7 @@ export class ProjectService
                 this.lightdashConfig.dbt.environmentVariableAllowlist,
                 null,
                 null,
+                primary.dbtLoomEnabled,
                 this.analytics,
                 // Keep the primary source's lightdash.config.yml / project_context.yml
                 // (spotlight categories, table_groups, parameters, AI context). The
@@ -8469,6 +8502,7 @@ export class ProjectService
             dbtVersionOption: DbtVersionOption;
             dbtPartialParse: boolean;
             dbtTargetPolicy: DbtTargetPolicy;
+            dbtLoomEnabled: boolean;
         };
         manifestFetchAdapters: ProjectAdapter[];
         trackingParams: TrackingParams;
@@ -8526,6 +8560,7 @@ export class ProjectService
                           })
                         : null,
                     primary.dbtTargetPolicy,
+                    primary.dbtLoomEnabled,
                 );
                 manifestFetchAdapters.push(sourceAdapter);
                 return sourceAdapter.getDbtManifest();
@@ -8586,6 +8621,7 @@ export class ProjectService
             dbtVersionOption: DbtVersionOption;
             dbtPartialParse: boolean;
             dbtTargetPolicy: DbtTargetPolicy;
+            dbtLoomEnabled: boolean;
         };
         manifestFetchAdapters: ProjectAdapter[];
         onDbtSourceCount?: (dbtSourceCount: number) => void;
