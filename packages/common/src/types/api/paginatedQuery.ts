@@ -96,6 +96,21 @@ export type ExecuteAsyncSqlQueryRequestParams =
         warehouseConnectionUuid?: string | null;
     };
 
+export type EstimateAsyncMetricQueryRequestParams = {
+    query: Omit<MetricQueryRequest, 'csvLimit'>;
+    dateZoom?: DateZoom;
+    pivotConfiguration?: PivotConfiguration;
+    parameters?: ParametersValuesMap;
+    usePreAggregateCache?: boolean;
+};
+
+export type EstimateAsyncSqlQueryRequestParams = {
+    sql: string;
+    limit?: number;
+    parameters?: ParametersValuesMap;
+    warehouseConnectionUuid?: string | null;
+};
+
 export type ExecuteAsyncComposeSqlQueryRequestParams =
     CommonExecuteQueryRequestParams & {
         sql: string;

@@ -11276,6 +11276,141 @@ describe('AsyncQueryService', () => {
         );
     });
 
+    describe('runAsyncWarehouseQuery dry-run estimate gate', () => {
+        const bigqueryCredentials = {
+            type: WarehouseTypes.BIGQUERY,
+            project: 'project',
+            dataset: 'dataset',
+            timeoutSeconds: undefined,
+            priority: undefined,
+            keyfileContents: {},
+            retries: undefined,
+            location: undefined,
+            maximumBytesBilled: undefined,
+            agentMaximumEstimatedBytes: 10_000_000_000,
+        } satisfies CreateWarehouseCredentials;
+
+        const setupGate = (totalBytesProcessed: number) => {
+            const estimateQuery = vi.fn(async () => ({ totalBytesProcessed }));
+            const runQuery = vi.fn(async () => resultsWith1Row);
+            const mockProjectModel = {
+                ...projectModel,
+                ...singleRouteProjectModelMethods,
+                getWarehouseCredentialsForProject: vi.fn(() =>
+                    Promise.resolve(bigqueryCredentials),
+                ),
+                getWarehouseClientFromCredentials: vi.fn(() => ({
+                    ...warehouseClientMock,
+                    credentials: bigqueryCredentials,
+                    estimateQuery,
+                    runQuery,
+                })),
+            };
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                projectModel: mockProjectModel as unknown as ProjectModel,
+            });
+            service.queryHistoryModel.update = vi.fn();
+            const markErrored = vi
+                .spyOn(
+                    service as unknown as {
+                        markAsyncQueryErrored: (args: {
+                            errorMessage: string;
+                        }) => Promise<void>;
+                    },
+                    'markAsyncQueryErrored',
+                )
+                .mockResolvedValue(undefined);
+            const runQueryAndTransformRows = vi.spyOn(
+                AsyncQueryService,
+                'runQueryAndTransformRows',
+            );
+            runQueryAndTransformRows.mockClear();
+            return {
+                service,
+                estimateQuery,
+                markErrored,
+                runQueryAndTransformRows,
+            };
+        };
+
+        const runArgs = (
+            context: QueryExecutionContext,
+        ): RunAsyncWarehouseQueryArgs => ({
+            userUuid: sessionAccount.user.id,
+            organizationUuid: sessionAccount.organization.organizationUuid!,
+            isPreviewProject: false,
+            isRegisteredUser: true,
+            onboardingFlow: 'legacy',
+            projectUuid,
+            query: 'SELECT * FROM big_table',
+            fieldsMap: {},
+            usedParameters: null,
+            queryTags: { query_context: context },
+            warehouseCredentialsOverrides: undefined,
+            queryUuid: 'gated-query-uuid',
+            cacheKey: 'gated-cache-key',
+            pivotConfiguration: undefined,
+            originalColumns: undefined,
+            queryCreatedAt: new Date(),
+            displayTimezone: null,
+        });
+
+        test('refuses an agent query estimated above the limit', async () => {
+            const {
+                service,
+                estimateQuery,
+                markErrored,
+                runQueryAndTransformRows,
+            } = setupGate(120_000_000_000);
+
+            await service.runAsyncWarehouseQuery(
+                runArgs(QueryExecutionContext.MCP_RUN_SQL),
+            );
+
+            expect(estimateQuery).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    sql: 'SELECT * FROM big_table',
+                    tags: expect.objectContaining({
+                        query_context: QueryExecutionContext.MCP_RUN_SQL,
+                        query_uuid: 'gated-query-uuid',
+                    }),
+                }),
+            );
+            expect(runQueryAndTransformRows).not.toHaveBeenCalled();
+            expect(markErrored).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    errorMessage: expect.stringContaining(
+                        'dry run estimate is 120 GB',
+                    ),
+                }),
+            );
+        });
+
+        test('runs an agent query estimated within the limit', async () => {
+            const { service, markErrored, runQueryAndTransformRows } =
+                setupGate(1_000_000);
+
+            await service.runAsyncWarehouseQuery(
+                runArgs(QueryExecutionContext.MCP_RUN_SQL),
+            );
+
+            expect(runQueryAndTransformRows).toHaveBeenCalledOnce();
+            expect(markErrored).not.toHaveBeenCalled();
+        });
+
+        test('does not dry-run queries from people', async () => {
+            const { service, estimateQuery, runQueryAndTransformRows } =
+                setupGate(120_000_000_000);
+
+            await service.runAsyncWarehouseQuery(
+                runArgs(QueryExecutionContext.EXPLORE),
+            );
+
+            expect(estimateQuery).not.toHaveBeenCalled();
+            expect(runQueryAndTransformRows).toHaveBeenCalledOnce();
+        });
+    });
+
     describe('runAsyncWarehouseQuery preview sign-in retry', () => {
         const upstreamProjectUuid = 'upstream-project-uuid';
         const bigquerySso = (

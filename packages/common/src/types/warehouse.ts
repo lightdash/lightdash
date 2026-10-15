@@ -457,6 +457,11 @@ export type WarehouseExecuteAsyncQueryArgs = {
     sql: string;
 };
 
+export type WarehouseQueryEstimate = {
+    /** Bytes the warehouse reports the query would process (dry run). */
+    totalBytesProcessed: number;
+};
+
 // `query` is execution up to the first row; `fetch` is streaming the rest.
 export type WarehouseQueryPhase =
     | 'ssh_tunnel'
@@ -576,6 +581,14 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
             fields: WarehouseResults['fields'],
         ) => void | Promise<void>,
     ): Promise<WarehouseExecuteAsyncQuery>;
+
+    /**
+     * Estimates the query cost without running it. Only implemented by
+     * warehouses with a free, fast estimate (BigQuery dry run).
+     */
+    estimateQuery?(
+        args: WarehouseExecuteAsyncQueryArgs,
+    ): Promise<WarehouseQueryEstimate>;
 
     /**
      * Runs a query and returns all the results

@@ -182,6 +182,65 @@ describe('BigqueryWarehouseClient', () => {
     });
 });
 
+describe('BigqueryWarehouseClient.estimateQuery', () => {
+    it('dry-runs the query without the cache and returns bytes processed', async () => {
+        const warehouse = new BigqueryWarehouseClient({
+            ...credentials,
+            maximumBytesBilled: 1000,
+        });
+        const createQueryJob = vi.fn(async () => [
+            {
+                metadata: {
+                    statistics: { totalBytesProcessed: '123456789' },
+                },
+            },
+        ]);
+        warehouse.client.createQueryJob =
+            createQueryJob as unknown as BigQuery['createQueryJob'];
+
+        await expect(
+            warehouse.estimateQuery({
+                sql: 'select 1',
+                tags: {},
+                timezone: 'UTC',
+            }),
+        ).resolves.toEqual({ totalBytesProcessed: 123456789 });
+        expect(createQueryJob).toHaveBeenCalledWith(
+            expect.objectContaining({
+                query: 'select 1',
+                dryRun: true,
+                useQueryCache: false,
+                maximumBytesBilled: '1000',
+                connectionProperties: [{ key: 'time_zone', value: 'UTC' }],
+            }),
+        );
+    });
+
+    it('reports zero bytes when the dry run returns no statistics', async () => {
+        const warehouse = new BigqueryWarehouseClient(credentials);
+        warehouse.client.createQueryJob = vi.fn(async () => [
+            { metadata: {} },
+        ]) as unknown as BigQuery['createQueryJob'];
+
+        await expect(
+            warehouse.estimateQuery({ sql: 'select 1', tags: {} }),
+        ).resolves.toEqual({ totalBytesProcessed: 0 });
+    });
+
+    it('does not dry-run regular queries', async () => {
+        const warehouse = new BigqueryWarehouseClient(credentials);
+        (warehouse.client.createQueryJob as Mock) = vi.fn(
+            () => createJobResponse,
+        );
+
+        await warehouse.runQuery('fake sql');
+
+        expect(warehouse.client.createQueryJob as Mock).toHaveBeenCalledWith(
+            expect.not.objectContaining({ dryRun: true }),
+        );
+    });
+});
+
 describe('BigqueryWarehouseClient.getDatabases', () => {
     const createDataset = (datasetId: string) =>
         new Dataset(new BigQuery({ projectId: 'test-project' }), datasetId, {

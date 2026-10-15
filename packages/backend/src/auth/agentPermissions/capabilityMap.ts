@@ -1681,6 +1681,8 @@ export const REST_OPERATION_CAPABILITIES = {
     'PullRequestsController.listPullRequests': [AgentCapability.ReadDiscover],
     'QueryController.cancelAsyncQuery': [AgentCapability.ReadDiscover],
     'QueryController.downloadResults': [AgentCapability.Export],
+    'QueryController.estimateAsyncMetricQuery': [AgentCapability.Query],
+    'QueryController.estimateAsyncSqlQuery': [AgentCapability.RawSql],
     'QueryController.executeAsyncCalculateTotal': [AgentCapability.Query],
     'QueryController.executeAsyncComposeMergeQuery': [AgentCapability.Query],
     'QueryController.executeAsyncComposeSqlQuery': [AgentCapability.RawSql],
