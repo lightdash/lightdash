@@ -140,8 +140,14 @@ const SwitchPlanSummary: FC<{ plan: WarehouseConnectionSwitchPlan }> = ({
 const EnableMultipleConnectionsModal: FC<{
     projectUuid: string;
     warehouseType: WarehouseTypes;
+    primaryRequiresUserCredentials: boolean;
     onClose: () => void;
-}> = ({ projectUuid, warehouseType, onClose }) => {
+}> = ({
+    projectUuid,
+    warehouseType,
+    primaryRequiresUserCredentials,
+    onClose,
+}) => {
     const [originalName, setOriginalName] = useState(
         () => getWarehouseLabel(warehouseType) ?? 'Original',
     );
@@ -241,6 +247,9 @@ const EnableMultipleConnectionsModal: FC<{
                     form={form}
                     projectUuid={projectUuid}
                     warehouseType={warehouseType}
+                    primaryRequiresUserCredentials={
+                        primaryRequiresUserCredentials
+                    }
                     showName
                     intro="Add the first extra connection. It uses the same warehouse type, and it is tested before the preview."
                 />
@@ -254,9 +263,10 @@ const EnableMultipleConnectionsModal: FC<{
     );
 };
 
-export const EnableMultipleConnectionsCard: FC<{ projectUuid: string }> = ({
-    projectUuid,
-}) => {
+export const EnableMultipleConnectionsCard: FC<{
+    projectUuid: string;
+    primaryRequiresUserCredentials: boolean;
+}> = ({ projectUuid, primaryRequiresUserCredentials }) => {
     const { data } = useWarehouseConnectionSwitchAvailability(
         projectUuid,
         true,
@@ -301,6 +311,9 @@ export const EnableMultipleConnectionsCard: FC<{ projectUuid: string }> = ({
                 <EnableMultipleConnectionsModal
                     projectUuid={projectUuid}
                     warehouseType={data.originalWarehouseType}
+                    primaryRequiresUserCredentials={
+                        primaryRequiresUserCredentials
+                    }
                     onClose={() => setIsOpen(false)}
                 />
             )}

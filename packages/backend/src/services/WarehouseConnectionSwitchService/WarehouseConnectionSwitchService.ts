@@ -6,10 +6,12 @@ import {
     ParameterError,
     ProjectType,
     sensitiveCredentialsFieldNames,
+    SnowflakeAuthenticationType,
     validateWarehouseConnectionName,
     WAREHOUSE_CONNECTION_ALREADY_MULTI_MESSAGE,
     WAREHOUSE_CONNECTION_NAME_CONFLICT_MESSAGE,
     WAREHOUSE_CONNECTION_SWITCH_PLAN_CHANGED_MESSAGE,
+    WarehouseTypes,
     type Account,
     type ApiCreateWarehouseConnectionRequest,
     type ApiExecuteWarehouseConnectionSwitchRequest,
@@ -41,6 +43,7 @@ import {
 import { BaseService } from '../BaseService';
 import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type LicenseService } from '../LicenseService/LicenseService';
+import { shouldTestExtraCredentials } from '../WarehouseConnectionService/extraConnectionAuthentication';
 import {
     ENTITLEMENT_REASON,
     getMultipleConnectionsBlockReason,
@@ -421,15 +424,18 @@ export class WarehouseConnectionSwitchService extends BaseService {
         credentials: CreateWarehouseCredentials,
         operation: 'switch_preview' | 'switch',
         credentialSource: 'project' | 'organization',
-    ): Promise<void> {
+    ): Promise<CreateWarehouseCredentials> {
         let result: WarehouseConnectionTestResults;
+        let resolvedCredentials: CreateWarehouseCredentials;
         try {
-            result =
-                await this.credentialPolicy.testWarehouseConnectionCredentials(
+            const tested =
+                await this.credentialPolicy.testWarehouseConnectionCredentialsForSave(
                     account,
                     organizationUuid,
                     credentials,
                 );
+            result = tested.result;
+            resolvedCredentials = tested.credentials;
         } catch (error) {
             if (error !== null && typeof error === 'object') {
                 this.trackedTestErrors.add(error);
@@ -482,6 +488,7 @@ export class WarehouseConnectionSwitchService extends BaseService {
                     : 'Warehouse connection test failed.',
             );
         }
+        return resolvedCredentials;
     }
 
     private static planHash({
@@ -545,6 +552,14 @@ export class WarehouseConnectionSwitchService extends BaseService {
         const source = WarehouseConnectionSwitchService.toSource(
             request.connection,
         );
+        if (
+            source.kind === 'project' &&
+            source.credentials.type === WarehouseTypes.SNOWFLAKE &&
+            source.credentials.authenticationType ===
+                SnowflakeAuthenticationType.EXTERNAL_BROWSER
+        ) {
+            shouldTestExtraCredentials(source.credentials);
+        }
         this.assertCanWrite(
             account,
             summary,
@@ -575,28 +590,44 @@ export class WarehouseConnectionSwitchService extends BaseService {
                 EXTRA_CONNECTION_WAREHOUSE_TYPE_MISMATCH_MESSAGE,
             );
         }
-        await this.assertConnectionWorks(
-            account,
-            project.organizationUuid,
-            projectUuid,
-            credentials,
-            operation,
-            source.kind,
-        );
-        const [staysOnOriginal, usersWithPersonalCredentials, original] =
+        const original =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        const effectiveCredentials =
+            source.kind === 'project' &&
+            credentials.type === WarehouseTypes.SNOWFLAKE
+                ? {
+                      ...credentials,
+                      requireUserCredentials: original.requireUserCredentials,
+                  }
+                : credentials;
+        const needsTest = shouldTestExtraCredentials(effectiveCredentials);
+        const resolvedCredentials = needsTest
+            ? await this.assertConnectionWorks(
+                  account,
+                  project.organizationUuid,
+                  projectUuid,
+                  effectiveCredentials,
+                  operation,
+                  source.kind,
+              )
+            : effectiveCredentials;
+        const persistedSource: WarehouseConnectionCredentialSource =
+            source.kind === 'project'
+                ? { kind: 'project', credentials: resolvedCredentials }
+                : source;
+        const [staysOnOriginal, usersWithPersonalCredentials] =
             await Promise.all([
                 this.switchModel.getContentCounts(project),
                 this.switchModel.countUsersWithPersonalCredentials(projectUuid),
-                this.projectModel.getWarehouseCredentialsForProject(
-                    projectUuid,
-                ),
             ]);
         return {
             organizationUuid: project.organizationUuid,
             originalName,
             connectionName,
-            source,
-            credentials,
+            source: persistedSource,
+            credentials: effectiveCredentials,
             extraListAllDatabases: request.connection.listAllDatabases ?? false,
             extraAdditionalDatabaseCount:
                 request.connection.additionalDatabases?.length ?? 0,
@@ -607,19 +638,19 @@ export class WarehouseConnectionSwitchService extends BaseService {
                     request,
                     originalName,
                     connectionName,
-                    source,
-                    credentials,
+                    source: persistedSource,
+                    credentials: effectiveCredentials,
                 }),
                 original: {
                     name: originalName,
-                    warehouseType: credentials.type,
+                    warehouseType: effectiveCredentials.type,
                     listAllDatabases: request.original.listAllDatabases,
                     additionalDatabases: request.original.additionalDatabases,
                 },
                 connection: {
                     name: connectionName,
                     warehouseType: credentials.type,
-                    database: databaseOf(credentials),
+                    database: databaseOf(effectiveCredentials),
                     usesOrganizationCredentials: source.kind === 'organization',
                 },
                 staysOnOriginal,

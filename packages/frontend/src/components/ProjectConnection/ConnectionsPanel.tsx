@@ -133,8 +133,14 @@ const ConnectionRow: FC<{
 const AddConnectionModal: FC<{
     projectUuid: string;
     warehouseType: WarehouseTypes;
+    primaryRequiresUserCredentials: boolean;
     onClose: () => void;
-}> = ({ projectUuid, warehouseType, onClose }) => {
+}> = ({
+    projectUuid,
+    warehouseType,
+    primaryRequiresUserCredentials,
+    onClose,
+}) => {
     const form = useForm({
         initialValues: {
             name: '',
@@ -193,6 +199,7 @@ const AddConnectionModal: FC<{
                 nameRef={nameRef}
                 projectUuid={projectUuid}
                 warehouseType={warehouseType}
+                primaryRequiresUserCredentials={primaryRequiresUserCredentials}
                 showName
                 intro="Add another connection of the project's warehouse type. It is tested before it is saved."
             />
@@ -491,16 +498,22 @@ const ConnectionActionModal: FC<{
     }
 };
 
-const ConnectionsPanelContent: FC<{ projectUuid: string }> = ({
-    projectUuid,
-}) => {
+const ConnectionsPanelContent: FC<{
+    projectUuid: string;
+    primaryRequiresUserCredentials: boolean;
+}> = ({ projectUuid, primaryRequiresUserCredentials }) => {
     const { data, error, isInitialLoading, isEnabled } =
         useWarehouseConnections(projectUuid);
     const [action, setAction] = useState<ConnectionAction | null>(null);
     const [isAddOpen, setIsAddOpen] = useState(false);
 
     if (isEnabled && isSingleConnectionProject(error)) {
-        return <EnableMultipleConnectionsCard projectUuid={projectUuid} />;
+        return (
+            <EnableMultipleConnectionsCard
+                projectUuid={projectUuid}
+                primaryRequiresUserCredentials={primaryRequiresUserCredentials}
+            />
+        );
     }
     if (!isEnabled || hidesConnectionsPanel(error)) {
         return null;
@@ -577,6 +590,9 @@ const ConnectionsPanelContent: FC<{ projectUuid: string }> = ({
                 <AddConnectionModal
                     projectUuid={projectUuid}
                     warehouseType={originalWarehouseType}
+                    primaryRequiresUserCredentials={
+                        primaryRequiresUserCredentials
+                    }
                     onClose={() => setIsAddOpen(false)}
                 />
             )}
@@ -607,7 +623,13 @@ const ConnectionsPanel: FC<{ savedProject: Project | undefined }> = ({
     return savedProject &&
         canManageProject &&
         savedProject.type !== ProjectType.PREVIEW ? (
-        <ConnectionsPanelContent projectUuid={savedProject.projectUuid} />
+        <ConnectionsPanelContent
+            projectUuid={savedProject.projectUuid}
+            primaryRequiresUserCredentials={
+                savedProject.warehouseConnection?.requireUserCredentials ===
+                true
+            }
+        />
     ) : null;
 };
 

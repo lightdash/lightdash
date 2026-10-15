@@ -145,6 +145,7 @@ const SnowflakeForm: FC<{
         projectUuid,
         warehouseConnectionUuid,
         isProjectExtraConnection,
+        primaryRequiresUserCredentials,
         isDbtSource,
     } = useProjectFormContext();
     const { track } = useTracking();
@@ -283,7 +284,13 @@ const SnowflakeForm: FC<{
                   },
               ]
             : []),
-        ...(showSaveCredentials && isEditMode
+        ...((
+            isProjectExtraConnection
+                ? (primaryRequiresUserCredentials ??
+                      savedProject?.warehouseConnection
+                          ?.requireUserCredentials) === true
+                : showSaveCredentials && isEditMode
+        )
             ? [
                   {
                       value: SnowflakeAuthenticationType.NONE,

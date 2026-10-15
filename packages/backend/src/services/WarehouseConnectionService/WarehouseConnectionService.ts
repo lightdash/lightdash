@@ -41,6 +41,7 @@ import {
 import { BaseService } from '../BaseService';
 import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type LicenseService } from '../LicenseService/LicenseService';
+import { shouldTestExtraCredentials } from './extraConnectionAuthentication';
 import { getExtraConnectionRequireUserCredentials } from './extraConnectionUserCredentials';
 import {
     ENTITLEMENT_REASON,
@@ -60,11 +61,14 @@ export type WarehouseCredentialPolicy = {
             organizationWarehouseCredentialsUuid?: string;
         },
     ) => void;
-    testWarehouseConnectionCredentials: (
+    testWarehouseConnectionCredentialsForSave: (
         account: RegisteredAccount,
         organizationUuid: string,
         warehouseConnection: CreateWarehouseCredentials,
-    ) => Promise<WarehouseConnectionTestResults>;
+    ) => Promise<{
+        credentials: CreateWarehouseCredentials;
+        result: WarehouseConnectionTestResults;
+    }>;
 };
 
 type WarehouseConnectionServiceArguments = {
@@ -325,31 +329,6 @@ export class WarehouseConnectionService extends BaseService {
         }
     }
 
-    private static shouldTestExtraCredentials(
-        credentials: CreateWarehouseCredentials,
-    ): boolean {
-        if (credentials.type !== WarehouseTypes.SNOWFLAKE) return true;
-        if (
-            credentials.authenticationType ===
-            SnowflakeAuthenticationType.EXTERNAL_BROWSER
-        ) {
-            throw new ParameterError(
-                'External browser authentication is not supported for an extra Snowflake connection.',
-            );
-        }
-        if (
-            credentials.authenticationType === SnowflakeAuthenticationType.NONE
-        ) {
-            if (!credentials.requireUserCredentials) {
-                throw new ParameterError(
-                    'A Snowflake connection without shared credentials requires users to provide their own credentials on the original connection.',
-                );
-            }
-            return false;
-        }
-        return true;
-    }
-
     private async assertConnectionWorks(
         account: RegisteredAccount,
         project: WarehouseConnectionProject,
@@ -357,15 +336,18 @@ export class WarehouseConnectionService extends BaseService {
         operation: 'add' | 'update',
         warehouseConnectionUuid: string | null,
         credentialSource: 'project' | 'organization',
-    ): Promise<void> {
+    ): Promise<CreateWarehouseCredentials> {
         let result: WarehouseConnectionTestResults;
+        let resolvedCredentials: CreateWarehouseCredentials;
         try {
-            result =
-                await this.credentialPolicy.testWarehouseConnectionCredentials(
+            const tested =
+                await this.credentialPolicy.testWarehouseConnectionCredentialsForSave(
                     account,
                     project.organizationUuid,
                     credentials,
                 );
+            result = tested.result;
+            resolvedCredentials = tested.credentials;
         } catch (error) {
             await this.trackWithCount(project, (connectionCount) => ({
                 event: 'warehouse_connection.test_completed',
@@ -411,6 +393,7 @@ export class WarehouseConnectionService extends BaseService {
                     : 'Warehouse connection test failed.',
             );
         }
+        return resolvedCredentials;
     }
 
     private async resolveCredentialSource(
@@ -783,10 +766,9 @@ export class WarehouseConnectionService extends BaseService {
             project,
             credentials.type,
         );
-        if (
-            WarehouseConnectionService.shouldTestExtraCredentials(credentials)
-        ) {
-            await this.assertConnectionWorks(
+        let persistedSource = source;
+        if (shouldTestExtraCredentials(credentials)) {
+            const testedCredentials = await this.assertConnectionWorks(
                 account,
                 project,
                 credentials,
@@ -794,6 +776,12 @@ export class WarehouseConnectionService extends BaseService {
                 null,
                 source.kind,
             );
+            if (source.kind === 'project') {
+                persistedSource = {
+                    kind: 'project',
+                    credentials: testedCredentials,
+                };
+            }
         }
 
         try {
@@ -811,7 +799,7 @@ export class WarehouseConnectionService extends BaseService {
                         {
                             name,
                             warehouseType: credentials.type,
-                            source,
+                            source: persistedSource,
                             listAllDatabases: request.listAllDatabases ?? false,
                             additionalDatabases:
                                 request.additionalDatabases ?? [],
@@ -980,7 +968,15 @@ export class WarehouseConnectionService extends BaseService {
             source === null
                 ? null
                 : await this.resolveCredentialSource(project, source);
+        if (
+            credentials?.type === WarehouseTypes.SNOWFLAKE &&
+            credentials.authenticationType ===
+                SnowflakeAuthenticationType.EXTERNAL_BROWSER
+        ) {
+            shouldTestExtraCredentials(credentials);
+        }
         this.assertCanWrite(account, summary, effectiveSource, credentials);
+        let persistedSource = source;
         if (credentials !== null && source !== null) {
             if (project.originalWarehouseType !== credentials.type) {
                 await this.trackRefusal(
@@ -998,12 +994,8 @@ export class WarehouseConnectionService extends BaseService {
                 project,
                 credentials.type,
             );
-            if (
-                WarehouseConnectionService.shouldTestExtraCredentials(
-                    credentials,
-                )
-            ) {
-                await this.assertConnectionWorks(
+            if (shouldTestExtraCredentials(credentials)) {
+                const testedCredentials = await this.assertConnectionWorks(
                     account,
                     project,
                     credentials,
@@ -1011,6 +1003,12 @@ export class WarehouseConnectionService extends BaseService {
                     warehouseConnectionUuid,
                     source.kind,
                 );
+                if (source.kind === 'project') {
+                    persistedSource = {
+                        kind: 'project',
+                        credentials: testedCredentials,
+                    };
+                }
             }
         }
 
@@ -1020,11 +1018,11 @@ export class WarehouseConnectionService extends BaseService {
                 const lockedProject = await model.getProject(projectUuid);
                 WarehouseConnectionService.assertMultiMode(lockedProject);
                 await model.get(lockedProject, warehouseConnectionUuid);
-                if (source !== null) {
+                if (persistedSource !== null) {
                     await model.updateExtraCredentials(
                         lockedProject,
                         warehouseConnectionUuid,
-                        source,
+                        persistedSource,
                     );
                 }
                 if (

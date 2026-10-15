@@ -118,7 +118,7 @@ const buildService = () => {
         } as unknown as Pick<LicenseService, 'canHoldMultipleConnections'>,
         credentialPolicy: {
             assertCanWriteWarehouseConnection: vi.fn(),
-            testWarehouseConnectionCredentials: vi.fn(),
+            testWarehouseConnectionCredentialsForSave: vi.fn(),
         },
         analytics,
     });

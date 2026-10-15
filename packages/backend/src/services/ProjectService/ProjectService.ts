@@ -7063,29 +7063,51 @@ export class ProjectService
         organizationUuid: string,
         warehouseConnection: CreateWarehouseCredentials,
     ): Promise<WarehouseConnectionTestResults> {
+        const { result } = await this.testWarehouseConnectionCredentialsForSave(
+            account,
+            organizationUuid,
+            warehouseConnection,
+        );
+        return result;
+    }
+
+    async testWarehouseConnectionCredentialsForSave(
+        account: RegisteredAccount,
+        organizationUuid: string,
+        warehouseConnection: CreateWarehouseCredentials,
+    ): Promise<{
+        credentials: CreateWarehouseCredentials;
+        result: WarehouseConnectionTestResults;
+    }> {
         if (isMissingBigqueryKeyfile(warehouseConnection)) {
-            return buildConnectionTestResults([
-                {
-                    stage: 'database',
-                    status: 'failed',
-                    message:
-                        'No service account key file. Paste the key file, or save the connection with one first.',
-                },
-            ]);
+            return {
+                credentials: warehouseConnection,
+                result: buildConnectionTestResults([
+                    {
+                        stage: 'database',
+                        status: 'failed',
+                        message:
+                            'No service account key file. Paste the key file, or save the connection with one first.',
+                    },
+                ]),
+            };
         }
         const resolved = await this._resolveWarehouseClientCredentials(
             { warehouseConnection },
             account.user.userUuid,
             organizationUuid,
         );
-        return this.runWarehouseConnectionHops(
-            resolved.warehouseConnection,
-            connectionContextFromAccount(account, {
-                organizationUuid,
-                queryContext: null,
-                purpose: 'query',
-            }),
-        );
+        return {
+            credentials: resolved.warehouseConnection,
+            result: await this.runWarehouseConnectionHops(
+                resolved.warehouseConnection,
+                connectionContextFromAccount(account, {
+                    organizationUuid,
+                    queryContext: null,
+                    purpose: 'query',
+                }),
+            ),
+        };
     }
 
     private async runWarehouseConnectionHops(
@@ -14605,9 +14627,13 @@ export class ProjectService
                 queryContext,
             );
             const catalogDatabase =
-                Object.keys(warehouseCatalog).find(
-                    (key) => key.toLowerCase() === databaseName.toLowerCase(),
-                ) ?? databaseName;
+                (credentials.type === WarehouseTypes.SNOWFLAKE &&
+                !Object.hasOwn(warehouseCatalog, databaseName)
+                    ? Object.keys(warehouseCatalog).find(
+                          (key) =>
+                              key.toLowerCase() === databaseName.toLowerCase(),
+                      )
+                    : undefined) ?? databaseName;
             const fields =
                 warehouseCatalog[catalogDatabase]?.[schemaName]?.[tableName];
             if (!fields) throw new NotFoundError('Table not found');
