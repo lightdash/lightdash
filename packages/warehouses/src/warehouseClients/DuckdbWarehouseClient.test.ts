@@ -1923,6 +1923,104 @@ describe('DuckdbWarehouseClient', () => {
         expect(createInstanceMock).toHaveBeenCalledTimes(1);
     });
 
+    it('restricts an object-storage session to its bucket after loading extensions', async () => {
+        const runMock = vi.fn();
+        const streamMock = vi.fn(async () =>
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(streamMock, runMock),
+        );
+        const logger = { info: vi.fn() };
+        const client = DuckdbWarehouseClient.createForPreAggregate(
+            {
+                type: 'duckdb_s3',
+                s3Config: {
+                    endpoint: 'localhost:9000',
+                    region: 'us-east-1',
+                    accessKey: 'key',
+                    secretKey: 'secret',
+                    forcePathStyle: true,
+                    useSsl: false,
+                    scope: [
+                        's3://bucket/a.parquet',
+                        's3://bucket/b.parquet',
+                        's3://other-bucket/c.parquet',
+                    ],
+                },
+            },
+            {
+                instanceCacheKey: 'pre-aggregate-query-instance:project-a',
+                objectStorageOnly: true,
+                logger,
+                enableQueryProfiling: true,
+            },
+        );
+
+        await client.runQuery('SELECT 1 AS val');
+
+        const statements = runMock.mock.calls.map(([sql]) => sql as string);
+        const indexOf = (needle: string) =>
+            statements.findIndex((sql) => sql.includes(needle));
+        const allowed = statements.find((sql) =>
+            sql.startsWith('SET allowed_directories'),
+        );
+        expect(allowed).toContain("'s3://bucket/'");
+        expect(allowed).toContain("'s3://other-bucket/'");
+        expect(allowed).not.toContain('a.parquet');
+        expect(statements).toContain('SET enable_external_access = false;');
+        expect(indexOf('SET enable_external_access = false;')).toBeGreaterThan(
+            indexOf('httpfs'),
+        );
+        expect(indexOf('SET enable_external_access = false;')).toBeGreaterThan(
+            indexOf('CREATE OR REPLACE SECRET __lightdash_s3'),
+        );
+        expect(indexOf('SET temp_directory')).toBeLessThan(
+            indexOf('SET enable_external_access = false;'),
+        );
+        expect(statements.some((sql) => sql.includes('enable_profiling'))).toBe(
+            false,
+        );
+    });
+
+    it('leaves other shared instances unrestricted', async () => {
+        const runMock = vi.fn();
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(
+                vi.fn(async () =>
+                    getMockStreamResult(
+                        [[{ val: 1 }]],
+                        [DUCKDB_TYPE_IDS.INTEGER],
+                    ),
+                ),
+                runMock,
+            ),
+        );
+        const client = DuckdbWarehouseClient.createForPreAggregate(
+            {
+                type: 'duckdb_s3',
+                s3Config: {
+                    endpoint: 'localhost:9000',
+                    region: 'us-east-1',
+                    accessKey: 'key',
+                    secretKey: 'secret',
+                    forcePathStyle: true,
+                    useSsl: false,
+                    scope: ['s3://bucket/'],
+                },
+            },
+            { instanceCacheKey: 'compose-engine-instance' },
+        );
+
+        await client.runQuery('SELECT 1 AS val');
+
+        const statements = runMock.mock.calls.map(([sql]) => sql as string);
+        expect(statements).not.toContain('SET enable_external_access = false;');
+        expect(
+            statements.some((sql) => sql.startsWith('SET allowed_directories')),
+        ).toBe(false);
+    });
+
     it('keeps per-project serve instances apart', async () => {
         const runMock = vi.fn();
         const streamMock = vi.fn(async () =>

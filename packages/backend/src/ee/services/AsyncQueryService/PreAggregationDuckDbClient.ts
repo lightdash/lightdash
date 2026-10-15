@@ -150,6 +150,7 @@ export class PreAggregationDuckDbClient {
                         instanceCacheKey: warehouseArgs.instanceCacheKey,
                         organizationConcurrencyLimit:
                             warehouseArgs.organizationConcurrencyLimit,
+                        objectStorageOnly: true,
                         logger: Logger,
                         enableQueryProfiling: true,
                         onQueryProfile:

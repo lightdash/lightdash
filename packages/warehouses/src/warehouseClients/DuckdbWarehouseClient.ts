@@ -214,6 +214,12 @@ export type DuckdbWarehouseClientOptions = {
     projectUuid?: string;
     /** Process-local per-organization cap for isolated S3 query clients. */
     organizationConcurrencyLimit?: number;
+    /**
+     * Confine the instance to its storage bucket(s) and a private temp
+     * directory. Serve sessions only read object storage, so they have no
+     * use for anything else on disk or on the network.
+     */
+    objectStorageOnly?: boolean;
 };
 
 export const mapFieldTypeFromTypeId = (typeId: number): DimensionType => {
@@ -662,6 +668,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
 
     private readonly organizationConcurrencyLimit?: number;
 
+    private readonly objectStorageOnly: boolean;
+
     private allowsPreAggregateFileReads = false;
 
     private hasWarnedAboutMotherduckTimezone = false;
@@ -812,6 +820,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         this.projectUuid = options?.projectUuid;
         this.organizationConcurrencyLimit =
             options?.organizationConcurrencyLimit;
+        this.objectStorageOnly = options?.objectStorageOnly ?? false;
     }
 
     private static hashDucklakeConfig(
@@ -957,6 +966,47 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         await db.run('SET allow_unredacted_secrets = false;');
     }
 
+    /**
+     * Limit the instance to its storage bucket(s) and a private temp
+     * directory for spill. Runs last in bootstrap: extensions are already
+     * loaded and the lockdown cannot be lifted afterwards, while the storage
+     * secret can still be replaced on the running instance.
+     */
+    private static async restrictToObjectStorage(
+        db: DuckdbConnection,
+        client: DuckdbWarehouseClient,
+    ): Promise<void> {
+        const escape = DuckdbWarehouseClient.escapeDuckdbString;
+        const buckets = new Set(
+            (client.s3Config?.scope ?? []).map((uri) => {
+                const { protocol, host } = new URL(uri);
+                return `${protocol}//${host}/`;
+            }),
+        );
+        if (buckets.size === 0) {
+            throw new Error(
+                'DuckDB object-storage sessions need a storage scope',
+            );
+        }
+        const tempDirectory = client.instanceCacheKey
+            ? path.join(
+                  os.tmpdir(),
+                  `duckdb-serve-${createHash('sha256')
+                      .update(client.instanceCacheKey)
+                      .digest('hex')
+                      .slice(0, 16)}`,
+              )
+            : await fs.mkdtemp(path.join(os.tmpdir(), 'duckdb-serve-'));
+        await fs.mkdir(tempDirectory, { recursive: true });
+        await db.run(`SET temp_directory = '${escape(tempDirectory)}';`);
+        await db.run(
+            `SET allowed_directories = [${[`${tempDirectory}/`, ...buckets]
+                .map((directory) => `'${escape(directory)}'`)
+                .join(', ')}];`,
+        );
+        await db.run('SET enable_external_access = false;');
+    }
+
     private static async applyResourceLimits(
         db: DuckdbConnection,
         resourceLimits?: DuckdbResourceLimits,
@@ -1097,6 +1147,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         }
 
         await DuckdbWarehouseClient.hardenInstance(db);
+
+        if (client.objectStorageOnly) {
+            await DuckdbWarehouseClient.restrictToObjectStorage(db, client);
+        }
 
         const bootstrapMs = performance.now() - bootstrapStart;
         client.logger?.info(
@@ -2909,10 +2963,13 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                     }
                 }
 
+                // Profiles are written to a local file, which object-storage
+                // and embedded sessions do not use
                 const profilePath =
                     this.logger &&
                     this.enableQueryProfiling &&
                     !this.embeddedConfig &&
+                    !this.objectStorageOnly &&
                     !this.isMotherduck()
                         ? path.join(
                               os.tmpdir(),
