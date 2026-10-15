@@ -2214,6 +2214,20 @@ export type AppRuntimeConfig = {
     /** E2B template name+tag for the python query runner sandbox. */
     e2bPythonTemplateName: string;
     e2bPythonTemplateTag: string;
+    /** E2B template name+tag for the DuckDB query runner sandbox. */
+    e2bDuckdbTemplateName: string;
+    e2bDuckdbTemplateTag: string;
+    /**
+     * OCI image the `docker` sandbox provider launches DuckDB query runners
+     * from. Built locally from sandboxes/duckdb-runner.
+     */
+    sandboxDuckdbDockerImage: string;
+    /** DuckDB `memory_limit` inside the DuckDB runner sandbox (e.g. `1GB`). */
+    duckdbSandboxMemoryLimit: string;
+    /** DuckDB `threads` inside the DuckDB runner sandbox. */
+    duckdbSandboxThreads: number;
+    /** Combined byte budget for one query's inputs streamed into a sandbox. */
+    sandboxInputMaxBytes: number;
     /** OCI image used by managed project onboarding with the Docker provider. */
     sandboxAgentOnboardingDockerImage: string;
     /**
@@ -2791,6 +2805,23 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             process.env.E2B_PYTHON_TEMPLATE_NAME || 'lightdash-python-runner',
         e2bPythonTemplateTag:
             process.env.E2B_PYTHON_TEMPLATE_TAG ?? (VERSION as string),
+        e2bDuckdbTemplateName:
+            process.env.E2B_DUCKDB_TEMPLATE_NAME || 'lightdash-duckdb-runner',
+        e2bDuckdbTemplateTag:
+            process.env.E2B_DUCKDB_TEMPLATE_TAG ?? (VERSION as string),
+        sandboxDuckdbDockerImage:
+            process.env.SANDBOX_DUCKDB_DOCKER_IMAGE ||
+            'lightdash-duckdb-runner:local',
+        duckdbSandboxMemoryLimit:
+            process.env.DUCKDB_SANDBOX_MEMORY_LIMIT || '1GB',
+        duckdbSandboxThreads: getPositiveIntegerFromEnvironmentVariable(
+            'DUCKDB_SANDBOX_THREADS',
+            2,
+        ),
+        sandboxInputMaxBytes: getPositiveIntegerFromEnvironmentVariable(
+            'SANDBOX_INPUT_MAX_BYTES',
+            64 * 1024 * 1024,
+        ),
         sandboxAgentOnboardingDockerImage:
             process.env.SANDBOX_AGENT_ONBOARDING_DOCKER_IMAGE ||
             'lightdash-agent-onboarding:local',

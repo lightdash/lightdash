@@ -44,6 +44,12 @@ export interface SandboxCommands {
     run(command: string, options?: RunOptions): Promise<CommandResult>;
 }
 
+/** One file to write: text or binary contents at an absolute sandbox path. */
+export interface SandboxFileEntry {
+    path: string;
+    contents: string | Uint8Array;
+}
+
 /** Data plane: read/write files inside the sandbox. */
 export interface SandboxFiles {
     /** Read a UTF-8 text file. */
@@ -52,6 +58,11 @@ export interface SandboxFiles {
     readBytes(path: string, options?: FileReadOptions): Promise<Buffer>;
     /** Write a text or binary file, creating parent directories as needed. */
     write(path: string, contents: string | Uint8Array): Promise<void>;
+    /**
+     * Write several files, creating parent directories as needed. Providers
+     * with a batch upload send one request; the others write one by one.
+     */
+    writeMany(entries: SandboxFileEntry[]): Promise<void>;
     /** Remove a file (no error if it does not exist). */
     remove(path: string): Promise<void>;
 }

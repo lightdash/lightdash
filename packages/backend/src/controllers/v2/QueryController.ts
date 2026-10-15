@@ -301,7 +301,7 @@ export class QueryController extends BaseController {
     }
 
     /**
-     * Validates and executes a merge on the compose engine as one asynchronous query request. Unlike Execute merge query, sources may reference existing query results by queryUuid; each referenced query is authorized with the same access checks as fetching its results.
+     * Validates and executes a merge in a sandbox as one asynchronous query request. Unlike Execute merge query, sources may reference existing query results by queryUuid; each referenced query is authorized with the same access checks as fetching its results.
      * @summary Execute compose merge query
      */
     @Middlewares([
@@ -670,14 +670,18 @@ export class QueryController extends BaseController {
 
         const results = await this.services
             .getAsyncQueryService()
-            .executeAsyncComposeSqlQuery({
-                account: req.account!,
-                projectUuid,
-                sql: body.sql,
-                limit: body.limit,
-                references: body.references,
-                context: context ?? QueryExecutionContext.COMPOSE_SQL_RUNNER,
-            });
+            .executeAsyncComposeSqlQuery(
+                {
+                    account: req.account!,
+                    projectUuid,
+                    sql: body.sql,
+                    limit: body.limit,
+                    references: body.references,
+                    context:
+                        context ?? QueryExecutionContext.COMPOSE_SQL_RUNNER,
+                },
+                { sandboxLease: null },
+            );
 
         return {
             status: 'ok',

@@ -181,18 +181,6 @@ export class NatsWorker {
         }
 
         const preAgg = STREAM_CONFIGS['pre-aggregate'];
-        if (
-            subject === STREAM_CONFIGS.duckdb.subjects.query ||
-            (preAgg && subject === preAgg.subjects.duckdb)
-        ) {
-            return (queryUuid, worker, queryTags, onConnectionClaimed) =>
-                this.asyncQueryService.runAsyncDuckdbQueryFromHistory(
-                    queryUuid,
-                    worker,
-                    queryTags,
-                    onConnectionClaimed,
-                );
-        }
 
         if (preAgg && subject === preAgg.subjects.query) {
             return (queryUuid, worker, queryTags, onConnectionClaimed) =>

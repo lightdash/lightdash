@@ -1,9 +1,13 @@
+import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { readBoundedStream } from '../../../ee/services/SandboxRuntime/boundedOutput';
 import {
     type FileReadOptions,
     type SandboxHandle,
+    type SandboxProvider,
 } from '../../../ee/services/SandboxRuntime/types';
+import { LocalProcessSandboxProvider } from '../sandbox/LocalProcessSandboxProvider';
 import {
     PYTHON_MAX_RESULT_BYTES,
     PYTHON_OUTPUT_META_PATH,
@@ -14,17 +18,58 @@ import {
     PythonSandboxRunner,
 } from './PythonSandboxRunner';
 
-const { create, destroy } = vi.hoisted(() => ({
-    create: vi.fn(),
-    destroy: vi.fn(),
-}));
-vi.mock('../../../ee/services/SandboxRuntime', async () => ({
-    ...(await import('../../../ee/services/SandboxRuntime/errors')),
-    createSandboxProvider: () => ({ create, destroy }),
-}));
 vi.mock('../../../tracing/tracing', () => ({
     traceSpan: async (_options: unknown, fn: () => Promise<unknown>) => fn(),
 }));
+
+const createRunner = (provider: SandboxProvider) =>
+    new PythonSandboxRunner({
+        lightdashConfig: {
+            ...lightdashConfigMock,
+            appRuntime: {
+                ...lightdashConfigMock.appRuntime,
+                sandboxProvider: 'e2b',
+            },
+        },
+        logger: {
+            info: vi.fn(),
+            warn: vi.fn(),
+            debug: vi.fn(),
+            error: vi.fn(),
+        },
+        provider,
+    });
+
+const hasPython = spawnSync('python3', ['--version']).status === 0;
+
+describe.skipIf(!hasPython)(
+    'PythonSandboxRunner with an injected provider',
+    () => {
+        it('reports a compile error from the sandbox and destroys it', async () => {
+            const sandboxIds: string[] = [];
+            class RecordingProvider extends LocalProcessSandboxProvider {
+                async create() {
+                    const handle = await super.create();
+                    sandboxIds.push(handle.sandboxId);
+                    return handle;
+                }
+            }
+            const runner = createRunner(new RecordingProvider());
+
+            await expect(
+                runner.run({
+                    queryUuid: 'query',
+                    code: 'def run(inputs, params)\n    return inputs',
+                    inputs: [],
+                    inputMeta: { inputs: {}, params: {}, limit: 10 },
+                    timeoutMs: 10_000,
+                }),
+            ).rejects.toThrow(/^Python code does not compile:\n.*SyntaxError/s);
+            expect(sandboxIds).toHaveLength(1);
+            expect(existsSync(sandboxIds[0])).toBe(false);
+        });
+    },
+);
 
 describe('PythonSandboxRunner output limits', () => {
     it.each([
@@ -68,23 +113,11 @@ describe('PythonSandboxRunner output limits', () => {
                         (await readBytes(path, options)).toString(),
                 },
             } as unknown as SandboxHandle;
-            create.mockResolvedValue(handle);
-            destroy.mockResolvedValue(undefined);
-            const runner = new PythonSandboxRunner({
-                lightdashConfig: {
-                    ...lightdashConfigMock,
-                    appRuntime: {
-                        ...lightdashConfigMock.appRuntime,
-                        sandboxProvider: 'e2b',
-                    },
-                },
-                logger: {
-                    info: vi.fn(),
-                    warn: vi.fn(),
-                    debug: vi.fn(),
-                    error: vi.fn(),
-                },
-            });
+            const destroy = vi.fn(async () => undefined);
+            const runner = createRunner({
+                create: async () => handle,
+                destroy,
+            } as unknown as SandboxProvider);
             await expect(
                 runner.run({
                     queryUuid: 'query',

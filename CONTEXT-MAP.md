@@ -17,5 +17,5 @@ collisions with other contexts' or repo-wide meanings.
 - [Agent identity](./docs/agent-identity/CONTEXT.md) — who agents run as on each warehouse, what they may do, and the words every agent screen uses for both
 - [AI agent memory](./docs/ai-agent-memory/CONTEXT.md) — per-user, per-project knowledge the AI agent distills from a user's threads and recalls on their future threads
 - [External sources](./docs/external-sources/CONTEXT.md) — uploaded CSVs and connected Google Sheets ingested to typed parquet and queried as explores on the DuckDB engine
-- [Merge queries](./docs/merge-queries/CONTEXT.md) — joining the results of two explore queries on a shared key, executed as a composed query with the join running in DuckDB
-- [Composer queries](./docs/composer-queries/CONTEXT.md) — agent-authored pipelines of queries across sources, joined or transformed in DuckDB, shown as a chart artifact with the pipeline beside the result
+- [Merge queries](./docs/merge-queries/CONTEXT.md) — joining the results of two explore queries on a shared key, executed as a composed query with the join running in a sandbox
+- [Composer queries](./docs/composer-queries/CONTEXT.md) — agent-authored pipelines of queries across sources, joined or transformed in a sandbox, shown as a chart artifact with the pipeline beside the result

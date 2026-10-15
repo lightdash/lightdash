@@ -115,7 +115,7 @@ export const buildComposerChartSpec = async ({
     });
 };
 
-/** The chart of a node result pivoted on the compose engine: aggregated, split or value-sorted. */
+/** The chart of a node result pivoted by a DuckDB node in a sandbox: aggregated, split or value-sorted. */
 export const buildComposerPivotSpec = async ({
     kind,
     result,

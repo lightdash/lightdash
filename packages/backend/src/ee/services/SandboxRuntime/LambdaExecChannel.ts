@@ -3,8 +3,10 @@ import {
     type CommandResult,
     type RunOptions,
     type SandboxCommands,
+    type SandboxFileEntry,
     type SandboxFiles,
 } from './types';
+import { writeFilesOneByOne } from './writeFilesOneByOne';
 
 /**
  * Data plane for a Lambda MicroVM: an HTTP client to the in-microVM exec agent
@@ -303,6 +305,8 @@ export class LambdaExecChannel {
                 );
             }
         },
+        writeMany: (entries: SandboxFileEntry[]): Promise<void> =>
+            writeFilesOneByOne(this.files.write, entries),
         remove: async (path: string): Promise<void> => {
             // Idempotent: the agent returns 200/204 even when the path is gone.
             await this.send(`/files?path=${encodeURIComponent(path)}`, {

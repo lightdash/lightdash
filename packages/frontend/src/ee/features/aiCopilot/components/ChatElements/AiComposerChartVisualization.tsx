@@ -153,7 +153,7 @@ type Props = {
 };
 
 // Draws from the fetched rows, ordered by the x sort, or from a pivot of the
-// stored result on the compose engine for aggregations and series splits.
+// stored result in a DuckDB sandbox for aggregations and series splits.
 // The last chart stays on screen until the next one is built.
 export const AiComposerChartVisualization: FC<Props> = ({
     projectUuid,

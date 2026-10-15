@@ -857,7 +857,7 @@ describe('getMergeCompiledSqlText', () => {
                 '',
                 '-- Query B ("payments"): existing results, nothing runs',
                 '',
-                '-- Merge: runs on the compose engine over the results above, read as merge_source_0, merge_source_1, ...',
+                '-- Merge: runs in a sandbox over the results above, read as merge_source_0, merge_source_1, ...',
                 'SELECT * FROM "merge_source_0" FULL OUTER JOIN "merge_source_1" USING (month)',
             ].join('\n'),
         );

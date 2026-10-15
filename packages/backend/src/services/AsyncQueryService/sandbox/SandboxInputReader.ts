@@ -1,18 +1,24 @@
 import { ParameterError } from '@lightdash/common';
 import { Readable } from 'stream';
 
-export const PYTHON_MAX_INPUT_BYTES = 64 * 1024 * 1024;
+type SandboxInputReaderOptions = {
+    maxBytes: number;
+    limitMessage: string;
+};
 
 /** Shares one byte budget and cancellation state across a query's input streams. */
-export class PythonInputReader {
+export class SandboxInputReader {
     private readonly streams = new Set<Readable>();
 
     private remainingBytes: number;
 
     private failure: Error | null = null;
 
-    constructor(maxBytes = PYTHON_MAX_INPUT_BYTES) {
+    private readonly limitMessage: string;
+
+    constructor({ maxBytes, limitMessage }: SandboxInputReaderOptions) {
         this.remainingBytes = maxBytes;
+        this.limitMessage = limitMessage;
     }
 
     abort(error: unknown): void {
@@ -36,9 +42,7 @@ export class PythonInputReader {
                         ? Buffer.byteLength(chunk, 'utf8')
                         : chunk.length;
                 if (bytes > this.remainingBytes) {
-                    throw new ParameterError(
-                        'Python query inputs exceed the combined size limit of 64 MiB.',
-                    );
+                    throw new ParameterError(this.limitMessage);
                 }
                 this.remainingBytes -= bytes;
                 chunks.push(

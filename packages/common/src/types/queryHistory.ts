@@ -175,16 +175,16 @@ export type QueryHistory = {
 
 /**
  * How a DuckDB source query over other results executes, persisted on its
- * history row so a worker can rebuild the run from the row alone: which
- * results it reads, which engine session runs it, whether its columns are
- * probed or were supplied at submit, and the guard that may refuse it once
- * its references complete. `refusal` is written by the run when that guard
- * trips, so whoever reports the outcome can tell a refusal from a failure.
+ * history row for lineage and merge reporting: which results it reads,
+ * whether its columns are probed or were supplied at submit, and the guard
+ * that may refuse it once its references complete. `refusal` is written by
+ * the run when that guard trips, so whoever reports the outcome can tell a
+ * refusal from a failure.
  */
 export type DuckdbExecutionSpec = {
     /** Table name -> queryUuid of the result it reads, already resolved. */
     references: Record<string, string>;
-    /** Always the scoped session: row data must never grant the shared one. */
+    /** The only value ever stored; kept so existing rows still parse. */
     engine: 'scopedToReferencedResults';
     columns:
         | {

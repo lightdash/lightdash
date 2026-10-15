@@ -148,6 +148,12 @@ jobs:
           wait $pid_grammar || fail=1
           wait $pid_expression_grammar || fail=1
           exit $fail
+      # Backend tests run the DuckDB sandbox runner (runner.py) as a local process
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: "3.12"
+      - name: Install the DuckDB sandbox runner's Python package
+        run: pip install -r sandboxes/duckdb-runner/requirements.txt
       - name: Run unit tests
         run: pnpm test
 
@@ -436,7 +442,7 @@ jobs:
           # retry with a full migrate + seed (see okteto.preview.yaml)
           timeout: 40m
           file: okteto.preview.yaml
-          variables: SITE_URL=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,DB_DIVERT=${{ needs.files-changed.outputs.db_divert }},TURBO_TEAM=${{ vars.TURBO_TEAM }},TURBO_TOKEN=${{ secrets.TURBO_TOKEN }}
+          variables: SITE_URL=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,DB_DIVERT=${{ needs.files-changed.outputs.db_divert }},TURBO_TEAM=${{ vars.TURBO_TEAM }},TURBO_TOKEN=${{ secrets.TURBO_TOKEN }},E2B_API_KEY=${{ secrets.E2B_API_KEY }}
 
       - name: Collect failed preview diagnostics
         if: ${{ failure() && steps.deploy.outcome == 'failure' }}

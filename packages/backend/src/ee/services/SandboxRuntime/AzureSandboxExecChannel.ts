@@ -7,8 +7,10 @@ import {
     type CommandResult,
     type RunOptions,
     type SandboxCommands,
+    type SandboxFileEntry,
     type SandboxFiles,
 } from './types';
+import { writeFilesOneByOne } from './writeFilesOneByOne';
 
 /**
  * Fold `cwd`/`envs` into a single `/bin/sh -c` command line. The native exec
@@ -522,6 +524,8 @@ export class AzureSandboxExecChannel {
                 );
             }
         },
+        writeMany: (entries: SandboxFileEntry[]): Promise<void> =>
+            writeFilesOneByOne(this.files.write, entries),
         remove: async (path: string): Promise<void> => {
             // Idempotent: the data plane returns 200/204 even when the path is gone.
             await this.send(this.url(FILES_PATH, { path, recursive: 'true' }), {

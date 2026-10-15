@@ -25,6 +25,7 @@ import {
     type PersistOptions,
     type RunOptions,
     type SandboxCapabilities,
+    type SandboxFileEntry,
     type SandboxGit,
     type SandboxHandle,
     type SandboxProvider,
@@ -179,6 +180,23 @@ class E2bSandboxHandle implements SandboxHandle {
                     typeof contents === 'string'
                         ? contents
                         : toArrayBuffer(contents),
+                );
+            } catch (error) {
+                normalizeError(error);
+            }
+        },
+        writeMany: async (entries: SandboxFileEntry[]): Promise<void> => {
+            if (entries.length === 0) return;
+            try {
+                // One multipart upload for every file
+                await this.sandbox.files.write(
+                    entries.map(({ path, contents }) => ({
+                        path,
+                        data:
+                            typeof contents === 'string'
+                                ? contents
+                                : toArrayBuffer(contents),
+                    })),
                 );
             } catch (error) {
                 normalizeError(error);

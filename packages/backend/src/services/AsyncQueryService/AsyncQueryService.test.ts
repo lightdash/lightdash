@@ -120,10 +120,7 @@ import {
 import type { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import type { FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
-import {
-    NatsNoRespondersError,
-    type INatsClient,
-} from '../../clients/NatsClient';
+import { type INatsClient } from '../../clients/NatsClient';
 import type { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
@@ -280,21 +277,22 @@ import {
     AsyncQueryService,
     QUEUED_QUERY_EXPIRED_MESSAGE,
 } from './AsyncQueryService';
-import {
-    COMPOSE_ENGINE_INSTANCE_CACHE_KEY,
-    ComposeEngineClient,
-} from './ComposeEngineClient';
+import { ComposeEngineClient } from './ComposeEngineClient';
+import { DuckdbSandboxRunner } from './duckdb/DuckdbSandboxRunner';
 import { buildComposeMergeOriginalColumns } from './mergeQueryExecution';
 import {
     NoOpPreAggregateStrategy,
     type PreAggregateExecutionResolution,
     type PreAggregateStrategy,
 } from './PreAggregateStrategy';
+import { LocalProcessSandboxProvider } from './sandbox/LocalProcessSandboxProvider';
 import type {
+    BoundDuckdbQueryReferences,
     DownloadAsyncQueryResultsArgs,
     ExecuteAsyncQueryReturn,
     RunAsyncWarehouseQueryArgs,
     RunDuckdbQueryArgs,
+    RunDuckdbSandboxQueryArgs,
 } from './types';
 
 const projectUuid = '11111111-1111-4111-8111-111111111111';
@@ -603,9 +601,6 @@ const getMockedAsyncQueryService = (
             enqueueMaterializationQuery: vi.fn(async () => ({
                 jobId: 'test-nats-materialization-job-id',
             })),
-            enqueueDuckdbQuery: vi.fn(async () => ({
-                jobId: 'test-nats-duckdb-job-id',
-            })),
         } as unknown as INatsClient,
         downloadFileModel: {} as unknown as DownloadFileModel,
         fileStorageClient: {} as FileStorageClient,
@@ -731,6 +726,20 @@ const getMockedAsyncQueryService = (
             })),
         userOAuthGrantsModel:
             overrides.userOAuthGrantsModel ?? ({} as UserOAuthGrantsModel),
+    });
+    // DuckDB queries over results run in a real local sandbox process
+    Object.assign(service, {
+        duckdbSandboxRunner: new DuckdbSandboxRunner({
+            lightdashConfig,
+            logger: {
+                info: vi.fn(),
+                warn: vi.fn(),
+                debug: vi.fn(),
+                error: vi.fn(),
+            },
+            provider: new LocalProcessSandboxProvider(),
+            runnerSource: null,
+        }),
     });
     return service;
 };
@@ -1556,11 +1565,6 @@ describe('AsyncQueryService', () => {
             ),
         } as unknown as FeatureFlagModel;
 
-        const withoutResultsStorage: LightdashConfig = {
-            ...lightdashConfigMock,
-            results: { ...lightdashConfigMock.results, s3: undefined },
-        };
-
         const referencedQueryHistory = {
             queryUuid: '0b7c9c62-4b6e-4b1a-9c3e-4f6a0c8d2e11',
             projectUuid,
@@ -1769,10 +1773,6 @@ describe('AsyncQueryService', () => {
                     connectionRoute: null,
                     credentialKind: WarehouseCredentialKind.SHARED,
                 });
-                vi.spyOn(
-                    service,
-                    'runAsyncDuckdbQueryFromHistory',
-                ).mockResolvedValue(true);
                 const readPage = vi
                     .spyOn(service as AnyType, 'getResultsPageFromS3')
                     .mockResolvedValue({ rows: [] } as never);
@@ -2403,152 +2403,6 @@ describe('AsyncQueryService', () => {
             });
         });
 
-        test('runs a compose SQL query over referenced results without a license', async () => {
-            const createDuckdbWarehouseClient = vi.fn(
-                () => warehouseClientMock,
-            );
-            const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                featureFlagModel: composeFlags,
-                composeEngineClient: new ComposeEngineClient({
-                    resolveCaCertFile: () =>
-                        '/etc/ssl/certs/ca-certificates.crt',
-                    lightdashConfig: lightdashConfigMock,
-                    createDuckdbWarehouseClient,
-                }),
-                queryHistoryModel: inMemoryDuckdbHistory({
-                    queryUuid: 'queryUuid',
-                    account: sessionAccount,
-                    overrides: {
-                        get: vi.fn(async () => referencedQueryHistory),
-                        pollForQueryCompletion: vi.fn(
-                            async () => referencedQueryHistory,
-                        ),
-                    },
-                }),
-                resultsStorageClient: {
-                    isEnabled: true,
-                    configuration: { bucket: 'mock_bucket' },
-                } as unknown as S3ResultsFileStorageClient,
-            } as never);
-            expect((service as AnyType).preAggregateStrategy).toBeInstanceOf(
-                NoOpPreAggregateStrategy,
-            );
-            const runAsyncWarehouseSpy = vi
-                .spyOn(service, 'runAsyncWarehouseQuery')
-                .mockResolvedValue(undefined);
-
-            const result = await service.executeAsyncComposeSqlQuery({
-                account: sessionAccount,
-                projectUuid,
-                context: QueryExecutionContext.SQL_RUNNER,
-                sql: 'SELECT one FROM orders',
-                references: { orders: '0b7c9c62-4b6e-4b1a-9c3e-4f6a0c8d2e11' },
-            });
-
-            expect(result.queryUuid).toBe('queryUuid');
-            await vi.waitFor(() =>
-                expect(runAsyncWarehouseSpy).toHaveBeenCalledTimes(1),
-            );
-            expect(createDuckdbWarehouseClient).toHaveBeenCalledWith({
-                s3Config: {
-                    endpoint: 'mock_endpoint',
-                    region: 'mock_region',
-                    caCertFile: '/etc/ssl/certs/ca-certificates.crt',
-                    accessKey: undefined,
-                    secretKey: undefined,
-                    forcePathStyle: false,
-                    useSsl: true,
-                },
-                sharedResourceLimits: undefined,
-                instanceCacheKey: COMPOSE_ENGINE_INSTANCE_CACHE_KEY,
-            });
-            expect(runAsyncWarehouseSpy.mock.calls[0][0]).toMatchObject({
-                warehouseClientOverride: warehouseClientMock,
-                query: expect.stringContaining(
-                    "read_json('s3://mock_bucket/referenced-results.jsonl'",
-                ),
-            });
-        });
-
-        test('refuses a compose SQL query naming the missing results storage', async () => {
-            const service = getMockedAsyncQueryService(withoutResultsStorage, {
-                featureFlagModel: composeFlags,
-                queryHistoryModel: {
-                    create: vi.fn(),
-                    get: vi.fn(async () => referencedQueryHistory),
-                    getDuckdbExecution: vi.fn(async () => null),
-                } as unknown as QueryHistoryModel,
-            } as never);
-
-            await expect(
-                service.executeAsyncComposeSqlQuery({
-                    account: sessionAccount,
-                    projectUuid,
-                    context: QueryExecutionContext.SQL_RUNNER,
-                    sql: 'SELECT one FROM orders',
-                    references: { orders: referencedQueryHistory.queryUuid },
-                }),
-            ).rejects.toThrow(
-                new MissingConfigError(
-                    'The compose engine needs results storage to read referenced query results. Set S3_ENDPOINT, S3_BUCKET and S3_REGION, or the RESULTS_S3_* overrides.',
-                ),
-            );
-            expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
-        });
-
-        test('a compose SQL query runs on a session scoped to exactly the results it references', async () => {
-            const createExecutionWarehouseClient = vi.fn(
-                () => warehouseClientMock,
-            );
-            const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                featureFlagModel: composeFlags,
-                composeEngineClient: {
-                    createExecutionWarehouseClient,
-                } as unknown as ComposeEngineClient,
-                queryHistoryModel: inMemoryDuckdbHistory({
-                    queryUuid: 'queryUuid',
-                    account: sessionAccount,
-                    overrides: {
-                        get: vi.fn(async () => referencedQueryHistory),
-                        pollForQueryCompletion: vi.fn(
-                            async () => referencedQueryHistory,
-                        ),
-                    },
-                }),
-                resultsStorageClient: {
-                    isEnabled: true,
-                    configuration: { bucket: 'mock_bucket' },
-                } as unknown as S3ResultsFileStorageClient,
-            } as never);
-            const runAsyncWarehouseSpy = vi
-                .spyOn(service, 'runAsyncWarehouseQuery')
-                .mockResolvedValue(undefined);
-
-            await service.executeAsyncComposeSqlQuery({
-                account: sessionAccount,
-                projectUuid,
-                context: QueryExecutionContext.SQL_RUNNER,
-                sql: 'SELECT one FROM orders',
-                references: { orders: referencedQueryHistory.queryUuid },
-            });
-            await vi.waitFor(() =>
-                expect(runAsyncWarehouseSpy).toHaveBeenCalledTimes(1),
-            );
-
-            // The shared session is built once, for the dialect and to refuse
-            // a missing results storage up front; the run, rebuilt from the
-            // row, gets its own, scoped to the one file the query reads
-            expect(createExecutionWarehouseClient.mock.calls).toEqual([
-                [{ storage: 'results', scope: null }],
-                [
-                    {
-                        storage: 'results',
-                        scope: ['s3://mock_bucket/referenced-results.jsonl'],
-                    },
-                ],
-            ]);
-        });
-
         test('refuses a compose SQL query that references no results before writing a row', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
                 featureFlagModel: composeFlags,
@@ -2569,11 +2423,6 @@ describe('AsyncQueryService', () => {
 
         test("a supplied plan composes the node's own pivot stage and records the pivot on the row", async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                composeEngineClient: {
-                    createExecutionWarehouseClient: vi.fn(
-                        () => warehouseClientMock,
-                    ),
-                } as unknown as ComposeEngineClient,
                 queryHistoryModel: inMemoryDuckdbHistory({
                     queryUuid: 'join-uuid',
                     account: sessionAccount,
@@ -2582,9 +2431,6 @@ describe('AsyncQueryService', () => {
                     },
                 }),
             } as never);
-            const runDuckdbQuery = vi
-                .spyOn(service as AnyType, 'runDuckdbQuery')
-                .mockResolvedValue(undefined);
             const pivotConfiguration: PivotConfiguration = {
                 indexColumn: {
                     reference: 'merge_month',
@@ -2616,6 +2462,7 @@ describe('AsyncQueryService', () => {
                 sql: 'SELECT * FROM orders',
                 references: { orders: referencedQueryHistory.queryUuid },
                 pivotConfiguration,
+                sandboxLease: null,
                 plan: {
                     columns: {
                         mode: 'supplied',
@@ -2626,17 +2473,14 @@ describe('AsyncQueryService', () => {
                             sql: 'SELECT * FROM orders',
                         },
                     },
-                    engine: 'scopedToReferencedResults',
                     guard: null,
                     referenceLabels: {},
                 },
             });
-            await vi.waitFor(() =>
-                expect(runDuckdbQuery).toHaveBeenCalledTimes(1),
-            );
 
+            // Composed for the DuckDB dialect the sandbox runs
             expect(compose).toHaveBeenCalledWith({
-                warehouseClient: warehouseClientMock,
+                warehouseClient: expect.any(warehouses.DuckdbWarehouseClient),
                 pivotConfiguration,
             });
             expect(service.queryHistoryModel.create).toHaveBeenCalledWith(
@@ -2646,24 +2490,14 @@ describe('AsyncQueryService', () => {
                     compiledSql: 'SELECT pivoted FROM orders',
                 }),
             );
-            expect(runDuckdbQuery.mock.calls[0][0]).toMatchObject({
-                sql: 'SELECT pivoted FROM orders',
-                columns: { mode: 'supplied', pivotConfiguration },
-            });
         });
 
-        test('a supplied plan records its columns, runs on a scoped session and reads no flag', async () => {
+        test('a supplied plan records its columns and reads no flag', async () => {
             const featureFlagModel = {
                 get: vi.fn(async () => ({ enabled: false })),
             } as unknown as FeatureFlagModel;
-            const createExecutionWarehouseClient = vi.fn(
-                () => warehouseClientMock,
-            );
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
                 featureFlagModel,
-                composeEngineClient: {
-                    createExecutionWarehouseClient,
-                } as unknown as ComposeEngineClient,
                 queryHistoryModel: inMemoryDuckdbHistory({
                     queryUuid: 'join-uuid',
                     account: sessionAccount,
@@ -2672,9 +2506,6 @@ describe('AsyncQueryService', () => {
                     },
                 }),
             } as never);
-            const runDuckdbQuery = vi
-                .spyOn(service as AnyType, 'runDuckdbQuery')
-                .mockResolvedValue(undefined);
             const guard = {
                 legLabelByReferenceTable: { orders: 'Query A' },
                 sourceRowCap: 500,
@@ -2726,6 +2557,7 @@ describe('AsyncQueryService', () => {
                 context: QueryExecutionContext.EXPLORE,
                 sql: 'SELECT * FROM orders',
                 references: { orders: referencedQueryHistory.queryUuid },
+                sandboxLease: null,
                 plan: {
                     columns: {
                         mode: 'supplied',
@@ -2733,18 +2565,19 @@ describe('AsyncQueryService', () => {
                         originalColumns,
                         requestParameters,
                     },
-                    engine: 'scopedToReferencedResults',
                     guard,
                     referenceLabels: {},
                 },
             });
             await vi.waitFor(() =>
-                expect(runDuckdbQuery).toHaveBeenCalledTimes(1),
+                expect(
+                    service.queryHistoryModel.updateStatusToExecuting,
+                ).toHaveBeenCalledWith('join-uuid'),
             );
 
             expect(submission.queryUuid).toBe('join-uuid');
             expect(compose).toHaveBeenCalledWith({
-                warehouseClient: warehouseClientMock,
+                warehouseClient: expect.any(warehouses.DuckdbWarehouseClient),
                 pivotConfiguration: undefined,
             });
             expect(composer.getSql).toHaveBeenCalledWith({
@@ -2768,7 +2601,7 @@ describe('AsyncQueryService', () => {
                     compiledSql: 'SELECT * FROM orders ORDER BY 1',
                 }),
             );
-            // The run rebuilds itself from the row and the spec set on it
+            // Lineage and merge reporting read the spec set on the row
             expect(
                 service.queryHistoryModel.setDuckdbExecution,
             ).toHaveBeenCalledWith('join-uuid', {
@@ -2781,37 +2614,6 @@ describe('AsyncQueryService', () => {
                 invalidateCache: false,
                 cacheHit: false,
                 refusal: null,
-            });
-            expect(
-                service.queryHistoryModel.updateStatusToExecuting,
-            ).toHaveBeenCalledWith('join-uuid');
-            expect(runDuckdbQuery.mock.calls[0][0]).toMatchObject({
-                actor: {
-                    userUuid: sessionAccount.user.id,
-                    isRegisteredUser: true,
-                    isServiceAccount: false,
-                },
-                queryUuid: 'join-uuid',
-                sql: 'SELECT * FROM orders ORDER BY 1',
-                columns: {
-                    mode: 'supplied',
-                    fieldsMap,
-                    originalColumns,
-                    usedParameters: { region: 'EU' },
-                },
-                engine: { kind: 'scopedToReferencedResults' },
-                references: {
-                    kind: 'queries',
-                    references: { orders: referencedQueryHistory.queryUuid },
-                    guard: expect.any(Function),
-                    labelByTable: {},
-                },
-            });
-            // The shared session is built for the dialect and to refuse a
-            // missing results storage up front; the run scopes its own
-            expect(createExecutionWarehouseClient).toHaveBeenCalledWith({
-                storage: 'results',
-                scope: null,
             });
         });
 
@@ -2841,32 +2643,8 @@ describe('AsyncQueryService', () => {
             };
 
             const buildService = (config: LightdashConfig) => {
-                const streamQuery = vi.fn(
-                    async (
-                        _sql: string,
-                        callback: (chunk: {
-                            fields: Record<string, { type: DimensionType }>;
-                            rows: Record<string, unknown>[];
-                        }) => void,
-                    ) => {
-                        callback({
-                            fields: {
-                                month: { type: DimensionType.DATE },
-                                status: { type: DimensionType.STRING },
-                                revenue: { type: DimensionType.NUMBER },
-                            },
-                            rows: [],
-                        });
-                    },
-                );
                 const service = getMockedAsyncQueryService(config, {
                     featureFlagModel: composeFlags,
-                    composeEngineClient: {
-                        createExecutionWarehouseClient: vi.fn(() => ({
-                            ...warehouseClientMock,
-                            streamQuery,
-                        })),
-                    } as unknown as ComposeEngineClient,
                     queryHistoryModel: inMemoryDuckdbHistory({
                         queryUuid: 'pivoted-uuid',
                         account: sessionAccount,
@@ -2882,10 +2660,10 @@ describe('AsyncQueryService', () => {
                         configuration: { bucket: 'mock_bucket' },
                     } as unknown as S3ResultsFileStorageClient,
                 } as never);
-                const runAsyncWarehouseSpy = vi
-                    .spyOn(service, 'runAsyncWarehouseQuery')
-                    .mockResolvedValue(undefined);
-                return { service, streamQuery, runAsyncWarehouseSpy };
+                vi.spyOn(service, 'runAsyncWarehouseQuery').mockResolvedValue(
+                    undefined,
+                );
+                return { service };
             };
 
             const submit = (
@@ -2901,9 +2679,8 @@ describe('AsyncQueryService', () => {
                     pivotConfiguration: pivot,
                 });
 
-            test('is accepted, recorded on the row and composed over the discovered columns', async () => {
-                const { service, runAsyncWarehouseSpy } =
-                    buildService(lightdashConfigMock);
+            test('is accepted and recorded on the row', async () => {
+                const { service } = buildService(lightdashConfigMock);
 
                 const result = await submit(service, pivotConfiguration);
 
@@ -2912,40 +2689,10 @@ describe('AsyncQueryService', () => {
                     sessionAccount,
                     expect.objectContaining({ pivotConfiguration }),
                 );
-                // The run is rebuilt from the row, so the pivot reaches it
-                // only through the row
-                await vi.waitFor(() =>
-                    expect(runAsyncWarehouseSpy).toHaveBeenCalledTimes(1),
-                );
-                expect(runAsyncWarehouseSpy.mock.calls[0][0]).toMatchObject({
-                    pivotConfiguration,
-                    originalColumns: {
-                        month: { reference: 'month' },
-                        status: { reference: 'status' },
-                        revenue: { reference: 'revenue' },
-                    },
-                    query: expect.stringContaining('group_by_query'),
-                });
-            });
-
-            test('naming a column the SQL does not return is refused before any row exists', async () => {
-                const { service } = buildService(lightdashConfigMock);
-
-                await expect(
-                    submit(service, {
-                        ...pivotConfiguration,
-                        groupByColumns: [{ reference: 'region' }],
-                    }),
-                ).rejects.toThrow(
-                    new ParameterError(
-                        'Pivot references unknown column(s): region. Available columns: month, status, revenue',
-                    ),
-                );
-                expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
             });
 
             test('with more value columns than the column limit is refused before any row exists', async () => {
-                const { service, streamQuery } = buildService({
+                const { service } = buildService({
                     ...lightdashConfigMock,
                     pivotTable: { maxColumnLimit: 1 },
                 });
@@ -2969,7 +2716,6 @@ describe('AsyncQueryService', () => {
                         'Pivot has 2 value columns, more than the column limit of 1',
                     ),
                 );
-                expect(streamQuery).not.toHaveBeenCalled();
                 expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
             });
         });
@@ -3143,10 +2889,11 @@ describe('AsyncQueryService', () => {
             },
         );
 
-        test('refuses a merge naming the missing results storage instead of downgrading it', async () => {
-            const service = getMockedAsyncQueryService(withoutResultsStorage, {
+        test('refuses a merge without a sandbox provider instead of downgrading it', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
                 featureFlagModel: composeFlags,
             } as never);
+            Object.assign(service, { duckdbSandboxRunner: null });
             vi.spyOn(service, 'compileMergeQuery').mockResolvedValue({
                 coreSql: 'SELECT 1',
                 typedColumns: [],
@@ -3175,7 +2922,11 @@ describe('AsyncQueryService', () => {
                     context: QueryExecutionContext.EXPLORE,
                     mode: { type: 'interactive' },
                 }),
-            ).rejects.toThrow(MissingConfigError);
+            ).rejects.toThrow(
+                new MissingConfigError(
+                    'E2B API key is not configured (E2B_API_KEY)',
+                ),
+            );
             expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
         });
     });
@@ -6209,6 +5960,7 @@ describe('AsyncQueryService', () => {
                               resolvedReferences: {},
                               pivotConfiguration: null,
                               plan: null,
+                              sandboxLease: null,
                           });
                 await expect(result).rejects.toThrow('Raw SQL');
                 expect(run).not.toHaveBeenCalled();
@@ -9549,7 +9301,7 @@ describe('AsyncQueryService', () => {
     });
 
     describe('prepareQueuedQueryForExecution', () => {
-        test.each(['warehouse', 'pre-aggregate', 'duckdb'] as const)(
+        test.each(['warehouse', 'pre-aggregate'] as const)(
             'a %s claim with no trusted envelope terminates before execution',
             async (kind) => {
                 const service = getMockedAsyncQueryService(lightdashConfigMock);
@@ -9573,9 +9325,6 @@ describe('AsyncQueryService', () => {
                         service.runAsyncPreAggregateQueryFromHistory.bind(
                             service,
                         ),
-                    duckdb: service.runAsyncDuckdbQueryFromHistory.bind(
-                        service,
-                    ),
                 }[kind];
                 await expect(entry(row.queryUuid, 'worker')).rejects.toThrow();
                 expect(
@@ -15567,43 +15316,19 @@ describe('getQueryHistoryList', () => {
     });
 });
 
-describe('runDuckdbQuery', () => {
-    const legHistory = (totalRowCount: number | null) =>
-        ({
-            queryUuid: 'leg-uuid',
-            projectUuid,
-            status: QueryHistoryStatus.READY,
-            totalRowCount,
-            resultsFileName: 'leg-results.jsonl',
-            resultsExpiresAt: null,
-            columns: { one: { reference: 'one', type: DimensionType.NUMBER } },
-            context: QueryExecutionContext.EXPLORE,
-        }) as unknown as QueryHistory;
-
+describe('runDuckdbQuery for external SQL', () => {
     type DuckdbQueryRunner = {
         runDuckdbQuery: (args: RunDuckdbQueryArgs) => Promise<void>;
     };
 
-    const buildService = (cached: CacheHitCacheResult | null = null) => {
-        const pollForQueryCompletion = vi.fn(async () => legHistory(1));
-        const recordDuckdbRefusal = vi.fn();
-        const markDuckdbCacheHit = vi.fn();
-        const findCachedResultsFile = vi.fn(async () => cached);
+    const buildService = () => {
+        const pollForQueryCompletion = vi.fn();
         const service = getMockedAsyncQueryService(lightdashConfigMock, {
-            resultsStorageClient: {
-                isEnabled: true,
-                configuration: { bucket: 'results-bucket' },
-            } as unknown as S3ResultsFileStorageClient,
             queryHistoryModel: {
                 getByQueryUuid: vi.fn(async () => undefined),
-                recordAiSignInCredential: vi.fn(),
-                recordResultProducer: vi.fn(),
                 update: vi.fn(),
                 pollForQueryCompletion,
-                recordDuckdbRefusal,
-                markDuckdbCacheHit,
             } as unknown as QueryHistoryModel,
-            cacheService: { findCachedResultsFile } as unknown as ICacheService,
         } as never);
         const runWarehouseQuery = vi
             .spyOn(service, 'runAsyncWarehouseQuery')
@@ -15613,36 +15338,8 @@ describe('runDuckdbQuery', () => {
                 (service as unknown as DuckdbQueryRunner).runDuckdbQuery(args),
             runWarehouseQuery,
             pollForQueryCompletion,
-            recordDuckdbRefusal,
-            markDuckdbCacheHit,
-            findCachedResultsFile,
             update: service.queryHistoryModel.update as import('vitest').Mock,
         };
-    };
-
-    const fileKey = (files: string[]) =>
-        QueryHistoryModel.getCacheKey(projectUuid, {
-            sql: JSON.stringify({
-                sql: 'SELECT 1 AS one',
-                files,
-                parameters: {},
-            }),
-            userUuid: null,
-        });
-
-    const cachedResults: CacheHitCacheResult = {
-        resultProducer: null,
-        cacheHit: true,
-        cacheKey: 'cached-key',
-        fileName: 'cached-results.jsonl',
-        createdAt: new Date('2026-09-07T10:00:00Z'),
-        updatedAt: new Date('2026-09-07T10:00:00Z'),
-        expiresAt: new Date('2026-09-08T10:00:00Z'),
-        totalRowCount: 26,
-        columns: { one: { reference: 'one', type: DimensionType.NUMBER } },
-        originalColumns: null,
-        pivotValuesColumns: null,
-        pivotTotalColumnCount: null,
     };
 
     const probingClient = (fields: Record<string, { type: DimensionType }>) => {
@@ -15669,20 +15366,22 @@ describe('runDuckdbQuery', () => {
     const baseArgs = (
         overrides: Partial<RunDuckdbQueryArgs>,
     ): RunDuckdbQueryArgs => ({
+        authMethod: 'session',
+        identityEnabled: false,
+        resultEntitlementFingerprint: null,
         agentIdentity: null,
         actor: {
             userUuid: sessionAccount.user.id,
             isRegisteredUser: true,
             isServiceAccount: false,
         },
-        invalidateCache: false,
         projectUuid,
         organizationUuid: projectSummary.organizationUuid,
         isPreviewProject: false,
         onboardingFlow: 'default' as AnyType,
         queryUuid: 'duckdb-query-uuid',
         sql: 'SELECT 1 AS one',
-        references: { kind: 'bound', referenceCtes: [] },
+        referenceCtes: [],
         columns: {
             mode: 'discover',
             limit: undefined,
@@ -15690,7 +15389,7 @@ describe('runDuckdbQuery', () => {
             pivotConfiguration: undefined,
         },
         storedCompiledSql: null,
-        engine: { kind: 'client', warehouseClient: warehouseClientMock },
+        warehouseClient: warehouseClientMock,
         queryTags: {} as AnyType,
         queryCreatedAt: new Date(),
         cacheKey: 'cache-key',
@@ -15710,8 +15409,8 @@ describe('runDuckdbQuery', () => {
         await run(
             baseArgs({
                 sql: 'SELECT one FROM r -- probe',
-                references: { kind: 'bound', referenceCtes: [referenceCte] },
-                engine: { kind: 'client', warehouseClient },
+                referenceCtes: [referenceCte],
+                warehouseClient,
             }),
         );
 
@@ -15731,7 +15430,7 @@ describe('runDuckdbQuery', () => {
         });
         const { run, runWarehouseQuery, update } = buildService();
 
-        await run(baseArgs({ engine: { kind: 'client', warehouseClient } }));
+        await run(baseArgs({ warehouseClient }));
 
         expect(streamQuery).toHaveBeenCalledTimes(1);
         expect(streamQuery.mock.calls[0][0]).toMatch(/LIMIT 1$/);
@@ -15761,202 +15460,6 @@ describe('runDuckdbQuery', () => {
         );
     });
 
-    it('supplied mode executes with the caller fields, columns and pivot and never probes', async () => {
-        const { streamQuery, warehouseClient } = probingClient({});
-        const { run, runWarehouseQuery, update } = buildService();
-        const fieldsMap = {
-            a_orders_count: {
-                fieldType: FieldType.METRIC,
-                type: MetricType.COUNT,
-                name: 'orders_count',
-                label: 'Orders',
-                table: 'a',
-                tableLabel: 'Query A',
-                sql: '',
-                hidden: false,
-            },
-        } as ItemsMap;
-        const originalColumns: ResultColumns = {
-            a_orders_count: {
-                reference: 'a_orders_count',
-                type: DimensionType.NUMBER,
-                label: 'Orders',
-                provenance: {
-                    fieldId: 'orders_count',
-                    sourceQueryUuid: 'leg-uuid',
-                },
-            },
-        };
-        const pivotConfiguration: PivotConfiguration = {
-            indexColumn: [
-                { reference: 'a_orders_count', type: VizIndexType.CATEGORY },
-            ],
-            valuesColumns: [
-                {
-                    reference: 'a_orders_count',
-                    aggregation: VizAggregationOptions.SUM,
-                },
-            ],
-            groupByColumns: undefined,
-            sortBy: undefined,
-        };
-
-        await run(
-            baseArgs({
-                engine: { kind: 'client', warehouseClient },
-                sql: 'SELECT * FROM merge_source_0',
-                references: {
-                    kind: 'queries',
-                    references: { merge_source_0: 'leg-uuid' },
-                    guard: null,
-                    labelByTable: {},
-                },
-                columns: {
-                    mode: 'supplied',
-                    fieldsMap,
-                    usedParameters: { region: 'EU' },
-                    originalColumns,
-                    pivotConfiguration,
-                },
-            }),
-        );
-
-        expect(streamQuery).not.toHaveBeenCalled();
-        expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
-        const executed = runWarehouseQuery.mock.calls[0][0];
-        expect(executed.fieldsMap).toBe(fieldsMap);
-        expect(executed.originalColumns).toBe(originalColumns);
-        expect(executed.pivotConfiguration).toBe(pivotConfiguration);
-        expect(executed.usedParameters).toEqual({ region: 'EU' });
-        expect(executed.query).toContain(
-            "read_json('s3://results-bucket/leg-results.jsonl'",
-        );
-        expect(executed.query).toContain('SELECT * FROM merge_source_0');
-        expect(update).toHaveBeenCalledWith(
-            'duckdb-query-uuid',
-            projectUuid,
-            {
-                compiled_sql: executed.query,
-                fields: fieldsMap,
-                original_columns: originalColumns,
-                // Keyed on the leg file it read, for the next run to find
-                cache_key: expect.any(String),
-            },
-            expect.anything(),
-        );
-    });
-
-    it('reads a referenced result with no rows as its fields, so a join can still bind', async () => {
-        const { run, runWarehouseQuery, pollForQueryCompletion } =
-            buildService();
-        // A result with no rows recorded no columns; only its fields say
-        // what the (empty) file holds.
-        pollForQueryCompletion.mockResolvedValue({
-            ...legHistory(0),
-            columns: {},
-            fields: {
-                orders_status: {
-                    fieldType: FieldType.DIMENSION,
-                    type: DimensionType.STRING,
-                    name: 'status',
-                    label: 'Status',
-                    table: 'orders',
-                    tableLabel: 'Orders',
-                    sql: '${TABLE}.status',
-                    hidden: false,
-                },
-            },
-        } as unknown as QueryHistory);
-
-        await run(
-            baseArgs({
-                engine: {
-                    kind: 'client',
-                    warehouseClient: warehouseClientMock,
-                },
-                sql: 'SELECT * FROM merge_source_0',
-                references: {
-                    kind: 'queries',
-                    references: { merge_source_0: 'leg-uuid' },
-                    guard: null,
-                    labelByTable: {},
-                },
-            }),
-        );
-
-        expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
-        const executed = runWarehouseQuery.mock.calls[0][0];
-        expect(executed.query).toContain(
-            `read_json('s3://results-bucket/leg-results.jsonl', columns={"orders_status": 'VARCHAR'}, format='newline_delimited')`,
-        );
-        expect(executed.query).not.toContain('read_json_auto');
-    });
-
-    it('a session scoped to referenced results reaches exactly the bound leg files', async () => {
-        const createExecutionWarehouseClient = vi.fn(() => warehouseClientMock);
-        const service = getMockedAsyncQueryService(lightdashConfigMock, {
-            composeEngineClient: {
-                createExecutionWarehouseClient,
-            } as unknown as ComposeEngineClient,
-            resultsStorageClient: {
-                isEnabled: true,
-                configuration: { bucket: 'results-bucket' },
-            } as unknown as S3ResultsFileStorageClient,
-            queryHistoryModel: {
-                getByQueryUuid: vi.fn(async () => undefined),
-                recordAiSignInCredential: vi.fn(),
-                recordResultProducer: vi.fn(),
-                update: vi.fn(),
-                pollForQueryCompletion: vi.fn(
-                    async ({ queryUuid }: { queryUuid: string }) => ({
-                        ...legHistory(1),
-                        queryUuid,
-                        resultsFileName: `${queryUuid}-results`,
-                    }),
-                ),
-            } as unknown as QueryHistoryModel,
-        } as never);
-        const runWarehouseQuery = vi
-            .spyOn(service, 'runAsyncWarehouseQuery')
-            .mockResolvedValue(undefined);
-
-        await (service as unknown as DuckdbQueryRunner).runDuckdbQuery(
-            baseArgs({
-                engine: { kind: 'scopedToReferencedResults' },
-                sql: 'SELECT * FROM merge_source_0 JOIN merge_source_1 USING (k)',
-                references: {
-                    kind: 'queries',
-                    references: {
-                        merge_source_0: 'leg-a',
-                        merge_source_1: 'leg-b',
-                    },
-                    guard: null,
-                    labelByTable: {},
-                },
-                columns: {
-                    mode: 'supplied',
-                    fieldsMap: {},
-                    usedParameters: null,
-                    originalColumns: {},
-                    pivotConfiguration: undefined,
-                },
-            }),
-        );
-
-        expect(createExecutionWarehouseClient).toHaveBeenCalledTimes(1);
-        expect(createExecutionWarehouseClient).toHaveBeenCalledWith({
-            storage: 'results',
-            scope: [
-                's3://results-bucket/leg-a-results.jsonl',
-                's3://results-bucket/leg-b-results.jsonl',
-            ],
-        });
-        expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
-        expect(runWarehouseQuery.mock.calls[0][0].warehouseClientOverride).toBe(
-            warehouseClientMock,
-        );
-    });
-
     it('bound references attach without waiting on any query and persist the stored SQL', async () => {
         const { run, runWarehouseQuery, pollForQueryCompletion, update } =
             buildService();
@@ -15964,12 +15467,9 @@ describe('runDuckdbQuery', () => {
         await run(
             baseArgs({
                 sql: 'SELECT * FROM attachment',
-                references: {
-                    kind: 'bound',
-                    referenceCtes: [
-                        `"attachment" AS (SELECT * FROM read_parquet('s3://private/file.parquet'))`,
-                    ],
-                },
+                referenceCtes: [
+                    `"attachment" AS (SELECT * FROM read_parquet('s3://private/file.parquet'))`,
+                ],
                 storedCompiledSql: 'SELECT * FROM attachment',
             }),
         );
@@ -15985,217 +15485,6 @@ describe('runDuckdbQuery', () => {
             expect.objectContaining({
                 compiled_sql: 'SELECT * FROM attachment',
             }),
-            expect.anything(),
-        );
-    });
-
-    it('a leg that fails names the source in the error, not the reference table', async () => {
-        const { run, runWarehouseQuery, pollForQueryCompletion, update } =
-            buildService();
-        pollForQueryCompletion.mockRejectedValueOnce(
-            new Error('permission denied for table orders'),
-        );
-
-        await run(
-            baseArgs({
-                references: {
-                    kind: 'queries',
-                    references: { merge_source_0: 'leg-uuid' },
-                    guard: null,
-                    labelByTable: { merge_source_0: 'Query A ("a")' },
-                },
-            }),
-        );
-
-        expect(runWarehouseQuery).not.toHaveBeenCalled();
-        expect(update).toHaveBeenCalledWith(
-            'duckdb-query-uuid',
-            projectUuid,
-            expect.objectContaining({
-                status: QueryHistoryStatus.ERROR,
-                error: 'Query A ("a") did not complete: permission denied for table orders',
-            }),
-            expect.anything(),
-        );
-    });
-
-    it('a run over the same result files is served from the earlier run without touching DuckDB', async () => {
-        const { streamQuery, warehouseClient } = probingClient({});
-        const {
-            run,
-            runWarehouseQuery,
-            findCachedResultsFile,
-            markDuckdbCacheHit,
-            update,
-        } = buildService(cachedResults);
-
-        await run(
-            baseArgs({
-                engine: { kind: 'client', warehouseClient },
-                references: {
-                    kind: 'queries',
-                    references: { orders: 'leg-uuid' },
-                    guard: null,
-                    labelByTable: {},
-                },
-            }),
-        );
-
-        // Keyed on the file the leg row points at, not the leg row itself
-        expect(findCachedResultsFile).toHaveBeenCalledWith(
-            projectUuid,
-            fileKey(['s3://results-bucket/leg-results.jsonl']),
-            expect.objectContaining({ userUuid: sessionAccount.user.id }),
-        );
-        expect(streamQuery).not.toHaveBeenCalled();
-        expect(runWarehouseQuery).not.toHaveBeenCalled();
-        expect(markDuckdbCacheHit).toHaveBeenCalledWith('duckdb-query-uuid');
-        expect(update).toHaveBeenCalledWith(
-            'duckdb-query-uuid',
-            projectUuid,
-            expect.objectContaining({
-                status: QueryHistoryStatus.READY,
-                cache_key: fileKey(['s3://results-bucket/leg-results.jsonl']),
-                results_file_name: 'cached-results.jsonl',
-                total_row_count: 26,
-                warehouse_execution_time_ms: 0,
-            }),
-            expect.anything(),
-        );
-    });
-
-    it.each(['agent-credential', 'slot-generation'])(
-        'agent-derived results from %s bypass an existing composed cache hit',
-        async (credentialUuid) => {
-            const { warehouseClient } = probingClient({
-                one: { type: DimensionType.NUMBER },
-            });
-            const {
-                run,
-                runWarehouseQuery,
-                pollForQueryCompletion,
-                findCachedResultsFile,
-                markDuckdbCacheHit,
-            } = buildService(cachedResults);
-            pollForQueryCompletion.mockResolvedValue({
-                ...legHistory(1),
-                requestParameters: {
-                    query: metricQueryMock,
-                    aiSignInCredentialUuid: credentialUuid,
-                },
-            });
-            await run(
-                baseArgs({
-                    context: QueryExecutionContext.AI,
-                    engine: { kind: 'client', warehouseClient },
-                    references: {
-                        kind: 'queries',
-                        references: { orders: 'leg-uuid' },
-                        guard: null,
-                        labelByTable: {},
-                    },
-                }),
-            );
-            expect(findCachedResultsFile).not.toHaveBeenCalled();
-            expect(markDuckdbCacheHit).not.toHaveBeenCalled();
-            expect(runWarehouseQuery).toHaveBeenCalledOnce();
-            expect(runWarehouseQuery.mock.calls[0][0].cacheKey).toMatch(
-                /\.duckdb-query-uuid$/,
-            );
-        },
-    );
-
-    it('a run that finds nothing lands its results under the file-based key for the next one', async () => {
-        const { streamQuery, warehouseClient } = probingClient({
-            one: { type: DimensionType.NUMBER },
-        });
-        const { run, runWarehouseQuery, update } = buildService(null);
-
-        await run(
-            baseArgs({
-                engine: { kind: 'client', warehouseClient },
-                references: {
-                    kind: 'queries',
-                    references: { orders: 'leg-uuid' },
-                    guard: null,
-                    labelByTable: {},
-                },
-            }),
-        );
-
-        expect(streamQuery).toHaveBeenCalledTimes(1);
-        expect(update).toHaveBeenCalledWith(
-            'duckdb-query-uuid',
-            projectUuid,
-            expect.objectContaining({
-                cache_key: fileKey(['s3://results-bucket/leg-results.jsonl']),
-            }),
-            expect.anything(),
-        );
-        expect(runWarehouseQuery.mock.calls[0][0].cacheKey).toBe(
-            fileKey(['s3://results-bucket/leg-results.jsonl']),
-        );
-    });
-
-    it('invalidating the cache runs regardless of an earlier run over the same files', async () => {
-        const { streamQuery, warehouseClient } = probingClient({
-            one: { type: DimensionType.NUMBER },
-        });
-        const { run, runWarehouseQuery, findCachedResultsFile } =
-            buildService(cachedResults);
-
-        await run(
-            baseArgs({
-                invalidateCache: true,
-                engine: { kind: 'client', warehouseClient },
-                references: {
-                    kind: 'queries',
-                    references: { orders: 'leg-uuid' },
-                    guard: null,
-                    labelByTable: {},
-                },
-            }),
-        );
-
-        expect(findCachedResultsFile).not.toHaveBeenCalled();
-        expect(streamQuery).toHaveBeenCalledTimes(1);
-        expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
-    });
-
-    it('a guard refusal lands as the query error and is recorded on the row before anything runs', async () => {
-        const { streamQuery, warehouseClient } = probingClient({});
-        const { run, runWarehouseQuery, update, recordDuckdbRefusal } =
-            buildService();
-        const guard = vi.fn(() => 'Orders returned too many rows');
-
-        await run(
-            baseArgs({
-                engine: { kind: 'client', warehouseClient },
-                references: {
-                    kind: 'queries',
-                    references: { orders: 'leg-uuid' },
-                    guard,
-                    labelByTable: {},
-                },
-            }),
-        );
-
-        expect(guard).toHaveBeenCalledWith({ orders: legHistory(1) });
-        expect(streamQuery).not.toHaveBeenCalled();
-        expect(runWarehouseQuery).not.toHaveBeenCalled();
-        // The error status and the refusal land in one write, so a poll never
-        // sees the error without the refusal
-        expect(recordDuckdbRefusal).toHaveBeenCalledWith(
-            'duckdb-query-uuid',
-            projectUuid,
-            { kind: 'row_cap' },
-            'Orders returned too many rows',
-            expect.anything(),
-        );
-        expect(update).not.toHaveBeenCalledWith(
-            expect.anything(),
-            expect.anything(),
-            expect.objectContaining({ status: QueryHistoryStatus.ERROR }),
             expect.anything(),
         );
     });
@@ -16224,7 +15513,7 @@ const attributeScopedExplore: Explore = {
     },
 };
 
-describe('executeAsyncMergeQuery on the compose engine', () => {
+describe('executeAsyncMergeQuery in a sandbox', () => {
     const SOURCE_ROW_CAP = 3;
     // Lowered through config rather than by seeding cap-many rows: the run
     // path reads the cap from the same config the legs were submitted with.
@@ -16449,15 +15738,36 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
         config: LightdashConfig;
         legRowCount: number;
     }) => {
-        const streamQuery = vi.fn();
-        const warehouseClient = {
-            ...warehouseClientMock,
-            streamQuery,
-        } as unknown as WarehouseClient;
         const legByUuid = (queryUuid: string) =>
             legHistory(queryUuid, legRowCount);
-        const update = vi.fn();
         let joinRan = false;
+        // The join runs for real in a local sandbox: the row turns ready
+        // once its result is uploaded
+        const update = vi.fn(
+            async (
+                queryUuid: string,
+                _projectUuid: string,
+                patch: Record<string, unknown>,
+            ) => {
+                if (
+                    queryUuid === 'merge-query-uuid' &&
+                    patch.status === QueryHistoryStatus.READY
+                )
+                    joinRan = true;
+            },
+        );
+        const legRows = (queryUuid: string) =>
+            Array.from({ length: legRowCount }, (_, index) =>
+                queryUuid === legQueryUuidBySourceId.a
+                    ? {
+                          orders_month: `2026-0${index + 1}-01`,
+                          orders_count: index + 1,
+                      }
+                    : {
+                          payments_month: `2026-0${index + 1}-01`,
+                          payments_sum: (index + 1) * 10,
+                      },
+            );
         let refused = false;
         // The outcome reporter polls the join row: it lands in a terminal
         // state only once the tail has either refused it or run the join
@@ -16500,14 +15810,18 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
             },
         );
         const service = getMockedAsyncQueryService(config, {
-            composeEngineClient: new ComposeEngineClient({
-                lightdashConfig: config,
-                createDuckdbWarehouseClient: () => warehouseClient,
-            }),
             queryHistoryModel,
             resultsStorageClient: {
                 isEnabled: true,
                 configuration: { bucket: 'results-bucket' },
+                getDownloadStream: vi.fn(async (fileName: string) =>
+                    getJsonlStream(legRows(fileName.replace('.jsonl', ''))),
+                ),
+                createUploadStream: vi.fn(() => ({
+                    write: vi.fn(),
+                    writeStream: { write: vi.fn() },
+                    close: vi.fn(),
+                })),
             } as unknown as S3ResultsFileStorageClient,
         } as never);
         vi.spyOn(service, 'compileMergeQuery').mockResolvedValue(
@@ -16517,21 +15831,22 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
             service as AnyType,
             'getMergeFieldTypesForQuery',
         ).mockResolvedValue(fieldTypes);
-        const runWarehouseQuery = vi
-            .spyOn(service, 'runAsyncWarehouseQuery')
-            .mockImplementation(async () => {
-                joinRan = true;
-            });
+        const runWarehouseQuery = vi.spyOn(service, 'runAsyncWarehouseQuery');
         const trackAccount = vi
             .spyOn(analyticsMock, 'trackAccount')
             .mockImplementation(() => {});
         return {
             service,
-            streamQuery,
             runWarehouseQuery,
             trackAccount,
             create: service.queryHistoryModel.create as import('vitest').Mock,
             update,
+            joinReady: () =>
+                update.mock.calls.find(
+                    ([queryUuid, , patch]) =>
+                        queryUuid === 'merge-query-uuid' &&
+                        patch.status === QueryHistoryStatus.READY,
+                )?.[2],
         };
     };
 
@@ -16616,7 +15931,10 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
         trackAccount: ReturnType<typeof buildService>['trackAccount'],
         count: number,
     ) =>
-        vi.waitFor(() => expect(mergeEvents(trackAccount)).toHaveLength(count));
+        vi.waitFor(
+            () => expect(mergeEvents(trackAccount)).toHaveLength(count),
+            { timeout: 20_000 },
+        );
 
     it.each([true, false])(
         'uses the trusted artifact scope for the merge claim and ignores a forged actor: %s',
@@ -16815,26 +16133,22 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
         expect(create).not.toHaveBeenCalled();
     });
 
-    it('runs the join in supplied mode: no column probe, and the compile-time columns reach execution unchanged', async () => {
-        const {
-            service,
-            streamQuery,
-            runWarehouseQuery,
-            create,
-            trackAccount,
-        } = buildService({ config: lightdashConfigMock, legRowCount: 2 });
+    it('runs the join in supplied mode: no column probe, and the compile-time columns reach the row unchanged', async () => {
+        const { service, create, trackAccount, joinReady } = buildService({
+            config: lightdashConfigMock,
+            legRowCount: 2,
+        });
 
         const outcome = await execute(service);
         if (outcome.outcome !== 'started') {
             throw new Error(`Expected the merge to start: ${outcome.outcome}`);
         }
-        await vi.waitFor(() =>
-            expect(runWarehouseQuery).toHaveBeenCalledTimes(1),
-        );
+        await vi.waitFor(() => expect(joinReady()).toBeDefined(), {
+            timeout: 20_000,
+        });
 
-        expect(streamQuery).not.toHaveBeenCalled();
-        const executed = runWarehouseQuery.mock.calls[0][0];
-        expect(executed.originalColumns).toEqual(
+        const ready = joinReady()!;
+        expect(ready.original_columns).toEqual(
             buildComposeMergeOriginalColumns({
                 typedColumns,
                 itemsMap,
@@ -16842,7 +16156,9 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
                 legReferenceBySourceId: legQueryUuidBySourceId,
             }),
         );
-        expect(executed.originalColumns?.a_orders_count).toMatchObject({
+        expect(
+            (ready.original_columns as ResultColumns).a_orders_count,
+        ).toMatchObject({
             label: 'Query A Orders',
             format: '#,##0',
             provenance: {
@@ -16850,18 +16166,13 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
                 sourceQueryUuid: legQueryUuidBySourceId.a,
             },
         });
-        expect(executed.originalColumns).toBe(
+        expect(ready.original_columns).toBe(
             create.mock.calls[0][1].originalColumns,
         );
-        expect(executed.fieldsMap).toEqual(outcome.query.fields);
-        expect(executed.query).toContain(
-            `read_json_auto('s3://results-bucket/${legQueryUuidBySourceId.a}.jsonl')`,
-        );
-        expect(executed.query).toContain(
-            `read_json_auto('s3://results-bucket/${legQueryUuidBySourceId.b}.jsonl')`,
-        );
+        expect(ready.fields).toEqual(outcome.query.fields);
+        expect(ready.total_row_count).toBe(2);
         await drainMergeEvents(trackAccount, 1);
-    });
+    }, 30_000);
 
     it('tracks the merge once it is ready, with leg cache hits and the merged row count', async () => {
         const { service, trackAccount } = buildService({
@@ -16871,8 +16182,9 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
 
         await execute(service);
 
-        await vi.waitFor(() =>
-            expect(mergeEvents(trackAccount)).toHaveLength(1),
+        await vi.waitFor(
+            () => expect(mergeEvents(trackAccount)).toHaveLength(1),
+            { timeout: 20_000 },
         );
         expect(mergeEvents(trackAccount)[0]).toEqual({
             event: 'merge_query.executed',
@@ -16915,18 +16227,14 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
     });
 
     it('refuses before the join when a leg reached the row cap, naming the source', async () => {
-        const {
-            service,
-            streamQuery,
-            runWarehouseQuery,
-            update,
-            trackAccount,
-        } = buildService({ config: cappedConfig, legRowCount: SOURCE_ROW_CAP });
+        const { service, runWarehouseQuery, update, trackAccount } =
+            buildService({ config: cappedConfig, legRowCount: SOURCE_ROW_CAP });
 
         await execute(service);
 
-        await vi.waitFor(() =>
-            expect(mergeEvents(trackAccount)).toHaveLength(1),
+        await vi.waitFor(
+            () => expect(mergeEvents(trackAccount)).toHaveLength(1),
+            { timeout: 20_000 },
         );
         expect(mergeEvents(trackAccount)[0]).toMatchObject({
             event: 'merge_query.refused',
@@ -16958,22 +16266,20 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
             expect.objectContaining({ status: QueryHistoryStatus.ERROR }),
             expect.anything(),
         );
-        expect(streamQuery).not.toHaveBeenCalled();
         expect(runWarehouseQuery).not.toHaveBeenCalled();
     });
 
     it('runs the join when every leg is under the row cap', async () => {
-        const { service, runWarehouseQuery, update, trackAccount } =
-            buildService({
-                config: cappedConfig,
-                legRowCount: SOURCE_ROW_CAP - 1,
-            });
+        const { service, joinReady, update, trackAccount } = buildService({
+            config: cappedConfig,
+            legRowCount: SOURCE_ROW_CAP - 1,
+        });
 
         await execute(service);
 
-        await vi.waitFor(() =>
-            expect(runWarehouseQuery).toHaveBeenCalledTimes(1),
-        );
+        await vi.waitFor(() => expect(joinReady()).toBeDefined(), {
+            timeout: 20_000,
+        });
         expect(update).not.toHaveBeenCalledWith(
             expect.anything(),
             expect.anything(),
@@ -17088,6 +16394,7 @@ describe('query sources carry the execution context', () => {
         invalidateCache: false,
         pivotConfiguration: null,
         plan: null,
+        sandboxLease: null,
     };
 
     const createSemanticLayerHarness = () => {
@@ -17702,474 +17009,6 @@ describe('executeAsyncMergeQuery over a result source', () => {
             expect(create).not.toHaveBeenCalled();
         },
     );
-});
-
-describe('DuckDB source queries on the worker', () => {
-    const suppliedPlan = () => ({
-        columns: {
-            mode: 'supplied' as const,
-            compose: () =>
-                ({
-                    getSql: () => 'SELECT * FROM merge_source_0',
-                    getFields: () => ({}),
-                    getUsedParameters: () => ({}),
-                    getMetricQuery: () => ({ exploreName: 'merge' }),
-                }) as unknown as QueryComposer,
-            originalColumns: {},
-            requestParameters: {
-                context: QueryExecutionContext.EXPLORE,
-                sql: 'SELECT * FROM merge_source_0',
-            },
-        },
-        engine: 'scopedToReferencedResults' as const,
-        guard: null,
-        referenceLabels: {},
-    });
-
-    const referencedQueryHistory = {
-        queryUuid: '0b7c9c62-4b6e-4b1a-9c3e-4f6a0c8d2e11',
-        projectUuid,
-        organizationUuid: projectSummary.organizationUuid,
-        createdByUserUuid: sessionAccount.user.id,
-        status: QueryHistoryStatus.READY,
-        columns: {},
-        metricQuery: { exploreName: 'orders' },
-    } as unknown as QueryHistory;
-
-    const buildWorkerService = (config: LightdashConfig) => {
-        const service = getMockedAsyncQueryService(config, {
-            composeEngineClient: {
-                createExecutionWarehouseClient: vi.fn(
-                    () => warehouseClientMock,
-                ),
-            } as unknown as ComposeEngineClient,
-            queryHistoryModel: inMemoryDuckdbHistory({
-                queryUuid: 'join-uuid',
-                account: sessionAccount,
-                overrides: {
-                    get: vi.fn(async () => referencedQueryHistory),
-                },
-            }),
-        } as never);
-        const runDuckdbQuery = vi
-            .spyOn(service as AnyType, 'runDuckdbQuery')
-            .mockResolvedValue(undefined);
-        return { service, runDuckdbQuery };
-    };
-
-    afterEach(() => {
-        vi.restoreAllMocks();
-    });
-
-    it('with the worker on, submit records the spec, hands the row to NATS and runs nothing itself', async () => {
-        const { service, runDuckdbQuery } = buildWorkerService({
-            ...lightdashConfigMock,
-            natsWorker: { ...lightdashConfigMock.natsWorker, enabled: true },
-        });
-
-        const submission = await service.executeAsyncDuckdbSourceQuery({
-            account: sessionAccount,
-            projectUuid,
-            context: QueryExecutionContext.EXPLORE,
-            sql: 'SELECT * FROM merge_source_0',
-            references: { merge_source_0: referencedQueryHistory.queryUuid },
-            plan: suppliedPlan(),
-        });
-
-        expect(submission.queryUuid).toBe('join-uuid');
-        const { setDuckdbExecution, updateStatusToQueued } =
-            service.queryHistoryModel as unknown as ReturnType<
-                typeof inMemoryDuckdbHistory
-            >;
-        const enqueue = service.natsClient
-            .enqueueDuckdbQuery as import('vitest').Mock;
-        expect(enqueue).toHaveBeenCalledWith({
-            queryUuid: 'join-uuid',
-            queryTags: expect.objectContaining({
-                user_uuid: sessionAccount.user.id,
-                project_uuid: projectUuid,
-            }),
-        });
-        // The spec is on the row before the worker can pick it up
-        expect(setDuckdbExecution.mock.invocationCallOrder[0]).toBeLessThan(
-            enqueue.mock.invocationCallOrder[0],
-        );
-        expect(updateStatusToQueued).toHaveBeenCalledWith('join-uuid');
-        expect(runDuckdbQuery).not.toHaveBeenCalled();
-    });
-
-    it('a failed hand-off errors the row instead of leaving it pending', async () => {
-        const { service, runDuckdbQuery } = buildWorkerService({
-            ...lightdashConfigMock,
-            natsWorker: { ...lightdashConfigMock.natsWorker, enabled: true },
-        });
-        (
-            service.natsClient.enqueueDuckdbQuery as import('vitest').Mock
-        ).mockRejectedValueOnce(new Error('NATS is down'));
-
-        await service.executeAsyncDuckdbSourceQuery({
-            account: sessionAccount,
-            projectUuid,
-            context: QueryExecutionContext.EXPLORE,
-            sql: 'SELECT * FROM merge_source_0',
-            references: { merge_source_0: referencedQueryHistory.queryUuid },
-            plan: suppliedPlan(),
-        });
-
-        expect(
-            service.queryHistoryModel.updateStatusToError,
-        ).toHaveBeenCalledWith(
-            'join-uuid',
-            projectUuid,
-            'Failed to enqueue DuckDB query: NATS is down',
-            sessionAccount,
-        );
-        expect(runDuckdbQuery).not.toHaveBeenCalled();
-    });
-
-    it('a hand-off no stream takes runs the query in this process instead', async () => {
-        const { service, runDuckdbQuery } = buildWorkerService({
-            ...lightdashConfigMock,
-            natsWorker: { ...lightdashConfigMock.natsWorker, enabled: true },
-        });
-        (
-            service.natsClient.enqueueDuckdbQuery as import('vitest').Mock
-        ).mockRejectedValueOnce(
-            new NatsNoRespondersError('pre_aggregate.duckdb.jobs'),
-        );
-
-        await service.executeAsyncDuckdbSourceQuery({
-            account: sessionAccount,
-            projectUuid,
-            context: QueryExecutionContext.EXPLORE,
-            sql: 'SELECT * FROM merge_source_0',
-            references: { merge_source_0: referencedQueryHistory.queryUuid },
-            plan: suppliedPlan(),
-        });
-
-        const model = service.queryHistoryModel as unknown as ReturnType<
-            typeof inMemoryDuckdbHistory
-        >;
-        expect(model.updateStatusToError).not.toHaveBeenCalled();
-        expect(model.updateStatusToQueued).not.toHaveBeenCalled();
-        await vi.waitFor(() => {
-            expect(model.updateStatusToExecuting).toHaveBeenCalledWith(
-                'join-uuid',
-            );
-            expect(runDuckdbQuery).toHaveBeenCalledTimes(1);
-        });
-    });
-
-    it('the worker rebuilds a queued run from the row and its spec alone', async () => {
-        const { service, runDuckdbQuery } =
-            buildWorkerService(lightdashConfigMock);
-        const model = service.queryHistoryModel as unknown as ReturnType<
-            typeof inMemoryDuckdbHistory
-        >;
-        // What the API process left behind: a queued row and its spec
-        model.getByQueryUuid.mockResolvedValue({
-            queryUuid: 'join-uuid',
-            projectUuid,
-            organizationUuid: projectSummary.organizationUuid,
-            status: QueryHistoryStatus.QUEUED,
-            createdAt: new Date(),
-            createdByUserUuid: sessionAccount.user.id,
-            createdByAccount: null,
-            createdByActorType: 'pat',
-            context: QueryExecutionContext.DASHBOARD,
-            compiledSql: 'SELECT * FROM merge_source_0',
-            cacheKey: 'row-cache-key',
-            fields: { a_orders_count: { type: MetricType.COUNT } },
-            originalColumns: {
-                a_orders_count: {
-                    reference: 'a_orders_count',
-                    type: DimensionType.NUMBER,
-                },
-            },
-            usedParameters: { region: 'EU' },
-            pivotConfiguration: null,
-            metricQuery: { exploreName: 'merge' },
-            requestParameters: {
-                context: QueryExecutionContext.DASHBOARD,
-                dashboardUuid: 'dashboard-uuid',
-            },
-        } as unknown as QueryHistory);
-        const guard = {
-            legLabelByReferenceTable: { merge_source_0: 'Query A' },
-            sourceRowCap: 3,
-        };
-        model.getDuckdbExecution.mockResolvedValue({
-            references: { merge_source_0: referencedQueryHistory.queryUuid },
-            engine: 'scopedToReferencedResults',
-            columns: { mode: 'supplied' },
-            guard,
-            storedCompiledSql: null,
-            referenceLabels: {},
-            invalidateCache: false,
-            cacheHit: false,
-            refusal: null,
-        });
-
-        const ran = await service.runAsyncDuckdbQueryFromHistory(
-            'join-uuid',
-            'nats-worker-1',
-        );
-
-        expect(ran).toBe(true);
-        expect(model.updateStatusToExecuting).toHaveBeenCalledWith('join-uuid');
-        expect(runDuckdbQuery).toHaveBeenCalledTimes(1);
-        const args = runDuckdbQuery.mock.calls[0][0] as RunDuckdbQueryArgs;
-        expect(args).toMatchObject({
-            actor: {
-                userUuid: sessionAccount.user.id,
-                isRegisteredUser: true,
-                isServiceAccount: false,
-            },
-            projectUuid,
-            organizationUuid: projectSummary.organizationUuid,
-            queryUuid: 'join-uuid',
-            sql: 'SELECT * FROM merge_source_0',
-            engine: { kind: 'scopedToReferencedResults' },
-            columns: {
-                mode: 'supplied',
-                fieldsMap: { a_orders_count: { type: MetricType.COUNT } },
-                usedParameters: { region: 'EU' },
-                pivotConfiguration: undefined,
-            },
-            cacheKey: 'row-cache-key',
-            context: QueryExecutionContext.DASHBOARD,
-            queryTags: expect.objectContaining({
-                user_uuid: sessionAccount.user.id,
-                dashboard_uuid: 'dashboard-uuid',
-            }),
-        });
-        // The guard is rebuilt from data and refuses a leg over the cap
-        if (args.references.kind !== 'queries' || !args.references.guard) {
-            throw new Error('Expected a guarded query reference');
-        }
-        const rebuiltGuard = args.references.guard;
-        expect(
-            rebuiltGuard({
-                merge_source_0: {
-                    ...referencedQueryHistory,
-                    totalRowCount: 3,
-                } as QueryHistory,
-            }),
-        ).toContain('Query A');
-        expect(
-            rebuiltGuard({
-                merge_source_0: {
-                    ...referencedQueryHistory,
-                    totalRowCount: 2,
-                } as QueryHistory,
-            }),
-        ).toBeNull();
-    });
-
-    it('a discover run rebuilds its column probe on a scoped session', async () => {
-        const createExecutionWarehouseClient = vi.fn(() => warehouseClientMock);
-        const service = getMockedAsyncQueryService(lightdashConfigMock, {
-            composeEngineClient: {
-                createExecutionWarehouseClient,
-            } as unknown as ComposeEngineClient,
-            queryHistoryModel: inMemoryDuckdbHistory({
-                queryUuid: 'compose-uuid',
-                account: sessionAccount,
-            }),
-        } as never);
-        const runDuckdbQuery = vi
-            .spyOn(service as AnyType, 'runDuckdbQuery')
-            .mockResolvedValue(undefined);
-        const model = service.queryHistoryModel as unknown as ReturnType<
-            typeof inMemoryDuckdbHistory
-        >;
-        model.getByQueryUuid.mockResolvedValue({
-            queryUuid: 'compose-uuid',
-            projectUuid,
-            organizationUuid: projectSummary.organizationUuid,
-            status: QueryHistoryStatus.QUEUED,
-            createdAt: new Date(),
-            createdByUserUuid: sessionAccount.user.id,
-            createdByAccount: null,
-            createdByActorType: 'session',
-            context: QueryExecutionContext.SQL_RUNNER,
-            compiledSql: 'SELECT one FROM orders',
-            cacheKey: 'row-cache-key',
-            fields: {},
-            metricQuery: { exploreName: 'sql_runner' },
-            requestParameters: {
-                context: QueryExecutionContext.SQL_RUNNER,
-                sql: 'SELECT one FROM orders',
-            },
-        } as unknown as QueryHistory);
-        model.getDuckdbExecution.mockResolvedValue({
-            references: { orders: referencedQueryHistory.queryUuid },
-            engine: 'scopedToReferencedResults',
-            columns: { mode: 'discover', limit: 10, parameters: { p: '1' } },
-            guard: null,
-            storedCompiledSql: null,
-            referenceLabels: {},
-            invalidateCache: false,
-            cacheHit: false,
-            refusal: null,
-        });
-
-        await service.runAsyncDuckdbQueryFromHistory(
-            'compose-uuid',
-            'nats-worker-1',
-        );
-
-        // The rebuild never opens the shared session: the run scopes its own
-        expect(createExecutionWarehouseClient).not.toHaveBeenCalled();
-        expect(runDuckdbQuery.mock.calls[0][0]).toMatchObject({
-            columns: { mode: 'discover', limit: 10, parameters: { p: '1' } },
-            engine: { kind: 'scopedToReferencedResults' },
-            references: {
-                kind: 'queries',
-                references: { orders: referencedQueryHistory.queryUuid },
-                guard: null,
-            },
-        });
-    });
-
-    it('a rebuild that fails after the claim marks the row errored instead of leaving it executing', async () => {
-        const { service, runDuckdbQuery } =
-            buildWorkerService(lightdashConfigMock);
-        const model = service.queryHistoryModel as unknown as ReturnType<
-            typeof inMemoryDuckdbHistory
-        >;
-        model.getByQueryUuid.mockResolvedValue({
-            queryUuid: 'join-uuid',
-            projectUuid,
-            organizationUuid: projectSummary.organizationUuid,
-            status: QueryHistoryStatus.QUEUED,
-            createdAt: new Date(),
-            createdByUserUuid: sessionAccount.user.id,
-            createdByAccount: null,
-            createdByActorType: 'session',
-            context: QueryExecutionContext.EXPLORE,
-            compiledSql: 'SELECT 1',
-            metricQuery: { exploreName: 'merge' },
-        } as unknown as QueryHistory);
-        // The spec is gone: nothing to rebuild from
-        model.getDuckdbExecution.mockResolvedValue(null);
-
-        await expect(
-            service.runAsyncDuckdbQueryFromHistory(
-                'join-uuid',
-                'nats-worker-1',
-            ),
-        ).rejects.toThrow(NotFoundError);
-
-        expect(model.updateStatusToExecuting).toHaveBeenCalledWith('join-uuid');
-        expect(model.updateStatusToError).toHaveBeenCalledWith(
-            'join-uuid',
-            projectUuid,
-            expect.stringContaining('DuckDB execution spec not found'),
-            expect.objectContaining({ user: { id: sessionAccount.user.id } }),
-        );
-        expect(runDuckdbQuery).not.toHaveBeenCalled();
-    });
-
-    it('a DuckDB row queued behind its legs is claimed past the ordinary queue timeout, and expires past their wait', async () => {
-        const queued = (ageMs: number) =>
-            ({
-                queryUuid: 'join-uuid',
-                projectUuid,
-                organizationUuid: projectSummary.organizationUuid,
-                status: QueryHistoryStatus.QUEUED,
-                createdAt: new Date(Date.now() - ageMs),
-                createdByUserUuid: sessionAccount.user.id,
-                createdByAccount: null,
-                createdByActorType: 'session',
-                context: QueryExecutionContext.EXPLORE,
-                compiledSql: 'SELECT * FROM merge_source_0',
-                cacheKey: 'row-cache-key',
-                fields: {},
-                originalColumns: {},
-                usedParameters: null,
-                pivotConfiguration: null,
-                metricQuery: { exploreName: 'merge' },
-                requestParameters: {
-                    context: QueryExecutionContext.EXPLORE,
-                    sql: 'SELECT * FROM merge_source_0',
-                },
-            }) as unknown as QueryHistory;
-        const spec = {
-            references: { merge_source_0: referencedQueryHistory.queryUuid },
-            engine: 'scopedToReferencedResults' as const,
-            columns: { mode: 'supplied' as const },
-            guard: null,
-            storedCompiledSql: null,
-            referenceLabels: {},
-            invalidateCache: false,
-            cacheHit: false,
-            refusal: null,
-        };
-        const { queueTimeoutMs } = lightdashConfigMock.natsWorker;
-        const referenceWaitMs = 15 * 60 * 1000;
-
-        const behindLegs = buildWorkerService(lightdashConfigMock);
-        const behindLegsModel = behindLegs.service
-            .queryHistoryModel as unknown as ReturnType<
-            typeof inMemoryDuckdbHistory
-        >;
-        behindLegsModel.getByQueryUuid.mockResolvedValue(
-            queued(queueTimeoutMs + 60_000),
-        );
-        behindLegsModel.getDuckdbExecution.mockResolvedValue(spec);
-        expect(
-            await behindLegs.service.runAsyncDuckdbQueryFromHistory(
-                'join-uuid',
-                'nats-worker-1',
-            ),
-        ).toBe(true);
-        expect(behindLegs.runDuckdbQuery).toHaveBeenCalledTimes(1);
-        expect(behindLegsModel.updateStatusToExpired).not.toHaveBeenCalled();
-
-        const stale = buildWorkerService(lightdashConfigMock);
-        const staleModel = stale.service
-            .queryHistoryModel as unknown as ReturnType<
-            typeof inMemoryDuckdbHistory
-        >;
-        staleModel.getByQueryUuid.mockResolvedValue(
-            queued(queueTimeoutMs + referenceWaitMs + 60_000),
-        );
-        staleModel.getDuckdbExecution.mockResolvedValue(spec);
-        expect(
-            await stale.service.runAsyncDuckdbQueryFromHistory(
-                'join-uuid',
-                'nats-worker-1',
-            ),
-        ).toBe(false);
-        expect(staleModel.updateStatusToExpired).toHaveBeenCalledWith(
-            'join-uuid',
-            expect.any(String),
-        );
-        expect(stale.runDuckdbQuery).not.toHaveBeenCalled();
-    });
-
-    it('skips a row another worker already took', async () => {
-        const { service, runDuckdbQuery } =
-            buildWorkerService(lightdashConfigMock);
-        const model = service.queryHistoryModel as unknown as ReturnType<
-            typeof inMemoryDuckdbHistory
-        >;
-        model.getByQueryUuid.mockResolvedValue({
-            queryUuid: 'join-uuid',
-            status: QueryHistoryStatus.EXECUTING,
-            createdAt: new Date(),
-        } as unknown as QueryHistory);
-
-        const ran = await service.runAsyncDuckdbQueryFromHistory(
-            'join-uuid',
-            'nats-worker-2',
-        );
-
-        expect(ran).toBe(false);
-        expect(runDuckdbQuery).not.toHaveBeenCalled();
-        expect(model.getDuckdbExecution).not.toHaveBeenCalled();
-    });
 });
 
 describe('chart embed token query history access', () => {
@@ -20718,6 +19557,7 @@ describe('fresh stored result read boundary', () => {
         vi.mocked(f.service.getUserAttributes).mockClear();
         await f.service['bindDuckdbQueryReferences']({
             projectUuid,
+            queryUuid: f.history.queryUuid,
             organizationUuid: projectSummary.organizationUuid,
             actor: {
                 userUuid: f.account.user.id,
@@ -20727,7 +19567,6 @@ describe('fresh stored result read boundary', () => {
             agentIdentity: null,
             authMethod: 'session',
             references: {
-                kind: 'queries',
                 references: Object.fromEntries(
                     Object.keys(completed).map((alias) => [
                         alias,
@@ -20980,23 +19819,36 @@ describe('fresh stored result read boundary', () => {
                     f.service as unknown as {
                         buildQueryReferenceCtes: (
                             completed: Record<string, QueryHistory>,
-                        ) => {
-                            referenceCtes: string[];
-                            resultFileUris: string[];
-                        };
+                        ) => BoundDuckdbQueryReferences;
                     },
                     'buildQueryReferenceCtes',
                 )
                 .mockReturnValue({
                     referenceCtes: [],
                     resultFileUris: ['s3://bucket/private-result.jsonl'],
+                    inputs: [],
                 });
-            const runWarehouse = vi
-                .spyOn(f.service, 'runAsyncWarehouseQuery')
-                .mockResolvedValue(undefined);
-            const args: RunDuckdbQueryArgs = {
+            vi.spyOn(
+                f.service as AnyType,
+                'getDuckdbSandboxRunner',
+            ).mockReturnValue({ version: 'test-runner' });
+            // Stops the run once the references are bound and authorized
+            const readInputs = vi
+                .spyOn(f.service as AnyType, 'readDuckdbSandboxInputs')
+                .mockRejectedValue(new Error('inputs read'));
+            const args: RunDuckdbSandboxQueryArgs = {
+                sandboxLease: null,
                 authMethod: 'session',
                 agentIdentity: change === 'agent rule' ? reader.claim : null,
+                identityEnabled: enabled,
+                resultProducer: {
+                    entitlementFingerprint: null,
+                    version: 1,
+                    warehouseConnectionUuid: null,
+                    credentialOwner: { kind: 'derived' },
+                    authMethod: 'session',
+                    agentIdentity: null,
+                },
                 actor: {
                     userUuid: f.account.user.id,
                     isRegisteredUser: true,
@@ -21010,7 +19862,6 @@ describe('fresh stored result read boundary', () => {
                 queryUuid: 'compose-uuid',
                 sql: 'SELECT * FROM source',
                 references: {
-                    kind: 'queries',
                     references: { source: f.history.queryUuid },
                     guard: null,
                     labelByTable: {},
@@ -21022,17 +19873,14 @@ describe('fresh stored result read boundary', () => {
                     originalColumns: {},
                     pivotConfiguration: undefined,
                 },
-                storedCompiledSql: null,
-                engine: {
-                    kind: 'client',
-                    warehouseClient: warehouseClientMock,
-                },
                 queryTags: { query_context: QueryExecutionContext.EXPLORE },
                 queryCreatedAt: new Date(),
-                cacheKey: 'key',
                 context: QueryExecutionContext.EXPLORE,
             };
-            const run = f.service['runDuckdbQuery'](args);
+            const claim = f.service
+                .createDuckdbSandboxLease({ projectUuid, nodeCount: 1 })
+                .claim(args.queryUuid);
+            const run = f.service['runDuckdbSandboxQueryInScope'](args, claim);
             await vi.waitFor(() => expect(poll).toHaveBeenCalledOnce());
             expect(bind).not.toHaveBeenCalled();
             if (change === 'access') {
@@ -21045,7 +19893,7 @@ describe('fresh stored result read boundary', () => {
             await run;
             if (enabled && change !== 'none') {
                 expect(bind).not.toHaveBeenCalled();
-                expect(runWarehouse).not.toHaveBeenCalled();
+                expect(readInputs).not.toHaveBeenCalled();
                 expect(f.service.queryHistoryModel.update).toHaveBeenCalledWith(
                     'compose-uuid',
                     projectUuid,
@@ -21064,7 +19912,7 @@ describe('fresh stored result read boundary', () => {
                 );
             } else {
                 expect(bind).toHaveBeenCalledOnce();
-                expect(runWarehouse).toHaveBeenCalledOnce();
+                expect(readInputs).toHaveBeenCalledOnce();
                 expect(f.reload).toHaveBeenCalledTimes(enabled ? 1 : 0);
             }
         },
@@ -21730,10 +20578,12 @@ describe('fresh execution producer to result reader', () => {
             getByQueryUuid: vi.fn(async (uuid: string) => rows.get(uuid)),
             pollForQueryCompletion: vi.fn(
                 async ({ queryUuid: uuid }: { queryUuid: string }) => {
-                    await vi.waitFor(() =>
-                        expect(rows.get(uuid)!.status).toBe(
-                            QueryHistoryStatus.READY,
-                        ),
+                    await vi.waitFor(
+                        () =>
+                            expect(rows.get(uuid)!.status).toBe(
+                                QueryHistoryStatus.READY,
+                            ),
+                        { timeout: 20_000 },
                     );
                     return rows.get(uuid);
                 },
@@ -21959,12 +20809,23 @@ describe('fresh execution producer to result reader', () => {
         ).mockImplementation((fileName) => {
             const contents: Record<string, unknown>[] = [];
             uploads.set(fileName, contents);
+            const writeStream = new PassThrough();
+            // A sandbox result is uploaded as the JSONL bytes it produced
+            writeStream.on('data', (bytes: Buffer) => {
+                contents.push(
+                    ...bytes
+                        .toString('utf8')
+                        .split('\n')
+                        .filter(Boolean)
+                        .map((line) => JSON.parse(line)),
+                );
+            });
             return {
                 write: async (chunk) => {
                     contents.push(...chunk);
                 },
                 close: async () => {},
-                writeStream: new PassThrough(),
+                writeStream,
             };
         });
         vi.mocked(
@@ -22029,10 +20890,13 @@ describe('fresh execution producer to result reader', () => {
         f: ReturnType<typeof setup>,
         queryUuid: string,
     ) => {
-        await vi.waitFor(() =>
-            expect(f.rows.get(queryUuid)!.status).toBe(
-                QueryHistoryStatus.READY,
-            ),
+        // DuckDB roots run in a local sandbox process, so allow it a moment
+        await vi.waitFor(
+            () =>
+                expect(f.rows.get(queryUuid)!.status).toBe(
+                    QueryHistoryStatus.READY,
+                ),
+            { timeout: 20_000 },
         );
         const read = () =>
             f.service.getAsyncQueryResults({
@@ -22709,10 +21573,12 @@ describe('fresh execution producer to result reader', () => {
                     : {}),
                 invalidateCache: true,
             });
-            await vi.waitFor(() =>
-                expect(f.rows.get(r.queryUuid)!.status).toBe(
-                    QueryHistoryStatus.READY,
-                ),
+            await vi.waitFor(
+                () =>
+                    expect(f.rows.get(r.queryUuid)!.status).toBe(
+                        QueryHistoryStatus.READY,
+                    ),
+                { timeout: 20_000 },
             );
             if (kind === 'materialization')
                 expect(preparation).not.toHaveBeenCalled();
@@ -22853,10 +21719,12 @@ describe('fresh execution producer to result reader', () => {
             context: QueryExecutionContext.EXPLORE,
             invalidateCache: true,
         });
-        await vi.waitFor(() =>
-            expect(f.rows.get(r.queryUuid)!.status).toBe(
-                QueryHistoryStatus.READY,
-            ),
+        await vi.waitFor(
+            () =>
+                expect(f.rows.get(r.queryUuid)!.status).toBe(
+                    QueryHistoryStatus.READY,
+                ),
+            { timeout: 20_000 },
         );
         const read = () =>
             f.service.getAsyncQueryResults({
@@ -22987,10 +21855,12 @@ describe('fresh execution producer to result reader', () => {
             context: QueryExecutionContext.EXPLORE,
             invalidateCache: true,
         });
-        await vi.waitFor(() =>
-            expect(f.rows.get(result.queryUuid)!.status).toBe(
-                QueryHistoryStatus.READY,
-            ),
+        await vi.waitFor(
+            () =>
+                expect(f.rows.get(result.queryUuid)!.status).toBe(
+                    QueryHistoryStatus.READY,
+                ),
+            { timeout: 20_000 },
         );
         const stored = f.rows.get(result.queryUuid)!;
         expect(stored.preAggregateExecution).toBe('project_warehouse');
@@ -23515,8 +22385,9 @@ describe('fresh execution producer to result reader', () => {
                     });
             } else {
                 let sql = 'SELECT * FROM source';
+                // Quoted, so the attribute reference is SQL DuckDB can run
                 if (kind === 'own SQL')
-                    sql = 'SELECT ${ld.attr.region} AS value FROM source';
+                    sql = "SELECT '${ld.attr.region}' AS value FROM source";
                 if (kind === 'malformed')
                     sql =
                         "SELECT '${lightdash.attributes.region' AS value FROM source";
@@ -23829,10 +22700,12 @@ describe('fresh execution producer to result reader', () => {
                     metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
                 });
-                await vi.waitFor(() =>
-                    expect(f.rows.get(result.queryUuid)!.status).toBe(
-                        QueryHistoryStatus.READY,
-                    ),
+                await vi.waitFor(
+                    () =>
+                        expect(f.rows.get(result.queryUuid)!.status).toBe(
+                            QueryHistoryStatus.READY,
+                        ),
+                    { timeout: 20_000 },
                 );
                 const first = await load();
                 const credentialSelections = () =>
@@ -24212,10 +23085,12 @@ describe('fresh execution producer to result reader', () => {
                 parameters,
                 context: QueryExecutionContext.EXPLORE,
             });
-            await vi.waitFor(() =>
-                expect(f.rows.get(result.queryUuid)!.status).toBe(
-                    QueryHistoryStatus.READY,
-                ),
+            await vi.waitFor(
+                () =>
+                    expect(f.rows.get(result.queryUuid)!.status).toBe(
+                        QueryHistoryStatus.READY,
+                    ),
+                { timeout: 20_000 },
             );
             const read = () =>
                 f.service.getAsyncQueryResults({
@@ -24371,10 +23246,12 @@ describe('fresh execution producer to result reader', () => {
                     metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
                 });
-                await vi.waitFor(() =>
-                    expect(f.rows.get(result.queryUuid)!.status).toBe(
-                        QueryHistoryStatus.READY,
-                    ),
+                await vi.waitFor(
+                    () =>
+                        expect(f.rows.get(result.queryUuid)!.status).toBe(
+                            QueryHistoryStatus.READY,
+                        ),
+                    { timeout: 20_000 },
                 );
                 expect((await read(result.queryUuid)).status).toBe(
                     QueryHistoryStatus.READY,
@@ -24387,10 +23264,12 @@ describe('fresh execution producer to result reader', () => {
                         context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
                         filters: {},
                     });
-                await vi.waitFor(() =>
-                    expect(f.rows.get(underlying.queryUuid)!.status).toBe(
-                        QueryHistoryStatus.READY,
-                    ),
+                await vi.waitFor(
+                    () =>
+                        expect(f.rows.get(underlying.queryUuid)!.status).toBe(
+                            QueryHistoryStatus.READY,
+                        ),
+                    { timeout: 20_000 },
                 );
                 expect((await read(underlying.queryUuid)).status).toBe(
                     QueryHistoryStatus.READY,
@@ -24745,10 +23624,12 @@ describe('fresh execution producer to result reader', () => {
                           invalidateCache: true,
                       })
                     : await runMetric();
-                await vi.waitFor(() =>
-                    expect(rows.get(source.queryUuid)!.status).toBe(
-                        QueryHistoryStatus.READY,
-                    ),
+                await vi.waitFor(
+                    () =>
+                        expect(rows.get(source.queryUuid)!.status).toBe(
+                            QueryHistoryStatus.READY,
+                        ),
+                    { timeout: 20_000 },
                 );
                 if (entry === 'underlying data')
                     result = await service.executeAsyncUnderlyingDataQuery({
@@ -24839,11 +23720,13 @@ describe('fresh execution producer to result reader', () => {
                     run(result.queryUuid, 'regression-test'),
                 ).resolves.toBe(true);
             }
-            await vi.waitFor(() =>
-                expect({
-                    status: rows.get(result.queryUuid)!.status,
-                    error: rows.get(result.queryUuid)!.error,
-                }).toMatchObject({ status: QueryHistoryStatus.READY }),
+            await vi.waitFor(
+                () =>
+                    expect({
+                        status: rows.get(result.queryUuid)!.status,
+                        error: rows.get(result.queryUuid)!.error,
+                    }).toMatchObject({ status: QueryHistoryStatus.READY }),
+                { timeout: 20_000 },
             );
             if (entry === 'curated field values')
                 expect(execute).not.toHaveBeenCalled();
@@ -24950,10 +23833,12 @@ describe('fresh execution producer to result reader', () => {
             querySurface,
             invalidateCache: true,
         });
-        await vi.waitFor(() =>
-            expect(f.rows.get(result.queryUuid)!.status).toBe(
-                QueryHistoryStatus.READY,
-            ),
+        await vi.waitFor(
+            () =>
+                expect(f.rows.get(result.queryUuid)!.status).toBe(
+                    QueryHistoryStatus.READY,
+                ),
+            { timeout: 20_000 },
         );
         return result;
     };
@@ -25173,10 +24058,12 @@ describe('fresh execution producer to result reader', () => {
                         : QueryExecutionContext.MCP_RUN_SQL,
                     invalidateCache: true,
                 });
-                await vi.waitFor(() =>
-                    expect(f.rows.get(query.queryUuid)!.status).toBe(
-                        QueryHistoryStatus.READY,
-                    ),
+                await vi.waitFor(
+                    () =>
+                        expect(f.rows.get(query.queryUuid)!.status).toBe(
+                            QueryHistoryStatus.READY,
+                        ),
+                    { timeout: 20_000 },
                 );
                 return query;
             });
@@ -26219,10 +25106,12 @@ describe('fresh execution producer to result reader', () => {
                 getAiDeepResearchService: () => deep,
             } as never);
             if (!enabled) {
-                await vi.waitFor(() =>
-                    expect(f.rows.get(result.query.queryUuid)!.status).toBe(
-                        QueryHistoryStatus.READY,
-                    ),
+                await vi.waitFor(
+                    () =>
+                        expect(f.rows.get(result.query.queryUuid)!.status).toBe(
+                            QueryHistoryStatus.READY,
+                        ),
+                    { timeout: 20_000 },
                 );
                 expect(
                     f.rows.get(result.query.queryUuid)!.agentIdentity,
@@ -26617,7 +25506,7 @@ describe('fresh execution producer to result reader', () => {
     };
 
     test.each(
-        (['warehouse', 'pre-aggregate', 'duckdb'] as const).flatMap((kind) =>
+        (['warehouse', 'pre-aggregate'] as const).flatMap((kind) =>
             [
                 'claim validation',
                 'rebuild history',
@@ -26626,9 +25515,9 @@ describe('fresh execution producer to result reader', () => {
                 'wrapper history',
                 'wrapper validation',
                 'result access',
-                ...(kind === 'duckdb'
-                    ? ['duckdb spec']
-                    : ['overrides', 'override lookup', 'executor flag']),
+                'overrides',
+                'override lookup',
+                'executor flag',
             ].map((failure) => ({ kind, failure })),
         ),
     )(
@@ -26645,23 +25534,6 @@ describe('fresh execution producer to result reader', () => {
                 row.preAggregateCompiledSql = 'SELECT 999';
                 const error = new Error(`failed ${failure}`);
                 f.execute.mockClear();
-                const duckdb = vi.spyOn(
-                    f.service,
-                    'runDuckdbQueryInScope' as never,
-                );
-                vi.mocked(
-                    f.service.queryHistoryModel.getDuckdbExecution,
-                ).mockResolvedValue({
-                    invalidateCache: true,
-                    references: {},
-                    guard: null,
-                    columns: { mode: 'supplied' },
-                    storedCompiledSql: 'SELECT 1',
-                    engine: 'scopedToReferencedResults',
-                    cacheHit: false,
-                    refusal: null,
-                    referenceLabels: {},
-                });
                 const validation = vi.spyOn(
                     f.service.aiAccessService,
                     'assertQueryConnectionExecution',
@@ -26711,10 +25583,6 @@ describe('fresh execution producer to result reader', () => {
                         f.service.projectModel.getExploreFromCache,
                     ).mockRejectedValueOnce(error);
                 }
-                if (failure === 'duckdb spec')
-                    vi.mocked(
-                        f.service.queryHistoryModel.getDuckdbExecution,
-                    ).mockRejectedValueOnce(error);
                 if (failure === 'result access')
                     vi.spyOn(
                         f.service,
@@ -26761,7 +25629,6 @@ describe('fresh execution producer to result reader', () => {
                 expect(row.status).toBe(QueryHistoryStatus.ERROR);
                 expect(row.error).toBe(error.message);
                 expect(f.execute).not.toHaveBeenCalled();
-                expect(duckdb).not.toHaveBeenCalled();
                 expect(message.term).toHaveBeenCalledOnce();
                 expect(message.nak).not.toHaveBeenCalled();
                 expect(message.ack).not.toHaveBeenCalled();
@@ -27554,38 +26421,6 @@ describe('fresh execution producer to result reader', () => {
         });
     });
 
-    test('pivot preflight rechecks a ready source before probing its file', async () => {
-        await boundFixture(async (f, auth, queryUuid) => {
-            const probe = vi.fn(async () => []);
-            Object.assign(f.service, { probeDuckdbQueryColumns: probe });
-            Object.assign(auth.grant, { revokedAt: new Date() });
-            await expect(
-                f.service['preflightDiscoveredPivot']({
-                    account: auth.req.account!,
-                    projectUuid,
-                    sql: 'SELECT * FROM source',
-                    limit: 10,
-                    references: { source: queryUuid },
-                    parameters: {},
-                    pivotConfiguration: {
-                        indexColumn: {
-                            reference: 'value',
-                            type: VizIndexType.CATEGORY,
-                        },
-                        groupByColumns: [],
-                        sortBy: [],
-                        valuesColumns: [],
-                    },
-                    warehouseClient: f.client,
-                    queryTags: {
-                        query_context: QueryExecutionContext.COMPOSE_SQL_RUNNER,
-                    },
-                }),
-            ).rejects.toThrow();
-            expect(probe).not.toHaveBeenCalled();
-        });
-    });
-
     test('an authenticated connection produces and reads its result across refresh and refuses person reads in both directions', async () => {
         const auth = setupGrantAuthentication({
             ...defaultSessionUser,
@@ -27724,10 +26559,12 @@ describe('fresh execution producer to result reader', () => {
                 querySurface: QuerySurface.CLI,
                 invalidateCache: true,
             });
-            await vi.waitFor(() =>
-                expect(f.rows.get(result.queryUuid)!.status).toBe(
-                    QueryHistoryStatus.READY,
-                ),
+            await vi.waitFor(
+                () =>
+                    expect(f.rows.get(result.queryUuid)!.status).toBe(
+                        QueryHistoryStatus.READY,
+                    ),
+                { timeout: 20_000 },
             );
             expect(resolve.mock.results).not.toHaveLength(0);
             const plans = await Promise.all(
@@ -27768,10 +26605,12 @@ describe('fresh execution producer to result reader', () => {
                 header: vi.fn(),
             } as unknown as express.Request,
         );
-        await vi.waitFor(() =>
-            expect(f.rows.get(response.results.queryUuid)!.status).toBe(
-                QueryHistoryStatus.READY,
-            ),
+        await vi.waitFor(
+            () =>
+                expect(f.rows.get(response.results.queryUuid)!.status).toBe(
+                    QueryHistoryStatus.READY,
+                ),
+            { timeout: 20_000 },
         );
         const plans = await Promise.all(
             resolve.mock.results.map(({ value }) => value),
@@ -28003,10 +26842,12 @@ describe('fresh execution producer to result reader', () => {
                     return outcome.query;
                 },
             );
-            await vi.waitFor(() =>
-                expect(f.rows.get(result.queryUuid)!.status).toBe(
-                    QueryHistoryStatus.READY,
-                ),
+            await vi.waitFor(
+                () =>
+                    expect(f.rows.get(result.queryUuid)!.status).toBe(
+                        QueryHistoryStatus.READY,
+                    ),
+                { timeout: 20_000 },
             );
             vi.mocked(
                 f.service.resultsStorageClient.getDownloadStream,
@@ -28045,10 +26886,12 @@ describe('fresh execution producer to result reader', () => {
                 } as unknown as express.Request,
             );
             const { queryUuid } = response.results;
-            await vi.waitFor(() =>
-                expect(f.rows.get(queryUuid)!.status).toBe(
-                    QueryHistoryStatus.READY,
-                ),
+            await vi.waitFor(
+                () =>
+                    expect(f.rows.get(queryUuid)!.status).toBe(
+                        QueryHistoryStatus.READY,
+                    ),
+                { timeout: 20_000 },
             );
             expect(f.rows.get(queryUuid)!.agentIdentity).toBeNull();
             expect(
@@ -28083,10 +26926,12 @@ describe('fresh execution producer to result reader', () => {
                         invalidateCache: true,
                     }),
             );
-            await vi.waitFor(() =>
-                expect(f.rows.get(source.queryUuid)!.status).toBe(
-                    QueryHistoryStatus.READY,
-                ),
+            await vi.waitFor(
+                () =>
+                    expect(f.rows.get(source.queryUuid)!.status).toBe(
+                        QueryHistoryStatus.READY,
+                    ),
+                { timeout: 20_000 },
             );
             f.execute.mockClear();
             vi.mocked(
@@ -28103,10 +26948,12 @@ describe('fresh execution producer to result reader', () => {
                     source.queryUuid,
                 );
                 expect(fresh.queryUuid).not.toBe(source.queryUuid);
-                await vi.waitFor(() =>
-                    expect(f.rows.get(fresh.queryUuid)!.status).toBe(
-                        QueryHistoryStatus.READY,
-                    ),
+                await vi.waitFor(
+                    () =>
+                        expect(f.rows.get(fresh.queryUuid)!.status).toBe(
+                            QueryHistoryStatus.READY,
+                        ),
+                    { timeout: 20_000 },
                 );
                 expect(
                     f.rows.get(fresh.queryUuid)!.requestParameters
@@ -28159,10 +27006,12 @@ describe('fresh execution producer to result reader', () => {
                 });
             },
         );
-        await vi.waitFor(() =>
-            expect(f.rows.get(root.queryUuid)!.status).toBe(
-                QueryHistoryStatus.READY,
-            ),
+        await vi.waitFor(
+            () =>
+                expect(f.rows.get(root.queryUuid)!.status).toBe(
+                    QueryHistoryStatus.READY,
+                ),
+            { timeout: 20_000 },
         );
         f.rows.get(
             root.queryUuid,
@@ -28187,10 +27036,12 @@ describe('fresh execution producer to result reader', () => {
             querySurface: QuerySurface.MCP,
             invalidateCache: true,
         });
-        await vi.waitFor(() =>
-            expect(f.rows.get(result.queryUuid)!.status).toBe(
-                QueryHistoryStatus.READY,
-            ),
+        await vi.waitFor(
+            () =>
+                expect(f.rows.get(result.queryUuid)!.status).toBe(
+                    QueryHistoryStatus.READY,
+                ),
+            { timeout: 20_000 },
         );
         expect(f.rows.get(result.queryUuid)!.agentIdentity).toBeNull();
         expect(

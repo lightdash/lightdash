@@ -31,7 +31,6 @@ const jobMessage = (subject: string): JsMsg =>
 describe('NatsWorker subject dispatch', () => {
     const asyncQueryService = {
         runAsyncWarehouseQueryFromHistory: vi.fn(async () => true),
-        runAsyncDuckdbQueryFromHistory: vi.fn(async () => true),
         runAsyncPreAggregateQueryFromHistory: vi.fn(async () => true),
     };
     const queryHistoryModel = {
@@ -57,53 +56,12 @@ describe('NatsWorker subject dispatch', () => {
         registerPreAggregateStream();
     });
 
-    it('runs a DuckDB job published on the dedicated DuckDB stream', async () => {
-        const message = jobMessage(STREAM_CONFIGS.duckdb.subjects.query);
-
-        await buildWorker().handleMessage(message, 'worker-1');
-
-        expect(
-            asyncQueryService.runAsyncDuckdbQueryFromHistory,
-        ).toHaveBeenCalledWith(
-            'query-1',
-            'worker-1',
-            undefined,
-            expect.any(Function),
-        );
-        expect(message.ack).toHaveBeenCalled();
-    });
-
-    it('runs a DuckDB job that rode the pre-aggregate stream', async () => {
-        const message = jobMessage(
-            STREAM_CONFIGS['pre-aggregate'].subjects.duckdb,
-        );
-
-        await buildWorker().handleMessage(message, 'worker-1');
-
-        expect(
-            asyncQueryService.runAsyncDuckdbQueryFromHistory,
-        ).toHaveBeenCalledWith(
-            'query-1',
-            'worker-1',
-            undefined,
-            expect.any(Function),
-        );
-        expect(
-            asyncQueryService.runAsyncPreAggregateQueryFromHistory,
-        ).not.toHaveBeenCalled();
-        expect(message.ack).toHaveBeenCalled();
-    });
-
-    it.each(['warehouse', 'duckdb', 'pre-aggregate'] as const)(
+    it.each(['warehouse', 'pre-aggregate'] as const)(
         'terminates a claimed %s refusal without retrying',
         async (kind) => {
-            const message = jobMessage(
-                STREAM_CONFIGS[kind === 'warehouse' ? 'warehouse' : kind]
-                    .subjects.query,
-            );
+            const message = jobMessage(STREAM_CONFIGS[kind].subjects.query);
             const runner = {
                 warehouse: asyncQueryService.runAsyncWarehouseQueryFromHistory,
-                duckdb: asyncQueryService.runAsyncDuckdbQueryFromHistory,
                 'pre-aggregate':
                     asyncQueryService.runAsyncPreAggregateQueryFromHistory,
             }[kind];
@@ -205,7 +163,10 @@ describe('NatsWorker subject dispatch', () => {
         await buildWorker().handleMessage(message, 'worker-1');
 
         expect(
-            asyncQueryService.runAsyncDuckdbQueryFromHistory,
+            asyncQueryService.runAsyncWarehouseQueryFromHistory,
+        ).not.toHaveBeenCalled();
+        expect(
+            asyncQueryService.runAsyncPreAggregateQueryFromHistory,
         ).not.toHaveBeenCalled();
         expect(message.term).toHaveBeenCalled();
     });

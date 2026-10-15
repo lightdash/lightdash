@@ -7,8 +7,10 @@ import {
     type CommandResult,
     type RunOptions,
     type SandboxCommands,
+    type SandboxFileEntry,
     type SandboxFiles,
 } from './types';
+import { writeFilesOneByOne } from './writeFilesOneByOne';
 
 /**
  * `export PATH;` first: the sandbox exec shell has a PATH *variable* (with
@@ -550,6 +552,8 @@ export class CloudRunExecChannel {
                 );
             }
         },
+        writeMany: (entries: SandboxFileEntry[]): Promise<void> =>
+            writeFilesOneByOne(this.files.write, entries),
         remove: async (path: string): Promise<void> => {
             await this.runBuffered(`rm -rf ${shQuote(path)}`, {
                 timeoutMs: INTERNAL_EXEC_TIMEOUT_MS,

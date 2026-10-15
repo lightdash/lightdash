@@ -42,6 +42,7 @@ import {
     type WarehouseTypes,
 } from '@lightdash/common';
 import type { OnboardingFlow } from '../../analytics/LightdashAnalytics';
+import type { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
 import type { ConnectionRouteWithOriginal } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import type {
@@ -49,6 +50,7 @@ import type {
     TotalConfiguration,
 } from '../../utils/QueryBuilder/QueryComposer';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
+import type { DuckdbSandboxLease } from './duckdb/DuckdbSandboxRunner';
 
 export type CommonAsyncQueryArgs = {
     querySurface?: QuerySurface;
@@ -370,38 +372,22 @@ export type DuckdbQueryReferenceGuard = (
     completed: Record<string, QueryHistory>,
 ) => string | null;
 
-/** How a DuckDB query binds the results it reads. */
-export type DuckdbQueryReferences =
-    | {
-          /** CTEs built at submit time, such as over ingested external tables. */
-          kind: 'bound';
-          referenceCtes: string[];
-      }
-    | {
-          /** Other queries' results, waited on and bound once they complete. */
-          kind: 'queries';
-          references: Record<string, string>;
-          guard: DuckdbQueryReferenceGuard | null;
-          /** What the user calls each referenced table, for messages that name one. */
-          labelByTable: Record<string, string>;
-      };
-
-/** Which compose engine session executes a DuckDB query. */
-export type DuckdbQueryEngine =
-    | { kind: 'client'; warehouseClient: WarehouseClient }
-    | {
-          /** An isolated results session whose credentials reach only the bound result files. */
-          kind: 'scopedToReferencedResults';
-      };
+/** Other queries' results a DuckDB query reads, waited on and bound once they complete. */
+export type DuckdbQueryReferences = {
+    references: Record<string, string>;
+    guard: DuckdbQueryReferenceGuard | null;
+    /** What the user calls each referenced table, for messages that name one. */
+    labelByTable: Record<string, string>;
+};
 
 /**
  * How a DuckDB source query executes, decided by whoever built it. A public
- * submission discovers its columns on the shared results session; an
- * internal caller such as a merge supplies its compile-time columns, a
- * session scoped to the results it reads, and a guard over those results.
+ * submission discovers its columns in the sandbox; an internal caller such
+ * as a merge supplies its compile-time columns and a guard over the results
+ * it reads.
  *
  * Supplied columns come from a composer the node builds over its own SQL,
- * for the engine's dialect and with the node's own pivot, so the pivot stage
+ * for the DuckDB dialect and with the node's own pivot, so the pivot stage
  * belongs to the node and nothing upstream of it needs to know. The
  * composer's fields, metric query and parameters are recorded on the history
  * row as they are, with the request that produced them. A supplied column's
@@ -423,9 +409,7 @@ export type DuckdbQueryPlan = {
               originalColumns: ResultColumns;
               requestParameters: ExecuteAsyncQueryRequestParams;
           };
-    /** A planned node runs on a session scoped to what it references. */
-    engine: 'scopedToReferencedResults';
-    /** Persisted with the row, so a worker rebuilds the same guard. */
+    /** Refuses the run once its references complete; persisted on the spec. */
     guard: DuckdbExecutionSpec['guard'];
     /** What the user calls each referenced table; empty when nothing names them. */
     referenceLabels: Record<string, string>;
@@ -446,6 +430,15 @@ export type ExecuteAsyncDuckdbSourceQueryArgs = CommonAsyncQueryArgs & {
     /** The node's own pivot stage, composed by a supplied plan or over discovered columns. */
     pivotConfiguration?: PivotConfiguration;
     plan: DuckdbQueryPlan;
+    /** The submission's shared sandbox; null leases one for this node alone. */
+    sandboxLease: DuckdbSandboxLease | null;
+};
+
+/** A referenced result file, pushed into the sandbox as `/work/in/<table>.jsonl`. */
+export type DuckdbSandboxInputFile = {
+    table: string;
+    resultsFileName: string;
+    storageClient: S3ResultsFileStorageClient;
 };
 
 /** A query's references, bound: the CTEs to attach and the result files they read. */
@@ -454,15 +447,44 @@ export type BoundDuckdbQueryReferences = {
     aiSignInCredentialUuid?: string;
     referenceCtes: string[];
     resultFileUris: string[];
+    inputs: DuckdbSandboxInputFile[];
 };
 
+/** An external SQL query's run: its reference CTEs are bound at submit, over ingested files. */
 export type RunDuckdbQueryArgs = {
-    authMethod?: QueryResultProducer['authMethod'];
-    identityEnabled?: boolean | null;
-    resultEntitlementFingerprint?: string | null;
+    authMethod: QueryResultProducer['authMethod'];
+    identityEnabled: boolean;
+    resultEntitlementFingerprint: string | null;
     agentIdentity: AgentIdentityClaim | null;
     actor: QueryHistoryActor;
-    /** Skip the lookup by result files and run regardless. */
+    projectUuid: string;
+    organizationUuid: string;
+    isPreviewProject: boolean;
+    onboardingFlow: OnboardingFlow;
+    queryUuid: string;
+    /** The statement before its reference CTEs are attached. */
+    sql: string;
+    referenceCtes: string[];
+    columns: DuckdbQueryColumns;
+    /** Persisted instead of the executed SQL when that carries private URIs. */
+    storedCompiledSql: string | null;
+    warehouseClient: WarehouseClient;
+    queryTags: RunQueryTags;
+    queryCreatedAt: Date;
+    queryUsage?: QueryUsageMetadata;
+    cacheKey: string;
+    context: QueryExecutionContext;
+};
+
+/** Everything the sandbox run of a DuckDB query over other results needs, decided at submit. */
+export type RunDuckdbSandboxQueryArgs = {
+    actor: QueryHistoryActor;
+    /** The submitting agent, checked against the referenced results it reads. */
+    agentIdentity: AgentIdentityClaim | null;
+    authMethod: QueryResultProducer['authMethod'];
+    identityEnabled: boolean;
+    /** Recorded at submit; keys the results when identity is on. */
+    resultProducer: QueryResultProducer;
     invalidateCache: boolean;
     projectUuid: string;
     organizationUuid: string;
@@ -473,12 +495,9 @@ export type RunDuckdbQueryArgs = {
     sql: string;
     references: DuckdbQueryReferences;
     columns: DuckdbQueryColumns;
-    /** Persisted instead of the executed SQL when that carries private URIs. */
-    storedCompiledSql: string | null;
-    engine: DuckdbQueryEngine;
     queryTags: RunQueryTags;
     queryCreatedAt: Date;
     queryUsage?: QueryUsageMetadata;
-    cacheKey: string;
     context: QueryExecutionContext;
+    sandboxLease: DuckdbSandboxLease | null;
 };

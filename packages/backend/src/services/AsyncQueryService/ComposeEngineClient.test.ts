@@ -4,10 +4,8 @@ import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import {
-    COMPOSE_ENGINE_INSTANCE_CACHE_KEY,
     COMPOSE_ENGINE_MISSING_CA_BUNDLE_MESSAGE,
     COMPOSE_ENGINE_MISSING_EXTERNAL_SOURCES_STORAGE_MESSAGE,
-    COMPOSE_ENGINE_MISSING_RESULTS_STORAGE_MESSAGE,
     ComposeEngineClient,
     PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY,
 } from './ComposeEngineClient';
@@ -47,18 +45,22 @@ const withPreAggregateBucket: LightdashConfig = {
     },
 };
 
+const withHttpsPreAggregateBucket: LightdashConfig = {
+    ...ossConfig,
+    preAggregates: {
+        ...ossConfig.preAggregates,
+        s3: {
+            endpoint: 'https://preagg.example.com',
+            bucket: 'preagg-bucket',
+            region: 'preagg-region',
+            accessKey: 'preagg-access-key',
+            secretKey: 'preagg-secret-key',
+        },
+    },
+};
+
 const CA_BUNDLE = '/etc/ssl/certs/ca-certificates.crt';
 const resolveCaCertFile = () => CA_BUNDLE;
-
-const resultsSession = {
-    endpoint: 'results.example.com',
-    region: 'results-region',
-    accessKey: 'results-access-key',
-    secretKey: 'results-secret-key',
-    forcePathStyle: false,
-    useSsl: true,
-    caCertFile: CA_BUNDLE,
-};
 
 const preAggregateSession = {
     endpoint: 'preagg.example.com:9000',
@@ -74,69 +76,65 @@ describe('ComposeEngineClient', () => {
         vi.restoreAllMocks();
     });
 
-    test.each(['results', 'externalSources'] as const)(
-        'preserves GCP OAuth and limits credentials to %s storage',
-        (storage) => {
-            const createDuckdbWarehouseClient = vi.fn(
-                () => warehouseClientMock,
-            );
-            const s3 = {
-                endpoint: 'https://storage.googleapis.com',
-                region: 'us-east4',
-                bucket: 'storage-bucket',
-                authMode: 'gcp_oauth' as const,
-            };
-            const client = new ComposeEngineClient({
-                resolveCaCertFile,
-                createDuckdbWarehouseClient,
-                lightdashConfig: {
-                    ...ossConfig,
-                    results: { ...ossConfig.results, s3 },
-                    preAggregates: { ...ossConfig.preAggregates, s3 },
-                },
-            });
-            client.createExecutionWarehouseClient({ storage, scope: null });
-            expect(createDuckdbWarehouseClient).toHaveBeenLastCalledWith(
-                expect.objectContaining({
-                    s3Config: expect.objectContaining({
-                        authMode: 'gcp_oauth',
-                        getAccessToken: expect.any(Function),
-                        scope: ['s3://storage-bucket/'],
-                    }),
+    test('preserves GCP OAuth and limits credentials to the pre-aggregates bucket', () => {
+        const createDuckdbWarehouseClient = vi.fn(() => warehouseClientMock);
+        const s3 = {
+            endpoint: 'https://storage.googleapis.com',
+            region: 'us-east4',
+            bucket: 'storage-bucket',
+            authMode: 'gcp_oauth' as const,
+        };
+        const client = new ComposeEngineClient({
+            resolveCaCertFile,
+            createDuckdbWarehouseClient,
+            lightdashConfig: {
+                ...ossConfig,
+                preAggregates: { ...ossConfig.preAggregates, s3 },
+            },
+        });
+        client.createExecutionWarehouseClient({
+            storage: 'externalSources',
+            scope: null,
+        });
+        expect(createDuckdbWarehouseClient).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                s3Config: expect.objectContaining({
+                    authMode: 'gcp_oauth',
+                    getAccessToken: expect.any(Function),
+                    scope: ['s3://storage-bucket/'],
                 }),
-            );
-            const object = 's3://storage-bucket/result.jsonl';
-            client.createExecutionWarehouseClient(
-                storage === 'results'
-                    ? { storage, scope: [object] }
-                    : { storage, scope: object },
-            );
-            expect(createDuckdbWarehouseClient).toHaveBeenLastCalledWith(
-                expect.objectContaining({
-                    s3Config: expect.objectContaining({
-                        authMode: 'gcp_oauth',
-                        getAccessToken: expect.any(Function),
-                        scope: [object],
-                    }),
+            }),
+        );
+        const object = 's3://storage-bucket/file.parquet';
+        client.createExecutionWarehouseClient({
+            storage: 'externalSources',
+            scope: object,
+        });
+        expect(createDuckdbWarehouseClient).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                s3Config: expect.objectContaining({
+                    authMode: 'gcp_oauth',
+                    getAccessToken: expect.any(Function),
+                    scope: [object],
                 }),
-            );
-        },
-    );
+            }),
+        );
+    });
 
-    test('configures the shared results session from the results S3 config', () => {
+    test('an external-source session gets the pre-aggregate bucket session, shared with managed pre-aggregates', () => {
         const createDuckdbWarehouseClient = vi.fn(() => warehouseClientMock);
         const client = new ComposeEngineClient({
             resolveCaCertFile,
-            lightdashConfig: ossConfig,
+            lightdashConfig: withPreAggregateBucket,
             createDuckdbWarehouseClient,
         });
 
         const first = client.createExecutionWarehouseClient({
-            storage: 'results',
+            storage: 'externalSources',
             scope: null,
         });
         const second = client.createExecutionWarehouseClient({
-            storage: 'results',
+            storage: 'externalSources',
             scope: null,
         });
 
@@ -144,66 +142,10 @@ describe('ComposeEngineClient', () => {
         expect(second).toBe(first);
         expect(createDuckdbWarehouseClient).toHaveBeenCalledTimes(1);
         expect(createDuckdbWarehouseClient).toHaveBeenCalledWith({
-            s3Config: resultsSession,
-            sharedResourceLimits: undefined,
-            instanceCacheKey: COMPOSE_ENGINE_INSTANCE_CACHE_KEY,
-        });
-    });
-
-    test('a results locator gets the results session even with a pre-aggregate bucket configured', () => {
-        const createDuckdbWarehouseClient = vi.fn(() => warehouseClientMock);
-        const client = new ComposeEngineClient({
-            resolveCaCertFile,
-            lightdashConfig: withPreAggregateBucket,
-            createDuckdbWarehouseClient,
-        });
-
-        client.createExecutionWarehouseClient({
-            storage: 'results',
-            scope: null,
-        });
-
-        expect(createDuckdbWarehouseClient).toHaveBeenCalledWith(
-            expect.objectContaining({
-                s3Config: resultsSession,
-                instanceCacheKey: COMPOSE_ENGINE_INSTANCE_CACHE_KEY,
-            }),
-        );
-    });
-
-    test('an external-source locator gets the pre-aggregate bucket session, shared with managed pre-aggregates', () => {
-        const createDuckdbWarehouseClient = vi.fn(() => warehouseClientMock);
-        const client = new ComposeEngineClient({
-            resolveCaCertFile,
-            lightdashConfig: withPreAggregateBucket,
-            createDuckdbWarehouseClient,
-        });
-
-        const first = client.createExecutionWarehouseClient({
-            storage: 'externalSources',
-            scope: null,
-        });
-        const second = client.createExecutionWarehouseClient({
-            storage: 'externalSources',
-            scope: null,
-        });
-        const results = client.createExecutionWarehouseClient({
-            storage: 'results',
-            scope: null,
-        });
-
-        expect(second).toBe(first);
-        expect(createDuckdbWarehouseClient).toHaveBeenCalledTimes(2);
-        expect(createDuckdbWarehouseClient).toHaveBeenNthCalledWith(1, {
             s3Config: preAggregateSession,
             sharedResourceLimits: undefined,
             instanceCacheKey: PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY,
         });
-        expect(createDuckdbWarehouseClient).toHaveBeenNthCalledWith(
-            2,
-            expect.objectContaining({ s3Config: resultsSession }),
-        );
-        expect(results).toBe(warehouseClientMock);
     });
 
     test('a scoped external-source session uses the pre-aggregate bucket session and is never cached', () => {
@@ -234,80 +176,26 @@ describe('ComposeEngineClient', () => {
         });
     });
 
-    test('a results session scoped to leg files is isolated, never cached and reaches no other result file', () => {
-        const createDuckdbWarehouseClient = vi.fn(() => warehouseClientMock);
-        const client = new ComposeEngineClient({
-            resolveCaCertFile,
-            lightdashConfig: withPreAggregateBucket,
-            createDuckdbWarehouseClient,
-        });
-        const legFiles = [
-            's3://results-bucket/leg-a.jsonl',
-            's3://results-bucket/leg-b.jsonl',
-        ];
-        const foreignResultFile = 's3://results-bucket/someone-else.jsonl';
-
-        client.createExecutionWarehouseClient({
-            storage: 'results',
-            scope: legFiles,
-        });
-        client.createExecutionWarehouseClient({
-            storage: 'results',
-            scope: legFiles,
-        });
-
-        expect(createDuckdbWarehouseClient).toHaveBeenCalledTimes(2);
-        expect(createDuckdbWarehouseClient).toHaveBeenCalledWith({
-            s3Config: { ...resultsSession, scope: legFiles },
-            resourceLimits: { memoryLimit: '512MB', threads: 2 },
-            organizationConcurrencyLimit: undefined,
-        });
-        expect(createDuckdbWarehouseClient).not.toHaveBeenCalledWith(
-            expect.objectContaining({
-                s3Config: expect.objectContaining({
-                    scope: expect.arrayContaining([foreignResultFile]),
-                }),
-            }),
-        );
-    });
-
-    test('refuses a results session scoped to nothing rather than widening it', () => {
-        const createDuckdbWarehouseClient = vi.fn(() => warehouseClientMock);
-        const client = new ComposeEngineClient({
-            resolveCaCertFile,
-            lightdashConfig: ossConfig,
-            createDuckdbWarehouseClient,
-        });
-
-        expect(() =>
-            client.createExecutionWarehouseClient({
-                storage: 'results',
-                scope: [],
-            }),
-        ).toThrow('A scoped compose engine session needs at least one URI');
-        expect(createDuckdbWarehouseClient).not.toHaveBeenCalled();
-    });
-
-    test('creates a real DuckDB client that may read result files', () => {
+    test('creates a real DuckDB client over the pre-aggregates bucket', () => {
         const createForPreAggregateSpy = vi.spyOn(
             DuckdbWarehouseClient,
             'createForPreAggregate',
         );
         const client = new ComposeEngineClient({
             resolveCaCertFile,
-            lightdashConfig: ossConfig,
+            lightdashConfig: withPreAggregateBucket,
         });
 
         const warehouseClient = client.createExecutionWarehouseClient({
-            storage: 'results',
+            storage: 'externalSources',
             scope: null,
         });
 
         expect(warehouseClient).toBeInstanceOf(DuckdbWarehouseClient);
         expect(createForPreAggregateSpy).toHaveBeenCalledWith(
-            { type: 'duckdb_s3', s3Config: resultsSession },
+            { type: 'duckdb_s3', s3Config: preAggregateSession },
             expect.objectContaining({
-                instanceCacheKey: COMPOSE_ENGINE_INSTANCE_CACHE_KEY,
+                instanceCacheKey: PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY,
                 enableQueryProfiling: true,
             }),
         );
@@ -318,9 +206,9 @@ describe('ComposeEngineClient', () => {
         const client = new ComposeEngineClient({
             resolveCaCertFile,
             lightdashConfig: {
-                ...ossConfig,
+                ...withPreAggregateBucket,
                 preAggregates: {
-                    ...ossConfig.preAggregates,
+                    ...withPreAggregateBucket.preAggregates,
                     duckdbQueryMemoryLimit: '2GB',
                 },
             },
@@ -328,7 +216,7 @@ describe('ComposeEngineClient', () => {
         });
 
         client.createExecutionWarehouseClient({
-            storage: 'results',
+            storage: 'externalSources',
             scope: null,
         });
 
@@ -337,30 +225,6 @@ describe('ComposeEngineClient', () => {
                 sharedResourceLimits: { memoryLimit: '2GB' },
             }),
         );
-    });
-
-    test('refuses a results session with the missing results storage configuration', () => {
-        const createDuckdbWarehouseClient = vi.fn(() => warehouseClientMock);
-        const client = new ComposeEngineClient({
-            resolveCaCertFile,
-            lightdashConfig: {
-                ...ossConfig,
-                results: { ...ossConfig.results, s3: undefined },
-            },
-            createDuckdbWarehouseClient,
-        });
-
-        expect(() =>
-            client.createExecutionWarehouseClient({
-                storage: 'results',
-                scope: null,
-            }),
-        ).toThrow(
-            new MissingConfigError(
-                COMPOSE_ENGINE_MISSING_RESULTS_STORAGE_MESSAGE,
-            ),
-        );
-        expect(createDuckdbWarehouseClient).not.toHaveBeenCalled();
     });
 
     test('refuses an external-source session without the pre-aggregates configuration', () => {
@@ -394,13 +258,13 @@ describe('ComposeEngineClient', () => {
         const createDuckdbWarehouseClient = vi.fn(() => warehouseClientMock);
         const client = new ComposeEngineClient({
             resolveCaCertFile: () => null,
-            lightdashConfig: withPreAggregateBucket,
+            lightdashConfig: withHttpsPreAggregateBucket,
             createDuckdbWarehouseClient,
         });
 
         expect(() =>
             client.createExecutionWarehouseClient({
-                storage: 'results',
+                storage: 'externalSources',
                 scope: null,
             }),
         ).toThrow(

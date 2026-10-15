@@ -1,12 +1,13 @@
 # Composer queries
 
 A pipeline of queries across sources, submitted together by the AI agent,
-with DuckDB joining or transforming the results of the other queries. The
-result is shown in the thread as a chart artifact with the pipeline beside it.
+with transformations joining or transforming the results of the other queries
+in a sandbox. The result is shown in the thread as a chart artifact with the
+pipeline beside it.
 
-Sibling of merge queries: both run on the compose engine, but a composer query
-is an agent-authored pipeline of any shape, while a merge is a two-query join
-in the Explorer.
+Sibling of merge queries: both run DuckDB over other results in a sandbox, but
+a composer query is an agent-authored pipeline of any shape, while a merge is a
+two-query join in the Explorer.
 
 ## Language
 
@@ -42,8 +43,8 @@ _Avoid_: input, leaf, root
 
 **Transformation**:
 A node that reads only other nodes' results and never touches the warehouse:
-SQL on the compose engine, or Python in a sandbox. Grouped under
-"Transformations".
+SQL or Python, each run in a sandbox reading only the results it declares.
+Grouped under "Transformations".
 _Avoid_: duckdb node, python node (in user-facing copy), join node,
 post-processing step
 
@@ -125,3 +126,9 @@ _Avoid_: tool-call description, pipeline panel
   compose SQL runner flags plus the agent's data access setting.
 - The public query-sources API accepts the same node shapes, including node
   titles, but owns no user interface.
+- Transformations need a configured sandbox provider; without one, submission
+  fails naming the missing configuration.
+
+## Decisions
+
+- [0001: DuckDB over results runs only in a sandbox](./adr/0001-duckdb-over-results-runs-only-in-a-sandbox.md)

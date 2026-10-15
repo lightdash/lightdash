@@ -9,7 +9,16 @@ features:
   a small React app from a prompt.
 
 Both run the agent inside an **isolated sandbox** rather than on the Lightdash
-server. The sandbox runtime is the provider-neutral abstraction those features
+server.
+
+It also runs user- and agent-authored queries over other query results in
+**one-shot sandboxes** (see [One-shot query runners](#one-shot-query-runners)):
+
+- **Python runner** (`PythonSandboxRunner`) — Python transformations in
+  composer queries.
+- **DuckDB runner** (`DuckdbSandboxRunner`) — every DuckDB-over-results query:
+  composer SQL transformations, the compose SQL runner, the query-sources API
+  and merge queries. The sandbox runtime is the provider-neutral abstraction those features
 talk to, so the same feature code runs on whichever backend an operator has
 configured (hosted E2B, a local Docker container, AWS Lambda MicroVMs, or Azure
 Container Apps Sandboxes).
@@ -242,6 +251,43 @@ Feature code is provider-agnostic throughout — it never imports a provider or 
 Unit tests drive a fake `SandboxProvider`/`SandboxRegistryStore` (see
 `AiWritebackService.test.ts` and `SandboxManager.test.ts`).
 
+## One-shot query runners
+
+The Python and DuckDB runners (`services/AsyncQueryService/python/` and
+`services/AsyncQueryService/duckdb/`) use the provider directly, not the
+Manager: a sandbox is never registered, suspended or resumed. The Python
+runner creates a sandbox per query. The DuckDB runner leases one sandbox per
+submission (`DuckdbSandboxLease`): the nodes of a pipeline share it, each in
+its own `/work/<queryUuid>` directory, the first node to need it creates it
+and the last node to release it destroys it, whatever the outcome. Per node
+the runner, settings, inputs and SQL go in one batched write
+(`handle.files.writeMany`; one request on E2B), one command runs the runner,
+and only the rows are read back. The sandbox gets no credentials and an empty
+egress allowlist; every byte crosses through `handle.files`. Inputs share one byte budget (`SANDBOX_INPUT_MAX_BYTES`), a
+run that exceeds its timeout fails with a timeout message, and a non-zero
+exit becomes an error safe to show on the query.
+
+The DuckDB runner's image (`sandboxes/duckdb-runner/`) is `python:3.12-slim`
+plus the `duckdb` wheel pinned in `requirements.txt` (same minor as the
+server's `@duckdb/node-api`); no Lightdash code is installed. The backend
+writes `runner.py` per node and invokes
+`python3 -I /work/<queryUuid>/runner.py probe|run /work/<queryUuid>`. The
+runner locks an in-memory DuckDB to that node's `in/` directory (external
+access off, configuration locked) before any user SQL, runs one SELECT, prints
+the fields and row count to stdout and writes rows in the shape the server's
+DuckDB client produced. The runner's version
+(provider, template ref and runner script hash) is part of the results cache
+key, so a result never crosses between image or runner versions.
+
+Both runners support only the `e2b` and `docker` providers. The DuckDB runner
+resolves its provider when a query is submitted, so a missing provider fails
+the submission rather than the background run.
+
+**Operator note:** a sandbox provider is now a prerequisite for composer
+transformations and merge queries. Without one, submission fails with a
+missing-configuration error naming `E2B_API_KEY` / `SANDBOX_PROVIDER`. A
+pre-aggregate worker is no longer needed for them.
+
 ## Adding a provider
 
 Implement `SandboxProvider` and return a `SandboxHandle`. The work splits by
@@ -276,7 +322,14 @@ The full operator reference is on the public docs site. The values are parsed in
 | --- | --- | --- |
 | `SANDBOX_PROVIDER` | all | `e2b` (default) · `docker` · `lambda-microvm` · `azure-sandboxes` |
 | `E2B_API_KEY`, `E2B_*_TEMPLATE_NAME/TAG` | e2b | Separate data-app vs writeback templates |
+| `E2B_PYTHON_TEMPLATE_NAME`, `E2B_PYTHON_TEMPLATE_TAG` | e2b, python runner | Default `lightdash-python-runner`; tag defaults to the running version |
+| `E2B_DUCKDB_TEMPLATE_NAME`, `E2B_DUCKDB_TEMPLATE_TAG` | e2b, duckdb runner | Default `lightdash-duckdb-runner`; tag defaults to the running version |
 | `SANDBOX_DOCKER_IMAGE`, `SANDBOX_AI_WRITEBACK_DOCKER_IMAGE` | docker | Local images built from `sandboxes/<feature>/` |
+| `SANDBOX_PYTHON_DOCKER_IMAGE` | docker, python runner | Default `lightdash-python-runner:local`, built from `sandboxes/python-runner/` |
+| `SANDBOX_DUCKDB_DOCKER_IMAGE` | docker, duckdb runner | Default `lightdash-duckdb-runner:local`, built from `sandboxes/duckdb-runner/` |
+| `DUCKDB_SANDBOX_MEMORY_LIMIT` | duckdb runner | DuckDB memory limit inside the sandbox; default `1GB` |
+| `DUCKDB_SANDBOX_THREADS` | duckdb runner | DuckDB threads inside the sandbox; default `2` |
+| `SANDBOX_INPUT_MAX_BYTES` | python and duckdb runners | Total bytes of referenced results written into one sandbox; default 64 MiB |
 | `LAMBDA_MICROVM_*` (region, role, connectors, image ARNs) | lambda-microvm | Image ARNs are separate per feature |
 | `AZURE_SANDBOXES_SUBSCRIPTION_ID`, `AZURE_SANDBOXES_RESOURCE_GROUP`, `AZURE_SANDBOXES_REGION` | azure-sandboxes | Locate the sandbox groups (ADC data plane is regional) |
 | `AZURE_SANDBOXES_{DATA_APP,AI_WRITEBACK}_GROUP`, `AZURE_SANDBOXES_{DATA_APP,AI_WRITEBACK}_DISK_IMAGE` | azure-sandboxes | One sandbox group + disk image per feature |
@@ -297,4 +350,5 @@ credentials. No client secret is read from config. The exact ADC data-plane REST
 the `PINNED CONTRACT` note in `AzureContainerAppsSandboxProvider.ts`.
 
 The data-app and writeback features use **separate images/templates** on every
-backend (different toolchains), so each image setting comes in a pair.
+backend (different toolchains), so each image setting comes in a pair. The
+Python and DuckDB runners have their own E2B template and Docker image each.

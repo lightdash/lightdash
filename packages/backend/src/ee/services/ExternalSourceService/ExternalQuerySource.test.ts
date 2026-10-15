@@ -24,6 +24,7 @@ const submitArgs = {
     invalidateCache: false,
     pivotConfiguration: null,
     plan: null,
+    sandboxLease: null,
 };
 
 describe('ExternalQuerySource', () => {

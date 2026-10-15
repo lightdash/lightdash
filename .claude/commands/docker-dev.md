@@ -295,15 +295,20 @@ template, so Docker is the working local path anyway. Public docs:
 
 ### Setup (one-time per machine)
 
-1. **Build the three local images** (heavy — `lightdash-sandbox:local` ~2.3GB for data apps,
+1. **Build the local images** (heavy — `lightdash-sandbox:local` ~2.3GB for data apps,
    `lightdash-ai-writeback:local` ~5GB for writeback, `lightdash-agent-onboarding:local`
-   ~2.2GB for managed onboarding runs; rebuild only when the toolchain changes).
+   ~2.2GB for managed onboarding runs; lighter `lightdash-python-runner:local` for python
+   query nodes and `lightdash-duckdb-runner:local` (python:3.12-slim + the pinned duckdb wheel)
+   for composer/merge DuckDB queries. Rebuild when the toolchain changes; rebuild the DuckDB
+   runner when `sandboxes/duckdb-runner/requirements.txt` changes).
    `dev-fast-start.sh` builds any that are missing whenever the env file has
    `SANDBOX_PROVIDER=docker`, so normally there is nothing to do by hand:
    ```bash
    ./sandboxes/data-apps/build-local-image.sh        # -> lightdash-sandbox:local
    ./sandboxes/ai-writeback/build-local-image.sh     # -> lightdash-ai-writeback:local
    ./sandboxes/agent-onboarding/build-local-image.sh # -> lightdash-agent-onboarding:local
+   ./sandboxes/python-runner/build-local-image.sh    # -> lightdash-python-runner:local
+   ./sandboxes/duckdb-runner/build-local-image.sh    # -> lightdash-duckdb-runner:local
    ```
 2. **Env** (the `ee` profile writes `SANDBOX_PROVIDER=docker`; the image vars default, set only to override):
    ```bash
@@ -311,6 +316,8 @@ template, so Docker is the working local path anyway. Public docs:
    # SANDBOX_DOCKER_IMAGE=lightdash-sandbox:local
    # SANDBOX_AI_WRITEBACK_DOCKER_IMAGE=lightdash-ai-writeback:local
    # SANDBOX_AGENT_ONBOARDING_DOCKER_IMAGE=lightdash-agent-onboarding:local
+   # SANDBOX_PYTHON_DOCKER_IMAGE=lightdash-python-runner:local
+   # SANDBOX_DUCKDB_DOCKER_IMAGE=lightdash-duckdb-runner:local
    ```
    Requires `ANTHROPIC_API_KEY` (agent) and MinIO up (snapshots tar to object storage).
 

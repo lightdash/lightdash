@@ -2872,7 +2872,7 @@
                     "type": "string"
                 },
                 "sql": {
-                    "description": "Legacy SQL expression. Kept required for API/storage compatibility;\nformula calculations store an empty string here and compile `formula`\non the compose engine instead.",
+                    "description": "Legacy SQL expression. Kept required for API/storage compatibility;\nformula calculations store an empty string here and compile `formula`\nin DuckDB instead.",
                     "type": "string"
                 }
             },

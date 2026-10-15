@@ -21,17 +21,17 @@ type DuckdbQuerySourceArguments = {
 };
 
 /**
- * The DuckDB compose engine as a query source. It has no schema of its own:
- * its tables are the references handed to each query, which makes it the
- * merge/transform step of a multi-source pipeline — other queries' results
- * become named tables the SQL joins and reshapes.
+ * DuckDB SQL over other results, run in a sandbox, as a query source. It
+ * has no schema of its own: its tables are the references handed to each
+ * query, which makes it the merge/transform step of a multi-source pipeline —
+ * other queries' results become named tables the SQL joins and reshapes.
  */
 export class DuckdbQuerySource implements QuerySourceClient {
     readonly definition: QuerySourceDefinition = {
         sourceType: QuerySourceType.DUCKDB,
         label: 'DuckDB compose',
         description:
-            'DuckDB SQL over other query results. References expose results as named tables: an array of node ids (each a table named by its node id) or a {tableName: nodeIdOrQueryUuid} map. A referenced result keeps the column names of the query that produced it — field ids for semanticLayer queries, SELECT output names for sql queries. References to still-running queries are waited on. At least one reference is required: the query runs on a session that can reach only the results it references.',
+            'DuckDB SQL over other query results. References expose results as named tables: an array of node ids (each a table named by its node id) or a {tableName: nodeIdOrQueryUuid} map. A referenced result keeps the column names of the query that produced it — field ids for semanticLayer queries, SELECT output names for sql queries. References to still-running queries are waited on. At least one reference is required: the query runs in a one-shot sandbox that can reach only the results it references.',
     };
 
     readonly supportsPivot = true;
@@ -134,6 +134,7 @@ export class DuckdbQuerySource implements QuerySourceClient {
         invalidateCache,
         pivotConfiguration,
         plan,
+        sandboxLease,
     }: SubmitSourceQueryArgs): Promise<SourceQuerySubmissionResult> {
         const sourceQuery = DuckdbQuerySource.assertSourceQuery(query);
 
@@ -163,13 +164,17 @@ export class DuckdbQuerySource implements QuerySourceClient {
         };
         const { queryUuid } =
             plan === null
-                ? await this.asyncQueryService.executeAsyncComposeSqlQuery(args)
+                ? await this.asyncQueryService.executeAsyncComposeSqlQuery(
+                      args,
+                      { sandboxLease },
+                  )
                 : await this.asyncQueryService.executeAsyncDuckdbSourceQuery({
                       ...args,
                       plan: DuckdbQuerySource.resolvePlanReferences(
                           plan,
                           resolvedReferences,
                       ),
+                      sandboxLease,
                   });
 
         // Whether the run is served from an earlier one over the same result

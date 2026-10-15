@@ -34,6 +34,7 @@ import {
     createAgentExecutionContext,
 } from '../AiAccessService/agentExecutionContext';
 import type { AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
+import { type DuckdbSandboxLease } from '../AsyncQueryService/duckdb/DuckdbSandboxRunner';
 import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
 import type { ProjectService } from '../ProjectService/ProjectService';
 import { QuerySourceRegistry } from './QuerySourceRegistry';
@@ -113,7 +114,13 @@ const createService = (registry: QuerySourceRegistry) => {
 
     const assertCanReadStoredResults = vi.fn().mockResolvedValue(undefined);
     const service = new QuerySourceService({
-        getAsyncQueryService: () => ({ assertCanReadStoredResults }),
+        getAsyncQueryService: () => ({
+            assertCanReadStoredResults,
+            assertSandboxConfigured: vi.fn(),
+            createDuckdbSandboxLease: vi.fn(
+                () => ({ forfeit: vi.fn() }) as unknown as DuckdbSandboxLease,
+            ),
+        }),
         getAgentPermissionService: () => mocks.permissions,
         projectModel: mocks.projectModel as unknown as ProjectModel,
         queryHistoryModel:
@@ -485,6 +492,7 @@ describe('QuerySourceService', () => {
                 invalidateCache: false,
                 pivotConfiguration: null,
                 plan: null,
+                sandboxLease: null,
             };
             const { userAttributeOverrides, ...withoutOverrides } = args;
             // @ts-expect-error omitting the overrides is a compile error, not a silent default
@@ -517,7 +525,6 @@ describe('QuerySourceService', () => {
     describe('submitQueries', () => {
         const joinPlan: DuckdbQueryPlan = {
             columns: { mode: 'discover' },
-            engine: 'scopedToReferencedResults',
             guard: null,
             referenceLabels: {},
         };
@@ -938,7 +945,6 @@ describe('composer pipelines return the standard results interface', () => {
             for (const execute of [
                 asyncQueryService.executeAsyncSqlQuery,
                 asyncQueryService.executeAsyncMetricQuery,
-                asyncQueryService.executeAsyncComposeSqlQuery,
             ]) {
                 expect(execute).toHaveBeenCalledExactlyOnceWith(
                     expect.objectContaining({
@@ -947,6 +953,15 @@ describe('composer pipelines return the standard results interface', () => {
                     }),
                 );
             }
+            expect(
+                asyncQueryService.executeAsyncComposeSqlQuery,
+            ).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    context: QueryExecutionContext.AI,
+                    querySurface,
+                }),
+                { sandboxLease: expect.anything() },
+            );
         },
     );
 
@@ -958,7 +973,6 @@ describe('composer pipelines return the standard results interface', () => {
         };
         const plan: DuckdbQueryPlan = {
             columns: { mode: 'discover' },
-            engine: 'scopedToReferencedResults',
             guard: null,
             referenceLabels: {},
         };
@@ -1130,6 +1144,7 @@ describe('composer pipelines return the standard results interface', () => {
             expect.objectContaining({
                 references: { orders: 'metric-query-uuid' },
             }),
+            { sandboxLease: expect.anything() },
         );
     });
 
@@ -1138,7 +1153,6 @@ describe('composer pipelines return the standard results interface', () => {
         const { service } = createService(registry);
         const plan: DuckdbQueryPlan = {
             columns: { mode: 'discover' },
-            engine: 'scopedToReferencedResults',
             guard: null,
             referenceLabels: {},
         };
@@ -1221,7 +1235,6 @@ describe('composer pipelines return the standard results interface', () => {
                     sql: 'SELECT * FROM orders',
                 },
             },
-            engine: 'scopedToReferencedResults',
             guard: null,
             referenceLabels: {},
         };
@@ -1259,6 +1272,7 @@ describe('composer pipelines return the standard results interface', () => {
                 references: { orders: '123e4567-e89b-12d3-a456-426614174000' },
                 pivotConfiguration,
             }),
+            { sandboxLease: expect.anything() },
         );
     });
 
@@ -1280,7 +1294,6 @@ describe('composer pipelines return the standard results interface', () => {
                     sql: 'SELECT * FROM orders',
                 },
             },
-            engine: 'scopedToReferencedResults',
             guard: null,
             referenceLabels: {},
         };
@@ -1347,6 +1360,7 @@ describe('composer pipelines return the standard results interface', () => {
                 invalidateCache: true,
                 pivotConfiguration: undefined,
             }),
+            { sandboxLease: expect.anything() },
         );
     });
 });

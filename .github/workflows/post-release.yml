@@ -760,6 +760,15 @@ jobs:
             source_tag_env: E2B_PYTHON_TEMPLATE_SOURCE_TAG
             additional_watch_paths: ''
             install_root_deps: false
+          - display_name: DuckDB runner E2B template
+            directory: sandboxes/duckdb-runner
+            name: lightdash-duckdb-runner
+            name_env: E2B_DUCKDB_TEMPLATE_NAME
+            tag_env: E2B_DUCKDB_TEMPLATE_TAG
+            extra_tags_env: E2B_DUCKDB_TEMPLATE_EXTRA_TAGS
+            source_tag_env: E2B_DUCKDB_TEMPLATE_SOURCE_TAG
+            additional_watch_paths: ''
+            install_root_deps: false
           - display_name: agent onboarding E2B template
             directory: sandboxes/agent-onboarding
             name: lightdash-agent-onboarding

@@ -72,6 +72,11 @@ export class MockSandbox implements SandboxHandle {
             write: async (path, value) => {
                 this.contents.set(path, Buffer.from(value));
             },
+            writeMany: async (entries) => {
+                entries.forEach(({ path, contents }) => {
+                    this.contents.set(path, Buffer.from(contents));
+                });
+            },
             remove: async (path) => {
                 this.contents.delete(path);
             },

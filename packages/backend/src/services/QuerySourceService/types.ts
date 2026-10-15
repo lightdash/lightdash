@@ -10,6 +10,7 @@ import type {
     SourceQuery,
     UserAttributeValueMap,
 } from '@lightdash/common';
+import type { DuckdbSandboxLease } from '../AsyncQueryService/duckdb/DuckdbSandboxRunner';
 import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 
@@ -54,6 +55,8 @@ export type SubmitSourceQueryArgs = SourceQueryExecutionContext & {
      * submissions carry a plan; the public endpoint cannot express one.
      */
     plan: DuckdbQueryPlan | null;
+    /** The sandbox the submission's DuckDB nodes share; null when it has none. */
+    sandboxLease: DuckdbSandboxLease | null;
 };
 
 /**
