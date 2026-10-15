@@ -2,7 +2,6 @@ import {
     assertUnreachable,
     getErrorMessage,
     getPreAggregateExploreName,
-    isCustomSqlDimension,
     isExploreError,
     ItemsMap,
     MetricQuery,
@@ -102,7 +101,6 @@ export enum PreAggregationDuckDbResolveReason {
     NO_ACTIVE_MATERIALIZATION = 'no_active_materialization',
     RESOLVE_ERROR = 'resolve_error',
     INCOMPATIBLE_PRODUCER = 'incompatible_producer',
-    CUSTOM_SQL_FILE_ACCESS = 'custom_sql_file_access',
 }
 
 type ProjectWarehouseClient = {
@@ -216,28 +214,6 @@ export class PreAggregationDuckDbClient {
         return warehouseClient;
     }
 
-    /**
-     * Custom SQL dimensions are user-authored and inlined verbatim into the
-     * served query, so, as with raw SQL on the compose engine, they must not
-     * reach files through the serve instance's credentials.
-     */
-    private static findCustomSqlDimensionWithFileAccess(
-        metricQuery: MetricQuery,
-    ): string | undefined {
-        return (metricQuery.customDimensions ?? [])
-            .filter(isCustomSqlDimension)
-            .find((customDimension) => {
-                try {
-                    DuckdbWarehouseClient.validateUserSqlFileAccess(
-                        customDimension.sql,
-                    );
-                    return false;
-                } catch {
-                    return true;
-                }
-            })?.id;
-    }
-
     static getPreAggregationResolutionErrorMessage({
         route,
         reason,
@@ -261,8 +237,6 @@ export class PreAggregationDuckDbClient {
                 return 'Pre-aggregate DuckDB routing is unavailable: pre-aggregates are disabled';
             case PreAggregationDuckDbResolveReason.INCOMPATIBLE_PRODUCER:
                 return 'This pre-aggregate has no compatible producer provenance. Run a warehouse query instead.';
-            case PreAggregationDuckDbResolveReason.CUSTOM_SQL_FILE_ACCESS:
-                return 'Custom SQL dimensions that read files cannot be served from a pre-aggregate. Run a warehouse query instead.';
             case PreAggregationDuckDbResolveReason.RESOLVE_ERROR:
                 return `Failed to resolve pre-aggregate explore "${preAggregateExploreName}" in DuckDB`;
             default:
@@ -338,25 +312,6 @@ export class PreAggregationDuckDbClient {
             return {
                 resolved: false,
                 reason: PreAggregationDuckDbResolveReason.MISSING_DUCKDB_RUNTIME_CONFIG,
-            };
-        }
-
-        const customSqlDimensionWithFileAccess =
-            PreAggregationDuckDbClient.findCustomSqlDimensionWithFileAccess(
-                args.metricQuery,
-            );
-        if (customSqlDimensionWithFileAccess !== undefined) {
-            Logger.warn(
-                'DuckDB pre-agg refused a custom SQL dimension that reads files',
-                {
-                    queryUuid: args.queryUuid,
-                    projectUuid: args.projectUuid,
-                    customDimensionId: customSqlDimensionWithFileAccess,
-                },
-            );
-            return {
-                resolved: false,
-                reason: PreAggregationDuckDbResolveReason.CUSTOM_SQL_FILE_ACCESS,
             };
         }
 
