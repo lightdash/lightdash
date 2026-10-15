@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "2.583.0",
-  "previousVersion": "2.582.0",
-  "releaseDate": "2026-10-15T00:33:04.932Z",
+  "version": "2.584.0",
+  "previousVersion": "2.583.0",
+  "releaseDate": "2026-10-15T00:52:07.779Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20261014120000_add_warehouse_execution_stats_to_query_history.ts",
+        "edition": "core",
+        "tables": [
+          "query_history"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
