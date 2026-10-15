@@ -1,0 +1,84 @@
+{
+    "home": "Inicio",
+    "workspace": "Espacio de trabajo",
+    "more": "Más",
+    "menu": "Menú",
+    "openNavigation": "Abrir navegación",
+    "closeNavigation": "Cerrar navegación",
+    "account": "Cuenta",
+    "new": {
+        "label": "Nuevo",
+        "chart": {
+            "title": "Gráfico",
+            "description": "Crea consultas y guárdalas como gráficos."
+        },
+        "sqlRunner": {
+            "title": "Consultar con SQL runner",
+            "description": "Accede a tu base de datos para ejecutar consultas ad hoc."
+        },
+        "dashboard": {
+            "title": "Panel",
+            "description": "Combina varios gráficos en una sola vista."
+        },
+        "document": {
+            "title": "Documento",
+            "description": "Redacta análisis con gráficos en vivo."
+        },
+        "dataApp": {
+            "title": "Data App",
+            "description": "Crea una app interactiva impulsada por tus datos."
+        },
+        "space": {
+            "title": "Espacio",
+            "description": "Organiza tus gráficos y paneles guardados."
+        },
+        "createSpace": "Crear nuevo espacio"
+    },
+    "browse": {
+        "label": "Explorar",
+        "allSpaces": "Todos los espacios",
+        "allDashboards": "Todos los paneles",
+        "allCharts": "Todos los gráficos guardados",
+        "allDocuments": "Todos los documentos",
+        "allDataApps": "Todas las data apps",
+        "chartStudio": "Chart Studio",
+        "favorites": "Favoritos",
+        "spaces": "Espacios"
+    },
+    "metrics": "Métricas",
+    "settings": {
+        "label": "Configuración",
+        "project": "Configuración del proyecto",
+        "organization": "Configuración de la organización"
+    },
+    "help": {
+        "label": "Ayuda",
+        "docs": {
+            "title": "Pregunta a la documentación",
+            "description": "Chatea con el asistente de IA de la documentación"
+        },
+        "roadmap": {
+            "title": "Hoja de ruta",
+            "description": "Descubre qué estamos construyendo y sigue las solicitudes de funciones"
+        },
+        "support": {
+            "title": "Hablar con soporte",
+            "description": "Envíanos un mensaje con preguntas o comentarios sobre el producto"
+        },
+        "slack": {
+            "title": "Únete a la comunidad de Slack",
+            "description": "Recibe consejos y comparte buenas prácticas con otros usuarios."
+        },
+        "report": {
+            "title": "Informar de un problema",
+            "description": "Comparte un informe detallado con soporte",
+            "modalTitle": "Compartir con soporte"
+        }
+    },
+    "user": {
+        "settings": "Configuración de usuario",
+        "invite": "Invitar usuario",
+        "queryHistory": "Mi historial de consultas",
+        "logout": "Cerrar sesión"
+    }
+}

@@ -1,0 +1,33 @@
+{
+    "actions": {
+        "save": "Save",
+        "cancel": "Cancel",
+        "delete": "Delete",
+        "edit": "Edit",
+        "close": "Close",
+        "continue": "Continue",
+        "update": "Update",
+        "create": "Create",
+        "add": "Add",
+        "remove": "Remove",
+        "confirm": "Confirm",
+        "retry": "Retry",
+        "search": "Search",
+        "copy": "Copy",
+        "download": "Download",
+        "back": "Back",
+        "next": "Next"
+    },
+    "state": {
+        "loading": "Loading",
+        "error": "Error",
+        "success": "Success",
+        "yes": "Yes",
+        "no": "No",
+        "none": "None",
+        "unknown": "Unknown"
+    },
+    "language": {
+        "label": "Language"
+    }
+}

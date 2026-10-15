@@ -32,6 +32,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useLocation } from 'react-router';
 import { z } from 'zod';
 import { useAuthLayoutVariant } from '../../../components/common/AuthLayout/useAuthLayoutVariant';
@@ -170,6 +171,7 @@ export const LoginForm: FC<{
     signupUrl,
     ssoOptions,
 }) => {
+    const { t } = useTranslation('auth');
     const isNewLayout = layout === 'new';
     const isFormLoading = formStatus === 'loading';
     const ssoButtons = ssoOptions.length > 0 && (
@@ -195,7 +197,7 @@ export const LoginForm: FC<{
             labelPosition="center"
             label={
                 <Text c="ldGray.5" size="sm" fw={500}>
-                    {isNewLayout ? 'or' : 'OR'}
+                    {isNewLayout ? t('login.or') : t('login.orUpper')}
                 </Text>
             }
         />
@@ -211,7 +213,11 @@ export const LoginForm: FC<{
                     </>
                 ) : null}
                 <TextInput
-                    label={isNewLayout ? 'Work email' : 'Email address'}
+                    label={
+                        isNewLayout
+                            ? t('login.workEmail')
+                            : t('login.emailAddress')
+                    }
                     name="email"
                     type="email"
                     inputMode="email"
@@ -219,7 +225,9 @@ export const LoginForm: FC<{
                     autoCorrect="off"
                     spellCheck={false}
                     placeholder={
-                        isNewLayout ? 'maya@acme.com' : 'Your email address'
+                        isNewLayout
+                            ? t('login.emailPlaceholder')
+                            : t('login.emailPlaceholderLegacy')
                     }
                     required
                     {...form.getInputProps('email')}
@@ -228,7 +236,7 @@ export const LoginForm: FC<{
                     rightSection={
                         preCheckEmail ? (
                             <ActionIcon
-                                aria-label="Clear email address"
+                                aria-label={t('login.clearEmail')}
                                 onMouseDown={(event) => event.preventDefault()}
                                 onClick={onClearEmail}
                             >
@@ -240,9 +248,9 @@ export const LoginForm: FC<{
                 {availability.email && formStage === 'login' ? (
                     <>
                         <PasswordInput
-                            label="Password"
+                            label={t('login.password')}
                             name="password"
-                            placeholder="Your password"
+                            placeholder={t('login.passwordPlaceholder')}
                             autoComplete="current-password"
                             required
                             autoFocus
@@ -255,7 +263,7 @@ export const LoginForm: FC<{
                             to="/recover-password"
                             mx="auto"
                         >
-                            Forgot your password?
+                            {t('login.forgotPassword')}
                         </Anchor>
                         <Button
                             type="submit"
@@ -264,7 +272,7 @@ export const LoginForm: FC<{
                             fullWidth={isNewLayout}
                             data-cy="signin-button"
                         >
-                            Sign in
+                            {t('login.signIn')}
                         </Button>
                     </>
                 ) : null}
@@ -283,7 +291,7 @@ export const LoginForm: FC<{
                         fullWidth={isNewLayout}
                         data-cy="signin-button"
                     >
-                        Continue
+                        {t('login.continue')}
                     </Button>
                 ) : null}
                 {alternativeLoginIntent ? (
@@ -296,10 +304,9 @@ export const LoginForm: FC<{
                             alternativeLoginIntent,
                         )}
                     >
-                        Continue with{' '}
                         {alternativeLoginIntent === 'sso'
-                            ? 'SSO'
-                            : 'work email'}
+                            ? t('login.continueWithSso')
+                            : t('login.continueWithEmail')}
                     </Button>
                 ) : null}
                 {!isNewLayout && ssoButtons ? (
@@ -315,15 +322,19 @@ export const LoginForm: FC<{
                 {!mobileLoginIntent ? (
                     <Text mx="auto" mt="md" fz="sm">
                         {isNewLayout
-                            ? 'New to Lightdash?'
-                            : "Don't have an account?"}{' '}
+                            ? t('login.newHere')
+                            : t('login.noAccount')}{' '}
                         {signupPath ? (
                             <Anchor component={Link} to={signupPath} fz="sm">
-                                {isNewLayout ? 'Create an account' : 'Sign up'}
+                                {isNewLayout
+                                    ? t('login.createAccount')
+                                    : t('login.signUp')}
                             </Anchor>
                         ) : (
                             <Anchor href={signupUrl} fz="sm">
-                                {isNewLayout ? 'Create an account' : 'Sign up'}
+                                {isNewLayout
+                                    ? t('login.createAccount')
+                                    : t('login.signUp')}
                             </Anchor>
                         )}
                     </Text>
@@ -334,6 +345,7 @@ export const LoginForm: FC<{
 };
 
 const Login: FC<{}> = () => {
+    const { t } = useTranslation('auth');
     const { health } = useApp();
     const { identify, track } = useTracking();
     const location = useLocation();
@@ -344,11 +356,11 @@ const Login: FC<{}> = () => {
     useEffect(() => {
         if (flashMessages.data?.error) {
             showToastError({
-                title: 'Failed to authenticate',
+                title: t('login.failedToAuthenticate'),
                 subtitle: flashMessages.data.error.join('\n'),
             });
         }
-    }, [flashMessages.data, showToastError]);
+    }, [flashMessages.data, showToastError, t]);
 
     // Reaching the login page means any SSO attempt from this tab failed or was
     // abandoned, so it must never become the recorded last-used method.
@@ -507,7 +519,7 @@ const Login: FC<{}> = () => {
         onSuccess: (data) => handleLoginSuccess(data, LocalIssuerTypes.EMAIL),
         onError: ({ error }) => {
             showToastApiError({
-                title: `Failed to login`,
+                title: t('login.failedToLogin'),
                 apiError: error,
             });
         },

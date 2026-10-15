@@ -1,0 +1,84 @@
+{
+    "home": "Home",
+    "workspace": "Workspace",
+    "more": "More",
+    "menu": "Menu",
+    "openNavigation": "Open navigation",
+    "closeNavigation": "Close navigation",
+    "account": "Account",
+    "new": {
+        "label": "New",
+        "chart": {
+            "title": "Chart",
+            "description": "Build queries and save them as charts."
+        },
+        "sqlRunner": {
+            "title": "Query using SQL runner",
+            "description": "Access your database to run ad-hoc queries."
+        },
+        "dashboard": {
+            "title": "Dashboard",
+            "description": "Arrange multiple charts into a single view."
+        },
+        "document": {
+            "title": "Document",
+            "description": "Write up analysis with live charts."
+        },
+        "dataApp": {
+            "title": "Data App",
+            "description": "Build an interactive app powered by your data."
+        },
+        "space": {
+            "title": "Space",
+            "description": "Organize your saved charts and dashboards."
+        },
+        "createSpace": "Create new space"
+    },
+    "browse": {
+        "label": "Browse",
+        "allSpaces": "All Spaces",
+        "allDashboards": "All dashboards",
+        "allCharts": "All saved charts",
+        "allDocuments": "All documents",
+        "allDataApps": "All data apps",
+        "chartStudio": "Chart Studio",
+        "favorites": "Favorites",
+        "spaces": "Spaces"
+    },
+    "metrics": "Metrics",
+    "settings": {
+        "label": "Settings",
+        "project": "Project settings",
+        "organization": "Organization settings"
+    },
+    "help": {
+        "label": "Help",
+        "docs": {
+            "title": "Ask the docs",
+            "description": "Chat with the Lightdash docs AI assistant"
+        },
+        "roadmap": {
+            "title": "Roadmap",
+            "description": "Explore what we're building and track feature requests"
+        },
+        "support": {
+            "title": "Talk to support",
+            "description": "Drop us a message with product questions or feedback"
+        },
+        "slack": {
+            "title": "Join the Slack community",
+            "description": "Get advice and share best practices with other users."
+        },
+        "report": {
+            "title": "Report an issue",
+            "description": "Share a detailed report with Lightdash support",
+            "modalTitle": "Share with Lightdash Support"
+        }
+    },
+    "user": {
+        "settings": "User settings",
+        "invite": "Invite user",
+        "queryHistory": "My query history",
+        "logout": "Logout"
+    }
+}

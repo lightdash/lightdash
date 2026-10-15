@@ -2,6 +2,7 @@ import { ActionIcon, Box, Button, Drawer, Group, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconHome, IconMenu2 } from '@tabler/icons-react';
 import { lazy, Suspense, useEffect, type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router';
 import { LearnLink } from '../../features/learn/LearnLink';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
@@ -46,6 +47,7 @@ export const MainNavBarContent: FC<Props> = ({
     activeProjectUrlIdentifier,
     isLoadingActiveProject,
 }) => {
+    const { t } = useTranslation('navigation');
     const compact = useCompactNavigation();
     const [opened, { toggle, close }] = useDisclosure(false);
     const location = useLocation();
@@ -67,7 +69,9 @@ export const MainNavBarContent: FC<Props> = ({
         <>
             <Group align="center" className={classes.leftGroup}>
                 {compact && (
-                    <Text className={classes.sectionLabel}>Workspace</Text>
+                    <Text className={classes.sectionLabel}>
+                        {t('workspace')}
+                    </Text>
                 )}
                 {!compact && (
                     <ActionIcon
@@ -89,7 +93,7 @@ export const MainNavBarContent: FC<Props> = ({
                         data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-dashboards"]'
                         data-tour-then='[data-tour-anchor="pinned-item"][data-tour-value="Jaffle Shop overview"]'
                         data-tour-docs="explore/search.mdx#browsing-instead-of-searching:p2:1"
-                        title="Home"
+                        title={t('home')}
                         className={classes.logoButton}
                     >
                         <Logo />
@@ -107,7 +111,7 @@ export const MainNavBarContent: FC<Props> = ({
                                         leftSection={<IconHome size={20} />}
                                         variant="subtle"
                                     >
-                                        Home
+                                        {t('home')}
                                     </Button>
                                     <ProjectSwitcher
                                         portalTarget={
@@ -144,7 +148,9 @@ export const MainNavBarContent: FC<Props> = ({
             <Box className={classes.spacer} />
 
             <Group className={classes.rightGroup}>
-                {compact && <Text className={classes.sectionLabel}>More</Text>}
+                {compact && (
+                    <Text className={classes.sectionLabel}>{t('more')}</Text>
+                )}
                 <NavGroup className={classes.buttonGroup}>
                     <SettingsMenu withLabel={compact} />
 
@@ -198,7 +204,7 @@ export const MainNavBarContent: FC<Props> = ({
                 <ActionIcon
                     component={Link}
                     to={homeUrl}
-                    aria-label="Home"
+                    aria-label={t('home')}
                     size="lg"
                     className={classes.logoButton}
                 >
@@ -223,7 +229,7 @@ export const MainNavBarContent: FC<Props> = ({
                         size="lg"
                         onClick={toggle}
                         aria-label={
-                            opened ? 'Close navigation' : 'Open navigation'
+                            opened ? t('closeNavigation') : t('openNavigation')
                         }
                         aria-expanded={opened}
                         aria-controls="navbar-navigation-content"
@@ -237,12 +243,12 @@ export const MainNavBarContent: FC<Props> = ({
                 onClose={close}
                 title={
                     <Text c="white" fw={600}>
-                        Menu
+                        {t('menu')}
                     </Text>
                 }
                 position="right"
                 closeButtonProps={{
-                    'aria-label': 'Close navigation',
+                    'aria-label': t('closeNavigation'),
                     size: 44,
                 }}
                 size="min(calc(100vw - 24px), 360px)"

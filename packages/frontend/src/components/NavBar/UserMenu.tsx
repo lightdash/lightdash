@@ -7,6 +7,7 @@ import {
     IconUserPlus,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import useLogoutMutation from '../../hooks/user/useUserLogoutMutation';
@@ -18,6 +19,7 @@ import { useNavBarMenuProps } from './NavBarPortalContext';
 import { ThemeSwitcherMenuItem } from './ThemeSwitcher';
 
 const UserMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
+    const { t } = useTranslation('navigation');
     const menuProps = useNavBarMenuProps();
     const { user } = useApp();
     const { activeProjectUuid } = useActiveProjectUuid();
@@ -39,7 +41,7 @@ const UserMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
             <Menu.Target>
                 {withLabel ? (
                     <Button variant="default" leftSection={<UserAvatar />}>
-                        Account
+                        {t('account')}
                     </Button>
                 ) : (
                     <UserAvatar />
@@ -56,7 +58,7 @@ const UserMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
                         to="/generalSettings"
                         leftSection={<MantineIcon icon={IconUserCircle} />}
                     >
-                        User settings
+                        {t('user.settings')}
                     </Menu.Item>
                 ) : null}
 
@@ -68,7 +70,7 @@ const UserMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
                         to="/generalSettings/userManagement?to=invite"
                         leftSection={<MantineIcon icon={IconUserPlus} />}
                     >
-                        Invite user
+                        {t('user.invite')}
                     </Menu.Item>
                 ) : null}
 
@@ -79,7 +81,7 @@ const UserMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
                         to={`/projects/${activeProjectUuid}/query-history`}
                         leftSection={<MantineIcon icon={IconHistory} />}
                     >
-                        My query history
+                        {t('user.queryHistory')}
                     </Menu.Item>
                 ) : null}
 
@@ -88,7 +90,7 @@ const UserMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
                     onClick={() => logout()}
                     leftSection={<MantineIcon icon={IconLogout} />}
                 >
-                    Logout
+                    {t('user.logout')}
                 </Menu.Item>
             </Menu.Dropdown>
         </Menu>

@@ -26,6 +26,7 @@ import {
 } from '../../../hooks/useEmailVerification';
 import { useUserUpdateMutation } from '../../../hooks/user/useUserUpdateMutation';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { LanguageSwitcher } from '../../../i18n/LanguageSwitcher';
 import { VerifyEmailModal } from '../../../pages/VerifyEmail';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
@@ -217,6 +218,8 @@ const ProfilePanel: FC = () => {
                         {...form.getInputProps('timezone')}
                     />
                 )}
+
+                <LanguageSwitcher />
 
                 <Flex justify="flex-end" gap="sm">
                     {form.isDirty() && !isUpdatingUser && (

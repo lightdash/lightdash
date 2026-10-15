@@ -3,7 +3,7 @@ import json from '@rollup/plugin-json';
 import nodeResolve from '@rollup/plugin-node-resolve';
 import replace from '@rollup/plugin-replace';
 import svgr from '@svgr/rollup';
-import { readFileSync } from 'fs';
+import { readdirSync, readFileSync } from 'fs';
 import { rm } from 'fs/promises';
 import { resolve } from 'path';
 import dts from 'rollup-plugin-dts';
@@ -91,6 +91,36 @@ const onwarn = (warning, warn) => {
     warn(warning);
 };
 
+// Rollup has no `import.meta.glob`. Expand the one in src/i18n/resources.ts
+// into static JSON imports with the same `{ path: default }` shape.
+const i18nGlob = () => ({
+    name: 'i18n-glob',
+    transform(code, id) {
+        if (!id.endsWith('/src/i18n/resources.ts')) return null;
+        const localesDir = resolve(__dirname, 'src', 'i18n', 'locales');
+        const entries = readdirSync(localesDir, { withFileTypes: true })
+            .filter((dirent) => dirent.isDirectory())
+            .flatMap((dirent) =>
+                readdirSync(resolve(localesDir, dirent.name))
+                    .filter((file) => file.endsWith('.json'))
+                    .map((file) => `./locales/${dirent.name}/${file}`),
+            );
+        const imports = entries
+            .map((path, index) => `import __locale${index} from '${path}';`)
+            .join('\n');
+        const object = entries
+            .map((path, index) => `${JSON.stringify(path)}: __locale${index}`)
+            .join(', ');
+        return {
+            code: `${imports}\n${code.replace(
+                /import\.meta\.glob<[^>]*>\([\s\S]*?\}\);/,
+                `({ ${object} });`,
+            )}`,
+            map: null,
+        };
+    },
+});
+
 const sdkInput = resolve(__dirname, 'sdk', 'index.tsx');
 const distDir = resolve(__dirname, 'sdk', 'dist');
 
@@ -147,6 +177,7 @@ const mainBuild = {
                 'import.meta.env.DEV': 'false',
             },
         }),
+        i18nGlob(),
         stripSvgrQuery(),
         stubDiffViewer(),
         svgr({ exportType: 'default' }),

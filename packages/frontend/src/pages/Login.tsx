@@ -1,11 +1,13 @@
 import { LOGIN_PAGE_ID } from '@lightdash/common';
 import { Box, Card, Stack, Title } from '@mantine/core';
 import { type FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import AuthLayout from '../components/common/AuthLayout';
 import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
 import LoginLanding from '../features/users/components/LoginLanding';
 
 const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
+    const { t } = useTranslation('auth');
     if (minimal) {
         return (
             <Stack m="xl">
@@ -14,7 +16,7 @@ const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
                 </Box>
                 <Card id={LOGIN_PAGE_ID} p="xl" radius="md">
                     <Title order={3} ta="center" mb="md">
-                        Sign in
+                        {t('login.legacyTitle')}
                     </Title>
                     <LoginLanding />
                 </Card>
@@ -24,10 +26,10 @@ const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
 
     return (
         <AuthLayout
-            pageTitle="Login"
-            title="Log in"
-            subtitle="Welcome back — pick up where you left off."
-            legacyTitle="Sign in"
+            pageTitle={t('login.pageTitle')}
+            title={t('login.title')}
+            subtitle={t('login.subtitle')}
+            legacyTitle={t('login.legacyTitle')}
             cardId={LOGIN_PAGE_ID}
             withCustomerLogos
         >
