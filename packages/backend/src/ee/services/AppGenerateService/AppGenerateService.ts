@@ -122,6 +122,7 @@ import {
     type DataAppDependencies,
     type DataAppGenerationUsage,
     type DataAppManifestExternalConnection,
+    type DataAppManifestRegistryProvenance,
     type DataAppTemplate,
     type DataAppViewContext,
     type DataAppViz,
@@ -12932,6 +12933,27 @@ export class AppGenerateService extends BaseService {
         };
     }
 
+    /**
+     * Manifest provenance for a registry-installed version. Registry installs
+     * carry no dependency files; the provenance lets an upload re-install the
+     * same version instead of building from source. Undefined for custom apps.
+     */
+    private registryProvenanceFor(
+        app: Pick<DbApp, 'registry_slug' | 'registry_url'>,
+        versionRow: Pick<DbAppVersion, 'registry_version'> | null,
+    ): DataAppManifestRegistryProvenance | undefined {
+        if (!app.registry_slug || !versionRow?.registry_version) {
+            return undefined;
+        }
+        const url = app.registry_url ?? this.chartRegistryClient.getBaseUrl();
+        if (url === null) return undefined;
+        return {
+            slug: app.registry_slug,
+            version: versionRow.registry_version,
+            url,
+        };
+    }
+
     async getAppCode(
         user: SessionUser,
         projectUuid: string,
@@ -13033,6 +13055,8 @@ export class AppGenerateService extends BaseService {
               ).get(app.app_id)
             : undefined;
 
+        const registryProvenance = this.registryProvenanceFor(app, versionRow);
+
         const manifest = buildManifest({
             slug: app.slug,
             version: resolvedVersion,
@@ -13068,6 +13092,7 @@ export class AppGenerateService extends BaseService {
                   }
                 : {}),
             ...(appAccess ? { access: appAccess } : {}),
+            ...(registryProvenance ? { registry: registryProvenance } : {}),
             downloadedAt: new Date().toISOString(),
         });
 

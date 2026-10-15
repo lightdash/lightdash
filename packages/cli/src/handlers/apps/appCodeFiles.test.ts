@@ -578,3 +578,29 @@ describe('applySdkMirrorToTemplateDeps', () => {
         );
     });
 });
+
+describe('manifest registry provenance round-trip', () => {
+    it('writes and reads back the registry block untouched', async () => {
+        const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-registry-'));
+        const code: DataAppCode = {
+            manifest: {
+                codeVersion: 1,
+                slug: 'vega-trellis',
+                version: 1,
+                name: 'Vega Trellis',
+                description: '',
+                template: 'data_app_viz',
+                registry: {
+                    slug: 'vega-trellis',
+                    version: '0.6.0',
+                    url: 'https://charts.example.com',
+                },
+                downloadedAt: '2026-10-15T00:00:00.000Z',
+            },
+            files: [],
+        };
+        await writeBundleToDir(dir, code);
+        const manifest = await readManifestFromDir(dir);
+        expect(manifest.registry).toEqual(code.manifest.registry);
+    });
+});
