@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import {
     credentialsForListedDatabase,
+    findListedCatalogDatabase,
     getDatabaseListFailureReason,
     getDefaultListedDatabase,
     listConnectionDatabases,
@@ -222,5 +223,53 @@ describe('credentialsForListedDatabase', () => {
                 getDefaultListedDatabase(athena),
             ),
         ).toBe(athena);
+    });
+});
+
+describe('findListedCatalogDatabase', () => {
+    const listing = {
+        databases: [
+            {
+                name: 'analytics',
+                database: 'analytics',
+                schema: null,
+                isDefault: true,
+            },
+        ],
+        truncated: false,
+        limit: 100,
+    };
+
+    test('accepts the Snowflake catalog key with its original case', () => {
+        expect(
+            findListedCatalogDatabase(
+                listing,
+                'ANALYTICS',
+                WarehouseTypes.SNOWFLAKE,
+            ),
+        ).toBe(listing.databases[0]);
+    });
+
+    test('accepts a catalog key when the warehouse does not list databases', () => {
+        expect(
+            findListedCatalogDatabase(
+                listing,
+                'hive_metastore',
+                WarehouseTypes.DATABRICKS,
+            ),
+        ).toMatchObject({ database: 'hive_metastore' });
+    });
+
+    test('keeps the strict check for Postgres and Athena', () => {
+        expect(() =>
+            findListedCatalogDatabase(
+                listing,
+                'other',
+                WarehouseTypes.POSTGRES,
+            ),
+        ).toThrow('Warehouse database "other" not found');
+        expect(() =>
+            findListedCatalogDatabase(listing, 'other', WarehouseTypes.ATHENA),
+        ).toThrow('Warehouse database "other" not found');
     });
 });

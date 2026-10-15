@@ -17,6 +17,15 @@ export const supportsMultipleConnections = (
     warehouseType !== null &&
     MULTI_CONNECTION_WAREHOUSE_TYPES.includes(warehouseType);
 
+const DATABASE_LISTING_WAREHOUSE_TYPES: WarehouseTypes[] = [
+    WarehouseTypes.POSTGRES,
+    WarehouseTypes.ATHENA,
+];
+
+export const supportsConnectionDatabaseListing = (
+    warehouseType: WarehouseTypes,
+): boolean => DATABASE_LISTING_WAREHOUSE_TYPES.includes(warehouseType);
+
 export const WAREHOUSE_CONNECTION_NAME_MAX_LENGTH = 100;
 
 export const WAREHOUSE_CONNECTION_NAME_CONFLICT_MESSAGE =

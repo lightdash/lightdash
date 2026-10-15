@@ -348,6 +348,7 @@ export type BuildWarehouseTreeArgs = {
     connections: TreeConnection[];
     getUnitState: (unit: TableUnitKey) => TableUnitState;
     isExpanded: (rowId: string) => boolean;
+    getExpansionOverride: (rowId: string) => boolean | undefined;
     search: string;
     typeFilter: TableTypeFilter | null;
 };
@@ -356,6 +357,7 @@ export const buildWarehouseTreeRows = ({
     connections,
     getUnitState,
     isExpanded,
+    getExpansionOverride,
     search,
     typeFilter,
 }: BuildWarehouseTreeArgs): WarehouseTreeRow[] => {
@@ -599,10 +601,17 @@ export const buildWarehouseTreeRows = ({
         connectionId: string,
         database: string,
         schemas: WarehouseTablesCatalog[string],
+        listedDatabase: string | null = null,
     ): WarehouseTreeRow[] => {
         const nameMatches = plainMatch(database, needle);
         const id = databaseRowId(connectionId, database);
-        const isExpandedRow = isRowExpanded(id, true);
+        const isExpandedRow =
+            listedDatabase !== null && getExpansionOverride(id) === undefined
+                ? isRowExpanded(
+                      databaseRowId(connectionId, listedDatabase),
+                      true,
+                  )
+                : isRowExpanded(id, true);
         const buildChildren = (): WarehouseTreeRow[] =>
             Object.keys(schemas).flatMap((schema) =>
                 buildSchemaRows({
@@ -610,7 +619,7 @@ export const buildWarehouseTreeRows = ({
                     database,
                     schema,
                     depth: baseDepth + 1,
-                    listedDatabase: null,
+                    listedDatabase,
                     source: {
                         status: 'loaded',
                         tables: schemas[schema] ?? {},
@@ -635,7 +644,7 @@ export const buildWarehouseTreeRows = ({
             depth: baseDepth,
             connectionId,
             database,
-            listedDatabase: null,
+            listedDatabase,
             isExpanded: isExpandedRow,
             childCount: children !== undefined ? schemaRowCount : null,
         };
@@ -659,10 +668,18 @@ export const buildWarehouseTreeRows = ({
             });
             if (unitState.status === 'loaded') {
                 const keys = Object.keys(unitState.catalog);
-                const isPlaceholderMatch =
+                const isCatalogMatch =
                     keys.length === 1 &&
                     matchesListedName(keys[0], group.database);
-                if (keys.length > 0 && !isPlaceholderMatch) {
+                if (isCatalogMatch && keys[0] !== group.database) {
+                    return buildExtraDatabaseRows(
+                        connection.connectionId,
+                        keys[0],
+                        unitState.catalog[keys[0]],
+                        group.lazyEntry.name,
+                    );
+                }
+                if (keys.length > 0 && !isCatalogMatch) {
                     return keys.flatMap((key) =>
                         buildExtraDatabaseRows(
                             connection.connectionId,

@@ -248,6 +248,7 @@ import {
     SshTunnelError,
     SummaryExplore,
     SupportedDbtAdapter,
+    supportsConnectionDatabaseListing,
     TablesConfiguration,
     TableSelectionType,
     TooManyRequestsError,
@@ -553,7 +554,6 @@ import {
     findListedDatabase,
     getDatabaseListFailureReason,
     listConnectionDatabases,
-    supportsConnectionDatabaseListing,
 } from './connectionSqlRunner';
 import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { getAvailableParameterDefinitions } from './parameters';
@@ -14575,6 +14575,7 @@ export class ProjectService
                 queryContext,
             ),
             databaseName,
+            credentials.type,
         );
         const queryTags: RunQueryTags = withAgentMarkerTag({
             organization_uuid: account.organization.organizationUuid,
@@ -14586,10 +14587,6 @@ export class ProjectService
             credentials,
             listedDatabase,
         );
-        const database =
-            credentials.type === WarehouseTypes.SNOWFLAKE
-                ? databaseName.toUpperCase()
-                : databaseName;
         try {
             const warehouseCatalog = await this.withConnectionWarehouseClient(
                 projectUuid,
@@ -14601,14 +14598,18 @@ export class ProjectService
                     warehouseClient.getFields(
                         tableName,
                         schemaName,
-                        database,
+                        databaseName,
                         queryTags,
                     ),
                 connectionContext,
                 queryContext,
             );
+            const catalogDatabase =
+                Object.keys(warehouseCatalog).find(
+                    (key) => key.toLowerCase() === databaseName.toLowerCase(),
+                ) ?? databaseName;
             const fields =
-                warehouseCatalog[database]?.[schemaName]?.[tableName];
+                warehouseCatalog[catalogDatabase]?.[schemaName]?.[tableName];
             if (!fields) throw new NotFoundError('Table not found');
             return fields;
         } catch (error) {
