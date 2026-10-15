@@ -2973,8 +2973,13 @@ export class AiAgentModel {
 
         const missing = wanted.filter((uuid) => !members.includes(uuid));
         if (missing.length > 0) {
+            // The uuids stay out of the response so a rejected request cannot
+            // be used to probe which ones exist; they are logged for support.
+            Logger.warn(
+                `Rejected AI agent user access for organization ${organizationUuid}: not members: ${missing.join(', ')}`,
+            );
             throw new NotFoundError(
-                `Users not found in this organization: ${missing.join(', ')}`,
+                'One or more users were not found in this organization',
             );
         }
     }
