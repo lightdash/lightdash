@@ -1149,6 +1149,44 @@ describe('SQL runner catalog by connection on the real schema', () => {
             );
         });
 
+        test('uses the exact Postgres catalog key when database names differ only by case', async () => {
+            const fixture = await createProject({
+                mode: 'multi',
+                withExtra: true,
+                extraCredentials: postgresCredentials('analytics'),
+                additionalDatabases: ['ANALYTICS'],
+            });
+            const getFields = vi.fn(async () => ({
+                analytics: {
+                    public: {
+                        orders: { lower: DimensionType.STRING },
+                    },
+                },
+                ANALYTICS: {
+                    public: {
+                        orders: { upper: DimensionType.NUMBER },
+                    },
+                },
+            }));
+            const acquire = stubClient({ getFields });
+
+            await expect(
+                service.getConnectionTableFields(
+                    fixture.developer,
+                    fixture.projectUuid,
+                    fixture.extraUuid!,
+                    {
+                        databaseName: 'ANALYTICS',
+                        schemaName: 'public',
+                        tableName: 'orders',
+                    },
+                ),
+            ).resolves.toEqual({ upper: DimensionType.NUMBER });
+            expect(acquire.mock.calls[0]?.[1]).toMatchObject({
+                dbname: 'ANALYTICS',
+            });
+        });
+
         test('accepts a Databricks catalog key when listing returns a placeholder', async () => {
             const databricksCredentials = {
                 type: WarehouseTypes.DATABRICKS,

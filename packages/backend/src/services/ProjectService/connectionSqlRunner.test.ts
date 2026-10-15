@@ -272,4 +272,42 @@ describe('findListedCatalogDatabase', () => {
             findListedCatalogDatabase(listing, 'other', WarehouseTypes.ATHENA),
         ).toThrow('Warehouse database "other" not found');
     });
+
+    test('prefers the exact Postgres database when listed names differ only by case', () => {
+        const collision = {
+            ...listing,
+            databases: [
+                listing.databases[0],
+                {
+                    name: 'ANALYTICS',
+                    database: 'ANALYTICS',
+                    schema: null,
+                    isDefault: false,
+                },
+            ],
+        };
+        const selected = findListedCatalogDatabase(
+            collision,
+            'ANALYTICS',
+            WarehouseTypes.POSTGRES,
+        );
+        expect(selected.database).toBe('ANALYTICS');
+        expect(credentialsForListedDatabase(postgres, selected)).toMatchObject({
+            dbname: 'ANALYTICS',
+        });
+        expect(() =>
+            findListedCatalogDatabase(
+                listing,
+                'ANALYTICS',
+                WarehouseTypes.POSTGRES,
+            ),
+        ).toThrow('Warehouse database "ANALYTICS" not found');
+        expect(
+            findListedCatalogDatabase(
+                collision,
+                'ANALYTICS',
+                WarehouseTypes.SNOWFLAKE,
+            ),
+        ).toBe(collision.databases[1]);
+    });
 });

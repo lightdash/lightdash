@@ -166,9 +166,14 @@ export const findListedCatalogDatabase = (
     databaseName: string,
     warehouseType: WarehouseTypes,
 ): WarehouseListedDatabase => {
-    const listedDatabase = listing.databases.find(
-        ({ database }) => database.toLowerCase() === databaseName.toLowerCase(),
-    );
+    const listedDatabase =
+        listing.databases.find(({ database }) => database === databaseName) ??
+        (warehouseType === WarehouseTypes.SNOWFLAKE
+            ? listing.databases.find(
+                  ({ database }) =>
+                      database.toLowerCase() === databaseName.toLowerCase(),
+              )
+            : undefined);
     if (!listedDatabase && !supportsConnectionDatabaseListing(warehouseType)) {
         return {
             name: databaseName,
