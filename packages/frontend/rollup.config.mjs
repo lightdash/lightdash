@@ -103,21 +103,42 @@ const i18nGlob = () => ({
             .flatMap((dirent) =>
                 readdirSync(resolve(localesDir, dirent.name))
                     .filter((file) => file.endsWith('.json'))
-                    .map((file) => `./locales/${dirent.name}/${file}`),
+                    .map((file) => ({
+                        language: dirent.name,
+                        path: `./locales/${dirent.name}/${file}`,
+                    })),
             );
-        const imports = entries
-            .map((path, index) => `import __locale${index} from '${path}';`)
+        const eager = entries.filter((entry) => entry.language === 'en');
+        const lazy = entries.filter((entry) => entry.language !== 'en');
+        const imports = eager
+            .map(
+                (entry, index) =>
+                    `import __locale${index} from '${entry.path}';`,
+            )
             .join('\n');
-        const object = entries
-            .map((path, index) => `${JSON.stringify(path)}: __locale${index}`)
+        const eagerObject = eager
+            .map(
+                (entry, index) =>
+                    `${JSON.stringify(entry.path)}: __locale${index}`,
+            )
             .join(', ');
-        return {
-            code: `${imports}\n${code.replace(
-                /import\.meta\.glob<[^>]*>\([\s\S]*?\}\);/,
-                `({ ${object} });`,
-            )}`,
-            map: null,
-        };
+        // `inlineDynamicImports` folds these into the single SDK bundle.
+        const lazyObject = lazy
+            .map(
+                (entry) =>
+                    `${JSON.stringify(entry.path)}: () => import('${entry.path}').then((m) => m.default)`,
+            )
+            .join(', ');
+        const globCall = /import\.meta\.glob<[^>]*>\([\s\S]*?\}\)/g;
+        let occurrence = 0;
+        const replaced = code
+            .replace('import.meta.env !== undefined', 'true')
+            .replace(globCall, () =>
+                occurrence++ === 0
+                    ? `({ ${eagerObject} })`
+                    : `({ ${lazyObject} })`,
+            );
+        return { code: `${imports}\n${replaced}`, map: null };
     },
 });
 
