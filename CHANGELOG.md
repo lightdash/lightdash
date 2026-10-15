@@ -1,3 +1,10 @@
+## [2.589.2](https://github.com/lightdash/lightdash/compare/2.589.1...2.589.2) (2026-10-15)
+
+
+### Bug Fixes
+
+* **ai-agents:** label selected users in the agent access picker from the agent ([#31033](https://github.com/lightdash/lightdash/issues/31033)) ([a96300f](https://github.com/lightdash/lightdash/commit/a96300ffc22b5d2fa9f5d38187b3bbdf3a22f083))
+
 ## [2.589.1](https://github.com/lightdash/lightdash/compare/2.589.0...2.589.1) (2026-10-15)
 
 
