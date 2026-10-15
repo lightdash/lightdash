@@ -140,6 +140,7 @@ export const lightdashConfigMock: LightdashConfig = {
         acquireConnectionTimeout: undefined,
         readinessProbeTtlMs: 10_000,
         allowMissingMigrations: false,
+        logTransactionRollbacks: false,
     },
     intercom: {
         appId: '',

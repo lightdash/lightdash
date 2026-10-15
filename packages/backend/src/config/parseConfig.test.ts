@@ -3113,3 +3113,17 @@ describe('Docker Hub update check', () => {
         expect(parseConfig().updateCheck.enabled).toBe(false);
     });
 });
+
+describe('database transaction rollback logging', () => {
+    it('is disabled by default', () => {
+        expect(parseConfig().database.logTransactionRollbacks).toBe(false);
+    });
+    it('is enabled with PG_LOG_TRANSACTION_ROLLBACKS=true', () => {
+        process.env.PG_LOG_TRANSACTION_ROLLBACKS = 'true';
+        expect(parseConfig().database.logTransactionRollbacks).toBe(true);
+    });
+    it('treats any other value as disabled', () => {
+        process.env.PG_LOG_TRANSACTION_ROLLBACKS = 'yes';
+        expect(parseConfig().database.logTransactionRollbacks).toBe(false);
+    });
+});

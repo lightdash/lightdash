@@ -147,6 +147,10 @@ export default class NatsWorkerApp {
             this.environment === 'production'
                 ? args.knexConfig.production
                 : args.knexConfig.development,
+            {
+                logRollbacks:
+                    this.lightdashConfig.database.logTransactionRollbacks,
+            },
         );
 
         const utils = new UtilRepository({
