@@ -1,14 +1,19 @@
 import {
+    NotFoundError,
     SEED_ORG_1,
     SEED_ORG_1_EDITOR,
     SEED_ORG_1_EDITOR_EMAIL,
     SEED_ORG_1_VIEWER,
     SEED_ORG_1_VIEWER_EMAIL,
+    SEED_ORG_2_ADMIN,
     SEED_PROJECT,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { getModels, getTestContext } from '../../vitest.setup.integration';
-import { AiAgentTableName } from '../database/entities/aiAgent';
+import {
+    AiAgentTableName,
+    AiAgentUserAccessTableName,
+} from '../database/entities/aiAgent';
 import { type AiAgentModel } from './AiAgentModel';
 
 /**
@@ -60,9 +65,15 @@ describe('AiAgentModel user access details', () => {
     });
 
     afterAll(async () => {
-        if (agentUuids.length === 0) return;
+        // By name as well as uuid: a create that should have been rejected
+        // but was not would otherwise leave an agent behind.
         await database(AiAgentTableName)
-            .whereIn('ai_agent_uuid', agentUuids)
+            .where('organization_uuid', SEED_ORG_1.organization_uuid)
+            .where((builder) =>
+                builder
+                    .whereIn('ai_agent_uuid', agentUuids)
+                    .orWhere('name', 'like', 'user access details %'),
+            )
             .delete();
     });
 
@@ -106,5 +117,55 @@ describe('AiAgentModel user access details', () => {
         });
 
         expect(updated.userAccessDetails).toEqual([viewer]);
+    });
+
+    it('rejects a user from another organization on create', async () => {
+        await expect(
+            createAgent([editor.userUuid, SEED_ORG_2_ADMIN.user_uuid]),
+        ).rejects.toThrow(NotFoundError);
+    });
+
+    it('rejects a user from another organization on update and keeps the saved access', async () => {
+        const created = await createAgent([editor.userUuid]);
+        agentUuids.push(created.uuid);
+
+        await expect(
+            model.updateAgent({
+                agentUuid: created.uuid,
+                organizationUuid: SEED_ORG_1.organization_uuid,
+                userAccess: [SEED_ORG_2_ADMIN.user_uuid],
+            }),
+        ).rejects.toThrow(NotFoundError);
+
+        const agent = await model.getAgent({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            agentUuid: created.uuid,
+        });
+        expect(agent.userAccess).toEqual([editor.userUuid]);
+        expect(agent.userAccessDetails).toEqual([editor]);
+    });
+
+    it('leaves out an access row for a user who is not a member of the organization', async () => {
+        // A row that predates validation, or whose user has since left the
+        // organization: the uuid stays, but no name or email is resolved.
+        const created = await createAgent([editor.userUuid]);
+        agentUuids.push(created.uuid);
+        await database(AiAgentUserAccessTableName).insert({
+            ai_agent_uuid: created.uuid,
+            user_uuid: SEED_ORG_2_ADMIN.user_uuid,
+        });
+
+        const agent = await model.getAgent({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            agentUuid: created.uuid,
+        });
+
+        expect(agent.userAccess).toEqual(
+            expect.arrayContaining([
+                editor.userUuid,
+                SEED_ORG_2_ADMIN.user_uuid,
+            ]),
+        );
+        expect(agent.userAccessDetails).toEqual([editor]);
     });
 });

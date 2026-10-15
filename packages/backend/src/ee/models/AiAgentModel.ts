@@ -144,6 +144,8 @@ import {
     ExternalSourceTablesTableName,
 } from '../../database/entities/externalSources';
 import { OrganizationDesignsTableName } from '../../database/entities/organizationDesigns';
+import { OrganizationMembershipsTableName } from '../../database/entities/organizationMemberships';
+import { OrganizationTableName } from '../../database/entities/organizations';
 import { DbProject, ProjectTableName } from '../../database/entities/projects';
 import {
     SavedChartsTableName,
@@ -2387,6 +2389,7 @@ export class AiAgentModel {
 
             const userAccess = await this.setAndGetUserAccess(
                 agent.ai_agent_uuid,
+                agent.organization_uuid,
                 args.userAccess ?? undefined,
                 { trx },
             );
@@ -2718,6 +2721,7 @@ export class AiAgentModel {
 
             const userAccess = await this.setAndGetUserAccess(
                 agent.ai_agent_uuid,
+                agent.organization_uuid,
                 args.userAccess ?? undefined,
                 { trx },
             );
@@ -2856,33 +2860,64 @@ export class AiAgentModel {
     private userAccessDetailsQuery({
         trx = this.database,
     }: { trx?: Knex } = {}) {
-        return trx(AiAgentUserAccessTableName)
-            .innerJoin(
-                UserTableName,
-                `${UserTableName}.user_uuid`,
-                `${AiAgentUserAccessTableName}.user_uuid`,
-            )
-            .innerJoin(EmailTableName, function joinPrimaryEmail() {
-                this.on(
-                    `${EmailTableName}.user_id`,
-                    `${UserTableName}.user_id`,
-                ).andOn(`${EmailTableName}.is_primary`, trx.raw('true'));
-            })
-            .select<
-                {
-                    ai_agent_uuid: string;
-                    user_uuid: string;
-                    first_name: string;
-                    last_name: string;
-                    email: string;
-                }[]
-            >(
-                `${AiAgentUserAccessTableName}.ai_agent_uuid`,
-                `${UserTableName}.user_uuid`,
-                `${UserTableName}.first_name`,
-                `${UserTableName}.last_name`,
-                `${EmailTableName}.email`,
-            );
+        return (
+            trx(AiAgentUserAccessTableName)
+                .innerJoin(
+                    UserTableName,
+                    `${UserTableName}.user_uuid`,
+                    `${AiAgentUserAccessTableName}.user_uuid`,
+                )
+                .innerJoin(EmailTableName, function joinPrimaryEmail() {
+                    this.on(
+                        `${EmailTableName}.user_id`,
+                        `${UserTableName}.user_id`,
+                    ).andOn(`${EmailTableName}.is_primary`, trx.raw('true'));
+                })
+                // Only current members of the agent's organization are resolved. A
+                // uuid that is not (a user who has left, or a row written before
+                // membership was validated) stays in `userAccess` but gets no name.
+                // Written as EXISTS rather than a join on purpose: membership
+                // statistics are averaged across all organizations, so a join
+                // makes the planner walk every member of the organization per
+                // agent. EXISTS keeps it driving from the few access rows and
+                // probing the membership primary key.
+                .innerJoin(
+                    AiAgentTableName,
+                    `${AiAgentTableName}.ai_agent_uuid`,
+                    `${AiAgentUserAccessTableName}.ai_agent_uuid`,
+                )
+                .whereExists(
+                    trx
+                        .select(1)
+                        .from(OrganizationMembershipsTableName)
+                        .innerJoin(
+                            OrganizationTableName,
+                            `${OrganizationTableName}.organization_id`,
+                            `${OrganizationMembershipsTableName}.organization_id`,
+                        )
+                        .whereRaw(
+                            `${OrganizationMembershipsTableName}.user_id = ${UserTableName}.user_id`,
+                        )
+                        .whereRaw(
+                            `${OrganizationTableName}.organization_uuid = ${AiAgentTableName}.organization_uuid`,
+                        ),
+                )
+                .select<
+                    {
+                        ai_agent_uuid: string;
+                        user_uuid: string;
+                        first_name: string;
+                        last_name: string;
+                        email: string;
+                    }[]
+                >(
+                    `${AiAgentUserAccessTableName}.ai_agent_uuid`,
+                    `${UserTableName}.user_uuid`,
+                    `${UserTableName}.first_name`,
+                    `${UserTableName}.last_name`,
+                    `${EmailTableName}.email`,
+                )
+        );
     }
 
     private async getUserAccessDetails(
@@ -2905,6 +2940,45 @@ export class AiAgentModel {
         }));
     }
 
+    /**
+     * Access can only be granted to members of the agent's organization.
+     * Otherwise an agent manager could name any user uuid and, through the
+     * resolved details, learn that person's name and email.
+     */
+    private static async assertOrganizationMembers(
+        trx: Knex,
+        organizationUuid: AiAgent['organizationUuid'],
+        userUuids: string[],
+    ): Promise<void> {
+        const wanted = [...new Set(userUuids)];
+        if (wanted.length === 0) return;
+
+        const members = await trx(UserTableName)
+            .innerJoin(
+                OrganizationMembershipsTableName,
+                `${OrganizationMembershipsTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${OrganizationMembershipsTableName}.organization_id`,
+            )
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .whereIn(`${UserTableName}.user_uuid`, wanted)
+            .pluck<string[]>(`${UserTableName}.user_uuid`);
+
+        const missing = wanted.filter((uuid) => !members.includes(uuid));
+        if (missing.length > 0) {
+            throw new NotFoundError(
+                `Users not found in this organization: ${missing.join(', ')}`,
+            );
+        }
+    }
+
     private async getUserAccess(
         agentUuid: AiAgent['uuid'],
         { trx = this.database }: { trx?: Knex } = {},
@@ -2918,9 +2992,16 @@ export class AiAgentModel {
 
     private async setUserAccess(
         agentUuid: AiAgent['uuid'],
+        organizationUuid: AiAgent['organizationUuid'],
         userAccess: NonNullable<AiAgent['userAccess']>,
         { trx = this.database }: { trx?: Knex } = {},
     ): Promise<NonNullable<AiAgent['userAccess']>> {
+        await AiAgentModel.assertOrganizationMembers(
+            trx,
+            organizationUuid,
+            userAccess,
+        );
+
         // Delete existing user access
         await trx(AiAgentUserAccessTableName)
             .where('ai_agent_uuid', agentUuid)
@@ -2942,11 +3023,14 @@ export class AiAgentModel {
 
     private async setAndGetUserAccess(
         agentUuid: AiAgent['uuid'],
+        organizationUuid: AiAgent['organizationUuid'],
         userAccess: NonNullable<AiAgent['userAccess']> | undefined,
         { trx = this.database }: { trx?: Knex } = {},
     ): Promise<NonNullable<AiAgent['userAccess']>> {
         if (userAccess !== undefined) {
-            await this.setUserAccess(agentUuid, userAccess, { trx });
+            await this.setUserAccess(agentUuid, organizationUuid, userAccess, {
+                trx,
+            });
         }
         return this.getUserAccess(agentUuid, { trx });
     }
