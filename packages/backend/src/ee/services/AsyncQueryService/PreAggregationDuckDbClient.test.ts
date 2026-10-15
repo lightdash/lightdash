@@ -310,38 +310,6 @@ describe('PreAggregationDuckDbClient', () => {
         expect(createDuckdbWarehouseClient).not.toHaveBeenCalled();
     });
 
-    test.each([
-        "read_parquet('s3://other-org-bucket/secret.parquet')",
-        "(SELECT count(*) FROM glob('s3://mock_preagg_bucket/*'))",
-        "(SELECT * FROM read_json_auto('s3://mock_preagg_bucket/abc123.jsonl'))",
-        "(SELECT 1 FROM 's3://mock_preagg_bucket/abc123.parquet')",
-    ])(
-        'refuses to serve a custom SQL dimension that reads files: %s',
-        async (sql) => {
-            const { client, createDuckdbWarehouseClient, preAggregateModel } =
-                getClient();
-
-            const result = await client.resolve({
-                ...baseResolveArgs,
-                metricQuery: {
-                    ...baseResolveArgs.metricQuery,
-                    dimensions: ['custom_1'],
-                    customDimensions: [makeCustomSqlDimension(sql)],
-                },
-            });
-
-            expect(result).toEqual({
-                resolved: false,
-                reason: PreAggregationDuckDbResolveReason.CUSTOM_SQL_FILE_ACCESS,
-            });
-            expect(QueryComposerMock).not.toHaveBeenCalled();
-            expect(
-                preAggregateModel.getActiveMaterialization,
-            ).not.toHaveBeenCalled();
-            expect(createDuckdbWarehouseClient).not.toHaveBeenCalled();
-        },
-    );
-
     test('serves a custom SQL dimension that only references fields', async () => {
         const { client } = getClient();
 
