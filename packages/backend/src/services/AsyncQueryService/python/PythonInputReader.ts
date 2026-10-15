@@ -1,5 +1,6 @@
 import { ParameterError } from '@lightdash/common';
 import { Readable } from 'stream';
+import { destroyS3Body } from '../../../clients/Aws/s3Streams';
 
 export const PYTHON_MAX_INPUT_BYTES = 64 * 1024 * 1024;
 
@@ -18,12 +19,12 @@ export class PythonInputReader {
     abort(error: unknown): void {
         this.failure ??=
             error instanceof Error ? error : new Error(String(error));
-        this.streams.forEach((stream) => stream.destroy());
+        this.streams.forEach((stream) => destroyS3Body(stream));
     }
 
     async read(stream: Readable): Promise<Buffer> {
         if (this.failure) {
-            stream.destroy();
+            destroyS3Body(stream);
             throw this.failure;
         }
         this.streams.add(stream);
