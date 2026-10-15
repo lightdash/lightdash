@@ -3684,11 +3684,21 @@ export class AiAgentToolsService extends BaseService {
                                 ]),
                             ),
                         );
+                        const executionStats =
+                            // eslint-disable-next-line no-await-in-loop
+                            await this.asyncQueryService.getQueryExecutionStats(
+                                {
+                                    account: context.account,
+                                    projectUuid: context.projectUuid,
+                                    queryUuid,
+                                },
+                            );
                         return {
                             queryUuid,
                             rows,
                             columns: Object.keys(queryResults.columns),
                             rowCount: rows.length,
+                            executionStats,
                         };
                     }
 

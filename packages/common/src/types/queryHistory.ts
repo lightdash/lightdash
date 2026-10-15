@@ -9,6 +9,7 @@ import type { ItemsMap } from './field';
 import type { MetricQuery } from './metricQuery';
 import type { ParametersValuesMap } from './parameters';
 import type { WarehouseTypes } from './projects';
+import type { WarehouseExecutionStats } from './warehouse';
 
 export interface IWarehouseQueryMetadata {
     type: WarehouseTypes;
@@ -122,6 +123,7 @@ export type QueryHistory = {
     projectUuid: string | null;
     warehouseQueryId: string | null;
     warehouseQueryMetadata: WarehouseQueryMetadata | null;
+    warehouseExecutionStats: WarehouseExecutionStats | null;
     context: QueryExecutionContext;
     defaultPageSize: number | null;
     compiledSql: string;

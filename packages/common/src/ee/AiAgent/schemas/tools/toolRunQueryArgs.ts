@@ -26,7 +26,10 @@ import {
     MCP_QUERY_ERROR_NOTE,
     MCP_QUERY_RESULT_USAGE_NOTE,
 } from './toolMcpQueryResultDescription';
-import { mcpAsyncQueryUuidSchema } from './toolQueryResultSchemas';
+import {
+    executionStatsContentSchema,
+    mcpAsyncQueryUuidSchema,
+} from './toolQueryResultSchemas';
 
 const parameterValueSchema = z.union([
     z.string(),
@@ -772,6 +775,7 @@ export const toolRunQueryStructuredContentSchema = z.discriminatedUnion(
                     'null when the explore references no parameters or the query was a merge.',
                 ),
             data: shownResultsSchema,
+            executionStats: executionStatsContentSchema,
         }),
     ],
 );

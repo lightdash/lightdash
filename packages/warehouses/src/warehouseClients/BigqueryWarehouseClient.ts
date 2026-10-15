@@ -44,6 +44,7 @@ import {
     WarehouseTypes,
     type ResultNumericKind,
     type TimestampDomain,
+    type WarehouseExecutionStats,
     type WarehouseNestedColumnShape,
 } from '@lightdash/common';
 import { pipeline, Transform } from 'stream';
@@ -662,6 +663,32 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         return job;
     }
 
+    static getExecutionStats(
+        jobId: string | null,
+        statistics: bigquery.IJobStatistics | undefined,
+    ): WarehouseExecutionStats {
+        const toNumber = (value: string | undefined): number | null => {
+            if (value === undefined) return null;
+            const parsed = Number(value);
+            return Number.isFinite(parsed) ? parsed : null;
+        };
+        const startTime = toNumber(statistics?.startTime);
+        const endTime = toNumber(statistics?.endTime);
+        return {
+            jobId,
+            bytesProcessed: toNumber(
+                statistics?.query?.totalBytesProcessed ??
+                    statistics?.totalBytesProcessed,
+            ),
+            bytesBilled: toNumber(statistics?.query?.totalBytesBilled),
+            executionTimeMs:
+                startTime !== null && endTime !== null
+                    ? endTime - startTime
+                    : null,
+            cacheHit: statistics?.query?.cacheHit ?? null,
+        };
+    }
+
     private async getJobResultsMetadata(job: Job) {
         // Get the full api response but we can request zero rows
         const [, , response] = await job.getQueryResults({
@@ -1088,6 +1115,10 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 totalRows,
                 durationMs: startTime && endTime ? endTime - startTime : 0,
                 phaseTimings: { query: queryMs, fetch: fetchMs },
+                executionStats: BigqueryWarehouseClient.getExecutionStats(
+                    job.id,
+                    job.metadata?.statistics,
+                ),
             };
         } catch (e: unknown) {
             this.throwIfGoogleOauthTokenError(e);

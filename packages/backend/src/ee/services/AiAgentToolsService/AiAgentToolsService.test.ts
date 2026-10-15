@@ -338,6 +338,16 @@ describe('AiAgentToolsService', () => {
             const searchFieldUniqueValues = vi
                 .fn()
                 .mockResolvedValue({ results: ['paid'] });
+            const executionStats = {
+                jobId: 'job-1',
+                bytesProcessed: 0,
+                bytesBilled: 0,
+                executionTimeMs: 120,
+                cacheHit: true,
+            };
+            const getQueryExecutionStats = vi
+                .fn()
+                .mockResolvedValue(executionStats);
             const service = makeService({
                 explores: { orders: makeExplore({ name: 'orders' }) },
                 searchFieldUniqueValues,
@@ -349,12 +359,20 @@ describe('AiAgentToolsService', () => {
                         rows: [],
                         columns: {},
                     }),
+                    getQueryExecutionStats,
                 },
             });
             const runtime = service.createRuntime(
                 makeRuntimeContext({ querySurface }),
             );
-            await runtime.runSqlJob({ sql: 'select 1', limit: 10 });
+            const sqlResult = await runtime.runSqlJob({
+                sql: 'select 1',
+                limit: 10,
+            });
+            expect(sqlResult.executionStats).toEqual(executionStats);
+            expect(getQueryExecutionStats).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({ queryUuid: 'sql' }),
+            );
             await runtime.runAsyncQuery({
                 exploreName: 'orders',
                 dimensions: [],
