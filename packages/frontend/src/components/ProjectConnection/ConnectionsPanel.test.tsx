@@ -205,6 +205,94 @@ describe('ConnectionsPanel', () => {
         ).toBeInTheDocument();
     });
 
+    it('offers SQL runner database settings only for supported warehouse types', async () => {
+        mockApi.mockResolvedValue({
+            connections: [
+                { ...original, warehouseType: WarehouseTypes.SNOWFLAKE },
+                { ...extra, warehouseType: WarehouseTypes.SNOWFLAKE },
+            ],
+            capabilities: { canAddConnection: true, reason: null },
+        });
+        const user = renderPanel();
+        await user.click(
+            await screen.findByRole('button', {
+                name: 'Actions for Warehouse',
+            }),
+        );
+        expect(
+            within(await screen.findByRole('menu')).queryByRole('menuitem', {
+                name: 'SQL runner databases',
+            }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('renders Snowflake fields and saves a selected organisation credential', async () => {
+        mockApi.mockImplementation(
+            async ({ url, method }: { url: string; method: string }) => {
+                if (url === listUrl && method === 'GET')
+                    return {
+                        connections: [
+                            {
+                                ...original,
+                                warehouseType: WarehouseTypes.SNOWFLAKE,
+                            },
+                        ],
+                        capabilities: { canAddConnection: true, reason: null },
+                    };
+                if (url === '/org/warehouse-credentials' && method === 'GET')
+                    return [
+                        {
+                            organizationWarehouseCredentialsUuid:
+                                'org-credential-uuid',
+                            warehouseType: WarehouseTypes.SNOWFLAKE,
+                            name: 'Saved Snowflake',
+                        },
+                    ];
+                if (url === listUrl && method === 'POST') return extra;
+                return undefined;
+            },
+        );
+        const user = renderPanel();
+        await user.click(
+            await screen.findByRole('button', { name: 'Add connection' }),
+        );
+        expect(
+            await screen.findByRole('textbox', { name: 'Account' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('textbox', { name: 'Warehouse' }),
+        ).toBeInTheDocument();
+        await user.type(
+            screen.getByRole('textbox', { name: 'Name' }),
+            'Reporting',
+        );
+        await user.click(
+            screen.getByRole('radio', { name: 'Use organization credentials' }),
+        );
+        expect(
+            screen.getByRole('combobox', { name: 'Organization credentials' }),
+        ).toBeInTheDocument();
+        const dialog = screen
+            .getByText('Add a connection')
+            .closest<HTMLElement>('[role="alertdialog"], [role="dialog"]')!;
+        await user.click(
+            within(dialog).getByRole('button', { name: 'Add connection' }),
+        );
+        await waitFor(() =>
+            expect(mockApi).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    url: listUrl,
+                    method: 'POST',
+                    body: JSON.stringify({
+                        name: 'Reporting',
+                        organizationWarehouseCredentialsUuid:
+                            'org-credential-uuid',
+                    }),
+                }),
+            ),
+        );
+    });
+
     it('disables adding a connection when the project cannot hold another', async () => {
         mockApi.mockResolvedValue({
             connections: [original],

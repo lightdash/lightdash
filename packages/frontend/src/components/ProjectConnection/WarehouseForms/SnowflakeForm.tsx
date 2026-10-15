@@ -110,6 +110,32 @@ const SnowflakeSSOInput: FC<{
     );
 };
 
+const RequireUserCredentialsField: FC<{ disabled: boolean }> = ({
+    disabled,
+}) => {
+    const { isProjectExtraConnection } = useProjectFormContext();
+    const form = useFormContext();
+    if (isProjectExtraConnection) {
+        return (
+            <Text size="sm" c="dimmed">
+                Require users to provide their own credentials follows the
+                primary connection.
+            </Text>
+        );
+    }
+    return (
+        <BooleanSwitch
+            name="warehouse.requireUserCredentials"
+            label="Require users to provide their own credentials"
+            defaultChecked={SnowflakeDefaultValues.requireUserCredentials}
+            disabled={disabled}
+            {...form.getInputProps('warehouse.requireUserCredentials', {
+                type: 'checkbox',
+            })}
+        />
+    );
+};
+
 const SnowflakeForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
@@ -165,7 +191,9 @@ const SnowflakeForm: FC<{
         FeatureFlags.NewOnboarding,
     );
     const isCliSsoEnabled =
-        !savedProject && (warehouseConnectFlag.data?.enabled ?? false);
+        !savedProject &&
+        !isProjectExtraConnection &&
+        (warehouseConnectFlag.data?.enabled ?? false);
     const isCliSsoMode = useSnowflakeCliSsoMode();
     const setIsCliSsoMode = useSetSnowflakeCliSsoMode();
     const userSelectedAuthType = useRef(false);
@@ -484,19 +512,8 @@ const SnowflakeForm: FC<{
                                             used. Users must provide their own
                                             credentials to connect.
                                         </Text>
-                                        <BooleanSwitch
-                                            name="warehouse.requireUserCredentials"
-                                            label="Require users to provide their own credentials"
-                                            defaultChecked={
-                                                SnowflakeDefaultValues.requireUserCredentials
-                                            }
+                                        <RequireUserCredentialsField
                                             disabled={disabled}
-                                            {...form.getInputProps(
-                                                'warehouse.requireUserCredentials',
-                                                {
-                                                    type: 'checkbox',
-                                                },
-                                            )}
                                         />
                                     </>
                                 ) : authenticationType ===
@@ -667,19 +684,8 @@ const SnowflakeForm: FC<{
                                 <FormSection isOpen={isOpen} name="advanced">
                                     <Stack mt="xs">
                                         {!isNoneAuth && (
-                                            <BooleanSwitch
-                                                name="warehouse.requireUserCredentials"
-                                                label="Require users to provide their own credentials"
-                                                defaultChecked={
-                                                    SnowflakeDefaultValues.requireUserCredentials
-                                                }
+                                            <RequireUserCredentialsField
                                                 disabled={disabled}
-                                                {...form.getInputProps(
-                                                    'warehouse.requireUserCredentials',
-                                                    {
-                                                        type: 'checkbox',
-                                                    },
-                                                )}
                                             />
                                         )}
 
@@ -787,18 +793,7 @@ const SnowflakeForm: FC<{
                                             defaultValue={
                                                 SnowflakeDefaultValues.timeoutSeconds
                                             }
-                                            description={
-                                                <p>
-                                                    Sets the maximum execution
-                                                    time for queries. If a query
-                                                    takes longer than this
-                                                    timeout, Snowflake will
-                                                    cancel it. This uses
-                                                    Snowflake's
-                                                    STATEMENT_TIMEOUT_IN_SECONDS
-                                                    session parameter.
-                                                </p>
-                                            }
+                                            description="Sets the maximum execution time for queries. If a query takes longer than this timeout, Snowflake will cancel it. This uses Snowflake's STATEMENT_TIMEOUT_IN_SECONDS session parameter."
                                             disabled={disabled}
                                         />
                                     </Stack>

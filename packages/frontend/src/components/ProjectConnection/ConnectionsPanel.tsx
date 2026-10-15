@@ -3,12 +3,13 @@ import {
     assertUnreachable,
     omitEmptySecrets,
     ProjectType,
+    supportsConnectionDatabaseListing,
     validateWarehouseConnectionName,
     WAREHOUSE_CONNECTION_NAME_MAX_LENGTH,
+    type WarehouseTypes,
     type CreateWarehouseCredentials,
     type Project,
     type WarehouseConnection,
-    type WarehouseTypes,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -105,12 +106,16 @@ const ConnectionRow: FC<{
                 <Menu.Item onClick={() => onRename(connection)}>
                     Rename
                 </Menu.Item>
-                <Menu.Item
-                    leftSection={<MantineIcon icon={IconDatabase} />}
-                    onClick={() => onEditListing(connection)}
-                >
-                    SQL runner databases
-                </Menu.Item>
+                {supportsConnectionDatabaseListing(
+                    connection.warehouseType,
+                ) && (
+                    <Menu.Item
+                        leftSection={<MantineIcon icon={IconDatabase} />}
+                        onClick={() => onEditListing(connection)}
+                    >
+                        SQL runner databases
+                    </Menu.Item>
+                )}
                 {!connection.isOriginal && (
                     <Menu.Item
                         color="red"
@@ -136,6 +141,7 @@ const AddConnectionModal: FC<{
             warehouse: {
                 ...warehouseDefaultValues[warehouseType],
             } as CreateWarehouseCredentials,
+            organizationWarehouseCredentialsUuid: undefined,
             ...unusedDbtFormValues,
         },
         validate: {
@@ -154,11 +160,21 @@ const AddConnectionModal: FC<{
     });
 
     const handleSubmit = () => {
-        if (form.validate().hasErrors) return;
-        createMutation.mutate({
-            name: form.values.name.trim(),
-            warehouseConnection: form.values.warehouse,
-        });
+        const organizationWarehouseCredentialsUuid =
+            form.values.organizationWarehouseCredentialsUuid;
+        if (organizationWarehouseCredentialsUuid) {
+            if (form.validateField('name').hasError) return;
+            createMutation.mutate({
+                name: form.values.name.trim(),
+                organizationWarehouseCredentialsUuid,
+            });
+        } else {
+            if (form.validate().hasErrors) return;
+            createMutation.mutate({
+                name: form.values.name.trim(),
+                warehouseConnection: form.values.warehouse,
+            });
+        }
     };
 
     return (
@@ -190,7 +206,11 @@ const EditConnectionForm: FC<{
     credentials: CreateWarehouseCredentials;
     onClose: () => void;
 }> = ({ projectUuid, connection, credentials, onClose }) => {
-    const savedProject = { warehouseConnection: credentials } as Project;
+    const savedProject = {
+        warehouseConnection: credentials,
+        organizationWarehouseCredentialsUuid:
+            connection.organizationWarehouseCredentialsUuid,
+    } as Project;
     const updateMutation = useUpdateWarehouseConnection(projectUuid, {
         onSuccess: onClose,
     });
@@ -198,6 +218,8 @@ const EditConnectionForm: FC<{
         initialValues: {
             name: connection.name,
             warehouse: credentials,
+            organizationWarehouseCredentialsUuid:
+                connection.organizationWarehouseCredentialsUuid ?? undefined,
             ...unusedDbtFormValues,
         },
         validate: {
@@ -207,12 +229,22 @@ const EditConnectionForm: FC<{
     });
 
     const handleSubmit = () => {
-        if (form.validate().hasErrors) return;
+        const organizationWarehouseCredentialsUuid =
+            form.values.organizationWarehouseCredentialsUuid;
+        if (!organizationWarehouseCredentialsUuid && form.validate().hasErrors)
+            return;
         updateMutation.mutate({
             warehouseConnectionUuid: connection.warehouseConnectionUuid,
-            data: {
-                warehouseConnection: omitEmptySecrets(form.values.warehouse),
-            },
+            data: organizationWarehouseCredentialsUuid
+                ? organizationWarehouseCredentialsUuid ===
+                  connection.organizationWarehouseCredentialsUuid
+                    ? {}
+                    : { organizationWarehouseCredentialsUuid }
+                : {
+                      warehouseConnection: omitEmptySecrets(
+                          form.values.warehouse,
+                      ),
+                  },
         });
     };
 

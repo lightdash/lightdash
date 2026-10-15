@@ -9,6 +9,7 @@ import { type UserWarehouseCredentials } from './userWarehouseCredentials';
 export const MULTI_CONNECTION_WAREHOUSE_TYPES: WarehouseTypes[] = [
     WarehouseTypes.POSTGRES,
     WarehouseTypes.ATHENA,
+    WarehouseTypes.SNOWFLAKE,
 ];
 
 export const supportsMultipleConnections = (
