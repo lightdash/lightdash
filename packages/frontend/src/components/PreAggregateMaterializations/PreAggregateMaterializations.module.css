@@ -36,3 +36,7 @@
 .helpCursor {
     cursor: help;
 }
+
+.nowrap {
+    white-space: nowrap;
+}
