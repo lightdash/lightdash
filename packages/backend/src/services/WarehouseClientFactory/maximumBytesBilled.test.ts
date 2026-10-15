@@ -9,6 +9,7 @@ import { describe, expect, test, vi } from 'vitest';
 import {
     hasRoleMaximumBytesBilled,
     resolveMaximumBytesBilled,
+    resolveMaximumBytesBilledForPerson,
     withMaximumBytesBilled,
 } from './maximumBytesBilled';
 
@@ -111,6 +112,37 @@ describe('resolveMaximumBytesBilled', () => {
                 maximumBytesBilledByRole: {},
             }),
         ).toBe(false);
+    });
+});
+
+describe('resolveMaximumBytesBilledForPerson', () => {
+    test('looks up the role only when a role mapping is configured', async () => {
+        const getRole = vi.fn().mockResolvedValue(ProjectMemberRole.EDITOR);
+        expect(
+            await resolveMaximumBytesBilledForPerson(bigquery, {
+                isAgent: false,
+                getRole,
+            }),
+        ).toBe(5000);
+        expect(getRole).toHaveBeenCalledOnce();
+
+        getRole.mockClear();
+        expect(
+            await resolveMaximumBytesBilledForPerson(
+                { ...bigquery, maximumBytesBilledByRole: undefined },
+                { isAgent: true, getRole },
+            ),
+        ).toBe(100);
+        expect(getRole).not.toHaveBeenCalled();
+    });
+
+    test('uses no role without a person', async () => {
+        expect(
+            await resolveMaximumBytesBilledForPerson(bigquery, {
+                isAgent: false,
+                getRole: null,
+            }),
+        ).toBeNull();
     });
 });
 

@@ -36,6 +36,23 @@ export const resolveMaximumBytesBilled = (
         : asLimit(credentials.maximumBytesBilledByRole?.[role]);
 };
 
+export const resolveMaximumBytesBilledForPerson = async (
+    credentials: CreateWarehouseCredentials,
+    {
+        isAgent,
+        getRole,
+    }: {
+        isAgent: boolean;
+        getRole: (() => Promise<ProjectMemberRole | null>) | null;
+    },
+): Promise<number | null> => {
+    const role =
+        getRole !== null && hasRoleMaximumBytesBilled(credentials)
+            ? await getRole()
+            : null;
+    return resolveMaximumBytesBilled(credentials, { isAgent, role });
+};
+
 export const withMaximumBytesBilled = (
     client: WarehouseClient,
     maximumBytesBilled: number | null,

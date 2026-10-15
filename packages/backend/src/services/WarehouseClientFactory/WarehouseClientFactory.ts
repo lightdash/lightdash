@@ -85,8 +85,7 @@ import {
 } from './CredentialResolver';
 import { CredentialResolverRegistry } from './CredentialResolverRegistry';
 import {
-    hasRoleMaximumBytesBilled,
-    resolveMaximumBytesBilled,
+    resolveMaximumBytesBilledForPerson,
     withMaximumBytesBilled,
 } from './maximumBytesBilled';
 import { resolvePersonalCredentialPolicy } from './personalCredentialPolicy';
@@ -852,16 +851,32 @@ export class WarehouseClientFactory {
                 await materialization?.dispose();
                 throw error;
             });
-        const maximumBytesBilled = await this.resolveMaximumBytesBilled(
-            ref,
-            context,
-            warehouseCredentials,
-            !!aiPlan || (overrides?.agentSession ?? false),
-        ).catch(async (error: unknown) => {
-            await sshTunnel.disconnect();
-            await materialization?.dispose();
-            throw error;
-        });
+        const { person } = context.actor;
+        const { projectUuid } = ref;
+        const maximumBytesBilled =
+            context.purpose === 'query' &&
+            (ref.kind === 'binding' || ref.kind === 'resolved') &&
+            warehouseCredentials.type === WarehouseTypes.BIGQUERY
+                ? await resolveMaximumBytesBilledForPerson(
+                      warehouseCredentials,
+                      {
+                          isAgent:
+                              !!aiPlan || (overrides?.agentSession ?? false),
+                          getRole:
+                              person !== null && projectUuid !== null
+                                  ? () =>
+                                        this.projectModel.getHighestSystemProjectRole(
+                                            projectUuid,
+                                            person.userUuid,
+                                        )
+                                  : null,
+                      },
+                  ).catch(async (error: unknown) => {
+                      await sshTunnel.disconnect();
+                      await materialization?.dispose();
+                      throw error;
+                  })
+                : null;
         const withExecutionTags = (client: WarehouseClient) => {
             const limitedClient = withMaximumBytesBilled(
                 client,
@@ -933,30 +948,6 @@ export class WarehouseClientFactory {
                 return releasePromise;
             },
         };
-    }
-
-    private async resolveMaximumBytesBilled(
-        ref: WarehouseClientRef,
-        context: ConnectionContext,
-        credentials: CreateWarehouseCredentials,
-        isAgent: boolean,
-    ): Promise<number | null> {
-        if (
-            context.purpose !== 'query' ||
-            (ref.kind !== 'binding' && ref.kind !== 'resolved')
-        )
-            return null;
-        const { person } = context.actor;
-        const role =
-            person !== null &&
-            ref.projectUuid !== null &&
-            hasRoleMaximumBytesBilled(credentials)
-                ? await this.projectModel.getHighestSystemProjectRole(
-                      ref.projectUuid,
-                      person.userUuid,
-                  )
-                : null;
-        return resolveMaximumBytesBilled(credentials, { isAgent, role });
     }
 
     private buildClient(
