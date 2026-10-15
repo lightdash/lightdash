@@ -413,6 +413,10 @@ const resolveColumn = (
     return choice !== null && candidates.includes(choice) ? choice : null;
 };
 
+/** Positive form of the identifier rule; `columns[].idLike` is in the state. */
+const ID_RULE =
+    'A column marked `idLike` in `columns` fits only when the question is about individual records.';
+
 const KIND_DESCRIPTIONS: Record<BuiltInVizKind, string> = {
     table: 'A table of the rows: detailed records, many fields, or no chart that answers the question.',
     bar: 'Bars comparing one measure across categories, optionally split into series by another category.',
@@ -428,10 +432,15 @@ const slotSummary = ({ field }: OfferedCustomChartType['slots'][number]) =>
         ...(field.required ? [] : ['optional']),
     ].join(', ')})`;
 
+const sentence = (text: string) => {
+    const trimmed = text.trim();
+    return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+};
+
 const customKindDescription = (offered: OfferedCustomChartType) =>
-    `Custom chart "${offered.type.name}": ${offered.type.description} Slots: ${offered.slots
-        .map(slotSummary)
-        .join('; ')}.`;
+    `Custom chart "${offered.type.name}": ${sentence(
+        offered.type.description,
+    )} Slots: ${offered.slots.map(slotSummary).join('; ')}.`;
 
 const slotQuestionId = (key: CustomKindKey, slot: string) =>
     `${key}:slot:${slot}`;
@@ -470,7 +479,7 @@ const getCustomQuestions = (
     const questions: Record<string, DecisionQuestion> = {};
     offered.slots.filter(isSlotAsked).forEach((slot) => {
         const { field, pool } = slot;
-        const slotText = `the slot "${field.label}"${
+        const slotText = `the ${field.type} slot "${field.label}"${
             field.description ? ` (${field.description})` : ''
         }`;
         if (field.multiple) {
@@ -480,9 +489,9 @@ const getCustomQuestions = (
                     slotMemberQuestionId(offered.key, field.name, reference)
                 ] = {
                     type: 'noul',
-                    instructions: `${premise}, should the column ${reference}${
+                    instructions: `${premise}, does the column ${reference}${
                         label ? ` ("${label}")` : ''
-                    } be one of the columns in ${slotText}? Include the columns the question asks about; never an identifier unless the question is about individual records.`,
+                    } belong in ${slotText}? Yes for every column the question asks to show there. ${ID_RULE}`,
                 };
             });
             return;
@@ -490,7 +499,7 @@ const getCustomQuestions = (
         const keep = previousSlotValue(previous, offered.key, field.name);
         questions[slotQuestionId(offered.key, field.name)] = {
             type: 'choice',
-            instructions: `${premise}, which column fills ${slotText}? Never choose an identifier unless the question is about individual records.${
+            instructions: `${premise}, which column fills ${slotText}? Pick the column the question names for this role. ${ID_RULE}${
                 field.required
                     ? ''
                     : ' Choose none to leave this optional slot empty.'
@@ -512,7 +521,7 @@ const getCustomQuestions = (
             case 'select':
                 questions[id] = {
                     type: 'choice',
-                    instructions: `${premise}, which value should its option "${option.label}" take? Choose default unless the question or instructions ask for one.`,
+                    instructions: `${premise}, which value should its option "${option.label}" take? Choose default unless \`question\` or \`conversation\` asks for a specific one.`,
                     criteria: {
                         ...Object.fromEntries(
                             option.choices.map((choice) => [
@@ -529,7 +538,7 @@ const getCustomQuestions = (
                     type: 'noul',
                     instructions: `${premise}, should its option "${option.label}" be on? It defaults to ${
                         option.default ? 'on' : 'off'
-                    }; answer by that default unless the question or instructions ask otherwise.`,
+                    }; answer with that default unless \`question\` or \`conversation\` asks otherwise.`,
                 };
                 break;
             default:
@@ -551,7 +560,7 @@ const getQuestions = (
         kind: {
             type: 'choice',
             instructions:
-                'Choose how the final result should be visualized to answer the question, given its columns and shape. Respect explicit visualization requests and agent instructions, even for a kind outside supportedKinds. Choose a custom chart type when its description fits the question better than the built-in kinds. Do not hide requested fields to make a chart fit. Choose none if uncertain.',
+                'Choose how the result is visualized to answer `question`, given `columns` and `rowCount`. An explicit visualization request in `question` or `conversation` wins, even for a kind outside `supportedKinds`. A custom chart type (`customChartTypes`) wins when its description, slots and inputGuidance fit the question better than a built-in kind. Keep every requested field visible. Choose none if unsure.',
             criteria: {
                 ...Object.fromEntries(
                     COMPOSER_VIZ_KINDS.map((kind) => [
@@ -571,7 +580,7 @@ const getQuestions = (
         explicitStyle: {
             type: 'noul',
             instructions:
-                'Did the user question or agent instructions explicitly request a visualization kind such as a table, bar, line, pie, single number or a named custom chart type?',
+                'Does `question` or `conversation` explicitly request a visualization kind: a table, bar, line, pie, single number or a named custom chart type?',
         },
         ...Object.fromEntries(
             shape.customTypes.flatMap((offered) =>
@@ -584,8 +593,7 @@ const getQuestions = (
     if (shape.xCandidates.length > 0) {
         questions.x = {
             type: 'choice',
-            instructions:
-                'Choose the column for the x-axis or pie categories. Prefer the time column for a trend and the grouping the question asks about. Never choose an identifier unless the question is about individual records. Choose none if no column fits.',
+            instructions: `Choose the column for the x-axis or pie categories: the time column for a trend, otherwise the grouping the question asks about. ${ID_RULE} Choose none if no column fits.`,
             criteria: {
                 ...Object.fromEntries(
                     shape.xCandidates.map((reference) => [
@@ -610,8 +618,7 @@ const getQuestions = (
     if (Object.keys(yCriteria).length > 1) {
         questions.y = {
             type: 'choice',
-            instructions:
-                'Choose the measure the question asks about for the value axis. Never choose an identifier or a year used as a label.',
+            instructions: `Choose the measure the question asks about for the value axis. ${ID_RULE} A year used as a label is a category, not a measure.`,
             criteria: yCriteria,
         };
     }
@@ -619,7 +626,7 @@ const getQuestions = (
         questions.groupBy = {
             type: 'choice',
             instructions:
-                'For a bar or line chart, choose the column that splits the measure into one series per value, such as region in revenue by month by region. It must differ from the x-axis column. Choose none when the question does not ask for a breakdown or the rows have one value per x.',
+                'For a bar or line chart, choose the column that splits the measure into one series per value, such as region in "revenue by month by region". It must differ from the x-axis column. Choose none when the question asks for no breakdown or the rows have one value per x.',
             criteria: {
                 ...Object.fromEntries(
                     shape.groupByCandidates.map((reference) => [
@@ -1051,6 +1058,7 @@ const customTypeState = (offered: OfferedCustomChartType) => ({
     slug: offered.type.slug,
     name: offered.type.name,
     description: offered.type.description,
+    inputGuidance: offered.type.schema.inputGuidance ?? null,
     slots: offered.slots.map(({ field }) => ({
         name: field.name,
         label: field.label,
@@ -1058,6 +1066,7 @@ const customTypeState = (offered: OfferedCustomChartType) => ({
         required: field.required,
         multiple: field.multiple ?? false,
         description: field.description ?? null,
+        examples: field.examples ?? null,
     })),
 });
 
