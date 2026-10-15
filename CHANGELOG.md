@@ -1,3 +1,10 @@
+# [2.583.0](https://github.com/lightdash/lightdash/compare/2.582.0...2.583.0) (2026-10-15)
+
+
+### Features
+
+* **bigquery:** label agent queries with agent_uuid and keep user_uuid ([#31009](https://github.com/lightdash/lightdash/issues/31009)) ([576dcca](https://github.com/lightdash/lightdash/commit/576dccaf734bc7439318563fcae0fa2e8b7fb39b)), closes [#31002](https://github.com/lightdash/lightdash/issues/31002)
+
 # [2.582.0](https://github.com/lightdash/lightdash/compare/2.581.2...2.582.0) (2026-10-14)
 
 
