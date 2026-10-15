@@ -1,3 +1,10 @@
+# [2.588.0](https://github.com/lightdash/lightdash/compare/2.587.0...2.588.0) (2026-10-15)
+
+
+### Features
+
+* **backend:** opt-in slow transaction warning and transaction metrics ([#31011](https://github.com/lightdash/lightdash/issues/31011)) ([e17399b](https://github.com/lightdash/lightdash/commit/e17399bf2315badcd36ad5639d8dc40b952661ab)), closes [#30731](https://github.com/lightdash/lightdash/issues/30731) [#30731](https://github.com/lightdash/lightdash/issues/30731)
+
 # [2.587.0](https://github.com/lightdash/lightdash/compare/2.586.0...2.587.0) (2026-10-15)
 
 
