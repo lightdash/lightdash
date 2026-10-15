@@ -573,7 +573,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 id: 'materializedAt',
                 header: 'Last materialized',
                 enableSorting: true,
-                size: 140,
+                size: 200,
                 accessorFn: (row) =>
                     row.materialization?.materializedAt ?? null,
                 Header: ({ column }) => (
@@ -608,7 +608,11 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                             >
                                 <TimeAgoText date={materializedAt} />
                             </Tooltip>
-                            <Text size="xs" c="ldGray.5">
+                            <Text
+                                size="xs"
+                                c="ldGray.5"
+                                className={classes.nowrap}
+                            >
                                 via {TRIGGER_LABELS[materialization.trigger]}
                             </Text>
                         </Group>
