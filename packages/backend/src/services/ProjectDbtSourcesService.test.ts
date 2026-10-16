@@ -14,6 +14,7 @@ import { fromSession } from '../auth/account/account';
 import { buildAccount, defaultSessionUser } from '../auth/account/account.mock';
 import { GITHUB_APP_NOT_INSTALLED_MESSAGE } from '../projectAdapters/githubAuthorization';
 import { ProjectDbtSourcesService } from './ProjectDbtSourcesService';
+import { warehouseConnectionCredentials } from './WarehouseConnectionService/warehouseConnectionFixtures.mock';
 
 const projectUuid = '11111111-1111-4111-8111-111111111111';
 const otherProjectUuid = '99999999-9999-4999-8999-999999999999';
@@ -69,6 +70,7 @@ const projectModel = {
         projectUuid: uuid,
         dbtConnection: primaryDbtConnection,
     })),
+    getWarehouseConnectionForBinding: vi.fn(),
     getDbtSourceIdentity: vi.fn(async () => ({
         dbtSourceUuid: primarySourceUuid,
         dbtSourceName: 'dbt_project',
@@ -78,6 +80,7 @@ const projectModel = {
 
 const projectDbtSourcesModel = {
     getSources: vi.fn(async () => []),
+    getSourcesWithBindings: vi.fn(),
     getSource: vi.fn(),
     createSource: vi.fn(),
     updateSource: vi.fn(),
@@ -116,6 +119,10 @@ describe('ProjectDbtSourcesService', () => {
             dbtSourceName: 'dbt_project',
         });
         projectDbtSourcesModel.getSources.mockResolvedValue([]);
+        projectDbtSourcesModel.getSourcesWithBindings.mockResolvedValue([]);
+        projectModel.getWarehouseConnectionForBinding.mockResolvedValue(
+            warehouseConnectionCredentials[WarehouseTypes.BIGQUERY],
+        );
         // By default the org has no GitHub App installation.
         githubAppInstallationsModel.findInstallationId.mockResolvedValue(
             undefined,
@@ -504,6 +511,9 @@ describe('ProjectDbtSourcesService', () => {
         });
 
         it('rejects a database on a warehouse whose tables have none', async () => {
+            projectModel.getWarehouseConnectionForBinding.mockResolvedValue(
+                warehouseConnectionCredentials[WarehouseTypes.CLICKHOUSE],
+            );
             projectModel.get.mockResolvedValue({
                 projectUuid,
                 dbtConnection: primaryDbtConnection,
@@ -722,6 +732,48 @@ describe('ProjectDbtSourcesService', () => {
                     },
                 }),
             );
+        });
+
+        it('validates a source location against its bound Trino connection', async () => {
+            projectDbtSourcesModel.getSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                projectUuid,
+                dbtConnection: githubConnection,
+            } as never);
+            projectDbtSourcesModel.getSourcesWithBindings.mockResolvedValue([
+                {
+                    projectDbtSourceUuid: sourceUuid,
+                    warehouseConnectionUuid: 'trino-extra',
+                },
+            ]);
+            projectDbtSourcesModel.updateSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                name: 'source',
+                isPrimary: false,
+                precedence: 1,
+                dbtConnection: githubConnection,
+            } as never);
+            projectModel.getWarehouseConnectionForBinding.mockResolvedValue(
+                warehouseConnectionCredentials[WarehouseTypes.TRINO],
+            );
+            await getService().updateProjectDbtSource(
+                adminAccount,
+                projectUuid,
+                sourceUuid,
+                {
+                    warehouseLocation: {
+                        database: 'catalog',
+                        schema: 'public',
+                    },
+                },
+            );
+            expect(
+                projectModel.getWarehouseConnectionForBinding,
+            ).toHaveBeenCalledWith(projectUuid, {
+                kind: 'connection',
+                warehouseConnectionUuid: 'trino-extra',
+            });
+            expect(projectDbtSourcesModel.updateSource).toHaveBeenCalled();
         });
 
         it('rejects an invalid GitHub token before updating the source', async () => {

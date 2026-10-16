@@ -28,7 +28,10 @@ import {
 
 export type DeployExploreEnhancer = (
     explores: (Explore | ExploreError)[],
-    context: { startOfWeek: WeekDay | null },
+    context: {
+        startOfWeek: WeekDay | null;
+        startOfWeekByExplore?: ReadonlyMap<string, WeekDay | null>;
+    },
 ) => (Explore | ExploreError)[];
 
 type ProjectServiceInterface = {
@@ -315,8 +318,28 @@ export class DeployService extends BaseService {
             const deployData =
                 await this.deploySessionModel.getDeployData(sessionUuid);
             const uploadedExplores = deployData.explores;
+            const startOfWeekByExplore = new Map(
+                await Promise.all(
+                    uploadedExplores
+                        .filter((explore) => explore.preAggregates?.length)
+                        .map(
+                            async (explore) =>
+                                [
+                                    explore.name,
+                                    (
+                                        await this.projectModel.getWarehouseConnectionForDeploy(
+                                            projectUuid,
+                                            explore.name,
+                                            cliDeploy.sourceUuid,
+                                        )
+                                    ).startOfWeek ?? null,
+                                ] as const,
+                        ),
+                ),
+            );
             const explores = this.exploreEnhancer(uploadedExplores, {
                 startOfWeek: project.warehouseConnection?.startOfWeek ?? null,
+                startOfWeekByExplore,
             });
 
             this.logger.info(

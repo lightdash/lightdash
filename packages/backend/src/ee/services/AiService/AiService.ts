@@ -741,11 +741,11 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
         const modelOptions = await this.getAmbientAiModel(user, {
             projectUuid,
         });
-        const warehouseType = project.warehouseConnection?.type;
-
-        if (!warehouseType) {
-            throw new ForbiddenError('Warehouse type is not available');
-        }
+        const { type: warehouseType } =
+            await this.projectService.getWarehouseSqlBuilderSettings(
+                projectUuid,
+                { kind: 'explore', exploreName: payload.tableName },
+            );
 
         const result = await generateTableCalculationFromContext(modelOptions, {
             prompt: payload.prompt,
@@ -798,11 +798,11 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
         const modelOptions = await this.getAmbientAiModel(user, {
             projectUuid,
         });
-        const warehouseType = project.warehouseConnection?.type;
-
-        if (!warehouseType) {
-            throw new ForbiddenError('Warehouse type is not available');
-        }
+        const { type: warehouseType } =
+            await this.projectService.getWarehouseSqlBuilderSettings(
+                projectUuid,
+                { kind: 'explore', exploreName: payload.tableName },
+            );
 
         const result = await generateCustomDimensionFromContext(modelOptions, {
             ...payload,

@@ -543,6 +543,8 @@ export class MultiConnectionCompiler {
                 warehouseConnectionUuid: string;
             };
             if (beforeLoadExtraCredentials) await beforeLoadExtraCredentials();
+            let extraWarehouseType: CreateWarehouseCredentials['type'] | null =
+                null;
             try {
                 compiledExtraGroups.push(
                     await this.compileExtraGroup({
@@ -554,7 +556,12 @@ export class MultiConnectionCompiler {
                         prepareSourceManifest,
                         crossSourceRefsEnabled,
                         concurrency,
-                        loadExtraCredentials,
+                        loadExtraCredentials: async (uuid) => {
+                            const credentials =
+                                await loadExtraCredentials(uuid);
+                            extraWarehouseType = credentials.type;
+                            return credentials;
+                        },
                         beforeAcquireClient: beforeLoadExtraCredentials,
                         trackingParams,
                         warnings,
@@ -566,6 +573,25 @@ export class MultiConnectionCompiler {
                 if (error instanceof ManifestCollisionError) throw error;
                 failedConnectionUuids.push(extraPlan.warehouseConnectionUuid);
                 if (analytics) {
+                    if (extraWarehouseType === null) {
+                        try {
+                            extraWarehouseType =
+                                (
+                                    await this.projectModel.getWarehouseConnectionsMetadata(
+                                        projectUuid,
+                                    )
+                                ).find(
+                                    (connection) =>
+                                        connection.warehouseConnectionUuid ===
+                                        extraPlan.warehouseConnectionUuid,
+                                )?.warehouseType ?? null;
+                        } catch (metadataError) {
+                            Logger.warn(
+                                'Failed to resolve the extra connection warehouse type',
+                                metadataError,
+                            );
+                        }
+                    }
                     try {
                         const organizationId =
                             trackingParams?.organizationUuid ??
@@ -585,8 +611,7 @@ export class MultiConnectionCompiler {
                                 warehouseConnectionId:
                                     extraPlan.warehouseConnectionUuid,
                                 connectionKind: 'extra',
-                                warehouseType:
-                                    primary.warehouseCredentials.type,
+                                warehouseType: extraWarehouseType,
                                 connectionCount: 1 + extraPlans.length,
                                 credentialSource: null,
                                 reason: 'extra_connection_failed',

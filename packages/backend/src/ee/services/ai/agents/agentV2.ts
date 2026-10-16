@@ -2628,6 +2628,7 @@ const getCapabilitySectionArgs = (
     enableComposerQueries: args.enableComposerQueries,
     warehouseType: args.warehouseType,
     warehouseSchema: args.warehouseSchema,
+    warehouseConnections: args.warehouseConnections ?? [],
     sqlScope: args.sqlScope,
     runSqlMaxLimit: args.runSqlMaxLimit,
 });

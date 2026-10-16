@@ -8847,6 +8847,51 @@ Parameters:
             "structuredContent": {
               "additionalProperties": false,
               "properties": {
+                "connections": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "isOriginal": {
+                        "type": "boolean",
+                      },
+                      "name": {
+                        "type": "string",
+                      },
+                      "warehouseConnectionUuid": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                      },
+                      "warehouseType": {
+                        "enum": [
+                          "bigquery",
+                          "postgres",
+                          "redshift",
+                          "snowflake",
+                          "databricks",
+                          "trino",
+                          "clickhouse",
+                          "athena",
+                          "duckdb",
+                        ],
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "name",
+                      "warehouseConnectionUuid",
+                      "warehouseType",
+                      "isOriginal",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
                 "dbtConnectionLabel": {
                   "description": "Human-readable name of the dbt connection type.",
                   "type": "string",
@@ -8991,6 +9036,7 @@ Parameters:
                 "dbtConnectionLabel",
                 "dbtVersion",
                 "warehouseType",
+                "connections",
                 "git",
                 "previewDeployCi",
               ],

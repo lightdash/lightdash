@@ -8,7 +8,7 @@ import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type LicenseService } from '../LicenseService/LicenseService';
 
 export const WAREHOUSE_TYPE_REASON =
-    'Multiple connections are supported for Postgres, Athena, Snowflake, and Trino projects only.';
+    'Multiple connections require a user-connectable warehouse connection.';
 export const ENTITLEMENT_REASON =
     'An extra connection needs the Enterprise multi-connection add-on.';
 export const ROLLOUT_REASON =

@@ -29,6 +29,7 @@ const WAREHOUSE_HINTS: Record<WarehouseTypes, string> = {
 export const getRunSqlSection = ({
     warehouseType,
     warehouseSchema,
+    warehouseConnections = [],
     sqlScope,
     // Configurable per instance, so a literal here would contradict the tool schema.
     runSqlMaxLimit = DEFAULT_RUN_SQL_MAX_LIMIT,
@@ -39,6 +40,12 @@ export const getRunSqlSection = ({
 }: {
     warehouseType: WarehouseTypes | null;
     warehouseSchema: string | null;
+    warehouseConnections?: {
+        name: string;
+        warehouseConnectionUuid: string | null;
+        warehouseType: WarehouseTypes;
+        isOriginal: boolean;
+    }[];
     sqlScope?: AgentSqlScope | null;
     runSqlMaxLimit?: number;
     viaComposerQueries?: boolean;
@@ -81,6 +88,13 @@ export const getRunSqlSection = ({
         ? `${scopeParts.join(' ')} ${SCOPE_RULES}`
         : null;
 
+    const connectionLines = warehouseConnections
+        .map(
+            (connection) =>
+                `- ${JSON.stringify(connection.name)} (${connection.warehouseConnectionUuid ?? 'original'}): ${connection.warehouseType}. ${WAREHOUSE_HINTS[connection.warehouseType]}${connection.isOriginal ? ' This is the original connection used by raw SQL and warehouse discovery tools.' : ' Use semantic queries bound to this connection; raw SQL tools cannot target it.'}`,
+        )
+        .join('\n');
+
     const schemaLine = warehouseSchema
         ? `**Default schema for this project:** \`${warehouseSchema}\`. ALWAYS qualify your tables with this schema (e.g. \`${warehouseSchema}.fm_work_orders\`). Bare table names will fail.`
         : 'You do not know the warehouse schema. Use listWarehouseTables to discover the right schema before writing SQL.';
@@ -93,7 +107,14 @@ You have access to a runSql tool that executes raw SELECT queries directly again
 
     return `
 ${intro}
-
+${
+    warehouseConnections.length > 1
+        ? `
+Raw SQL and warehouse discovery tools use the original connection only. Do not use them to query tables on extra connections or join across connections.
+${connectionLines}
+`
+        : ''
+}
 **When to use it:**
 - ${
         answerWithRunQuery
