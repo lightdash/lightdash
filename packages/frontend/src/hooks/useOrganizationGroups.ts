@@ -3,6 +3,7 @@ import {
     type ApiGroupListResponse,
     type CreateGroup,
     type Group,
+    type GroupSort,
     type GroupWithMembers,
     type KnexPaginateArgs,
     type UpdateGroupWithMembers,
@@ -23,6 +24,7 @@ const getOrganizationGroupsQuery = async (
     includeMembers?: number,
     searchQuery?: string,
     paginateArgs?: KnexPaginateArgs,
+    sort?: GroupSort,
 ) => {
     const urlParams = new URLSearchParams({
         ...(paginateArgs
@@ -33,6 +35,9 @@ const getOrganizationGroupsQuery = async (
             : {}),
         ...(includeMembers ? { includeMembers: String(includeMembers) } : {}),
         ...(searchQuery ? { searchQuery } : {}),
+        ...(sort
+            ? { sortBy: sort.sortBy, sortDirection: sort.sortDirection }
+            : {}),
     }).toString();
 
     return lightdashApi<ApiGroupListResponse['results']>({
@@ -73,10 +78,12 @@ export const useInfiniteOrganizationGroups = (
         searchInput,
         includeMembers,
         pageSize,
+        sort,
     }: {
         searchInput?: string;
         includeMembers?: number;
         pageSize: number;
+        sort?: GroupSort;
     },
     infinityQueryOpts: UseInfiniteQueryOptions<
         ApiGroupListResponse['results'],
@@ -90,12 +97,18 @@ export const useInfiniteOrganizationGroups = (
             includeMembers,
             pageSize,
             searchInput,
+            sort,
         ],
         queryFn: async ({ pageParam }) => {
-            return getOrganizationGroupsQuery(includeMembers, searchInput, {
-                pageSize: pageSize,
-                page: pageParam ?? 1,
-            });
+            return getOrganizationGroupsQuery(
+                includeMembers,
+                searchInput,
+                {
+                    pageSize: pageSize,
+                    page: pageParam ?? 1,
+                },
+                sort,
+            );
         },
         onError: (result) => setErrorResponse(result),
         getNextPageParam: (lastPage) => {

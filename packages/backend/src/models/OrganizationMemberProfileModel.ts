@@ -9,6 +9,7 @@ import {
     OrganizationMemberProfileUpdate,
     OrganizationMemberProfileWithGroups,
     OrganizationMemberRole,
+    OrganizationMemberSort,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { EmailTableName } from '../database/entities/emails';
@@ -211,11 +212,31 @@ export class OrganizationMemberProfileModel {
         });
     }
 
+    // Sorts by the label the users table shows: full name, falling back to
+    // email for users without one (e.g. pending invites). user_uuid keeps
+    // the order stable across pages.
+    private static applyMemberSort(
+        query: Knex.QueryBuilder,
+        { sortDirection }: OrganizationMemberSort,
+    ) {
+        const direction = sortDirection === 'desc' ? 'desc' : 'asc';
+        return query.orderByRaw(
+            `lower(coalesce(nullif(trim(concat_ws(' ', ??, ??)), ''), ??)) ${direction}, ?? ${direction}`,
+            [
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+                `${EmailTableName}.email`,
+                `${UserTableName}.user_uuid`,
+            ],
+        );
+    }
+
     async getOrganizationMembers({
         organizationUuid,
         paginateArgs,
         searchQuery,
         sort,
+        memberSort,
         exactMatchFilter,
         googleOidcOnly,
     }: {
@@ -223,6 +244,7 @@ export class OrganizationMemberProfileModel {
         paginateArgs?: KnexPaginateArgs;
         searchQuery?: string;
         sort?: { column: string; direction: 'asc' | 'desc' };
+        memberSort?: OrganizationMemberSort;
         exactMatchFilter?: { column: string; value: string };
         googleOidcOnly?: boolean;
     }): Promise<KnexPaginatedData<OrganizationMemberProfile[]>> {
@@ -285,6 +307,11 @@ export class OrganizationMemberProfileModel {
         // Apply sorting if present
         if (sort && sort.column && sort.direction) {
             query = query.orderBy(sort.column, sort.direction);
+        } else if (memberSort) {
+            query = OrganizationMemberProfileModel.applyMemberSort(
+                query,
+                memberSort,
+            );
         }
 
         // Paginate the results
@@ -413,6 +440,7 @@ export class OrganizationMemberProfileModel {
         paginateArgs?: KnexPaginateArgs,
         searchQuery?: string,
         googleOidcOnly?: boolean,
+        memberSort?: OrganizationMemberSort,
     ): Promise<KnexPaginatedData<OrganizationMemberProfileWithGroups[]>> {
         let orgMembersAndGroupsQuery = this.database(UserTableName)
             // See queryBuilder above — exclude internal (non-human) user
@@ -542,6 +570,14 @@ export class OrganizationMemberProfileModel {
                                 ),
                         ),
             );
+        }
+
+        if (memberSort) {
+            orgMembersAndGroupsQuery =
+                OrganizationMemberProfileModel.applyMemberSort(
+                    orgMembersAndGroupsQuery,
+                    memberSort,
+                );
         }
 
         const { pagination, data } = await KnexPaginate.paginate(

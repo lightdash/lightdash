@@ -6,6 +6,7 @@ import {
     type ApiUserDashboardsSummaryResponse,
     type ApiUserSchedulersSummaryResponse,
     type KnexPaginateArgs,
+    type OrganizationMemberSort,
 } from '@lightdash/common';
 import {
     useInfiniteQuery,
@@ -29,6 +30,7 @@ const getOrganizationUsersQuery = async (params?: {
     searchQuery?: string;
     projectUuid?: string;
     googleOidcOnly?: boolean;
+    sort?: OrganizationMemberSort;
 }) => {
     const urlParams = new URLSearchParams({
         ...(params?.paginateArgs
@@ -44,6 +46,12 @@ const getOrganizationUsersQuery = async (params?: {
         ...(params?.projectUuid ? { projectUuid: params.projectUuid } : {}),
         ...(params?.googleOidcOnly
             ? { googleOidcOnly: String(params.googleOidcOnly) }
+            : {}),
+        ...(params?.sort
+            ? {
+                  sortBy: params.sort.sortBy,
+                  sortDirection: params.sort.sortDirection,
+              }
             : {}),
     }).toString();
 
@@ -123,12 +131,14 @@ export const useInfiniteOrganizationUsers = (
         pageSize,
         projectUuid,
         googleOidcOnly,
+        sort,
     }: {
         searchInput?: string;
         includeGroups?: number;
         projectUuid?: string;
         pageSize: number;
         googleOidcOnly?: boolean;
+        sort?: OrganizationMemberSort;
     },
     infinityQueryOpts: UseInfiniteQueryOptions<
         ApiOrganizationMemberProfiles['results'],
@@ -145,6 +155,7 @@ export const useInfiniteOrganizationUsers = (
                 searchInput,
                 projectUuid,
                 googleOidcOnly,
+                sort,
             ],
             queryFn: ({ pageParam }) => {
                 return getOrganizationUsersQuery({
@@ -156,6 +167,7 @@ export const useInfiniteOrganizationUsers = (
                     searchQuery: searchInput,
                     projectUuid,
                     googleOidcOnly,
+                    sort,
                 });
             },
             onError: (result) => setErrorResponse(result),

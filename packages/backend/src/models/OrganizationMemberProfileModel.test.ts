@@ -71,6 +71,61 @@ describe('OrganizationMemberProfileModel', () => {
         },
     );
 
+    describe.each([false, true])(
+        'member sort with groups=%s',
+        (includeGroups) => {
+            const list = (sortDirection?: 'asc' | 'desc') => {
+                const memberSort = sortDirection
+                    ? { sortBy: 'name' as const, sortDirection }
+                    : undefined;
+                return includeGroups
+                    ? model.getOrganizationMembersAndGroups(
+                          'organization-uuid',
+                          100,
+                          undefined,
+                          undefined,
+                          undefined,
+                          memberSort,
+                      )
+                    : model.getOrganizationMembers({
+                          organizationUuid: 'organization-uuid',
+                          memberSort,
+                      });
+            };
+
+            beforeEach(() => {
+                tracker.on.select(/.*/).response([]);
+            });
+
+            it.each(['asc', 'desc'] as const)(
+                'orders by display name, falling back to email (%s)',
+                async (direction) => {
+                    await list(direction);
+                    expect(tracker.history.select[0].sql).toContain(
+                        `order by lower(coalesce(nullif(trim(concat_ws(' ', "users"."first_name", "users"."last_name")), ''), "emails"."email")) ${direction}, "users"."user_uuid" ${direction}`,
+                    );
+                },
+            );
+
+            it('keeps the default order when no sort is requested', async () => {
+                await list();
+                expect(tracker.history.select[0].sql).not.toContain('order by');
+            });
+        },
+    );
+
+    it('prefers an explicit column sort over member sort', async () => {
+        tracker.on.select(/.*/).response([]);
+        await model.getOrganizationMembers({
+            organizationUuid: 'organization-uuid',
+            sort: { column: 'users.updated_at', direction: 'asc' },
+            memberSort: { sortBy: 'name', sortDirection: 'desc' },
+        });
+        const { sql } = tracker.history.select[0];
+        expect(sql).toContain('order by "users"."updated_at" asc');
+        expect(sql).not.toContain('concat_ws');
+    });
+
     describe('findOrganizationMembersByEmails', () => {
         it('does not query for an empty email list', async () => {
             await expect(

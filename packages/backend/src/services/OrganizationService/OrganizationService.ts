@@ -10,6 +10,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     Group,
+    GroupSort,
     GroupWithMembers,
     isSystemRole,
     isUserWithOrg,
@@ -30,6 +31,7 @@ import {
     OrganizationMemberProfileUpdate,
     OrganizationMemberProfileWithGroups,
     OrganizationMemberRole,
+    OrganizationMemberSort,
     OrganizationProject,
     ParameterError,
     ProjectType,
@@ -555,6 +557,7 @@ export class OrganizationService extends BaseService {
         searchQuery?: string,
         projectUuid?: string,
         googleOidcOnly?: boolean,
+        memberSort?: OrganizationMemberSort,
     ): Promise<KnexPaginatedData<OrganizationMemberProfile[]>> {
         const { organizationUuid } = user;
         if (organizationUuid === undefined) {
@@ -578,11 +581,13 @@ export class OrganizationService extends BaseService {
                   paginateArgs,
                   searchQuery,
                   googleOidcOnly,
+                  memberSort,
               )
             : await this.organizationMemberProfileModel.getOrganizationMembers({
                   organizationUuid,
                   paginateArgs,
                   searchQuery,
+                  memberSort,
                   googleOidcOnly,
               });
 
@@ -1057,6 +1062,7 @@ export class OrganizationService extends BaseService {
         includeMembers?: number,
         paginateArgs?: KnexPaginateArgs,
         searchQuery?: string,
+        sort?: GroupSort,
     ): Promise<KnexPaginatedData<Group[] | GroupWithMembers[]>> {
         if (user.organizationUuid === undefined) {
             throw new ForbiddenError();
@@ -1065,6 +1071,7 @@ export class OrganizationService extends BaseService {
             {
                 organizationUuid: user.organizationUuid,
                 searchQuery,
+                sort,
             },
             paginateArgs,
         );
