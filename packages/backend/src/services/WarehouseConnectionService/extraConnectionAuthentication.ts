@@ -8,21 +8,26 @@ import {
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
 
-const personalCredentialsOnly = (
-    credentials: CreateWarehouseCredentials,
-    authentication: string,
-): false => {
-    if (!credentials.requireUserCredentials) {
-        throw new ParameterError(
-            `${authentication} without shared credentials requires users to provide their own credentials for this connection.`,
-        );
-    }
-    return false;
-};
-
 export const assertExtraConnectionAuthentication = (
     credentials: CreateWarehouseCredentials,
 ): void => {
+    if (
+        credentials.type === WarehouseTypes.BIGQUERY &&
+        credentials.authenticationType === BigqueryAuthenticationType.SSO
+    ) {
+        throw new ParameterError(
+            'BigQuery SSO is not supported for an extra connection because compilation requires shared credentials.',
+        );
+    }
+    if (
+        credentials.type === WarehouseTypes.REDSHIFT &&
+        credentials.authenticationType ===
+            RedshiftAuthenticationType.IAM_BROWSER
+    ) {
+        throw new ParameterError(
+            'Redshift browser IAM authentication is not supported for an extra connection because compilation requires shared credentials.',
+        );
+    }
     if (
         credentials.type === WarehouseTypes.SNOWFLAKE &&
         (credentials.authenticationType ===
@@ -41,25 +46,6 @@ export const shouldTestExtraCredentials = (
 ): boolean => {
     assertExtraConnectionAuthentication(credentials);
     switch (credentials.type) {
-        case WarehouseTypes.BIGQUERY:
-            if (
-                credentials.authenticationType ===
-                BigqueryAuthenticationType.SSO
-            ) {
-                return personalCredentialsOnly(credentials, 'BigQuery SSO');
-            }
-            return true;
-        case WarehouseTypes.REDSHIFT:
-            if (
-                credentials.authenticationType ===
-                RedshiftAuthenticationType.IAM_BROWSER
-            ) {
-                return personalCredentialsOnly(
-                    credentials,
-                    'Redshift browser IAM authentication',
-                );
-            }
-            return true;
         case WarehouseTypes.SNOWFLAKE:
             if (
                 credentials.authenticationType ===
@@ -73,6 +59,8 @@ export const shouldTestExtraCredentials = (
                 return false;
             }
             return true;
+        case WarehouseTypes.BIGQUERY:
+        case WarehouseTypes.REDSHIFT:
         case WarehouseTypes.POSTGRES:
         case WarehouseTypes.TRINO:
         case WarehouseTypes.CLICKHOUSE:

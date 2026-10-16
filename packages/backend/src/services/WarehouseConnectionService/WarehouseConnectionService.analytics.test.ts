@@ -1,11 +1,16 @@
 import { Ability } from '@casl/ability';
 import {
+    BigqueryAuthenticationType,
     ConflictError,
     DuckdbConnectionType,
     FeatureFlags,
+    ParameterError,
     ProjectType,
+    RedshiftAuthenticationType,
     WarehouseTypes,
+    type CreateBigqueryCredentials,
     type CreatePostgresCredentials,
+    type CreateRedshiftCredentials,
     type CreateTrinoCredentials,
     type PossibleAbilities,
     type ProjectSummary,
@@ -466,6 +471,49 @@ describe('WarehouseConnectionService mixed warehouse types', () => {
 });
 
 describe('WarehouseConnectionService warehouse matrix', () => {
+    it.each([
+        {
+            ...(warehouseConnectionCredentials[
+                WarehouseTypes.BIGQUERY
+            ] as CreateBigqueryCredentials),
+            type: WarehouseTypes.BIGQUERY as const,
+            authenticationType: BigqueryAuthenticationType.SSO,
+            requireUserCredentials: true,
+        },
+        {
+            ...(warehouseConnectionCredentials[
+                WarehouseTypes.REDSHIFT
+            ] as CreateRedshiftCredentials),
+            type: WarehouseTypes.REDSHIFT as const,
+            authenticationType: RedshiftAuthenticationType.IAM_BROWSER,
+            requireUserCredentials: true,
+        },
+    ])(
+        'refuses personal-only $type credentials before saving',
+        async (warehouseConnection) => {
+            const { service, model, credentialPolicy } = buildService(true);
+            await expect(
+                service.create(account, projectUuid, {
+                    name: 'Extra',
+                    warehouseConnection,
+                }),
+            ).rejects.toThrow(ParameterError);
+            model.get.mockResolvedValue({
+                ...connection(extraUuid, false),
+                warehouseType: warehouseConnection.type,
+            });
+            await expect(
+                service.update(account, projectUuid, extraUuid, {
+                    warehouseConnection,
+                }),
+            ).rejects.toThrow('compilation requires shared credentials');
+            expect(model.createExtra).not.toHaveBeenCalled();
+            expect(model.updateExtraCredentials).not.toHaveBeenCalled();
+            expect(
+                credentialPolicy.testWarehouseConnectionCredentialsForSave,
+            ).not.toHaveBeenCalled();
+        },
+    );
     it.each(Object.values(warehouseConnectionCredentials))(
         'allows $type on a Postgres primary with mixed types enabled',
         async (warehouseConnection) => {

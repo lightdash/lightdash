@@ -49,9 +49,9 @@ gets the wider allowlist by default.
 | DuckDB: MotherDuck | Yes | Yes | None | No | Yes | No (no token) |
 | DuckDB: Embedded (Playground) | No | No | Refused: backend-provisioned | No | Yes | No |
 | DuckDB: Analytics | No | No | Refused: backend-provisioned | No | Yes | No |
-| BigQuery | Yes | Yes | SSO needs personal credentials | No | Yes | Yes (`bigquery` bundle) |
+| BigQuery | Yes | Yes | SSO refused: extra connections compile with shared credentials only | No | Yes | Yes (`bigquery` bundle) |
 | Snowflake | Yes | Yes | External browser and OAuth code refused. None needs personal credentials | No | Yes | Yes (`snowflake` bundle) |
-| Redshift | Yes | Yes | Browser IAM needs personal credentials | No | Yes | No (no credentials) |
+| Redshift | Yes | Yes | Browser IAM refused: extra connections compile with shared credentials only | No | Yes | No (no credentials) |
 | Databricks | Yes | Yes | OAuth U2M resolves its token at save time | No | Yes | No (no credentials) |
 | ClickHouse | Yes | Yes | None | No | Yes | No (no credentials) |
 | Athena | Yes | Yes | None | Yes | Yes | No (no credentials) |
