@@ -1,3 +1,18 @@
+# [2.599.0](https://github.com/lightdash/lightdash/compare/2.598.0...2.599.0) (2026-10-16)
+
+
+### Bug Fixes
+
+* **ai-agents:** allow MCP OAuth client ID without a secret (public client with PKCE) ([#31087](https://github.com/lightdash/lightdash/issues/31087)) ([a38b39d](https://github.com/lightdash/lightdash/commit/a38b39dd05e4730d86e374904422465c4b9b7587)), closes [#31084](https://github.com/lightdash/lightdash/issues/31084)
+* **ai-agents:** tolerate a trailing slash between the MCP server URL and its advertised resource ([#31088](https://github.com/lightdash/lightdash/issues/31088)) ([7c03aa0](https://github.com/lightdash/lightdash/commit/7c03aa06e2842ff57114fee9b15e4e6fd90a5d42)), closes [#31085](https://github.com/lightdash/lightdash/issues/31085) [#31087](https://github.com/lightdash/lightdash/issues/31087) [modelcontextprotocol/typescript-sdk#1968](https://github.com/modelcontextprotocol/typescript-sdk/issues/1968) [#30682](https://github.com/lightdash/lightdash/issues/30682) [#31087](https://github.com/lightdash/lightdash/issues/31087)
+* **mcp:** address review findings on chart type discovery tools ([#31091](https://github.com/lightdash/lightdash/issues/31091)) ([8816ff5](https://github.com/lightdash/lightdash/commit/8816ff597e3d3d2eb8ed3b414c08a0aed2147bcc))
+
+
+### Features
+
+* **mcp:** find custom chart types ([#31081](https://github.com/lightdash/lightdash/issues/31081)) ([14de15d](https://github.com/lightdash/lightdash/commit/14de15dcab037f19a158db2c576a937e189315a3))
+* **mcp:** list custom chart types page by page ([#31083](https://github.com/lightdash/lightdash/issues/31083)) ([0be5c20](https://github.com/lightdash/lightdash/commit/0be5c2055f50c158f5a5eefb6e93269c82eb49dc))
+
 # [2.598.0](https://github.com/lightdash/lightdash/compare/2.597.1...2.598.0) (2026-10-16)
 
 
