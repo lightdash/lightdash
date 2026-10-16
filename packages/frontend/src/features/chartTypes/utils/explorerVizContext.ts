@@ -1,15 +1,14 @@
 import {
-    deriveDataAppVizFieldMetadata,
-    getEffectiveOptionValues,
+    buildDataAppVizContext,
     type DataAppVizContext,
     type DataAppVizFieldMapping,
     type DataAppVizOptionValues,
+    type DataAppVizResolvedColors,
     type DataAppVizSchema,
     type ItemsMap,
     type ReadyQueryResultsPage,
     type ResultRow,
 } from '@lightdash/common';
-import { type DataAppVizResolvedColors } from '../hooks/useDataAppVizResolvedColors';
 import {
     autoMapDataAppVizFields,
     reconcileDataAppVizFieldMapping,
@@ -55,23 +54,18 @@ export const buildExplorerVizContext = ({
     colorPalette,
     optionValues,
     resolvedColors,
-}: Args): DataAppVizContext => {
-    const fieldMapping = resolveExplorerVizFieldMapping({
+}: Args): DataAppVizContext =>
+    buildDataAppVizContext({
         schema,
         itemsMap,
-        persistedFieldMapping,
-    });
-    return {
-        fieldMapping,
-        fields: deriveDataAppVizFieldMetadata(fieldMapping, itemsMap),
+        fieldMapping: resolveExplorerVizFieldMapping({
+            schema,
+            itemsMap,
+            persistedFieldMapping,
+        }),
         rows,
-        options: getEffectiveOptionValues(schema.configOptions, optionValues),
-        colorPalette,
-        ...resolvedColors,
         pivotDetails,
-        underlyingData: { enabled: false },
-        drillDown: { enabled: false },
-        pointMenu: { enabled: false },
-        subtotals: { enabled: false, dimensions: [] },
-    };
-};
+        colorPalette,
+        optionValues,
+        resolvedColors,
+    });

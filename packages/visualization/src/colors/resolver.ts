@@ -1,22 +1,18 @@
 import {
+    calculateFallbackSeriesColors,
+    calculateKeyColorAssignment,
+    calculateSeriesColorAssignment,
+    calculateSeriesLikeIdentifier,
     ChartType,
+    getDimensionValueColor,
+    isGroupedSeries,
     type ChartConfig,
+    type ColorAssignmentOptions,
     type ItemsMap,
     type PivotValue,
     type Series,
-} from '@lightdash/common';
-import {
-    calculateKeyColorAssignment,
-    calculateSeriesColorAssignment,
-    type ColorAssignmentOptions,
-} from './mappings';
-import {
-    calculateFallbackSeriesColors,
-    calculateSeriesLikeIdentifier,
-    getDimensionValueColor,
-    isGroupedSeries,
     type SeriesLike,
-} from './series';
+} from '@lightdash/common';
 
 export type SeriesColorResolver = {
     /** A shared color for a series, from its own color, the chart metadata, a dimension value color, the shared mappings or the palette by order. */

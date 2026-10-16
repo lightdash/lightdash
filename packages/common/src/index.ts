@@ -470,6 +470,8 @@ export * from './utils/warehouseResourceLimits';
 export * from './utils/zodJsonSchema';
 export * from './visualizations/BigNumberDataModel';
 export * from './visualizations/CartesianChartDataModel';
+export * from './visualizations/colors/mappings';
+export * from './visualizations/colors/series';
 export * from './visualizations/helpers/getCartesianAxisFormatterConfig';
 export * from './visualizations/helpers/seriesZOrder';
 export * from './visualizations/helpers/styles/axisStyles';

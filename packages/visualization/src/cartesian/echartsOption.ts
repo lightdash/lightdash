@@ -80,6 +80,7 @@ import {
     type ResultRow,
     type RowLimit,
     type Series,
+    type SeriesLike,
     type TableCalculation,
     type TooltipSortBy,
     type XAxis,
@@ -94,7 +95,6 @@ import {
 import groupBy from 'lodash/groupBy';
 import toNumber from 'lodash/toNumber';
 import uniq from 'lodash/uniq';
-import { type SeriesLike } from '../colors/series';
 import { sanitizeEchartsFontFamily } from '../fonts';
 import {
     getPivotedDataFromPivotDetails,

@@ -1,4 +1,4 @@
-import { ASSIGNMENT_IDX_KEY, type ColorMappings } from './mappings';
+import { ASSIGNMENT_IDX_KEY, type ColorMappings } from '@lightdash/common';
 
 /**
  * Which palette colour each group value got, per group (a field, usually):

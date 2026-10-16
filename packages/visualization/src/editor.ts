@@ -41,12 +41,7 @@ export {
 } from './cartesian/echartsOption';
 export { defaultGrid } from './cartesian/grid';
 export { finalizeTimeAxisOptions } from './cartesian/timezoneShift';
-export {
-    calculateKeyColorAssignment,
-    calculateSeriesColorAssignment,
-} from './colors/mappings';
 export { createSeriesColorResolver } from './colors/resolver';
-export { type SeriesLike } from './colors/series';
 export {
     buildCustomVisualizationData,
     parseCustomVisualizationSpec,
@@ -159,11 +154,6 @@ export {
     type GetExpectedSeriesMapArgs,
     type SeriesGroup,
 } from './cartesian/series';
-export {
-    calculateFallbackSeriesColors,
-    calculateSeriesLikeIdentifier,
-    getDimensionValueColor,
-} from './colors/series';
 export { canHaveWarehouseTotal } from './table/totals';
 export { computeLimitedRowCount, sliceRows } from './rows';
 export {

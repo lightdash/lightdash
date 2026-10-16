@@ -1,5 +1,6 @@
 import {
     ChartType,
+    createColorMappings,
     DimensionType,
     FieldType,
     MetricType,
@@ -13,7 +14,6 @@ import {
 import { describe, expect, test } from 'vitest';
 import { resolveCartesianChartConfig } from './cartesian/config';
 import { buildCartesianEchartsOption } from './cartesian/echartsOption';
-import { createColorMappings } from './colors/mappings';
 import { createSeriesColorResolver } from './colors/resolver';
 import { LIGHT_VISUALIZATION_THEME } from './theme';
 

@@ -1,4 +1,4 @@
-export type { SeriesLike } from '@lightdash/visualization/editor';
+export type { SeriesLike } from '@lightdash/common';
 
 export interface ChartColorMappingContextProps {
     colorMappings: Map<string, Map<string, number>>;

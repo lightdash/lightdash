@@ -2,7 +2,7 @@ import {
     calculateKeyColorAssignment,
     calculateSeriesColorAssignment,
     type SeriesLike,
-} from '@lightdash/visualization/editor';
+} from '@lightdash/common';
 import { useMantineTheme } from '@mantine/core';
 import { useCallback, useContext } from 'react';
 import { ChartColorMappingContext } from './context';

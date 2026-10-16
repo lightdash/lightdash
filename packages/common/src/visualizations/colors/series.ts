@@ -1,9 +1,6 @@
-import {
-    isDimension,
-    type EChartsSeries,
-    type ItemsMap,
-    type Series,
-} from '@lightdash/common';
+import { isDimension, type ItemsMap } from '../../types/field';
+import { type Series } from '../../types/savedCharts';
+import { type EChartsSeries } from '../types';
 
 /** There's some variation in what Series object we may be working with. */
 export type SeriesLike = EChartsSeries | Series;
@@ -12,12 +9,9 @@ export type SeriesLike = EChartsSeries | Series;
  * There's some variation in what Series object we may be working with.
  */
 
-export const isGroupedSeries = (series: SeriesLike) => {
-    return (
-        (series as EChartsSeries)?.pivotReference?.pivotValues != null ||
-        (series as Series)?.encode.yRef.pivotValues != null
-    );
-};
+export const isGroupedSeries = (series: SeriesLike) =>
+    (series as EChartsSeries)?.pivotReference?.pivotValues != null ||
+    (series as Series)?.encode.yRef.pivotValues != null;
 
 export const calculateSeriesLikeIdentifier = (series: SeriesLike) => {
     const baseField =
