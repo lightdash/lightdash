@@ -319,23 +319,28 @@ export class DeployService extends BaseService {
                 await this.deploySessionModel.getDeployData(sessionUuid);
             const uploadedExplores = deployData.explores;
             const startOfWeekByExplore = new Map(
-                await Promise.all(
-                    uploadedExplores
-                        .filter((explore) => explore.preAggregates?.length)
-                        .map(
-                            async (explore) =>
-                                [
-                                    explore.name,
-                                    (
-                                        await this.projectModel.getWarehouseConnectionForDeploy(
-                                            projectUuid,
-                                            explore.name,
-                                            cliDeploy.sourceUuid,
-                                        )
-                                    ).startOfWeek ?? null,
-                                ] as const,
-                        ),
-                ),
+                (
+                    await Promise.all(
+                        uploadedExplores
+                            .filter((explore) => explore.preAggregates?.length)
+                            .map(async (explore) => {
+                                const deployStartOfWeek =
+                                    await this.projectModel.getDeployStartOfWeek(
+                                        projectUuid,
+                                        explore.name,
+                                        cliDeploy.sourceUuid,
+                                    );
+                                return deployStartOfWeek.kind === 'extra'
+                                    ? [
+                                          [
+                                              explore.name,
+                                              deployStartOfWeek.startOfWeek,
+                                          ] as const,
+                                      ]
+                                    : [];
+                            }),
+                    )
+                ).flat(),
             );
             const explores = this.exploreEnhancer(uploadedExplores, {
                 startOfWeek: project.warehouseConnection?.startOfWeek ?? null,

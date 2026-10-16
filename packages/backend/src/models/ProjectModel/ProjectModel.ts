@@ -82,6 +82,7 @@ import {
     type StoredSignInSubject,
     type SummaryExplore,
     type WarehouseSqlBuilder,
+    type WeekDay,
 } from '@lightdash/common';
 import {
     buildMotherduckConnectionString,
@@ -5423,11 +5424,13 @@ export class ProjectModel {
         );
     }
 
-    async getWarehouseConnectionForDeploy(
+    async getDeployStartOfWeek(
         projectUuid: string,
         exploreName: string,
         sourceUuid: string | null,
-    ): Promise<WarehouseCredentials> {
+    ): Promise<
+        { kind: 'original' } | { kind: 'extra'; startOfWeek: WeekDay | null }
+    > {
         let warehouseConnectionUuid: string | null;
         if (sourceUuid === null) {
             warehouseConnectionUuid =
@@ -5454,10 +5457,12 @@ export class ProjectModel {
                 );
             warehouseConnectionUuid = source.warehouse_connection_uuid;
         }
-        return this.getWarehouseConnectionForBinding(projectUuid, {
-            kind: 'connection',
-            warehouseConnectionUuid,
-        });
+        if (warehouseConnectionUuid === null) return { kind: 'original' };
+        const credentials = await this.getWarehouseConnectionForBinding(
+            projectUuid,
+            { kind: 'connection', warehouseConnectionUuid },
+        );
+        return { kind: 'extra', startOfWeek: credentials.startOfWeek ?? null };
     }
 
     async getWarehouseConnectionsMetadata(projectUuid: string): Promise<

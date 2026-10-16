@@ -1,9 +1,11 @@
 import {
     FeatureFlags,
+    isUserConnectableWarehouseConnection,
     supportsMultipleConnections,
+    WarehouseTypes,
     type RegisteredAccount,
-    type WarehouseTypes,
 } from '@lightdash/common';
+import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type LicenseService } from '../LicenseService/LicenseService';
 
@@ -43,3 +45,19 @@ export const getMultipleConnectionsBlockReason = async (
     });
     return enabled ? null : ROLLOUT_REASON;
 };
+
+export const getProvisionedOriginalBlockReason = async (
+    projectModel: Pick<ProjectModel, 'getWarehouseCredentialsForProject'>,
+    project: {
+        projectUuid: string;
+        originalWarehouseType: WarehouseTypes | null;
+    },
+): Promise<string | null> =>
+    project.originalWarehouseType === WarehouseTypes.DUCKDB &&
+    !isUserConnectableWarehouseConnection(
+        await projectModel.getWarehouseCredentialsForProject(
+            project.projectUuid,
+        ),
+    )
+        ? WAREHOUSE_TYPE_REASON
+        : null;
