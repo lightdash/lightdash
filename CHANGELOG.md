@@ -1,3 +1,10 @@
+# [2.596.0](https://github.com/lightdash/lightdash/compare/2.595.0...2.596.0) (2026-10-16)
+
+
+### Features
+
+* **mcp:** switch a custom chart type's theme when iterating ([#31080](https://github.com/lightdash/lightdash/issues/31080)) ([ba4716c](https://github.com/lightdash/lightdash/commit/ba4716c329bbd3e34f47abbe02505fca006e37c0))
+
 # [2.595.0](https://github.com/lightdash/lightdash/compare/2.594.0...2.595.0) (2026-10-16)
 
 
