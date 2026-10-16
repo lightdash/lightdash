@@ -73236,7 +73236,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.593.0",
+        "version": "2.594.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -103827,6 +103827,26 @@
                         "schema": {
                             "type": "boolean"
                         }
+                    },
+                    {
+                        "description": "column to sort by (name sorts by full name, falling back to email)",
+                        "in": "query",
+                        "name": "sortBy",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["name"]
+                        }
+                    },
+                    {
+                        "description": "sort direction (asc or desc)",
+                        "in": "query",
+                        "name": "sortDirection",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["asc", "desc"]
+                        }
                     }
                 ]
             }
@@ -104384,6 +104404,26 @@
                         "required": false,
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    {
+                        "description": "column to sort by",
+                        "in": "query",
+                        "name": "sortBy",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["name"]
+                        }
+                    },
+                    {
+                        "description": "sort direction (asc or desc)",
+                        "in": "query",
+                        "name": "sortDirection",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["asc", "desc"]
                         }
                     }
                 ]

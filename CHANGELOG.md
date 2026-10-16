@@ -1,3 +1,10 @@
+# [2.594.0](https://github.com/lightdash/lightdash/compare/2.593.0...2.594.0) (2026-10-16)
+
+
+### Features
+
+* **settings:** sort users, groups and roles by name in admin settings ([#31067](https://github.com/lightdash/lightdash/issues/31067)) ([3cfce4b](https://github.com/lightdash/lightdash/commit/3cfce4b503853669cf2352e921d714b001df12f6)), closes [#23932](https://github.com/lightdash/lightdash/issues/23932)
+
 # [2.593.0](https://github.com/lightdash/lightdash/compare/2.592.2...2.593.0) (2026-10-16)
 
 

@@ -127961,6 +127961,21 @@ export function RegisterRoutes(app: Router) {
             name: 'googleOidcOnly',
             dataType: 'boolean',
         },
+        sortBy: {
+            in: 'query',
+            name: 'sortBy',
+            dataType: 'enum',
+            enums: ['name'],
+        },
+        sortDirection: {
+            in: 'query',
+            name: 'sortDirection',
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['asc'] },
+                { dataType: 'enum', enums: ['desc'] },
+            ],
+        },
     };
     app.get(
         '/api/v1/org/users',
@@ -128688,6 +128703,21 @@ export function RegisterRoutes(app: Router) {
             dataType: 'double',
         },
         searchQuery: { in: 'query', name: 'searchQuery', dataType: 'string' },
+        sortBy: {
+            in: 'query',
+            name: 'sortBy',
+            dataType: 'enum',
+            enums: ['name'],
+        },
+        sortDirection: {
+            in: 'query',
+            name: 'sortDirection',
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['asc'] },
+                { dataType: 'enum', enums: ['desc'] },
+            ],
+        },
     };
     app.get(
         '/api/v1/org/groups',
