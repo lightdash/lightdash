@@ -79,6 +79,7 @@ import {
     mcpEditContentToolDefinition,
     mcpFindCustomChartTypesToolDefinition,
     McpGetTaskResult,
+    mcpListCustomChartTypesToolDefinition,
     mcpListProjectsToolDefinition,
     mcpReadContentToolDefinition,
     MetricQuery,
@@ -278,6 +279,7 @@ export enum McpToolName {
     CREATE_CUSTOM_CHART_TYPE = 'create_custom_chart_type',
     ITERATE_CUSTOM_CHART_TYPE = 'iterate_custom_chart_type',
     FIND_CUSTOM_CHART_TYPES = 'find_custom_chart_types',
+    LIST_CUSTOM_CHART_TYPES = 'list_custom_chart_types',
     LIST_SKILLS = 'list_skills',
     READ_SKILL = 'read_skill',
     READ_SKILL_RESOURCE = 'read_skill_resource',
@@ -379,6 +381,9 @@ const mcpIterateCustomChartTypeTool = withProjectScopeInput(
 );
 const mcpFindCustomChartTypesTool = withProjectScopeInput(
     mcpFindCustomChartTypesToolDefinition.for('mcp'),
+);
+const mcpListCustomChartTypesTool = withProjectScopeInput(
+    mcpListCustomChartTypesToolDefinition.for('mcp'),
 );
 const mcpIterateDataAppTool = withProjectScopeInput(
     iterateDataAppToolDefinition.for('mcp'),
@@ -1904,6 +1909,42 @@ export class McpService extends BaseService {
                                     ? `No custom chart type matched ${'slug' in request ? `slug "${request.slug}"` : `"${request.query}"`}.`
                                     : `Found ${results.length} custom chart type(s): ${listed}. Slots, options and versions are in structuredContent.`,
                             structuredContent: { results },
+                        };
+                    },
+                ),
+        );
+    }
+
+    private registerListCustomChartTypesTool(): void {
+        this.registerTrackedTool(
+            mcpListCustomChartTypesTool.name,
+            {
+                title: mcpListCustomChartTypesTool.title,
+                description: mcpListCustomChartTypesTool.description,
+                inputSchema: mcpListCustomChartTypesTool.inputSchema.shape,
+                outputSchema: mcpListCustomChartTypesTool.outputSchema.shape,
+                annotations: mcpListCustomChartTypesTool.annotations,
+            },
+            async (args, extra) =>
+                this.callDataAppBuildTool(
+                    extra,
+                    args,
+                    'Error listing custom chart types',
+                    async (toolsRuntime) => {
+                        const structuredContent =
+                            await toolsRuntime.listCustomChartTypesPage({
+                                page: args.page ?? 1,
+                            });
+                        const { pagination, results } = structuredContent;
+                        const listed = results
+                            .map((match) => `${match.name} (${match.slug})`)
+                            .join(', ');
+                        return {
+                            summary:
+                                results.length === 0
+                                    ? `No custom chart types on page ${pagination.page} of ${pagination.totalPageCount}.`
+                                    : `Page ${pagination.page} of ${pagination.totalPageCount} (${pagination.totalResults} custom chart types): ${listed}. Slots, options and versions are in structuredContent.`,
+                            structuredContent,
                         };
                     },
                 ),
@@ -4581,6 +4622,7 @@ export class McpService extends BaseService {
 
         if (options.customChartTypesEnabled) {
             this.registerFindCustomChartTypesTool();
+            this.registerListCustomChartTypesTool();
         }
 
         this.mcpServer.registerPrompt(

@@ -66,6 +66,7 @@ import {
     type Document,
     type FieldValueSearchResult,
     type McpCustomChartType,
+    type McpListCustomChartTypesOutput,
     type ParameterDefinitions,
     type PersistedDataAppDataReferences,
     type SchedulerAiAugmentation,
@@ -77,7 +78,10 @@ import { type AgentToolEffect } from '../../../auth/agentPermissions/capabilityM
 import { type DbApp } from '../../../database/entities/apps';
 import Logger from '../../../logging/logger';
 import { type AgentActionLogModel } from '../../../models/AgentActionLogModel';
-import { AppModel } from '../../../models/AppModel';
+import {
+    AppModel,
+    type DbDataAppVizWithLatestReadyVersion,
+} from '../../../models/AppModel';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
@@ -400,6 +404,10 @@ export type SearchCustomChartTypesFn = (
     args: { query: string } | { slug: string },
 ) => Promise<McpCustomChartType[]>;
 
+export type ListCustomChartTypesPageFn = (args: {
+    page: number;
+}) => Promise<McpListCustomChartTypesOutput>;
+
 export type McpAiAgentToolsRuntime = Omit<
     AiAgentToolsRuntime,
     'getExplore' | 'findExplores' | 'findFields' | 'updateUserName'
@@ -408,6 +416,7 @@ export type McpAiAgentToolsRuntime = Omit<
     createCustomChartType: CreateCustomChartTypeFn;
     iterateCustomChartType: IterateCustomChartTypeFn;
     searchCustomChartTypes: SearchCustomChartTypesFn;
+    listCustomChartTypesPage: ListCustomChartTypesPageFn;
     createDocumentContent: (content: unknown) => Promise<DocumentContentResult>;
     readDocumentContent: (
         slug: string,
@@ -1018,6 +1027,8 @@ export class AiAgentToolsService extends BaseService {
                 ),
             searchCustomChartTypes: (args) =>
                 this.searchCustomChartTypes(context, args),
+            listCustomChartTypesPage: (args) =>
+                this.listCustomChartTypesPage(context, args),
             createDocumentContent: (content) =>
                 this.withWriteRefusal(context, 'document', 'create', () =>
                     this.createDocumentContent(context, content),
@@ -1409,29 +1420,70 @@ export class AiAgentToolsService extends BaseService {
                                   args.query,
                               )
                           ).data;
-                return rows.flatMap((row) => {
-                    const parsed = dataAppVizSchema.safeParse(row.viz_schema);
-                    if (!parsed.success) {
-                        this.logger.warn(
-                            `Dropping custom chart type "${row.slug}": persisted viz_schema failed validation`,
-                        );
-                        return [];
-                    }
-                    return [
-                        {
-                            slug: row.slug,
-                            name: row.name,
-                            description: row.description || null,
-                            version: row.latest_ready_version,
-                            chartStudioUrl: `${this.lightdashConfig.siteUrl}/projects/${context.projectUuid}/chart-studio/${row.slug}`,
-                            vizSchema: toMcpCustomChartTypeVizSchema(
-                                parsed.data,
-                            ),
-                        },
-                    ];
-                });
+                return this.toMcpCustomChartTypes(context, rows);
             },
         );
+    }
+
+    static readonly CUSTOM_CHART_TYPES_LIST_PAGE_SIZE = 10;
+
+    /** MCP-only: browse the project's chart types newest first, behind the gallery gate. */
+    private listCustomChartTypesPage(
+        context: AiAgentToolsRuntimeContext,
+        { page }: Parameters<ListCustomChartTypesPageFn>[0],
+    ): ReturnType<ListCustomChartTypesPageFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.listCustomChartTypesPage`,
+            { page },
+            async () => {
+                if (!(await this.canUseCustomChartTypes(context))) {
+                    throw new ForbiddenError(
+                        'You do not have permission to use chart types in this project',
+                    );
+                }
+                const pageSize =
+                    AiAgentToolsService.CUSTOM_CHART_TYPES_LIST_PAGE_SIZE;
+                const { data, pagination } =
+                    await this.appModel.listDataAppVisualizations(
+                        context.projectUuid,
+                        { page, pageSize },
+                    );
+                return {
+                    pagination: {
+                        page,
+                        pageSize,
+                        totalResults: pagination?.totalResults ?? data.length,
+                        totalPageCount: pagination?.totalPageCount ?? 1,
+                    },
+                    results: this.toMcpCustomChartTypes(context, data),
+                };
+            },
+        );
+    }
+
+    private toMcpCustomChartTypes(
+        context: AiAgentToolsRuntimeContext,
+        rows: DbDataAppVizWithLatestReadyVersion[],
+    ): McpCustomChartType[] {
+        return rows.flatMap((row) => {
+            const parsed = dataAppVizSchema.safeParse(row.viz_schema);
+            if (!parsed.success) {
+                this.logger.warn(
+                    `Dropping custom chart type "${row.slug}": persisted viz_schema failed validation`,
+                );
+                return [];
+            }
+            return [
+                {
+                    slug: row.slug,
+                    name: row.name,
+                    description: row.description || null,
+                    version: row.latest_ready_version,
+                    chartStudioUrl: `${this.lightdashConfig.siteUrl}/projects/${context.projectUuid}/chart-studio/${row.slug}`,
+                    vizSchema: toMcpCustomChartTypeVizSchema(parsed.data),
+                },
+            ];
+        });
     }
 
     // Slug → the data needed to validate and persist an answer rendered

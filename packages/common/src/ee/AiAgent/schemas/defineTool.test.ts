@@ -364,6 +364,7 @@ describe('defineTool', () => {
             'grep_fields',
             'iterate_custom_chart_type',
             'iterate_data_app',
+            'list_custom_chart_types',
             'list_data_app_themes',
             'list_skills',
             'read_skill',

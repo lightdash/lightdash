@@ -12072,7 +12072,7 @@ Start a build that adds a version to an existing custom chart type from a follow
       },
       "description": "Tool: find_custom_chart_types
 
-Search the project's custom chart types (reusable visualizations, including ones installed from the library) by \`query\` against name and description, or fetch one by \`slug\`. Set exactly one of the two.
+Search the project's custom chart types (reusable visualizations, including ones installed from the library) by \`query\` against name and description, or fetch one by \`slug\`. Set exactly one of the two; to browse page by page, use list_custom_chart_types.
 
 - Each match has its latest version, field slots, config options and a Chart Studio link.
 - Search before create_custom_chart_type and reuse a type that fits.
@@ -12446,6 +12446,405 @@ Search the project's custom chart types (reusable visualizations, including ones
         "type": "object",
       },
       "title": "Find custom chart types",
+    },
+    {
+      "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+      },
+      "description": "Tool: list_custom_chart_types
+
+Browse the project's custom chart types (including ones installed from the library), newest first, one page at a time. Page starts at 1.
+
+- Each item has the same fields as find_custom_chart_types: latest version, field slots, config options and a Chart Studio link.
+- Use find_custom_chart_types to search by text or fetch one by slug.
+",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "page": {
+            "description": "Paginate results starting at 1. Pass a positive number (e.g. 1), never NaN or the string "null".",
+            "exclusiveMinimum": 0,
+            "type": "number",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+        },
+        "required": [
+          "projectUuid",
+        ],
+        "type": "object",
+      },
+      "name": "list_custom_chart_types",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "pagination": {
+            "additionalProperties": false,
+            "properties": {
+              "page": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer",
+              },
+              "pageSize": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer",
+              },
+              "totalPageCount": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer",
+              },
+              "totalResults": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer",
+              },
+            },
+            "required": [
+              "page",
+              "pageSize",
+              "totalResults",
+              "totalPageCount",
+            ],
+            "type": "object",
+          },
+          "results": {
+            "description": "Chart types on this page, newest first.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "chartStudioUrl": {
+                  "type": "string",
+                },
+                "description": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "name": {
+                  "type": "string",
+                },
+                "slug": {
+                  "type": "string",
+                },
+                "version": {
+                  "description": "Latest ready version, the one a new chart renders.",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer",
+                },
+                "vizSchema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "colorPalette": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "group": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                },
+                                {
+                                  "type": "null",
+                                },
+                              ],
+                            },
+                          },
+                          "required": [
+                            "group",
+                          ],
+                          "type": "object",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "Set when the chart colours series from the palette.",
+                    },
+                    "configOptions": {
+                      "description": "Settings the chart accepts in optionValues.",
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "choices": {
+                            "anyOf": [
+                              {
+                                "items": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "label": {
+                                      "type": "string",
+                                    },
+                                    "value": {
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "value",
+                                    "label",
+                                  ],
+                                  "type": "object",
+                                },
+                                "type": "array",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                            "description": "Allowed values of a select option.",
+                          },
+                          "default": {
+                            "anyOf": [
+                              {
+                                "type": "boolean",
+                              },
+                              {
+                                "type": "number",
+                              },
+                              {
+                                "type": "string",
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "colors": {
+                                    "items": {
+                                      "type": "string",
+                                    },
+                                    "maxItems": 5,
+                                    "minItems": 2,
+                                    "type": "array",
+                                  },
+                                  "max": {
+                                    "anyOf": [
+                                      {
+                                        "type": "number",
+                                      },
+                                      {
+                                        "const": "auto",
+                                        "type": "string",
+                                      },
+                                    ],
+                                  },
+                                  "min": {
+                                    "anyOf": [
+                                      {
+                                        "type": "number",
+                                      },
+                                      {
+                                        "const": "auto",
+                                        "type": "string",
+                                      },
+                                    ],
+                                  },
+                                },
+                                "required": [
+                                  "colors",
+                                  "min",
+                                  "max",
+                                ],
+                                "type": "object",
+                              },
+                            ],
+                          },
+                          "group": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "label": {
+                            "type": "string",
+                          },
+                          "max": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "min": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "name": {
+                            "description": "Option name: the key to set in optionValues.",
+                            "type": "string",
+                          },
+                          "type": {
+                            "enum": [
+                              "boolean",
+                              "select",
+                              "number",
+                              "text",
+                              "color",
+                              "gradient",
+                            ],
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "name",
+                          "label",
+                          "type",
+                          "group",
+                          "default",
+                          "choices",
+                          "min",
+                          "max",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "fields": {
+                      "description": "Field slots to bind query fields to.",
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "description": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "label": {
+                            "type": "string",
+                          },
+                          "multiple": {
+                            "description": "Whether the slot takes an ordered list.",
+                            "type": "boolean",
+                          },
+                          "name": {
+                            "description": "Slot name: the key to bind in fieldMapping.",
+                            "type": "string",
+                          },
+                          "required": {
+                            "type": "boolean",
+                          },
+                          "type": {
+                            "enum": [
+                              "dimension",
+                              "metric",
+                              "series",
+                              "column",
+                            ],
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "name",
+                          "label",
+                          "type",
+                          "required",
+                          "multiple",
+                          "description",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "hierarchy": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "field": {
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "field",
+                          ],
+                          "type": "object",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                    "inputGuidance": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                  },
+                  "required": [
+                    "fields",
+                    "configOptions",
+                    "colorPalette",
+                    "hierarchy",
+                    "inputGuidance",
+                  ],
+                  "type": "object",
+                },
+              },
+              "required": [
+                "slug",
+                "name",
+                "description",
+                "version",
+                "chartStudioUrl",
+                "vizSchema",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "pagination",
+          "results",
+        ],
+        "type": "object",
+      },
+      "title": "List custom chart types",
     },
   ],
 }
@@ -13161,5 +13560,6 @@ exports[`MCP tool contracts > matches the shared MCP tool definition names snaps
   "create_custom_chart_type",
   "iterate_custom_chart_type",
   "find_custom_chart_types",
+  "list_custom_chart_types",
 ]
 `;
