@@ -183,6 +183,13 @@ export const parseChartRegistryIndexTolerant = (
     };
 };
 
+// Manifest `registry` block written by a registry-installed download.
+export const dataAppManifestRegistryProvenanceSchema = z.object({
+    slug: registrySlug,
+    version: semverString,
+    url: z.string().min(1),
+});
+
 const registryFileRef = z.object({ fileName: z.string().min(1) });
 
 // Shape of the per-version `charts/<slug>/<version>/entry.json` the registry

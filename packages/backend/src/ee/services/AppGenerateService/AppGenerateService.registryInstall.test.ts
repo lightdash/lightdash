@@ -10,7 +10,10 @@ import {
     ParameterError,
     type ChartRegistryEntry,
     type ChartRegistryIndex,
+    type DataAppCodeFile,
+    type DataAppManifest,
     type DataAppVizSchema,
+    type ImportAppCodeRequestBody,
     type SessionUser,
 } from '@lightdash/common';
 import { DatabaseError } from 'pg';
@@ -1276,5 +1279,374 @@ describe('AppGenerateService.getRegistryAsset', () => {
         await expect(
             svc.getRegistryAsset(fakeUser, 'sankey/1.3.0/thumb.png'),
         ).rejects.toThrow(ForbiddenError);
+    });
+});
+
+describe('importAppCode with registry provenance', () => {
+    const SRC = [
+        { name: 'src/App.tsx', content: 'export default function App(){}' },
+    ];
+    const toUploadFiles = (
+        entries: { name: string; content: string }[],
+    ): DataAppCodeFile[] =>
+        entries.map((e) => ({
+            path: e.name,
+            contentBase64: Buffer.from(e.content).toString('base64'),
+        }));
+    const PROVENANCE: NonNullable<DataAppManifest['registry']> = {
+        slug: 'sankey',
+        version: '1.1.0',
+        url: REGISTRY_BASE_URL,
+    };
+    const makeBody = (
+        files: DataAppCodeFile[],
+        registry: DataAppManifest['registry'] = PROVENANCE,
+    ): ImportAppCodeRequestBody => ({
+        code: {
+            manifest: {
+                codeVersion: 1,
+                slug: 'sankey',
+                version: 1,
+                name: SANKEY_ENTRY.name,
+                description: SANKEY_ENTRY.description,
+                template: DATA_APP_VIZ_TEMPLATE,
+                vizSchema: SANKEY_ENTRY.vizSchema,
+                downloadedAt: new Date().toISOString(),
+                ...(registry ? { registry } : {}),
+            },
+            files,
+        },
+    });
+    const pinnedEntry = makeEntry({ version: '1.1.0' });
+
+    async function setup(
+        overrides: {
+            registryTarEntries?: { name: string; content: string }[];
+            appModel?: Record<string, unknown>;
+            featureFlags?: Partial<Record<string, boolean>>;
+            versionEntry?: ChartRegistryEntry | undefined;
+            baseUrl?: string;
+        } = {},
+    ) {
+        const sourceTar = await buildTar(overrides.registryTarEntries ?? SRC);
+        const distTar = await buildTar([
+            { name: 'dist/index.html', content: '<html></html>' },
+        ]);
+        const fakeS3 = makeFakeS3();
+        const createWithVersion = vi.fn().mockResolvedValue(undefined);
+        const appModel = {
+            listRegistryInstalledApps: vi.fn().mockResolvedValue([]),
+            findAppBySlug: vi.fn().mockResolvedValue(undefined),
+            createWithVersion,
+            ...overrides.appModel,
+        };
+        const chartRegistryClient = {
+            getBaseUrl: () => overrides.baseUrl ?? REGISTRY_BASE_URL,
+            getVersionEntry: vi
+                .fn()
+                .mockResolvedValue(
+                    'versionEntry' in overrides
+                        ? overrides.versionEntry
+                        : pinnedEntry,
+                ),
+            downloadArtifact: vi
+                .fn()
+                .mockImplementation((_e: unknown, kind: 'source' | 'dist') =>
+                    Promise.resolve(kind === 'source' ? sourceTar : distTar),
+                ),
+        };
+        const svc = buildService({
+            appModel,
+            chartRegistryClient,
+            s3ClientOverride: fakeS3,
+            featureFlags: overrides.featureFlags,
+        });
+        return {
+            svc,
+            appModel,
+            chartRegistryClient,
+            fakeS3,
+            createWithVersion,
+        };
+    }
+
+    const callHelper = (
+        svc: AppGenerateService,
+        files: DataAppCodeFile[],
+        manifestSlug: string | undefined = 'sankey',
+    ) =>
+        (
+            svc as unknown as {
+                tryImportRegistryChartType: (
+                    ...args: unknown[]
+                ) => Promise<{ kind: string; warning?: string }>;
+            }
+        ).tryImportRegistryChartType(
+            fakeUser,
+            PROJECT_UUID,
+            PROVENANCE,
+            manifestSlug,
+            files,
+            {},
+        );
+
+    beforeEach(() => {
+        analyticsTrackSpy.mockClear();
+    });
+
+    it('matching source → installs the pinned registry version with no build and with data apps disabled', async () => {
+        const { svc, createWithVersion, chartRegistryClient } = await setup({
+            featureFlags: { [FeatureFlags.EnableDataApps]: false },
+        });
+        const result = await svc.importAppCode(
+            fakeUser,
+            PROJECT_UUID,
+            makeBody(toUploadFiles(SRC)),
+        );
+        expect(result).toEqual(
+            expect.objectContaining({
+                action: 'create',
+                slug: 'sankey',
+                version: 1,
+                warnings: [],
+            }),
+        );
+        expect(chartRegistryClient.getVersionEntry).toHaveBeenCalledWith(
+            'sankey',
+            '1.1.0',
+        );
+        // source.tar is reused from the comparison; only dist is fetched again.
+        expect(chartRegistryClient.downloadArtifact).toHaveBeenCalledTimes(2);
+        const [appArg, , statusArg, , , , optsArg] =
+            createWithVersion.mock.calls[0];
+        expect(appArg).toEqual(
+            expect.objectContaining({ registry_slug: 'sankey' }),
+        );
+        expect(statusArg).toBe('ready');
+        expect(optsArg).toEqual(
+            expect.objectContaining({ registryVersion: '1.1.0' }),
+        );
+        expect(analyticsTrackSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'data_app.uploaded',
+                properties: expect.objectContaining({
+                    registrySlug: 'sankey',
+                    registryVersion: '1.1.0',
+                    hasCustomDependencies: false,
+                }),
+            }),
+        );
+    });
+
+    it('already installed at that version → unchanged', async () => {
+        const { svc, createWithVersion } = await setup({
+            appModel: {
+                findAppBySlug: vi.fn().mockResolvedValue({
+                    app_id: 'existing-app',
+                    slug: 'sankey',
+                    registry_slug: 'sankey',
+                }),
+                listRegistryInstalledApps: vi.fn().mockResolvedValue([
+                    {
+                        app_id: 'existing-app',
+                        registry_slug: 'sankey',
+                        latest_ready_registry_version: '1.1.0',
+                    },
+                ]),
+                getLatestReadyVersion: vi
+                    .fn()
+                    .mockResolvedValue({ version: 3 }),
+            },
+        });
+        const result = await svc.importAppCode(
+            fakeUser,
+            PROJECT_UUID,
+            makeBody(toUploadFiles(SRC)),
+        );
+        expect(result.action).toBe('unchanged');
+        expect(result.version).toBe(3);
+        expect(createWithVersion).not.toHaveBeenCalled();
+    });
+
+    it('ignores non-src entries in the registry source.tar when comparing', async () => {
+        const { svc } = await setup({
+            registryTarEntries: [...SRC, { name: '.DS_Store', content: 'x' }],
+        });
+        const result = await svc.importAppCode(
+            fakeUser,
+            PROJECT_UUID,
+            makeBody(toUploadFiles(SRC)),
+        );
+        expect(result.action).toBe('create');
+    });
+
+    it('treats a trailing-slash difference in the registry url as the same registry', async () => {
+        const { svc } = await setup();
+        const result = await svc.importAppCode(
+            fakeUser,
+            PROJECT_UUID,
+            makeBody(toUploadFiles(SRC), {
+                ...PROVENANCE,
+                url: `${REGISTRY_BASE_URL}/`,
+            }),
+        );
+        expect(result.action).toBe('create');
+    });
+
+    it('modified source → falls through to the normal upload path with a warning', async () => {
+        const { svc } = await setup({
+            featureFlags: { [FeatureFlags.EnableDataApps]: false },
+        });
+        const changed = toUploadFiles([
+            { name: 'src/App.tsx', content: 'changed' },
+        ]);
+        // The normal path's first gate is EnableDataApps; hitting it proves
+        // the fallthrough happened without exercising the whole build chain.
+        await expect(
+            svc.importAppCode(fakeUser, PROJECT_UUID, makeBody(changed)),
+        ).rejects.toThrow('Data apps are not enabled');
+        const outcome = await callHelper(svc, changed);
+        expect(outcome.kind).toBe('fallthrough');
+        expect(outcome.warning).toMatch(/differs from "sankey@1\.1\.0"/);
+    });
+
+    it('a custom app already holding the slug → falls through with a warning', async () => {
+        const { svc } = await setup({
+            appModel: {
+                findAppBySlug: vi.fn().mockResolvedValue({
+                    app_id: 'custom-app',
+                    slug: 'sankey',
+                    registry_slug: null,
+                }),
+            },
+        });
+        const outcome = await callHelper(svc, toUploadFiles(SRC));
+        expect(outcome.kind).toBe('fallthrough');
+        expect(outcome.warning).toMatch(/already exists/);
+    });
+
+    it('rejects when the chart type library is disabled', async () => {
+        const { svc } = await setup({
+            featureFlags: { [FeatureFlags.ChartTypeRegistry]: false },
+        });
+        await expect(
+            svc.importAppCode(
+                fakeUser,
+                PROJECT_UUID,
+                makeBody(toUploadFiles(SRC)),
+            ),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('rejects a bundle from a different registry', async () => {
+        const { svc } = await setup();
+        await expect(
+            svc.importAppCode(
+                fakeUser,
+                PROJECT_UUID,
+                makeBody(toUploadFiles(SRC), {
+                    ...PROVENANCE,
+                    url: 'https://other.example.com',
+                }),
+            ),
+        ).rejects.toThrow(/different chart registry/);
+    });
+
+    it('rejects an unknown registry version and an incompatible one', async () => {
+        const missing = await setup({ versionEntry: undefined });
+        await expect(
+            missing.svc.importAppCode(
+                fakeUser,
+                PROJECT_UUID,
+                makeBody(toUploadFiles(SRC)),
+            ),
+        ).rejects.toThrow(/not found in the chart type library/);
+        const incompatible = await setup({
+            versionEntry: makeEntry({
+                version: '1.1.0',
+                minLightdashVersion: '999.0.0',
+            }),
+        });
+        await expect(
+            incompatible.svc.importAppCode(
+                fakeUser,
+                PROJECT_UUID,
+                makeBody(toUploadFiles(SRC)),
+            ),
+        ).rejects.toThrow(/requires a newer version/);
+    });
+
+    it('wraps a registry outage in a chart type library error', async () => {
+        const { svc, chartRegistryClient } = await setup();
+        chartRegistryClient.getVersionEntry.mockRejectedValue(
+            new Error('ECONNREFUSED'),
+        );
+        await expect(
+            svc.importAppCode(
+                fakeUser,
+                PROJECT_UUID,
+                makeBody(toUploadFiles(SRC)),
+            ),
+        ).rejects.toThrow(/Could not reach the chart type library/);
+    });
+
+    it('rejects a malformed registry block', async () => {
+        const { svc } = await setup();
+        await expect(
+            svc.importAppCode(
+                fakeUser,
+                PROJECT_UUID,
+                makeBody(toUploadFiles(SRC), {
+                    ...PROVENANCE,
+                    slug: '../etc',
+                }),
+            ),
+        ).rejects.toThrow(/Invalid registry block/);
+    });
+
+    it('rejects a null registry block (emptied in lightdash-app.yml) with a clear error', async () => {
+        const { svc } = await setup();
+        const body = makeBody(toUploadFiles(SRC));
+        (body.code.manifest as Record<string, unknown>).registry = null;
+        await expect(
+            svc.importAppCode(fakeUser, PROJECT_UUID, body),
+        ).rejects.toThrow(/Invalid registry block/);
+    });
+
+    it('wraps a registry outage during the source or dist download in a chart type library error', async () => {
+        const sourceDown = await setup();
+        sourceDown.chartRegistryClient.downloadArtifact.mockRejectedValue(
+            new Error('ECONNRESET'),
+        );
+        await expect(
+            sourceDown.svc.importAppCode(
+                fakeUser,
+                PROJECT_UUID,
+                makeBody(toUploadFiles(SRC)),
+            ),
+        ).rejects.toThrow(/Could not reach the chart type library/);
+
+        const distDown = await setup();
+        const sourceTar = await buildTar(SRC);
+        distDown.chartRegistryClient.downloadArtifact.mockImplementation(
+            (_e: unknown, kind: 'source' | 'dist') =>
+                kind === 'source'
+                    ? Promise.resolve(sourceTar)
+                    : Promise.reject(new Error('ECONNRESET')),
+        );
+        await expect(
+            distDown.svc.importAppCode(
+                fakeUser,
+                PROJECT_UUID,
+                makeBody(toUploadFiles(SRC)),
+            ),
+        ).rejects.toThrow(/Could not reach the chart type library/);
+    });
+
+    it('a manifest slug that differs from the library slug → falls through so the copy forks under the new slug', async () => {
+        const { svc } = await setup();
+        const outcome = await callHelper(svc, toUploadFiles(SRC), 'my-trellis');
+        expect(outcome.kind).toBe('fallthrough');
+        expect(outcome.warning).toMatch(/slug "my-trellis" differs/);
     });
 });
