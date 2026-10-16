@@ -3,6 +3,7 @@ import {
     DimensionType,
     FieldType,
     FilterOperator,
+    MetricType,
     type DashboardFilterRule,
     type DashboardTile,
     type FilterableDimension,
@@ -25,6 +26,9 @@ const mockContainers = vi.hoisted(() => ({
 
 vi.mock('./useControlsSidebar', () => ({
     useControlsSidebar: () => mockSidebar.current,
+    useControlsSidebarSelector: (
+        selector: (value: Record<string, unknown>) => unknown,
+    ) => selector(mockSidebar.current),
 }));
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
@@ -129,6 +133,7 @@ describe('TabCounts', () => {
                 orders_status: status,
                 orders_region: region,
             },
+            allFilterableMetricsMap: {},
             filterableFieldsByTileUuid: {
                 'tile-both': [status, region],
                 'tile-status': [status],
@@ -233,6 +238,77 @@ describe('TabCounts', () => {
                 '1 of 1 tile on this tab is filtered by Region',
             ),
         ).toBeInTheDocument();
+    });
+
+    it('names a metric in the tooltip, not its id', async () => {
+        const revenue = {
+            ...dimension('revenue', 'Revenue'),
+            fieldType: FieldType.METRIC,
+            type: MetricType.SUM,
+        };
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            allFilterableMetricsMap: { orders_revenue: revenue },
+            filterableFieldsByTileUuid: { 'tile-region': [revenue] },
+        };
+        setSidebar({
+            editingRule: rule({
+                target: { fieldId: 'orders_revenue', tableName: 'orders' },
+            }),
+            activeFieldId: 'orders_revenue',
+        });
+        renderWithProviders(<TabCounts />);
+
+        await userEvent.hover(screen.getByText('1 of 1'));
+        expect(
+            await screen.findByText(
+                '1 of 1 tile on this tab is filtered by Revenue',
+            ),
+        ).toBeInTheDocument();
+    });
+
+    it('names a SQL column by its own name, even when a field has that id', async () => {
+        const sqlTarget = {
+            fieldId: 'orders_status',
+            tableName: 'sql_chart',
+            isSqlColumn: true,
+        };
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            dashboardTiles: [
+                tile('tile-sql', 'tab-2', DashboardTileTypes.SQL_CHART),
+            ],
+        };
+        setSidebar({
+            editingRule: rule({
+                target: sqlTarget,
+                tileTargets: { 'tile-sql': sqlTarget },
+            }),
+            activeFieldId: 'orders_status',
+        });
+        renderWithProviders(<TabCounts />);
+
+        await userEvent.hover(screen.getByText('1 of 1'));
+        expect(
+            await screen.findByText(
+                '1 of 1 tile on this tab is filtered by orders_status',
+            ),
+        ).toBeInTheDocument();
+    });
+
+    it('counts a tile with a missing or stale tab on the first tab', () => {
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            dashboardTiles: [
+                tile('tile-both', 'tab-1'),
+                { ...tile('tile-status', 'tab-1'), tabUuid: undefined },
+                tile('tile-region', 'tab-deleted'),
+            ],
+        };
+        renderWithProviders(<TabCounts />);
+
+        expect(badgeText('tab-1')).toBe('2 of 3');
+        expect(badgeText('tab-2')).toBe('');
     });
 
     it('counts a data app tile while it is on', () => {

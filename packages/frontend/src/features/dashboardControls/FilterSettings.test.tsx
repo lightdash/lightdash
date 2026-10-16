@@ -69,8 +69,11 @@ vi.mock('./ViewerControls', () => ({
 const close = vi.hoisted(() => vi.fn());
 vi.mock('./useControlsSidebar', () => ({
     useControlsSidebarSelector: (
-        selector: (value: { close: () => void }) => unknown,
-    ) => selector({ close }),
+        selector: (value: {
+            close: () => void;
+            updateOtherFilters: () => void;
+        }) => unknown,
+    ) => selector({ close, updateOtherFilters: vi.fn() }),
 }));
 
 const amount: DashboardFilterableField = {
@@ -194,6 +197,16 @@ describe('FilterSettings', () => {
             `${FilterType.STRING} for no field`,
         );
         expect(screen.getByTestId('viewer-controls')).toBeInTheDocument();
+    });
+
+    it('heads the second card "Viewer access"', () => {
+        renderSettings(
+            rule({ fieldId: 'orders_amount', tableName: 'orders' }),
+            amount,
+        );
+        expect(
+            screen.getByRole('heading', { name: 'Viewer access' }),
+        ).toBeInTheDocument();
     });
 
     it('gives the viewer controls the type and field the value settings get', () => {

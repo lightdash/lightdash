@@ -8,6 +8,8 @@ import {
     type DashboardFilters,
     type ResultColumn,
 } from '@lightdash/common';
+import isEqual from 'lodash/isEqual';
+import omitBy from 'lodash/omitBy';
 import {
     useCallback,
     useEffect,
@@ -33,11 +35,14 @@ import { isLockedRequiredMissingValue } from './requirements';
 import {
     canKeepFilterRule,
     findFilterRule,
+    haveFiltersChangedSince,
     isDefaultValueIncomplete,
     isFilterRuleDirty,
     PLACEHOLDER_TARGET,
     removeFilterRule,
     replaceFilterRule,
+    restoreFilterRule,
+    restoreFilterRules,
     type ControlsSidebarSnapshot,
 } from './sidebarState';
 import {
@@ -66,12 +71,21 @@ const findEditedPill = (
 
 type FilterGroup = 'dimensions' | 'metrics';
 
+const NO_FIELD_IDS: string[] = [];
+
 type SidebarState = {
     filterId: string;
     isNew: boolean;
     snapshot: ControlsSidebarSnapshot;
     // Where the control sat before its last field was removed, else null
-    emptiedAt: { group: FilterGroup; index: number; fieldLabel: string } | null;
+    emptiedAt: {
+        group: FilterGroup;
+        index: number;
+        // Null when the field it lost was not known
+        fieldLabel: string | null;
+    } | null;
+    // Other filters the editor itself wrote since this control was opened
+    touchedFilterIds: string[];
 };
 
 const createPlaceholder = (id: string): DashboardFilterRule => ({
@@ -90,6 +104,7 @@ type Latest = {
     state: SidebarState | null;
     placeholder: DashboardFilterRule | null;
     dashboardFilters: DashboardFilters;
+    dashboardTemporaryFilters: DashboardFilters;
     haveFiltersChanged: boolean;
     filterableFieldsByTileUuid: DashboardContextType['filterableFieldsByTileUuid'];
     dashboardTiles: DashboardContextType['dashboardTiles'];
@@ -99,20 +114,26 @@ type Latest = {
     track: TrackingContextType['track'];
 };
 
-const getEditingRule = ({
-    state,
-    placeholder,
-    dashboardFilters,
-}: Pick<
-    Latest,
-    'state' | 'placeholder' | 'dashboardFilters'
->): DashboardFilterRule | null =>
-    state === null
-        ? null
-        : (placeholder ?? findFilterRule(dashboardFilters, state.filterId));
+// `written` is the rule a first field just made: it stands in until the
+// dashboard filters hold it, so "not visible yet" never reads as "gone"
+const getEditingRule = (
+    {
+        state,
+        placeholder,
+        dashboardFilters,
+    }: Pick<Latest, 'state' | 'placeholder' | 'dashboardFilters'>,
+    written: DashboardFilterRule | null,
+): DashboardFilterRule | null => {
+    if (state === null) return null;
+    return (
+        placeholder ??
+        findFilterRule(dashboardFilters, state.filterId) ??
+        (written?.id === state.filterId ? written : null)
+    );
+};
 
 // Operator, values and tile targets come from the field or SQL column;
-// identity, label and settings come from the placeholder
+// identity, label and settings come from the placeholder, where it has them
 const adoptPlaceholder = (
     placeholder: DashboardFilterRule,
     created: DashboardFilterRule,
@@ -120,11 +141,17 @@ const adoptPlaceholder = (
     const adopted: DashboardFilterRule = {
         ...created,
         id: placeholder.id,
-        label: placeholder.label,
-        lockedTabUuids: placeholder.lockedTabUuids,
-        required: placeholder.required,
-        requiredGroupId: placeholder.requiredGroupId,
-        singleValue: placeholder.singleValue,
+        // No key written as undefined: the rule must equal a saved one
+        ...omitBy(
+            {
+                label: placeholder.label,
+                lockedTabUuids: placeholder.lockedTabUuids,
+                required: placeholder.required,
+                requiredGroupId: placeholder.requiredGroupId,
+                singleValue: placeholder.singleValue,
+            },
+            (value) => value === undefined,
+        ),
     };
     // A locked filter cannot stay required once its value went with the field
     return isLockedRequiredMissingValue(adopted)
@@ -152,6 +179,9 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
+    );
+    const dashboardTemporaryFilters = useDashboardContext(
+        (c) => c.dashboardTemporaryFilters,
     );
     const haveFiltersChanged = useDashboardContext((c) => c.haveFiltersChanged);
     const setHaveFiltersChanged = useDashboardContext(
@@ -181,11 +211,22 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         filterId: string;
         fieldIds: string[];
     } | null>(null);
+    // The rule a first field wrote, until the dashboard filters hold it
+    const [writtenRule, setWrittenRule] = useState<DashboardFilterRule | null>(
+        null,
+    );
+    if (
+        writtenRule !== null &&
+        findFilterRule(dashboardFilters, writtenRule.id) !== null
+    ) {
+        setWrittenRule(null);
+    }
 
     const rendered: Latest = {
         state,
         placeholder,
         dashboardFilters,
+        dashboardTemporaryFilters,
         haveFiltersChanged,
         filterableFieldsByTileUuid,
         dashboardTiles,
@@ -209,10 +250,43 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         [],
     );
 
+    // What the editor may lower again: only a flag it raised itself, with the
+    // temporary filters as they were (shipped code raises it for those too)
+    const ownRaise = useRef<{ temporaryFilters: DashboardFilters } | null>(
+        null,
+    );
     const writeFiltersChanged = useCallback((changed: boolean) => {
-        latest.current.haveFiltersChanged = changed;
-        latest.current.setHaveFiltersChanged(changed);
+        const current = latest.current;
+        if (changed && !current.haveFiltersChanged && current.state !== null) {
+            ownRaise.current = {
+                temporaryFilters: current.dashboardTemporaryFilters,
+            };
+        }
+        current.haveFiltersChanged = changed;
+        current.setHaveFiltersChanged(changed);
     }, []);
+
+    // Once the editor is done: changed when the filters differ from the
+    // snapshot; unchanged only when the flag was the editor's own to lower
+    const settleFiltersChanged = useCallback(
+        (snapshot: ControlsSidebarSnapshot) => {
+            const current = latest.current;
+            if (haveFiltersChangedSince(snapshot, current.dashboardFilters)) {
+                writeFiltersChanged(true);
+                return;
+            }
+            if (
+                ownRaise.current !== null &&
+                isEqual(
+                    ownRaise.current.temporaryFilters,
+                    current.dashboardTemporaryFilters,
+                )
+            ) {
+                writeFiltersChanged(false);
+            }
+        },
+        [writeFiltersChanged],
+    );
 
     const writePlaceholder = useCallback((next: DashboardFilterRule | null) => {
         latest.current.placeholder = next;
@@ -231,6 +305,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         setHighlightedFieldId(null);
         setHoveredFieldId(null);
         setWaiting(null);
+        setWrittenRule(null);
     }, [writeState, writePlaceholder]);
 
     // Unclicks the field and drops its hover, so the tiles go back at once
@@ -259,10 +334,12 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             const current = latest.current;
             if (current.state?.filterId === filterId) return;
             focusReturn.current = null;
+            ownRaise.current = null;
             writePlaceholder(null);
             setActiveSection('fields');
             setHighlightedFieldId(null);
             setHoveredFieldId(null);
+            setWaiting(null);
             writeState({
                 filterId,
                 isNew: false,
@@ -271,6 +348,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                     dashboardFilters: current.dashboardFilters,
                     haveFiltersChanged: current.haveFiltersChanged,
                 },
+                touchedFilterIds: [],
             });
         },
         [writeState, writePlaceholder],
@@ -280,10 +358,12 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         const current = latest.current;
         const rule = createPlaceholder(uuidv4());
         focusReturn.current = null;
+        ownRaise.current = null;
         writePlaceholder(rule);
         setActiveSection('fields');
         setHighlightedFieldId(null);
         setHoveredFieldId(null);
+        setWaiting(null);
         writeState({
             filterId: rule.id,
             isNew: true,
@@ -292,6 +372,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                 dashboardFilters: current.dashboardFilters,
                 haveFiltersChanged: current.haveFiltersChanged,
             },
+            touchedFilterIds: [],
         });
     }, [writeState, writePlaceholder]);
 
@@ -318,6 +399,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                 ],
             }));
             writeFiltersChanged(true);
+            setWrittenRule(rule);
             writePlaceholder(null);
             if (editingState !== null && emptiedAt !== null) {
                 writeState({ ...editingState, emptiedAt: null });
@@ -370,6 +452,8 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             const current = latest.current;
             if (current.placeholder === null) return;
             const fieldsByTile = current.filterableFieldsByTileUuid;
+            // What each tile offers is not known: leaving them out would be blind
+            if (fieldsByTile === undefined) return;
             const base = getFirstFieldRule(
                 current.placeholder,
                 field,
@@ -403,9 +487,10 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             }
             // A field that just lost its last tile stays listed, waiting
             const previous = findFilterRule(current.dashboardFilters, next.id);
-            const kept = new Set(getFilterFields(next));
+            const tiles = current.dashboardTiles;
+            const kept = new Set(getFilterFields(next, tiles));
             const dropped = (
-                previous === null ? [] : getFilterFields(previous)
+                previous === null ? [] : getFilterFields(previous, tiles)
             ).filter((fieldId) => !kept.has(fieldId));
             if (dropped.length > 0) {
                 setWaiting((waitingNow) => ({
@@ -429,7 +514,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     // The control stays open and empty, as a new one starts: same id, label
     // and viewer rules, none of the settings that came with the field's type
     const removeLastField = useCallback(
-        (fieldLabel: string) => {
+        (fieldLabel: string | null) => {
             const current = latest.current;
             if (current.state === null || current.placeholder !== null) return;
             const { filterId } = current.state;
@@ -463,6 +548,34 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             setWaiting(null);
         },
         [writeState, writeFilters, writeFiltersChanged, writePlaceholder],
+    );
+
+    // The editor's writes to filters other than the edited one (a required
+    // alternative). Their ids are kept so Discard and Remove undo them too
+    const updateOtherFilters = useCallback(
+        (rules: DashboardFilterRule[]) => {
+            const { state: editingState } = latest.current;
+            if (editingState === null || rules.length === 0) return;
+            const byId = new Map(rules.map((rule) => [rule.id, rule]));
+            const swap = (existing: DashboardFilterRule[]) =>
+                existing.map((rule) => byId.get(rule.id) ?? rule);
+            writeState({
+                ...editingState,
+                touchedFilterIds: [
+                    ...new Set([
+                        ...editingState.touchedFilterIds,
+                        ...byId.keys(),
+                    ]),
+                ],
+            });
+            writeFilters((filters) => ({
+                ...filters,
+                dimensions: swap(filters.dimensions),
+                metrics: swap(filters.metrics),
+            }));
+            writeFiltersChanged(true);
+        },
+        [writeState, writeFilters, writeFiltersChanged],
     );
 
     const addWaitingField = useCallback((fieldId: string) => {
@@ -502,33 +615,41 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         [writeFilters, writeFiltersChanged],
     );
 
-    // Starts from the snapshot so the edits made in this session are not kept
+    // The edited rule goes and the editor's writes to other rules are undone;
+    // what was written from outside the editor stays, and keeps it changed
     const removeFilter = useCallback(() => {
         const { state: editingState } = latest.current;
         if (editingState === null) return;
         rememberFocusReturn();
-        const { snapshot, filterId } = editingState;
-        if (editingState.isNew) {
-            writeFilters(() => snapshot.dashboardFilters);
-            writeFiltersChanged(snapshot.haveFiltersChanged);
-        } else {
-            writeFilters(() =>
-                removeFilterRule(snapshot.dashboardFilters, filterId),
-            );
-            writeFiltersChanged(true);
-        }
+        const { snapshot, filterId, touchedFilterIds } = editingState;
+        writeFilters((filters) =>
+            restoreFilterRules(
+                removeFilterRule(filters, filterId),
+                snapshot.dashboardFilters,
+                touchedFilterIds,
+            ),
+        );
+        settleFiltersChanged(snapshot);
         reset();
-    }, [writeFilters, writeFiltersChanged, reset, rememberFocusReturn]);
+    }, [writeFilters, settleFiltersChanged, reset, rememberFocusReturn]);
 
+    // The edited rule goes back to its snapshot, or out when it was new, and
+    // so do the other rules the editor wrote; outside writes are left alone
     const discard = useCallback(() => {
-        const current = latest.current;
-        if (current.state === null) return;
+        const { state: editingState } = latest.current;
+        if (editingState === null) return;
         rememberFocusReturn();
-        const { snapshot } = current.state;
-        writeFilters(() => snapshot.dashboardFilters);
-        writeFiltersChanged(snapshot.haveFiltersChanged);
+        const { snapshot, filterId, touchedFilterIds } = editingState;
+        writeFilters((filters) =>
+            restoreFilterRules(
+                restoreFilterRule(filters, snapshot.dashboardFilters, filterId),
+                snapshot.dashboardFilters,
+                touchedFilterIds,
+            ),
+        );
+        settleFiltersChanged(snapshot);
         reset();
-    }, [writeFilters, writeFiltersChanged, reset, rememberFocusReturn]);
+    }, [writeFilters, settleFiltersChanged, reset, rememberFocusReturn]);
 
     const isPlaceholder = state !== null && placeholder !== null;
 
@@ -560,26 +681,40 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     );
 
     const editingRule = useMemo(
-        () => getEditingRule({ state, placeholder, dashboardFilters }),
-        [state, placeholder, dashboardFilters],
+        () =>
+            getEditingRule(
+                { state, placeholder, dashboardFilters },
+                writtenRule,
+            ),
+        [state, placeholder, dashboardFilters, writtenRule],
     );
 
     const waitingFieldIds = useMemo(() => {
-        if (state === null || waiting?.filterId !== state.filterId) return [];
+        if (state === null || waiting?.filterId !== state.filterId)
+            return NO_FIELD_IDS;
         const current = new Set(
-            editingRule === null ? [] : getFilterFields(editingRule),
+            editingRule === null
+                ? []
+                : getFilterFields(editingRule, dashboardTiles),
         );
         return waiting.fieldIds.filter((fieldId) => !current.has(fieldId));
-    }, [state, waiting, editingRule]);
+    }, [state, waiting, editingRule, dashboardTiles]);
 
     // Keeps the edits, which already live in the dashboard draft
     const close = useCallback(() => {
         const current = latest.current;
         if (current.state === null) return;
-        const rule = getEditingRule(current);
-        if (rule === null || !canKeepFilterRule(rule)) {
+        const { snapshot } = current.state;
+        const rule = getEditingRule(current, null);
+        // Something outside took the rule away: that write is kept, and
+        // nothing of this edit is put back
+        if (rule === null) {
+            reset();
+            return;
+        }
+        if (!canKeepFilterRule(rule)) {
             // An existing control left with no field goes as "Remove filter"
-            if (rule !== null && !current.state.isNew) removeFilter();
+            if (!current.state.isNew) removeFilter();
             else discard();
             return;
         }
@@ -589,15 +724,17 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                 replaceFilterRule(filters, { ...rule, disabled: true }),
             );
         }
+        // An edit that was undone by hand leaves the dashboard unchanged
+        settleFiltersChanged(snapshot);
         reset();
-    }, [discard, removeFilter, reset, writeFilters, rememberFocusReturn]);
-
-    // A new control, or one with no field, is closed first, as "Done" would:
-    // kept when it can be, dropped otherwise. Other edits are simply kept
-    const closeNew = useCallback(() => {
-        const current = latest.current;
-        if (current.state?.isNew || current.placeholder !== null) close();
-    }, [close]);
+    }, [
+        discard,
+        removeFilter,
+        reset,
+        writeFilters,
+        settleFiltersChanged,
+        rememberFocusReturn,
+    ]);
 
     // Whatever is being edited is closed first, as "Done" would. A new
     // control with no field yet stays as it is, label included
@@ -609,15 +746,20 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         openPlaceholder();
     }, [close, openPlaceholder]);
 
+    // The control that is open stays as it is. Any other one is closed
+    // first, as "Done" would, new or not
     const open = useCallback(
         (filterId: string) => {
-            closeNew();
+            if (latest.current.state?.filterId === filterId) return;
+            close();
             openExisting(filterId);
         },
-        [closeNew, openExisting],
+        [close, openExisting],
     );
 
-    const isSidebarOpen = state !== null;
+    // Derived, not reset: a rule that left the dashboard filters closes the
+    // sidebar, and the next open or Add starts over
+    const isSidebarOpen = state !== null && editingRule !== null;
     useEditorDismiss({
         isOpen: isSidebarOpen,
         isFieldClicked: highlightedFieldId !== null,
@@ -630,7 +772,8 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         if (isSidebarOpen || focusReturn.current === null) return;
         const { pill } = focusReturn.current;
         focusReturn.current = null;
-        (pill?.isConnected
+        // A pill disabled by a refetch cannot take it
+        (pill?.isConnected && !pill.hasAttribute('disabled')
             ? pill
             : document.querySelector<HTMLElement>(ADD_SELECTOR)
         )?.focus();
@@ -672,6 +815,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             setHoveredFieldId,
             activeFieldId: hoveredFieldId ?? highlightedFieldId,
             updateFilter,
+            updateOtherFilters,
             removeFilter,
             removeFilterById,
             discard,
@@ -705,6 +849,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             clearHighlightedField,
             hoveredFieldId,
             updateFilter,
+            updateOtherFilters,
             removeFilter,
             removeFilterById,
             discard,

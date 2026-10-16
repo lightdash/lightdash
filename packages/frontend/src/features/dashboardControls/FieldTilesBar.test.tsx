@@ -1047,6 +1047,53 @@ describe('FieldTilesBar', () => {
         expect(result.current).toBe(first);
     });
 
+    it('never empties a field filter from a SQL column, which is not its field', () => {
+        setSidebar(rule('orders_status'));
+        const columns = {};
+        const { result } = renderHook(() => useFieldTileActions(columns));
+
+        result.current?.forSqlColumn('country').remove();
+
+        expect(removeLastField).not.toHaveBeenCalled();
+        expect(updateFilter).not.toHaveBeenCalled();
+        // Its own field still goes that way
+        result.current?.forField('orders_status').remove();
+        expect(removeLastField).toHaveBeenCalledWith('Status');
+    });
+
+    describe('while the tile fields are not loaded', () => {
+        it('switches Clear off, and switches it back on once they are there', () => {
+            const fields =
+                mockDashboardContext.current.filterableFieldsByTileUuid;
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                filterableFieldsByTileUuid: undefined,
+            };
+            // tile-2 is left out: a blind write would lose that
+            setSidebar(
+                rule('orders_status', { 'tile-1': REGION, 'tile-2': false }),
+                { highlightedFieldId: 'orders_region' },
+            );
+            const { rerender } = renderWithProviders(<Dashboard />);
+
+            const clear = screen.getByRole('button', {
+                name: 'Clear Region from tiles',
+            });
+            expect(clear).toBeDisabled();
+            fireEvent.click(clear);
+            expect(updateFilter).not.toHaveBeenCalled();
+
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                filterableFieldsByTileUuid: fields,
+            };
+            rerender(<Dashboard />);
+            expect(
+                screen.getByRole('button', { name: 'Clear Region from tiles' }),
+            ).toBeEnabled();
+        });
+    });
+
     it('has a named button for every action, with no menu and no border', () => {
         setSidebar(rule('orders_status', { 'tile-1': false }));
         renderWithProviders(<Dashboard />);

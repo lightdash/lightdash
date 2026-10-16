@@ -72,6 +72,7 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
         everyTabScope,
         replacedLabels,
         otherTabsUnfiltered,
+        canAct,
         addToUnfiltered,
         switchFromOthers,
         clear,
@@ -173,6 +174,8 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
                             size="xs"
                             variant="subtle"
                             color="gray"
+                            // Loading: what a tile offers is not known yet
+                            disabled={!canAct}
                             aria-label={
                                 hasTabs
                                     ? `Clear ${label} from this tab`
@@ -215,11 +218,14 @@ export const FieldTilesBar: FC = () => {
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
     const fieldTileActions = useFieldTileActions(sqlColumnsByTile);
     const activeTabUuid = useDashboardContext((c) => c.activeTab?.uuid);
+    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
 
     const fieldId =
         editingRule !== null &&
         highlightedFieldId !== null &&
-        (getFilterFields(editingRule).includes(highlightedFieldId) ||
+        (getFilterFields(editingRule, dashboardTiles).includes(
+            highlightedFieldId,
+        ) ||
             waitingFieldIds.includes(highlightedFieldId))
             ? highlightedFieldId
             : null;

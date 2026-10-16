@@ -115,6 +115,7 @@ export const FieldsAndTiles: FC = () => {
         metricFiltersFlag?.enabled ?? import.meta.env.DEV;
     const [isAdding, setIsAdding] = useState(false);
     const addButtonRef = useRef<HTMLButtonElement>(null);
+    const wasAddingOnPress = useRef(false);
     const rowsRef = useRef<HTMLDivElement>(null);
     const starterRef = useRef<HTMLDivElement>(null);
     // The card whose trash can was pressed, until it has left the list
@@ -148,8 +149,11 @@ export const FieldsAndTiles: FC = () => {
     }, [availableTileFilters]);
 
     const fieldIds = useMemo(
-        () => (editingRule === null ? [] : getFilterFields(editingRule)),
-        [editingRule],
+        () =>
+            editingRule === null
+                ? []
+                : getFilterFields(editingRule, dashboardTiles),
+        [editingRule, dashboardTiles],
     );
 
     const targetField = useFilterRuleField(editingRule);
@@ -160,9 +164,8 @@ export const FieldsAndTiles: FC = () => {
         [fieldIds, waitingFieldIds],
     );
 
-    // Fields of the filter's type that some tile offers, even a tile that
-    // already has a field: its card can switch to the new one. A metric
-    // filter takes metrics, any other filter dimensions
+    // Fields of the filter's kind (metrics or dimensions) that some tile
+    // offers, even a tile that has a field: its card can switch to the new one
     const candidates = useMemo(() => {
         if (targetField === null) return [];
         return getFieldCandidates(
@@ -269,6 +272,7 @@ export const FieldsAndTiles: FC = () => {
                             possible={row.everyTabScope.possible}
                             isHighlighted={highlightedFieldId === fieldId}
                             isWaiting={row.isWaiting}
+                            isRemoveDisabled={!row.canAct}
                             onToggleHighlight={() => {
                                 if (highlightedFieldId === fieldId)
                                     clearHighlightedField();
@@ -280,6 +284,7 @@ export const FieldsAndTiles: FC = () => {
                                     setHoveredFieldId(null);
                             }}
                             onRemove={() => {
+                                if (!row.canAct) return;
                                 removedRef.current = { fieldId, index };
                                 if (highlightedFieldId === fieldId)
                                     setHighlightedFieldId(null);
@@ -301,8 +306,20 @@ export const FieldsAndTiles: FC = () => {
                         variant="light"
                         size="xs"
                         leftSection={<MantineIcon icon={IconPlus} />}
+                        // The press puts the open search away (focus leaves
+                        // it), so the click that follows must not reopen it
+                        onMouseDown={(event) => {
+                            if (event.button === 0)
+                                wasAddingOnPress.current = isAdding;
+                        }}
+                        onMouseLeave={() => {
+                            wasAddingOnPress.current = false;
+                        }}
                         onClick={() => {
-                            if (hasCandidates) setIsAdding((open) => !open);
+                            const wasAdding =
+                                isAdding || wasAddingOnPress.current;
+                            wasAddingOnPress.current = false;
+                            if (hasCandidates) setIsAdding(!wasAdding);
                         }}
                         aria-expanded={isAdding && hasCandidates}
                         data-disabled={!hasCandidates || undefined}
@@ -332,10 +349,13 @@ export const FieldsAndTiles: FC = () => {
                                 sqlColumnsByTile,
                             );
                             updateFilter(next);
-                            // Every tile it fits already has a field: it
-                            // waits, and the tile cards offer the switch
-                            // and with no tile to show, it is not clicked
-                            if (getFilterFields(next).includes(fieldId))
+                            // On no tile (each one it fits has a field): it
+                            // waits, unclicked, and the tile cards offer it
+                            if (
+                                getFilterFields(next, dashboardTiles).includes(
+                                    fieldId,
+                                )
+                            )
                                 setHighlightedFieldId(fieldId);
                             else addWaitingField(fieldId);
                             setIsAdding(false);

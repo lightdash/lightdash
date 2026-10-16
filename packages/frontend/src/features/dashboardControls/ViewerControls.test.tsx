@@ -6,6 +6,7 @@ import {
 import { fireEvent, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
+import { EventName } from '../../types/Events';
 import { ViewerControls } from './ViewerControls';
 
 const mockDashboardContext = vi.hoisted(() => ({
@@ -14,6 +15,11 @@ const mockDashboardContext = vi.hoisted(() => ({
 
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
+}));
+
+const mockTrack = vi.hoisted(() => vi.fn());
+vi.mock('../../providers/Tracking/useTracking', () => ({
+    default: () => ({ track: mockTrack }),
 }));
 
 vi.mock(
@@ -41,8 +47,7 @@ const TABS = [
     { uuid: 't3', name: 'Finance', order: 2 },
 ];
 
-const setDashboardFilters = vi.fn();
-const setHaveFiltersChanged = vi.fn();
+const onChangeOthers = vi.fn();
 
 const setContext = (
     tabs: typeof TABS,
@@ -61,8 +66,6 @@ const setContext = (
         },
         dashboardTabs: tabs,
         dashboardFilters: { dimensions, metrics: [], tableCalculations },
-        setDashboardFilters,
-        setHaveFiltersChanged,
     };
 };
 
@@ -79,6 +82,7 @@ const renderControls = (
             filterType={FilterType.STRING}
             field={null}
             onChange={onChange}
+            onChangeOthers={onChangeOthers}
             onEditRules={onEditRules}
         />,
     );
@@ -174,6 +178,85 @@ describe('ViewerControls', () => {
             );
         });
 
+        describe('tracking, as the lock on the pill', () => {
+            const lockEvent = (
+                action: 'lock' | 'unlock',
+                tabUuid: string | undefined,
+            ) => ({
+                name: EventName.DASHBOARD_FILTER_LOCK_TOGGLED,
+                properties: {
+                    action,
+                    dashboardUuid: 'dashboard-uuid',
+                    tabUuid,
+                    fieldId: 'field_a',
+                    tableName: 'orders',
+                },
+            });
+
+            it('sends the event of the tab that is locked or unlocked', () => {
+                renderControls(makeRule('a', { lockedTabUuids: ['t2'] }));
+                openRow(/^Lock/);
+
+                fireEvent.click(
+                    screen.getByRole('switch', { name: 'Finance' }),
+                );
+                expect(mockTrack).toHaveBeenCalledTimes(1);
+                expect(mockTrack).toHaveBeenLastCalledWith(
+                    lockEvent('lock', 't3'),
+                );
+
+                fireEvent.click(
+                    screen.getByRole('switch', { name: 'Details' }),
+                );
+                expect(mockTrack).toHaveBeenLastCalledWith(
+                    lockEvent('unlock', 't2'),
+                );
+            });
+
+            it('sends one event per tab that "every tab" changes', () => {
+                renderControls(makeRule('a', { lockedTabUuids: ['t2'] }));
+                openRow(/^Lock/);
+
+                fireEvent.click(
+                    screen.getByRole('switch', { name: /Lock on every tab/ }),
+                );
+
+                expect(mockTrack.mock.calls.map(([event]) => event)).toEqual([
+                    lockEvent('lock', 't1'),
+                    lockEvent('lock', 't3'),
+                ]);
+            });
+
+            it('sends the unlock of every locked tab', () => {
+                renderControls(
+                    makeRule('a', { lockedTabUuids: ['t1', 't2', 't3'] }),
+                );
+                openRow(/^Lock/);
+
+                fireEvent.click(
+                    screen.getByRole('switch', { name: /Lock on every tab/ }),
+                );
+
+                expect(mockTrack.mock.calls.map(([event]) => event)).toEqual([
+                    lockEvent('unlock', 't1'),
+                    lockEvent('unlock', 't2'),
+                    lockEvent('unlock', 't3'),
+                ]);
+            });
+
+            it('sends no tab on a dashboard without tabs', () => {
+                setContext([]);
+                renderControls(makeRule('a'));
+                openRow(/^Lock/);
+
+                fireEvent.click(screen.getByRole('switch', { name: /Lock/ }));
+
+                expect(mockTrack).toHaveBeenCalledWith(
+                    lockEvent('lock', undefined),
+                );
+            });
+        });
+
         it('uses the dashboard uuid when there are no tabs', () => {
             setContext([]);
             const onChange = renderControls(makeRule('a'));
@@ -254,6 +337,21 @@ describe('ViewerControls', () => {
     });
 
     describe('required', () => {
+        it('says under each switch what it does to viewers', () => {
+            renderControls(makeRule('a'));
+            openRow(/^Lock/);
+            expect(
+                screen.getByText('Viewers see the value but cannot change it.'),
+            ).toBeInTheDocument();
+
+            openRow(/Required/);
+            expect(
+                screen.getByText(
+                    'Viewers would have to set this filter before the tiles load.',
+                ),
+            ).toBeInTheDocument();
+        });
+
         it('marks the filter as required', () => {
             const onChange = renderControls(makeRule('a'));
             expect(screen.getByText('Not required')).toBeInTheDocument();
@@ -266,7 +364,7 @@ describe('ViewerControls', () => {
                     requiredGroupId: undefined,
                 }),
             );
-            expect(setDashboardFilters).not.toHaveBeenCalled();
+            expect(onChangeOthers).not.toHaveBeenCalled();
         });
 
         it('requires a filter with a default value, which stays as a temporary one', () => {
@@ -314,7 +412,7 @@ describe('ViewerControls', () => {
                     settings: undefined,
                 }),
             );
-            expect(setDashboardFilters).not.toHaveBeenCalled();
+            expect(onChangeOthers).not.toHaveBeenCalled();
         });
 
         it('leaves the rest of the rule alone when one member is switched off', () => {
@@ -331,7 +429,7 @@ describe('ViewerControls', () => {
                     requiredGroupId: undefined,
                 }),
             );
-            expect(setDashboardFilters).not.toHaveBeenCalled();
+            expect(onChangeOthers).not.toHaveBeenCalled();
         });
 
         it('goes back into the rule it was saved in when switched on again', () => {
@@ -430,19 +528,15 @@ describe('ViewerControls', () => {
             fireEvent.click(screen.getByRole('checkbox', { name: 'Filter b' }));
 
             expect(onChange).not.toHaveBeenCalled();
-            const updater = setDashboardFilters.mock.calls[0][0];
-            const next = updater({
-                dimensions: [a, b],
-                metrics: [],
-                tableCalculations: [],
-            });
-            expect(next.dimensions[0]).toBe(a);
-            expect(next.dimensions[1]).toEqual(
+            // Only the other filter, handed to the editor to write
+            expect(onChangeOthers).toHaveBeenCalledTimes(1);
+            expect(onChangeOthers).toHaveBeenCalledWith([
                 expect.objectContaining({
+                    id: 'b',
                     required: false,
                     requiredGroupId: undefined,
                 }),
-            );
+            ]);
         });
 
         it('links to the filter rules when the filter shares a rule', () => {
@@ -464,6 +558,7 @@ describe('ViewerControls', () => {
                     filterType={FilterType.STRING}
                     field={null}
                     onChange={vi.fn()}
+                    onChangeOthers={onChangeOthers}
                     onEditRules={vi.fn()}
                 />,
             );
@@ -504,17 +599,11 @@ describe('ViewerControls', () => {
             expect(own.required).toBe(false);
             expect(own.requiredGroupId).toEqual(expect.any(String));
 
-            const updater = setDashboardFilters.mock.calls[0][0];
-            const next = updater({
-                dimensions: [a, b],
-                metrics: [],
-                tableCalculations: [],
-            });
-            expect(next.dimensions[0]).toBe(a);
-            expect(next.dimensions[1].requiredGroupId).toBe(
-                own.requiredGroupId,
-            );
-            expect(setHaveFiltersChanged).toHaveBeenCalledWith(true);
+            expect(onChangeOthers).toHaveBeenCalledTimes(1);
+            const others = onChangeOthers.mock.calls[0][0];
+            expect(others).toHaveLength(1);
+            expect(others[0].id).toBe('b');
+            expect(others[0].requiredGroupId).toBe(own.requiredGroupId);
         });
 
         it('offers no table calculation filter as an alternative', () => {

@@ -35,6 +35,8 @@ type Props = {
     isOrphaned: boolean;
     orphanedTooltip: string;
     isSelected: boolean;
+    /** Its fields are not loaded yet, so it opens no editor. */
+    isDisabled: boolean;
     /** A new control that has no label yet. */
     isDraft: boolean;
     /** While open the pill is only a click target: no grip, lock or X. */
@@ -51,6 +53,7 @@ export const FilterPill: FC<Props> = memo(
         isOrphaned,
         orphanedTooltip,
         isSelected,
+        isDisabled,
         isDraft,
         isSidebarOpen,
         activeTabUuid,
@@ -121,6 +124,7 @@ export const FilterPill: FC<Props> = memo(
                         size="xs"
                         variant="default"
                         aria-pressed={isSelected}
+                        disabled={isDisabled}
                         classNames={{ label: pillClasses.label }}
                         className={[
                             pillClasses.button,

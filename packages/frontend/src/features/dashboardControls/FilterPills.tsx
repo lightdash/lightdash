@@ -55,6 +55,10 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
     const areFieldsLoading = useDashboardContext(
         (c) => c.isLoadingDashboardFilters || c.isFetchingDashboardFilters,
     );
+    // As the shipped pill: no editor until the fields exist
+    const areFieldsLoaded = useDashboardContext(
+        (c) => c.allFilterableFields !== undefined,
+    );
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
@@ -110,6 +114,7 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                 field={field}
                 {...getOrphanedState(filter, appliesToTabs)}
                 isSelected={isSelected}
+                isDisabled={!areFieldsLoaded && !filter.target.isSqlColumn}
                 isDraft={isNew && isSelected && !filter.label}
                 isSidebarOpen={isSidebarOpen}
                 activeTabUuid={activeTabUuid}
