@@ -13,8 +13,9 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
-    IconChevronDown,
-    IconChevronUp,
+    IconArrowDown,
+    IconArrowsSort,
+    IconArrowUp,
     IconDots,
     IconEdit,
     IconTrash,
@@ -143,15 +144,17 @@ const SortableTh: FC<{
             <UnstyledButton onClick={() => onSort(field)} fz="inherit">
                 <Group gap="two" wrap="nowrap">
                     {children}
-                    {isActive && (
+                    {isActive ? (
                         <MantineIcon
                             icon={
                                 sortDirection === 'asc'
-                                    ? IconChevronUp
-                                    : IconChevronDown
+                                    ? IconArrowUp
+                                    : IconArrowDown
                             }
-                            size="sm"
+                            color="blue.6"
                         />
+                    ) : (
+                        <MantineIcon icon={IconArrowsSort} color="ldGray.5" />
                     )}
                 </Group>
             </UnstyledButton>

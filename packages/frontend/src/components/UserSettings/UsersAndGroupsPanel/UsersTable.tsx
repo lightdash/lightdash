@@ -107,7 +107,7 @@ const UsersTable: FC = () => {
 
     const sort = useMemo<OrganizationMemberSort | undefined>(
         () =>
-            sorting[0]
+            sorting[0]?.id === 'name'
                 ? {
                       sortBy: 'name',
                       sortDirection: sorting[0].desc ? 'desc' : 'asc',
@@ -255,6 +255,7 @@ const UsersTable: FC = () => {
             OrganizationMemberProfile | OrganizationMemberProfileWithGroups
         >[] = [
             {
+                id: 'name',
                 accessorKey: 'email',
                 header: 'User',
                 enableSorting: true,

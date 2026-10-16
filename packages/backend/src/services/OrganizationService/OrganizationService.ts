@@ -557,7 +557,7 @@ export class OrganizationService extends BaseService {
         searchQuery?: string,
         projectUuid?: string,
         googleOidcOnly?: boolean,
-        memberSort?: OrganizationMemberSort,
+        sort?: OrganizationMemberSort,
     ): Promise<KnexPaginatedData<OrganizationMemberProfile[]>> {
         const { organizationUuid } = user;
         if (organizationUuid === undefined) {
@@ -576,18 +576,20 @@ export class OrganizationService extends BaseService {
 
         const { pagination, data: organizationMembers } = includeGroups
             ? await this.organizationMemberProfileModel.getOrganizationMembersAndGroups(
-                  organizationUuid,
-                  includeGroups,
-                  paginateArgs,
-                  searchQuery,
-                  googleOidcOnly,
-                  memberSort,
+                  {
+                      organizationUuid,
+                      includeGroups,
+                      paginateArgs,
+                      searchQuery,
+                      googleOidcOnly,
+                      sort,
+                  },
               )
             : await this.organizationMemberProfileModel.getOrganizationMembers({
                   organizationUuid,
                   paginateArgs,
                   searchQuery,
-                  memberSort,
+                  sort,
                   googleOidcOnly,
               });
 

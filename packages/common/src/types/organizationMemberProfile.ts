@@ -29,7 +29,7 @@ export const isOrganizationMemberRole = (
     Object.values(OrganizationMemberRole).includes(x as OrganizationMemberRole);
 
 export type OrganizationMemberSort = {
-    sortBy: 'name';
+    sortBy: 'name' | 'updatedAt';
     sortDirection: 'asc' | 'desc';
 };
 

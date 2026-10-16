@@ -48,7 +48,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
 
     const sort = useMemo<GroupSort | undefined>(
         () =>
-            sorting[0]
+            sorting[0]?.id === 'name'
                 ? {
                       sortBy: 'name',
                       sortDirection: sorting[0].desc ? 'desc' : 'asc',
