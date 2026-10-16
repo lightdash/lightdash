@@ -1,3 +1,10 @@
+## [2.599.2](https://github.com/lightdash/lightdash/compare/2.599.1...2.599.2) (2026-10-16)
+
+
+### Bug Fixes
+
+* **mcp:** explain render_chart placeholder to agents ([#31105](https://github.com/lightdash/lightdash/issues/31105)) ([92434d4](https://github.com/lightdash/lightdash/commit/92434d4520c3a0ee01ea14cb698b67230c12572b))
+
 ## [2.599.1](https://github.com/lightdash/lightdash/compare/2.599.0...2.599.1) (2026-10-16)
 
 
