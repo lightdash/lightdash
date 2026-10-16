@@ -11362,10 +11362,28 @@ describe('AsyncQueryService', () => {
                 markErrored,
                 runQueryAndTransformRows,
             } = setupGate(120_000_000_000);
+            const track = vi.spyOn(analyticsMock, 'track');
+            track.mockClear();
 
             await service.runAsyncWarehouseQuery(
                 runArgs(QueryExecutionContext.MCP_RUN_SQL),
             );
+
+            expect(track).toHaveBeenCalledWith({
+                userId: sessionAccount.user.id,
+                event: 'query_cost_estimate.agent_refused',
+                properties: {
+                    organizationId:
+                        sessionAccount.organization.organizationUuid,
+                    projectId: projectUuid,
+                    queryContext: QueryExecutionContext.MCP_RUN_SQL,
+                    queryUuid: 'gated-query-uuid',
+                    estimatedBytes: 120_000_000_000,
+                    limitBytes: 10_000_000_000,
+                    cacheHit: false,
+                    warehouseType: WarehouseTypes.BIGQUERY,
+                },
+            });
 
             expect(estimateQuery).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -11390,12 +11408,20 @@ describe('AsyncQueryService', () => {
             const { service, markErrored, runQueryAndTransformRows } =
                 setupGate(1_000_000);
 
+            const track = vi.spyOn(analyticsMock, 'track');
+            track.mockClear();
+
             await service.runAsyncWarehouseQuery(
                 runArgs(QueryExecutionContext.MCP_RUN_SQL),
             );
 
             expect(runQueryAndTransformRows).toHaveBeenCalledOnce();
             expect(markErrored).not.toHaveBeenCalled();
+            expect(track).not.toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'query_cost_estimate.agent_refused',
+                }),
+            );
         });
 
         test('does not dry-run queries from people', async () => {
@@ -11408,6 +11434,129 @@ describe('AsyncQueryService', () => {
 
             expect(estimateQuery).not.toHaveBeenCalled();
             expect(runQueryAndTransformRows).toHaveBeenCalledOnce();
+        });
+    });
+
+    describe('estimate telemetry for the explorer and SQL runner', () => {
+        const credentials = {
+            type: WarehouseTypes.BIGQUERY,
+            project: 'project',
+            dataset: 'dataset',
+            timeoutSeconds: undefined,
+            priority: undefined,
+            keyfileContents: {},
+            retries: undefined,
+            location: undefined,
+            maximumBytesBilled: undefined,
+            estimateQueryBytes: true,
+            confirmEstimatedBytesAbove: 1_000,
+        } satisfies CreateWarehouseCredentials;
+
+        type EstimateWithCredentials = (args: {
+            account: typeof sessionAccount;
+            organizationUuid: string;
+            projectUuid: string;
+            context: QueryExecutionContext;
+            sql: string;
+            warehouseCredentials: typeof credentials;
+            aiPlan: null;
+            warehouseConnectionUuid: null;
+            connectionRoute: null;
+        }) => Promise<unknown>;
+
+        const setup = (estimateQuery: ReturnType<typeof vi.fn>) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            vi.spyOn(
+                service.warehouseClientFactory,
+                'withWarehouseClient',
+            ).mockImplementation(async (_target, _context, callback) =>
+                callback({
+                    warehouseClient: {
+                        ...warehouseClientMock,
+                        credentials,
+                        estimateQuery,
+                    },
+                } as unknown as Parameters<typeof callback>[0]),
+            );
+            const trackAccount = vi.spyOn(analyticsMock, 'trackAccount');
+            trackAccount.mockClear();
+            const estimate = (
+                service as unknown as {
+                    estimateQueryCostWithCredentials: EstimateWithCredentials;
+                }
+            ).estimateQueryCostWithCredentials.bind(service);
+            return {
+                trackAccount,
+                run: (context: QueryExecutionContext) =>
+                    estimate({
+                        account: sessionAccount,
+                        organizationUuid:
+                            sessionAccount.organization.organizationUuid!,
+                        projectUuid,
+                        context,
+                        sql: 'SELECT secret_column FROM customer_table',
+                        warehouseCredentials: credentials,
+                        aiPlan: null,
+                        warehouseConnectionUuid: null,
+                        connectionRoute: null,
+                    }),
+            };
+        };
+
+        test('tracks an explorer estimate that requires confirmation', async () => {
+            const { run, trackAccount } = setup(
+                vi.fn(async () => ({ totalBytesProcessed: 5_000 })),
+            );
+
+            await expect(run(QueryExecutionContext.EXPLORE)).resolves.toEqual({
+                status: 'estimated',
+                totalBytesProcessed: 5_000,
+                confirmEstimatedBytesAbove: 1_000,
+                requiresConfirmation: true,
+            });
+            expect(trackAccount).toHaveBeenCalledWith(sessionAccount, {
+                event: 'query_cost_estimate.completed',
+                properties: {
+                    organizationId:
+                        sessionAccount.organization.organizationUuid,
+                    projectId: projectUuid,
+                    source: 'explorer',
+                    outcome: 'ok',
+                    estimatedBytes: 5_000,
+                    confirmEstimatedBytesAbove: 1_000,
+                    requiresConfirmation: true,
+                    cacheHit: false,
+                    dryRunDurationMs: expect.any(Number),
+                    warehouseType: WarehouseTypes.BIGQUERY,
+                },
+            });
+        });
+
+        test('tracks a failed SQL runner estimate and still returns the error', async () => {
+            const { run, trackAccount } = setup(
+                vi.fn(async () => {
+                    throw new WarehouseQueryError('Unrecognized name');
+                }),
+            );
+
+            await expect(
+                run(QueryExecutionContext.SQL_RUNNER),
+            ).resolves.toEqual({
+                status: 'error',
+                message: 'Unrecognized name',
+            });
+            expect(trackAccount).toHaveBeenCalledWith(
+                sessionAccount,
+                expect.objectContaining({
+                    event: 'query_cost_estimate.completed',
+                    properties: expect.objectContaining({
+                        source: 'sql_runner',
+                        outcome: 'error',
+                        cacheHit: false,
+                        estimatedBytes: null,
+                    }),
+                }),
+            );
         });
     });
 
