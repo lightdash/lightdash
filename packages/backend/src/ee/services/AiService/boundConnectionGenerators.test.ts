@@ -27,13 +27,39 @@ vi.mock('../ai/models', () => ({
 }));
 
 describe('AI generator connection dialect', () => {
-    it.each(Object.values(WarehouseTypes))(
-        'uses the bound %s dialect instead of the original',
-        async (warehouseType) => {
-            const getWarehouseSqlBuilderSettings = vi.fn().mockResolvedValue({
-                type: warehouseType,
-                startOfWeek: WeekDay.WEDNESDAY,
-            });
+    beforeEach(() => vi.clearAllMocks());
+
+    it.each(
+        Object.values(WarehouseTypes).flatMap((warehouseType) =>
+            [true, false].map((withExploreName) => ({
+                warehouseType,
+                withExploreName,
+            })),
+        ),
+    )(
+        'uses $warehouseType with canonical explore name: $withExploreName',
+        async ({ warehouseType, withExploreName }) => {
+            const originalWarehouseType =
+                warehouseType === WarehouseTypes.POSTGRES
+                    ? WarehouseTypes.BIGQUERY
+                    : WarehouseTypes.POSTGRES;
+            const getWarehouseSqlBuilderSettings = vi
+                .fn()
+                .mockImplementation(async (_projectUuid, binding) => {
+                    if (
+                        binding.kind === 'explore' &&
+                        binding.exploreName !== 'orders'
+                    ) {
+                        throw new Error('Explore not found');
+                    }
+                    return {
+                        type:
+                            binding.kind === 'original'
+                                ? originalWarehouseType
+                                : warehouseType,
+                        startOfWeek: WeekDay.WEDNESDAY,
+                    };
+                });
             const service = new AiService({
                 lightdashConfig: lightdashConfigMock,
                 analytics: { track: vi.fn() },
@@ -41,10 +67,7 @@ describe('AI generator connection dialect', () => {
                     getProject: vi.fn().mockResolvedValue({
                         organizationUuid: 'org',
                         warehouseConnection: {
-                            type:
-                                warehouseType === WarehouseTypes.POSTGRES
-                                    ? WarehouseTypes.BIGQUERY
-                                    : WarehouseTypes.POSTGRES,
+                            type: originalWarehouseType,
                         },
                     }),
                     getWarehouseSqlBuilderSettings,
@@ -80,22 +103,32 @@ describe('AI generator connection dialect', () => {
             });
             const payload = {
                 prompt: 'one',
-                tableName: 'orders',
+                tableName: 'Order summary',
+                ...(withExploreName ? { exploreName: 'orders' } : {}),
                 fieldsContext: [],
             };
             await service.generateTableCalculation(user, 'project', payload);
             await service.generateCustomDimension(user, 'project', payload);
             expect(getWarehouseSqlBuilderSettings).toHaveBeenCalledWith(
                 'project',
-                { kind: 'explore', exploreName: 'orders' },
+                withExploreName
+                    ? { kind: 'explore', exploreName: 'orders' }
+                    : { kind: 'original' },
             );
+            expect(getWarehouseSqlBuilderSettings).toHaveBeenCalledTimes(2);
+            const expectedContext = {
+                warehouseType: withExploreName
+                    ? warehouseType
+                    : originalWarehouseType,
+                tableName: 'Order summary',
+            };
             expect(generateTableCalculation).toHaveBeenLastCalledWith(
                 expect.anything(),
-                expect.objectContaining({ warehouseType }),
+                expect.objectContaining(expectedContext),
             );
             expect(generateCustomDimension).toHaveBeenLastCalledWith(
                 expect.anything(),
-                expect.objectContaining({ warehouseType }),
+                expect.objectContaining(expectedContext),
             );
         },
     );

@@ -2,12 +2,16 @@ import {
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     DatabricksAuthenticationType,
+    ParameterError,
     RedshiftAuthenticationType,
     SnowflakeAuthenticationType,
     WarehouseTypes,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
-import { shouldTestExtraCredentials } from './extraConnectionAuthentication';
+import {
+    assertExtraConnectionAuthentication,
+    shouldTestExtraCredentials,
+} from './extraConnectionAuthentication';
 import { warehouseConnectionCredentials } from './warehouseConnectionFixtures.mock';
 
 const credentialsFor = <T extends WarehouseTypes>(
@@ -69,7 +73,7 @@ const serverAuthenticationCases: CreateWarehouseCredentials[] = [
     })),
 ];
 
-const personalAuthenticationCases: Extract<
+const unsupportedPersonalAuthenticationCases: Extract<
     CreateWarehouseCredentials,
     {
         type:
@@ -86,10 +90,6 @@ const personalAuthenticationCases: Extract<
         ...credentialsFor(WarehouseTypes.REDSHIFT),
         authenticationType: RedshiftAuthenticationType.IAM_BROWSER,
     },
-    {
-        ...credentialsFor(WarehouseTypes.SNOWFLAKE),
-        authenticationType: SnowflakeAuthenticationType.NONE,
-    },
 ];
 
 describe('shouldTestExtraCredentials', () => {
@@ -99,23 +99,42 @@ describe('shouldTestExtraCredentials', () => {
             expect(shouldTestExtraCredentials(credentials)).toBe(true);
         },
     );
-    it.each(personalAuthenticationCases)(
-        'skips personal-only $type authentication',
+    it.each(
+        unsupportedPersonalAuthenticationCases.flatMap((credentials) =>
+            [true, false].map((requireUserCredentials) => ({
+                ...credentials,
+                requireUserCredentials,
+            })),
+        ),
+    )(
+        'refuses personal-only $type authentication with requireUserCredentials=$requireUserCredentials',
         (credentials) => {
-            expect(
-                shouldTestExtraCredentials({
-                    ...credentials,
-                    requireUserCredentials: true,
-                }),
-            ).toBe(false);
             expect(() =>
-                shouldTestExtraCredentials({
-                    ...credentials,
-                    requireUserCredentials: false,
-                }),
-            ).toThrow('requires users to provide their own credentials');
+                assertExtraConnectionAuthentication(credentials),
+            ).toThrow(ParameterError);
+            expect(() => shouldTestExtraCredentials(credentials)).toThrow(
+                'compilation requires shared credentials',
+            );
         },
     );
+    it('keeps the existing Snowflake NONE credential requirement', () => {
+        const credentials = {
+            ...credentialsFor(WarehouseTypes.SNOWFLAKE),
+            authenticationType: SnowflakeAuthenticationType.NONE,
+        };
+        expect(
+            shouldTestExtraCredentials({
+                ...credentials,
+                requireUserCredentials: true,
+            }),
+        ).toBe(false);
+        expect(() =>
+            shouldTestExtraCredentials({
+                ...credentials,
+                requireUserCredentials: false,
+            }),
+        ).toThrow('requires users to provide their own credentials');
+    });
     it.each([
         SnowflakeAuthenticationType.EXTERNAL_BROWSER,
         SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE,
