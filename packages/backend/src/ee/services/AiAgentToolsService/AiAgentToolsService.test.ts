@@ -16,6 +16,7 @@ import {
     FilterOperator,
     ForbiddenError,
     JobStatusType,
+    mcpFindCustomChartTypesOutputSchema,
     NotFoundError,
     PossibleAbilities,
     PromotionAction,
@@ -6296,6 +6297,108 @@ describe('AiAgentToolsService searchCustomChartTypes', () => {
         );
     });
 
+    const searchWithLoggerSpy = async (rows: unknown[]) => {
+        const service = makeService({
+            appGenerateService: {
+                canUseChartTypes: vi.fn().mockResolvedValue(true),
+            },
+            appModel: {
+                listDataAppVisualizations: vi
+                    .fn()
+                    .mockResolvedValue({ data: rows }),
+            },
+        });
+        const warn = vi.spyOn(
+            (service as unknown as { logger: { warn: () => void } }).logger,
+            'warn',
+        );
+        const results = await (
+            service as unknown as {
+                searchCustomChartTypes: (
+                    context: AiAgentToolsRuntimeContext,
+                    a: { query: string },
+                ) => Promise<unknown[]>;
+            }
+        ).searchCustomChartTypes(makeRuntimeContext({ source: 'mcp' }), {
+            query: 'chart',
+        });
+        return { results, warn };
+    };
+
+    it.each([
+        {
+            name: 'number',
+            option: {
+                name: 'radius',
+                label: 'Radius',
+                type: 'number',
+                default: 4,
+                min: 1,
+                max: null,
+            },
+            expected: { default: 4, choices: null, min: 1, max: null },
+        },
+        {
+            name: 'gradient',
+            option: {
+                name: 'scale',
+                label: 'Scale',
+                type: 'gradient',
+                showBounds: false,
+                default: {
+                    colors: ['#000000', '#ffffff'],
+                    min: 'auto',
+                    max: 10,
+                },
+            },
+            expected: {
+                default: {
+                    colors: ['#000000', '#ffffff'],
+                    min: 'auto',
+                    max: 10,
+                },
+                choices: null,
+                min: null,
+                max: null,
+            },
+        },
+    ])(
+        'maps a $name option to the output schema',
+        async ({ option, expected }) => {
+            const { results } = await searchWithLoggerSpy([
+                {
+                    ...row,
+                    viz_schema: { ...storedSchema, configOptions: [option] },
+                },
+            ]);
+
+            const parsed = mcpFindCustomChartTypesOutputSchema.parse({
+                results,
+            });
+            expect(parsed.results[0].vizSchema.configOptions).toEqual([
+                {
+                    name: option.name,
+                    label: option.label,
+                    type: option.type,
+                    group: null,
+                    ...expected,
+                },
+            ]);
+        },
+    );
+
+    it('drops a row whose stored schema fails validation and logs a warning', async () => {
+        const { results, warn } = await searchWithLoggerSpy([
+            { ...row, slug: 'broken-viz', viz_schema: { fields: 'nope' } },
+            row,
+        ]);
+
+        expect(results).toMatchObject([{ slug: 'funnel-viz' }]);
+        expect(warn).toHaveBeenCalledWith(
+            expect.stringContaining('"broken-viz"'),
+        );
+    });
+
     describe('listCustomChartTypesPage', () => {
         const list = (
             page: number,
@@ -6369,15 +6472,40 @@ describe('AiAgentToolsService searchCustomChartTypes', () => {
                 },
             );
             expect(result).toEqual({
-                pagination: {
-                    page: 2,
-                    pageSize: 10,
-                    totalResults: 11,
-                    totalPageCount: 2,
+                output: {
+                    pagination: {
+                        page: 2,
+                        pageSize: 10,
+                        totalResults: 11,
+                        totalPageCount: 2,
+                    },
+                    results: [found],
                 },
-                results: [found],
+                skippedOnPage: 0,
             });
             expect(JSON.stringify(result)).not.toContain('viz-uuid');
+        });
+
+        it('counts rows dropped for an invalid schema and keeps the totals', async () => {
+            const pagination = {
+                page: 1,
+                pageSize: 10,
+                totalResults: 2,
+                totalPageCount: 1,
+            };
+            const listDataAppVisualizations = vi.fn().mockResolvedValue({
+                data: [{ ...row, slug: 'broken-viz', viz_schema: {} }, row],
+                pagination,
+            });
+
+            const result = await list(1, {
+                appModel: { listDataAppVisualizations },
+            });
+
+            expect(result).toMatchObject({
+                output: { pagination, results: [{ slug: 'funnel-viz' }] },
+                skippedOnPage: 1,
+            });
         });
     });
 });

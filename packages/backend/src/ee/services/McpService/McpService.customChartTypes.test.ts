@@ -5,6 +5,7 @@ import {
     type McpCustomChartType,
 } from '@lightdash/common';
 import { z } from 'zod';
+import { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
 import { McpService, McpToolName } from './McpService';
 import { makeMcpServerOptions } from './McpService.mock';
 
@@ -190,14 +191,22 @@ describe('McpService find_custom_chart_types', () => {
         ).toBe(true);
         const [{ text }] = result.content as Array<{ text: string }>;
         expect(text).toContain('Sankey Flow (sankey-flow)');
-        expect(Object.keys(sankey)).toEqual([
-            'slug',
-            'name',
-            'description',
-            'version',
-            'chartStudioUrl',
-            'vizSchema',
-        ]);
+        expect(text).not.toContain('More may match');
+    });
+
+    it('says more may match when the search hits its limit', async () => {
+        const results = Array.from(
+            { length: AiAgentToolsService.CUSTOM_CHART_TYPES_SEARCH_LIMIT },
+            (_, index) => ({ ...sankey, slug: `sankey-${index}` }),
+        );
+        await createServer(vi.fn().mockResolvedValue(results));
+
+        const result = await callFind({ query: 'sankey' });
+
+        const [{ text }] = result.content as Array<{ text: string }>;
+        expect(text).toMatch(
+            /More may match: refine the query or browse with list_custom_chart_types\.$/,
+        );
     });
 
     it('fetches one chart type by slug', async () => {
@@ -289,7 +298,9 @@ describe('McpService list_custom_chart_types', () => {
     });
 
     it('defaults to the first page and returns structured items with pagination', async () => {
-        const list = vi.fn().mockResolvedValue(pageOne);
+        const list = vi
+            .fn()
+            .mockResolvedValue({ output: pageOne, skippedOnPage: 0 });
         await createServer(vi.fn(), true, list);
 
         const parsed = parseListInput({});
@@ -307,12 +318,16 @@ describe('McpService list_custom_chart_types', () => {
         const [{ text }] = result.content as Array<{ text: string }>;
         expect(text).toContain('Page 1 of 2 (11 custom chart types)');
         expect(text).toContain('Sankey Flow (sankey-flow)');
+        expect(text).not.toContain('could not be read');
     });
 
     it('passes the requested page to the runtime', async () => {
         const list = vi.fn().mockResolvedValue({
-            pagination: { ...pageOne.pagination, page: 3 },
-            results: [],
+            output: {
+                pagination: { ...pageOne.pagination, page: 3 },
+                results: [],
+            },
+            skippedOnPage: 0,
         });
         await createServer(vi.fn(), true, list);
 
@@ -323,6 +338,46 @@ describe('McpService list_custom_chart_types', () => {
         expect(list).toHaveBeenCalledWith({ page: 3 });
         const [{ text }] = result.content as Array<{ text: string }>;
         expect(text).toBe('No custom chart types on page 3 of 2.');
+    });
+
+    it.each([1, 2])(
+        'says the project has none when it is empty (page %s)',
+        async (page) => {
+            const list = vi.fn().mockResolvedValue({
+                output: {
+                    pagination: {
+                        page,
+                        pageSize: 10,
+                        totalResults: 0,
+                        totalPageCount: 0,
+                    },
+                    results: [],
+                },
+                skippedOnPage: 0,
+            });
+            await createServer(vi.fn(), true, list);
+
+            const result = await callList({ page });
+
+            const [{ text }] = result.content as Array<{ text: string }>;
+            expect(text).toBe('This project has no custom chart types.');
+        },
+    );
+
+    it('says how many chart types on the page could not be read', async () => {
+        const list = vi
+            .fn()
+            .mockResolvedValue({ output: pageOne, skippedOnPage: 1 });
+        await createServer(vi.fn(), true, list);
+
+        const result = await callList({ page: 1 });
+
+        expect(result.structuredContent).toEqual(pageOne);
+        const [{ text }] = result.content as Array<{ text: string }>;
+        expect(text).toContain('Page 1 of 2 (11 custom chart types)');
+        expect(text).toMatch(
+            / 1 chart type\(s\) on this page could not be read and were left out\.$/,
+        );
     });
 
     it.each([0, -1, 'abc'])(

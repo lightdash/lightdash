@@ -9,8 +9,8 @@ export const MCP_TOOL_FIND_CUSTOM_CHART_TYPES_DESCRIPTION = `Tool: find_custom_c
 Search the project's custom chart types (reusable visualizations, including ones installed from the library) by \`query\` against name and description, or fetch one by \`slug\`. Set exactly one of the two; to browse page by page, use list_custom_chart_types.
 
 - Each match has its latest version, field slots, config options and a Chart Studio link.
-- Search before create_custom_chart_type and reuse a type that fits.
-- To save a chart with a type, call create_content with chartConfig { type: "data_app_viz", config: { dataAppVizSlug, fieldMapping, optionValues } }, binding each slot name to query field IDs.
+- Reuse a fitting type before building one with create_custom_chart_type, if available.
+- To save a chart with a type, call create_content (if available) with chartConfig { type: "data_app_viz", config: { dataAppVizSlug, fieldMapping, optionValues } }, binding each slot name to query field IDs.
 `;
 
 export const mcpFindCustomChartTypesArgsSchema = z.object({
@@ -34,8 +34,7 @@ export type McpFindCustomChartTypesArgs = z.infer<
     typeof mcpFindCustomChartTypesArgsSchema
 >;
 
-// Plain mirror of the stored viz schema: the read validator's
-// null-to-undefined transforms cannot be expressed as an output JSON schema.
+// Plain-typed subset of the stored viz schema; omits gradient showBounds and legacy field examples.
 const mcpCustomChartTypeVizSchemaOutputSchema = z.object({
     fields: z
         .array(

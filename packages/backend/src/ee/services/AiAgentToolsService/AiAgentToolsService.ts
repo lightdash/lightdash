@@ -404,9 +404,11 @@ export type SearchCustomChartTypesFn = (
     args: { query: string } | { slug: string },
 ) => Promise<McpCustomChartType[]>;
 
-export type ListCustomChartTypesPageFn = (args: {
-    page: number;
-}) => Promise<McpListCustomChartTypesOutput>;
+export type ListCustomChartTypesPageFn = (args: { page: number }) => Promise<{
+    output: McpListCustomChartTypesOutput;
+    /** Rows on this page dropped because their stored viz_schema failed validation. */
+    skippedOnPage: number;
+}>;
 
 export type McpAiAgentToolsRuntime = Omit<
     AiAgentToolsRuntime,
@@ -1448,14 +1450,23 @@ export class AiAgentToolsService extends BaseService {
                         context.projectUuid,
                         { page, pageSize },
                     );
+                if (pagination === undefined) {
+                    throw new UnexpectedServerError(
+                        'Custom chart types page returned without pagination',
+                    );
+                }
+                const results = this.toMcpCustomChartTypes(context, data);
                 return {
-                    pagination: {
-                        page,
-                        pageSize,
-                        totalResults: pagination?.totalResults ?? data.length,
-                        totalPageCount: pagination?.totalPageCount ?? 1,
+                    output: {
+                        pagination: {
+                            page,
+                            pageSize,
+                            totalResults: pagination.totalResults,
+                            totalPageCount: pagination.totalPageCount,
+                        },
+                        results,
                     },
-                    results: this.toMcpCustomChartTypes(context, data),
+                    skippedOnPage: data.length - results.length,
                 };
             },
         );

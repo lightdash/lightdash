@@ -1903,11 +1903,16 @@ export class McpService extends BaseService {
                         const listed = results
                             .map((match) => `${match.name} (${match.slug})`)
                             .join(', ');
+                        const truncated =
+                            results.length >=
+                            AiAgentToolsService.CUSTOM_CHART_TYPES_SEARCH_LIMIT
+                                ? ' More may match: refine the query or browse with list_custom_chart_types.'
+                                : '';
                         return {
                             summary:
                                 results.length === 0
                                     ? `No custom chart type matched ${'slug' in request ? `slug "${request.slug}"` : `"${request.query}"`}.`
-                                    : `Found ${results.length} custom chart type(s): ${listed}. Slots, options and versions are in structuredContent.`,
+                                    : `Found ${results.length} custom chart type(s): ${listed}. Slots, options and versions are in structuredContent.${truncated}`,
                             structuredContent: { results },
                         };
                     },
@@ -1931,20 +1936,28 @@ export class McpService extends BaseService {
                     args,
                     'Error listing custom chart types',
                     async (toolsRuntime) => {
-                        const structuredContent =
+                        const { output, skippedOnPage } =
                             await toolsRuntime.listCustomChartTypesPage({
                                 page: args.page ?? 1,
                             });
-                        const { pagination, results } = structuredContent;
+                        const { pagination, results } = output;
                         const listed = results
                             .map((match) => `${match.name} (${match.slug})`)
                             .join(', ');
+                        const pageSummary = (() => {
+                            if (pagination.totalResults === 0)
+                                return 'This project has no custom chart types.';
+                            if (results.length === 0)
+                                return `No custom chart types on page ${pagination.page} of ${pagination.totalPageCount}.`;
+                            return `Page ${pagination.page} of ${pagination.totalPageCount} (${pagination.totalResults} custom chart types): ${listed}. Slots, options and versions are in structuredContent.`;
+                        })();
+                        const skipped =
+                            skippedOnPage > 0
+                                ? ` ${skippedOnPage} chart type(s) on this page could not be read and were left out.`
+                                : '';
                         return {
-                            summary:
-                                results.length === 0
-                                    ? `No custom chart types on page ${pagination.page} of ${pagination.totalPageCount}.`
-                                    : `Page ${pagination.page} of ${pagination.totalPageCount} (${pagination.totalResults} custom chart types): ${listed}. Slots, options and versions are in structuredContent.`,
-                            structuredContent,
+                            summary: `${pageSummary}${skipped}`,
+                            structuredContent: output,
                         };
                     },
                 ),
