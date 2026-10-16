@@ -1,7 +1,9 @@
 import { subject } from '@casl/ability';
 import {
     assertRegisteredAccount,
+    canUseExtraConnectionWarehouseType,
     ConflictError,
+    FeatureFlags,
     ForbiddenError,
     ParameterError,
     ProjectType,
@@ -585,7 +587,21 @@ export class WarehouseConnectionSwitchService extends BaseService {
                       source.organizationWarehouseCredentialsUuid,
                   );
         this.assertCanWrite(account, summary, source, credentials);
-        if (credentials.type !== project.originalWarehouseType) {
+        const { enabled: mixedTypesEnabled } =
+            await this.featureFlagService.get({
+                user: {
+                    userUuid: account.user.userUuid,
+                    organizationUuid: project.organizationUuid,
+                },
+                featureFlagId: FeatureFlags.MixedWarehouseConnections,
+            });
+        if (
+            !canUseExtraConnectionWarehouseType({
+                originalWarehouseType: project.originalWarehouseType,
+                extraWarehouseType: credentials.type,
+                mixedTypesEnabled,
+            })
+        ) {
             throw new ParameterError(
                 EXTRA_CONNECTION_WAREHOUSE_TYPE_MISMATCH_MESSAGE,
             );
@@ -594,14 +610,27 @@ export class WarehouseConnectionSwitchService extends BaseService {
             await this.projectModel.getWarehouseCredentialsForProject(
                 projectUuid,
             );
-        const effectiveCredentials =
+        let effectiveCredentials = credentials;
+        if (
             source.kind === 'project' &&
-            credentials.type === WarehouseTypes.SNOWFLAKE
-                ? {
-                      ...credentials,
-                      requireUserCredentials: original.requireUserCredentials,
-                  }
-                : credentials;
+            (credentials.type === WarehouseTypes.POSTGRES ||
+                credentials.type === WarehouseTypes.ATHENA ||
+                credentials.type === WarehouseTypes.SNOWFLAKE ||
+                credentials.type === WarehouseTypes.TRINO)
+        ) {
+            if (credentials.type !== original.type) {
+                effectiveCredentials = {
+                    ...credentials,
+                    requireUserCredentials:
+                        credentials.requireUserCredentials ?? false,
+                };
+            } else if (credentials.type === WarehouseTypes.SNOWFLAKE) {
+                effectiveCredentials = {
+                    ...credentials,
+                    requireUserCredentials: original.requireUserCredentials,
+                };
+            }
+        }
         const needsTest = shouldTestExtraCredentials(effectiveCredentials);
         const resolvedCredentials = needsTest
             ? await this.assertConnectionWorks(

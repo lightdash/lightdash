@@ -7,8 +7,12 @@ export const EXTRA_CONNECTION_SELECT_CREDENTIALS_MESSAGE =
 export const getExtraConnectionRequireUserCredentials = (
     originalCredentials: CreateWarehouseCredentials,
     source: ExtraConnectionCredentialSource,
-): boolean | undefined =>
-    source.organizationWarehouseCredentialsUuid !== null &&
-    source.credentials.requireUserCredentials === true
+): boolean | undefined => {
+    if (originalCredentials.type !== source.credentials.type) {
+        return source.credentials.requireUserCredentials === true;
+    }
+    return source.organizationWarehouseCredentialsUuid !== null &&
+        source.credentials.requireUserCredentials === true
         ? true
         : originalCredentials.requireUserCredentials;
+};

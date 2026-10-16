@@ -455,6 +455,30 @@ export class WarehouseConnectionModel {
                 .forUpdate()
                 .first();
             if (!existing) return;
+            let warehouseType: string;
+            if (source.kind === 'project') {
+                warehouseType = source.credentials.type;
+            } else {
+                const credential = await transaction(
+                    'organization_warehouse_credentials',
+                )
+                    .select('warehouse_type', 'organization_uuid')
+                    .where(
+                        'organization_warehouse_credentials_uuid',
+                        source.organizationWarehouseCredentialsUuid,
+                    )
+                    .forUpdate()
+                    .first();
+                if (
+                    !credential ||
+                    credential.organization_uuid !== project.organizationUuid
+                ) {
+                    throw new NotFoundError(
+                        'Organization warehouse credentials not found',
+                    );
+                }
+                warehouseType = credential.warehouse_type;
+            }
             let current: CreateWarehouseCredentials | null = null;
             if (existing.encrypted_credentials) {
                 try {
@@ -483,7 +507,8 @@ export class WarehouseConnectionModel {
                           current,
                           normalizeWarehouseCredentials(source.credentials),
                       )
-                    : existing.encrypted_credentials != null ||
+                    : existing.warehouse_type !== warehouseType ||
+                      existing.encrypted_credentials != null ||
                       existing.organization_warehouse_credentials_uuid !==
                           source.organizationWarehouseCredentialsUuid;
             await transaction(WAREHOUSE_CONNECTIONS_TABLE)
@@ -491,6 +516,7 @@ export class WarehouseConnectionModel {
                 .where('warehouse_connection_uuid', warehouseConnectionUuid)
                 .where('is_original', false)
                 .update({
+                    warehouse_type: warehouseType,
                     ...this.toCredentialColumns(source, current),
                     ...(changed
                         ? {

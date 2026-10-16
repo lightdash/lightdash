@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { Stack, Text, TextInput } from '@mantine/core';
 import { type FC } from 'react';
+import { useWarehouseConnections } from '../../hooks/useWarehouseConnections';
 import { FormProvider, type Form } from './formContext';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import WarehouseSchemaInput from './WarehouseSchemaInput';
@@ -20,6 +21,7 @@ export const ConnectionFields: FC<{
     savedProject?: Project;
     primaryRequiresUserCredentials?: boolean;
     showName: boolean;
+    allowMixedWarehouseTypes?: boolean;
 }> = ({
     form,
     intro,
@@ -30,38 +32,55 @@ export const ConnectionFields: FC<{
     savedProject,
     primaryRequiresUserCredentials,
     showName,
-}) => (
-    <FormProvider form={form}>
-        <ProjectFormProvider
-            projectUuid={projectUuid}
-            warehouseConnectionUuid={warehouseConnectionUuid}
-            savedProject={savedProject}
-            isProjectExtraConnection
-            primaryRequiresUserCredentials={primaryRequiresUserCredentials}
-        >
-            <Stack gap="md">
-                <Text size="sm" c="dimmed">
-                    {intro}
-                </Text>
-                {showName && (
-                    <TextInput
-                        ref={nameRef}
-                        label="Name"
-                        description="Shown wherever this connection is picked."
-                        placeholder="e.g. Finance warehouse"
-                        required
-                        maxLength={WAREHOUSE_CONNECTION_NAME_MAX_LENGTH}
-                        {...form.getInputProps('name')}
-                    />
-                )}
-                <WarehouseSettingsForm disabled={false}>
-                    <WarehouseSchemaInput
-                        warehouseType={warehouseType}
+    allowMixedWarehouseTypes = false,
+}) => {
+    const { data } = useWarehouseConnections(projectUuid);
+    const originalWarehouseType =
+        data?.connections.find((connection) => connection.isOriginal)
+            ?.warehouseType ?? warehouseType;
+    return (
+        <FormProvider form={form}>
+            <ProjectFormProvider
+                projectUuid={projectUuid}
+                warehouseConnectionUuid={warehouseConnectionUuid}
+                savedProject={savedProject}
+                isProjectExtraConnection
+                inheritsPrimaryCredentialRequirement={
+                    originalWarehouseType === form.values.warehouse.type
+                }
+                primaryRequiresUserCredentials={
+                    originalWarehouseType === form.values.warehouse.type
+                        ? primaryRequiresUserCredentials
+                        : undefined
+                }
+            >
+                <Stack gap="md">
+                    <Text size="sm" c="dimmed">
+                        {intro}
+                    </Text>
+                    {showName && (
+                        <TextInput
+                            ref={nameRef}
+                            label="Name"
+                            description="Shown wherever this connection is picked."
+                            placeholder="e.g. Finance warehouse"
+                            required
+                            maxLength={WAREHOUSE_CONNECTION_NAME_MAX_LENGTH}
+                            {...form.getInputProps('name')}
+                        />
+                    )}
+                    <WarehouseSettingsForm
                         disabled={false}
-                        warehouseOnly
-                    />
-                </WarehouseSettingsForm>
-            </Stack>
-        </ProjectFormProvider>
-    </FormProvider>
-);
+                        allowMixedWarehouseTypes={allowMixedWarehouseTypes}
+                    >
+                        <WarehouseSchemaInput
+                            warehouseType={form.values.warehouse.type}
+                            disabled={false}
+                            warehouseOnly
+                        />
+                    </WarehouseSettingsForm>
+                </Stack>
+            </ProjectFormProvider>
+        </FormProvider>
+    );
+};

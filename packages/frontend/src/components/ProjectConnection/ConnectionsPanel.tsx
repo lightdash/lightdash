@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
+    FeatureFlags,
     omitEmptySecrets,
     ProjectType,
     supportsConnectionDatabaseListing,
@@ -36,6 +37,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useRef, useState, type FC } from 'react';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import {
     hidesConnectionsPanel,
     isSingleConnectionProject,
@@ -141,6 +143,10 @@ const AddConnectionModal: FC<{
     primaryRequiresUserCredentials,
     onClose,
 }) => {
+    const mixedWarehouseFlag = useServerFeatureFlag(
+        FeatureFlags.MixedWarehouseConnections,
+    );
+    const mixedTypesEnabled = mixedWarehouseFlag.data?.enabled === true;
     const form = useForm({
         initialValues: {
             name: '',
@@ -150,9 +156,22 @@ const AddConnectionModal: FC<{
             organizationWarehouseCredentialsUuid: undefined,
             ...unusedDbtFormValues,
         },
-        validate: {
-            name: validateWarehouseConnectionName,
-            warehouse: warehouseValueValidators[warehouseType],
+        validate: (values) => {
+            const errors: Record<string, string> = {};
+            const nameError = validateWarehouseConnectionName(
+                values.name ?? '',
+            );
+            if (nameError) errors.name = nameError;
+            Object.entries(
+                warehouseValueValidators[values.warehouse.type],
+            ).forEach(([field, validator]) => {
+                const error = validator(
+                    Reflect.get(values.warehouse, field),
+                    values,
+                );
+                if (error) errors[`warehouse.${field}`] = error;
+            });
+            return errors;
         },
         validateInputOnBlur: true,
     });
@@ -201,7 +220,12 @@ const AddConnectionModal: FC<{
                 warehouseType={warehouseType}
                 primaryRequiresUserCredentials={primaryRequiresUserCredentials}
                 showName
-                intro="Add another connection of the project's warehouse type. It is tested before it is saved."
+                allowMixedWarehouseTypes={mixedTypesEnabled}
+                intro={
+                    mixedTypesEnabled
+                        ? 'Add another warehouse connection. It is tested before it is saved.'
+                        : "Add another connection of the project's warehouse type. It is tested before it is saved."
+                }
             />
         </MantineModal>
     );
