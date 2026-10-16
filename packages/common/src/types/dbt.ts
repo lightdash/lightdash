@@ -968,23 +968,27 @@ export type DbtExternalModelNode = {
 
 export const getExternalModelNodesFromManifest = (
     manifest: DbtManifest,
-): DbtExternalModelNode[] =>
-    Object.values(manifest.nodes)
+): DbtExternalModelNode[] => {
+    const models = Object.values(manifest.nodes)
         .filter((node) => node.resource_type === 'model')
         .map((node) => node as DbtRawModelNode)
-        .filter((node) => !isExternalDbtNode(node))
-        .map((node) => ({
-            name: node.name,
-            package_name: node.package_name,
-            identifier: node.alias ?? node.name,
-            schema: node.schema,
-            database: node.database ?? null,
-            relation_name: node.relation_name ?? null,
-            version: node.version ?? null,
-            latest_version: node.latest_version ?? null,
-            access: node.access ?? null,
-            depends_on_nodes: node.depends_on?.nodes ?? [],
-        }));
+        .filter((node) => !isExternalDbtNode(node));
+    const modelIds = new Set(models.map((node) => node.unique_id));
+    return models.map((node) => ({
+        name: node.name,
+        package_name: node.package_name,
+        identifier: node.alias ?? node.name,
+        schema: node.schema,
+        database: node.database ?? null,
+        relation_name: node.relation_name ?? null,
+        version: node.version ?? null,
+        latest_version: node.latest_version ?? null,
+        access: node.access ?? null,
+        depends_on_nodes: (node.depends_on?.nodes ?? []).filter((id) =>
+            modelIds.has(id),
+        ),
+    }));
+};
 
 export const stripExternalDbtNodes = (manifest: DbtManifest): DbtManifest => ({
     ...manifest,

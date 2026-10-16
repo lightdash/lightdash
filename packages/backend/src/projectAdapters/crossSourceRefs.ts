@@ -130,7 +130,7 @@ export const resolveCrossSourceManifests = async <T>({
             }
         }
         if (retryable.length === 0) throw unresolvedError();
-        const externalNodes = [
+        const providedNodes = [
             ...new Map(
                 providers
                     .flatMap(({ result }) =>
@@ -139,6 +139,17 @@ export const resolveCrossSourceManifests = async <T>({
                     .map((node) => [`${node.package_name}.${node.name}`, node]),
             ).values(),
         ];
+        const providedIds = new Set(
+            providedNodes.map(
+                (node) => `model.${node.package_name}.${node.name}`,
+            ),
+        );
+        const externalNodes = providedNodes.map((node) => ({
+            ...node,
+            depends_on_nodes: node.depends_on_nodes.filter((id) =>
+                providedIds.has(id),
+            ),
+        }));
         retryable.forEach((task) => {
             const signature = `${resolved.size}:${getMissingDbtNodeReferences(
                 pending.get(task),

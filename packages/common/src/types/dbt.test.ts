@@ -481,7 +481,7 @@ describe('external dbt model nodes', () => {
             getModelsFromManifest(manifest).map((node) => node.unique_id),
         ).toEqual([local.unique_id]);
     });
-    it('exports real models including ephemeral models and preserves relation and version fields', () => {
+    it('exports real models including ephemeral models, keeps only dependencies on exported models and preserves relation and version fields', () => {
         const ephemeral = {
             ...local,
             name: 'ephemeral',
@@ -490,6 +490,10 @@ describe('external dbt model nodes', () => {
             latest_version: 3,
             access: 'public',
             config: { materialized: 'ephemeral' },
+            depends_on: {
+                nodes: [local.unique_id, 'seed.test.raw', stub.unique_id],
+                macros: [],
+            },
         };
         const nodes = getExternalModelNodesFromManifest(
             makeManifest({
@@ -510,7 +514,7 @@ describe('external dbt model nodes', () => {
                 version: null,
                 latest_version: null,
                 access: null,
-                depends_on_nodes: [stub.unique_id],
+                depends_on_nodes: [],
             },
             {
                 name: 'ephemeral',
@@ -522,7 +526,7 @@ describe('external dbt model nodes', () => {
                 version: 2,
                 latest_version: 3,
                 access: 'public',
-                depends_on_nodes: [stub.unique_id],
+                depends_on_nodes: [local.unique_id],
             },
         ]);
         expect(
