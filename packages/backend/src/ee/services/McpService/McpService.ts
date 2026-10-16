@@ -249,7 +249,10 @@ import {
     getMcpCustomChartTypeConfigErrors,
     getMcpPreviewOrigin,
 } from './buildMcpCustomChartTypeRender';
-import { buildMcpExploreConfigState } from './buildMcpExploreConfigState';
+import {
+    buildMcpExploreConfigState,
+    type McpExploreCustomChart,
+} from './buildMcpExploreConfigState';
 import { buildVizBuildSampleRows } from './buildVizBuildSampleRows';
 import {
     registerAppResource,
@@ -1284,6 +1287,7 @@ export class McpService extends BaseService {
         fieldsMap,
         columnOrder,
         queryTool,
+        customChart,
     }: {
         ctx: McpProtocolContext;
         projectUuid: string;
@@ -1291,6 +1295,7 @@ export class McpService extends BaseService {
         fieldsMap: ItemsMap;
         columnOrder: string[];
         queryTool?: ToolRunQueryArgsTransformed;
+        customChart: McpExploreCustomChart | null;
     }) {
         try {
             const exploreConfigState = queryTool
@@ -1299,6 +1304,7 @@ export class McpService extends BaseService {
                       metricQuery,
                       fieldsMap,
                       columnOrder,
+                      customChart,
                   })
                 : {
                       tableName: metricQuery.exploreName,
@@ -1490,6 +1496,7 @@ export class McpService extends BaseService {
             fieldsMap: fields,
             columnOrder: fieldIds,
             queryTool,
+            customChart: null,
         });
 
         if (rows.length === 0) {
@@ -1673,6 +1680,14 @@ export class McpService extends BaseService {
             fieldsMap: results.fields,
             columnOrder: fieldIds,
             queryTool,
+            customChart: {
+                config: chartConfig,
+                chartType: {
+                    dataAppVizUuid: resolved.dataAppVizUuid,
+                    dataAppVizVersion: resolved.dataAppVizVersion,
+                    fields: resolved.schema.fields,
+                },
+            },
         });
         const previewOrigin = getMcpPreviewOrigin(this.lightdashConfig);
         const token =
@@ -4397,6 +4412,7 @@ export class McpService extends BaseService {
                                 ? Object.keys(results.rows[0])
                                 : Object.keys(results.fields),
                             queryTool,
+                            customChart: null,
                         });
 
                         return McpService.buildMetricQueryPollResult({
@@ -4952,6 +4968,7 @@ export class McpService extends BaseService {
                                     columnOrder: results.rows[0]
                                         ? Object.keys(results.rows[0])
                                         : Object.keys(results.fields),
+                                    customChart: null,
                                 },
                             );
 
