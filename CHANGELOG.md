@@ -1,3 +1,10 @@
+## [2.589.4](https://github.com/lightdash/lightdash/compare/2.589.3...2.589.4) (2026-10-16)
+
+
+### Bug Fixes
+
+* **oauth:** accept client ID metadata documents that advertise extra grant types ([#31059](https://github.com/lightdash/lightdash/issues/31059)) ([e9ca97d](https://github.com/lightdash/lightdash/commit/e9ca97dc9cb99462906f373c4f08b7699af700c4))
+
 ## [2.589.3](https://github.com/lightdash/lightdash/compare/2.589.2...2.589.3) (2026-10-15)
 
 
