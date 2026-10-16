@@ -449,6 +449,35 @@ describe('normalizeMcpOAuthPayloadForRedirect', () => {
             }),
         );
     });
+    it('keeps a configured client ID without a secret as a public client when redirect metadata is stale', () => {
+        expect(
+            normalizeMcpOAuthPayloadForRedirect(
+                {
+                    type: 'oauth',
+                    credentialScope: 'shared',
+                    connectionStatus: 'not_connected',
+                    configuredClientId: 'configured-client',
+                    clientMetadata: {
+                        redirect_uris: [
+                            'https://lightdash.example.com/api/v1/projects/project-uuid/aiAgents/mcpServers/server-uuid/oauth/callback',
+                        ],
+                    },
+                },
+                'shared',
+                staticMetadata.redirect_uris[0],
+                staticMetadata,
+            ),
+        ).toEqual(
+            expect.objectContaining({
+                configuredClientId: 'configured-client',
+                clientInformation: {
+                    client_id: 'configured-client',
+                    token_endpoint_auth_method: 'none',
+                },
+                clientMetadata: staticMetadata,
+            }),
+        );
+    });
 });
 
 describe('PersistentMcpOAuthClientProvider', () => {
@@ -473,8 +502,10 @@ describe('PersistentMcpOAuthClientProvider', () => {
         const aiAgentModel = {
             getCredential: vi
                 .fn()
-                .mockResolvedValueOnce(undefined)
-                .mockResolvedValueOnce(sharedCredential),
+                .mockImplementation(
+                    async (_serverUuid: string, scope: string) =>
+                        scope === 'shared' ? sharedCredential : undefined,
+                ),
             upsertCredential: vi.fn(),
         } as unknown as AiAgentModel;
         const runtimeClient = new AiAgentMcpRuntimeClient({
@@ -536,6 +567,77 @@ describe('PersistentMcpOAuthClientProvider', () => {
                         client_id: 'configured-client',
                         client_secret: 'configured-secret',
                     },
+                }),
+            }),
+        );
+    });
+    it('uses a shared configured client ID without a secret as a public client for user-scoped OAuth', async () => {
+        const sharedCredential = {
+            uuid: 'credential-uuid',
+            mcpServerUuid: 'server-uuid',
+            credentialScope: 'shared',
+            userUuid: null,
+            createdByUserUuid: 'creator-uuid',
+            updatedByUserUuid: 'creator-uuid',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            credentials: {
+                type: 'oauth',
+                credentialScope: 'shared',
+                connectionStatus: 'not_connected',
+                configuredClientId: 'configured-client',
+            },
+        } satisfies AiMcpCredential;
+        const aiAgentModel = {
+            getCredential: vi
+                .fn()
+                .mockImplementation(
+                    async (_serverUuid: string, scope: string) =>
+                        scope === 'shared' ? sharedCredential : undefined,
+                ),
+            upsertCredential: vi.fn(),
+        } as unknown as AiAgentModel;
+        const runtimeClient = new AiAgentMcpRuntimeClient({
+            aiAgentModel,
+            lightdashConfig: {
+                siteUrl: 'https://lightdash.example.com',
+                ai: {
+                    copilot: { mcpConnectionTimeoutMs: 20_000 },
+                },
+            } as LightdashConfig,
+        });
+        const provider = (
+            runtimeClient as unknown as {
+                createMcpOAuthProvider: (args: {
+                    projectUuid: string;
+                    mcpServerUuid: string;
+                    credentialScope: 'user';
+                    userUuid: string;
+                    actorUserUuid: string;
+                }) => {
+                    clientInformation: () => Promise<unknown>;
+                    state: () => Promise<string>;
+                };
+            }
+        ).createMcpOAuthProvider({
+            projectUuid: 'project-uuid',
+            mcpServerUuid: 'server-uuid',
+            credentialScope: 'user',
+            userUuid: 'user-uuid',
+            actorUserUuid: 'user-uuid',
+        });
+
+        await expect(provider.clientInformation()).resolves.toEqual({
+            client_id: 'configured-client',
+            token_endpoint_auth_method: 'none',
+        });
+
+        await provider.state();
+        expect(aiAgentModel.upsertCredential).toHaveBeenCalledWith(
+            expect.objectContaining({
+                scope: 'user',
+                credentials: expect.not.objectContaining({
+                    configuredClientId: 'configured-client',
                 }),
             }),
         );
