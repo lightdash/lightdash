@@ -152,6 +152,12 @@ describe('BigqueryWarehouseClient', () => {
         const getMetadata = vi.fn().mockRejectedValue(
             Object.assign(new Error('Permission bigquery.tables.get denied'), {
                 code: 403,
+                errors: [
+                    {
+                        reason: 'accessDenied',
+                        message: 'Permission bigquery.tables.get denied',
+                    },
+                ],
             }),
         );
         Dataset.prototype.table = vi.fn(() => ({ getMetadata })) as never;
@@ -161,6 +167,25 @@ describe('BigqueryWarehouseClient', () => {
         expect(await warehouse.getCatalog(config)).toEqual({});
         expect(warn).toHaveBeenCalledOnce();
         warn.mockRestore();
+    });
+    it('expect getCatalog to fail on a 403 that is not a permission error', async () => {
+        const getMetadata = vi.fn().mockRejectedValue(
+            Object.assign(new Error('Exceeded rate limits'), {
+                code: 403,
+                errors: [
+                    {
+                        reason: 'rateLimitExceeded',
+                        message: 'Exceeded rate limits',
+                    },
+                ],
+            }),
+        );
+        Dataset.prototype.table = vi.fn(() => ({ getMetadata })) as never;
+        const warehouse = new BigqueryWarehouseClient(credentials);
+
+        await expect(warehouse.getCatalog(config)).rejects.toThrow(
+            WarehouseConnectionError,
+        );
     });
     it('expect getCatalog to fail on errors other than missing or denied tables', async () => {
         const getMetadata = vi

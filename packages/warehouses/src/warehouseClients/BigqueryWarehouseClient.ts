@@ -812,13 +812,18 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 ).catch((e) => {
                     this.throwIfGoogleOauthTokenError(e);
                     // BigQuery reports a table the credentials can't read as
-                    // "denied (or it may not exist)", so treat 403 like 404:
+                    // "denied (or it may not exist)", so treat it like 404:
                     // the model compiles without warehouse types instead of
-                    // failing the whole project.
+                    // failing the whole project. Other 403s (rate limit,
+                    // quota, API disabled) still fail the refresh.
                     if (e?.code === 404) {
                         return undefined;
                     }
-                    if (e?.code === 403) {
+                    if (
+                        e?.code === 403 &&
+                        BigqueryWarehouseClient.isBigqueryError(e) &&
+                        e.errors.some(({ reason }) => reason === 'accessDenied')
+                    ) {
                         console.warn(
                             `Skipping table metadata for '${database}.${schema}.${table}': ${getErrorMessage(
                                 e,
