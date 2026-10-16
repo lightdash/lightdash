@@ -17816,6 +17816,42 @@ Use your existing tools to inspect them when relevant to the user's question (re
         };
     }
 
+    private static readonly SLACK_PROMPT_RETRY_ACTION_ID = 'ai_prompt_retry';
+
+    // Generation failures already store their error; this covers failures
+    // outside generation so the retry button can claim the prompt.
+    private async persistSlackPromptError(
+        promptUuid: string,
+        errorMessage: string,
+    ): Promise<boolean> {
+        try {
+            await this.aiAgentModel.updateModelResponse(
+                { promptUuid, errorMessage },
+                { onlyIfPending: true },
+            );
+            return true;
+        } catch (error) {
+            Logger.warn(
+                `Failed to persist Slack prompt error for ${promptUuid}: ${getErrorMessage(error)}`,
+            );
+            return false;
+        }
+    }
+
+    private static slackRetryActionsBlock(promptUuid: string): KnownBlock {
+        return {
+            type: 'actions',
+            elements: [
+                {
+                    type: 'button',
+                    action_id: AiAgentService.SLACK_PROMPT_RETRY_ACTION_ID,
+                    text: { type: 'plain_text', text: 'Retry' },
+                    value: promptUuid,
+                },
+            ],
+        };
+    }
+
     // Delivers a finished answer across one or more Slack messages (first
     // finalizes the stream, rest post as replies), falling back to a Lightdash
     // link if too large — the answer is already persisted, so this never fails.
@@ -19063,6 +19099,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 AiAgentService.agentFailedMessage(agent?.name),
                 agent?.providerCredentialUuid ?? null,
             );
+            const canRetry =
+                !answerPublished &&
+                (await this.persistSlackPromptError(
+                    slackPrompt.promptUuid,
+                    userFacingMessage,
+                ));
             queueReasoningTaskUpdate({
                 status: 'error',
                 output: userFacingMessage,
@@ -19087,6 +19129,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                 },
                             },
                             ...getAccessRefusalBlocks(),
+                            ...(canRetry
+                                ? [
+                                      AiAgentService.slackRetryActionsBlock(
+                                          slackPrompt.promptUuid,
+                                      ),
+                                  ]
+                                : []),
                         ],
                     },
                 ],
@@ -19338,6 +19387,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 AiAgentService.agentFailedMessage(agent?.name),
                 agent?.providerCredentialUuid ?? null,
             );
+            const canRetry = await this.persistSlackPromptError(
+                promptUuid,
+                userFacingMessage,
+            );
             await this.slackClient.postMessage({
                 organizationUuid: slackPrompt.organizationUuid,
                 text: `🔴 ${userFacingMessage}`,
@@ -19355,6 +19408,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             : accessRefusalState.selected,
                         this.lightdashConfig.siteUrl,
                     ),
+                    ...(canRetry
+                        ? [AiAgentService.slackRetryActionsBlock(promptUuid)]
+                        : []),
                     {
                         type: 'context',
                         elements: [
@@ -19614,6 +19670,118 @@ Use your existing tools to inspect them when relevant to the user's question (re
             await ack();
             // TODO :: track analytics
         });
+    }
+
+    public handleSlackPromptRetryButton(app: App) {
+        app.action(
+            AiAgentService.SLACK_PROMPT_RETRY_ACTION_ID,
+            async ({ ack, body, action, respond }) => {
+                await ack();
+                if (body.type !== 'block_actions' || action.type !== 'button') {
+                    return;
+                }
+                const reply = (text: string) =>
+                    respond({
+                        text,
+                        replace_original: false,
+                        response_type: 'ephemeral',
+                    });
+
+                try {
+                    const result = await this.retrySlackPrompt({
+                        promptUuid: action.value ?? null,
+                        slackUserId: body.user.id,
+                        slackAppId: body.api_app_id ?? null,
+                    });
+                    if (!result.started) {
+                        await reply(result.message);
+                    }
+                } catch (error) {
+                    Logger.error('Failed to retry Slack AI prompt', error);
+                    await reply(
+                        ':warning: Could not start the retry. Please try again.',
+                    ).catch(() => undefined);
+                }
+            },
+        );
+    }
+
+    private async retrySlackPrompt({
+        promptUuid,
+        slackUserId,
+        slackAppId,
+    }: {
+        promptUuid: string | null;
+        slackUserId: string;
+        slackAppId: string | null;
+    }): Promise<{ started: true } | { started: false; message: string }> {
+        const slackPrompt = promptUuid
+            ? await this.aiAgentModel.findSlackPrompt(promptUuid)
+            : undefined;
+        if (!slackPrompt) {
+            return {
+                started: false,
+                message: 'This request is no longer available.',
+            };
+        }
+        // The retry runs as the original asker, so only they may trigger it.
+        if (slackPrompt.slackUserId !== slackUserId) {
+            return {
+                started: false,
+                message:
+                    'Only the person who asked this question can retry it.',
+            };
+        }
+        const threadMessages = await this.aiAgentModel.getThreadMessages(
+            slackPrompt.organizationUuid,
+            slackPrompt.projectUuid,
+            slackPrompt.threadUuid,
+        );
+        if (threadMessages.at(-1)?.ai_prompt_uuid !== slackPrompt.promptUuid) {
+            return {
+                started: false,
+                message:
+                    'Only the latest question in a thread can be retried. Mention me again to ask it.',
+            };
+        }
+        const claimed = await this.aiAgentModel.resetFailedPromptForRetry(
+            slackPrompt.promptUuid,
+        );
+        if (!claimed) {
+            return {
+                started: false,
+                message:
+                    'This request is already being retried or has been answered.',
+            };
+        }
+        try {
+            await this.aiAgentModel.deleteAiPromptInterrupt(
+                slackPrompt.promptUuid,
+            );
+            await this.schedulerClient.slackAiPrompt({
+                slackAppId,
+                slackPromptUuid: slackPrompt.promptUuid,
+                userUuid: slackPrompt.createdByUserUuid,
+                projectUuid: slackPrompt.projectUuid,
+                organizationUuid: slackPrompt.organizationUuid,
+            });
+        } catch (error) {
+            // Restore the failed state so the Retry button works again.
+            await this.persistSlackPromptError(
+                slackPrompt.promptUuid,
+                slackPrompt.errorMessage ??
+                    AiAgentService.agentFailedMessage(undefined),
+            );
+            throw error;
+        }
+        this.trackAgentRequestLifecycle('ai_agent_request.retry_started', {
+            organizationUuid: slackPrompt.organizationUuid,
+            projectUuid: slackPrompt.projectUuid,
+            agentUuid: slackPrompt.agentUuid,
+            threadUuid: slackPrompt.threadUuid,
+            promptUuid: slackPrompt.promptUuid,
+        });
+        return { started: true };
     }
 
     // eslint-disable-next-line class-methods-use-this

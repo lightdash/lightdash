@@ -6245,6 +6245,24 @@ export class AiAgentModel {
         return rows.length > 0;
     }
 
+    async resetFailedPromptForRetry(promptUuid: string): Promise<boolean> {
+        const rows = await this.database(AiPromptTableName)
+            .update({
+                responded_at: this.database.raw('NULL'),
+                error_message: null,
+                token_usage: null,
+                needs_user_input: null,
+                needs_user_input_metadata: null,
+                retried_at: this.database.fn.now(),
+            })
+            .where('ai_prompt_uuid', promptUuid)
+            .whereNull('response')
+            .whereNotNull('error_message')
+            .returning<{ ai_prompt_uuid: string }[]>('ai_prompt_uuid');
+
+        return rows.length > 0;
+    }
+
     async claimPromptExecutionMode(
         promptUuid: string,
         executionMode: 'standard' | 'deep_research',
