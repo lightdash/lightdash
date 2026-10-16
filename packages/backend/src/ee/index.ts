@@ -1582,6 +1582,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAccessService: repository.getAiAccessService(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
+                    analyticsModel: models.getAnalyticsModel(),
                     asyncQueryService: repository.getAsyncQueryService(),
                     catalogService: repository.getCatalogService(),
                     contentVerificationService:

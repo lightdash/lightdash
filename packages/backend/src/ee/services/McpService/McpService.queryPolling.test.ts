@@ -19,6 +19,7 @@ import fs from 'fs/promises';
 import { z, type ZodRawShape } from 'zod';
 import { fromSession } from '../../../auth/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
+import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import {
     agentActionTestCases,
     withAgentActionScope,
@@ -46,6 +47,17 @@ const mockRegisteredMcpResources = new Map<string, ResourceCallback>();
 
 const mockRegisteredMcpTools = new Map<string, RegisteredToolCallback>();
 const mockRegisteredMcpToolInputSchemas = new Map<string, ZodRawShape>();
+
+const { mockReadIndexHtml } = vi.hoisted(() => ({
+    mockReadIndexHtml: vi.fn(),
+}));
+
+vi.mock('../AppGenerateService/appBundleStorage', async (importOriginal) => ({
+    ...(await importOriginal<
+        typeof import('../AppGenerateService/appBundleStorage')
+    >()),
+    getAppVersionIndexHtmlReader: () => mockReadIndexHtml,
+}));
 
 vi.mock('@sentry/node', () => ({
     captureException: vi.fn(),
@@ -103,6 +115,11 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', async (importOriginal) => ({
 }));
 
 const projectUuid = 'project-uuid';
+const testLightdashSecrets = {
+    active: 'test-secret',
+    fallbacks: [],
+    all: ['test-secret'],
+};
 const organizationUuid = 'organization-uuid';
 const userUuid = 'user-uuid';
 const queryUuid = '11111111-1111-4111-8111-111111111111';
@@ -321,6 +338,9 @@ const makeMcpService = ({
 } = {}) => {
     const aiAccessService = { getMyAccess: vi.fn() };
     const analytics = { track: vi.fn() };
+    const analyticsModel = {
+        addAppViewEvent: vi.fn().mockResolvedValue(undefined),
+    };
     const asyncQueryService = {
         executeAsyncSqlQuery: vi.fn(),
         executeAsyncMetricQuery: vi.fn(),
@@ -635,6 +655,7 @@ const makeMcpService = ({
         aiRouterService: {},
         aiWritebackService: {},
         analytics,
+        analyticsModel,
         asyncQueryService,
         catalogService,
         contentService: {},
@@ -651,7 +672,14 @@ const makeMcpService = ({
                 runSqlMaxLimit: 500,
             },
             siteUrl: 'https://lightdash.example',
-            appRuntime: { previewOrigin: 'https://preview.lightdash.example' },
+            lightdashSecrets: testLightdashSecrets,
+            appRuntime: {
+                previewOrigin: 'https://preview.lightdash.example',
+                lightdashOrigin: 'https://lightdash.example',
+                cdnOrigin: null,
+                cspAllowedOrigins: [],
+                s3: { bucket: 'apps' },
+            },
         },
         mcpContextModel,
         mcpToolCallModel,
@@ -680,6 +708,7 @@ const makeMcpService = ({
     return {
         aiAccessService,
         analytics,
+        analyticsModel,
         aiAgentService,
         aiAgentToolsService,
         asyncQueryService,
@@ -2384,10 +2413,29 @@ describe('render_chart with a custom chart type', () => {
         },
     };
 
+    const previewToken = mintPreviewToken(
+        testLightdashSecrets,
+        dataAppVizUuid,
+        3,
+        userUuid,
+        organizationUuid,
+        projectUuid,
+        [],
+        'mcp',
+    );
+    const indexUrl = `https://preview.lightdash.example/api/apps/${dataAppVizUuid}/versions/3/t/${previewToken}/`;
+    const bundleIndexHtml =
+        '<!doctype html><html><head><script type="module" crossorigin src="./assets/index.js"></script></head><body><div id="root"></div></body></html>';
+
     const setup = () => {
         const mocks = makeMcpService({
             explores: { orders: makeExplore({ dimensionTags: [] }) },
         });
+        mocks.aiAgentToolsService.getMcpCustomChartTypePreviewToken.mockResolvedValue(
+            previewToken,
+        );
+        mockReadIndexHtml.mockReset();
+        mockReadIndexHtml.mockResolvedValue(bundleIndexHtml);
         mocks.asyncQueryService.getAsyncQueryHistory.mockResolvedValue(
             makeQueryHistory(
                 QueryHistoryStatus.READY,
@@ -2467,7 +2515,7 @@ describe('render_chart with a custom chart type', () => {
             echartsOption: null,
             exploreUrl: 'https://lightdash.example/share/share-id',
             customChartType: {
-                indexUrl: `https://preview.lightdash.example/api/apps/${dataAppVizUuid}/versions/3/t/header.payload.signature/`,
+                indexUrl,
                 previewOrigin: 'https://preview.lightdash.example',
                 slug: 'sankey-flow',
                 version: 3,
@@ -2529,9 +2577,91 @@ describe('render_chart with a custom chart type', () => {
         );
         expect(text).toContain('https://lightdash.example/share/share-id');
         expect(text).not.toContain(dataAppVizUuid);
+        expect(text).not.toContain(previewToken);
         expect(JSON.stringify(result.structuredContent)).not.toContain(
             dataAppVizUuid,
         );
+        expect(JSON.stringify(result.structuredContent)).not.toContain(
+            previewToken,
+        );
+    });
+
+    it('serves the bundle html with its policy and base url ahead of its scripts', async () => {
+        const { analytics, analyticsModel } = setup();
+
+        const result = await render(customChartConfig);
+
+        expect(mockReadIndexHtml).toHaveBeenCalledWith(dataAppVizUuid, 3);
+        const { html } = result._meta?.result.customChartType as {
+            html: string;
+        };
+        expect(
+            html.startsWith(
+                '<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src',
+            ),
+        ).toBe(true);
+        expect(html).toContain(`"><base href="${indexUrl}"><script`);
+        expect(html).toContain(
+            "script-src 'self' https://preview.lightdash.example blob:",
+        );
+        expect(html).not.toContain('frame-ancestors');
+        expect(analyticsModel.addAppViewEvent).toHaveBeenCalledWith(
+            dataAppVizUuid,
+            userUuid,
+        );
+        expect(analytics.track).toHaveBeenCalledWith({
+            event: 'data_app.view',
+            userId: userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                appUuid: dataAppVizUuid,
+                viewContext: 'mcp',
+            },
+        });
+    });
+
+    it('falls back to the query rows when the bundle cannot be read', async () => {
+        const { analytics, analyticsModel } = setup();
+        mockReadIndexHtml.mockRejectedValue(new Error('NoSuchKey'));
+
+        const result = await render(customChartConfig);
+
+        expect(result.isError).toBeUndefined();
+        expect(result._meta?.result).toMatchObject({
+            rows: [{ orders_status: 'completed', orders_orders_count: 42 }],
+            customChartType: { html: null, indexUrl },
+        });
+        expect(result.content[0].text).toContain(
+            'The chart type could not be loaded, so the chart view shows the query rows instead.',
+        );
+        expect(analyticsModel.addAppViewEvent).not.toHaveBeenCalled();
+        expect(analytics.track).not.toHaveBeenCalledWith(
+            expect.objectContaining({ event: 'data_app.view' }),
+        );
+    });
+
+    it('does not read the bundle for a token minted for another version', async () => {
+        const { aiAgentToolsService } = setup();
+        aiAgentToolsService.getMcpCustomChartTypePreviewToken.mockResolvedValue(
+            mintPreviewToken(
+                testLightdashSecrets,
+                dataAppVizUuid,
+                2,
+                userUuid,
+                organizationUuid,
+                projectUuid,
+                [],
+                'mcp',
+            ),
+        );
+
+        const result = await render(customChartConfig);
+
+        expect(mockReadIndexHtml).not.toHaveBeenCalled();
+        expect(result._meta?.result).toMatchObject({
+            customChartType: { html: null },
+        });
     });
 
     it('keeps built-in rendering free of the custom chart type payload', async () => {
@@ -2645,7 +2775,7 @@ describe('render_chart with a custom chart type', () => {
             connectDomains: ['https://preview.lightdash.example'],
             resourceDomains: ['https://preview.lightdash.example'],
             baseUriDomains: ['https://preview.lightdash.example'],
-            frameDomains: ['https://preview.lightdash.example'],
+            frameDomains: ['https://preview.lightdash.example', 'blob:'],
         });
     });
 });
