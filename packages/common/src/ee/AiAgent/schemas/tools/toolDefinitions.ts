@@ -76,6 +76,7 @@ import {
 import {
     MCP_TOOL_CREATE_CUSTOM_CHART_TYPE_DESCRIPTION,
     mcpCreateCustomChartTypeArgsSchema,
+    mcpCustomChartTypeBuildStartedOutputSchema,
 } from './toolCreateCustomChartTypeArgs';
 import {
     TOOL_CREATE_SCHEDULED_DELIVERY_DESCRIPTION,
@@ -1899,7 +1900,7 @@ export const createCustomChartTypeToolDefinition: ToolDefinitionWithMcpOutput<
     typeof mcpCreateCustomChartTypeArgsSchema,
     typeof mcpCreateCustomChartTypeArgsSchema,
     undefined,
-    typeof mcpDataAppBuildStartedOutputSchema
+    typeof mcpCustomChartTypeBuildStartedOutputSchema
 > = defineTool({
     name: 'createCustomChartType',
     title: 'Create custom chart type',
@@ -1908,7 +1909,7 @@ export const createCustomChartTypeToolDefinition: ToolDefinitionWithMcpOutput<
     inputSchema: mcpCreateCustomChartTypeArgsSchema,
     mcp: {
         annotations: writeAnnotations,
-        structuredContentSchema: mcpDataAppBuildStartedOutputSchema,
+        structuredContentSchema: mcpCustomChartTypeBuildStartedOutputSchema,
     },
 });
 
@@ -1917,7 +1918,7 @@ export const iterateCustomChartTypeToolDefinition: ToolDefinitionWithMcpOutput<
     typeof mcpIterateCustomChartTypeArgsSchema,
     typeof mcpIterateCustomChartTypeArgsSchema,
     undefined,
-    typeof mcpDataAppBuildStartedOutputSchema
+    typeof mcpCustomChartTypeBuildStartedOutputSchema
 > = defineTool({
     name: 'iterateCustomChartType',
     title: 'Iterate on custom chart type',
@@ -1926,7 +1927,7 @@ export const iterateCustomChartTypeToolDefinition: ToolDefinitionWithMcpOutput<
     inputSchema: mcpIterateCustomChartTypeArgsSchema,
     mcp: {
         annotations: writeAnnotations,
-        structuredContentSchema: mcpDataAppBuildStartedOutputSchema,
+        structuredContentSchema: mcpCustomChartTypeBuildStartedOutputSchema,
     },
 });
 

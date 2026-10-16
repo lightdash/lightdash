@@ -1,8 +1,20 @@
 import { z } from 'zod';
-import {
-    DATA_APP_THEME_SLUG_DESCRIPTION,
-    MCP_DATA_APP_AGENT_SCOPE_GUIDANCE,
-} from './toolGenerateDataAppArgs';
+
+export const MCP_CUSTOM_CHART_TYPE_AGENT_SCOPE_GUIDANCE =
+    '- An agent-scoped session restricted to specific spaces cannot read a personal chart type. Call this tool and get_data_app_build_status without agentUuid to build and poll a chart type you own.';
+
+export const mcpCustomChartTypeBuildStartedOutputSchema = z.object({
+    slug: z
+        .string()
+        .describe(
+            "The chart type's permanent slug. Pass it as appSlug to get_data_app_build_status.",
+        ),
+    version: z
+        .number()
+        .int()
+        .positive()
+        .describe('The version of the chart type this build produces.'),
+});
 
 export const MCP_TOOL_CREATE_CUSTOM_CHART_TYPE_DESCRIPTION = `Tool: create_custom_chart_type
 
@@ -11,7 +23,7 @@ Start building a custom chart type: a reusable visualization that saved charts i
 - Describe the data the chart type expects by role (a date, a category, a value), not by one query's field names. Pass queryUuid to share the first rows of a completed run_metric_query as sample data.
 - The build takes a few minutes. Poll get_data_app_build_status with appSlug set to the returned slug until it is "ready", "error" or "cancelled", then send the user to Chart Studio. Call this tool once per request.
 - Refer to the chart type by the returned slug: a name already taken gets a numeric suffix.
-${MCP_DATA_APP_AGENT_SCOPE_GUIDANCE}
+${MCP_CUSTOM_CHART_TYPE_AGENT_SCOPE_GUIDANCE}
 `;
 
 export const mcpCreateCustomChartTypeArgsSchema = z.object({
@@ -29,7 +41,9 @@ export const mcpCreateCustomChartTypeArgsSchema = z.object({
         .string()
         .nullish()
         .default(null)
-        .describe(DATA_APP_THEME_SLUG_DESCRIPTION),
+        .describe(
+            'Organization theme to build the chart type with: its slug, from the attached context ("Theme: <name> (slug: <slug>)"). Omit it to use the organization default. An unknown slug returns an error and starts no build.',
+        ),
     queryUuid: z
         .string()
         .uuid()
