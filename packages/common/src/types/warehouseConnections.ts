@@ -9,15 +9,15 @@ import {
 import { type UserWarehouseCredentials } from './userWarehouseCredentials';
 
 const MULTI_CONNECTION_SUPPORT: Record<WarehouseTypes, boolean> = {
-    [WarehouseTypes.BIGQUERY]: true,
+    [WarehouseTypes.BIGQUERY]: false,
     [WarehouseTypes.POSTGRES]: true,
-    [WarehouseTypes.REDSHIFT]: true,
+    [WarehouseTypes.REDSHIFT]: false,
     [WarehouseTypes.SNOWFLAKE]: true,
-    [WarehouseTypes.DATABRICKS]: true,
-    [WarehouseTypes.TRINO]: true,
-    [WarehouseTypes.CLICKHOUSE]: true,
+    [WarehouseTypes.DATABRICKS]: false,
+    [WarehouseTypes.TRINO]: false,
+    [WarehouseTypes.CLICKHOUSE]: false,
     [WarehouseTypes.ATHENA]: true,
-    [WarehouseTypes.DUCKDB]: true,
+    [WarehouseTypes.DUCKDB]: false,
 };
 
 const USER_CONNECTABLE_DUCKDB_TYPES: Record<DuckdbConnectionType, boolean> = {
@@ -39,12 +39,17 @@ export const MULTI_CONNECTION_WAREHOUSE_TYPES = Object.values(
     WarehouseTypes,
 ).filter((type) => MULTI_CONNECTION_SUPPORT[type]);
 
+export const MIXED_TYPE_EXTRA_CONNECTION_WAREHOUSE_TYPES =
+    Object.values(WarehouseTypes);
+
 export const supportsMultipleConnections = (
     warehouseType: WarehouseTypes | null,
-): boolean => warehouseType !== null && MULTI_CONNECTION_SUPPORT[warehouseType];
-
-export const MIXED_TYPE_EXTRA_CONNECTION_WAREHOUSE_TYPES =
-    MULTI_CONNECTION_WAREHOUSE_TYPES;
+    mixedTypesEnabled: boolean,
+): boolean =>
+    warehouseType !== null &&
+    (mixedTypesEnabled
+        ? MIXED_TYPE_EXTRA_CONNECTION_WAREHOUSE_TYPES.includes(warehouseType)
+        : MULTI_CONNECTION_SUPPORT[warehouseType]);
 
 export const canUseExtraConnectionWarehouseType = ({
     originalWarehouseType,
@@ -55,16 +60,9 @@ export const canUseExtraConnectionWarehouseType = ({
     extraWarehouseType: WarehouseTypes;
     mixedTypesEnabled: boolean;
 }): boolean =>
-    (originalWarehouseType === extraWarehouseType &&
-        supportsMultipleConnections(extraWarehouseType)) ||
-    (mixedTypesEnabled &&
-        originalWarehouseType !== null &&
-        MIXED_TYPE_EXTRA_CONNECTION_WAREHOUSE_TYPES.includes(
-            originalWarehouseType,
-        ) &&
-        MIXED_TYPE_EXTRA_CONNECTION_WAREHOUSE_TYPES.includes(
-            extraWarehouseType,
-        ));
+    supportsMultipleConnections(originalWarehouseType, mixedTypesEnabled) &&
+    (mixedTypesEnabled || originalWarehouseType === extraWarehouseType) &&
+    supportsMultipleConnections(extraWarehouseType, mixedTypesEnabled);
 
 const DATABASE_LISTING_WAREHOUSE_TYPES: WarehouseTypes[] = [
     WarehouseTypes.POSTGRES,

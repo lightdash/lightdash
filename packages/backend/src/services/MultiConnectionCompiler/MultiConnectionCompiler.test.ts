@@ -4,8 +4,10 @@ import {
     DuckdbConnectionType,
     DucklakeCatalogType,
     DucklakeDataPathType,
+    InlineErrorType,
     JobStepStatusType,
     JobStepType,
+    SupportedDbtAdapter,
     SupportedDbtVersions,
     WarehouseTypes,
     type CreateDuckdbDucklakeCredentials,
@@ -13,6 +15,7 @@ import {
     type CreateWarehouseCredentials,
     type DbtLog,
     type DbtManifest,
+    type Explore,
 } from '@lightdash/common';
 import {
     DuckdbWarehouseClient,
@@ -621,4 +624,72 @@ describe('DuckLake extra compile credentials', () => {
             token: '',
         });
     });
+});
+
+describe('cross-connection join warnings', () => {
+    it.each(['customers', 'missing_model'])(
+        'explains a skipped join to %s',
+        async (table) => {
+            const warning = {
+                type: InlineErrorType.MISSING_TABLE,
+                message: `Join "customer_alias" to table "${table}" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.`,
+            };
+            const postgresExplore: Explore = {
+                targetDatabase: SupportedDbtAdapter.POSTGRES,
+                name: 'customers',
+                tables: {},
+                joinedTables: [],
+                baseTable: 'customers',
+                label: 'Customers',
+                tags: [],
+            };
+            const trinoExplore: Explore = {
+                ...postgresExplore,
+                targetDatabase: SupportedDbtAdapter.TRINO,
+                name: 'orders',
+                baseTable: 'orders',
+                warnings: [warning],
+            };
+            const internals = MultiConnectionCompiler as unknown as {
+                groupExplores: (
+                    original: AsyncIterable<Explore>,
+                    sources: Map<string, string>,
+                    originalName: string,
+                    extras: {
+                        plan: { connectionName: string };
+                        explores: Explore[];
+                        modelNames: string[];
+                    }[],
+                    originalModels: string[],
+                ) => AsyncIterable<Explore>;
+            };
+            const results: Explore[] = [];
+            for await (const explore of internals.groupExplores(
+                (async function* original() {
+                    yield postgresExplore;
+                })(),
+                new Map(),
+                'Postgres (jaffle)',
+                [
+                    {
+                        plan: { connectionName: 'Trino (tpch)' },
+                        explores: [trinoExplore],
+                        modelNames: ['orders'],
+                    },
+                ],
+                ['customers'],
+            ))
+                results.push(explore);
+            expect(results).toHaveLength(2);
+            expect(results[1].warnings).toEqual([
+                table === 'customers'
+                    ? {
+                          type: InlineErrorType.MISSING_TABLE,
+                          message:
+                              'Join "customer_alias" was skipped: model "customers" is on connection "Postgres (jaffle)", and this explore runs on connection "Trino (tpch)". Joins across connections are not supported.',
+                      }
+                    : warning,
+            ]);
+        },
+    );
 });

@@ -1287,36 +1287,48 @@ describe('WarehouseConnectionService on the real schema', () => {
             ).toBe('');
         });
 
-        test('refuses a change to another warehouse type', async () => {
-            const fixture = await createProject({ mode: 'multi' });
-            const created = await addExtra(fixture);
-
-            await expect(
-                buildService().update(
-                    fixture.credentialsAdmin,
-                    fixture.projectUuid,
-                    created.warehouseConnectionUuid,
-                    { warehouseConnection: athenaCredentials },
-                ),
-            ).rejects.toThrow(
-                'An extra connection must use the same warehouse type as the original connection.',
-            );
-        });
-
-        test('changes an extra connection to another warehouse type when mixed types are enabled', async () => {
-            mixedTypes.enabled = true;
-            const fixture = await createProject({ mode: 'multi' });
-            const created = await addExtra(fixture);
-
-            const updated = await buildService().update(
-                fixture.credentialsAdmin,
-                fixture.projectUuid,
-                created.warehouseConnectionUuid,
-                { warehouseConnection: athenaCredentials },
-            );
-
-            expect(updated.warehouseType).toBe(WarehouseTypes.ATHENA);
-        });
+        test.each(
+            [false, true].flatMap((enabled) =>
+                ['project', 'organization'].map((source) => ({
+                    enabled,
+                    source,
+                })),
+            ),
+        )(
+            'refuses a warehouse type change with mixed types $enabled and $source credentials',
+            async ({ enabled, source }) => {
+                mixedTypes.enabled = enabled;
+                const fixture = await createProject({ mode: 'multi' });
+                const created = await addExtra(fixture);
+                const organizationCredential =
+                    await createOrganizationCredential(
+                        fixture.organizationUuid,
+                        athenaCredentials,
+                    );
+                await expect(
+                    buildService().update(
+                        fixture.credentialsAdmin,
+                        fixture.projectUuid,
+                        created.warehouseConnectionUuid,
+                        source === 'project'
+                            ? { warehouseConnection: athenaCredentials }
+                            : {
+                                  organizationWarehouseCredentialsUuid:
+                                      organizationCredential,
+                              },
+                    ),
+                ).rejects.toThrow(
+                    "A connection's warehouse type cannot be changed. Add a new connection instead.",
+                );
+                const row = await database('warehouse_connections')
+                    .where(
+                        'warehouse_connection_uuid',
+                        created.warehouseConnectionUuid,
+                    )
+                    .first();
+                expect(row.warehouse_type).toBe(WarehouseTypes.POSTGRES);
+            },
+        );
     });
 
     describe('removing an extra connection', () => {

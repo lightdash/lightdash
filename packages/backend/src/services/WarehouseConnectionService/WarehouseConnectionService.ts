@@ -9,9 +9,7 @@ import {
     ForbiddenError,
     isUserConnectableWarehouseConnection,
     ParameterError,
-    sensitiveCredentialsFieldNames,
     SingleConnectionProjectError,
-    supportsMultipleConnections,
     validateWarehouseConnectionName,
     WAREHOUSE_CONNECTION_NAME_CONFLICT_MESSAGE,
     WarehouseTypes,
@@ -27,11 +25,11 @@ import {
     type WarehouseConnectionTestResults,
     type WarehouseConnectionUserCredentials,
     type WarehouseConnectionWithCredentials,
-    type WarehouseCredentials,
 } from '@lightdash/common';
 import { DatabaseError } from 'pg';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { trackSafely } from '../../analytics/trackSafely';
+import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import {
@@ -139,18 +137,6 @@ const describeBoundContent = (
         ? [`in-flight queries: ${boundContent.inFlightQueries}`]
         : []),
 ];
-
-const toNonSensitiveCredentials = (
-    credentials: CreateWarehouseCredentials,
-): WarehouseCredentials =>
-    Object.fromEntries(
-        Object.entries(credentials).filter(
-            ([key]) =>
-                !(sensitiveCredentialsFieldNames as readonly string[]).includes(
-                    key,
-                ),
-        ),
-    ) as WarehouseCredentials;
 
 export class WarehouseConnectionService extends BaseService {
     private readonly warehouseConnectionModel: WarehouseConnectionModel;
@@ -500,16 +486,15 @@ export class WarehouseConnectionService extends BaseService {
             await this.projectModel.getWarehouseCredentialsForProject(
                 projectUuid,
             );
-        const warehouseConnection = toNonSensitiveCredentials(
-            source.credentials,
-        );
-        if (supportsMultipleConnections(warehouseConnection.type)) {
-            warehouseConnection.requireUserCredentials =
-                getExtraConnectionRequireUserCredentials(
-                    originalCredentials,
-                    source,
-                ) === true;
-        }
+        const warehouseConnection =
+            OrganizationWarehouseCredentialsModel.stripSensitiveCredentials(
+                source.credentials,
+            );
+        warehouseConnection.requireUserCredentials =
+            getExtraConnectionRequireUserCredentials(
+                originalCredentials,
+                source,
+            ) === true;
         return {
             ...connection,
             warehouseConnection,
@@ -632,7 +617,9 @@ export class WarehouseConnectionService extends BaseService {
                     source,
                 ) === true,
             allowsOptionalUserCredentials: allowsOptionalUserCredentials(
-                toNonSensitiveCredentials(source.credentials),
+                OrganizationWarehouseCredentialsModel.stripSensitiveCredentials(
+                    source.credentials,
+                ),
             ),
             userWarehouseCredentials:
                 preferredUuid === null
@@ -997,6 +984,14 @@ export class WarehouseConnectionService extends BaseService {
             source === null
                 ? null
                 : await this.resolveCredentialSource(project, source);
+        if (
+            credentials !== null &&
+            credentials.type !== existing.warehouseType
+        ) {
+            throw new ParameterError(
+                "A connection's warehouse type cannot be changed. Add a new connection instead.",
+            );
+        }
         this.assertCanWrite(account, summary, effectiveSource, credentials);
         assertConnectionDatabaseListing(
             credentials?.type ?? existing.warehouseType,
@@ -1069,7 +1064,18 @@ export class WarehouseConnectionService extends BaseService {
                 await model.lockProject(projectUuid);
                 const lockedProject = await model.getProject(projectUuid);
                 WarehouseConnectionService.assertMultiMode(lockedProject);
-                await model.get(lockedProject, warehouseConnectionUuid);
+                const lockedConnection = await model.get(
+                    lockedProject,
+                    warehouseConnectionUuid,
+                );
+                if (
+                    credentials !== null &&
+                    credentials.type !== lockedConnection.warehouseType
+                ) {
+                    throw new ParameterError(
+                        "A connection's warehouse type cannot be changed. Add a new connection instead.",
+                    );
+                }
                 if (persistedSource !== null && credentials !== null) {
                     WarehouseConnectionService.assertExtraWarehouseType(
                         lockedProject,

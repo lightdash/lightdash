@@ -53,32 +53,47 @@ describe('updating an extra connection warehouse type', () => {
     });
     afterAll(async () => database.destroy());
 
-    it('persists the new type alongside project credentials', async () => {
-        await model.updateExtraCredentials(project, 'connection', {
-            kind: 'project',
-            credentials,
-        });
-        const update = tracker.history.update[0];
-        expect(update.sql).toContain('"warehouse_type" =');
-        expect(update.bindings).toContain(WarehouseTypes.TRINO);
-        const saved = update.bindings.find(Buffer.isBuffer);
-        expect(saved).toBeDefined();
-        expect(JSON.parse(saved!.toString())).toMatchObject(credentials);
+    it('refuses a type change from project credentials under the row lock', async () => {
+        await expect(
+            model.updateExtraCredentials(project, 'connection', {
+                kind: 'project',
+                credentials,
+            }),
+        ).rejects.toThrow(
+            "A connection's warehouse type cannot be changed. Add a new connection instead.",
+        );
+        expect(tracker.history.update).toHaveLength(0);
     });
-    it('persists the type of organization credentials', async () => {
+    it('refuses a type change from organization credentials under the row lock', async () => {
         tracker.on.select('organization_warehouse_credentials').response([
             {
                 warehouse_type: WarehouseTypes.TRINO,
                 organization_uuid: project.organizationUuid,
             },
         ]);
-        await model.updateExtraCredentials(project, 'connection', {
-            kind: 'organization',
-            organizationWarehouseCredentialsUuid: 'organization-credentials',
-        });
-        expect(tracker.history.update[0].bindings).toContain(
-            WarehouseTypes.TRINO,
+        await expect(
+            model.updateExtraCredentials(project, 'connection', {
+                kind: 'organization',
+                organizationWarehouseCredentialsUuid:
+                    'organization-credentials',
+            }),
+        ).rejects.toThrow(
+            "A connection's warehouse type cannot be changed. Add a new connection instead.",
         );
+        expect(tracker.history.update).toHaveLength(0);
+    });
+    it('updates credentials without writing the warehouse type', async () => {
+        await model.updateExtraCredentials(project, 'connection', {
+            kind: 'project',
+            credentials: { ...credentials, type: WarehouseTypes.POSTGRES },
+        });
+        const update = tracker.history.update[0];
+        expect(update.sql).not.toContain('"warehouse_type" =');
+        const saved = update.bindings.find(Buffer.isBuffer);
+        expect(saved).toBeDefined();
+        expect(JSON.parse(saved!.toString())).toMatchObject({
+            type: WarehouseTypes.POSTGRES,
+        });
     });
     it('refuses organization credentials from another organization', async () => {
         tracker.on.select('organization_warehouse_credentials').response([

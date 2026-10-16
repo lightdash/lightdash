@@ -8,6 +8,7 @@ import {
 import { fromSession } from '../../auth/account/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { credentialRedactionCases } from '../WarehouseConnectionService/credentialRedactionFixtures.mock';
 import { ProjectService } from './ProjectService';
 
 const explore: Explore = {
@@ -22,9 +23,13 @@ const explore: Explore = {
 const account = fromSession(defaultSessionUser, 'session-cookie');
 
 describe('explore response connection metadata', () => {
-    it.each([false, true])(
-        'returns the bound dialect with extra connection %s',
-        async (extra) => {
+    it.each(
+        credentialRedactionCases.flatMap(({ name, credentials }) =>
+            [false, true].map((extra) => ({ name, credentials, extra })),
+        ),
+    )(
+        'returns only dialect metadata for $name with extra connection $extra',
+        async ({ extra, credentials }) => {
             const target = extra
                 ? ({ kind: 'extra', warehouseConnectionUuid: 'extra' } as const)
                 : ({ kind: 'original' } as const);
@@ -42,7 +47,7 @@ describe('explore response connection metadata', () => {
                     getWarehouseCredentialsForBinding: vi
                         .fn()
                         .mockResolvedValue({
-                            type: WarehouseTypes.POSTGRES,
+                            ...credentials,
                             startOfWeek: WeekDay.SUNDAY,
                         }),
                 },
@@ -51,7 +56,7 @@ describe('explore response connection metadata', () => {
                         .fn()
                         .mockResolvedValue({ projectUuid: 'project' }),
                     getCredentials: vi.fn().mockResolvedValue({
-                        type: WarehouseTypes.TRINO,
+                        ...credentials,
                         startOfWeek: WeekDay.WEDNESDAY,
                     }),
                 },
@@ -64,11 +69,10 @@ describe('explore response connection metadata', () => {
             );
             expect(response.warehouseConnection).toEqual({
                 warehouseConnectionUuid: extra ? 'extra' : null,
-                warehouseType: extra
-                    ? WarehouseTypes.TRINO
-                    : WarehouseTypes.POSTGRES,
+                warehouseType: credentials.type,
                 startOfWeek: extra ? WeekDay.WEDNESDAY : WeekDay.SUNDAY,
             });
+            expect(JSON.stringify(response)).not.toContain('__SECRET_');
             vi.spyOn(service, 'getExplore').mockResolvedValue({
                 ...explore,
                 type: ExploreType.EXTERNAL_SOURCE,

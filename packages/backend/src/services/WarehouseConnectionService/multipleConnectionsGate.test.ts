@@ -13,13 +13,19 @@ const account = fromSession(defaultSessionUser, 'session-cookie');
 
 describe('multiple connections gate', () => {
     it.each([true, false])(
-        'keeps the existing rollout gate for a Trino primary when enabled is %s',
+        'keeps the rollout gate for a Trino primary with mixed types enabled and rollout %s',
         async (enabled) => {
             const featureFlagService = {
-                get: vi.fn<FeatureFlagService['get']>().mockResolvedValue({
-                    id: FeatureFlags.MultiConnectionProjects,
-                    enabled,
-                }),
+                get: vi
+                    .fn<FeatureFlagService['get']>()
+                    .mockImplementation(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            featureFlagId ===
+                            FeatureFlags.MixedWarehouseConnections
+                                ? true
+                                : enabled,
+                    })),
             };
             const reason = await getMultipleConnectionsBlockReason(
                 {
@@ -67,5 +73,43 @@ describe('multiple connections gate', () => {
         ).toBe(WAREHOUSE_TYPE_REASON);
         expect(featureFlagService.get).not.toHaveBeenCalled();
         expect(WAREHOUSE_TYPE_REASON).toContain('user-connectable');
+    });
+});
+
+describe('multiple connections original type matrix', () => {
+    it.each(
+        Object.values(WarehouseTypes).flatMap((type) =>
+            [false, true].map((enabled) => ({ type, enabled })),
+        ),
+    )('gates $type with mixed types $enabled', async ({ type, enabled }) => {
+        const reason = await getMultipleConnectionsBlockReason(
+            {
+                featureFlagService: {
+                    get: vi
+                        .fn<FeatureFlagService['get']>()
+                        .mockImplementation(async ({ featureFlagId }) => ({
+                            id: featureFlagId,
+                            enabled:
+                                featureFlagId ===
+                                FeatureFlags.MixedWarehouseConnections
+                                    ? enabled
+                                    : true,
+                        })),
+                },
+                licenseService: { canHoldMultipleConnections: () => true },
+            },
+            account,
+            { organizationUuid: 'org', originalWarehouseType: type },
+        );
+        expect(reason).toBe(
+            enabled ||
+                [
+                    WarehouseTypes.POSTGRES,
+                    WarehouseTypes.ATHENA,
+                    WarehouseTypes.SNOWFLAKE,
+                ].includes(type)
+                ? null
+                : WAREHOUSE_TYPE_REASON,
+        );
     });
 });

@@ -60,3 +60,41 @@ describe('getProjectInfo connection dialects', () => {
         );
     });
 });
+
+describe('hostile connection names in project info', () => {
+    it.each(Object.values(WarehouseTypes))(
+        'serializes a %s name without credentials',
+        async (warehouseType) => {
+            const name = 'name"`;--\n/* comment */<script>alert(1)</script>';
+            const connection = {
+                name,
+                warehouseType,
+                warehouseConnectionUuid: 'extra',
+                isOriginal: false,
+                password: '__SECRET_password__',
+                catalog: { password: '__SECRET_catalog__' },
+            };
+            const output = await execute(async () => ({
+                projectName: 'Project',
+                projectType: ProjectType.DEFAULT,
+                dbtConnectionType: DbtProjectType.NONE,
+                dbtVersion: '1.9',
+                warehouseType,
+                connections: [connection],
+                git: null,
+                previewDeployCi: null,
+            }));
+            expect(output.result).toContain(
+                `Connection ${JSON.stringify(name)} (extra): ${warehouseType}`,
+            );
+            expect(output.result).not.toContain(name);
+            expect(JSON.stringify(output)).not.toContain('__SECRET_');
+            expect(output.structuredContent).toMatchObject({
+                connections: [{ name }],
+            });
+            expect(
+                toolGetProjectInfoOutputSchema.safeParse(output).success,
+            ).toBe(true);
+        },
+    );
+});

@@ -45,14 +45,14 @@ const WarehouseTypeForms = {
 interface WarehouseSettingsFormProps {
     disabled: boolean;
     isProjectUpdate?: boolean | undefined;
-    allowMixedWarehouseTypes?: boolean;
+    allowMixedWarehouseTypes: boolean;
     children?: ReactNode;
 }
 
 const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
     disabled,
     isProjectUpdate,
-    allowMixedWarehouseTypes = false,
+    allowMixedWarehouseTypes,
     children,
 }) => {
     const form = useFormContext();

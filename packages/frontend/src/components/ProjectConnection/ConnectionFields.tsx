@@ -21,7 +21,7 @@ export const ConnectionFields: FC<{
     savedProject?: Project;
     primaryRequiresUserCredentials?: boolean;
     showName: boolean;
-    allowMixedWarehouseTypes?: boolean;
+    allowMixedWarehouseTypes: boolean;
 }> = ({
     form,
     intro,
@@ -32,7 +32,7 @@ export const ConnectionFields: FC<{
     savedProject,
     primaryRequiresUserCredentials,
     showName,
-    allowMixedWarehouseTypes = false,
+    allowMixedWarehouseTypes,
 }) => {
     const { data } = useWarehouseConnections(projectUuid);
     const originalWarehouseType =
