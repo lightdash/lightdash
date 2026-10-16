@@ -2513,6 +2513,9 @@ export class AppGenerateService extends BaseService {
             app,
             'Insufficient permissions to view app images',
         );
+        // Attached screenshots and images are captures too: kept, but not
+        // served while the org's switch is off.
+        await this.assertCapturesVisible(user, `Image not found: ${imageId}`);
 
         const belongsToApp = await this.appModel.appImageExists(
             appUuid,
@@ -2635,14 +2638,22 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * Stored thumbnails are kept but not served while the org's captures
-     * switch is off, so "off" means no image of the data is visible anywhere.
-     * Reads as "no thumbnail", which every hover card already handles.
+     * Stored thumbnails and attached images are kept but not served while the
+     * org's captures switch is off, so "off" means no image of the data is
+     * visible anywhere. Reads as "not found", which the hover cards and chat
+     * image chips already handle.
      */
-    private async assertThumbnailsVisible(user: SessionUser): Promise<void> {
+    private async assertCapturesVisible(
+        user: SessionUser,
+        message: string,
+    ): Promise<void> {
         if (!(await this.areDataAppCapturesEnabled(user.organizationUuid!))) {
-            throw new NotFoundError('App thumbnail not found');
+            throw new NotFoundError(message);
         }
+    }
+
+    private async assertThumbnailsVisible(user: SessionUser): Promise<void> {
+        await this.assertCapturesVisible(user, 'App thumbnail not found');
     }
 
     async getVersionThumbnailUrl(

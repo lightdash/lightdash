@@ -27,6 +27,7 @@ vi.mock('ai', async (importOriginal) => ({
 const ORGANIZATION_UUID = 'organization';
 const PROJECT_UUID = 'project';
 const APP_UUID = 'revenue-app';
+const IMAGE_ID = '0f4c5d6e-7a8b-4c9d-8e0f-1a2b3c4d5e6f';
 
 const png = Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
@@ -82,12 +83,15 @@ const buildService = ({
         thumbnail_captured_at: null,
         thumbnail_is_manual: null,
     } as VersionRow;
+    const appImageExists = vi.fn(async () => true);
     const appModel: AppModelFake & {
         findApp: () => Promise<AppRow>;
+        appImageExists: typeof appImageExists;
     } = {
         getApp: async () => appRow,
         findApp: async () => appRow,
         findAppByUuid: async () => appRow,
+        appImageExists,
         getVersion: async () => version,
         getLatestReadyVersion: async () => version,
         hasAnyVersionThumbnail: async () =>
@@ -218,13 +222,18 @@ const buildService = ({
         }
     };
 
+    const attachedImage = () =>
+        service.getImageUrl(builder, PROJECT_UUID, APP_UUID, IMAGE_ID);
+
     return {
         service,
         captures,
+        appImageExists,
         uploadScreenshot,
         uploadThumbnail,
         appThumbnail,
         versionThumbnail,
+        attachedImage,
     };
 };
 
@@ -301,5 +310,21 @@ describe('AppGenerateService data app captures switch', () => {
         s.captures.stored = true;
         expect(await s.appThumbnail()).toBe(png.toString());
         expect(await s.versionThumbnail()).toBe(png.toString());
+    });
+
+    it('hides images attached to earlier builds while off, before looking them up', async () => {
+        const s = buildService({ storedCapturesChoice: false });
+
+        await expect(s.attachedImage()).rejects.toThrow(NotFoundError);
+        expect(s.appImageExists).not.toHaveBeenCalled();
+    });
+
+    it('looks attached images up as usual while on', async () => {
+        const s = buildService();
+
+        // No object storage in this harness, so the lookup is as far as it
+        // gets; the point is that the captures guard let it through.
+        await s.attachedImage().catch(() => undefined);
+        expect(s.appImageExists).toHaveBeenCalledWith(APP_UUID, IMAGE_ID);
     });
 });
