@@ -11,21 +11,33 @@ export const trinoTarget = (
         { type: WarehouseTypes.TRINO }
     >,
     _policy: DbtTargetPolicy,
-): DbtTargetResult => ({
-    kind: 'target',
-    target: {
+): DbtTargetResult => {
+    const target = {
         type: credentials.type,
         host: credentials.host,
-        method: 'ldap',
         user: envVarReference('user'),
-        password: envVarReference('password'),
         port: credentials.port,
         database: credentials.dbname,
         schema: credentials.schema,
         http_scheme: credentials.http_scheme,
-    },
-    environment: {
-        [envVar('user')]: credentials.user,
-        [envVar('password')]: credentials.password,
-    },
-});
+    };
+    if (!credentials.password) {
+        return {
+            kind: 'target',
+            target: { ...target, method: 'none' },
+            environment: { [envVar('user')]: credentials.user },
+        };
+    }
+    return {
+        kind: 'target',
+        target: {
+            ...target,
+            method: 'ldap',
+            password: envVarReference('password'),
+        },
+        environment: {
+            [envVar('user')]: credentials.user,
+            [envVar('password')]: credentials.password,
+        },
+    };
+};
