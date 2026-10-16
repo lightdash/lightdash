@@ -18,6 +18,7 @@ export type DbAiAgent = {
     enable_content_tools: boolean;
     enable_user_context: boolean;
     enable_sql_mode: boolean;
+    enable_sql_auto_approval: boolean;
     admin_only: boolean;
     model_config: AiAgentModelConfig | null;
     /**

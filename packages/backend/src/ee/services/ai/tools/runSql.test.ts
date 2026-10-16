@@ -151,6 +151,34 @@ describe('getRunSql', () => {
         expect(output.metadata?.status).toBe('success');
     });
 
+    it('skips the Slack approval card when the agent auto-approves SQL', async () => {
+        const { tool, dependencies } = makeTool({
+            prompt: makeSlackPrompt(),
+            useSlackStreamCard: true,
+            autoApproveSql: true,
+        });
+
+        const needsApproval =
+            typeof tool.needsApproval === 'function'
+                ? await tool.needsApproval(
+                      { sql: 'select 1 as answer', limit: 500 },
+                      { toolCallId: 'tool-call-1', messages: [], context: {} },
+                  )
+                : tool.needsApproval;
+        const output = await executeRunSql(tool);
+
+        expect(needsApproval).toBe(false);
+        expect(dependencies.recordSqlApproval).toHaveBeenCalledWith({
+            toolCallId: 'tool-call-1',
+            toolName: 'runSql',
+            decidedByUserUuid: null,
+            source: 'auto_approve',
+        });
+        expect(dependencies.updateSlackMessage).not.toHaveBeenCalled();
+        expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
+        expect(output.metadata?.status).toBe('success');
+    });
+
     it('records a thread auto-approval once a Slack thread chose "don\'t ask again"', async () => {
         const { tool, dependencies } = makeTool({
             prompt: makeSlackPrompt(),
