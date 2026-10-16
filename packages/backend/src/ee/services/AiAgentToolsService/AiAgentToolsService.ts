@@ -390,6 +390,7 @@ export type CreateCustomChartTypeFn = (args: {
 export type IterateCustomChartTypeFn = (args: {
     slug: string;
     prompt: string;
+    themeSlug: string | null;
     vizContext: AppVizBuildContext | null;
 }) => Promise<{ appUuid: string; slug: string; version: number; name: string }>;
 
@@ -2317,11 +2318,19 @@ export class AiAgentToolsService extends BaseService {
     /** Adds a chart type version the way Chart Studio does, keeping its field contract; MCP-only. */
     private iterateCustomChartType(
         context: AiAgentToolsRuntimeContext,
-        { slug, prompt, vizContext }: Parameters<IterateCustomChartTypeFn>[0],
+        {
+            slug,
+            prompt,
+            themeSlug,
+            vizContext,
+        }: Parameters<IterateCustomChartTypeFn>[0],
     ): ReturnType<IterateCustomChartTypeFn> {
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.iterateCustomChartType`,
-            { withSampleRows: vizContext !== null },
+            {
+                withSampleRows: vizContext !== null,
+                withTheme: themeSlug !== null,
+            },
             async () => {
                 const app = await this.appModel.findAppBySlug(
                     context.projectUuid,
@@ -2344,6 +2353,13 @@ export class AiAgentToolsService extends BaseService {
                         `"${slug}" is a data app, not a custom chart type. Use iterate_data_app to change it`,
                     );
                 }
+                const designUuid =
+                    themeSlug === null
+                        ? undefined
+                        : await this.resolveDataAppThemeReference(
+                              context,
+                              themeSlug,
+                          );
                 const readyVersion = await this.appModel.getLatestReadyVersion(
                     app.app_id,
                 );
@@ -2366,6 +2382,12 @@ export class AiAgentToolsService extends BaseService {
                         ...(Object.keys(buildContext).length === 0
                             ? {}
                             : { vizContext: buildContext }),
+                        ...(designUuid === undefined
+                            ? {}
+                            : {
+                                  designUuidInput: designUuid,
+                                  themeChangePrompt: 'append' as const,
+                              }),
                     },
                 );
                 return {

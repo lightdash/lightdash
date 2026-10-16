@@ -1847,6 +1847,7 @@ export class McpService extends BaseService {
                             await toolsRuntime.iterateCustomChartType({
                                 slug: args.slug,
                                 prompt: args.prompt,
+                                themeSlug: args.themeSlug ?? null,
                                 vizContext,
                             });
                         const chartStudioUrl = `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/chart-studio/${slug}`;
