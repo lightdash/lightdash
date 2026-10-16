@@ -10,6 +10,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     Group,
+    GroupSort,
     GroupWithMembers,
     isSystemRole,
     isUserWithOrg,
@@ -30,6 +31,7 @@ import {
     OrganizationMemberProfileUpdate,
     OrganizationMemberProfileWithGroups,
     OrganizationMemberRole,
+    OrganizationMemberSort,
     OrganizationProject,
     ParameterError,
     ProjectType,
@@ -555,6 +557,7 @@ export class OrganizationService extends BaseService {
         searchQuery?: string,
         projectUuid?: string,
         googleOidcOnly?: boolean,
+        sort?: OrganizationMemberSort,
     ): Promise<KnexPaginatedData<OrganizationMemberProfile[]>> {
         const { organizationUuid } = user;
         if (organizationUuid === undefined) {
@@ -573,16 +576,20 @@ export class OrganizationService extends BaseService {
 
         const { pagination, data: organizationMembers } = includeGroups
             ? await this.organizationMemberProfileModel.getOrganizationMembersAndGroups(
-                  organizationUuid,
-                  includeGroups,
-                  paginateArgs,
-                  searchQuery,
-                  googleOidcOnly,
+                  {
+                      organizationUuid,
+                      includeGroups,
+                      paginateArgs,
+                      searchQuery,
+                      googleOidcOnly,
+                      sort,
+                  },
               )
             : await this.organizationMemberProfileModel.getOrganizationMembers({
                   organizationUuid,
                   paginateArgs,
                   searchQuery,
+                  sort,
                   googleOidcOnly,
               });
 
@@ -1057,6 +1064,7 @@ export class OrganizationService extends BaseService {
         includeMembers?: number,
         paginateArgs?: KnexPaginateArgs,
         searchQuery?: string,
+        sort?: GroupSort,
     ): Promise<KnexPaginatedData<Group[] | GroupWithMembers[]>> {
         if (user.organizationUuid === undefined) {
             throw new ForbiddenError();
@@ -1065,6 +1073,7 @@ export class OrganizationService extends BaseService {
             {
                 organizationUuid: user.organizationUuid,
                 searchQuery,
+                sort,
             },
             paginateArgs,
         );

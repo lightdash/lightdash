@@ -28,6 +28,11 @@ export const isOrganizationMemberRole = (
 ): x is OrganizationMemberRole =>
     Object.values(OrganizationMemberRole).includes(x as OrganizationMemberRole);
 
+export type OrganizationMemberSort = {
+    sortBy: 'name' | 'updatedAt';
+    sortDirection: 'asc' | 'desc';
+};
+
 /**
  * Profile for a user's membership in an organization
  */

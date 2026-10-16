@@ -1,4 +1,7 @@
-import { OrganizationMemberRole } from '@lightdash/common';
+import {
+    OrganizationMemberRole,
+    type OrganizationMemberSort,
+} from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { OrganizationMembershipCustomRolesTableName } from '../database/entities/organizationMembershipCustomRoles';
@@ -24,12 +27,11 @@ describe('OrganizationMemberProfileModel', () => {
         (includeGroups) => {
             const search = (searchQuery: string) =>
                 includeGroups
-                    ? model.getOrganizationMembersAndGroups(
-                          'organization-uuid',
-                          100,
-                          undefined,
+                    ? model.getOrganizationMembersAndGroups({
+                          organizationUuid: 'organization-uuid',
+                          includeGroups: 100,
                           searchQuery,
-                      )
+                      })
                     : model.getOrganizationMembers({
                           organizationUuid: 'organization-uuid',
                           searchQuery,
@@ -67,6 +69,49 @@ describe('OrganizationMemberProfileModel', () => {
             it('ignores whitespace-only queries', async () => {
                 await search('   ');
                 expect(tracker.history.select[0].sql).not.toContain('ilike');
+            });
+        },
+    );
+
+    describe.each([false, true])(
+        'member sort with groups=%s',
+        (includeGroups) => {
+            const list = (sort?: OrganizationMemberSort) =>
+                includeGroups
+                    ? model.getOrganizationMembersAndGroups({
+                          organizationUuid: 'organization-uuid',
+                          includeGroups: 100,
+                          sort,
+                      })
+                    : model.getOrganizationMembers({
+                          organizationUuid: 'organization-uuid',
+                          sort,
+                      });
+
+            beforeEach(() => {
+                tracker.on.select(/.*/).response([]);
+            });
+
+            it.each(['asc', 'desc'] as const)(
+                'orders by display name, falling back to email (%s)',
+                async (direction) => {
+                    await list({ sortBy: 'name', sortDirection: direction });
+                    expect(tracker.history.select[0].sql).toContain(
+                        `order by lower(coalesce(nullif(trim(concat_ws(' ', "users"."first_name", "users"."last_name")), ''), "emails"."email")) ${direction}, "users"."user_uuid" ${direction}`,
+                    );
+                },
+            );
+
+            it('orders by updated_at for the SCIM sync', async () => {
+                await list({ sortBy: 'updatedAt', sortDirection: 'asc' });
+                expect(tracker.history.select[0].sql).toContain(
+                    'order by "users"."updated_at" asc',
+                );
+            });
+
+            it('keeps the default order when no sort is requested', async () => {
+                await list();
+                expect(tracker.history.select[0].sql).not.toContain('order by');
             });
         },
     );

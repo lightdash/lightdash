@@ -1,4 +1,8 @@
-import { isGroupWithMembers, type GroupWithMembers } from '@lightdash/common';
+import {
+    isGroupWithMembers,
+    type GroupSort,
+    type GroupWithMembers,
+} from '@lightdash/common';
 import { Badge, Box, Group, Stack, Text, useMantineTheme } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconTextCaption, IconUsers } from '@tabler/icons-react';
@@ -10,6 +14,7 @@ import {
     ContentTable,
     useContentTable,
     type ContentTableColumnDef,
+    type ContentTableSortingState,
     type ContentTableVirtualizer,
 } from '../../common/ContentTable';
 import MantineIcon from '../../common/MantineIcon';
@@ -32,6 +37,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
         );
 
     const [search, setSearch] = useState('');
+    const [sorting, setSorting] = useState<ContentTableSortingState>([]);
 
     // Debounce search to avoid too many API calls
     const debouncedSearch = useMemo(() => {
@@ -40,12 +46,24 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
 
     const [debouncedSearchValue] = useDebouncedValue(debouncedSearch, 300);
 
+    const sort = useMemo<GroupSort | undefined>(
+        () =>
+            sorting[0]?.id === 'name'
+                ? {
+                      sortBy: 'name',
+                      sortDirection: sorting[0].desc ? 'desc' : 'asc',
+                  }
+                : undefined,
+        [sorting],
+    );
+
     // Use infinite query for pagination
     const { data, fetchNextPage, hasNextPage, isError, isFetching, isLoading } =
         useInfiniteOrganizationGroups({
             searchInput: debouncedSearchValue.search,
             includeMembers: GROUP_MEMBERS_PER_PAGE,
             pageSize: fetchSize,
+            sort,
         });
 
     const flatData = useMemo<GroupWithMembers[]>(
@@ -70,10 +88,10 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
         threshold: 400,
     });
 
-    // Scroll to top when search changes
+    // Scroll to top when search or sorting changes
     useEffect(() => {
         scrollToTop();
-    }, [debouncedSearchValue, scrollToTop]);
+    }, [debouncedSearchValue, sort, scrollToTop]);
 
     const canManageGroups =
         activeUser.data?.ability?.can('manage', 'Group') ?? false;
@@ -83,7 +101,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
             {
                 accessorKey: 'name',
                 header: 'Group',
-                enableSorting: false,
+                enableSorting: true,
                 size: 260,
                 Header: ({ column }) => (
                     <Group gap="two">
@@ -190,7 +208,9 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
         data: flatData,
         enableColumnResizing: false,
         enablePagination: false,
-        enableSorting: false,
+        enableSorting: true,
+        manualSorting: true,
+        onSortingChange: setSorting,
         enableRowVirtualization: true,
         enableTopToolbar: true,
         mantineTableContainerProps: {
@@ -274,6 +294,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onEditGroup }) => {
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { estimateSize: () => 64, overscan: 10 },
         state: {
+            sorting,
             isLoading,
             showAlertBanner: isError,
             showProgressBars: isFetching,
