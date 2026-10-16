@@ -2379,7 +2379,6 @@ export class AppGenerateService extends BaseService {
         mimeType: string;
     }> {
         await this.assertDataAppsEnabled(user);
-        await this.assertDataAppCapturesEnabled(user.organizationUuid!);
 
         // For iterations the app already exists — use its space + creator
         // context so a space editor or the creator can attach a file. For
@@ -2387,20 +2386,25 @@ export class AppGenerateService extends BaseService {
         // row doesn't exist yet, so we authorize against `create:DataApp`
         // (anyone who can create an app can stage a file for it).
         const app = await this.appModel.findApp(appUuid, projectUuid);
+        let organizationUuid: string;
         if (app) {
             await this.assertCanManageApp(
                 user,
                 app,
                 'Insufficient permissions to upload app files',
             );
+            organizationUuid = app.organization_uuid;
         } else {
-            await this.assertDataAppAbility(
+            ({ organizationUuid } = await this.assertDataAppAbility(
                 user,
                 'create',
                 projectUuid,
                 'Insufficient permissions to upload app files',
-            );
+            ));
         }
+        // After authorization, so a caller without access gets the
+        // permissions error rather than learning the org's setting.
+        await this.assertDataAppCapturesEnabled(organizationUuid);
 
         const maxSize = 10 * 1024 * 1024; // 10 MB
         if (contentLength > maxSize) {
@@ -2515,7 +2519,10 @@ export class AppGenerateService extends BaseService {
         );
         // Attached screenshots and images are captures too: kept, but not
         // served while the org's switch is off.
-        await this.assertCapturesVisible(user, `Image not found: ${imageId}`);
+        await this.assertCapturesVisible(
+            app.organization_uuid,
+            `Image not found: ${imageId}`,
+        );
 
         const belongsToApp = await this.appModel.appImageExists(
             appUuid,
@@ -2538,11 +2545,12 @@ export class AppGenerateService extends BaseService {
 
     // Viewing a thumbnail is a read: anyone who can view the app can see it,
     // not just those who can manage it.
+    /** Returns the app row so callers can scope further checks to its org. */
     private async assertCanViewAppThumbnail(
         user: SessionUser,
         projectUuid: string,
         appUuid: string,
-    ): Promise<void> {
+    ) {
         const app = await this.appModel.getApp(appUuid, projectUuid);
         if (app.template === DATA_APP_VIZ_TEMPLATE) {
             await assertChartTypesEnabled(this.featureFlagModel, user);
@@ -2550,17 +2558,19 @@ export class AppGenerateService extends BaseService {
                 organizationUuid: app.organization_uuid,
                 projectUuid,
             });
-            return;
+            return app;
         }
         await this.assertDataAppsEnabled(user);
         await this.assertCanViewApp(user, app);
+        return app;
     }
 
+    /** Returns the app row so callers can scope further checks to its org. */
     private async assertCanManageAppThumbnail(
         user: SessionUser,
         projectUuid: string,
         appUuid: string,
-    ): Promise<void> {
+    ) {
         await this.assertDataAppsEnabled(user);
         const app = await this.appModel.getApp(appUuid, projectUuid);
         await this.assertCanManageApp(
@@ -2568,6 +2578,7 @@ export class AppGenerateService extends BaseService {
             app,
             'Insufficient permissions to update app thumbnail',
         );
+        return app;
     }
 
     /** Saves a manual thumbnail; `version: null` targets the latest ready version. */
@@ -2580,8 +2591,12 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         version: number | null,
     ): Promise<void> {
-        await this.assertCanManageAppThumbnail(user, projectUuid, appUuid);
-        await this.assertDataAppCapturesEnabled(user.organizationUuid!);
+        const app = await this.assertCanManageAppThumbnail(
+            user,
+            projectUuid,
+            appUuid,
+        );
+        await this.assertDataAppCapturesEnabled(app.organization_uuid);
 
         if (mimeType !== 'image/png') {
             throw new ParameterError('App thumbnails must be PNG images');
@@ -2625,8 +2640,12 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         appUuid: string,
     ): Promise<{ thumbnailUrl: string }> {
-        await this.assertCanViewAppThumbnail(user, projectUuid, appUuid);
-        await this.assertThumbnailsVisible(user);
+        const app = await this.assertCanViewAppThumbnail(
+            user,
+            projectUuid,
+            appUuid,
+        );
+        await this.assertThumbnailsVisible(app.organization_uuid);
         const thumbnailUrl = await this.appThumbnailClient.getAppThumbnailUrl({
             projectUuid,
             appUuid,
@@ -2644,16 +2663,21 @@ export class AppGenerateService extends BaseService {
      * image chips already handle.
      */
     private async assertCapturesVisible(
-        user: SessionUser,
+        organizationUuid: string,
         message: string,
     ): Promise<void> {
-        if (!(await this.areDataAppCapturesEnabled(user.organizationUuid!))) {
+        if (!(await this.areDataAppCapturesEnabled(organizationUuid))) {
             throw new NotFoundError(message);
         }
     }
 
-    private async assertThumbnailsVisible(user: SessionUser): Promise<void> {
-        await this.assertCapturesVisible(user, 'App thumbnail not found');
+    private async assertThumbnailsVisible(
+        organizationUuid: string,
+    ): Promise<void> {
+        await this.assertCapturesVisible(
+            organizationUuid,
+            'App thumbnail not found',
+        );
     }
 
     async getVersionThumbnailUrl(
@@ -2662,8 +2686,12 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         version: number,
     ): Promise<{ thumbnailUrl: string }> {
-        await this.assertCanViewAppThumbnail(user, projectUuid, appUuid);
-        await this.assertThumbnailsVisible(user);
+        const app = await this.assertCanViewAppThumbnail(
+            user,
+            projectUuid,
+            appUuid,
+        );
+        await this.assertThumbnailsVisible(app.organization_uuid);
         const thumbnailUrl =
             await this.appThumbnailClient.getVersionThumbnailUrl({
                 projectUuid,

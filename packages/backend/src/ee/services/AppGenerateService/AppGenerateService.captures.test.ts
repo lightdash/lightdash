@@ -279,6 +279,30 @@ describe('AppGenerateService data app captures switch', () => {
         expect(bodyWasRead()).toBe(false);
     });
 
+    it('tells a caller without project access about permissions, not the switch', async () => {
+        const { service } = buildService({ storedCapturesChoice: false });
+        const noAbility = new Ability([]);
+        const stranger = {
+            ...builder,
+            userUuid: 'stranger',
+            ability: noAbility,
+            abilityRules: noAbility.rules,
+        } as unknown as SessionUser;
+
+        await expect(
+            service.uploadFile(
+                stranger,
+                PROJECT_UUID,
+                'image/png',
+                Readable.from([png]),
+                png.length,
+                APP_UUID,
+                'screenshot.png',
+                'screenshot',
+            ),
+        ).rejects.toThrow('Insufficient permissions to upload app files');
+    });
+
     it('refuses a manual thumbnail while off', async () => {
         const { uploadThumbnail } = buildService({
             storedCapturesChoice: false,

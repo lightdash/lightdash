@@ -1649,6 +1649,8 @@ export class ServiceRepository
                     documentModel: this.models.getDocumentModel(),
                     documentService: this.getDocumentService(),
                     userModel: this.models.getUserModel(),
+                    organizationSettingsModel:
+                        this.models.getOrganizationSettingsModel(),
                 }),
         );
     }

@@ -3249,19 +3249,15 @@ const AppGenerate: FC = () => {
                                             }
                                             onRefresh={handleRefreshPreview}
                                             refreshDisabled={!previewApp}
-                                            captureThumbnail={
-                                                capturesEnabled
-                                                    ? {
-                                                          onCapture: () =>
-                                                              void captureThumbnail(),
-                                                          disabled:
-                                                              !previewApp ||
-                                                              !screenshotAvailable ||
-                                                              isCapturingScreenshot ||
-                                                              isCapturingThumbnail,
-                                                      }
-                                                    : null
-                                            }
+                                            captureThumbnail={{
+                                                onCapture: () =>
+                                                    void captureThumbnail(),
+                                                disabled:
+                                                    !previewApp ||
+                                                    !screenshotAvailable ||
+                                                    isCapturingScreenshot ||
+                                                    isCapturingThumbnail,
+                                            }}
                                             capturePreviewScreenshot={
                                                 screenshotAvailable
                                                     ? capturePreviewScreenshot
