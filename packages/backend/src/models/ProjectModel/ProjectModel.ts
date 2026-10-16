@@ -5424,6 +5424,50 @@ export class ProjectModel {
         );
     }
 
+    private async getDbtSourceWarehouseConnectionUuid(
+        projectUuid: string,
+        sourceUuid: string,
+    ): Promise<string | null> {
+        if (
+            sourceUuid ===
+            (await this.getDbtSourceIdentity(projectUuid)).dbtSourceUuid
+        ) {
+            return null;
+        }
+        const source = await this.database('project_dbt_sources')
+            .select<{ warehouse_connection_uuid: string | null }>(
+                'warehouse_connection_uuid',
+            )
+            .where('project_uuid', projectUuid)
+            .where('project_dbt_source_uuid', sourceUuid)
+            .first();
+        if (!source)
+            throw new ParameterError(
+                'The selected dbt source does not belong to this project.',
+            );
+        return source.warehouse_connection_uuid;
+    }
+
+    async getDbtSourceWarehouseType(
+        projectUuid: string,
+        sourceUuid: string,
+    ): Promise<WarehouseTypes | null> {
+        const warehouseConnectionUuid =
+            await this.getDbtSourceWarehouseConnectionUuid(
+                projectUuid,
+                sourceUuid,
+            );
+        const connections =
+            await this.getWarehouseConnectionsMetadata(projectUuid);
+        return (
+            connections.find(
+                (connection) =>
+                    connection.warehouseConnectionUuid ===
+                    warehouseConnectionUuid,
+            )?.warehouseType ?? null
+        );
+    }
+
     async getDeployStartOfWeek(
         projectUuid: string,
         exploreName: string,
@@ -5431,32 +5475,16 @@ export class ProjectModel {
     ): Promise<
         { kind: 'original' } | { kind: 'extra'; startOfWeek: WeekDay | null }
     > {
-        let warehouseConnectionUuid: string | null;
-        if (sourceUuid === null) {
-            warehouseConnectionUuid =
-                await this.getExploreWarehouseConnectionUuid(
-                    projectUuid,
-                    exploreName,
-                );
-        } else if (
-            sourceUuid ===
-            (await this.getDbtSourceIdentity(projectUuid)).dbtSourceUuid
-        ) {
-            warehouseConnectionUuid = null;
-        } else {
-            const source = await this.database('project_dbt_sources')
-                .select<{ warehouse_connection_uuid: string | null }>(
-                    'warehouse_connection_uuid',
-                )
-                .where('project_uuid', projectUuid)
-                .where('project_dbt_source_uuid', sourceUuid)
-                .first();
-            if (!source)
-                throw new ParameterError(
-                    'The selected dbt source does not belong to this project.',
-                );
-            warehouseConnectionUuid = source.warehouse_connection_uuid;
-        }
+        const warehouseConnectionUuid =
+            sourceUuid === null
+                ? await this.getExploreWarehouseConnectionUuid(
+                      projectUuid,
+                      exploreName,
+                  )
+                : await this.getDbtSourceWarehouseConnectionUuid(
+                      projectUuid,
+                      sourceUuid,
+                  );
         if (warehouseConnectionUuid === null) return { kind: 'original' };
         const credentials = await this.getWarehouseConnectionForBinding(
             projectUuid,

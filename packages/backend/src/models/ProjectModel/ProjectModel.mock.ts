@@ -480,6 +480,9 @@ export const singleRouteProjectModelMethods = {
     async getDeployStartOfWeek() {
         return { kind: 'original' as const };
     },
+    async getDbtSourceWarehouseType() {
+        return WarehouseTypes.POSTGRES;
+    },
     async getWarehouseConnectionsMetadata() {
         return [];
     },
