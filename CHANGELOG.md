@@ -1,3 +1,10 @@
+# [2.597.0](https://github.com/lightdash/lightdash/compare/2.596.0...2.597.0) (2026-10-16)
+
+
+### Features
+
+* **ai:** add a Retry button to Slack agent error replies ([#31070](https://github.com/lightdash/lightdash/issues/31070)) ([0c1f4d1](https://github.com/lightdash/lightdash/commit/0c1f4d17cf8feb0ce190455db4f638c0aad08d72))
+
 # [2.596.0](https://github.com/lightdash/lightdash/compare/2.595.0...2.596.0) (2026-10-16)
 
 
