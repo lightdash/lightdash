@@ -84,7 +84,7 @@
     "dayjs": "1.11.10",
     "dependency-graph": "0.11.0",
     "echarts": "5.6.0",
-    "handlebars": "4.7.9",
+    "handlebars": "4.7.10",
     "js-yaml": "4.3.2",
     "liquidjs": "10.27.2",
     "lodash": "4.18.1",
