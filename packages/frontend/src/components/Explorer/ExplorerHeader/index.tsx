@@ -22,6 +22,7 @@ import { useMergeChangeSinceRun } from '../../../features/mergeQuery/hooks/useMe
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { useExploreConnectionName } from '../../../hooks/useConnectionBadges';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
+import { useExploreWarehouseConnection } from '../../../hooks/useExploreWarehouseConnection';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
 import { useVerificationSavePrompt } from '../../../hooks/useVerificationSavePrompt';
@@ -32,6 +33,7 @@ import { useIsModalHosted } from '../../../providers/Explorer/useIsModalHosted';
 import ConnectionBadge from '../../common/ConnectionBadge';
 import MantineIcon from '../../common/MantineIcon';
 import ShareShortLinkButton from '../../common/ShareShortLinkButton';
+import { getWarehouseLabel } from '../../ProjectConnection/ProjectConnectFlow/utils';
 import { RefreshButton } from '../../RefreshButton';
 import RefreshDbtButton from '../../RefreshDbtButton';
 import SaveChartButton from '../SaveChartButton';
@@ -97,6 +99,15 @@ const ExplorerHeader: FC = memo(() => {
         projectUuid,
         unsavedChartVersion.tableName,
     );
+
+    const { warehouseType } = useExploreWarehouseConnection(
+        unsavedChartVersion.tableName,
+        projectUuid,
+    );
+    const connectionLabel =
+        connectionName && warehouseType
+            ? `${connectionName} · ${getWarehouseLabel(warehouseType)}`
+            : connectionName;
 
     const { getHasDashboardChanges } = useDashboardStorage();
 
@@ -197,7 +208,7 @@ const ExplorerHeader: FC = memo(() => {
             </Box>
 
             <Group gap="xs">
-                <ConnectionBadge name={connectionName} />
+                <ConnectionBadge name={connectionLabel} />
                 {showMergeOutOfDate && (
                     <Tooltip
                         w={400}
