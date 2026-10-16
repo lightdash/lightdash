@@ -6295,4 +6295,89 @@ describe('AiAgentToolsService searchCustomChartTypes', () => {
             'missing',
         );
     });
+
+    describe('listCustomChartTypesPage', () => {
+        const list = (
+            page: number,
+            {
+                canUseChartTypes = true,
+                appModel = {},
+            }: {
+                canUseChartTypes?: boolean;
+                appModel?: Record<string, unknown>;
+            },
+        ) => {
+            const service = makeService({
+                appGenerateService: {
+                    canUseChartTypes: vi
+                        .fn()
+                        .mockResolvedValue(canUseChartTypes),
+                },
+                appModel,
+            });
+            return (
+                service as unknown as {
+                    listCustomChartTypesPage: (
+                        context: AiAgentToolsRuntimeContext,
+                        a: { page: number },
+                    ) => Promise<unknown>;
+                }
+            ).listCustomChartTypesPage(makeRuntimeContext({ source: 'mcp' }), {
+                page,
+            });
+        };
+
+        it('refuses a caller who fails the gallery gate before any query', async () => {
+            const listDataAppVisualizations = vi.fn();
+            await expect(
+                list(1, {
+                    canUseChartTypes: false,
+                    appModel: { listDataAppVisualizations },
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(listDataAppVisualizations).not.toHaveBeenCalled();
+        });
+
+        it('passes the page through without a search and maps items like find', async () => {
+            const listDataAppVisualizations = vi.fn().mockResolvedValue({
+                data: [row],
+                pagination: {
+                    page: 2,
+                    pageSize: 10,
+                    totalResults: 11,
+                    totalPageCount: 2,
+                },
+            });
+            const findDataAppVisualizationBySlug = vi
+                .fn()
+                .mockResolvedValue(row);
+
+            const result = await list(2, {
+                appModel: { listDataAppVisualizations },
+            });
+            const [found] = (await search(
+                { slug: 'funnel-viz' },
+                { appModel: { findDataAppVisualizationBySlug } },
+            )) as unknown[];
+
+            expect(listDataAppVisualizations).toHaveBeenCalledWith(
+                projectUuid,
+                {
+                    page: 2,
+                    pageSize:
+                        AiAgentToolsService.CUSTOM_CHART_TYPES_LIST_PAGE_SIZE,
+                },
+            );
+            expect(result).toEqual({
+                pagination: {
+                    page: 2,
+                    pageSize: 10,
+                    totalResults: 11,
+                    totalPageCount: 2,
+                },
+                results: [found],
+            });
+            expect(JSON.stringify(result)).not.toContain('viz-uuid');
+        });
+    });
 });

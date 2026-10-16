@@ -17,6 +17,7 @@ export const MCP_TOOL_CAPABILITIES = {
     edit_content: [AgentCapability.ContentWrite],
     find_content: [AgentCapability.ReadDiscover],
     find_custom_chart_types: [AgentCapability.ReadDiscover],
+    list_custom_chart_types: [AgentCapability.ReadDiscover],
     generate_data_app: [AgentCapability.ContentWrite],
     generate_hashes: [AgentCapability.ReadDiscover],
     get_ai_writeback_status: [AgentCapability.ReadDiscover],

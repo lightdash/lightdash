@@ -238,6 +238,11 @@ import {
     toolListContentOutputSchema,
 } from './toolListContentArgs';
 import {
+    MCP_TOOL_LIST_CUSTOM_CHART_TYPES_DESCRIPTION,
+    mcpListCustomChartTypesArgsSchema,
+    mcpListCustomChartTypesOutputSchema,
+} from './toolListCustomChartTypesMcpArgs';
+import {
     MCP_TOOL_LIST_DATA_APP_THEMES_DESCRIPTION,
     mcpListDataAppThemesStructuredOutputSchema,
     TOOL_LIST_DATA_APP_THEMES_DESCRIPTION,
@@ -1937,6 +1942,24 @@ export const mcpFindCustomChartTypesToolDefinition: ToolDefinitionWithMcpOutput<
     },
 });
 
+export const mcpListCustomChartTypesToolDefinition: ToolDefinitionWithMcpOutput<
+    'listCustomChartTypes',
+    typeof mcpListCustomChartTypesArgsSchema,
+    typeof mcpListCustomChartTypesArgsSchema,
+    undefined,
+    typeof mcpListCustomChartTypesOutputSchema
+> = defineTool({
+    name: 'listCustomChartTypes',
+    title: 'List custom chart types',
+    description: MCP_TOOL_LIST_CUSTOM_CHART_TYPES_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: mcpListCustomChartTypesArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpListCustomChartTypesOutputSchema,
+    },
+});
+
 export const iterateCustomChartTypeToolDefinition: ToolDefinitionWithMcpOutput<
     'iterateCustomChartType',
     typeof mcpIterateCustomChartTypeArgsSchema,
@@ -2158,6 +2181,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     createCustomChartTypeToolDefinition,
     iterateCustomChartTypeToolDefinition,
     mcpFindCustomChartTypesToolDefinition,
+    mcpListCustomChartTypesToolDefinition,
 ] as const;
 
 export type BuiltInToolDefinition = ToolDefinitionInstance;
