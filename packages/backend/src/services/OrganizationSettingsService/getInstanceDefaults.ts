@@ -16,4 +16,5 @@ export const getOrganizationSettingsInstanceDefaults = (
         lightdashConfig.persistentDownloadUrls.expirationSeconds,
     queryLimit: lightdashConfig.query.maxLimit,
     csvCellsLimit: lightdashConfig.query.csvCellsLimit,
+    dataAppCapturesEnabled: lightdashConfig.appRuntime.capturesEnabled,
 });

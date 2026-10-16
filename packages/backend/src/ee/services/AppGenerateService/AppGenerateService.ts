@@ -1718,6 +1718,43 @@ export class AppGenerateService extends BaseService {
         }
     }
 
+    /**
+     * The org's effective "allow screenshots and attachments in data app
+     * builds" switch (org setting capped by `LIGHTDASH_APP_CAPTURES_ENABLED`).
+     * Gates every path that captures an image of a running app or hands a
+     * user file to the coding agent.
+     */
+    async areDataAppCapturesEnabled(
+        organizationUuid: string,
+    ): Promise<boolean> {
+        return this.appThumbnailClient.areCapturesEnabled(organizationUuid);
+    }
+
+    private async assertDataAppCapturesEnabled(
+        organizationUuid: string,
+    ): Promise<void> {
+        if (!(await this.areDataAppCapturesEnabled(organizationUuid))) {
+            throw new ForbiddenError(
+                'Screenshots and file attachments are disabled for this organization',
+            );
+        }
+    }
+
+    /**
+     * Attachment ids a build may use. While captures are off, files staged
+     * earlier (or by a client that skipped the UI) are dropped rather than
+     * handed to the agent, so flipping the switch takes effect immediately.
+     */
+    private async permittedFileIds(
+        organizationUuid: string,
+        fileIds: string[] | undefined,
+    ): Promise<string[]> {
+        if (!fileIds || fileIds.length === 0) return [];
+        return (await this.areDataAppCapturesEnabled(organizationUuid))
+            ? fileIds
+            : [];
+    }
+
     async dataAppsEnabledFor(user: SessionUser): Promise<boolean> {
         const { enabled } = await this.featureFlagModel.get({
             user,
@@ -2342,6 +2379,7 @@ export class AppGenerateService extends BaseService {
         mimeType: string;
     }> {
         await this.assertDataAppsEnabled(user);
+        await this.assertDataAppCapturesEnabled(user.organizationUuid!);
 
         // For iterations the app already exists — use its space + creator
         // context so a space editor or the creator can attach a file. For
@@ -2540,6 +2578,7 @@ export class AppGenerateService extends BaseService {
         version: number | null,
     ): Promise<void> {
         await this.assertCanManageAppThumbnail(user, projectUuid, appUuid);
+        await this.assertDataAppCapturesEnabled(user.organizationUuid!);
 
         if (mimeType !== 'image/png') {
             throw new ParameterError('App thumbnails must be PNG images');
@@ -5610,7 +5649,10 @@ export class AppGenerateService extends BaseService {
         const { appUuid, version, projectUuid, isIteration, chartReferences } =
             payload;
         // Jobs enqueued before the fileIds rename still carry imageIds.
-        const fileIds = payload.fileIds ?? payload.imageIds;
+        const fileIds = await this.permittedFileIds(
+            payload.organizationUuid,
+            payload.fileIds ?? payload.imageIds,
+        );
 
         // Check if version was cancelled while we were dead
         const currentStatus = await this.appModel.getVersionStatus(
@@ -7148,7 +7190,9 @@ export class AppGenerateService extends BaseService {
                 projectUuid,
             ),
         ]);
-        const fileCount = fileIds?.length ?? 0;
+        const fileCount = (
+            await this.permittedFileIds(organizationUuid, fileIds)
+        ).length;
 
         // No `.max()` on the array — Anthropic's structured-output mode
         // rejects `maxItems` in the schema. The prompt already pins the
@@ -7474,6 +7518,10 @@ export class AppGenerateService extends BaseService {
         }
 
         AppGenerateService.validateFileIds(fileIds);
+        const permittedFileIds = await this.permittedFileIds(
+            organizationUuid,
+            fileIds,
+        );
 
         const appUuid = preGeneratedAppUuid ?? uuidv4();
         const version = 1;
@@ -7482,13 +7530,13 @@ export class AppGenerateService extends BaseService {
         // Resolve attachment types/filenames from the staged S3 objects so the
         // version resources can split image chips from file chips in the chat.
         let stagedFiles: StagedAppFile[] = [];
-        if (fileIds.length > 0) {
+        if (permittedFileIds.length > 0) {
             const { client: s3Client, bucket } = this.getS3Client();
             stagedFiles = await AppGenerateService.resolveStagedFiles(
                 s3Client,
                 bucket,
                 appUuid,
-                fileIds,
+                permittedFileIds,
             );
         }
 
@@ -7669,7 +7717,7 @@ export class AppGenerateService extends BaseService {
             prompt: pipelinePrompt,
             ...(creationExperience ? { creationExperience } : {}),
             template,
-            fileIds: fileIds.length > 0 ? fileIds : undefined,
+            fileIds: permittedFileIds.length > 0 ? permittedFileIds : undefined,
             isIteration: false,
             claudeEffort,
             chartReferences:
@@ -7731,17 +7779,21 @@ export class AppGenerateService extends BaseService {
         });
         AppGenerateService.assertNotRegistryManaged(app, 'edited');
         await this.assertDataAppCreditsAvailable(user);
+        const permittedFileIds = await this.permittedFileIds(
+            organizationUuid,
+            fileIds,
+        );
 
         // Resolve attachment types/filenames from the staged S3 objects so the
         // version resources can split image chips from file chips in the chat.
         let stagedFiles: StagedAppFile[] = [];
-        if (fileIds.length > 0) {
+        if (permittedFileIds.length > 0) {
             const { client: s3Client, bucket } = this.getS3Client();
             stagedFiles = await AppGenerateService.resolveStagedFiles(
                 s3Client,
                 bucket,
                 appUuid,
-                fileIds,
+                permittedFileIds,
             );
         }
 
@@ -7951,7 +8003,7 @@ export class AppGenerateService extends BaseService {
             userUuid: user.userUuid,
             prompt: pipelinePrompt,
             ...(creationExperience ? { creationExperience } : {}),
-            fileIds: fileIds.length > 0 ? fileIds : undefined,
+            fileIds: permittedFileIds.length > 0 ? permittedFileIds : undefined,
             isIteration: true,
             claudeEffort,
             chartReferences:

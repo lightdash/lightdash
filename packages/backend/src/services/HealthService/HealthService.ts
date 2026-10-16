@@ -324,6 +324,8 @@ export class HealthService extends BaseService {
                 previewOrigin: this.lightdashConfig.appRuntime.previewOrigin,
                 sampleDataEnabled:
                     this.lightdashConfig.appRuntime.sampleDataEnabled,
+                capturesEnabled:
+                    this.lightdashConfig.appRuntime.capturesEnabled,
             },
             learnSandbox: {
                 enabled: await this.learnSandboxService.isRuntimeAvailable(),

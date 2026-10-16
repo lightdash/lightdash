@@ -2373,6 +2373,16 @@ export type AppRuntimeConfig = {
      * the UI. Env var `LIGHTDASH_APP_SAMPLE_DATA_ENABLED`; defaults to `true`.
      */
     sampleDataEnabled: boolean;
+    /**
+     * When false, nothing may capture an image of a running data app or attach
+     * a file to a build anywhere on the instance: the prompt-bar screenshot
+     * button, file attachments sent to the coding agent, manual and automatic
+     * thumbnails, and the Slack build-outcome image are all disabled and
+     * hidden. This is the ceiling for the per-org "allow screenshots and
+     * attachments" setting — an org can turn captures off, never back on past
+     * it. Env var `LIGHTDASH_APP_CAPTURES_ENABLED`; defaults to `true`.
+     */
+    capturesEnabled: boolean;
     /** Instance-wide hostname@CIDR exceptions for external connections only. */
     externalConnectionAllowedPrivateHostCidrs: AllowedPrivateHostCidrs;
     chartRegistry: {
@@ -2891,6 +2901,7 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             'false',
         sampleDataEnabled:
             process.env.LIGHTDASH_APP_SAMPLE_DATA_ENABLED !== 'false',
+        capturesEnabled: process.env.LIGHTDASH_APP_CAPTURES_ENABLED !== 'false',
         externalConnectionAllowedPrivateHostCidrs: (() => {
             const name =
                 'APP_RUNTIME_EXTERNAL_CONNECTION_ALLOWED_PRIVATE_HOST_CIDRS';

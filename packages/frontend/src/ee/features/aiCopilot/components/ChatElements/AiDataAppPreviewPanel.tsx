@@ -41,6 +41,7 @@ import { useAppInspector } from '../../../../../features/apps/hooks/useAppInspec
 import { useAppPreviewToken } from '../../../../../features/apps/hooks/useAppPreviewToken';
 import { useCanEditVerifiedDataApp } from '../../../../../features/apps/hooks/useCanEditDataApp';
 import { useCaptureThumbnail } from '../../../../../features/apps/hooks/useCaptureThumbnail';
+import { useDataAppCapturesEnabled } from '../../../../../features/apps/hooks/useDataAppCapturesEnabled';
 import { useElementPicker } from '../../../../../features/apps/hooks/useElementPicker';
 import { useGetApp } from '../../../../../features/apps/hooks/useGetApp';
 import { useSdkUpgradeStatus } from '../../../../../features/apps/hooks/useSdkUpgradeStatus';
@@ -295,6 +296,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
 
     const previewRef = useRef<AppIframePreviewHandle>(null);
     const [screenshotAvailable, setScreenshotAvailable] = useState(false);
+    const capturesEnabled = useDataAppCapturesEnabled();
     const capturePreviewScreenshot = useCallback(async () => {
         const capture = previewRef.current?.captureScreenshot;
         if (!capture) {
@@ -564,7 +566,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                             }
                             onDeleted={() => dispatch(clearPreview())}
                             captureThumbnail={
-                                isRenderingVersion
+                                isRenderingVersion && capturesEnabled
                                     ? {
                                           onCapture: () =>
                                               void captureThumbnail(),

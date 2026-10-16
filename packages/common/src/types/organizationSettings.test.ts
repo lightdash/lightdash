@@ -10,6 +10,7 @@ const INSTANCE_DEFAULTS: OrganizationSettingsInstanceDefaults = {
     scheduledDeliveryExpirationSeconds: 259200, // 3 days (env default)
     queryLimit: 5000,
     csvCellsLimit: 100000,
+    dataAppCapturesEnabled: true,
 };
 
 describe('resolveEffectiveOrganizationSettings', () => {
@@ -31,6 +32,7 @@ describe('resolveEffectiveOrganizationSettings', () => {
             csvCellsLimit: 100000,
             corsAllowedDomains: [],
             dataAppAutomaticThumbnailsEnabled: true,
+            dataAppCapturesEnabled: true,
         });
     });
 
@@ -45,6 +47,54 @@ describe('resolveEffectiveOrganizationSettings', () => {
             resolveEffectiveOrganizationSettings(
                 { dataAppAutomaticThumbnailsEnabled: false },
                 INSTANCE_DEFAULTS,
+            ).dataAppAutomaticThumbnailsEnabled,
+        ).toBe(false);
+    });
+
+    test('data app captures are on until an org turns them off', () => {
+        expect(
+            resolveEffectiveOrganizationSettings({}, INSTANCE_DEFAULTS)
+                .dataAppCapturesEnabled,
+        ).toBe(true);
+        expect(
+            resolveEffectiveOrganizationSettings(
+                { dataAppCapturesEnabled: false },
+                INSTANCE_DEFAULTS,
+            ).dataAppCapturesEnabled,
+        ).toBe(false);
+    });
+
+    test('the instance env is a ceiling: an org cannot turn captures back on past it', () => {
+        const capturesOffInstance = {
+            ...INSTANCE_DEFAULTS,
+            dataAppCapturesEnabled: false,
+        };
+        expect(
+            resolveEffectiveOrganizationSettings({}, capturesOffInstance)
+                .dataAppCapturesEnabled,
+        ).toBe(false);
+        expect(
+            resolveEffectiveOrganizationSettings(
+                { dataAppCapturesEnabled: true },
+                capturesOffInstance,
+            ).dataAppCapturesEnabled,
+        ).toBe(false);
+    });
+
+    test('automatic thumbnails are off whenever captures are off, whatever the org chose', () => {
+        expect(
+            resolveEffectiveOrganizationSettings(
+                {
+                    dataAppCapturesEnabled: false,
+                    dataAppAutomaticThumbnailsEnabled: true,
+                },
+                INSTANCE_DEFAULTS,
+            ).dataAppAutomaticThumbnailsEnabled,
+        ).toBe(false);
+        expect(
+            resolveEffectiveOrganizationSettings(
+                { dataAppAutomaticThumbnailsEnabled: true },
+                { ...INSTANCE_DEFAULTS, dataAppCapturesEnabled: false },
             ).dataAppAutomaticThumbnailsEnabled,
         ).toBe(false);
     });
