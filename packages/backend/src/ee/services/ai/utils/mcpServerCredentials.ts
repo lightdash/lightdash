@@ -5,13 +5,8 @@ export type AiMcpOAuthClientCredentials = {
     clientSecret?: string;
 };
 
-/**
- * The one rule for the OAuth client credentials of an agent MCP server, shared
- * by the service (request validation and normalisation) and the model (payload
- * serialisation). A client ID may stand alone: that is a public client, and
- * the MCP SDK then authenticates the token request with PKCE only. A secret
- * without a client ID is rejected.
- */
+// Shared by the service and the model. A client ID may stand alone (public
+// client, PKCE only); a secret without a client ID is rejected.
 export const normalizeAiMcpOAuthClientCredentials = (
     credentials: ApiCreateAiMcpServer['credentials'] | undefined,
 ): AiMcpOAuthClientCredentials | null => {

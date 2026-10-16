@@ -344,11 +344,7 @@ const buildDefaultClientMetadata = (
     token_endpoint_auth_method: 'none',
 });
 
-/**
- * Client information for a pre-registered OAuth client. A configured client
- * ID without a secret is a public client: the SDK then authenticates the
- * token request with PKCE only (`token_endpoint_auth_method: 'none'`).
- */
+// A configured client ID without a secret is a public client: PKCE only.
 const getConfiguredClientInformation = (
     payload: Pick<
         AiMcpOAuthCredentialPayload,
